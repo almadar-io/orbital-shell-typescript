@@ -4,7 +4,7 @@ use super::emitters::{
     emit_scene, emit_surface, emit_type_scale,
 };
 use orbital_core::schema::{ThemeTokens, ThemeVariant};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Pick the right Option for each axis: prefer dark_variant.<axis> if Some, else base_tokens.<axis>.
 /// Matches the same category-level cascade used for colors / shadows in this file.
@@ -71,7 +71,7 @@ pub(crate) fn emit_skin_axes_dark(
 pub(crate) fn generate_tokens_css(
     tokens: &ThemeTokens,
     indent: &str,
-    defaults: &HashMap<&str, &str>,
+    defaults: &BTreeMap<&str, &str>,
     _is_dark: bool,
 ) -> String {
     let mut css = String::new();
@@ -209,7 +209,7 @@ pub(crate) fn generate_tokens_css_dark(
     base_tokens: &ThemeTokens,
     dark_variant: Option<&ThemeVariant>,
     indent: &str,
-    defaults: &HashMap<&str, &str>,
+    defaults: &BTreeMap<&str, &str>,
 ) -> String {
     let mut css = String::new();
 

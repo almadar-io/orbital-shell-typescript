@@ -2887,7 +2887,7 @@ mod guard_rejection_is_a_noop_tests {
         trait_def.transitions.push(trans);
         let event_def = OirEvent::new("INIT");
         trait_def.events.push(event_def.clone());
-        let mut knobs = std::collections::HashMap::new();
+        let mut knobs = orbital_core::ir::OirObject::new();
         knobs.insert(
             "value".to_string(),
             orbital_core::ir::OirValue::String("@callsitePayload.row.memberCount".to_string()),

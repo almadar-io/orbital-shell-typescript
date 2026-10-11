@@ -231,7 +231,6 @@ pub(crate) fn jsx_text_to_expression(jsx: String) -> String {
 mod tests {
     use super::*;
     use orbital_core::ir::OirValue;
-    use std::collections::HashMap;
 
     fn quoted(json: &str) -> OirValue {
         let sexpr: orbital_core::schema::SExpression = serde_json::from_str(json).unwrap();
@@ -269,7 +268,7 @@ mod tests {
     fn object_keys_quote_when_not_identifier_safe() {
         // render-tree props like data-theme reach config defaults verbatim;
         // a bare hyphenated key is a syntax error in type AND object literals
-        let mut obj: HashMap<String, OirValue> = HashMap::new();
+        let mut obj: orbital_core::ir::OirObject = orbital_core::ir::OirObject::new();
         obj.insert(
             "data-theme".to_string(),
             OirValue::String("@currentTheme".to_string()),
@@ -300,7 +299,7 @@ mod tests {
 
     #[test]
     fn literal_emitter_objects_are_sorted_and_unquoted_keys() {
-        let mut obj = HashMap::new();
+        let mut obj = orbital_core::ir::OirObject::new();
         obj.insert("b".to_string(), OirValue::Number(2.0));
         obj.insert("a".to_string(), OirValue::Number(1.0));
         // Deterministic: keys sorted, unquoted, `: ` separator.

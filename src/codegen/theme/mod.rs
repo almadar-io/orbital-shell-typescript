@@ -46,14 +46,14 @@ mod tests {
     use std::collections::HashMap;
 
     fn create_test_theme() -> ThemeDefinition {
-        let mut colors = HashMap::new();
+        let mut colors = orbital_core::schema::ThemeMap::new();
         colors.insert("primary".to_string(), "#0ea5e9".to_string());
         colors.insert("background".to_string(), "#ffffff".to_string());
 
-        let mut radii = HashMap::new();
+        let mut radii = orbital_core::schema::ThemeMap::new();
         radii.insert("md".to_string(), "8px".to_string());
 
-        let mut dark_colors = HashMap::new();
+        let mut dark_colors = orbital_core::schema::ThemeMap::new();
         dark_colors.insert("background".to_string(), "#0c4a6e".to_string());
 
         let mut variants = HashMap::new();

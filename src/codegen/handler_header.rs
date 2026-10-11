@@ -746,7 +746,7 @@ mod call_service_message_tests {
         OirExpr::effect(OirEffect::CallService {
             service: "llm".to_string(),
             method: "call-tools".to_string(),
-            args: OirExpr::object(std::collections::HashMap::new()),
+            args: OirExpr::object(orbital_core::ir::OirFields::new()),
             key: None,
             emit: Some(OirEmitConfig {
                 success: Some("ANSWERED".to_string()),
@@ -821,7 +821,7 @@ mod service_host_import_tests {
         OirExpr::effect(OirEffect::CallService {
             service: "llm".to_string(),
             method: "generate".to_string(),
-            args: OirExpr::object(std::collections::HashMap::new()),
+            args: OirExpr::object(orbital_core::ir::OirFields::new()),
             key: key.map(OirExpr::string),
             emit: None,
         })

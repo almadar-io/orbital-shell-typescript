@@ -10,6 +10,7 @@ mod backend_hono;
 pub mod codegen;
 mod generators;
 pub mod pattern_registry;
+pub mod shell_program;
 mod shell;
 
 pub use backend::{classify_oir_type, EntityFieldInfo, ExtraComponentMapping, ServerFramework, TypeScriptBackend};
@@ -18,4 +19,4 @@ pub use codegen::target::{
 };
 pub use codegen::*;
 pub use generators::*;
-pub use shell::TypeScriptShell;
+pub use shell::{express_shell, hono_shell};

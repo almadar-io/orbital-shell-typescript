@@ -23,7 +23,7 @@ impl TypeScriptBackend {
 
     /// Collect all component imports needed from render_ui effects
     pub(crate) fn collect_component_imports(&self, trait_def: &OirTrait) -> Vec<(String, String)> {
-        let mut imports = HashSet::new();
+        let mut imports = std::collections::BTreeSet::new();
 
         for trans in &trait_def.transitions {
             for pattern in orbital_core::ir::render_ui_patterns(&trans.effects) {
@@ -149,8 +149,8 @@ impl TypeScriptBackend {
     /// handling both array and single-object values.
     pub(crate) fn collect_nested_pattern_imports(
         &self,
-        config: &HashMap<String, OirValue>,
-        imports: &mut HashSet<(String, String)>,
+        config: &orbital_core::ir::OirObject,
+        imports: &mut std::collections::BTreeSet<(String, String)>,
     ) {
         for value in config.values() {
             match value {
@@ -167,7 +167,7 @@ impl TypeScriptBackend {
                                 self.collect_pattern_from_object(child_obj, imports);
                             }
                             OirValue::Array(_) => {
-                                let nested: HashMap<String, OirValue> =
+                                let nested: orbital_core::ir::OirObject =
                                     [("_".to_string(), item.clone())].into_iter().collect();
                                 self.collect_nested_pattern_imports(&nested, imports);
                             }
@@ -212,8 +212,8 @@ impl TypeScriptBackend {
     /// then recurse into its remaining config keys.
     pub(crate) fn collect_pattern_from_object(
         &self,
-        obj: &HashMap<String, OirValue>,
-        imports: &mut HashSet<(String, String)>,
+        obj: &orbital_core::ir::OirObject,
+        imports: &mut std::collections::BTreeSet<(String, String)>,
     ) {
         if let Some(OirValue::String(child_type)) = obj.get("type") {
             let (component, path) = self.pattern_to_import(child_type);
@@ -225,7 +225,7 @@ impl TypeScriptBackend {
         // even when the object itself carries no `type` key (a plain wrapper
         // knob like `notificationTemplate: {…}` still nests renderable
         // pattern objects that the view will emit as components).
-        let child_config: HashMap<String, OirValue> = obj
+        let child_config: orbital_core::ir::OirObject = obj
             .iter()
             .filter(|(k, _)| *k != "type")
             .map(|(k, v)| (k.clone(), v.clone()))

@@ -3,15 +3,13 @@
 //! entry the interpreter's executor calls), and the pure `quasiquote` /
 //! `behavior/apply` forms compile to the shared `@almadar/core` helpers.
 
-use std::collections::HashMap;
-
 use orbital_core::ir::{
     OirEffect, OirEmitConfig, OirEvent, OirExpr, OirModule, OirState, OirTrait, OirTransition,
 };
 use orbital_shell_typescript::TypeScriptBackend;
 
 fn custom(name: &str, args: Vec<OirExpr>, emit: Option<OirEmitConfig>) -> OirExpr {
-    let args: HashMap<String, OirExpr> = args
+    let args: orbital_core::ir::OirFields = args
         .into_iter()
         .enumerate()
         .map(|(i, e)| (i.to_string(), e))
@@ -141,7 +139,38 @@ fn program_compose_routes_through_the_shared_host_like_the_other_program_effects
         vec![OirExpr::string("programs"), OirExpr::string("opts")],
         emit_cfg("COMPOSED", Some("COMPOSE_FAILED")),
     )]);
-    assert!(ts.contains("await runProgramEffect('program/compose', ["), "{ts}");
-    assert!(ts.contains("emittedEvents.push({ event: 'COMPOSED'"), "{ts}");
-    assert!(ts.contains("emittedEvents.push({ event: 'COMPOSE_FAILED'"), "{ts}");
+    assert!(
+        ts.contains("await runProgramEffect('program/compose', ["),
+        "{ts}"
+    );
+    assert!(
+        ts.contains("emittedEvents.push({ event: 'COMPOSED'"),
+        "{ts}"
+    );
+    assert!(
+        ts.contains("emittedEvents.push({ event: 'COMPOSE_FAILED'"),
+        "{ts}"
+    );
+}
+
+#[test]
+fn behavior_resolve_routes_through_the_shared_host_like_behavior_source() {
+    let ts = handlers(vec![custom(
+        "behavior/resolve",
+        vec![OirExpr::string("app")],
+        emit_cfg("RESOLVED", Some("RESOLVE_FAILED")),
+    )]);
+    assert!(
+        ts.contains("await runProgramEffect('behavior/resolve', ["),
+        "{ts}"
+    );
+    assert!(
+        ts.contains("emittedEvents.push({ event: 'RESOLVED'"),
+        "{ts}"
+    );
+    assert!(
+        ts.contains("emittedEvents.push({ event: 'RESOLVE_FAILED'"),
+        "{ts}"
+    );
+    assert!(!ts.contains("getSubstrateService"), "{ts}");
 }

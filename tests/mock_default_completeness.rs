@@ -111,7 +111,7 @@ fn array_and_object_defaults_reach_the_generated_app() {
             with_default(
                 "hero",
                 OirType::Json,
-                OirValue::Object(std::collections::HashMap::from([(
+                OirValue::Object(orbital_core::ir::OirObject::from([(
                     "label".to_string(),
                     OirValue::String("Label".into()),
                 )])),

@@ -114,7 +114,7 @@ impl TypeScriptBackend {
     /// Recursively collect entity type names from pattern config.
     pub(crate) fn collect_entity_types_from_config(
         &self,
-        config: &HashMap<String, OirValue>,
+        config: &orbital_core::ir::OirObject,
         linked_entity: Option<&str>,
         entity_types: &mut HashSet<String>,
     ) {
@@ -136,7 +136,7 @@ impl TypeScriptBackend {
                     for item in items {
                         if let OirValue::Object(child_obj) = item {
                             if child_obj.contains_key("type") {
-                                let child_config: HashMap<String, OirValue> = child_obj
+                                let child_config: orbital_core::ir::OirObject = child_obj
                                     .iter()
                                     .filter(|(k, _)| *k != "type")
                                     .map(|(k, v)| (k.clone(), v.clone()))
@@ -152,7 +152,7 @@ impl TypeScriptBackend {
                 }
                 OirValue::Object(child_obj) => {
                     if child_obj.contains_key("type") {
-                        let child_config: HashMap<String, OirValue> = child_obj
+                        let child_config: orbital_core::ir::OirObject = child_obj
                             .iter()
                             .filter(|(k, _)| *k != "type")
                             .map(|(k, v)| (k.clone(), v.clone()))
@@ -464,7 +464,7 @@ mod relation_target_import_tests {
     /// (`CategoryArticlesOverlay -> HelpCategory` fetches `HelpArticle` and
     /// renders `entity: (array/filter ?data …)` over the `CategoryArticles
     /// Loaded { data : [HelpArticle] }` payload). The type lives on
-    /// `OirTrait.events[].payload_schema` (`HashMap<String, OirType>`) —
+    /// `OirTrait.events[].payload_schema` (`orbital_core::ir::OirTypeMap`) —
     /// NOT `OirTrait.emits[].payload` (`Vec<OirPayloadField>`, confirmed
     /// empirically to be a separate, less-precise lowering of the exact
     /// same `.lolo` declaration that degrades `[HelpArticle]` to `Array {
@@ -485,7 +485,7 @@ mod relation_target_import_tests {
         trait_def.linked_entity = Some("HelpCategory".to_string());
 
         let mut loaded = OirEvent::new("CategoryArticlesLoaded");
-        let mut schema = HashMap::new();
+        let mut schema = orbital_core::ir::OirTypeMap::new();
         schema.insert(
             "data".to_string(),
             orbital_core::ir::OirType::Array {

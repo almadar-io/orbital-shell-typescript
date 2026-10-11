@@ -240,7 +240,7 @@ mod tests {
         let effect = OirEffect::CallService {
             service: "llm".to_string(),
             method: "call-tools".to_string(),
-            args: OirExpr::object(std::collections::HashMap::new()),
+            args: OirExpr::object(orbital_core::ir::OirFields::new()),
             key: None,
             emit: None,
         };
@@ -261,7 +261,7 @@ mod tests {
         let effect = OirEffect::CallService {
             service: "llm".to_string(),
             method: "call-tools".to_string(),
-            args: OirExpr::object(std::collections::HashMap::new()),
+            args: OirExpr::object(orbital_core::ir::OirFields::new()),
             key: None,
             emit: Some(orbital_core::ir::OirEmitConfig {
                 success: Some("ANSWERED".to_string()),
@@ -285,7 +285,7 @@ mod tests {
         let effect = OirEffect::CallService {
             service: "llm".to_string(),
             method: "call-tools".to_string(),
-            args: OirExpr::object(std::collections::HashMap::new()),
+            args: OirExpr::object(orbital_core::ir::OirFields::new()),
             key: None,
             emit: Some(orbital_core::ir::OirEmitConfig {
                 success: Some("ANSWERED".to_string()),
@@ -304,7 +304,7 @@ mod tests {
         OirEffect::CallService {
             service: "llm".to_string(),
             method: "classifyMany".to_string(),
-            args: OirExpr::object(std::collections::HashMap::new()),
+            args: OirExpr::object(orbital_core::ir::OirFields::new()),
             key: Some(OirExpr::string("batch-1")),
             emit: Some(orbital_core::ir::OirEmitConfig {
                 success: Some("CLASSIFIED".to_string()),
@@ -403,7 +403,7 @@ mod tests {
         let effect = OirEffect::call_service(
             "llm",
             "generate",
-            OirExpr::object(std::collections::HashMap::new()),
+            OirExpr::object(orbital_core::ir::OirFields::new()),
         );
         let js = backend.generate_server_effect_code(&effect, &module, None);
         assert!(
@@ -436,7 +436,7 @@ mod tests {
         let effect = OirEffect::CallService {
             service: "mailer".to_string(),
             method: "sendEmail".to_string(),
-            args: OirExpr::object(std::collections::HashMap::new()),
+            args: OirExpr::object(orbital_core::ir::OirFields::new()),
             key: None,
             emit: Some(emit_cfg),
         };
@@ -597,7 +597,7 @@ mod tests {
         let call_service = OirEffect::CallService {
             service: "mailer".to_string(),
             method: "sendEmail".to_string(),
-            args: OirExpr::object(std::collections::HashMap::new()),
+            args: OirExpr::object(orbital_core::ir::OirFields::new()),
             key: None,
             emit: Some(call_service_emit),
         };
@@ -619,7 +619,7 @@ mod tests {
         let call_service = OirEffect::CallService {
             service: "email".to_string(),
             method: "send".to_string(),
-            args: OirExpr::object(std::collections::HashMap::new()),
+            args: OirExpr::object(orbital_core::ir::OirFields::new()),
             key: None,
             emit: Some(orbital_core::ir::OirEmitConfig {
                 success: Some("SENT".to_string()),

@@ -31,7 +31,7 @@ pub struct CodegenContext {
     pub linked_entity_name: Option<String>,
     /// The narrowed payload schema for the current event/transition (field
     /// name → OirType). Used to resolve `@payload.<field>` source types.
-    pub current_payload_schema: Option<HashMap<String, OirType>>,
+    pub current_payload_schema: Option<orbital_core::ir::OirTypeMap>,
     /// All entities keyed by name. Used to resolve `@<EntityName>`,
     /// `Reference { entity }`, and the linked entity's field types when
     /// inferring lambda element types.

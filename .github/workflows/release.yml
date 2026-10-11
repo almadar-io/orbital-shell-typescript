@@ -1,0 +1,17 @@
+name: Release
+
+# A v* tag publishes this shell as a program orb runs: @almadar/orb-shell-typescript
+# (+ one platform package per OS/arch carrying the binary and its templates).
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    uses: almadar-io/orbital-core/.github/workflows/program-release.yml@main
+    with:
+      name: orb-shell-typescript
+      kind: shell
+      shell: typescript
+      cargo-args: --bin orb-shell-typescript
+    secrets: inherit

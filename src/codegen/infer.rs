@@ -310,7 +310,6 @@ mod never_nullish_tests {
 mod arg_facts_tests {
     use super::arg_facts;
     use orbital_core::ir::{OirBinding, OirExpr};
-    use std::collections::HashMap;
 
     fn bind(s: &str) -> OirExpr {
         OirExpr::binding(OirBinding::parse(s).unwrap())
@@ -333,11 +332,11 @@ mod arg_facts_tests {
         let defaulted = arg_facts(&OirExpr::call("object/get", vec![bind("@entity.a"), OirExpr::string("xs"), OirExpr::array(vec![])]));
         assert!(defaulted.never_nullish, "an object/get with a never-nullish default");
         assert!(!arg_facts(&OirExpr::call("object/get", vec![bind("@entity.a"), OirExpr::string("xs")])).never_nullish);
-        let obj = arg_facts(&OirExpr::object(HashMap::from([("done".to_string(), OirExpr::bool(true))])));
+        let obj = arg_facts(&OirExpr::object(orbital_core::ir::OirFields::from([("done".to_string(), OirExpr::bool(true))])));
         assert!(obj.object_literal && !obj.embeds_lambda);
         let lam = arg_facts(&OirExpr::lambda(vec!["row".to_string()], bind("@row.x")));
         assert_eq!(lam.lambda_params, Some(vec!["row".to_string()]));
-        let with_fn = arg_facts(&OirExpr::array(vec![OirExpr::object(HashMap::from([(
+        let with_fn = arg_facts(&OirExpr::array(vec![OirExpr::object(orbital_core::ir::OirFields::from([(
             "filter".to_string(),
             OirExpr::lambda(vec!["r".to_string()], OirExpr::bool(true)),
         )]))]));

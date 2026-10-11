@@ -190,7 +190,7 @@ pub struct TypeScriptBackend {
     /// resolve a token to its entity by id (id-first, name-fallback), so a
     /// call-site entity rename never breaks the collection/type join. `None`
     /// or a missing key → byte-identical to the pre-flip name-only path.
-    pub current_entity_ref_ids: CodegenCell<Option<HashMap<String, String>>>,
+    pub current_entity_ref_ids: CodegenCell<Option<orbital_core::ir::OirIdMap>>,
     /// V4 leverage-ids — `@trait.X` render-embed resolution. Precomputed at
     /// trait entry from the current trait's `trait_embed_ids` side-map (embed
     /// token NAME → trait id) by resolving each id to the CURRENT declaration
@@ -202,7 +202,7 @@ pub struct TypeScriptBackend {
     /// Phase E — current event's narrowed payload schema. Set in each
     /// per-event handler codegen block so `@payload.<F>` source
     /// inference resolves to real types.
-    pub current_payload_schema: CodegenCell<Option<HashMap<String, orbital_core::ir::OirType>>>,
+    pub current_payload_schema: CodegenCell<Option<orbital_core::ir::OirTypeMap>>,
     /// Extra JSX attributes for the NEXT pattern root emitted by
     /// `generate_pattern_from_registry` (taken on entry, so nested children
     /// never see them). Set for a compiled self-overlay modal branch so its
@@ -240,7 +240,7 @@ pub struct TypeScriptBackend {
     /// `@config.<knob>` in the child body; the server, which has no composing
     /// payload, compiles the captured value itself (absent payload) instead
     /// of the `undefined` every other leftover `@config` gets.
-    pub trait_callsite_knob_values: CodegenCell<HashMap<String, HashMap<String, OirValue>>>,
+    pub trait_callsite_knob_values: CodegenCell<HashMap<String, orbital_core::ir::OirObject>>,
     /// §60 — mount-racy `listens` edges: qualified bus key → listening trait
     /// names. An edge is racy when the listening trait is embedded in a render
     /// tree produced by a transition of the SOURCE trait on the trigger event
@@ -437,7 +437,7 @@ impl TypeScriptBackend {
         &self,
         renderer: &dyn crate::codegen::target::ComponentRenderer,
         pattern_type: &str,
-        config: &HashMap<String, OirValue>,
+        config: &orbital_core::ir::OirObject,
         linked_entity: Option<&str>,
         entity_field_types: Option<&HashMap<String, EntityFieldInfo>>,
     ) -> String {
@@ -563,7 +563,7 @@ impl TypeScriptBackend {
             }
             self.trait_callsite_payload_flagged.set(flagged);
 
-            let mut knob_values: HashMap<String, HashMap<String, OirValue>> = HashMap::new();
+            let mut knob_values: HashMap<String, orbital_core::ir::OirObject> = HashMap::new();
             for t in &module.traits {
                 // The call-site value wins over the declared default.
                 for source in [t.declared_config_defaults.as_ref(), t.config.as_ref()] {

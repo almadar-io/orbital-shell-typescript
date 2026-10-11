@@ -7,7 +7,6 @@
 //! `WebComponentRenderer` and `WebClientEffectEmitter` are the
 //! defaults — they produce exactly the same output as the web backend.
 
-use orbital_core::ir::OirValue;
 use std::collections::HashMap;
 
 use crate::backend::{EntityFieldInfo, TypeScriptBackend};
@@ -29,7 +28,7 @@ pub trait ComponentRenderer: Send + Sync {
         &self,
         backend: &TypeScriptBackend,
         pattern_type: &str,
-        config: &HashMap<String, OirValue>,
+        config: &orbital_core::ir::OirObject,
         linked_entity: Option<&str>,
         entity_field_types: Option<&HashMap<String, EntityFieldInfo>>,
     ) -> String;
@@ -121,7 +120,7 @@ impl ComponentRenderer for WebComponentRenderer {
         &self,
         backend: &TypeScriptBackend,
         pattern_type: &str,
-        config: &HashMap<String, OirValue>,
+        config: &orbital_core::ir::OirObject,
         linked_entity: Option<&str>,
         entity_field_types: Option<&HashMap<String, EntityFieldInfo>>,
     ) -> String {

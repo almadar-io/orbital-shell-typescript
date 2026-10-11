@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Default values for tokens not specified in the schema
-pub(crate) fn get_default_tokens() -> HashMap<&'static str, &'static str> {
-    let mut defaults = HashMap::new();
+pub(crate) fn get_default_tokens() -> BTreeMap<&'static str, &'static str> {
+    let mut defaults = BTreeMap::new();
 
     // Shadows
     defaults.insert("shadow-none", "none");
@@ -55,8 +55,8 @@ pub(crate) fn get_default_tokens() -> HashMap<&'static str, &'static str> {
 }
 
 /// Default colors for light mode
-pub(crate) fn get_default_colors_light() -> HashMap<&'static str, &'static str> {
-    let mut colors = HashMap::new();
+pub(crate) fn get_default_colors_light() -> BTreeMap<&'static str, &'static str> {
+    let mut colors = BTreeMap::new();
 
     // Core semantic colors
     colors.insert("primary", "#0ea5e9");
@@ -106,8 +106,8 @@ pub(crate) fn get_default_colors_light() -> HashMap<&'static str, &'static str> 
 }
 
 /// Default colors for dark mode
-pub(crate) fn get_default_colors_dark() -> HashMap<&'static str, &'static str> {
-    let mut colors = HashMap::new();
+pub(crate) fn get_default_colors_dark() -> BTreeMap<&'static str, &'static str> {
+    let mut colors = BTreeMap::new();
 
     // Core semantic colors
     colors.insert("primary", "#38bdf8");
@@ -157,8 +157,8 @@ pub(crate) fn get_default_colors_dark() -> HashMap<&'static str, &'static str> {
 }
 
 /// Default border radii
-pub(crate) fn get_default_radii() -> HashMap<&'static str, &'static str> {
-    let mut radii = HashMap::new();
+pub(crate) fn get_default_radii() -> BTreeMap<&'static str, &'static str> {
+    let mut radii = BTreeMap::new();
     radii.insert("none", "0");
     radii.insert("sm", "4px");
     radii.insert("md", "8px");

@@ -2239,7 +2239,6 @@ mod implicit_emit_fanout_tests {
     #[test]
     fn deferred_emit_binds_payload_before_a_later_set_rebinds_fields() {
         use orbital_core::ir::OirBinding;
-        use std::collections::HashMap;
 
         let mut module = OirModule::new("Chat", "0.1.0");
         let mut persistor = OirTrait::new("Persistor");
@@ -2255,7 +2254,7 @@ mod implicit_emit_fanout_tests {
         composer.orbital_name = "Chat".to_string();
         composer.linked_entity = Some("Message".to_string());
         composer.states.push(OirState::initial("ready"));
-        let mut payload = HashMap::new();
+        let mut payload = orbital_core::ir::OirFields::new();
         payload.insert(
             "content".to_string(),
             OirExpr::binding(OirBinding::parse("@entity.draft").unwrap()),
@@ -2922,7 +2921,7 @@ mod listener_refinement_tests {
     fn payload_mapping_projects_the_delivered_payload() {
         let mut li = OirListener::new("EXACT_UNMATCHED", "LOOKUP");
         li.source_trait = Some("ExactRung".to_string());
-        let mut mapping = std::collections::HashMap::new();
+        let mut mapping = orbital_core::ir::OirFields::new();
         mapping.insert(
             "candidate".to_string(),
             OirExpr::binding(OirBinding::parse("@payload.candidate").unwrap()),

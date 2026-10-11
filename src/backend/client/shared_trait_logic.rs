@@ -1132,7 +1132,7 @@ mod dispatch_tests {
                     OirExpr::eq(bind("@entity.result"), OirExpr::string("won")),
                     OirExpr::effect(OirEffect::emit_with_payload(
                         "GAME_END",
-                        OirExpr::object(std::collections::HashMap::from([(
+                        OirExpr::object(orbital_core::ir::OirFields::from([(
                             "result".to_string(),
                             bind("@entity.result"),
                         )])),

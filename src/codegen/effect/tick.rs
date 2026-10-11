@@ -833,7 +833,6 @@ mod repro_tests {
         OirBinding, OirEffect, OirEntity, OirExpr, OirField, OirInterval, OirModule, OirPattern,
         OirPersistence, OirState, OirTick, OirTrait, OirTransition, OirType,
     };
-    use std::collections::HashMap;
 
     fn bind(s: &str) -> OirExpr {
         OirExpr::binding(OirBinding::parse(s).expect("binding"))
@@ -861,7 +860,7 @@ mod repro_tests {
             "object/merge",
             vec![
                 bind("@entity.player"),
-                OirExpr::object(HashMap::from([
+                OirExpr::object(orbital_core::ir::OirFields::from([
                     ("x".to_string(), bind("@px1")),
                     ("vy".to_string(), bind("@vy1")),
                 ])),
@@ -946,7 +945,7 @@ mod repro_tests {
         tick.effects.push(OirExpr::effect(OirEffect::set(OirBinding::parse("@entity.score").unwrap(), OirExpr::number(1.0))));
         tick.effects.push(OirExpr::effect(OirEffect::emit_with_payload(
             "PING",
-            OirExpr::object(HashMap::from([("n".to_string(), bind("@entity.score"))])),
+            OirExpr::object(orbital_core::ir::OirFields::from([("n".to_string(), bind("@entity.score"))])),
         )));
         let mut tr = OirTrait::new("Clock");
         tr.orbital_name = "Game".to_string();

@@ -5,7 +5,6 @@
 use super::*;
 use crate::backend::server::access_policies::policy_const_name;
 use orbital_core::ir::OirBinding;
-use std::collections::HashMap;
 
 /// Statement-level shapes `walk_effect_block` hands back to its caller: a
 /// `let` binding, an `if`/`when` (open/else/close around the recursed
@@ -572,7 +571,7 @@ impl TypeScriptBackend {
         module: &'a OirModule,
         linked_entity: Option<&str>,
         linked_entity_id: Option<&str>,
-        entity_ref_ids: Option<&HashMap<String, String>>,
+        entity_ref_ids: Option<&orbital_core::ir::OirIdMap>,
     ) -> (String, String, Option<&'a OirEntity>) {
         // `@entity` resolves via the trait's linkedEntity + its id sibling; a
         // NON-linked entity token (positional `fetch`/`ref`/`deref`/`swap` arg)
@@ -927,7 +926,7 @@ mod v4_rename_equivalence {
             .entities
             .push(entity("Item", Some("ent_9"), "items"));
 
-        let mut side_map = std::collections::HashMap::new();
+        let mut side_map = orbital_core::ir::OirIdMap::new();
         side_map.insert("Product".to_string(), "ent_9".to_string());
 
         // WITH the side-map: the stale token resolves by id to the renamed
@@ -967,7 +966,7 @@ mod v4_rename_equivalence {
 
         // Token missing from a present map → name fallback (here to the
         // snake_case default, matching pre-V4 behavior for an unknown name).
-        let empty: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let empty = orbital_core::ir::OirIdMap::new();
         let (miss_name, miss_coll, _) =
             TypeScriptBackend::resolve_entity_collection("Ghost", &m, None, None, Some(&empty));
         assert_eq!((miss_name.as_str(), miss_coll.as_str()), ("Ghost", "ghost"));

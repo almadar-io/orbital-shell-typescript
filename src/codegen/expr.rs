@@ -1823,7 +1823,7 @@ fn substitute_oir_param(body: &OirExpr, param: &str, item: &OirExpr, index: usiz
                 .collect(),
         },
         OirExpr::Object { fields } => {
-            let mut out = std::collections::HashMap::with_capacity(fields.len());
+            let mut out = orbital_core::ir::OirFields::with_capacity(fields.len());
             for (k, v) in fields {
                 out.insert(k.clone(), substitute_oir_param(v, param, item, index));
             }
@@ -1914,7 +1914,6 @@ fn lambda_reads_param_fields(arg: Option<&OirExpr>) -> bool {
 #[cfg(test)]
 mod static_unroll_tests {
     use super::*;
-    use std::collections::HashMap;
 
     fn s(v: &str) -> OirExpr {
         OirExpr::String {
@@ -1923,7 +1922,7 @@ mod static_unroll_tests {
     }
 
     fn obj(pairs: &[(&str, OirExpr)]) -> OirExpr {
-        let mut fields = HashMap::new();
+        let mut fields = orbital_core::ir::OirFields::new();
         for (k, v) in pairs {
             fields.insert((*k).to_string(), v.clone());
         }
@@ -1966,7 +1965,7 @@ mod static_unroll_tests {
         assert!(ts.contains("$: \"line-end\" as const"), "{ts}");
         assert!(ts.contains("h: \"left\" as const"), "{ts}");
         assert!(ts.contains("\"0\": \"line-start\" as const"), "{ts}");
-        let mut vals = HashMap::new();
+        let mut vals = orbital_core::ir::OirObject::new();
         vals.insert(
             "}".to_string(),
             OirValue::String("paragraph-forward".to_string()),
@@ -1986,7 +1985,7 @@ mod static_unroll_tests {
     #[test]
     fn server_render_compiles_a_captured_knob_against_an_absent_payload() {
         let b = TypeScriptBackend::new();
-        let mut knobs = HashMap::new();
+        let mut knobs = orbital_core::ir::OirObject::new();
         knobs.insert(
             "value".to_string(),
             OirValue::Array(vec![
@@ -1995,7 +1994,7 @@ mod static_unroll_tests {
             ]),
         );
         b.trait_callsite_knob_values
-            .set(HashMap::from([("Child".to_string(), knobs)]));
+            .set(std::collections::HashMap::from([("Child".to_string(), knobs)]));
         b.current_trait_scope.set(Some("Orb.Child".to_string()));
         let ts = b.pattern_value_to_ts_server(&OirValue::String("@config.value".into()));
         assert_ne!(
@@ -2373,13 +2372,13 @@ mod flavor_tests {
         assert!(ts.contains("Number(r ?? 0)"), "control: a binding operand keeps its fallback: {ts}");
         assert!(!ts.contains(") ?? 0)"), "the arithmetic operand takes no fallback: {ts}");
 
-        let entries = OirExpr::call("object/entries", vec![OirExpr::object(std::collections::HashMap::from([("a".to_string(), OirExpr::number(1.0))]))]);
+        let entries = OirExpr::call("object/entries", vec![OirExpr::object(orbital_core::ir::OirFields::from([("a".to_string(), OirExpr::number(1.0))]))]);
         let ts = b.expr_to_client_ts(&entries);
         assert!(!ts.contains("?? {}"), "an object literal takes no fallback: {ts}");
 
         let t = OirExpr::call(
             "i18n/t",
-            vec![OirExpr::string("home:count"), OirExpr::object(std::collections::HashMap::from([("n".to_string(), OirExpr::number(1.0))]))],
+            vec![OirExpr::string("home:count"), OirExpr::object(orbital_core::ir::OirFields::from([("n".to_string(), OirExpr::number(1.0))]))],
         );
         let ts = b.expr_to_client_ts(&t);
         assert!(!ts.contains("?? {}"), "i18n params given as an object literal take no fallback: {ts}");

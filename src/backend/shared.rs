@@ -1734,7 +1734,7 @@ mod config_named_type_import_tests {
     /// a named struct type lowers to.
     fn trait_with_nav_item_config() -> OirTrait {
         let mut tr = OirTrait::new("Sidebar");
-        let mut schema = std::collections::HashMap::new();
+        let mut schema = orbital_core::ir::OirConfigSchema::new();
         schema.insert(
             "items".to_string(),
             OirConfigFieldType {
@@ -1772,7 +1772,7 @@ mod config_named_type_import_tests {
         let backend = TypeScriptBackend::new();
         let mut module = OirModule::new("App", "1.0.0");
         let mut tr = OirTrait::new("Plain");
-        let mut schema = std::collections::HashMap::new();
+        let mut schema = orbital_core::ir::OirConfigSchema::new();
         schema.insert(
             "title".to_string(),
             OirConfigFieldType {

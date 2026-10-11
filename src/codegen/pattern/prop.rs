@@ -796,7 +796,7 @@ impl TypeScriptBackend {
                             .map(|e| e.contains_key(pattern_type.as_str()))
                             .unwrap_or(false);
                     if is_known {
-                        let config: HashMap<String, OirValue> = obj
+                        let config: orbital_core::ir::OirObject = obj
                             .iter()
                             .filter(|(k, _)| *k != "type")
                             .map(|(k, v)| (k.clone(), v.clone()))
@@ -1164,7 +1164,7 @@ mod absent_value_prop_tests {
     use super::*;
 
     fn link() -> OirValue {
-        let mut o = HashMap::new();
+        let mut o = orbital_core::ir::OirObject::new();
         o.insert("label".to_string(), OirValue::String("Next".to_string()));
         o.insert("href".to_string(), OirValue::String("/next".to_string()));
         OirValue::Object(o)
@@ -1280,7 +1280,7 @@ mod object_key_quoting_tests {
     #[test]
     fn a_key_that_is_not_an_identifier_is_quoted() {
         let b = TypeScriptBackend::new();
-        let mut obj = HashMap::new();
+        let mut obj = orbital_core::ir::OirObject::new();
         obj.insert("in-stock".to_string(), OirValue::String("In stock".to_string()));
         obj.insert("low".to_string(), OirValue::String("Low".to_string()));
         let out = b.value_to_jsx_literal(&OirValue::Object(obj));
@@ -1344,7 +1344,7 @@ mod escaping_tests {
     #[test]
     fn object_field_string_escapes_quotes_backslash_newline() {
         let backend = TypeScriptBackend::new();
-        let mut fields = HashMap::new();
+        let mut fields = orbital_core::ir::OirObject::new();
         fields.insert("description".to_string(), OirValue::String(RAW.to_string()));
         let out = backend.value_to_jsx_literal_with_context(&OirValue::Object(fields), None);
         assert_eq!(
@@ -1363,7 +1363,7 @@ mod escaping_tests {
     #[test]
     fn a_binding_string_inside_an_object_reads_the_binding() {
         let backend = TypeScriptBackend::new();
-        let mut fields = HashMap::new();
+        let mut fields = orbital_core::ir::OirObject::new();
         fields.insert("label".to_string(), OirValue::String("Score".to_string()));
         fields.insert(
             "value".to_string(),
@@ -1394,7 +1394,7 @@ mod escaping_tests {
     #[test]
     fn control_a_binding_string_under_a_runtime_key_stays_data() {
         let backend = TypeScriptBackend::new();
-        let mut fields = HashMap::new();
+        let mut fields = orbital_core::ir::OirObject::new();
         fields.insert(
             "field".to_string(),
             OirValue::String("@item.done".to_string()),
@@ -1677,7 +1677,7 @@ mod array_map_of_get_prop_narrowing_tests {
     #[test]
     fn array_map_of_object_literal_into_named_struct_array_prop_casts_the_whole_result() {
         let backend = TypeScriptBackend::new();
-        let mut fields = std::collections::HashMap::new();
+        let mut fields = orbital_core::ir::OirObject::new();
         fields.insert(
             "id".to_string(),
             OirValue::Array(vec![

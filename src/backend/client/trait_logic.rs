@@ -2114,7 +2114,6 @@ mod sexpr_config_default_tests {
     use super::{binding_root_is_hook_scoped, is_sexpr_call_default, nested_binding_roots};
     use crate::backend::TypeScriptBackend;
     use orbital_core::ir::{OirConfigFieldType, OirTrait, OirType, OirValue};
-    use std::collections::HashMap;
 
     /// G-CROSS-041: a quoted default is static data, emitted like any literal.
     #[test]
@@ -2266,8 +2265,8 @@ mod sexpr_config_default_tests {
     fn a_language_keyword_head_is_always_a_call_even_on_an_array_typed_field() {
         let sexpr = if_sexpr(
             OirValue::String("@user.role".into()),
-            OirValue::Array(vec![OirValue::Object(HashMap::new())]),
-            OirValue::Array(vec![OirValue::Object(HashMap::new())]),
+            OirValue::Array(vec![OirValue::Object(orbital_core::ir::OirObject::new())]),
+            OirValue::Array(vec![OirValue::Object(orbital_core::ir::OirObject::new())]),
         );
         assert!(is_sexpr_call_default(Some(&array_field()), &sexpr));
         assert!(is_sexpr_call_default(None, &sexpr));
@@ -2316,7 +2315,7 @@ mod sexpr_config_default_tests {
 
     fn trait_with_one_bool_config_default(default: OirValue) -> OirTrait {
         let mut tr = OirTrait::new("Widget");
-        let mut schema = HashMap::new();
+        let mut schema = orbital_core::ir::OirConfigSchema::new();
         schema.insert(
             "disabled".to_string(),
             OirConfigFieldType {
@@ -2325,7 +2324,7 @@ mod sexpr_config_default_tests {
             },
         );
         tr.declared_config_schema = Some(schema);
-        let mut defaults = HashMap::new();
+        let mut defaults = orbital_core::ir::OirObject::new();
         defaults.insert("disabled".to_string(), default);
         tr.declared_config_defaults = Some(defaults);
         tr
@@ -3119,12 +3118,11 @@ mod shared_frame_commit_tests {
 mod message_hook_tests {
     use crate::backend::TypeScriptBackend;
     use orbital_core::ir::{OirConfigFieldType, OirModule, OirState, OirTrait, OirType, OirValue};
-    use std::collections::HashMap;
 
     fn trait_with_string_default(default: OirValue) -> OirTrait {
         let mut tr = OirTrait::new("Footer");
         tr.states.push(OirState::initial("idle"));
-        let mut schema = HashMap::new();
+        let mut schema = orbital_core::ir::OirConfigSchema::new();
         schema.insert(
             "tagline".to_string(),
             OirConfigFieldType {
@@ -3133,7 +3131,7 @@ mod message_hook_tests {
             },
         );
         tr.declared_config_schema = Some(schema);
-        tr.declared_config_defaults = Some(HashMap::from([("tagline".to_string(), default)]));
+        tr.declared_config_defaults = Some(orbital_core::ir::OirObject::from([("tagline".to_string(), default)]));
         tr
     }
 
