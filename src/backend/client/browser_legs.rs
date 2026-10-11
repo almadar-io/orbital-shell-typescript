@@ -1,0 +1,391 @@
+//! Browser legs: a transition whose data effects target a browser-stored entity
+//! (`[persistent: x, local]`) sends its leg to the in-process browser store
+//! (`@almadar/runtime` `openBundledBrowserStore`) instead of the server. The
+//! store runs the resolved schema, bundled as `browserSchema.json` and loaded
+//! on the first such leg.
+
+use crate::backend::*;
+
+/// Path of the bundled schema, relative to `packages/client/src`.
+pub(crate) const BROWSER_SCHEMA_FILE: &str = "browserSchema.json";
+
+/// The `Trait\u{0}EVENT` key the bridge routes on.
+pub(crate) fn browser_leg_key(trait_name: &str, event: &str) -> String {
+    format!("{trait_name}\u{0}{event}")
+}
+
+impl TypeScriptBackend {
+    pub(crate) fn compute_browser_legs(module: &OirModule) -> BTreeSet<String> {
+        let residence = orbital_core::effects::Residence::of_module(module);
+        module
+            .traits
+            .iter()
+            .flat_map(|t| {
+                t.browser_leg_events(&residence)
+                    .into_iter()
+                    .map(|event| browser_leg_key(&t.name, &event))
+            })
+            .collect()
+    }
+
+    /// The browser store's `callService`: the web-hosted implementations of the
+    /// browser-only services the program calls.
+    pub(crate) fn generate_browser_services_file(module: &OirModule) -> Option<InternalFile> {
+        if module.browser_services.is_empty() {
+            return None;
+        }
+        let names: Vec<String> = module
+            .browser_services
+            .iter()
+            .map(|s| format!("'{s}'"))
+            .collect();
+        Some(InternalFile::new(
+            "packages/client/src/browserServices.ts".to_string(),
+            format!(
+                "import {{ createBrowserCallService, webBrowserServices }} from '@almadar/integrations/browser';\n\nexport const browserCallService = createBrowserCallService(webBrowserServices([{}]));\n",
+                names.join(", ")
+            ),
+            GeneratedFileType::Config,
+        ))
+    }
+
+    /// The resolved schema restricted to the orbitals that own a browser leg.
+    pub(crate) fn generate_browser_schema_file(&self, module: &OirModule) -> Option<InternalFile> {
+        let residence = orbital_core::effects::Residence::of_module(module);
+        let legged: Vec<&OirTrait> = module
+            .traits
+            .iter()
+            .filter(|t| !t.browser_leg_events(&residence).is_empty())
+            .collect();
+        if legged.is_empty() {
+            return None;
+        }
+        let owners: BTreeSet<&str> = legged.iter().map(|t| t.orbital_name.as_str()).collect();
+        let traits: BTreeSet<&str> = legged.iter().map(|t| t.name.as_str()).collect();
+        let mut schema = self.browser_schema.clone()?;
+        schema.orbitals.retain(|o| owners.contains(o.name.as_str()));
+        // A compiled client relays its own cascade, so the store runs only the requested leg's trait;
+        // resolve-time imports, metadata and the identity ledger are never read there.
+        schema.metadata = None;
+        schema.ledger = None;
+        for orbital in &mut schema.orbitals {
+            orbital
+                .traits
+                .retain(|t| t.trait_name().is_some_and(|n| traits.contains(n)));
+            orbital.uses = None;
+        }
+        let json = serde_json::to_string(&schema).ok()?;
+        Some(InternalFile::new(
+            format!("packages/client/src/{BROWSER_SCHEMA_FILE}"),
+            json,
+            GeneratedFileType::Config,
+        ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use orbital_core::ir::{
+        OirEffect, OirEntity, OirExpr, OirField, OirModule, OirPersistence, OirState, OirTrait,
+        OirTransition, OirType,
+    };
+
+    fn module(local: bool) -> OirModule {
+        let mut list = OirTrait::new("InvoiceList");
+        list.orbital_name = "Books".to_string();
+        list.linked_entity = Some("Invoice".to_string());
+        list.states.push(OirState::initial("idle"));
+        list.transitions.push(
+            OirTransition::new("idle", "idle", "INIT")
+                .with_effects(vec![OirExpr::effect(OirEffect::fetch("Invoice"))]),
+        );
+        list.transitions
+            .push(OirTransition::new("idle", "idle", "OPEN"));
+        let mut module = OirModule::new("Books", "1.0.0");
+        module.entities.push(OirEntity {
+            shared: false,
+            identity: false,
+            local,
+            seed_mock: false,
+            id: None,
+            name: "Invoice".to_string(),
+            description: None,
+            collection: "invoices".to_string(),
+            persistence: OirPersistence::Persistent,
+            fields: vec![
+                OirField::new("id", OirType::String),
+                OirField::new("amount", OirType::Number),
+            ],
+            defaults: None,
+            instances: vec![],
+            used_by_traits: vec![],
+            used_by_pages: vec![],
+            read_policy: None,
+            create_policy: None,
+            update_policy: None,
+            delete_policy: None,
+        });
+        module.traits.push(list);
+        module
+    }
+
+    fn backend_with_schema() -> TypeScriptBackend {
+        let schema: orbital_core::OrbitalSchema = serde_json::from_value(serde_json::json!({
+            "name": "Books",
+            "orbitals": [
+                { "name": "Books", "entity": { "name": "Invoice", "persistence": "persistent", "collection": "invoices", "local": true, "fields": [{ "name": "id", "type": "string" }] }, "traits": [], "pages": [] },
+                { "name": "Other", "entity": { "name": "Note", "persistence": "runtime", "fields": [{ "name": "id", "type": "string" }] }, "traits": [], "pages": [] }
+            ]
+        }))
+        .expect("schema fixture");
+        TypeScriptBackend {
+            browser_schema: Some(schema),
+            ..TypeScriptBackend::default()
+        }
+    }
+
+    #[test]
+    fn a_fetch_of_a_browser_stored_entity_is_a_browser_leg() {
+        let legs = TypeScriptBackend::compute_browser_legs(&module(true));
+        assert_eq!(
+            legs.into_iter().collect::<Vec<_>>(),
+            vec![browser_leg_key("InvoiceList", "INIT")]
+        );
+    }
+
+    #[test]
+    fn control_a_fetch_of_a_server_entity_is_no_browser_leg() {
+        assert!(TypeScriptBackend::compute_browser_legs(&module(false)).is_empty());
+    }
+
+    #[test]
+    fn the_bundled_schema_keeps_only_the_orbitals_that_own_a_browser_leg() {
+        let file = backend_with_schema()
+            .generate_browser_schema_file(&module(true))
+            .expect("schema file");
+        assert_eq!(file.path, "packages/client/src/browserSchema.json");
+        let value: serde_json::Value = serde_json::from_str(&file.content).unwrap();
+        let names: Vec<&str> = value["orbitals"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|o| o["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(names, vec!["Books"]);
+    }
+
+    #[test]
+    fn the_bundled_schema_keeps_only_the_traits_that_own_a_browser_leg() {
+        let schema: orbital_core::OrbitalSchema = serde_json::from_value(serde_json::json!({
+            "name": "Books",
+            "orbitals": [{
+                "name": "Books",
+                "entity": { "name": "Invoice", "persistence": "persistent", "collection": "invoices", "local": true, "fields": [{ "name": "id", "type": "string" }] },
+                "traits": [
+                    { "name": "InvoiceList", "stateMachine": { "states": [{ "name": "idle", "isInitial": true }], "transitions": [] } },
+                    { "name": "InvoiceChart", "stateMachine": { "states": [{ "name": "idle", "isInitial": true }], "transitions": [] } }
+                ],
+                "pages": [],
+                "uses": [{ "from": "almadar-behaviors/std-orb-home", "as": "Home" }]
+            }]
+        }))
+        .expect("schema fixture");
+        let backend = TypeScriptBackend {
+            browser_schema: Some(schema),
+            ..TypeScriptBackend::default()
+        };
+        let file = backend
+            .generate_browser_schema_file(&module(true))
+            .expect("schema file");
+        let value: serde_json::Value = serde_json::from_str(&file.content).unwrap();
+        let traits: Vec<&str> = value["orbitals"][0]["traits"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t["name"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            traits,
+            vec!["InvoiceList"],
+            "a compiled client relays its cascade; the store runs only leg traits"
+        );
+        assert_eq!(
+            value["orbitals"][0]["entity"]["name"], "Invoice",
+            "the orbital's entities stay"
+        );
+        assert!(
+            value["orbitals"][0].get("uses").is_none(),
+            "resolve-time imports are not shipped to the store"
+        );
+    }
+
+    #[test]
+    fn control_no_browser_leg_bundles_no_schema() {
+        assert!(backend_with_schema()
+            .generate_browser_schema_file(&module(false))
+            .is_none());
+    }
+
+    #[test]
+    fn a_backend_without_the_resolved_schema_cannot_store_rows_in_the_browser() {
+        use orbital_core::generate::Backend;
+        assert!(!TypeScriptBackend::default().supports_browser_stored_entities());
+        assert!(backend_with_schema().supports_browser_stored_entities());
+    }
+
+    #[test]
+    fn the_bridge_routes_browser_legs_to_the_browser_store() {
+        let backend = backend_with_schema();
+        backend
+            .browser_legs
+            .set(TypeScriptBackend::compute_browser_legs(&module(true)));
+        let bridge = backend.generate_orbital_bridge_hook().content;
+        for marker in [
+            "import { openBundledBrowserStore } from '@almadar/runtime';",
+            "const __BROWSER_LEGS: ReadonlySet<string> = new Set(['InvoiceList\\u0000INIT']);",
+            "const __browserLeg = __BROWSER_LEGS.has(`${traitName}\\u0000${event}`);",
+            "const __browserTransports = new Map<string, ReturnType<typeof openBundledBrowserStore>>();",
+            "import('@/browserSchema.json').then((m) => openBundledBrowserStore(m.default, locale, undefined, __BROWSER_MESSAGES))",
+            "return transport.then((t) => t.send(orbitalName, { ...request, locale }));",
+            "const { locale: __locale } = useTranslate();",
+            "await __browserSend(orbitalName, { event, payload",
+        ] {
+            assert!(bridge.contains(marker), "missing {marker:?}:\n{bridge}");
+        }
+    }
+
+    /// A browser leg evaluates `i18n/t` in the browser store: it needs the app's catalogs.
+    #[test]
+    fn the_browser_store_gets_every_locale_catalog() {
+        let backend = backend_with_schema();
+        backend
+            .browser_legs
+            .set(TypeScriptBackend::compute_browser_legs(&module(true)));
+        backend
+            .browser_locales
+            .set(vec!["en".to_string(), "ar".to_string()]);
+        let bridge = backend.generate_orbital_bridge_hook().content;
+        for marker in [
+            "import __messages_en from '../../../../locales/en.json';",
+            "import __messages_ar from '../../../../locales/ar.json';",
+            "const __BROWSER_MESSAGES: Record<string, Record<string, string>> = { en: __messages_en, ar: __messages_ar };",
+        ] {
+            assert!(bridge.contains(marker), "missing {marker:?}:\n{bridge}");
+        }
+    }
+
+    fn analytics_module() -> OirModule {
+        let mut visit = OirTrait::new("Pageview");
+        visit.orbital_name = "Site".to_string();
+        visit.states.push(OirState::initial("active"));
+        visit.transitions.push(
+            OirTransition::new("active", "active", "INIT").with_effects(vec![OirExpr::effect(
+                OirEffect::call_service("analytics", "pageview", OirExpr::null()),
+            )]),
+        );
+        let mut module = OirModule::new("Site", "1.0.0");
+        module.traits.push(visit);
+        module.browser_services = vec!["analytics".to_string()];
+        module
+    }
+
+    #[test]
+    fn a_call_to_a_browser_only_service_is_a_browser_leg() {
+        assert_eq!(
+            TypeScriptBackend::compute_browser_legs(&analytics_module())
+                .into_iter()
+                .collect::<Vec<_>>(),
+            vec![browser_leg_key("Pageview", "INIT")]
+        );
+        let mut control = analytics_module();
+        control.browser_services.clear();
+        assert!(
+            TypeScriptBackend::compute_browser_legs(&control).is_empty(),
+            "undeclared, it stays a server leg"
+        );
+    }
+
+    #[test]
+    fn the_client_wires_the_web_hosted_browser_services_it_calls() {
+        let file = TypeScriptBackend::generate_browser_services_file(&analytics_module())
+            .expect("browserServices.ts");
+        assert_eq!(file.path, "packages/client/src/browserServices.ts");
+        assert!(file.content.contains("import { createBrowserCallService, webBrowserServices } from '@almadar/integrations/browser';"), "{}", file.content);
+        assert!(file.content.contains("export const browserCallService = createBrowserCallService(webBrowserServices(['analytics']));"), "{}", file.content);
+        assert!(
+            TypeScriptBackend::generate_browser_services_file(&module(true)).is_none(),
+            "control: no browser-only service, no file"
+        );
+    }
+
+    #[test]
+    fn the_browser_store_answers_its_service_calls() {
+        let backend = backend_with_schema();
+        backend
+            .browser_legs
+            .set(TypeScriptBackend::compute_browser_legs(&analytics_module()));
+        backend.browser_services.set(true);
+        let bridge = backend.generate_orbital_bridge_hook().content;
+        for marker in [
+            "import { browserCallService } from '@/browserServices';",
+            "import('@/browserSchema.json').then((m) => openBundledBrowserStore(m.default, locale, browserCallService, __BROWSER_MESSAGES))",
+        ] {
+            assert!(bridge.contains(marker), "missing {marker:?}:\n{bridge}");
+        }
+    }
+
+    #[test]
+    fn control_browser_legs_over_entities_only_lend_no_services() {
+        let backend = backend_with_schema();
+        backend
+            .browser_legs
+            .set(TypeScriptBackend::compute_browser_legs(&module(true)));
+        let bridge = backend.generate_orbital_bridge_hook().content;
+        assert!(!bridge.contains("browserServices"), "{bridge}");
+        assert!(
+            bridge.contains(
+                "openBundledBrowserStore(m.default, locale, undefined, __BROWSER_MESSAGES))"
+            ),
+            "{bridge}"
+        );
+    }
+
+    #[test]
+    fn control_an_app_without_browser_legs_has_no_browser_routing() {
+        let backend = backend_with_schema();
+        backend
+            .browser_legs
+            .set(TypeScriptBackend::compute_browser_legs(&module(false)));
+        let bridge = backend.generate_orbital_bridge_hook().content;
+        for absent in ["@almadar/runtime", "__BROWSER_LEGS", "browserSchema"] {
+            assert!(!bridge.contains(absent), "unexpected {absent:?}:\n{bridge}");
+        }
+    }
+
+    #[test]
+    fn a_client_only_trait_sends_a_leg_for_its_browser_events_only() {
+        let backend = backend_with_schema();
+        let module = module(true);
+        let list = module.find_trait("InvoiceList").unwrap();
+        let hook = backend.generate_trait_logic_hook(list, &module).content;
+        assert!(
+            hook.contains("const __LEG_EVENTS: ReadonlySet<string> = new Set(['INIT']);"),
+            "{hook}"
+        );
+        assert!(hook.contains("if (__LEG_EVENTS.has(event)) {"), "{hook}");
+        assert!(hook.contains("commandPump.enqueue(async () => {"), "{hook}");
+        assert!(hook.contains("        if (response.success) {\n"), "{hook}");
+        assert!(!hook.contains("=== _optimistic.newState"), "{hook}");
+    }
+
+    #[test]
+    fn control_a_trait_on_a_server_entity_has_no_leg_gate() {
+        let backend = backend_with_schema();
+        let module = module(false);
+        let list = module.find_trait("InvoiceList").unwrap();
+        let hook = backend.generate_trait_logic_hook(list, &module).content;
+        assert!(!hook.contains("__LEG_EVENTS"), "{hook}");
+        assert!(hook.contains("await sendEvent("), "{hook}");
+    }
+}

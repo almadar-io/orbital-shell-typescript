@@ -1,0 +1,2107 @@
+use crate::backend::*;
+use crate::codegen::handler_header::named_struct_type_import_line;
+
+/// How `map_type_to_zod_with_refs` validates an `OirType::Reference` field.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ZodRefMode {
+    /// Entity-schema context: emit `z.lazy(() => XSchema)` (schema in scope).
+    Schema,
+    /// Event-payload context: emit `z.string()` (ref is an id, no schema import).
+    IdString,
+}
+
+/// Emit one declaration per registered named type (`OirModule::named_types`)
+/// — an `export interface <Name> { ... }` per Struct entry, an
+/// `export type <Name> = …` alias per Union entry (Phase-3D nominalization
+/// registers anonymous unions too) — hoisted before any entity/config field
+/// that references it via `OirType::TypeRef`, so a genuinely recursive
+/// interface (`type MenuItem = { subMenu: [MenuItem] }` → `interface
+/// MenuItem { subMenu: MenuItem[] }`) resolves instead of leaving a dangling
+/// forward reference. Each field renders through the SAME `map_type_ts` walk
+/// every other declared position uses, so a `TypeRef` inside a named type's
+/// OWN fields (mutual recursion between two named types) renders as the bare
+/// name too — the same mechanism, no special-casing.
+fn emit_named_type_declarations(
+    named_types: &std::collections::BTreeMap<String, OirType>,
+) -> String {
+    let mut code = String::new();
+    for (name, ty) in named_types {
+        match ty {
+            // A type alias, not an interface: an alias gets the implicit index signature an
+            // `EventPayloadValue` slot needs (G-ORB-150); it may still refer to itself.
+            OirType::Struct { fields } => {
+                code.push_str(&format!("export type {} = {{\n", name));
+                for field in fields {
+                    let (effective, is_optional) = field.effective_type();
+                    let ts_type = map_type_ts(
+                        effective,
+                        field.enum_values.as_ref(),
+                        None,
+                        TsTypeMode::Declared,
+                    );
+                    let optional = if is_optional { "?" } else { "" };
+                    code.push_str(&format!("  {}{}: {};\n", field.name, optional, ts_type));
+                }
+                code.push_str("};\n\n");
+            }
+            // Phase-3D nominalization registers anonymous unions too; a
+            // `TypeRef` to one must find a declaration. Interfaces can't spell
+            // a union, so emit a type alias through the same `union_ty`
+            // rendering inline unions use.
+            OirType::Union { .. } => {
+                let ts_type = map_type_ts(ty, None, None, TsTypeMode::Declared);
+                code.push_str(&format!("export type {} = {};\n\n", name, ts_type));
+            }
+            _ => {}
+        }
+    }
+    code
+}
+
+impl TypeScriptBackend {
+    /// Emit one `export const <Name>Schema: z.ZodType<Name> = z.lazy(() =>
+    /// z.object({ … }))` per registered named struct type (and one
+    /// `z.lazy(() => z.union([…]))` per registered named union — Phase-3D
+    /// nominalization registers anonymous unions too) — the `z.lazy()`
+    /// wrapper is the standard idiom for a recursive zod schema (defers
+    /// evaluating the object shape until first use, so the const's own
+    /// self-reference — via `map_type_to_zod_with_refs`'s `TypeRef` arm,
+    /// which emits `z.lazy(() => <Name>Schema)` — doesn't need the binding to
+    /// already exist). Hoisted before the entity schemas so a `TypeRef` in an
+    /// entity/config field's schema always finds `<Name>Schema` declared.
+    fn emit_named_type_zod_declarations(
+        &self,
+        named_types: &std::collections::BTreeMap<String, OirType>,
+    ) -> String {
+        let mut code = String::new();
+        for (name, ty) in named_types {
+            if !matches!(ty, OirType::Struct { .. } | OirType::Union { .. }) {
+                continue;
+            }
+            let object_expr = self.map_type_to_zod_with_refs(ty, None, ZodRefMode::Schema);
+            // The `: z.ZodType<{name}>` annotation alone is sufficient now that
+            // the scaffold tsconfig has `strictNullChecks` on (implied by
+            // `strict: true`): zod's `undefined extends T[K] ? optional :
+            // required` key computation only collapses every field to optional
+            // when null checks are off, which made the widened zod object fail
+            // assignability against the real (mostly required) interface. With
+            // null checks on, the annotation's assignability check passes
+            // outright, so the extra `as z.ZodType<{name}>` assertion is dead
+            // weight — dropping it also restores real type-checking on the
+            // `z.lazy` body against the interface, instead of silently
+            // overlap-checking past a mismatch.
+            code.push_str(&format!(
+                "export const {name}Schema: z.ZodType<{name}> = z.lazy(() => {object_expr});\n\n"
+            ));
+        }
+        code
+    }
+
+    /// Generate packages/shared/src/types/entities.ts
+    pub(crate) fn generate_shared_entities(
+        &self,
+        entities: &[OirEntity],
+        named_types: &std::collections::BTreeMap<String, OirType>,
+    ) -> InternalFile {
+        let mut code = String::new();
+
+        code.push_str("/**\n");
+        code.push_str(" * Entity Types\n");
+        code.push_str(" *\n");
+        code.push_str(" * TypeScript interfaces for all entities. Each extends `EntityRow`\n");
+        code.push_str(" * from `@almadar/core` so generated rows flow into the canonical\n");
+        code.push_str(" * persisted-entity shape without casts.\n");
+        code.push_str(" *\n");
+        code.push_str(" * Auto-generated by Orbital Compiler.\n");
+        code.push_str(" *\n");
+        code.push_str(" * @packageDocumentation\n");
+        code.push_str(" */\n\n");
+        // FieldValue imported alongside EntityRow because Json fields lower
+        // to `Record<string, FieldValue | undefined>` (so they stay
+        // assignable to EntityRow's index signature when wrapped in arrays).
+        // Cheap to import even when no Json field is present.
+        let any_sexpr = entities
+            .iter()
+            .flat_map(|e| e.fields.iter().map(|f| &f.field_type))
+            .chain(named_types.values())
+            .any(|t| self.field_type_uses_sexpr(t));
+        let core_syms: std::collections::BTreeSet<&str> = if any_sexpr {
+            ["EntityRow", "FieldValue", "SExpr"].into_iter().collect()
+        } else {
+            ["EntityRow", "FieldValue"].into_iter().collect()
+        };
+        code.push_str(&crate::codegen::handler_header::core_imports_clause(
+            &core_syms,
+        ));
+        code.push('\n');
+
+        // Inline the `TraitFieldRef` template-literal type when any entity
+        // declares a `trait`-typed field. This avoids depending on the symbol
+        // being exported from `@almadar/core` (older versions pinned by the
+        // scaffold's lockfile predate the export). The type is the same shape
+        // as the canonical `@almadar/core` export — a branded `@trait.${string}`
+        // — so structural assignability holds at every consumption site.
+        let any_trait_field = entities.iter().any(|e| {
+            e.fields
+                .iter()
+                .any(|f| self.field_type_uses_trait(&f.field_type))
+        });
+        if any_trait_field {
+            code.push_str(crate::codegen::handler_header::TRAIT_FIELD_VALUE_DECL);
+            code.push('\n');
+        }
+
+        let any_orbital_field = entities.iter().any(|e| {
+            e.fields
+                .iter()
+                .any(|f| self.field_type_uses_orbital(&f.field_type))
+        });
+        if any_orbital_field {
+            code.push_str(crate::codegen::handler_header::ORBITAL_FIELD_VALUE_DECL);
+            code.push('\n');
+        }
+        let any_behavior_field = entities.iter().any(|e| {
+            e.fields
+                .iter()
+                .any(|f| self.field_type_uses_behavior(&f.field_type))
+        });
+        if any_behavior_field {
+            code.push_str(crate::codegen::handler_header::BEHAVIOR_FIELD_VALUE_DECL);
+            code.push('\n');
+        }
+
+        // Inline the renderable-content value types when any entity declares a
+        // `node`-typed field — same rationale as `TraitFieldRef` above.
+        let any_node_field = entities.iter().any(|e| {
+            e.fields
+                .iter()
+                .any(|f| self.field_type_uses_node(&f.field_type))
+        });
+        if any_node_field {
+            code.push_str(crate::codegen::handler_header::PATTERN_VALUE_DECL);
+            code.push('\n');
+        }
+
+        for entity in entities {
+            // Collect and emit enum type aliases for reuse
+            for field in &entity.fields {
+                if let Some(ref values) = field.enum_values {
+                    if !values.is_empty() {
+                        let alias_name =
+                            format!("{}{}", entity.name, capitalize_first(&field.name));
+                        let union = values
+                            .iter()
+                            .map(|v| format!("'{}'", v))
+                            .collect::<Vec<_>>()
+                            .join(" | ");
+                        code.push_str(&format!("export type {} = {};\n\n", alias_name, union));
+                    }
+                }
+            }
+
+            // Main interface with entity-level JSDoc
+            if let Some(ref desc) = entity.description {
+                code.push_str(&format!("/**\n * {}\n */\n", desc));
+            } else {
+                code.push_str(&format!("/**\n * {} entity\n */\n", entity.name));
+            }
+            // `extends EntityRow` so every generated entity is assignable to
+            // `@almadar/core`'s EntityRow in BOTH directions — `X[] → EntityRow[]`
+            // (server data dict) and `EntityRow → X` (handler downcast) — plus
+            // `EntityRow → EntityWith<…>` at the UI bind. The interface DOES
+            // inherit EntityRow's string index signature, and the wide
+            // `FieldValue` (incl. `string[]`/`FieldValue[]`/nested objects) means
+            // array & relation fields conform — no TS2411. (A PLAIN interface
+            // lacks the index signature and fails the EntityRow cast both ways —
+            // that was the 0.6 regression the verification checkpoint caught.)
+            code.push_str(&format!(
+                "export interface {} extends EntityRow {{\n",
+                entity.name
+            ));
+            code.push_str("  id: string;\n");
+            // Every store stamps createdAt/updatedAt as ISO strings
+            // (`@almadar/server` `BaseEntity`), so both are always present.
+            code.push_str("  createdAt: string;\n");
+            code.push_str("  updatedAt: string;\n");
+
+            for field in &entity.fields {
+                if field.name == "id" || field.name == "createdAt" || field.name == "updatedAt" {
+                    continue;
+                }
+                // Field-level JSDoc — include relation info if present
+                if let Some(ref rel) = field.relation {
+                    let card_str = match rel.cardinality {
+                        OirCardinality::OneToOne => "one-to-one",
+                        OirCardinality::OneToMany => "one-to-many",
+                        OirCardinality::ManyToOne => "many-to-one",
+                        OirCardinality::ManyToMany => "many-to-many",
+                    };
+                    if let Some(ref desc) = field.description {
+                        code.push_str(&format!(
+                            "  /** {} ({} → {}) */\n",
+                            desc, card_str, rel.target_entity
+                        ));
+                    } else {
+                        code.push_str(&format!(
+                            "  /** Relation to {} ({}) */\n",
+                            rel.target_entity, card_str
+                        ));
+                    }
+                } else if let Some(ref desc) = field.description {
+                    code.push_str(&format!("  /** {} */\n", desc));
+                }
+                // Determine the base type, unwrapping any outer
+                // `OirType::Optional` so we don't double-mark optionality.
+                // `OirField::optional` both sets `required: false` AND wraps
+                // the type in `Optional`; combining `?: T | null` widens the
+                // type with a spurious `null` that consumer pattern props
+                // (typed `T | undefined`) reject. The `?` modifier alone
+                // carries the optionality — emit the inner type.
+                let (effective_field_type, is_optional) = field.effective_type();
+                let base_type = if let Some(ref values) = field.enum_values {
+                    if !values.is_empty() {
+                        format!("{}{}", entity.name, capitalize_first(&field.name))
+                    } else {
+                        self.map_type_with_enum(effective_field_type, field.enum_values.as_ref())
+                    }
+                } else {
+                    self.map_type_with_enum(effective_field_type, field.enum_values.as_ref())
+                };
+                // A to-many relation's type is already the array (ids, or rows when intrinsic).
+                let ts_type = match (&field.relation, effective_field_type) {
+                    (_, OirType::Array { .. }) => base_type,
+                    (Some(rel), _)
+                        if matches!(
+                            rel.cardinality,
+                            OirCardinality::OneToMany | OirCardinality::ManyToMany
+                        ) =>
+                    {
+                        format!("{}[]", base_type)
+                    }
+                    _ => base_type,
+                };
+                let optional = if is_optional { "?" } else { "" };
+                code.push_str(&format!("  {}{}: {};\n", field.name, optional, ts_type));
+            }
+            code.push_str("}\n");
+
+            // Input interface (for creation)
+            code.push_str(&format!(
+                "/**\n * {} input (for creation)\n */\n",
+                entity.name
+            ));
+            code.push_str(&format!("export interface {}Input {{\n", entity.name));
+            for field in &entity.fields {
+                if field.name == "id" || field.name == "createdAt" || field.name == "updatedAt" {
+                    continue;
+                }
+                if let Some(ref desc) = field.description {
+                    code.push_str(&format!("  /** {} */\n", desc));
+                }
+                let ts_type =
+                    self.map_type_with_enum(&field.field_type, field.enum_values.as_ref());
+                let optional = if field.required { "" } else { "?" };
+                code.push_str(&format!("  {}{}: {};\n", field.name, optional, ts_type));
+            }
+            code.push_str("}\n\n");
+
+            // Update type (partial)
+            code.push_str(&format!("/**\n * {} update (partial)\n */\n", entity.name));
+            code.push_str(&format!(
+                "export type {}Update = Partial<{}Input>;\n\n",
+                entity.name, entity.name
+            ));
+        }
+
+        // Hoisted named struct/union types (possibly self-referential). AFTER
+        // the entity interfaces: type-level forward references are free in TS,
+        // and entities must lead the file — the emit sourcemap anchor
+        // (first_ts_entity_name) picks the first `export interface` as the
+        // file's entity, which must not be a named type.
+        code.push_str(&emit_named_type_declarations(named_types));
+
+        InternalFile::new(
+            "packages/shared/src/types/entities.ts",
+            code,
+            GeneratedFileType::Entity,
+        )
+    }
+
+    /// Generate packages/shared/src/schemas/entities.ts (Zod schemas)
+    pub(crate) fn generate_shared_schemas(
+        &self,
+        entities: &[OirEntity],
+        named_types: &std::collections::BTreeMap<String, OirType>,
+    ) -> InternalFile {
+        let mut code = String::new();
+
+        code.push_str("/**\n");
+        code.push_str(" * Entity Schemas\n");
+        code.push_str(" *\n");
+        code.push_str(" * Zod schemas for runtime validation.\n");
+        code.push_str(" * Auto-generated by Orbital Compiler.\n");
+        code.push_str(" */\n\n");
+        code.push_str("import { z } from 'zod';\n");
+
+        // The zod declarations below reference each named struct's TS
+        // interface (`z.ZodType<Name>`) but only IMPORT `zod` above — without
+        // this the interface name is unresolved (TS2304). Entities.ts is the
+        // one owner of these interfaces (`generate_shared_entities`).
+        let struct_type_names: std::collections::BTreeSet<&str> = named_types
+            .iter()
+            .filter_map(|(name, ty)| matches!(ty, OirType::Struct { .. }).then_some(name.as_str()))
+            .collect();
+        code.push_str(&named_struct_type_import_line(
+            &struct_type_names,
+            "../types/entities",
+        ));
+
+        // Everything below the import header is built into `body` first so
+        // the header can import exactly the `@almadar/core` validators and
+        // inline the `PatternValue` declarations the emitted text needs.
+        let mut body = String::new();
+
+        // Hoisted named struct schemas (possibly self-referential via
+        // z.lazy()) — before the entity schemas so a `TypeRef` field always
+        // finds `<Name>Schema` declared.
+        body.push_str(&self.emit_named_type_zod_declarations(named_types));
+
+        // Detect mutually circular entity references (A→B AND B→A) which cause
+        // TypeScript circular type inference errors (TS7022/TS7024) with z.lazy.
+        // Build a directed graph of entity references.
+        let entity_names: std::collections::HashSet<&str> =
+            entities.iter().map(|e| e.name.as_str()).collect();
+        let mut references: std::collections::HashMap<&str, std::collections::HashSet<&str>> =
+            std::collections::HashMap::new();
+        for entity in entities {
+            let refs = references.entry(entity.name.as_str()).or_default();
+            for field in &entity.fields {
+                if let Some(ref rel) = field.relation {
+                    if entity_names.contains(rel.target_entity.as_str()) {
+                        refs.insert(rel.target_entity.as_str());
+                    }
+                }
+            }
+        }
+        // Find entities in mutual circular chains (A references B AND B references A)
+        let mut circular_entities: std::collections::HashSet<&str> =
+            std::collections::HashSet::new();
+        for (entity_a, refs_a) in &references {
+            for entity_b in refs_a {
+                if let Some(refs_b) = references.get(entity_b) {
+                    if refs_b.contains(entity_a) {
+                        circular_entities.insert(entity_a);
+                        circular_entities.insert(entity_b);
+                    }
+                }
+            }
+        }
+
+        // Dedup by entity name. `[runtime]` entities are now allowed to
+        // share a name across orbitals (per-orbital singletons), but we only
+        // need to emit one zod schema per distinct entity name to avoid
+        // `Cannot redeclare block-scoped variable` TS errors.
+        let mut emitted_schema_names: std::collections::HashSet<&str> =
+            std::collections::HashSet::new();
+        for entity in entities {
+            if !emitted_schema_names.insert(entity.name.as_str()) {
+                continue;
+            }
+            let name_lower = to_camel_case(&entity.name);
+            let is_circular = circular_entities.contains(entity.name.as_str());
+            // A circular pair (A→B and B→A) breaks zod's type inference
+            // (TS7022/TS7024): the object is emitted as `<n>Object` and the
+            // exported `<n>Schema` carries an explicit `z.ZodType<EntityRow>`
+            // annotation — the type every stored row already has.
+            body.push_str(&format!(
+                "export const {}{} = z.object({{\n",
+                name_lower,
+                if is_circular { "Object" } else { "Schema" }
+            ));
+            body.push_str("  id: z.string(),\n");
+
+            for field in &entity.fields {
+                if field.name == "id" {
+                    continue;
+                }
+                // Unwrap so `apply_constraints_to_zod` chains onto the base type before the single `.optional()` below.
+                let (effective_field_type, is_optional) = field.effective_type();
+                let base_zod =
+                    self.map_type_to_zod(effective_field_type, field.enum_values.as_ref());
+                // Apply OirConstraint refinements
+                let constrained = self.apply_constraints_to_zod(&base_zod, &field.constraints);
+                // Wrap with z.array() for to-many relation cardinalities not already typed as one
+                let with_cardinality = match (&field.relation, effective_field_type) {
+                    (Some(rel), ty)
+                        if !matches!(ty, OirType::Array { .. })
+                            && matches!(
+                                rel.cardinality,
+                                OirCardinality::OneToMany | OirCardinality::ManyToMany
+                            ) =>
+                    {
+                        format!("z.array({})", constrained)
+                    }
+                    _ => constrained,
+                };
+                let schema = if is_optional {
+                    format!("{}.optional()", with_cardinality)
+                } else {
+                    with_cardinality
+                };
+                body.push_str(&format!("  {}: {},\n", field.name, schema));
+            }
+            body.push_str("});\n\n");
+            if is_circular {
+                body.push_str(&format!(
+                    "export const {}Schema: z.ZodType<EntityRow> = {}Object;\n\n",
+                    name_lower, name_lower
+                ));
+            }
+
+            // Input schema — omit id and timestamp fields that exist on the entity
+            let mut omit_fields = vec!["id".to_string()];
+            if entity.has_field("createdAt") {
+                omit_fields.push("createdAt".to_string());
+            }
+            if entity.has_field("updatedAt") {
+                omit_fields.push("updatedAt".to_string());
+            }
+            let omit_obj = omit_fields
+                .iter()
+                .map(|f| format!("{}: true", f))
+                .collect::<Vec<_>>()
+                .join(", ");
+            body.push_str(&format!(
+                "export const {}InputSchema = {}{}.omit({{ {} }});\n\n",
+                name_lower,
+                name_lower,
+                if is_circular { "Object" } else { "Schema" },
+                omit_obj
+            ));
+
+            // Update schema (partial input)
+            body.push_str(&format!(
+                "export const {}UpdateSchema = {}InputSchema.partial();\n\n",
+                name_lower, name_lower
+            ));
+        }
+
+        let mut core_types: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
+        if entities
+            .iter()
+            .any(|e| circular_entities.contains(e.name.as_str()))
+        {
+            core_types.insert("EntityRow");
+        }
+        if body.contains("TraitFieldValueSchema") || body.contains("OrbitalFieldValueSchema") {
+            core_types.insert("FieldValue");
+        }
+        if !core_types.is_empty() {
+            code.push_str(&crate::codegen::handler_header::core_imports_clause(
+                &core_types,
+            ));
+        }
+        code.push_str(&crate::codegen::handler_header::zod_core_value_imports(
+            &body,
+        ));
+        if body.contains("PatternValueSchema") {
+            code.push_str(crate::codegen::handler_header::PATTERN_VALUE_DECL);
+            code.push_str(crate::codegen::handler_header::PATTERN_VALUE_SCHEMA_DECL);
+        }
+        if body.contains("TraitFieldValueSchema") {
+            code.push_str(crate::codegen::handler_header::TRAIT_FIELD_VALUE_DECL);
+            code.push_str(crate::codegen::handler_header::TRAIT_FIELD_VALUE_SCHEMA_DECL);
+        }
+        if body.contains("OrbitalFieldValueSchema") {
+            code.push_str(crate::codegen::handler_header::ORBITAL_FIELD_VALUE_DECL);
+            code.push_str(crate::codegen::handler_header::ORBITAL_FIELD_VALUE_SCHEMA_DECL);
+        }
+        if body.contains("BehaviorFieldValueSchema") {
+            code.push_str(crate::codegen::handler_header::BEHAVIOR_FIELD_VALUE_DECL);
+            code.push_str(crate::codegen::handler_header::BEHAVIOR_FIELD_VALUE_SCHEMA_DECL);
+        }
+        code.push('\n');
+        code.push_str(&body);
+
+        InternalFile::new(
+            "packages/shared/src/schemas/entities.ts",
+            code,
+            GeneratedFileType::Entity,
+        )
+    }
+
+    /// Generate packages/shared/src/index.ts
+    pub(crate) fn generate_shared_index(&self) -> InternalFile {
+        let code = r#"/**
+ * Shared Package
+ *
+ * Re-exports types, schemas, and evaluator for use by client and server.
+ */
+
+export * from './types/entities.js';
+export * from './types/events.js';
+export * from './types/configs.js';
+export * from './schemas/entities.js';
+"#;
+
+        InternalFile::new(
+            "packages/shared/src/index.ts",
+            code,
+            GeneratedFileType::Barrel,
+        )
+    }
+
+    /// Generate packages/shared/package.json
+    pub(crate) fn generate_shared_package_json(&self) -> InternalFile {
+        // The shared/package.json's @almadar/core pin must match the one
+        // used by the rest of the scaffold (server/client both at >=5.5.0).
+        // Older `>=5.3.2` here let npm resolve a SECOND copy of @almadar/core
+        // nested under packages/shared/node_modules — a literal duplicate
+        // install. Even though both copies are structurally identical, TS
+        // sees the EventPayload imported at the handler call-site (root
+        // node_modules) and the EventPayload re-exported from `@app/shared`
+        // (nested node_modules) as DIFFERENT branded types, producing
+        // confusing "type X is not assignable to type X" errors. Bumping
+        // this pin to match server/client deduplicates the install.
+        let code = r#"{
+  "name": "@app/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@almadar/core": ">=5.5.0",
+    "zod": "^3.22.0"
+  }
+}
+"#;
+
+        InternalFile::new(
+            "packages/shared/package.json",
+            code,
+            GeneratedFileType::Config,
+        )
+    }
+
+    /// Apply OirConstraint refinements to a base Zod type string
+    pub(crate) fn apply_constraints_to_zod(
+        &self,
+        base: &str,
+        constraints: &[OirConstraint],
+    ) -> String {
+        let mut result = base.to_string();
+        for constraint in constraints {
+            match constraint {
+                OirConstraint::MinLength { value } => {
+                    result.push_str(&format!(".min({})", value));
+                }
+                OirConstraint::MaxLength { value } => {
+                    result.push_str(&format!(".max({})", value));
+                }
+                OirConstraint::Min { value } => {
+                    // Format integer vs float
+                    if *value == (*value as i64) as f64 {
+                        result.push_str(&format!(".min({})", *value as i64));
+                    } else {
+                        result.push_str(&format!(".min({})", value));
+                    }
+                }
+                OirConstraint::Max { value } => {
+                    if *value == (*value as i64) as f64 {
+                        result.push_str(&format!(".max({})", *value as i64));
+                    } else {
+                        result.push_str(&format!(".max({})", value));
+                    }
+                }
+                OirConstraint::Pattern { regex } => {
+                    result.push_str(&format!(
+                        ".regex(new RegExp('{}'))",
+                        regex.replace('\'', "\\'")
+                    ));
+                }
+                OirConstraint::Email => {
+                    result.push_str(".email()");
+                }
+                OirConstraint::Phone => {
+                    result.push_str(".regex(/^[+]?[\\d\\s().-]{7,}$/)");
+                }
+                OirConstraint::Url => {
+                    result.push_str(".url()");
+                }
+                OirConstraint::Uuid => {
+                    result.push_str(".uuid()");
+                }
+                OirConstraint::NonEmpty => {
+                    result.push_str(".min(1)");
+                }
+                OirConstraint::Unique => {
+                    // Unique is a database-level constraint, not a Zod validation
+                    // Add as a comment for documentation
+                }
+            }
+        }
+        result
+    }
+
+    /// Generate packages/shared/src/types/events.ts - Event request/response types
+    ///
+    /// Phase 5.5: Single source of truth for event protocol types.
+    /// Both client (useOrbitalBridge) and server (handlers) import from here.
+    ///
+    /// VG8-C: appends per-trait `<TraitName>EventPayloadMap` discriminated
+    /// unions so generated hooks can dispatch events with a payload type
+    /// inferred from the event key instead of `Record<string, unknown>`.
+    pub(crate) fn generate_shared_event_types(&self, module: &OirModule) -> InternalFile {
+        let header = r#"/**
+ * Event Protocol Types
+ *
+ * Single source of truth for the closed circuit event system.
+ * Imported by both client (useOrbitalBridge) and server (handlers).
+ *
+ * @generated by Orbital Compiler (Phase 5.5)
+ * @packageDocumentation
+ */
+
+import type { EventPayload, EventPayloadValue, EntityRow, FieldValue, OrbitalEventRequest, OrbitalEventResponse, ServerEffectResult, EmittedEvent, ClientEffectTuple } from '@almadar/core';
+
+/**
+ * Request body for sending an event to the server — `@almadar/core`'s
+ * canonical `OrbitalEventRequest`, the single upstream owner of this shape
+ * (§156: the JS interpreter's `OrbitalServerRuntime`/`ServerBridge` carry
+ * the identical fields, so the two execution paths cannot drift): `event`,
+ * `eventId`, `payload`, `entityId`, `targetTrait`, `user`, `clientId`,
+ * `tick`, `sourceTrait`, `traits` (stateless per-trait addressing — this
+ * compiled server seeds `state` from `traits[].from`, see `handlers.rs`),
+ * `entityByTrait` (the `@entity` frame per trait, replacing the retired
+ * single `fields`), and `behavior`.
+ */
+export type EventRequest = OrbitalEventRequest;
+
+/**
+ * Response from server after processing an event — `@almadar/core`'s
+ * canonical `OrbitalEventResponse`, a straight alias (no hand-restated
+ * subset, §156): `success`, `transitioned`, `states` (whole-orbital
+ * snapshot keyed by trait name, replacing the retired single `newState`),
+ * `emittedEvents` (ALWAYS present, `[]` when none — both Express and Hono),
+ * `data`, `entityByTrait` (post-effect `@entity` frame per trait, replacing
+ * the retired single `fields`), `clientEffects`, `clientEffectsByTrait`,
+ * `effectResults`, `guardFailed` (`"<Trait>.<event>"` on every
+ * guard-rejection response), `error`.
+ */
+export type EventResponse = OrbitalEventResponse;
+
+export type { ServerEffectResult, EmittedEvent, ClientEffectTuple } from '@almadar/core';
+
+/**
+ * A persist effect's `emit:{success}` envelope, broadcast over the SSE
+ * `/api/events` channel to every OTHER connected client (see
+ * Almadar_Live_Push.md). The server's `sse.ts` writes these; the client
+ * bridge's `EventSource` subscribe leg re-emits them through the same
+ * qualified cascade path an in-response `EmittedEvent` uses.
+ */
+export interface BusBroadcastItem {
+  type: 'bus';
+  /** Event name to dispatch (e.g. "MessageSaved") */
+  event: string;
+  /** Payload delivered with the dispatched event */
+  payload?: EventPayload;
+  /** Origin of this emit — the trait (+ orbital) whose persist effect fired it. */
+  source: { orbital: string; trait: string };
+  /** Server-side emit timestamp (ms epoch) */
+  timestamp: number;
+  /** The persisted entity's name — set only on a persist effect's broadcast
+   * (never on a plain `(emit X)`). `sse.ts`'s `broadcastBusEvent` (§88)
+   * looks this up against that entity's generated `*_READ_POLICY` const so
+   * a connection whose viewer fails `applyRowAccess` on `payload` gets
+   * nothing, instead of every persisted row reaching every open tab
+   * regardless of the declared `@read` policy. */
+  entityType?: string;
+  /** `origin`: a running call's live message (`emit.onMessage`) for the
+   * requesting tab only (`sse.ts`'s `pushToOrigin`). Absent: a broadcast. */
+  target?: 'origin';
+}
+
+/**
+ * The viewer `@user.x` resolves against, re-exported from its canonical owner so
+ * the compiled app and the JS interpreter cannot drift. Redeclaring a subset here
+ * is what silently dropped `name` and `permissions` from every compiled app
+ * (C-EMITTED-USERCONTEXT-SUBSET).
+ */
+export type { UserContext } from '@almadar/core';
+"#;
+
+        let mut code = String::from(header);
+
+        // Inline the renderable-content value types when any trait's event
+        // payload carries a `node`-typed field — same rationale as the
+        // entities.ts / configs.ts inlines (no dependency on the pinned core
+        // exporting the symbol; gated to avoid an unused-decl in the common
+        // case).
+        let any_node_payload = module.traits.iter().any(|t| {
+            t.events.iter().any(|e| {
+                e.payload_schema
+                    .as_ref()
+                    .is_some_and(|schema| schema.iter().any(|(_, v)| self.field_type_uses_node(v)))
+            })
+        });
+        if any_node_payload {
+            code.push('\n');
+            code.push_str(crate::codegen::handler_header::PATTERN_VALUE_DECL);
+        }
+
+        // Per-trait event payload discriminated unions.
+        // For each trait: emit one `<Event>Payload` interface per event that
+        // declares a payload_schema, then a `<TraitName>EventPayloadMap`
+        // mapping every event key to its payload type (or `void`).
+        let mut entity_imports: std::collections::BTreeSet<String> =
+            std::collections::BTreeSet::new();
+        let mut any_sexpr_payload = false;
+        let mut payload_blocks: Vec<String> = Vec::new();
+        let mut map_blocks: Vec<String> = Vec::new();
+
+        // Only entity names declared in THIS module's entity list can be
+        // imported from './entities.js'. Molecules that `use` imported atoms
+        // inherit events whose payloads reference entities from the imported
+        // orbital (e.g. std-cart listens for std-modal's ModalRecordLoaded,
+        // which carries `ModalRecord`) — those entities aren't in the local
+        // entities.ts, so emitting `import { ModalRecord }` would fail
+        // typecheck. In that case we fall back to `EntityRow` (already
+        // imported above) which keeps the payload typed as a proper schema
+        // row without introducing a phantom import.
+        let local_entity_names: std::collections::HashSet<String> =
+            module.entities.iter().map(|e| e.name.clone()).collect();
+
+        for trait_def in &module.traits {
+            if trait_def.events.is_empty() {
+                continue;
+            }
+
+            // (key, payload_type) with duplicate-key dedup: a trait can carry
+            // the same event key twice (e.g. a void INIT from the state
+            // machine plus a payload-typed INIT from a listens declaration) —
+            // emitting both trips TS2300. The payload-typed entry wins.
+            let mut event_entries: Vec<(String, String)> = Vec::new();
+            for event in &trait_def.events {
+                let payload_type = match &event.payload_schema {
+                    Some(schema) if !schema.is_empty() => {
+                        let iface_name = format!(
+                            "{}{}Payload",
+                            trait_def.name,
+                            crate::codegen::ts_ident::ts_symbol_name(&event.key)
+                        );
+                        let mut field_rows: Vec<(String, String)> = schema
+                            .iter()
+                            .map(|(k, v)| {
+                                // `json` payload fields map to `EventPayload`
+                                // from @almadar/core so every declared payload
+                                // interface is assignable to the bus's payload
+                                // type. Reference/array/primitive fields keep
+                                // the normal mapping.
+                                // Substitute non-local entity references
+                                // with `EntityRow` before mapping to TS, so
+                                // molecules that inherit imported atoms'
+                                // events don't produce phantom imports.
+                                let v_local = rewrite_non_local_entity_refs(v, &local_entity_names);
+                                let ts = match &v_local {
+                                    OirType::Json => "EventPayload".to_string(),
+                                    // An anonymous struct payload field (e.g. an
+                                    // object callback arg like `CalendarEvent`) is
+                                    // rendered for the BUS context: a date can
+                                    // arrive as the serialized string OR an
+                                    // in-memory `Date`, so nested date fields emit
+                                    // as `Date | string` — matching what the
+                                    // component callback hands back.
+                                    OirType::Struct { .. } => self.payload_struct_ts(&v_local),
+                                    // Every other payload field — including a
+                                    // bare `Reference` and `Array<Reference>` —
+                                    // renders in the BUS context too. `map_type`
+                                    // would send a Reference down the entity
+                                    // relation-FIELD rule and emit `string`,
+                                    // which is a lie here: a payload reference
+                                    // carries the ROW. That mismatch also made
+                                    // `events.ts` contradict `handlers.ts`,
+                                    // which renders the same OirType as the
+                                    // entity type.
+                                    _ => self.payload_struct_ts(&v_local),
+                                };
+                                // Collect every LOCAL entity name referenced
+                                // anywhere inside v_local so `data: [CartItem]`
+                                // (Array<Reference>) brings CartItem into
+                                // the import set. Top-level Reference alone
+                                // would miss the nested case.
+                                collect_reference_entities(&v_local, &mut entity_imports);
+                                TypeScriptBackend::collect_named_type_refs(
+                                    &v_local,
+                                    &mut entity_imports,
+                                );
+                                any_sexpr_payload |= self.field_type_uses_sexpr(&v_local);
+                                (k.clone(), ts)
+                            })
+                            .collect();
+                        field_rows.sort_by(|a, b| a.0.cmp(&b.0));
+                        let body = field_rows
+                            .into_iter()
+                            .map(|(k, v)| format!("  {}: {};", ts_member_name(&k), v))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        // Explicit `[key: string]: EventPayloadValue` index
+                        // signature alongside the declared fields. Plain
+                        // `extends EventPayload` doesn't reliably propagate the
+                        // index signature: TS reports
+                        //   "Index signature for type 'string' is missing in type 'X'"
+                        // when X is passed to a parameter typed `EventPayload`,
+                        // even though X structurally satisfies it. Inlining the
+                        // index signature makes assignability hold without a
+                        // cast at every dispatch / sendEvent call site. Field
+                        // types emit as EventPayload-compatible members (Json
+                        // → EventPayload, primitives → primitives).
+                        payload_blocks.push(format!(
+                            "export interface {} {{\n  [key: string]: EventPayloadValue;\n{}\n}}",
+                            iface_name, body
+                        ));
+                        iface_name
+                    }
+                    _ => "void".to_string(),
+                };
+                match event_entries.iter_mut().find(|(k, _)| k == &event.key) {
+                    Some((_, existing)) => {
+                        if existing == "void" && payload_type != "void" {
+                            *existing = payload_type;
+                        }
+                    }
+                    None => event_entries.push((event.key.clone(), payload_type)),
+                }
+            }
+            let event_rows: Vec<String> = event_entries
+                .into_iter()
+                .map(|(k, ty)| format!("  {}: {};", ts_member_name(&k), ty))
+                .collect();
+
+            map_blocks.push(format!(
+                "export type {trait}EventPayloadMap = {{\n{rows}\n}};\n\nexport type {trait}Event = keyof {trait}EventPayloadMap;",
+                trait = trait_def.name,
+                rows = event_rows.join("\n"),
+            ));
+        }
+
+        // Skip `EntityRow` — it's imported from @almadar/core at the top
+        // of the file. `rewrite_non_local_entity_refs` rewrites imported-
+        // atom entity refs (e.g. ModalRecord) to EntityRow, and without
+        // this filter that rewrite would produce a duplicate import.
+        entity_imports.remove("EntityRow");
+        if any_sexpr_payload {
+            code.push_str("\nimport type { SExpr } from '@almadar/core';\n");
+        }
+        if !entity_imports.is_empty() {
+            let names: Vec<String> = entity_imports.into_iter().collect();
+            code.push_str(&format!(
+                "\nimport type {{ {} }} from './entities.js';\n",
+                names.join(", ")
+            ));
+        }
+
+        if !payload_blocks.is_empty() {
+            code.push_str("\n// ── Per-trait Event Payloads (VG8-C) ──────────────────────\n\n");
+            code.push_str(&payload_blocks.join("\n\n"));
+            code.push('\n');
+        }
+
+        if !map_blocks.is_empty() {
+            code.push_str("\n// ── Per-trait Event Payload Maps (VG8-C) ──────────────────\n\n");
+            code.push_str(&map_blocks.join("\n\n"));
+            code.push('\n');
+        }
+
+        InternalFile::new(
+            "packages/shared/src/types/events.ts",
+            code,
+            GeneratedFileType::Entity,
+        )
+    }
+
+    pub(crate) fn config_read_keys(trait_def: &OirTrait) -> std::collections::BTreeSet<String> {
+        fn walk(v: &serde_json::Value, out: &mut std::collections::BTreeSet<String>) {
+            match v {
+                serde_json::Value::Object(map) => {
+                    if map.get("root").and_then(|r| r.as_str()) == Some("config") {
+                        if let Some(key) = map
+                            .get("path")
+                            .and_then(|p| p.as_array())
+                            .and_then(|a| a.first())
+                            .and_then(|k| k.as_str())
+                        {
+                            out.insert(key.to_string());
+                        }
+                    }
+                    for val in map.values() {
+                        walk(val, out);
+                    }
+                }
+                serde_json::Value::Array(items) => {
+                    for item in items {
+                        walk(item, out);
+                    }
+                }
+                // Render-ui trees carry raw string bindings
+                // (`"@config.title"`) that only the view emitter parses —
+                // scan those too.
+                serde_json::Value::String(s) => {
+                    if let Some(rest) = s.strip_prefix("@config.") {
+                        let end = rest.find(['.', '[']).unwrap_or(rest.len());
+                        let key = &rest[..end];
+                        if !key.is_empty()
+                            && key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                        {
+                            out.insert(key.to_string());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut out = std::collections::BTreeSet::new();
+        if let Ok(v) = serde_json::to_value(trait_def) {
+            walk(&v, &mut out);
+        }
+        out
+    }
+
+    /// Generate packages/shared/src/types/configs.ts — per-trait Config
+    /// interfaces derived from the atom's declared `config {}` block
+    /// (populated via `OirTrait.declared_config_schema` in the resolve phase).
+    ///
+    /// Emits an empty-file header if no trait declares a config; callers
+    /// still `export * from './types/configs.js'` so the module exists.
+    pub(crate) fn generate_shared_trait_configs(&self, module: &OirModule) -> InternalFile {
+        // Every `@config.<key>` READ in a trait's body, collected over the
+        // serialized OIR (the serde shape is the walker — no per-variant
+        // duplication). A read whose key the trait's own schema does not
+        // declare is a referrer-chained forward: the runtime resolves it
+        // through the embedder's config (`buildResolvedTraitConfigs`), so the
+        // interface must carry it (optional, wide) or every view read of it
+        // trips TS2339 (the C-SHELL-TS-EMIT-TSC-DRIFT `title` fingerprint).
+        let mut any_forwarded_key = false;
+        let mut blocks: Vec<String> = Vec::new();
+        for trait_def in &module.traits {
+            if let Some(schema) = &trait_def.declared_config_schema {
+                if schema.is_empty() {
+                    continue;
+                }
+                let defaults = trait_def.declared_config_defaults.as_ref();
+                let mut rows: Vec<(String, String, bool)> = schema
+                    .iter()
+                    .map(|(k, v)| {
+                        let has_default = defaults.is_some_and(|d| {
+                            d.get(k).is_some_and(|dv| {
+                                !matches!(dv, OirValue::String(s) if s.starts_with("@config."))
+                            })
+                        });
+                        // json knob with an empty-array default: array-shaped,
+                        // not Record — mirrors the hook interface (TS2352).
+                        let empty_array_default = defaults
+                            .and_then(|d| d.get(k))
+                            .is_some_and(|dv| matches!(dv, OirValue::Array(a) if a.is_empty()));
+                        let array_default_on_scalar =
+                            defaults.and_then(|d| d.get(k)).is_some_and(|dv| {
+                                matches!(dv, OirValue::Array(a) if !a.is_empty())
+                                    && !matches!(v.field_type, OirType::Array { .. })
+                            });
+                        let ty = if empty_array_default && matches!(v.field_type, OirType::Json) {
+                            "EventPayloadValue[]".to_string()
+                        } else if array_default_on_scalar {
+                            // Authored array default on a scalar-declared knob:
+                            // derive from the default (mirrors the hook).
+                            oir_value_to_ts_type(defaults.and_then(|d| d.get(k)).unwrap())
+                        } else {
+                            self.map_type_with_enum(&v.field_type, v.values.as_ref())
+                        };
+                        let ty = if defaults
+                            .and_then(|d| d.get(k))
+                            .is_some_and(|dv| matches!(dv, OirValue::Null))
+                        {
+                            format!("{} | null", ty)
+                        } else {
+                            ty
+                        };
+                        (k.clone(), ty, has_default)
+                    })
+                    .collect();
+                for key in Self::config_read_keys(trait_def) {
+                    if !schema.contains_key(&key) {
+                        // Referrer-chained forward — supplied by the embedder's
+                        // resolved config at runtime; wide + optional here.
+                        rows.push((key, "EventPayloadValue".to_string(), false));
+                        any_forwarded_key = true;
+                    }
+                }
+                rows.sort_by(|a, b| a.0.cmp(&b.0));
+                // Fields with a declared default are guaranteed populated
+                // after the hook's `mergedConfig = { ...DEFAULT_CONFIG,
+                // ...(config ?? {}) }` step — emit them as REQUIRED so
+                // render-ui bindings (`config?.articles[0].title`) resolve
+                // to `string` not `string | undefined` (since the merged
+                // value's runtime shape always carries the default).
+                let body = rows
+                    .into_iter()
+                    .map(|(k, v, has_default)| {
+                        if has_default {
+                            format!("  {}: {};", k, v)
+                        } else {
+                            format!("  {}?: {};", k, v)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                blocks.push(format!(
+                    "export interface {}Config {{\n{}\n}}",
+                    trait_def.name, body
+                ));
+            }
+        }
+
+        // Does any trait's config carry an `SExpr`-typed field (e.g. a
+        // `conditionalFields` map value)? If so, import the canonical brand.
+        let any_sexpr_config = module.traits.iter().any(|t| {
+            t.declared_config_schema.as_ref().is_some_and(|schema| {
+                schema
+                    .values()
+                    .any(|f| self.field_type_uses_sexpr(&f.field_type))
+            })
+        });
+
+        let any_node_config = module.traits.iter().any(|t| {
+            t.declared_config_schema.as_ref().is_some_and(|schema| {
+                schema
+                    .values()
+                    .any(|f| self.field_type_uses_node(&f.field_type))
+            })
+        });
+
+        // Named struct types (e.g. `NavItem`) a config field reaches via
+        // `OirType::TypeRef` — `map_type_with_enum` above renders the bare
+        // interface name (`TsRenderer::type_ref`), so this file must import
+        // it from `types/entities.ts` or every such field trips TS2304.
+        let mut referenced_struct_names: std::collections::BTreeSet<String> = Default::default();
+        for trait_def in &module.traits {
+            if let Some(schema) = &trait_def.declared_config_schema {
+                for field in schema.values() {
+                    TypeScriptBackend::collect_named_type_refs(
+                        &field.field_type,
+                        &mut referenced_struct_names,
+                    );
+                }
+            }
+        }
+
+        let mut code = String::from(
+            "/**\n * Per-Trait Config Interfaces\n *\n * Derived from each atom's declared `config {}` block.\n * Consumed by trait logic hooks, views, and page-level config props.\n *\n * @generated by Orbital Compiler (VG8-C)\n * @packageDocumentation\n */\n",
+        );
+
+        if blocks.is_empty() {
+            code.push_str("\nexport {};\n");
+        } else {
+            // Json-typed config fields lower to `Record<string, FieldValue | undefined>`
+            // (mirrors entities.ts's row shape). Import FieldValue from
+            // @almadar/core so the generated configs.ts typechecks; type-only
+            // import has no runtime cost when unused. TraitFieldRef
+            // surfaces when an inline struct field is `Trait`-typed
+            // (e.g. tab `content`); inlined as a branded string alias
+            // since configs.ts can't `import type { TraitFieldRef }` from
+            // @almadar/core (would create a cycle when the runtime types
+            // module imports back from shared). Mirror the same inline
+            // pattern used in `entities.ts`'s `type TraitFieldRef = ...`
+            // emission. `SExpr`-typed config fields (e.g. a `conditionalFields`
+            // map value) import the CANONICAL brand from `@almadar/core`
+            // alongside `FieldValue` — no cycle (same module as FieldValue), so
+            // the single source of truth is used rather than a local shadow.
+            // Gated to avoid an unused-import lint failure when absent.
+            let mut core_syms: std::collections::BTreeSet<&str> = if any_sexpr_config {
+                ["FieldValue", "SExpr"].into_iter().collect()
+            } else {
+                ["FieldValue"].into_iter().collect()
+            };
+            if any_forwarded_key {
+                core_syms.insert("EventPayloadValue");
+            }
+            code.push('\n');
+            code.push_str(&crate::codegen::handler_header::core_imports_clause(
+                &core_syms,
+            ));
+            code.push_str(&named_struct_type_import_line(
+                &referenced_struct_names.iter().map(String::as_str).collect(),
+                "./entities",
+            ));
+            code.push_str(crate::codegen::handler_header::TRAIT_FIELD_REF_DECL);
+            if any_node_config {
+                // Renderable-content knob (`node`) — inline the value types,
+                // same pin-safety rationale as `TraitFieldRef` above.
+                code.push_str(crate::codegen::handler_header::PATTERN_VALUE_DECL);
+            }
+            code.push('\n');
+            code.push_str(&blocks.join("\n\n"));
+            code.push('\n');
+        }
+
+        InternalFile::new(
+            "packages/shared/src/types/configs.ts",
+            code,
+            GeneratedFileType::Entity,
+        )
+    }
+
+    pub(crate) fn map_type_to_zod(
+        &self,
+        oir_type: &OirType,
+        enum_values: Option<&Vec<String>>,
+    ) -> String {
+        self.map_type_to_zod_with_refs(oir_type, enum_values, ZodRefMode::Schema)
+    }
+
+    /// Map an OirType to a Zod schema constructor string.
+    ///
+    /// `ref_mode` switches how a `Reference` field validates:
+    /// - `Schema` (entity-schema context): `z.lazy(() => XSchema)` — the entity
+    ///   Zod schema is in scope in `entities.ts`.
+    /// - `IdString` (event-payload context): `z.string()` — a payload reference
+    ///   field is just a string id, and no `XSchema` symbol is imported at the
+    ///   inline per-event validation site.
+    ///
+    /// Enum values are only available in the entity-schema context (event
+    /// payload fields carry no enum metadata), so the payload caller passes
+    /// `enum_values: None` and lands on the `z.string()` fallback.
+    pub(crate) fn map_type_to_zod_with_refs(
+        &self,
+        oir_type: &OirType,
+        enum_values: Option<&Vec<String>>,
+        ref_mode: ZodRefMode,
+    ) -> String {
+        match oir_type {
+            // A closed string vocabulary is `OirType::String` PLUS
+            // `enum_values` metadata (the same encoding `render_type`'s
+            // canonical `r.string(enum_values)` call uses for every OTHER
+            // target — `map_type_ts`'s TS union included), never
+            // `OirType::Enum` — this arm previously ignored the parameter
+            // and always emitted the wide `z.string()`, so a struct field
+            // typed `'default' | 'danger'` in the TS interface got a zod
+            // schema inferring as plain `string`, failing `ZodType<T>`
+            // (TS2322). Same `z.enum([...])` the `OirType::Enum` arm below
+            // already emits.
+            OirType::String => match enum_values {
+                Some(values) if !values.is_empty() => {
+                    let quoted: Vec<String> =
+                        values.iter().map(|v| format!("'{}'", v)).collect();
+                    format!("z.enum([{}])", quoted.join(", "))
+                }
+                _ => "z.string()".to_string(),
+            },
+            OirType::Number | OirType::Integer => "z.number()".to_string(),
+            OirType::Boolean => "z.boolean()".to_string(),
+            OirType::Date | OirType::DateTime => "z.string()".to_string(),
+            OirType::Email | OirType::Url | OirType::Phone | OirType::Uuid | OirType::Image => {
+                "z.string()".to_string()
+            }
+            OirType::Money => "z.number()".to_string(),
+            OirType::File => "z.object({ name: z.string(), url: z.string(), mimeType: z.string(), sizeBytes: z.number() })".to_string(),
+            // The zod twin of the declared TS type
+            // (`Record<string, FieldValue | undefined>`, `types.rs::json`).
+            OirType::Json => "z.record(FieldValueSchema.optional())".to_string(),
+            // The closed union, enforced at runtime too — this is exactly what
+            // `json` never gave us: a value that nests is REJECTED.
+            OirType::Scalar => "z.union([z.string(), z.number(), z.boolean(), z.null()])".to_string(),
+            // Renderable content: the inline `PatternValueSchema`
+            // (`PATTERN_VALUE_SCHEMA_DECL`), twin of `PatternValue`.
+            OirType::Node => "PatternValueSchema".to_string(),
+            OirType::Tuple { items } => format!(
+                "z.tuple([{}])",
+                items
+                    .iter()
+                    .map(|t| self.map_type_to_zod_with_refs(t, None, ref_mode))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            OirType::Array { inner } => {
+                format!(
+                    "z.array({})",
+                    self.map_type_to_zod_with_refs(inner, None, ref_mode)
+                )
+            }
+            OirType::Map { value, .. } => {
+                format!(
+                    "z.record({})",
+                    self.map_type_to_zod_with_refs(value, None, ref_mode)
+                )
+            }
+            OirType::Optional { inner } => {
+                format!(
+                    "{}.optional()",
+                    self.map_type_to_zod_with_refs(inner, None, ref_mode)
+                )
+            }
+            // §161: a declared relation field STORES THE ID (ledger §138/
+            // §147, `orbital-core`'s `TargetTypeRenderer::reference` default
+            // — the TS type position for this SAME field renders `string`,
+            // never the related row's shape). `ZodRefMode::Schema`
+            // previously validated it as the embedded row
+            // (`z.lazy(() => XSchema)`), disagreeing with both the TS
+            // interface and the persist-effect codegen's default binding
+            // (`@user.id` → a plain string), so every create/update through
+            // a relation field with a default 400'd — `Expected object,
+            // received string`. Both `ref_mode`s validate the one thing the
+            // field is ever populated with: the id string. (`entity` is
+            // unused now that both arms agree; kept as the match binding so
+            // a future ref-mode split has it in scope again.)
+            OirType::Reference { entity: _ } => "z.string()".to_string(),
+            // An embedded row is the entity's own object: the schema in scope
+            // validates it; an event payload imports no schema, so it is a
+            // shapeless record there.
+            OirType::Row { entity } => match ref_mode {
+                ZodRefMode::Schema => format!("z.lazy(() => {}Schema)", to_camel_case(entity)),
+                ZodRefMode::IdString => "z.record(FieldValueSchema.optional())".to_string(),
+            },
+            // A tagged union: each variant's own schema, joined by z.union.
+            // A single variant degrades to that variant, none to `z.never()`
+            // (uninhabited), rather than emitting an invalid one-arm z.union.
+            OirType::Union { variants } => {
+                let parts: Vec<String> = variants
+                    .iter()
+                    .map(|v| self.map_type_to_zod_with_refs(&v.field_type, None, ref_mode))
+                    .collect();
+                match parts.len() {
+                    0 => "z.never()".to_string(),
+                    1 => parts.into_iter().next().unwrap_or_default(),
+                    _ => format!("z.union([{}])", parts.join(", ")),
+                }
+            }
+            OirType::Struct { fields } => {
+                let parts: Vec<String> = fields
+                    .iter()
+                    .map(|f| {
+                        // Unwrap so the recursive call doesn't double-apply `.optional()` (see the entity-schema loop above).
+                        let (effective_type, is_optional) = f.effective_type();
+                        let inner = self.map_type_to_zod_with_refs(
+                            effective_type,
+                            f.enum_values.as_ref(),
+                            ref_mode,
+                        );
+                        let q = if is_optional {
+                            format!("{}.optional()", inner)
+                        } else {
+                            inner
+                        };
+                        format!("{}: {}", f.name, q)
+                    })
+                    .collect();
+                format!("z.object({{ {} }})", parts.join(", "))
+            }
+            OirType::Enum { .. } => {
+                // Generate z.enum() if values are available
+                if let Some(values) = enum_values {
+                    if !values.is_empty() {
+                        let quoted: Vec<String> =
+                            values.iter().map(|v| format!("'{}'", v)).collect();
+                        return format!("z.enum([{}])", quoted.join(", "));
+                    }
+                }
+                "z.string()".to_string()
+            }
+            // A local embed `@trait.X`, a stored trait value, or `null` — the
+            // inlined `TRAIT_FIELD_VALUE_SCHEMA_DECL`.
+            OirType::Trait => "TraitFieldValueSchema".to_string(),
+            // A stored orbital value or `null` — the inlined `ORBITAL_FIELD_VALUE_SCHEMA_DECL`.
+            OirType::Orbital => "OrbitalFieldValueSchema".to_string(),
+            // A stored behavior value or `null` — the inlined `BEHAVIOR_FIELD_VALUE_SCHEMA_DECL`.
+            OirType::Behavior => "BehaviorFieldValueSchema".to_string(),
+            // The canonical `SExprSchema` from `@almadar/core`, twin of `SExpr`.
+            OirType::SExpr => "SExprSchema".to_string(),
+            // A by-name reference to a named (possibly self-referential)
+            // struct type — the hoisted `<Name>Schema` z.lazy() constant
+            // (emitted alongside the `<Name>` interface, see
+            // `emit_named_type_declarations`) is the standard recursive-schema
+            // idiom: referencing it here, rather than inlining, is what lets
+            // the schema actually terminate.
+            OirType::TypeRef { name } => format!("z.lazy(() => {}Schema)", name),
+        }
+    }
+}
+
+/// Entity field schema info for enriching form field generation.
+/// Carries type + metadata from OirField so the compiled Form component
+/// receives correct input types (number, date, checkbox, select, etc.).
+#[derive(Debug, Clone)]
+pub struct EntityFieldInfo {
+    /// Form-compatible type string: "string", "number", "integer", "boolean",
+    /// "date", "datetime", "enum", "relation", "object", "array"
+    pub form_type: String,
+    /// Whether this is a numeric field (Number or Integer)
+    pub is_numeric: bool,
+    /// Enum values (for enum fields)
+    pub enum_values: Option<Vec<String>>,
+    /// Target entity name (for relation fields)
+    pub relation_entity: Option<String>,
+    /// Relation cardinality, mapped to the `@almadar/ui` `RelationConfig`
+    /// vocabulary (`"one"`/`"many"`) — `None` when the field carries no
+    /// explicit `OirRelation` (a bare `Reference` type with no cardinality
+    /// declared).
+    pub relation_cardinality: Option<String>,
+    /// Whether the field is required
+    pub required: bool,
+    /// The field's `@description` — becomes the form input's help text
+    /// (`hint`), mirroring the runtime path's enrichFormFields injection.
+    pub description: Option<String>,
+    /// Inline TypeScript type for the array-element shape when this field is
+    /// an array of struct (`[StatCard]` lowers to `OirType::Array { inner:
+    /// OirType::Struct }`). Lets renderItem param annotations narrow to the
+    /// struct shape instead of falling back to `EntityRow` (which exposes
+    /// only `FieldValue` accesses and breaks downstream literal-union props).
+    pub element_ts_type: Option<String>,
+}
+
+/// Map an `OirRelation.cardinality` to the `@almadar/ui` `RelationConfig`
+/// vocabulary. OIR is camelCase 4-way (`oneToOne`/`oneToMany`/`manyToOne`/
+/// `manyToMany`); the TS `RelationConfig.cardinality` union is `"one"` /
+/// `"many"` — only "one id or many" matters to the consumer, so the "to"
+/// side collapses: `*ToOne` → `"one"`, `*ToMany` → `"many"`.
+pub(crate) fn oir_cardinality_to_relation_str(c: OirCardinality) -> &'static str {
+    match c {
+        OirCardinality::OneToOne | OirCardinality::ManyToOne => "one",
+        OirCardinality::OneToMany | OirCardinality::ManyToMany => "many",
+    }
+}
+
+/// Convert an OirType to a form-compatible type string
+pub(crate) fn oir_type_to_form_type(t: &OirType) -> &'static str {
+    match t {
+        OirType::String => "string",
+        OirType::Number => "number",
+        OirType::Integer => "integer",
+        OirType::Boolean => "boolean",
+        OirType::Date => "date",
+        OirType::DateTime => "datetime",
+        OirType::Email => "email",
+        OirType::Url | OirType::Image => "url",
+        OirType::Phone => "tel",
+        OirType::Uuid => "string",
+        OirType::Money => "money",
+        OirType::File => "file",
+        OirType::Json => "object",
+        // A form control for a scalar is a plain text input: the union's widest
+        // renderable member. `object` would render a fieldset for a value that
+        // has no fields.
+        OirType::Scalar => "string",
+        OirType::Node => "object",
+        OirType::Array { .. } | OirType::Tuple { .. } => "array",
+        OirType::Map { .. } => "object",
+        OirType::Optional { inner } => oir_type_to_form_type(inner),
+        OirType::Reference { .. } => "relation",
+        OirType::Row { .. } => "object",
+        OirType::Enum { .. } => "enum",
+        OirType::Union { .. } => "object",
+        OirType::Struct { .. } => "object",
+        // `trait`-typed values surface as branded strings; the trait-ref
+        // semantic is handled at codegen / runtime substitution time, not
+        // by form-input rendering.
+        OirType::Trait => "string",
+        OirType::Orbital => "object",
+        OirType::Behavior => "object",
+        // An s-expression config value renders as a structured object.
+        OirType::SExpr => "object",
+        // A named struct reference is an object control, same as an inline
+        // struct — no dedicated "recursive" form control exists.
+        OirType::TypeRef { .. } => "object",
+    }
+}
+
+#[cfg(test)]
+mod cardinality_tests {
+    use super::*;
+
+    #[test]
+    fn to_one_cardinalities_collapse_to_one() {
+        assert_eq!(
+            oir_cardinality_to_relation_str(OirCardinality::OneToOne),
+            "one"
+        );
+        assert_eq!(
+            oir_cardinality_to_relation_str(OirCardinality::ManyToOne),
+            "one"
+        );
+    }
+
+    #[test]
+    fn to_many_cardinalities_collapse_to_many() {
+        assert_eq!(
+            oir_cardinality_to_relation_str(OirCardinality::OneToMany),
+            "many"
+        );
+        assert_eq!(
+            oir_cardinality_to_relation_str(OirCardinality::ManyToMany),
+            "many"
+        );
+    }
+}
+
+/// A to-many relation field's type is already the array, so the cardinality must not wrap
+/// it again (`string[][]`); an intrinsic list holds embedded rows, a persisted one ids.
+#[cfg(test)]
+mod to_many_relation_field_tests {
+    use super::*;
+    use orbital_core::ir::{OirEntity, OirField, OirRelation};
+
+    fn revision_entity(cardinality: OirCardinality, field_type: OirType) -> OirEntity {
+        let mut field = OirField::optional("revisions", field_type);
+        field.relation = Some(OirRelation {
+            target_entity: "Revision".to_string(),
+            target_entity_id: None,
+            cardinality,
+            foreign_key: None,
+        });
+        let mut entity = OirEntity::new("Revision");
+        entity.fields.push(field);
+        entity
+    }
+
+    fn generated(entity: OirEntity) -> (String, String) {
+        let backend = TypeScriptBackend::new();
+        let named = std::collections::BTreeMap::new();
+        let types = backend.generate_shared_entities(std::slice::from_ref(&entity), &named);
+        let schemas = backend.generate_shared_schemas(&[entity], &named);
+        (types.content, schemas.content)
+    }
+
+    #[test]
+    fn an_intrinsic_to_many_relation_is_one_array_of_rows() {
+        let (types, schemas) = generated(revision_entity(
+            OirCardinality::OneToMany,
+            OirType::array(OirType::row("Revision")),
+        ));
+        assert!(types.contains("revisions?: Revision[];"), "{types}");
+        assert!(schemas.contains("z.array(z.lazy(() => revisionSchema))"), "{schemas}");
+        assert!(!schemas.contains("z.array(z.array("), "{schemas}");
+    }
+
+    #[test]
+    fn control_a_persisted_to_many_relation_is_one_array_of_ids() {
+        let (types, schemas) = generated(revision_entity(
+            OirCardinality::OneToMany,
+            OirType::array(OirType::reference("Revision")),
+        ));
+        assert!(types.contains("revisions?: string[];"), "{types}");
+        assert!(!types.contains("Revision[]"), "{types}");
+        assert!(schemas.contains("z.array(z.string())"), "{schemas}");
+    }
+
+    #[test]
+    fn a_row_in_an_event_payload_is_a_shapeless_record_not_a_schema_import() {
+        let backend = TypeScriptBackend::new();
+        let row = OirType::row("Revision");
+        assert_eq!(
+            backend.map_type_to_zod_with_refs(&row, None, ZodRefMode::Schema),
+            "z.lazy(() => revisionSchema)"
+        );
+        assert_eq!(
+            backend.map_type_to_zod_with_refs(&row, None, ZodRefMode::IdString),
+            "z.record(FieldValueSchema.optional())"
+        );
+        assert_eq!(
+            backend.map_type_to_zod_with_refs(&OirType::reference("Revision"), None, ZodRefMode::IdString),
+            "z.string()"
+        );
+    }
+
+    #[test]
+    fn control_a_to_one_relation_stays_an_id() {
+        let (types, _) = generated(revision_entity(
+            OirCardinality::ManyToOne,
+            OirType::reference("Revision"),
+        ));
+        assert!(types.contains("revisions?: string;"), "{types}");
+    }
+}
+
+#[cfg(test)]
+mod named_type_schema_import_tests {
+    use super::*;
+    use orbital_core::ir::OirField;
+
+    fn nav_item_named_types() -> std::collections::BTreeMap<String, OirType> {
+        let mut named_types = std::collections::BTreeMap::new();
+        named_types.insert(
+            "NavItem".to_string(),
+            OirType::Struct {
+                fields: vec![OirField {
+                    declared: None,
+                    merged_from: None,
+                    name: "label".to_string(),
+                    field_type: OirType::String,
+                    description: None,
+                    required: true,
+                    default: None,
+                    constraints: vec![],
+                    enum_values: None,
+                    relation: None,
+                    intrinsic: false,
+                }],
+            },
+        );
+        named_types
+    }
+
+    /// `emit_named_type_zod_declarations` emits `z.ZodType<NavItem>` but the
+    /// interface it names lives in `entities.ts` — the file never imported
+    /// it (TS2304). Both files sit under `packages/shared/src/`
+    /// (`types/entities.ts` / `schemas/entities.ts`), so the import is `../types/entities`.
+    #[test]
+    fn schemas_import_named_struct_types_from_entities() {
+        let backend = TypeScriptBackend::new();
+        let file = backend.generate_shared_schemas(&[], &nav_item_named_types());
+        assert!(
+            file.content
+                .contains("import type { NavItem } from '../types/entities';"),
+            "expected the NavItem interface import, got: {}",
+            file.content
+        );
+    }
+
+    #[test]
+    fn schemas_omit_import_when_no_named_struct_types() {
+        let backend = TypeScriptBackend::new();
+        let file = backend.generate_shared_schemas(&[], &std::collections::BTreeMap::new());
+        assert!(
+            !file.content.contains("import type {"),
+            "expected no named-type import when there are no named struct types, got: {}",
+            file.content
+        );
+    }
+
+    fn nav_item_with_optional_field() -> std::collections::BTreeMap<String, OirType> {
+        let mut named_types = std::collections::BTreeMap::new();
+        named_types.insert(
+            "NavItem".to_string(),
+            OirType::Struct {
+                fields: vec![
+                    OirField {
+                        declared: None,
+                        merged_from: None,
+                        name: "label".to_string(),
+                        field_type: OirType::String,
+                        description: None,
+                        required: true,
+                        default: None,
+                        constraints: vec![],
+                        enum_values: None,
+                        relation: None,
+                        intrinsic: false,
+                    },
+                    OirField {
+                        declared: None,
+                        merged_from: None,
+                        name: "badge".to_string(),
+                        // `OirField::optional` both sets `required: false` AND
+                        // wraps the type in `Optional` — the doubling repro.
+                        field_type: OirType::Optional {
+                            inner: Box::new(OirType::String),
+                        },
+                        description: None,
+                        required: false,
+                        default: None,
+                        constraints: vec![],
+                        enum_values: None,
+                        relation: None,
+                        intrinsic: false,
+                    },
+                ],
+            },
+        );
+        named_types
+    }
+
+    fn menu_item_with_enum_variant_field() -> std::collections::BTreeMap<String, OirType> {
+        let mut named_types = std::collections::BTreeMap::new();
+        named_types.insert(
+            "MenuItemsItem".to_string(),
+            OirType::Struct {
+                fields: vec![
+                    OirField {
+                        declared: None,
+                        merged_from: None,
+                        name: "label".to_string(),
+                        field_type: OirType::String,
+                        description: None,
+                        required: true,
+                        default: None,
+                        constraints: vec![],
+                        enum_values: None,
+                        relation: None,
+                        intrinsic: false,
+                    },
+                    OirField {
+                        declared: None,
+                        merged_from: None,
+                        name: "variant".to_string(),
+                        // A closed string vocabulary is `OirType::String` +
+                        // `enum_values` — never `OirType::Enum` (see
+                        // `render_type`'s `r.string(enum_values)`, the same
+                        // encoding the TS interface emitter reads to
+                        // produce `'default' | 'danger'`).
+                        field_type: OirType::Optional {
+                            inner: Box::new(OirType::String),
+                        },
+                        description: None,
+                        required: false,
+                        default: None,
+                        constraints: vec![],
+                        enum_values: Some(vec!["default".to_string(), "danger".to_string()]),
+                        relation: None,
+                        intrinsic: false,
+                    },
+                ],
+            },
+        );
+        named_types
+    }
+
+    /// A named struct field typed `OirType::String` + `enum_values` (the
+    /// encoding a closed string vocabulary uses everywhere else) must emit
+    /// `z.enum([...])`, not the wide `z.string()` — the `variant?: 'default'
+    /// | 'danger'` interface field previously got a zod schema inferring as
+    /// plain `string`, failing `z.ZodType<MenuItemsItem>` (TS2322).
+    #[test]
+    fn named_type_string_field_with_enum_values_emits_zod_enum() {
+        let backend = TypeScriptBackend::new();
+        let file = backend.generate_shared_schemas(&[], &menu_item_with_enum_variant_field());
+        assert!(
+            file.content
+                .contains("variant: z.enum(['default', 'danger']).optional()"),
+            "expected an enum zod schema on the variant field, got: {}",
+            file.content
+        );
+    }
+
+    /// An `Optional`-typed field on a named struct must emit exactly one
+    /// `.optional()` in the generated zod schema, never
+    /// `.optional().optional()` (the doubling came from
+    /// `map_type_to_zod_with_refs`'s `OirType::Optional` arm ALSO appending
+    /// `.optional()` on top of the `Struct` field loop's own `!f.required`
+    /// arm — both read the same `OirField::optional()` signal).
+    #[test]
+    fn optional_named_type_field_emits_exactly_one_optional_call() {
+        let backend = TypeScriptBackend::new();
+        let file = backend.generate_shared_schemas(&[], &nav_item_with_optional_field());
+        assert!(
+            !file.content.contains(".optional().optional()"),
+            "expected no doubled .optional(), got: {}",
+            file.content
+        );
+        assert!(
+            file.content.contains("badge: z.string().optional()"),
+            "expected exactly one .optional() on the badge field, got: {}",
+            file.content
+        );
+    }
+
+    /// A self-referential named struct's `z.ZodType<Name> = z.lazy(...)`
+    /// declaration is a plain annotated assignment, no trailing `as
+    /// z.ZodType<Name>` assertion — now that every generated server
+    /// tsconfig has `strictNullChecks` on (implied by `strict: true`), zod's
+    /// optional-key inference no longer collapses every field to optional,
+    /// so the annotation's assignability check passes on its own; a trailing
+    /// assertion would only mask a real mismatch.
+    #[test]
+    fn recursive_named_type_schema_is_annotated_assignment_no_assertion() {
+        let backend = TypeScriptBackend::new();
+        let file = backend.generate_shared_schemas(&[], &nav_item_named_types());
+        assert!(
+            file.content
+                .contains("export const NavItemSchema: z.ZodType<NavItem> = z.lazy(() => z.object({ label: z.string() }));"),
+            "expected the lazy schema as a plain annotated assignment, got: {}",
+            file.content
+        );
+        assert!(
+            !file.content.contains("as z.ZodType<"),
+            "expected no `as z.ZodType<...>` assertion, got: {}",
+            file.content
+        );
+    }
+}
+
+#[cfg(test)]
+mod config_named_type_import_tests {
+    use super::*;
+    use orbital_core::ir::OirConfigFieldType;
+
+    /// A trait whose `config {}` block declares a field typed `TypeRef {
+    /// name: "NavItem" }` — the shape a `nav-items` config knob referencing
+    /// a named struct type lowers to.
+    fn trait_with_nav_item_config() -> OirTrait {
+        let mut tr = OirTrait::new("Sidebar");
+        let mut schema = std::collections::HashMap::new();
+        schema.insert(
+            "items".to_string(),
+            OirConfigFieldType {
+                field_type: OirType::Array {
+                    inner: Box::new(OirType::TypeRef {
+                        name: "NavItem".to_string(),
+                    }),
+                },
+                values: None,
+            },
+        );
+        tr.declared_config_schema = Some(schema);
+        tr
+    }
+
+    /// `map_type_with_enum` renders a `TypeRef` field as the bare interface
+    /// name (`NavItem[]`), but `types/configs.ts` only imported `zod`'s
+    /// sibling core symbols — never the struct interface itself (TS2304).
+    #[test]
+    fn configs_import_named_struct_types_referenced_by_a_config_field() {
+        let backend = TypeScriptBackend::new();
+        let mut module = OirModule::new("App", "1.0.0");
+        module.traits.push(trait_with_nav_item_config());
+        let file = backend.generate_shared_trait_configs(&module);
+        assert!(
+            file.content
+                .contains("import type { NavItem } from './entities';"),
+            "expected the NavItem interface import, got: {}",
+            file.content
+        );
+    }
+
+    #[test]
+    fn configs_omit_import_when_no_config_references_a_named_struct_type() {
+        let backend = TypeScriptBackend::new();
+        let mut module = OirModule::new("App", "1.0.0");
+        let mut tr = OirTrait::new("Plain");
+        let mut schema = std::collections::HashMap::new();
+        schema.insert(
+            "title".to_string(),
+            OirConfigFieldType {
+                field_type: OirType::String,
+                values: None,
+            },
+        );
+        tr.declared_config_schema = Some(schema);
+        module.traits.push(tr);
+        let file = backend.generate_shared_trait_configs(&module);
+        assert!(
+            !file.content.contains("from './entities'"),
+            "expected no named-struct import when no config field references one, got: {}",
+            file.content
+        );
+    }
+}
+
+#[cfg(test)]
+mod event_protocol_extends_core_tests {
+    use super::*;
+
+    /// §156: `EventRequest`/`EventResponse` must be straight aliases of
+    /// `@almadar/core`'s canonical `OrbitalEventRequest`/`OrbitalEventResponse`
+    /// — no hand-restated subset (`fields?: EntityRow`, a local `EmittedEvent`/
+    /// `EffectResult`) — the two execution paths' event-protocol shapes drift
+    /// the moment a hand-copied subset diverges from the canonical owner.
+    #[test]
+    fn event_request_and_response_extend_core_dispatch_types() {
+        let backend = TypeScriptBackend::new();
+        let module = OirModule::new("App", "1.0.0");
+        let file = backend.generate_shared_event_types(&module);
+
+        assert!(
+            file.content.contains(
+                "import type { EventPayload, EventPayloadValue, EntityRow, FieldValue, OrbitalEventRequest, OrbitalEventResponse, ServerEffectResult, EmittedEvent, ClientEffectTuple } from '@almadar/core';"
+            ),
+            "must import core's canonical event-wire types:\n{}",
+            file.content
+        );
+        assert!(
+            file.content
+                .contains("export type EventRequest = OrbitalEventRequest;"),
+            "EventRequest must be core's OrbitalEventRequest, not a hand-copied subset:\n{}",
+            file.content
+        );
+        assert!(
+            file.content
+                .contains("export type EventResponse = OrbitalEventResponse;"),
+            "EventResponse must be core's OrbitalEventResponse, not a hand-restated interface:\n{}",
+            file.content
+        );
+        assert!(
+            !file.content.contains("fields?: EntityRow;"),
+            "must not restate core's `fields?: EntityRow` member by hand:\n{}",
+            file.content
+        );
+        assert!(
+            !file.content.contains("interface EmittedEvent"),
+            "must not hand-restate core's EmittedEvent:\n{}",
+            file.content
+        );
+        assert!(
+            !file.content.contains("interface EffectResult"),
+            "must not hand-restate core's ServerEffectResult under a local name:\n{}",
+            file.content
+        );
+    }
+
+    /// §156 fixture parity: every top-level key the recorded `render-ui-3`
+    /// response fixture carries must be traceable in the generated types
+    /// file's text — a straight `= OrbitalEventResponse` alias documents its
+    /// members in its doc comment (see the header above `EventResponse`), so
+    /// this is a string-level check, not a typecheck: it catches the doc
+    /// comment (and thus a human reviewer) falling behind the wire shape the
+    /// fixture set enforces everywhere else (`Almadar_Core.md`).
+    #[test]
+    fn generated_event_response_references_every_fixture_key() {
+        let backend = TypeScriptBackend::new();
+        let module = OirModule::new("App", "1.0.0");
+        let file = backend.generate_shared_event_types(&module);
+
+        let fixture_text = orbital_core::fixtures::event_wire_case("render-ui-3")
+            .expect("baked events-wire case render-ui-3")
+            .response();
+        let fixture: serde_json::Value = serde_json::from_str(fixture_text)
+            .unwrap_or_else(|e| panic!("fixture is not valid JSON: {e}"));
+        let top_level_keys = fixture
+            .as_object()
+            .expect("fixture response.json must be a JSON object");
+
+        for key in top_level_keys.keys() {
+            assert!(
+                file.content.contains(key.as_str()),
+                "generated EventResponse doc must reference fixture key `{}`:\n{}",
+                key,
+                file.content
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod system_timestamp_tests {
+    use crate::TypeScriptBackend;
+    use orbital_core::ir::{OirEntity, OirField, OirPersistence, OirType};
+
+    fn entity(fields: Vec<OirField>) -> OirEntity {
+        OirEntity {
+            shared: false,
+            identity: false,
+            local: false,
+            seed_mock: false,
+            id: None,
+            name: "Revision".to_string(),
+            description: None,
+            collection: "revisions".to_string(),
+            persistence: OirPersistence::Persistent,
+            fields,
+            defaults: None,
+            instances: vec![],
+            used_by_traits: vec![],
+            used_by_pages: vec![],
+            read_policy: None,
+            create_policy: None,
+            update_policy: None,
+            delete_policy: None,
+        }
+    }
+
+    /// The stores stamp createdAt/updatedAt as ISO strings, so the entity type says string.
+    #[test]
+    fn system_timestamps_are_iso_strings() {
+        let ts = TypeScriptBackend::new()
+            .generate_shared_entities(
+                &[entity(vec![OirField::new("id", OirType::String)])],
+                &Default::default(),
+            )
+            .content;
+        assert!(ts.contains("  createdAt: string;\n  updatedAt: string;\n"), "{ts}");
+        assert!(!ts.contains(": Date;"), "{ts}");
+    }
+
+    #[test]
+    fn a_declared_created_at_is_typed_once_as_a_string() {
+        let ts = TypeScriptBackend::new()
+            .generate_shared_entities(
+                &[entity(vec![
+                    OirField::new("id", OirType::String),
+                    OirField::new("createdAt", OirType::String),
+                ])],
+                &Default::default(),
+            )
+            .content;
+        assert_eq!(ts.matches("createdAt").count(), 1, "{ts}");
+        assert!(ts.contains("  createdAt: string;\n"), "{ts}");
+    }
+}
+
+/// G-ORB-150 / G-ORB-151: a recursive struct (`KnobField`, reached through a by-name
+/// `TypeRef`) and an `SExpr` member nested inside entity fields and event payloads
+/// must be imported by every file that renders them by name.
+#[cfg(test)]
+mod nested_named_type_import_tests {
+    use crate::TypeScriptBackend;
+    use orbital_core::ir::{
+        OirEntity, OirEvent, OirField, OirModule, OirPersistence, OirTrait, OirType,
+    };
+
+    fn knob() -> OirType {
+        OirType::Struct {
+            fields: vec![
+                OirField::new("name", OirType::String),
+                OirField::new("default", OirType::SExpr),
+                OirField::new(
+                    "properties",
+                    OirType::Array {
+                        inner: Box::new(OirType::TypeRef {
+                            name: "KnobField".to_string(),
+                        }),
+                    },
+                ),
+            ],
+        }
+    }
+
+    fn module() -> OirModule {
+        let mut m = OirModule::new("App", "1.0.0");
+        m.named_types.insert("KnobField".to_string(), knob());
+        m.entities.push(OirEntity {
+            shared: false,
+            identity: false,
+            local: false,
+            seed_mock: false,
+            id: None,
+            name: "Draft".to_string(),
+            description: None,
+            collection: "drafts".to_string(),
+            persistence: OirPersistence::Runtime,
+            fields: vec![
+                OirField::new("id", OirType::String),
+                OirField::new(
+                    "knobs",
+                    OirType::Array {
+                        inner: Box::new(knob()),
+                    },
+                ),
+            ],
+            defaults: None,
+            instances: vec![],
+            used_by_traits: vec![],
+            used_by_pages: vec![],
+            read_policy: None,
+            create_policy: None,
+            update_policy: None,
+            delete_policy: None,
+        });
+        let mut t = OirTrait::new("Generator");
+        t.linked_entity = Some("Draft".to_string());
+        t.states.push(orbital_core::ir::OirState::initial("idle"));
+        let mut described = OirEvent::new("DESCRIBED");
+        described.payload_schema = Some(
+            [(
+                "result".to_string(),
+                OirType::Array {
+                    inner: Box::new(knob()),
+                },
+            )]
+            .into_iter()
+            .collect(),
+        );
+        t.events.push(described);
+        m.traits.push(t);
+        m
+    }
+
+    #[test]
+    fn entities_import_sexpr_when_a_nested_member_is_one() {
+        let m = module();
+        let ts = TypeScriptBackend::new()
+            .generate_shared_entities(&m.entities, &m.named_types)
+            .content;
+        assert!(
+            ts.contains("default?: SExpr") || ts.contains("default: SExpr"),
+            "fixture renders SExpr: {ts}"
+        );
+        assert!(
+            ts.lines().any(|l| l.starts_with("import type {")
+                && l.contains(" SExpr")
+                && l.contains("'@almadar/core'")),
+            "{ts}"
+        );
+    }
+
+    #[test]
+    fn events_import_the_named_types_and_sexpr_their_payloads_reach() {
+        let ts = TypeScriptBackend::new()
+            .generate_shared_event_types(&module())
+            .content;
+        assert!(
+            ts.contains("KnobField[]"),
+            "fixture renders the TypeRef by name: {ts}"
+        );
+        assert!(
+            ts.lines().any(|l| l.starts_with("import type {")
+                && l.contains("KnobField")
+                && l.contains("'./entities.js'")),
+            "{ts}"
+        );
+        assert!(
+            ts.lines().any(|l| l.starts_with("import type {")
+                && l.contains(" SExpr")
+                && l.contains("'@almadar/core'")),
+            "{ts}"
+        );
+    }
+
+    #[test]
+    fn control_events_without_sexpr_or_named_types_import_neither() {
+        let mut m = OirModule::new("App", "1.0.0");
+        let mut t = OirTrait::new("Plain");
+        let mut e = OirEvent::new("SAVED");
+        e.payload_schema = Some(
+            [("title".to_string(), OirType::String)]
+                .into_iter()
+                .collect(),
+        );
+        t.events.push(e);
+        m.traits.push(t);
+        let ts = TypeScriptBackend::new()
+            .generate_shared_event_types(&m)
+            .content;
+        assert!(!ts.contains(" SExpr"), "{ts}");
+        assert!(!ts.contains("'./entities.js'"), "{ts}");
+    }
+
+    #[test]
+    fn hooks_import_the_named_types_and_sexpr_their_casts_reach() {
+        let m = module();
+        let ts = TypeScriptBackend::new()
+            .generate_trait_logic_hook(&m.traits[0], &m)
+            .content;
+        assert!(
+            ts.lines().any(|l| l.starts_with("import type {")
+                && l.contains("KnobField")
+                && l.contains("'@app/shared'")),
+            "{ts}"
+        );
+        assert!(
+            ts.lines().any(|l| l.starts_with("import type {")
+                && l.contains(" SExpr")
+                && l.contains("'@almadar/core'")),
+            "{ts}"
+        );
+        assert_eq!(
+            ts.matches("KnobField,").count() + ts.matches("KnobField }").count(),
+            1,
+            "imported once: {ts}"
+        );
+    }
+
+    #[test]
+    fn handlers_import_the_named_types_their_payload_casts_reach() {
+        let m = module();
+        let names = crate::codegen::handler_header::collect_effect_entity_types(&m.traits[0], &m);
+        assert!(names.contains("KnobField"), "{names:?}");
+        assert!(
+            names.contains("Draft"),
+            "control: the linked entity stays: {names:?}"
+        );
+    }
+}

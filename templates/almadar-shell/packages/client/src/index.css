@@ -1,0 +1,20 @@
+/* Import Almadar theme - @import must precede @tailwind directives */
+/* The runtime playground's theme entry: base, every built-in preset, foundation rules. */
+@import '@almadar/ui/themes/index.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Main slot fills the viewport edge-to-edge. Variant trees control their
+ * own width and padding via className utilities (max-w-*, mx-auto, px-*).
+ * The shell stays out of the way. */
+
+/* Global transition baseline: smooth state changes on interactive elements */
+button,
+a,
+[role="button"],
+[data-entity-row],
+[data-interactive] {
+  transition: all var(--transition-normal, 250ms) var(--transition-timing, cubic-bezier(0.4, 0, 0.2, 1));
+}
