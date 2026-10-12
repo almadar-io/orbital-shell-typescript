@@ -196,6 +196,7 @@ pub fn infer_oirexpr_element_type_ts(
         OirExpr::Call { function, args } => match function.as_str() {
             "array/filter" | "filter" | "array/sort" | "sort" | "array/reverse" | "reverse"
             | "array/slice" | "slice" | "array/take" | "take" | "array/drop" | "drop"
+            | "array/takeLast" | "array/dropLast" | "array/remove" | "array/shuffle"
             | "array/unique" | "unique" | "array/concat"
                 if !args.is_empty() =>
             {

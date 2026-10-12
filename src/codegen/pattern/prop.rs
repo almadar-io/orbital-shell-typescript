@@ -515,6 +515,11 @@ impl TypeScriptBackend {
                         return format!("{}={{undefined}}", key);
                     }
                     if prop_optional && sexpr_may_yield_null(arr) {
+                        // Nothing narrowed the value: tsc cannot narrow a repeated call expression,
+                        // so map null with `??` (same value, typed `T | undefined`).
+                        if expr == compiled {
+                            return format!("{}={{(({}) ?? undefined)}}", key, compiled);
+                        }
                         // Narrowing maps a nullish value to the prop's empty shape (`[]`, `''`),
                         // so the null test reads the value before it.
                         return format!("{}={{(({}) == null ? undefined : {})}}", key, compiled, expr);
@@ -612,6 +617,12 @@ impl TypeScriptBackend {
                         .and_then(|p| p.props_schema.get(key))
                         .and_then(|prop| prop.properties.as_ref())
                 });
+                // The members the component's object type requires (registry `propertyRequired`),
+                // and their schemas.
+                let object_prop = pattern_type.and_then(|pt| get_props_schema(pt)?.get(key));
+                let required_members: &[String] =
+                    object_prop.and_then(|p| p.property_required.as_deref()).unwrap_or(&[]);
+                let member_schemas = object_prop.and_then(|p| p.properties.as_ref());
                 let pairs: Vec<String> = obj
                     .iter()
                     .filter_map(|(k, v)| {
@@ -658,9 +669,22 @@ impl TypeScriptBackend {
                                 }
                                 // A number-only member: unset stays unset, as on the runtime path.
                                 let nested = nested_prop_schema.and_then(|p| p.get(k.as_str()));
+                                let member_required = required_members.iter().any(|r| r == k)
+                                    || nested.is_some_and(|np| np.required.required_on_parent());
+                                // A required array member: the canonical array coercion to its
+                                // element shape (a missing list is the empty list).
+                                let member = member_schemas.and_then(|m| m.get(k.as_str()));
+                                let array_member =
+                                    member.is_some_and(|m| !m.types.is_empty() && m.types.iter().all(|t| t == "array"));
+                                if member_required && array_member {
+                                    let expr = self.binding_string_to_ts(s);
+                                    let elt = Self::array_items_element_ts(member.and_then(|m| m.items.as_deref()));
+                                    let cast = super::registry::ArrayCast::NarrowedReadonly;
+                                    return Some(format!("{}: {}", k, super::registry::array_coerce_value(&expr, &elt, cast)));
+                                }
                                 if nested.is_some_and(|np| !np.types.is_empty() && np.types.iter().all(|t| t == "number")) {
                                     let expr = self.binding_string_to_ts(s);
-                                    return Some(if nested.is_some_and(|np| np.required.required_on_parent()) {
+                                    return Some(if member_required {
                                         format!("{}: Number({} ?? 0)", k, expr)
                                     } else {
                                         format!("{}: ({e} == null ? undefined : Number({e}))", k, e = expr)
@@ -1257,14 +1281,32 @@ mod absent_value_prop_tests {
             link(),
         ]);
         let out = b.config_value_to_jsx_prop_with_pattern(Some("doc-pagination"), "next", &v);
-        assert!(out.contains(") == null ? undefined : "), "{out}");
+        assert!(out.ends_with(") ?? undefined)}"), "{out}");
 
         let when = sexpr(vec![OirValue::String("when".into()), cond, link()]);
         let out = b.config_value_to_jsx_prop_with_pattern(Some("doc-pagination"), "next", &when);
         assert!(
-            out.contains(") == null ? undefined : "),
+            out.ends_with(") ?? undefined)}"),
             "a `when` yields null when false: {out}"
         );
+    }
+
+    /// G-ORB-242: cosmic-zoom's `systemDependencies: (if @entity.hasDependencies
+    /// @entity.dependencies null)`. Nothing narrows an object value, and tsc cannot narrow a
+    /// repeated call expression, so `(X) == null ? undefined : X` kept `null` (TS2322); `?? undefined`
+    /// maps null the same way and types as `T | undefined`.
+    #[test]
+    fn a_maybe_null_value_nothing_narrows_maps_null_with_nullish_coalescing() {
+        let b = TypeScriptBackend::new();
+        let v = sexpr(vec![
+            OirValue::String("if".into()),
+            OirValue::String("@entity.hasDependencies".into()),
+            OirValue::String("@entity.dependencies".into()),
+            OirValue::Null,
+        ]);
+        let out = b.config_value_to_jsx_prop_with_pattern(Some("flow-canvas"), "systemDependencies", &v);
+        assert!(out.ends_with(") ?? undefined)}"), "{out}");
+        assert!(!out.contains("== null ? undefined"), "{out}");
     }
 
     #[test]
@@ -1541,6 +1583,21 @@ mod object_prop_member_tests {
             out.contains("committed: (lastPayload?.committed == null ? undefined : Number(lastPayload?.committed))"),
             "{out}"
         );
+    }
+
+    /// G-ORB-242: cosmic-zoom feeds flow-canvas `scene: { steps: @entity.scene, cursor: @entity.cursor }`;
+    /// the component's `{ steps: readonly AvlPlayStep[]; cursor: number }` requires both members
+    /// (registry `propertyRequired`), so neither may be `undefined` (TS2322).
+    #[test]
+    fn required_members_of_an_object_prop_never_pass_undefined() {
+        let backend = TypeScriptBackend::new();
+        let mut scene = orbital_core::ir::OirObject::new();
+        scene.insert("steps".to_string(), OirValue::String("@entity.scene".to_string()));
+        scene.insert("cursor".to_string(), OirValue::String("@entity.cursor".to_string()));
+        let out = backend.config_value_to_jsx_prop_with_pattern(Some("flow-canvas"), "scene", &OirValue::Object(scene));
+        assert!(out.contains("cursor: Number(fields?.cursor ?? 0)"), "{out}");
+        assert!(out.contains("steps: Array.isArray(fields?.scene) ?"), "{out}");
+        assert!(out.contains(": []"), "a missing step list is the empty list: {out}");
     }
 
     #[test]

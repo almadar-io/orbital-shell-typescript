@@ -462,7 +462,7 @@ impl TypeScriptBackend {
                 code.push_str("  // eslint-disable-next-line react-hooks/exhaustive-deps\n");
                 code.push_str("  }, []);\n\n");
             }
-            OirInterval::Cron(expression) => {
+            OirInterval::Cron { expression } => {
                 code.push_str(&self.generate_cron_tick_effect(
                     tick_name, expression, guard_ts, tick_body, stamps_now,
                 ));
@@ -472,7 +472,7 @@ impl TypeScriptBackend {
                     OirInterval::Milliseconds { value } => *value,
                     OirInterval::Seconds { value } => *value * 1000,
                     OirInterval::Minutes { value } => *value * 60 * 1000,
-                    OirInterval::Frame | OirInterval::Cron(_) => unreachable!(),
+                    OirInterval::Frame | OirInterval::Cron { .. } => unreachable!(),
                 };
                 code.push_str(&format!("  // Tick: {} (every {}ms)\n", tick_name, ms));
                 code.push_str("  useEffect(() => {\n");
@@ -1101,7 +1101,7 @@ mod repro_tests {
             OirExpr::bool(true),
         ));
 
-        let mut tick = OirTick::new("dailyReport", OirInterval::Cron("0 9 * * *".to_string()));
+        let mut tick = OirTick::new("dailyReport", OirInterval::Cron { expression: "0 9 * * *".to_string() });
         tick.effects.push(set_flag);
 
         let mut tr = OirTrait::new("ReportTrait");

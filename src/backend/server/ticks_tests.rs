@@ -233,7 +233,7 @@ fn the_scheduler_passes_each_ticks_background_flag_and_cadence() {
             tick("sweep", OirInterval::Seconds { value: 2 }, false),
             tick("audit", OirInterval::Milliseconds { value: 250 }, true),
             tick("frame", OirInterval::Frame, false),
-            tick("nightly", OirInterval::Cron("0 3 * * *".to_string()), true),
+            tick("nightly", OirInterval::Cron { expression: "0 3 * * *".to_string() }, true),
         ],
     );
     let m = module(OirPersistence::Persistent, vec![t]);

@@ -18,7 +18,7 @@ fn cadence(interval: &OirInterval) -> ServerTickCadence {
         OirInterval::Milliseconds { value } => ServerTickCadence::EveryMs(*value),
         OirInterval::Seconds { value } => ServerTickCadence::EveryMs(*value * 1000),
         OirInterval::Minutes { value } => ServerTickCadence::EveryMs(*value * 60 * 1000),
-        OirInterval::Cron(expression) => ServerTickCadence::Cron(expression.clone()),
+        OirInterval::Cron { expression } => ServerTickCadence::Cron(expression.clone()),
     }
 }
 

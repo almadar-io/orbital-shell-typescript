@@ -389,8 +389,21 @@ impl TypeScriptBackend {
         let never_nullish_call = matches!(&arr[1], OirValue::Array(call)
             if self.try_compile_sexpr_prop_facts(call, crate::codegen::expr::BindingFlavor::Render)
                 .is_some_and(|(_, never_nullish)| never_nullish));
+        // The source's declared element type (a payload field of the pinned event, an entity
+        // field), read off the same inference the operator path uses.
+        let declared_element = if non_array_call {
+            orbital_core::lower::lower_sexpr(&Self::oirvalue_to_sexpr(&arr[1])).ok().and_then(|oir| {
+                crate::codegen::infer::infer_oirexpr_element_type_ts(&oir, &self.build_codegen_ctx(None, None, None))
+            })
+        } else {
+            None
+        };
 
-        if literal_array {
+        if let (true, Some(elem)) = (non_array_call, declared_element.as_deref()) {
+            let elt = crate::backend::array_element_ts(elem);
+            let (open, close) = if never_nullish_call { ("(", ")") } else { ("((", " | undefined) ?? [])") };
+            Some(format!("{{{open}{coll} as readonly {elt}[]{close}.map(({}) => ({body_jsx}))}}", params.join(", ")))
+        } else if literal_array {
             Some(format!(
                 "{{({}).map(({}) => ({}))}}",
                 coll,
@@ -3858,6 +3871,51 @@ mod conditional_children_codegen_tests {
                     obj(&[("type", s("typography")), ("content", s("@p.title"))]),
                 ]),
             ]),
+        );
+        let jsx = backend.generate_pattern_from_registry("stack", &config, None, None);
+        assert!(
+            jsx.contains("((lastPayload?.items as readonly EventPayloadValue[] | undefined) ?? []).map((p) => ("),
+            "{jsx}"
+        );
+    }
+
+    /// G-ORB-242: the architect panel maps `?issues` with `PANEL_SHOWN { issues : [ProgramIssue]! }`
+    /// pinned for the render — cast to the declared element type, or `@i.code` reads the wide
+    /// `EventPayloadValue` (TS2339).
+    #[test]
+    fn mapped_children_over_a_typed_payload_read_cast_to_its_element_type() {
+        use orbital_core::ir::{OirField, OirType};
+        let backend = TypeScriptBackend::new();
+        let mut schema = orbital_core::ir::OirTypeMap::new();
+        let issue = OirType::Struct {
+            fields: vec![OirField::new("code", OirType::String), OirField::new("message", OirType::String)],
+        };
+        schema.insert("issues".to_string(), OirType::array(issue));
+        backend.current_payload_schema.set(Some(schema));
+        let mut config = orbital_core::ir::OirObject::new();
+        let item = obj(&[("type", s("typography")), ("content", s("@i.code"))]);
+        config.insert(
+            "children".to_string(),
+            OirValue::Array(vec![s("array/map"), s("@payload.issues"), OirValue::Array(vec![s("fn"), s("i"), item])]),
+        );
+        let jsx = backend.generate_pattern_from_registry("stack", &config, None, None);
+        assert!(jsx.contains("lastPayload?.issues as readonly"), "{jsx}");
+        assert!(jsx.contains("code: string"), "the cast names the declared element, got: {jsx}");
+        assert!(!jsx.contains("readonly EventPayloadValue[]"), "{jsx}");
+    }
+
+    #[test]
+    fn edge_mapped_children_over_an_undeclared_payload_field_keep_the_wide_cast() {
+        use orbital_core::ir::OirType;
+        let backend = TypeScriptBackend::new();
+        let mut schema = orbital_core::ir::OirTypeMap::new();
+        schema.insert("other".to_string(), OirType::array(OirType::String));
+        backend.current_payload_schema.set(Some(schema));
+        let mut config = orbital_core::ir::OirObject::new();
+        let item = obj(&[("type", s("typography")), ("content", s("@p.title"))]);
+        config.insert(
+            "children".to_string(),
+            OirValue::Array(vec![s("array/map"), s("@payload.items"), OirValue::Array(vec![s("fn"), s("p"), item])]),
         );
         let jsx = backend.generate_pattern_from_registry("stack", &config, None, None);
         assert!(

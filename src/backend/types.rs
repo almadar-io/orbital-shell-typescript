@@ -27,7 +27,8 @@ pub(crate) enum TsTypeMode {
 /// An element type ready for `[]`: `[]` binds tighter than `|`, so `A | B[]` is an array of B
 /// alone. Parentheses are always valid, so any element spelling a union gets them.
 pub(crate) fn array_element_ts(element: &str) -> String {
-    if element.contains('|') {
+    // `readonly` applies to the whole array/tuple type that follows it.
+    if element.contains('|') || element.starts_with("readonly ") {
         format!("({element})")
     } else {
         element.to_string()
@@ -835,5 +836,25 @@ mod row_type_tests {
             classify_type(&r, &OirType::row("Elsewhere"), None),
             TypeMappingClass::Widening
         );
+    }
+}
+
+#[cfg(test)]
+mod array_element_ts_tests {
+    use super::array_element_ts;
+
+    /// G-ORB-242: a `[[number]]` element is `readonly number[]`; wrapped as `readonly {elt}[]` it
+    /// must read `readonly (readonly number[])[]`, never `readonly readonly number[][]` (TS1354).
+    #[test]
+    fn a_readonly_array_element_is_parenthesized() {
+        assert_eq!(array_element_ts("readonly number[]"), "(readonly number[])");
+        assert_eq!(array_element_ts("readonly [number, number]"), "(readonly [number, number])");
+    }
+
+    #[test]
+    fn control_a_plain_element_is_left_bare_and_a_union_is_parenthesized() {
+        assert_eq!(array_element_ts("CatalogRow"), "CatalogRow");
+        assert_eq!(array_element_ts("{ items: readonly string[] }"), "{ items: readonly string[] }");
+        assert_eq!(array_element_ts("string | number"), "(string | number)");
     }
 }

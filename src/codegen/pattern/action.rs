@@ -348,7 +348,13 @@ impl TypeScriptBackend {
     /// `MapMarkerData`) and assigns to the strict array prop. Falls back to
     /// `EntityRow` when the prop declares no element shape.
     pub(crate) fn array_prop_element_ts(prop: Option<&PropSchema>) -> String {
-        let items = match prop.and_then(|p| p.items.as_ref()) {
+        Self::array_items_element_ts(prop.and_then(|p| p.items.as_ref()))
+    }
+
+    /// The element type of an array whose `items` schema is `items` (a top-level prop's or an
+    /// object prop member's).
+    pub(crate) fn array_items_element_ts(items: Option<&PropTypeSchema>) -> String {
+        let items = match items {
             Some(items) => items,
             None => return "EntityRow".to_string(),
         };
@@ -383,6 +389,10 @@ impl TypeScriptBackend {
             .into_iter()
             .map(|k| {
                 let ty = Self::prop_type_schema_to_ts(&props[k]);
+                // A `T | null` member declared without `?` (registry `nullable`).
+                if props[k].nullable {
+                    return format!("{}: {} | null", k, ty);
+                }
                 let optional = if required.iter().any(|r| r == k) {
                     ""
                 } else {
@@ -704,6 +714,35 @@ mod host_scope_tests {
             backend.qualify_event("NEW_MESSAGE"),
             "ChatMessageOrbital.ChatRoom.NEW_MESSAGE",
             "self's own emits{{}} must not shadow the host's real transition"
+        );
+    }
+}
+
+#[cfg(test)]
+mod object_type_nullable_tests {
+    use crate::backend::TypeScriptBackend;
+    use orbital_core::language::pattern_registry::PropTypeSchema;
+    use std::collections::HashMap;
+
+    fn props(json: serde_json::Value) -> HashMap<String, PropTypeSchema> {
+        serde_json::from_value(json).unwrap()
+    }
+
+    /// G-ORB-242: AvlPlayStep's `state.before : string | null` is a `nullable` registry member
+    /// (no `?`); the synthesized cast must say `before: string | null`, or the decoded scene is
+    /// not assignable to the component's prop (TS2322 `string | undefined` vs `string | null`).
+    #[test]
+    fn a_nullable_member_is_typed_with_null_and_not_optional() {
+        let p = props(serde_json::json!({ "before": { "types": ["string"], "nullable": true } }));
+        assert_eq!(TypeScriptBackend::object_type_from_props(&p, &[]), "{ before: string | null }");
+    }
+
+    #[test]
+    fn control_optional_and_required_members_keep_their_spelling() {
+        let p = props(serde_json::json!({ "after": { "types": ["string"] }, "event": { "types": ["string"] } }));
+        assert_eq!(
+            TypeScriptBackend::object_type_from_props(&p, &["event".to_string()]),
+            "{ after?: string; event: string }"
         );
     }
 }

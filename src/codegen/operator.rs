@@ -743,21 +743,21 @@ impl TypeScriptBackend {
             "array/min" => format!("((ns: readonly number[]) => (ns.length ? Math.min(...ns) : null))({NUMBERS_OF_TS}({}, undefined))", array_arg(0)),
             "array/max" if args.len() == 2 => format!("((ns: readonly number[]) => (ns.length ? Math.max(...ns) : null))({NUMBERS_OF_TS}({}, {}))", array_arg(0), sr(1)),
             "array/max" => format!("((ns: readonly number[]) => (ns.length ? Math.max(...ns) : null))({NUMBERS_OF_TS}({}, undefined))", array_arg(0)),
-            "array/take" => format!("{}.slice(0, {})", array_arg(0), a(1)),
-            "array/takeLast" => format!("{}.slice(-({}))", array_arg(0), a(1)),
-            "array/drop" => format!("{}.slice({})", array_arg(0), a(1)),
-            "array/dropLast" => format!("{}.slice(0, -({}))", array_arg(0), a(1)),
+            "array/take" => format!("{}.slice(0, {})", elem_array_arg(0), a(1)),
+            "array/takeLast" => format!("{}.slice(-({}))", elem_array_arg(0), a(1)),
+            "array/drop" => format!("{}.slice({})", elem_array_arg(0), a(1)),
+            "array/dropLast" => format!("{}.slice(0, -({}))", elem_array_arg(0), a(1)),
             "array/append" => format!("[...{}, {}]", array_arg(0), a(1)),
             "array/prepend" => format!("[{}, ...{}]", a(1), array_arg(0)),
             "array/insert" => format!("[...{0}.slice(0, {1}), {2}, ...{0}.slice({1})]", array_arg(0), a(1), a(2)),
-            "array/remove" => format!("{}.filter((_, idx) => idx !== {})", array_arg(0), a(1)),
+            "array/remove" => format!("{}.filter((_, idx) => idx !== {})", elem_array_arg(0), a(1)),
             "array/removeItem" => format!(
                 "((xs: readonly EventPayloadValue[], x: EventPayloadValue): EventPayloadValue[] => {{ const out = [...xs]; const k = out.indexOf(x); if (k >= 0) out.splice(k, 1); return out; }})({} as readonly EventPayloadValue[], {} as EventPayloadValue)",
                 array_arg(0), a(1)
             ),
             "array/findIndex" => format!("{}.findIndex({})", elem_array_arg(0), a(1)),
             "array/indexOf" => format!("{}.indexOf({})", array_arg(0), a(1)),
-            "array/shuffle" => format!("[...{}].sort(() => Math.random() - 0.5)", array_arg(0)),
+            "array/shuffle" => format!("[...{}].sort(() => Math.random() - 0.5)", elem_array_arg(0)),
             "array/partition" => format!("[{0}.filter({1}), {0}.filter((x: {2}) => !({1})(x))]", array_arg(0), a(1), elem),
             "array/reject" => format!("{}.filter((x: {}) => !({})(x))", array_arg(0), elem, a(1)),
             "array/range" if args.len() == 1 => format!("Array.from({{ length: Math.ceil({0}) }}, (_, i) => i)", nc(0)),
@@ -962,25 +962,27 @@ impl TypeScriptBackend {
             // table lacked. Ported verbatim (string-arg form) so this is the
             // single emitter — without them P2 fell through to the broken
             // `op/name(args)` default. ---
-            "str/trimStart" => format!("({}).trimStart()", a(0)),
-            "str/trimEnd" => format!("({}).trimEnd()", a(0)),
-            "str/padStart" => format!("({}).padStart({}, {})", a(0), a(1), a(2)),
-            "str/padEnd" => format!("({}).padEnd({}, {})", a(0), a(1), a(2)),
+            "str/trimStart" => format!("({}).trimStart()", sr(0)),
+            "str/trimEnd" => format!("({}).trimEnd()", sr(0)),
+            "str/padStart" if args.len() > 2 => format!("({}).padStart({}, {})", sr(0), a(1), sa(2)),
+            "str/padStart" => format!("({}).padStart({})", sr(0), a(1)),
+            "str/padEnd" if args.len() > 2 => format!("({}).padEnd({}, {})", sr(0), a(1), sa(2)),
+            "str/padEnd" => format!("({}).padEnd({})", sr(0), a(1)),
             "str/titleCase" => format!(
                 "({}).split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')",
-                a(0)
+                sr(0)
             ),
             "str/camelCase" => format!(
                 "({}).split(/[-_\\s]+/).map((w, i) => i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('')",
-                a(0)
+                sr(0)
             ),
             "str/kebabCase" => format!(
                 "({}).replace(/([a-z])([A-Z])/g, '$1-$2').replace(/[\\s_]+/g, '-').toLowerCase()",
-                a(0)
+                sr(0)
             ),
             "str/snakeCase" => format!(
                 "({}).replace(/([a-z])([A-Z])/g, '$1_$2').replace(/[\\s-]+/g, '_').toLowerCase()",
-                a(0)
+                sr(0)
             ),
 
             "time/second" => format!("new Date({}).getSeconds()", dt(0)),
@@ -2289,6 +2291,93 @@ mod twin_survivor_tests {
             ts.contains("((rows as readonly EventPayloadValue[] | undefined) ?? [])"),
             "array/take must guard unknown sources, got: {ts}"
         );
+    }
+
+    // G-ORB-242: studio-generator's `(str/snakeCase (object/get @r name))` — a string op on a
+    // wide read must coerce its receiver (`String(x ?? '')`), as every other str/ op does, or
+    // `.replace` fails tsc (TS2533 + TS2339).
+    const STR_RECEIVER_OPS: [&str; 8] = [
+        "str/trimStart",
+        "str/trimEnd",
+        "str/padStart",
+        "str/padEnd",
+        "str/titleCase",
+        "str/camelCase",
+        "str/kebabCase",
+        "str/snakeCase",
+    ];
+
+    #[test]
+    fn case_and_pad_string_ops_coerce_a_wide_receiver() {
+        let b = TypeScriptBackend::new();
+        for op in STR_RECEIVER_OPS {
+            let args = ["getNestedValue(r, \"name\")".into(), "4".into(), "' '".into()];
+            let ts = b.call_to_ts_typed(op, &args, &[], None);
+            assert!(
+                ts.starts_with("(String(getNestedValue(r, \"name\") ?? ''))."),
+                "{op} must coerce its receiver, got: {ts}"
+            );
+        }
+    }
+
+    #[test]
+    fn control_case_and_pad_string_ops_leave_a_string_receiver_bare() {
+        let b = TypeScriptBackend::new();
+        let string = crate::codegen::infer::ArgFacts { string: true, never_nullish: true, ..Default::default() };
+        for op in STR_RECEIVER_OPS {
+            let args = ["\"Hello World\"".into(), "4".into(), "' '".into()];
+            let ts = b.call_to_ts_typed(op, &args, std::slice::from_ref(&string), None);
+            assert!(ts.starts_with("(\"Hello World\")."), "{op} must leave a string bare, got: {ts}");
+        }
+    }
+
+    #[test]
+    fn edge_a_pad_without_a_pad_string_keeps_the_default_space() {
+        let b = TypeScriptBackend::new();
+        for op in ["str/padStart", "str/padEnd"] {
+            let ts = b.call_to_ts_typed(op, &["code".into(), "4".into()], &[], None);
+            assert!(ts.ends_with("(4)"), "{op} with no pad string must not pass one, got: {ts}");
+        }
+    }
+
+    // G-ORB-242: `(array/map (array/take @entity.rows n) (fn row … @row.behavior))` — the
+    // element-preserving ops must keep a known source element type, or the mapped row is
+    // the wide `EventPayloadValue` union and `row?.behavior` fails tsc (TS2339).
+    const ELEMENT_PRESERVING_OPS: [&str; 6] =
+        ["array/take", "array/takeLast", "array/drop", "array/dropLast", "array/remove", "array/shuffle"];
+
+    #[test]
+    fn element_preserving_array_ops_keep_a_known_element_type() {
+        let b = TypeScriptBackend::new();
+        for op in ELEMENT_PRESERVING_OPS {
+            let ts = b.call_to_ts_typed(op, &["rows".into(), "4".into()], &[], Some("CatalogRow"));
+            assert!(
+                ts.contains("((rows as readonly CatalogRow[] | undefined) ?? [])"),
+                "{op} must cast its source to the known element type, got: {ts}"
+            );
+            assert!(!ts.contains("EventPayloadValue"), "{op} must not widen a typed source, got: {ts}");
+        }
+    }
+
+    #[test]
+    fn control_element_preserving_array_ops_keep_the_wide_cast_without_an_element_type() {
+        let b = TypeScriptBackend::new();
+        for op in ELEMENT_PRESERVING_OPS {
+            let ts = b.call_to_ts_typed(op, &["rows".into(), "4".into()], &[], None);
+            assert!(
+                ts.contains("((rows as readonly EventPayloadValue[] | undefined) ?? [])"),
+                "{op} keeps the wide cast for an unknown source, got: {ts}"
+            );
+        }
+    }
+
+    #[test]
+    fn edge_element_preserving_array_ops_leave_a_known_array_unguarded() {
+        let b = TypeScriptBackend::new();
+        for op in ["array/take", "array/drop", "array/remove"] {
+            let ts = b.call_to_ts_typed(op, &["[1, 2, 3]".into(), "1".into()], &[arr(), num()], Some("number"));
+            assert!(!ts.contains("?? []"), "{op} must not guard a known array, got: {ts}");
+        }
     }
 
     #[test]
