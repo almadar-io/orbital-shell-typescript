@@ -257,8 +257,7 @@ impl TypeScriptBackend {
         if let OirValue::String(op) = first {
             if !op.starts_with('@') && is_operator_name(op) {
                 let sexpr = Self::oirvalue_to_sexpr(&OirValue::Array(arr.to_vec()));
-                if let Ok(oir) = orbital_core::lower::lower_sexpr(&sexpr)
-                {
+                if let Ok(oir) = orbital_core::lower::lower_sexpr(&sexpr) {
                     let never_nullish = crate::codegen::infer::oir_expr_ts_never_nullish(&oir);
                     return Some((self.expr_to_ts_flavored(&oir, flavor), never_nullish));
                 }

@@ -110,7 +110,13 @@ impl TypeScriptBackend {
                 .map(|field| format!("'{}'", orbital_core::str_utils::escape_js_string(field)))
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!("omitFrameFields({}, [{}])", data_expr, keys)
+            // A literal row of wide reads (`id: FieldValue`) is no `EntityRow` until asserted.
+            let row = if matches!(data, OirExpr::Object { .. }) {
+                format!("({}) as EntityRow", data_expr)
+            } else {
+                data_expr.clone()
+            };
+            format!("omitFrameFields({}, [{}])", row, keys)
         } else {
             data_expr.clone()
         };

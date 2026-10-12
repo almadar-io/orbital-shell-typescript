@@ -177,7 +177,7 @@ impl TypeScriptBackend {
     pub(crate) fn compile_unannotated_fn_lambda(&self, expr: &OirExpr) -> String {
         if let OirExpr::Lambda { params, body } = expr {
             let param_decl = lambda_param_decl(params, body, None);
-            let body = self.expr_to_ts(body);
+            let body = self.with_locals(params, false, || self.expr_to_ts(body));
             let wrapped_body = if body.trim_start().starts_with('{') {
                 format!("({})", body)
             } else {
@@ -194,7 +194,7 @@ impl TypeScriptBackend {
     pub(crate) fn compile_unannotated_fn_lambda_client(&self, expr: &OirExpr) -> String {
         if let OirExpr::Lambda { params, body } = expr {
             let param_decl = lambda_param_decl(params, body, None);
-            let body = self.expr_to_client_ts(body);
+            let body = self.with_locals(params, false, || self.expr_to_client_ts(body));
             let wrapped_body = if body.trim_start().starts_with('{') {
                 format!("({})", body)
             } else {
@@ -210,7 +210,7 @@ impl TypeScriptBackend {
     pub(crate) fn compile_unannotated_fn_lambda_server(&self, expr: &OirExpr) -> String {
         if let OirExpr::Lambda { params, body } = expr {
             let param_decl = lambda_param_decl(params, body, None);
-            let body = self.expr_to_ts_server(body);
+            let body = self.with_locals(params, false, || self.expr_to_ts_server(body));
             let wrapped_body = if body.trim_start().starts_with('{') {
                 format!("({})", body)
             } else {
@@ -502,7 +502,7 @@ impl TypeScriptBackend {
                         // and tuple sources — TS2345).
                         if let OirExpr::Lambda { params, body } = v {
                             let pd = lambda_param_decl(params, body, Some("EntityRow"));
-                            let b = recur(body);
+                            let b = self.with_locals(params, false, || recur(body));
                             let b = if b.trim_start().starts_with('{') {
                                 format!("({})", b)
                             } else {
@@ -547,7 +547,7 @@ impl TypeScriptBackend {
                 let first_param_type =
                     matches!(flavor, BindingFlavor::ServerRenderUi).then_some("EntityRow");
                 let param_decl = lambda_param_decl(params, body, first_param_type);
-                let body_ts = recur(body);
+                let body_ts = self.with_locals(params, false, || recur(body));
                 let wrapped = if body_ts.trim_start().starts_with('{') {
                     format!("({})", body_ts)
                 } else {
@@ -617,9 +617,13 @@ impl TypeScriptBackend {
                 // ?? '')` would make the coalesce unreachable (TS2869) — so
                 // this stays keyed on the ONE operator whose return type this
                 // session widened, never a blanket `Call` match.
+                // So is any operand not known to be a number and not known to be non-nullish
+                // (`array/max` is `number | null`, including through a conditional around it).
                 fn is_wide_optional_source(e: &OirExpr) -> bool {
+                    let facts = crate::codegen::infer::arg_facts(e);
                     matches!(e, OirExpr::Binding { .. })
                         || matches!(e, OirExpr::Call { function, .. } if function == "object/get")
+                        || (!facts.number && !facts.never_nullish)
                 }
                 if is_arithmetic || is_numeric_cmp {
                     let l_safe = if is_wide_optional_source(left.as_ref()) {
@@ -776,21 +780,26 @@ impl TypeScriptBackend {
                 if function == "let" && args.len() == 2 {
                     if let OirExpr::Array { items } = &args[0] {
                         let mut decls: Vec<String> = Vec::new();
+                        let mut bound: Vec<String> = Vec::new();
                         for pair in items {
                             if let OirExpr::Array { items: kv } = pair {
                                 if kv.len() == 2 {
                                     if let OirExpr::String { value: name } = &kv[0] {
-                                        decls.push(format!("const {} = {};", name, recur(&kv[1])));
+                                        let value =
+                                            self.with_locals(&bound, true, || recur(&kv[1]));
+                                        decls.push(format!(
+                                            "const {} = {};",
+                                            Self::let_ident(name),
+                                            value
+                                        ));
+                                        bound.push(name.clone());
                                     }
                                 }
                             }
                         }
                         if !decls.is_empty() {
-                            return format!(
-                                "(() => {{ {} return {}; }})()",
-                                decls.join(" "),
-                                recur(&args[1])
-                            );
+                            let body = self.with_locals(&bound, true, || recur(&args[1]));
+                            return format!("(() => {{ {} return {}; }})()", decls.join(" "), body);
                         }
                     }
                 }
@@ -902,9 +911,14 @@ impl TypeScriptBackend {
                 {
                     ts_args[1] = self.compile_unannotated_fn_lambda_server(&args[1]);
                 }
-                if let (Some(OirExpr::Array { items }), Some(elem)) = (args.first(), elem_ts.as_deref()) {
+                if let (Some(OirExpr::Array { items }), Some(elem)) =
+                    (args.first(), elem_ts.as_deref())
+                {
                     if items.is_empty() {
-                        ts_args[0] = format!("([] as readonly {}[])", elem);
+                        ts_args[0] = format!(
+                            "([] as readonly {}[])",
+                            crate::backend::array_element_ts(elem)
+                        );
                     }
                 }
                 self.call_to_ts_typed(function, &ts_args, &facts, elem_ts.as_deref())
@@ -918,7 +932,9 @@ impl TypeScriptBackend {
                     "{}.map({} => {})",
                     recur_complex(source),
                     variable,
-                    recur_complex(body)
+                    self.with_locals(std::slice::from_ref(variable), false, || recur_complex(
+                        body
+                    ))
                 )
             }
             OirExpr::Filter {
@@ -930,7 +946,9 @@ impl TypeScriptBackend {
                     "{}.filter({} => {})",
                     recur_complex(source),
                     variable,
-                    recur_complex(predicate)
+                    self.with_locals(std::slice::from_ref(variable), false, || recur_complex(
+                        predicate
+                    ))
                 )
             }
             OirExpr::Reduce {
@@ -945,7 +963,9 @@ impl TypeScriptBackend {
                     recur_complex(source),
                     accumulator,
                     variable,
-                    recur_complex(body),
+                    self.with_locals(&[accumulator.clone(), variable.clone()], false, || {
+                        recur_complex(body)
+                    }),
                     recur_complex(initial)
                 )
             }
@@ -1059,6 +1079,8 @@ impl TypeScriptBackend {
                 if name == "now" {
                     return "now".to_string();
                 }
+                let renamed = self.local_ident(name);
+                let name = &renamed;
                 // @context.field → user?.field (context is an alias for user)
                 if name == "context" {
                     "user".to_string()
@@ -1146,13 +1168,16 @@ impl TypeScriptBackend {
             // (Phase 3.A). A residual `@config`/`@trait` binding → `undefined`
             // so the guard short-circuits cleanly (never reads `user`).
             OirBindingRoot::Config => return self.captured_knob_server_ts(binding),
-            OirBindingRoot::Trait(_) | OirBindingRoot::Pages | OirBindingRoot::CurrentTheme | OirBindingRoot::Locale => {
-                return "undefined".to_string()
-            }
+            OirBindingRoot::Trait(_)
+            | OirBindingRoot::Pages
+            | OirBindingRoot::CurrentTheme
+            | OirBindingRoot::Locale => return "undefined".to_string(),
             OirBindingRoot::Local(name) => {
                 if name == "now" {
                     return "now".to_string();
                 }
+                let renamed = self.local_ident(name);
+                let name = &renamed;
                 if name == "context" {
                     "user"
                 } else if name.chars().next().is_some_and(|c| c.is_uppercase()) {
@@ -1175,7 +1200,7 @@ impl TypeScriptBackend {
                         }
                         return expr;
                     }
-                    name
+                    return renamed.clone();
                 }
             }
         };
@@ -1219,6 +1244,8 @@ impl TypeScriptBackend {
                 if name == "now" {
                     return "now".to_string();
                 }
+                let renamed = self.local_ident(name);
+                let name = &renamed;
                 // Lambda parameters inside a mapping expression render bare.
                 if name.chars().next().is_some_and(|c| c.is_lowercase()) {
                     if binding.path.is_empty() {
@@ -1304,7 +1331,10 @@ impl TypeScriptBackend {
             // the `Trait(_)` arm below: evaluate cleanly, never cross-wire.
             OirBindingRoot::Config => return self.captured_knob_server_ts(binding),
             OirBindingRoot::User => "user".to_string(),
-            OirBindingRoot::Trait(_) | OirBindingRoot::Pages | OirBindingRoot::CurrentTheme | OirBindingRoot::Locale => {
+            OirBindingRoot::Trait(_)
+            | OirBindingRoot::Pages
+            | OirBindingRoot::CurrentTheme
+            | OirBindingRoot::Locale => {
                 // Client-only binding; see `binding_to_ts` above for reasoning.
                 return "undefined".to_string();
             }
@@ -1324,6 +1354,8 @@ impl TypeScriptBackend {
                 if name == "now" {
                     return "now".to_string();
                 }
+                let renamed = self.local_ident(name);
+                let name = &renamed;
                 if name == "context" {
                     "user".to_string()
                 } else if name.chars().next().is_some_and(|c| c.is_uppercase()) {
@@ -1372,7 +1404,10 @@ impl TypeScriptBackend {
         }
         if matches!(
             binding.root,
-            OirBindingRoot::Trait(_) | OirBindingRoot::Pages | OirBindingRoot::CurrentTheme | OirBindingRoot::Locale
+            OirBindingRoot::Trait(_)
+                | OirBindingRoot::Pages
+                | OirBindingRoot::CurrentTheme
+                | OirBindingRoot::Locale
         ) {
             return format!("\"{}\"", escape_js_string(&binding.to_string()));
         }
@@ -1579,15 +1614,17 @@ impl TypeScriptBackend {
                 if binding.path.is_empty() {
                     "entity".to_string()
                 } else {
-                    let path = binding.path.join("?.");
-                    return format!("fields?.{}", path);
+                    "fields".to_string()
                 }
             }
             OirBindingRoot::Payload => CLIENT_PAYLOAD_VAR.to_string(),
             OirBindingRoot::State => "state".to_string(),
             OirBindingRoot::Config => "config".to_string(),
             OirBindingRoot::User => "user".to_string(),
-            OirBindingRoot::Trait(_) | OirBindingRoot::Pages | OirBindingRoot::CurrentTheme | OirBindingRoot::Locale => {
+            OirBindingRoot::Trait(_)
+            | OirBindingRoot::Pages
+            | OirBindingRoot::CurrentTheme
+            | OirBindingRoot::Locale => {
                 // `@trait.X` is a render-time client binding resolved by
                 // `<TraitFrame>`, not by this S-expression compiler. If it
                 // reaches here (validator miss), emit `undefined` to keep
@@ -1598,6 +1635,8 @@ impl TypeScriptBackend {
                 if name == "now" {
                     return "now".to_string();
                 }
+                let renamed = self.local_ident(name);
+                let name = &renamed;
                 // `@callsitePayload.<path>` inside the CHILD trait's own
                 // render/effect body: the value was captured at the
                 // composing call site and passed down as the capturing
@@ -1655,8 +1694,9 @@ impl TypeScriptBackend {
         // `EventPayload[key]` is `EventPayloadValue` — a union whose non-
         // object alternatives don't support further `.field` access, but
         // structured sub-payloads are always `EventPayload` at runtime.
-        let is_payload = matches!(binding.root, OirBindingRoot::Payload);
-        if !is_payload || binding.path.len() <= 1 {
+        // The client `fields` mirror holds the same `EventPayloadValue`s, so `@entity` widens too.
+        let widens = matches!(binding.root, OirBindingRoot::Payload | OirBindingRoot::Entity);
+        if !widens || binding.path.len() <= 1 {
             return format!("{}?.{}", root, binding.path.join("?."));
         }
 
@@ -1906,9 +1946,9 @@ fn lambda_reads_param_fields(arg: Option<&OirExpr>) -> bool {
     let Some(param) = params.first() else {
         return false;
     };
-    body.collect_bindings()
-        .iter()
-        .any(|b| matches!(&b.root, OirBindingRoot::Local(name) if name == param) && !b.path.is_empty())
+    body.collect_bindings().iter().any(|b| {
+        matches!(&b.root, OirBindingRoot::Local(name) if name == param) && !b.path.is_empty()
+    })
 }
 
 #[cfg(test)]
@@ -1994,7 +2034,10 @@ mod static_unroll_tests {
             ]),
         );
         b.trait_callsite_knob_values
-            .set(std::collections::HashMap::from([("Child".to_string(), knobs)]));
+            .set(std::collections::HashMap::from([(
+                "Child".to_string(),
+                knobs,
+            )]));
         b.current_trait_scope.set(Some("Orb.Child".to_string()));
         let ts = b.pattern_value_to_ts_server(&OirValue::String("@config.value".into()));
         assert_ne!(
@@ -2034,6 +2077,47 @@ mod static_unroll_tests {
             "(lastPayload?.data as EventPayload | undefined)?.blocksJson"
         );
         assert_eq!(b.binding_string_to_ts("@payload.data"), "lastPayload?.data");
+    }
+
+    /// std-agent-suggestions computes `(- @now (if … 0 (array/max ?data ranAt)))`: `array/max`
+    /// is `number | null` (null for an empty list, as in orbital-core), so the operand is
+    /// coerced like a binding (TS2531), with null counting as 0 as the evaluator's `to_number` does.
+    #[test]
+    fn arithmetic_coerces_an_operand_that_may_be_null() {
+        let b = TypeScriptBackend::new();
+        let max = OirExpr::call("array/max", vec![OirExpr::binding(OirBinding::parse("@payload.data").unwrap())]);
+        let sub = OirExpr::BinaryOp {
+            op: OirBinaryOp::Sub,
+            left: Box::new(OirExpr::number(10.0)),
+            right: Box::new(OirExpr::Conditional {
+                condition: Box::new(OirExpr::binding(OirBinding::parse("@payload.empty").unwrap())),
+                then_branch: Box::new(OirExpr::number(0.0)),
+                else_branch: Box::new(max),
+            }),
+        };
+        let ts = b.expr_to_client_ts(&sub);
+        assert!(ts.starts_with("(10 - +(("), "{ts}");
+        assert!(ts.ends_with(" ?? 0))"), "{ts}");
+        let plain = OirExpr::BinaryOp {
+            op: OirBinaryOp::Sub,
+            left: Box::new(OirExpr::number(10.0)),
+            right: Box::new(OirExpr::number(2.0)),
+        };
+        assert_eq!(b.expr_to_client_ts(&plain), "(10 - 2)", "control: known numbers stay bare");
+    }
+
+    /// std-agent-suggestions emits `@entity.pendingProposal.signature`: the client `fields`
+    /// mirror holds `EventPayloadValue`s, so a deep entity read widens each hop like a payload one.
+    #[test]
+    fn deep_client_entity_binding_widens_each_hop() {
+        let b = TypeScriptBackend::new();
+        let deep = OirBinding::parse("@entity.pendingProposal.signature").unwrap();
+        assert_eq!(
+            b.binding_to_client_ts(&deep),
+            "(fields?.pendingProposal as EventPayload | undefined)?.signature"
+        );
+        let flat = OirBinding::parse("@entity.title").unwrap();
+        assert_eq!(b.binding_to_client_ts(&flat), "fields?.title", "control: one hop stays bare");
     }
 
     #[test]
@@ -2277,22 +2361,46 @@ mod flavor_tests {
     fn a_lambda_reading_param_fields_gets_object_elements() {
         let b = TypeScriptBackend::new();
         let local = |name: &str, path: &[&str]| OirExpr::Binding {
-            binding: OirBinding { root: OirBindingRoot::Local(name.to_string()), path: path.iter().map(|p| p.to_string()).collect() },
+            binding: OirBinding {
+                root: OirBindingRoot::Local(name.to_string()),
+                path: path.iter().map(|p| p.to_string()).collect(),
+            },
         };
-        let src = OirExpr::Binding { binding: OirBinding::parse("@payload.units").unwrap() };
+        let src = OirExpr::Binding {
+            binding: OirBinding::parse("@payload.units").unwrap(),
+        };
         for op in ["array/find", "array/some", "array/every", "array/findIndex"] {
             let call = OirExpr::call(
                 op,
-                vec![src.clone(), OirExpr::lambda(vec!["u".to_string()], OirExpr::eq(local("u", &["id"]), OirExpr::string("hero")))],
+                vec![
+                    src.clone(),
+                    OirExpr::lambda(
+                        vec!["u".to_string()],
+                        OirExpr::eq(local("u", &["id"]), OirExpr::string("hero")),
+                    ),
+                ],
             );
             let ts = b.expr_to_client_ts(&call);
-            assert!(ts.contains("as readonly EntityRow[] | undefined) ?? [])"), "{op}: {ts}");
+            assert!(
+                ts.contains("as readonly EntityRow[] | undefined) ?? [])"),
+                "{op}: {ts}"
+            );
         }
         let whole = OirExpr::call(
             "array/some",
-            vec![src, OirExpr::lambda(vec!["n".to_string()], OirExpr::eq(local("n", &[]), OirExpr::number(3.0)))],
+            vec![
+                src,
+                OirExpr::lambda(
+                    vec!["n".to_string()],
+                    OirExpr::eq(local("n", &[]), OirExpr::number(3.0)),
+                ),
+            ],
         );
-        assert!(b.expr_to_client_ts(&whole).contains("as readonly EventPayloadValue[] | undefined) ?? [])"), "control");
+        assert!(
+            b.expr_to_client_ts(&whole)
+                .contains("as readonly EventPayloadValue[] | undefined) ?? [])"),
+            "control"
+        );
     }
 
     /// std-board's `cardActions: []` inlines as a bare `[]`, which TS types
@@ -2302,19 +2410,39 @@ mod flavor_tests {
     fn an_empty_literal_receiver_is_typed_as_rows() {
         let b = TypeScriptBackend::new();
         let local = |name: &str, path: &[&str]| OirExpr::Binding {
-            binding: OirBinding { root: OirBindingRoot::Local(name.to_string()), path: path.iter().map(|p| p.to_string()).collect() },
+            binding: OirBinding {
+                root: OirBindingRoot::Local(name.to_string()),
+                path: path.iter().map(|p| p.to_string()).collect(),
+            },
         };
         let filtered = OirExpr::call(
             "array/filter",
-            vec![OirExpr::Array { items: vec![] }, OirExpr::lambda(vec!["action".to_string()], OirExpr::Bool { value: true })],
+            vec![
+                OirExpr::Array { items: vec![] },
+                OirExpr::lambda(vec!["action".to_string()], OirExpr::Bool { value: true }),
+            ],
         );
-        let ts = b.expr_to_client_ts(&OirExpr::call("array/map", vec![filtered, OirExpr::lambda(vec!["a".to_string()], local("a", &["label"]))]));
+        let ts = b.expr_to_client_ts(&OirExpr::call(
+            "array/map",
+            vec![
+                filtered,
+                OirExpr::lambda(vec!["a".to_string()], local("a", &["label"])),
+            ],
+        ));
         assert!(ts.contains("as readonly EntityRow[]"), "{ts}");
         let full = OirExpr::call(
             "array/filter",
-            vec![OirExpr::Array { items: vec![OirExpr::number(1.0)] }, OirExpr::lambda(vec!["n".to_string()], OirExpr::Bool { value: true })],
+            vec![
+                OirExpr::Array {
+                    items: vec![OirExpr::number(1.0)],
+                },
+                OirExpr::lambda(vec!["n".to_string()], OirExpr::Bool { value: true }),
+            ],
         );
-        assert!(!b.expr_to_client_ts(&full).contains("EntityRow"), "control: a non-empty literal keeps its own type");
+        assert!(
+            !b.expr_to_client_ts(&full).contains("EntityRow"),
+            "control: a non-empty literal keeps its own type"
+        );
     }
 
     /// std-role-gate: `(array/includes @config.roles @user.role)` with `roles: []` inlined. An
@@ -2354,7 +2482,10 @@ mod flavor_tests {
             then_branch: Box::new(OirExpr::string("yes")),
             else_branch: Box::new(OirExpr::string("no")),
         };
-        assert_eq!(b.expr_to_client_ts(&cond(OirExpr::string("Maya Hart"))), "\"yes\"");
+        assert_eq!(
+            b.expr_to_client_ts(&cond(OirExpr::string("Maya Hart"))),
+            "\"yes\""
+        );
         assert_eq!(b.expr_to_client_ts(&cond(OirExpr::string(""))), "\"no\"");
         assert_eq!(b.expr_to_client_ts(&cond(OirExpr::number(0.0))), "\"no\"");
         assert_eq!(b.expr_to_client_ts(&cond(OirExpr::null())), "\"no\"");
@@ -2366,24 +2497,59 @@ mod flavor_tests {
     #[test]
     fn a_never_nullish_operand_takes_no_fallback() {
         let b = TypeScriptBackend::new();
-        let r = OirExpr::Binding { binding: OirBinding { root: OirBindingRoot::Local("r".to_string()), path: vec![] } };
-        let call = OirExpr::call("math/min", vec![r.clone(), OirExpr::sub(OirExpr::number(600.0), r.clone())]);
+        let r = OirExpr::Binding {
+            binding: OirBinding {
+                root: OirBindingRoot::Local("r".to_string()),
+                path: vec![],
+            },
+        };
+        let call = OirExpr::call(
+            "math/min",
+            vec![r.clone(), OirExpr::sub(OirExpr::number(600.0), r.clone())],
+        );
         let ts = b.expr_to_client_ts(&call);
-        assert!(ts.contains("Number(r ?? 0)"), "control: a binding operand keeps its fallback: {ts}");
-        assert!(!ts.contains(") ?? 0)"), "the arithmetic operand takes no fallback: {ts}");
+        assert!(
+            ts.contains("Number(r ?? 0)"),
+            "control: a binding operand keeps its fallback: {ts}"
+        );
+        assert!(
+            !ts.contains(") ?? 0)"),
+            "the arithmetic operand takes no fallback: {ts}"
+        );
 
-        let entries = OirExpr::call("object/entries", vec![OirExpr::object(orbital_core::ir::OirFields::from([("a".to_string(), OirExpr::number(1.0))]))]);
+        let entries = OirExpr::call(
+            "object/entries",
+            vec![OirExpr::object(orbital_core::ir::OirFields::from([(
+                "a".to_string(),
+                OirExpr::number(1.0),
+            )]))],
+        );
         let ts = b.expr_to_client_ts(&entries);
-        assert!(!ts.contains("?? {}"), "an object literal takes no fallback: {ts}");
+        assert!(
+            !ts.contains("?? {}"),
+            "an object literal takes no fallback: {ts}"
+        );
 
         let t = OirExpr::call(
             "i18n/t",
-            vec![OirExpr::string("home:count"), OirExpr::object(orbital_core::ir::OirFields::from([("n".to_string(), OirExpr::number(1.0))]))],
+            vec![
+                OirExpr::string("home:count"),
+                OirExpr::object(orbital_core::ir::OirFields::from([(
+                    "n".to_string(),
+                    OirExpr::number(1.0),
+                )])),
+            ],
         );
         let ts = b.expr_to_client_ts(&t);
-        assert!(!ts.contains("?? {}"), "i18n params given as an object literal take no fallback: {ts}");
+        assert!(
+            !ts.contains("?? {}"),
+            "i18n params given as an object literal take no fallback: {ts}"
+        );
         let t = OirExpr::call("i18n/t", vec![OirExpr::string("home:count"), r.clone()]);
-        assert!(b.expr_to_client_ts(&t).contains("?? {}"), "control: a binding keeps its fallback");
+        assert!(
+            b.expr_to_client_ts(&t).contains("?? {}"),
+            "control: a binding keeps its fallback"
+        );
     }
 
     /// orb.almadar.io's nav: `(array/map (object/get @entry "children" []) (fn child …))`.
@@ -2394,19 +2560,44 @@ mod flavor_tests {
     fn chain_map_over_a_non_array_call_wraps_nullable_cast() {
         let b = TypeScriptBackend::new();
         let local = |name: &str| OirExpr::Binding {
-            binding: OirBinding { root: OirBindingRoot::Local(name.to_string()), path: vec![] },
+            binding: OirBinding {
+                root: OirBindingRoot::Local(name.to_string()),
+                path: vec![],
+            },
         };
-        let source = OirExpr::call("object/get", vec![local("entry"), OirExpr::string("children"), OirExpr::array(vec![])]);
-        let map_call = OirExpr::call("array/map", vec![source, OirExpr::lambda(vec!["child".to_string()], local("child"))]);
+        let source = OirExpr::call(
+            "object/get",
+            vec![
+                local("entry"),
+                OirExpr::string("children"),
+                OirExpr::array(vec![]),
+            ],
+        );
+        let map_call = OirExpr::call(
+            "array/map",
+            vec![
+                source,
+                OirExpr::lambda(vec!["child".to_string()], local("child")),
+            ],
+        );
         let ts = b.expr_to_client_ts(&map_call);
-        assert!(ts.contains("as readonly EventPayloadValue[] | undefined) ?? []).map("), "got: {ts}");
+        assert!(
+            ts.contains("as readonly EventPayloadValue[] | undefined) ?? []).map("),
+            "got: {ts}"
+        );
 
         let over_keys = OirExpr::call(
             "array/map",
-            vec![OirExpr::call("object/keys", vec![local("entry")]), OirExpr::lambda(vec!["k".to_string()], local("k"))],
+            vec![
+                OirExpr::call("object/keys", vec![local("entry")]),
+                OirExpr::lambda(vec!["k".to_string()], local("k")),
+            ],
         );
         let ts = b.expr_to_client_ts(&over_keys);
-        assert!(!ts.contains("EventPayloadValue[]"), "control: an array-returning source keeps the bare chain: {ts}");
+        assert!(
+            !ts.contains("EventPayloadValue[]"),
+            "control: an array-returning source keeps the bare chain: {ts}"
+        );
     }
 
     // Chain-style emit over an `array/reduce` source: the reduce produces the

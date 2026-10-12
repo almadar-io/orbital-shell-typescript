@@ -1,5 +1,5 @@
-//! Server-side trait ticks for the compiled app (Runtime Spec Clause 8). A tick on a trait whose
-//! linked entity is not `[runtime]` runs here — once per row, mount-scoped unless `[background]`.
+//! Server-side trait ticks for the compiled app (Runtime Spec Clause 8). A `[background]` tick, or
+//! any tick of a server-awaited trait, runs here — once per row, mount-scoped unless `[background]`.
 
 use crate::backend::*;
 use orbital_core::ir::{OirInterval, OirTick};
@@ -22,19 +22,27 @@ fn cadence(interval: &OirInterval) -> ServerTickCadence {
     }
 }
 
-/// The ticks the server runs for `trait_def`: all of them unless its linked entity is `[runtime]`
-/// (those tick on the client, `generate_tick_effects`).
+/// Whether `tick` runs in the client (`generate_tick_effects`) rather than here: orbital-core's
+/// one placement rule (`OirTrait::tick_runs_on_client`) against the trait's resolved entity.
+pub(crate) fn tick_runs_on_client(trait_def: &OirTrait, tick: &OirTick, module: &OirModule) -> bool {
+    let entity = trait_def
+        .linked_entity
+        .as_ref()
+        .and_then(|name| module.resolve_entity_ref(trait_def.linked_entity_id.as_deref(), name));
+    trait_def.tick_runs_on_client(
+        tick,
+        entity,
+        &orbital_core::effects::Residence::of_module(module),
+    )
+}
+
+/// The ticks the server runs for `trait_def`.
 pub(crate) fn server_ticks<'t>(trait_def: &'t OirTrait, module: &OirModule) -> Vec<&'t OirTick> {
-    let client_ticked = trait_def.linked_entity.as_ref().is_some_and(|name| {
-        module
-            .entities
-            .iter()
-            .any(|e| &e.name == name && matches!(e.persistence, OirPersistence::Runtime))
-    });
-    if client_ticked {
-        return Vec::new();
-    }
-    trait_def.ticks.iter().collect()
+    trait_def
+        .ticks
+        .iter()
+        .filter(|tick| !tick_runs_on_client(trait_def, tick, module))
+        .collect()
 }
 
 pub(crate) fn module_has_server_ticks(module: &OirModule) -> bool {

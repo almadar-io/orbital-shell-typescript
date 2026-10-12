@@ -1,6 +1,8 @@
 // Compiled path of the one-`now`-per-dispatch contract: every `@now`/time read compiles to the dispatch's `now`.
 use crate::backend::*;
-use orbital_core::ir::{OirBinding, OirField, OirInterval, OirState, OirTick, OirValue};
+use orbital_core::ir::{
+    OirBinding, OirField, OirInterval, OirPattern, OirState, OirTick, OirValue,
+};
 
 fn bind(s: &str) -> OirExpr {
     OirExpr::binding(OirBinding::parse(s).unwrap())
@@ -226,5 +228,51 @@ fn a_tick_that_never_reads_now_is_not_stamped() {
     assert!(
         !ts.contains("const now"),
         "no stamp without a `now` read:\n{ts}"
+    );
+}
+
+#[test]
+fn time_relative_reads_the_stamp() {
+    let rel = OirExpr::call("time/relative", vec![bind("@entity.at")]);
+    assert!(super::shared::expr_reads_now(&rel));
+    let fmt = OirExpr::call(
+        "time/format",
+        vec![bind("@entity.at"), OirExpr::string("YYYY")],
+    );
+    assert!(
+        !super::shared::expr_reads_now(&fmt),
+        "control: time/format reads only its operand"
+    );
+}
+
+/// A view whose render-ui shows `(time/relative …)` or `@now` reads the stamp, so its hook declares `now`
+/// and the view destructures it; a render-ui with neither does not.
+#[test]
+fn a_render_ui_time_read_makes_the_trait_read_now() {
+    let with = |content: OirValue| {
+        let mut t = clock_trait(false);
+        t.transitions[0]
+            .effects
+            .push(OirExpr::effect(OirEffect::render_ui(
+                "main",
+                OirPattern::new("typography").with_config("content", content),
+            )));
+        t
+    };
+    let relative = with(OirValue::Array(vec![
+        OirValue::String("time/relative".into()),
+        OirValue::String("@entity.at".into()),
+    ]));
+    assert!(super::shared::trait_reads_now(&relative));
+    assert!(super::shared::trait_reads_now(&with(OirValue::String(
+        "@now".into()
+    ))));
+    assert!(
+        !super::shared::trait_reads_now(&with(OirValue::String("@entity.at".into()))),
+        "control: a render-ui with no time read gets no stamp"
+    );
+    assert!(
+        !super::shared::trait_reads_now(&with(OirValue::String("now".into()))),
+        "control: a plain \"now\" string is a literal"
     );
 }

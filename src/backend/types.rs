@@ -24,6 +24,28 @@ pub(crate) enum TsTypeMode {
 /// A `'a' | 'b' | 'c'` string-literal union from a non-empty enum value list,
 /// or `None` when there are no values. The one place enum values become a TS
 /// union, shared by the `String`/`Enum`/struct-field arms of `map_type_ts`.
+/// An element type ready for `[]`: `[]` binds tighter than `|`, so `A | B[]` is an array of B
+/// alone. Parentheses are always valid, so any element spelling a union gets them.
+pub(crate) fn array_element_ts(element: &str) -> String {
+    if element.contains('|') {
+        format!("({element})")
+    } else {
+        element.to_string()
+    }
+}
+
+/// Whether an `OirType` reaches the `SExpr` brand anywhere (its emitted TS needs the `SExpr` type).
+pub(crate) fn oir_type_uses_sexpr(oir_type: &OirType) -> bool {
+    match oir_type {
+        OirType::SExpr => true,
+        OirType::Array { inner } | OirType::Optional { inner } => oir_type_uses_sexpr(inner),
+        OirType::Map { key, value } => oir_type_uses_sexpr(key) || oir_type_uses_sexpr(value),
+        OirType::Struct { fields } => fields.iter().any(|f| oir_type_uses_sexpr(&f.field_type)),
+        OirType::Union { variants } => variants.iter().any(|v| oir_type_uses_sexpr(&v.field_type)),
+        _ => false,
+    }
+}
+
 pub(crate) fn nonempty_enum_union(values: Option<&[String]>) -> Option<String> {
     let values = values?;
     if values.is_empty() {
@@ -583,21 +605,7 @@ impl TypeScriptBackend {
     /// anywhere — used by the emitters to decide whether the inlined recursive
     /// `SExpr` type alias is needed (mirrors `field_type_uses_trait`).
     pub fn field_type_uses_sexpr(&self, oir_type: &OirType) -> bool {
-        match oir_type {
-            OirType::SExpr => true,
-            OirType::Array { inner } => self.field_type_uses_sexpr(inner),
-            OirType::Map { key, value } => {
-                self.field_type_uses_sexpr(key) || self.field_type_uses_sexpr(value)
-            }
-            OirType::Optional { inner } => self.field_type_uses_sexpr(inner),
-            OirType::Struct { fields } => fields
-                .iter()
-                .any(|f| self.field_type_uses_sexpr(&f.field_type)),
-            OirType::Union { variants } => variants
-                .iter()
-                .any(|v| self.field_type_uses_sexpr(&v.field_type)),
-            _ => false,
-        }
+        oir_type_uses_sexpr(oir_type)
     }
 
     /// Recursively collect every named struct type this `OirType` reaches
@@ -790,11 +798,21 @@ mod row_type_tests {
     fn a_row_of_an_entity_outside_the_catalog_widens_to_entity_row() {
         let cat = catalog(&["Note"]);
         assert_eq!(
-            map_type_ts(&OirType::row("Note"), None, Some(&cat), TsTypeMode::Declared),
+            map_type_ts(
+                &OirType::row("Note"),
+                None,
+                Some(&cat),
+                TsTypeMode::Declared
+            ),
             "Note"
         );
         assert_eq!(
-            map_type_ts(&OirType::row("Elsewhere"), None, Some(&cat), TsTypeMode::Declared),
+            map_type_ts(
+                &OirType::row("Elsewhere"),
+                None,
+                Some(&cat),
+                TsTypeMode::Declared
+            ),
             "EntityRow"
         );
     }
@@ -809,7 +827,10 @@ mod row_type_tests {
             reference_mode: TsRefMode::Bare,
             payload: false,
         };
-        assert_eq!(classify_type(&r, &OirType::row("Note"), None), TypeMappingClass::Faithful);
+        assert_eq!(
+            classify_type(&r, &OirType::row("Note"), None),
+            TypeMappingClass::Faithful
+        );
         assert_eq!(
             classify_type(&r, &OirType::row("Elsewhere"), None),
             TypeMappingClass::Widening

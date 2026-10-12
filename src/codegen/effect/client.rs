@@ -797,6 +797,16 @@ impl TypeScriptBackend {
         walk_effect_block(self, expr, indent, &mut sink);
     }
 
+    /// The `guardHolds` import a hook needs when any of the trait's arms is guarded: each one
+    /// runs through it (`generate_transpiled_effect_handler_impl`). Every hook generator uses this.
+    pub(crate) fn guard_holds_import(trait_def: &OirTrait) -> &'static str {
+        if trait_def.transitions.iter().any(|t| t.guard.is_some()) {
+            "import { guardHolds } from '@almadar/core';\n"
+        } else {
+            ""
+        }
+    }
+
     /// Shared impl for the transpiled client-side effect handler. `resolve_new_state`
     /// is additive and OFF for every persisted-entity (server-backed) call site —
     /// output there is unchanged. When ON, the handler ALSO resolves the next
@@ -821,8 +831,8 @@ impl TypeScriptBackend {
         emit_fanout: bool,
     ) -> String {
         let mut code = String::new();
-        let browser_leg_events = trait_def
-            .browser_leg_events(&orbital_core::effects::Residence::of_module(module));
+        let browser_leg_events =
+            trait_def.browser_leg_events(&orbital_core::effects::Residence::of_module(module));
 
         // Collect transitions that have client-side effects
         let mut has_any_effects = false;
@@ -887,10 +897,7 @@ impl TypeScriptBackend {
         let effects_use_set = trait_def.transitions.iter().any(|t| {
             t.effects.iter().any(|e| {
                 any_effect_leaf(e, &|effect| {
-                    matches!(
-                        effect,
-                        OirEffect::Set { .. } | OirEffect::SetDynamic { .. }
-                    )
+                    matches!(effect, OirEffect::Set { .. } | OirEffect::SetDynamic { .. })
                 })
             })
         });
@@ -1118,9 +1125,17 @@ impl TypeScriptBackend {
             // chose the guarded sibling (e.g. std-step-flow's
             // `ADVANCE -> running when (not isLastStep)` vs
             // `ADVANCE -> approved when isLastStep`).
+            // A guard that throws blocks its arm like a false guard (`@almadar/core`
+            // `guardHolds` — the server's and the JS runtime's rule too); the error is logged.
             let guard_ts = trans.guard.as_ref().map(|g| {
                 self.in_transition(&trans.to, crate::backend::TransitionPhase::Guard, || {
-                    format!(" && ({})", self.expr_to_client_ts(g))
+                    format!(
+                        " && guardHolds(() => Boolean({}), (error) => console.error(`[guard] {}.{} -> {} threw:`, error.message))",
+                        self.expr_to_client_ts(g),
+                        trait_def.name,
+                        trans.event,
+                        trans.to
+                    )
                 })
             });
             code.push_str(&format!(
@@ -2092,7 +2107,7 @@ mod conditional_effect_tests {
             "resolved Conditional must emit an if:\n{ts}"
         );
         assert!(
-            ts.contains("const x = 1;"),
+            ts.contains("const let__x = 1;"),
             "let-binding inside the then-branch must be emitted:\n{ts}"
         );
         assert!(
@@ -2178,7 +2193,8 @@ mod conditional_effect_tests {
                 )),
                 literal.clone(),
             );
-            let transition = OirTransition::new("idle", "idle", "GO").with_effects(vec![conditional]);
+            let transition =
+                OirTransition::new("idle", "idle", "GO").with_effects(vec![conditional]);
             let mut tr = OirTrait::new("LiteralBranch");
             tr.linked_entity = Some("Thing".to_string());
             tr.states.push(OirState::initial("idle"));
@@ -2191,8 +2207,14 @@ mod conditional_effect_tests {
                 false,
             );
 
-            assert!(!ts.contains("unlowered effect expression"), "{literal:?} branch must not throw:\n{ts}");
-            assert!(ts.contains("'A'") || ts.contains("\"A\""), "the then-branch set must still be emitted:\n{ts}");
+            assert!(
+                !ts.contains("unlowered effect expression"),
+                "{literal:?} branch must not throw:\n{ts}"
+            );
+            assert!(
+                ts.contains("'A'") || ts.contains("\"A\""),
+                "the then-branch set must still be emitted:\n{ts}"
+            );
         }
     }
 
@@ -3144,8 +3166,8 @@ mod let_scope_tests {
     #[test]
     fn sequential_lets_with_the_same_name_get_their_own_block_scopes() {
         let ts = handler(vec![let_set("c", 1.0, "a"), let_set("c", 2.0, "b")]);
-        let first = ts.find("const c = 1;").expect(&ts);
-        let second = ts.find("const c = 2;").expect(&ts);
+        let first = ts.find("const let__c = 1;").expect(&ts);
+        let second = ts.find("const let__c = 2;").expect(&ts);
         let between = &ts[first..second];
         assert!(
             between.contains("}\n"),
@@ -3162,8 +3184,57 @@ mod let_scope_tests {
     #[test]
     fn control_a_single_let_still_binds_and_uses_its_value() {
         let ts = handler(vec![let_set("c", 1.0, "a")]);
-        assert!(ts.contains("const c = 1;"), "{ts}");
-        assert!(ts.contains("_fields['a'] = c;"), "{ts}");
+        assert!(ts.contains("const let__c = 1;"), "{ts}");
+        assert!(ts.contains("_fields['a'] = let__c;"), "{ts}");
+    }
+
+    /// std-learn-generate binds `fields` in a `let`: the binding must not shadow the shell's own
+    /// `fields` mirror, or the next `set @entity.X` assigns to a const and `@entity.X` reads the let.
+    #[test]
+    fn a_let_named_like_a_shell_local_never_shadows_it() {
+        let lett = OirExpr::call(
+            "let",
+            vec![
+                OirExpr::array(vec![OirExpr::array(vec![
+                    OirExpr::string("fields"),
+                    OirExpr::binding(OirBinding::parse("@payload.list").unwrap()),
+                ])]),
+                OirExpr::call(
+                    "do",
+                    vec![
+                        set_a_from("fields"),
+                        OirExpr::effect(OirEffect::set(
+                            OirBinding::parse("@entity.b").unwrap(),
+                            OirExpr::binding(OirBinding::parse("@entity.a").unwrap()),
+                        )),
+                    ],
+                ),
+            ],
+        );
+        let ts = handler(vec![lett]);
+        assert!(!ts.contains("const fields ="), "{ts}");
+        assert!(ts.contains("const let__fields = payloadObj?.list"), "{ts}");
+        assert!(ts.contains("_fields['a'] = let__fields;"), "{ts}");
+        assert!(
+            ts.contains("_fields['b'] = fields?.a"),
+            "the entity read stays on the shell mirror:\n{ts}"
+        );
+    }
+
+    /// A let name is in scope only inside its body: a same-named read after it is not renamed.
+    #[test]
+    fn control_a_let_name_is_renamed_only_inside_its_body() {
+        let after = OirExpr::effect(OirEffect::set(
+            OirBinding::parse("@entity.b").unwrap(),
+            OirExpr::call(
+                "array/len",
+                vec![OirExpr::binding(OirBinding::parse("@entity.a").unwrap())],
+            ),
+        ));
+        let ts = handler(vec![let_set("c", 1.0, "a"), after]);
+        assert!(ts.contains("const let__c = 1;"), "{ts}");
+        assert!(ts.contains("_fields['a'] = let__c;"), "{ts}");
+        assert!(!ts.contains("let__fields"), "{ts}");
     }
 
     fn set_a_from(name: &str) -> OirExpr {

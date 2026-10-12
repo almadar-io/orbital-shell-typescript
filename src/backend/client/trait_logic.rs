@@ -446,10 +446,10 @@ impl TypeScriptBackend {
         let entity_is_runtime = matches!(dispatch_mode, OirDispatchMode::RuntimeOptimistic);
         // A client-only trait still sends the legs of its browser-leg events
         // (their data lives in the browser store), and only those.
-        let leg_events = trait_def
-            .browser_leg_events(&orbital_core::effects::Residence::of_module(module));
-        let gated_leg = matches!(dispatch_mode, OirDispatchMode::HybridClientOnly)
-            && !leg_events.is_empty();
+        let leg_events =
+            trait_def.browser_leg_events(&orbital_core::effects::Residence::of_module(module));
+        let gated_leg =
+            matches!(dispatch_mode, OirDispatchMode::HybridClientOnly) && !leg_events.is_empty();
 
         // Reaching here with `shared_linked_entity` still `Some` means the
         // linked entity is BOTH `[persistent]` and `[shared]` — the
@@ -524,7 +524,9 @@ impl TypeScriptBackend {
         if uses_validate_contract {
             core_types.insert("ContractSpec");
             code.push_str("import { validateContract } from '@almadar/core';\n");
-        }        code.push_str(&self.language_trio_core_import(trait_def));
+        }
+        code.push_str(Self::guard_holds_import(trait_def));
+        code.push_str(&self.language_trio_core_import(trait_def));
 
         if shared_overlay_entity.is_some() {
             core_types.insert("EntityFieldWrite");
@@ -565,7 +567,8 @@ impl TypeScriptBackend {
             collect_entity_refs(t, &mut referenced_entities);
         }
         referenced_entities.retain(|n| {
-            module.entities.iter().any(|e| &e.name == n) && trait_def.linked_entity.as_deref() != Some(n.as_str())
+            module.entities.iter().any(|e| &e.name == n)
+                && trait_def.linked_entity.as_deref() != Some(n.as_str())
         });
         code.push_str(&crate::codegen::handler_header::core_imports_clause(
             &core_types,
@@ -595,7 +598,9 @@ impl TypeScriptBackend {
         }
         shared_imports.extend(rendered_named.iter().cloned());
         if !referenced_entities.is_empty() {
-            shared_imports.push(crate::codegen::handler_header::aliased_shared_imports_clause(&referenced_entities));
+            shared_imports.push(
+                crate::codegen::handler_header::aliased_shared_imports_clause(&referenced_entities),
+            );
         }
         code.push_str(&format!(
             "import type {{ {} }} from '@app/shared';\n",
@@ -740,7 +745,11 @@ impl TypeScriptBackend {
         code.push_str(&format!(
             "  slotWriter: Partial<Record<{}, {} | null>>;\n",
             slot_ty,
-            if self.render_writer_fn(trait_def).is_some() { "string".to_string() } else { format!("{}Event", name) }
+            if self.render_writer_fn(trait_def).is_some() {
+                "string".to_string()
+            } else {
+                format!("{}Event", name)
+            }
         ));
         code.push_str("  loading: boolean;\n");
         // Awaiting-server window: the event (and source state) whose server round
@@ -840,7 +849,9 @@ impl TypeScriptBackend {
             name
         ));
         code.push_str("        data: { ...state.data, ...action.data },\n");
-        code.push_str("        lastPayload: action.renderBearing ? (action.payload ?? state.lastPayload) : state.lastPayload,\n");
+        code.push_str(
+            "        lastPayload: action.renderBearing ? action.payload : state.lastPayload,\n",
+        );
         code.push_str(
             "        lastEvent: action.renderBearing ? action.event : state.lastEvent,\n",
         );
@@ -974,7 +985,11 @@ impl TypeScriptBackend {
         code.push_str(&format!(
             "  slotWriter: Partial<Record<{}, {} | null>>;\n",
             slot_ty,
-            if self.render_writer_fn(trait_def).is_some() { "string".to_string() } else { format!("{}Event", name) }
+            if self.render_writer_fn(trait_def).is_some() {
+                "string".to_string()
+            } else {
+                format!("{}Event", name)
+            }
         ));
         code.push_str("  loading: boolean;\n");
         // Awaiting-server window: the event (and source state) whose server round
@@ -1055,10 +1070,12 @@ impl TypeScriptBackend {
 
         // Orbital bridge — decoupled event bus + server communication (Phase 5)
         code.push_str("  // Orbital bridge: event bus + server communication\n");
-        let bridge_destructure = if uses_send_server {
-            "  const { sendEvent, sendServerEvent, eventBus }"
-        } else {
-            "  const { sendEvent, eventBus }"
+        let sends_ticks = !self.browser_leg_ticks(trait_def, module).is_empty();
+        let bridge_destructure = match (uses_send_server, sends_ticks) {
+            (true, true) => "  const { sendEvent, sendServerEvent, sendTick, eventBus }",
+            (true, false) => "  const { sendEvent, sendServerEvent, eventBus }",
+            (false, true) => "  const { sendEvent, sendTick, eventBus }",
+            (false, false) => "  const { sendEvent, eventBus }",
         };
         code.push_str(&format!(
             "{} = useOrbitalBridge({{ basePath: '/api/{}', orbitalName: '{}', traitName: '{}' }});\n\n",
@@ -1318,14 +1335,16 @@ impl TypeScriptBackend {
             ));
             code.push_str("    if (_optimistic.newState === undefined) {\n");
             code.push_str(
-                "      // Guard rejected or no transition defined — mirrors the server's\n",
+                "      // A blocked guard or an undeclared arm is a rejection, as on every path.\n",
             );
-            code.push_str("      // rejection, without the round trip.\n");
-            code.push_str(
-                "      const errorMsg = `No transition defined for ${event} from ${prevState} (or guard rejected)`;\n",
-            );
-            code.push_str("      dispatchReducer({ type: 'EVENT_ERROR', error: errorMsg });\n");
-            code.push_str("      return { success: false, transitioned: false, states: {}, emittedEvents: [], error: errorMsg } as EventResponse;\n");
+            code.push_str(&format!(
+                "      const _armDeclared = {}.some(([from, armEvent]) => armEvent === event && (from === '*' || from.includes(prevState)));\n",
+                Self::declared_arms_literal(trait_def)
+            ));
+            code.push_str(&format!(
+                "      return {{ success: true, transitioned: false, states: {{ '{name}': prevState }}, emittedEvents: [], rejections: [{{ code: _armDeclared ? 'guard-rejected' : 'no-matching-transition', trait: '{name}', from: prevState, event }}] }} as EventResponse;\n",
+                name = name
+            ));
             code.push_str("    }\n");
             code.push_str("    const _renderSlots = getRenderUiSlots(prevState, event);\n");
             code.push_str(
@@ -2118,7 +2137,8 @@ mod sexpr_config_default_tests {
     /// G-CROSS-041: a quoted default is static data, emitted like any literal.
     #[test]
     fn a_quoted_default_is_not_a_call_default() {
-        let sexpr: orbital_core::schema::SExpression = serde_json::from_str(r#"[">", "@payload.amount", 0]"#).unwrap();
+        let sexpr: orbital_core::schema::SExpression =
+            serde_json::from_str(r#"[">", "@payload.amount", 0]"#).unwrap();
         let quoted = OirValue::Array(vec![
             OirValue::String("quote".into()),
             OirValue::String(orbital_core::schema::quote::encode_quote_body(&sexpr)),
@@ -2537,6 +2557,53 @@ mod optimistic_dispatch_tests {
         }
     }
 
+    /// D-2: `@payload` in a view is the payload of the event whose transition rendered it —
+    /// a rendering event without a payload never shows an earlier event's.
+    #[test]
+    fn a_render_reads_only_its_own_events_payload() {
+        let backend = TypeScriptBackend::new();
+        let module = module_with_entity(OirPersistence::Runtime);
+        let ts = &backend
+            .generate_trait_logic_hook(&play_trait(), &module)
+            .content;
+        assert!(
+            ts.contains("lastPayload: action.renderBearing ? action.payload : state.lastPayload,"),
+            "{ts}"
+        );
+        assert!(
+            !ts.contains("action.payload ?? state.lastPayload"),
+            "no carry-over"
+        );
+    }
+
+    /// D-11: a blocked guard or an undeclared arm on the optimistic client is a benign
+    /// rejection (`success: true`, `transitioned: false`, `guard-rejected` /
+    /// `no-matching-transition`), as on the server and the JS runtime, never an `EVENT_ERROR`.
+    #[test]
+    fn a_blocked_optimistic_dispatch_is_a_rejection_not_an_error() {
+        let backend = TypeScriptBackend::new();
+        let module = module_with_entity(OirPersistence::Runtime);
+        let ts = &backend
+            .generate_trait_logic_hook(&play_trait(), &module)
+            .content;
+        let start = ts
+            .find("if (_optimistic.newState === undefined) {")
+            .expect("the optimistic no-arm branch");
+        let branch = &ts[start..ts[start..].find("\n    }\n").map(|e| start + e).unwrap()];
+        assert!(
+            branch.contains("success: true, transitioned: false"),
+            "{branch}"
+        );
+        assert!(
+            branch.contains("'guard-rejected'") && branch.contains("'no-matching-transition'"),
+            "{branch}"
+        );
+        assert!(
+            !branch.contains("EVENT_ERROR"),
+            "a rejection is not an error:\n{branch}"
+        );
+    }
+
     /// T9: a `[runtime]`-linked trait's dispatch commits the transition
     /// LOCALLY first (guard + to-state resolved by the transpiled handler
     /// against the live fields mirror), then POSTs on the ordered pump lane
@@ -2559,7 +2626,6 @@ mod optimistic_dispatch_tests {
             "newState: _optimistic.newState,",
             "commandPump.enqueue(async () => {",
             "server state mismatch",
-            "or guard rejected",
         ] {
             assert!(
                 ts.contains(marker),
@@ -3131,7 +3197,10 @@ mod message_hook_tests {
             },
         );
         tr.declared_config_schema = Some(schema);
-        tr.declared_config_defaults = Some(orbital_core::ir::OirObject::from([("tagline".to_string(), default)]));
+        tr.declared_config_defaults = Some(orbital_core::ir::OirObject::from([(
+            "tagline".to_string(),
+            default,
+        )]));
         tr
     }
 
@@ -3169,7 +3238,10 @@ mod message_hook_tests {
     }
 }
 
-fn collect_entity_refs(oir_type: &orbital_core::ir::OirType, out: &mut std::collections::BTreeSet<String>) {
+fn collect_entity_refs(
+    oir_type: &orbital_core::ir::OirType,
+    out: &mut std::collections::BTreeSet<String>,
+) {
     use orbital_core::ir::OirType;
     match oir_type {
         OirType::Reference { entity } | OirType::Row { entity } => {
@@ -3181,8 +3253,12 @@ fn collect_entity_refs(oir_type: &orbital_core::ir::OirType, out: &mut std::coll
             collect_entity_refs(value, out);
         }
         OirType::Tuple { items } => items.iter().for_each(|t| collect_entity_refs(t, out)),
-        OirType::Struct { fields } => fields.iter().for_each(|f| collect_entity_refs(&f.field_type, out)),
-        OirType::Union { variants } => variants.iter().for_each(|v| collect_entity_refs(&v.field_type, out)),
+        OirType::Struct { fields } => fields
+            .iter()
+            .for_each(|f| collect_entity_refs(&f.field_type, out)),
+        OirType::Union { variants } => variants
+            .iter()
+            .for_each(|v| collect_entity_refs(&v.field_type, out)),
         _ => {}
     }
 }
@@ -3190,36 +3266,51 @@ fn collect_entity_refs(oir_type: &orbital_core::ir::OirType, out: &mut std::coll
 #[cfg(test)]
 mod referenced_entity_import_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirEntity, OirField, OirModule, OirState, OirTrait, OirTransition, OirType};
+    use orbital_core::ir::{
+        OirEntity, OirField, OirModule, OirState, OirTrait, OirTransition, OirType,
+    };
 
     fn hook(field_type: OirType) -> String {
         let mut tr = OirTrait::new("OriginsSection");
         tr.orbital_name = "Sdk".to_string();
         tr.linked_entity = Some("OriginsView".to_string());
         tr.states.push(OirState::initial("ready"));
-        tr.transitions.push(OirTransition::new("ready", "ready", "ADD"));
+        tr.transitions
+            .push(OirTransition::new("ready", "ready", "ADD"));
         let mut view = OirEntity::new("OriginsView");
         view.fields.push(OirField::new("origins", field_type));
         let mut module = OirModule::new("Sdk", "1.0.0");
         module.entities.push(view);
         module.entities.push(OirEntity::new("SdkENAllowedOrigin"));
         module.traits.push(tr.clone());
-        TypeScriptBackend::new().generate_trait_logic_hook(&tr, &module).content
+        TypeScriptBackend::new()
+            .generate_trait_logic_hook(&tr, &module)
+            .content
     }
 
     /// G-ORB-189(d): a relation-list field's element entity is cast by name in guards
     /// (`as readonly SdkENAllowedOrigin[]`), so the hook imports it.
     #[test]
     fn a_relation_list_field_imports_its_element_entity() {
-        let ts = hook(OirType::array(OirType::Reference { entity: "SdkENAllowedOrigin".into() }));
-        let import = ts.lines().find(|l| l.ends_with("from '@app/shared';")).unwrap_or_default().to_string();
+        let ts = hook(OirType::array(OirType::Reference {
+            entity: "SdkENAllowedOrigin".into(),
+        }));
+        let import = ts
+            .lines()
+            .find(|l| l.ends_with("from '@app/shared';"))
+            .unwrap_or_default()
+            .to_string();
         assert!(import.contains("SdkENAllowedOrigin"), "{import}");
     }
 
     #[test]
     fn control_a_scalar_list_imports_no_entity() {
         let ts = hook(OirType::array(OirType::String));
-        let import = ts.lines().find(|l| l.ends_with("from '@app/shared';")).unwrap_or_default().to_string();
+        let import = ts
+            .lines()
+            .find(|l| l.ends_with("from '@app/shared';"))
+            .unwrap_or_default()
+            .to_string();
         assert!(!import.contains("SdkENAllowedOrigin"), "{import}");
     }
 }
@@ -3242,13 +3333,104 @@ mod aliased_entity_type_position_tests {
             tr.orbital_name = "Orb".to_string();
             tr.linked_entity = Some(entity.to_string());
             tr.states.push(OirState::initial("idle"));
-            tr.transitions.push(OirTransition::new("idle", "idle", "GO"));
+            tr.transitions
+                .push(OirTransition::new("idle", "idle", "GO"));
             let mut module = OirModule::new("Orb", "1.0.0");
             module.entities.push(OirEntity::new(entity));
             module.traits.push(tr.clone());
-            let ts = TypeScriptBackend::new().generate_trait_logic_hook(&tr, &module).content;
-            assert!(ts.contains(&format!("field: keyof {alias} & string")), "{entity}:\n{ts}");
-            assert!(!ts.contains(&format!("keyof {entity} & string")), "{entity}");
+            let ts = TypeScriptBackend::new()
+                .generate_trait_logic_hook(&tr, &module)
+                .content;
+            assert!(
+                ts.contains(&format!("field: keyof {alias} & string")),
+                "{entity}:\n{ts}"
+            );
+            assert!(
+                !ts.contains(&format!("keyof {entity} & string")),
+                "{entity}"
+            );
         }
+    }
+}
+
+impl TypeScriptBackend {
+    /// The trait's declared `(from, event)` arms as a TS literal — `'*'` for an any-state arm —
+    /// so a dispatch that took no arm reports `guard-rejected` vs `no-matching-transition`.
+    fn declared_arms_literal(trait_def: &OirTrait) -> String {
+        use orbital_core::ir::OirTransitionFrom;
+        let quote = |s: &str| serde_json::to_string(s).expect("a name serializes");
+        let arms: Vec<String> = trait_def
+            .transitions
+            .iter()
+            .map(|t| {
+                let from = match &t.from {
+                    OirTransitionFrom::Any => "'*'".to_string(),
+                    OirTransitionFrom::Single(s) => format!("[{}]", quote(s)),
+                    OirTransitionFrom::Multiple(states) => format!(
+                        "[{}]",
+                        states
+                            .iter()
+                            .map(|s| quote(s))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                };
+                format!("[{from}, {}]", quote(&t.event))
+            })
+            .collect();
+        format!(
+            "([{}] as ReadonlyArray<readonly [ReadonlyArray<string> | '*', string]>)",
+            arms.join(", ")
+        )
+    }
+}
+
+#[cfg(test)]
+mod guard_holds_client_tests {
+    use crate::backend::TypeScriptBackend;
+    use orbital_core::ir::{
+        OirBinding, OirEffect, OirEvent, OirExpr, OirModule, OirState, OirTrait, OirTransition,
+    };
+
+    fn hook(guarded: bool) -> String {
+        let mut trait_def = OirTrait::new("Composer");
+        trait_def.states.push(OirState::initial("ready"));
+        let mut t = OirTransition::new("ready", "sent", "SEND");
+        t.effects
+            .push(OirExpr::effect(OirEffect::navigate(OirExpr::string(
+                "/sent",
+            ))));
+        if guarded {
+            t.guard = Some(OirExpr::binding(OirBinding::entity(vec!["ok".to_string()])));
+        }
+        trait_def.transitions.push(t);
+        trait_def.events.push(OirEvent::new("SEND"));
+        let mut module = OirModule::new("GuardHolds", "0.1.0");
+        module.traits.push(trait_def.clone());
+        TypeScriptBackend::new()
+            .generate_trait_logic_hook(&trait_def, &module)
+            .content
+    }
+
+    /// The generated client applies the same rule as the server and the JS runtime: a guard
+    /// that throws blocks its arm like a false guard (D-7, `@almadar/core` `guardHolds`).
+    #[test]
+    fn a_client_guard_runs_through_guard_holds() {
+        let ts = hook(true);
+        assert!(
+            ts.contains("guardHolds(() =>"),
+            "client guards must run through guardHolds:\n{ts}"
+        );
+        assert!(
+            ts.lines().any(|l| l.starts_with("import")
+                && l.contains("guardHolds")
+                && l.contains("@almadar/core")),
+            "guardHolds must be imported from @almadar/core:\n{ts}"
+        );
+    }
+
+    #[test]
+    fn control_a_trait_without_guards_does_not_import_guard_holds() {
+        assert!(!hook(false).contains("guardHolds"));
     }
 }

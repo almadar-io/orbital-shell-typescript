@@ -1239,6 +1239,9 @@ mod locale_route_tests {
         );
         assert!(!ts.contains("I18N."), "{ts}");
         assert!(ts.contains("const localeCatalog = Object.fromEntries(Object.entries(localeMessages).filter(([k]) => !k.startsWith('$'))) as Record<string, string>;"), "{ts}");
-        assert!(ts.contains("messages: localeCatalog, t: createTranslate(localeCatalog)"), "{ts}");
+        assert!(
+            ts.contains("messages: localeCatalog, t: createTranslate(localeCatalog)"),
+            "{ts}"
+        );
     }
 }

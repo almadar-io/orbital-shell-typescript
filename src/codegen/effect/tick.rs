@@ -117,10 +117,11 @@ impl EffectBlockSink for TickEmitSink<'_> {
                     Some(&self.trait_def.name),
                     Some((self.module, &self.trait_def.orbital_name)),
                 ) {
-                    self.out.push_str(&TypeScriptBackend::tick_entity_read_to_local(
-                        &stmt,
-                        self.mode.local_var(),
-                    ));
+                    self.out
+                        .push_str(&TypeScriptBackend::tick_entity_read_to_local(
+                            &stmt,
+                            self.mode.local_var(),
+                        ));
                     self.out.push('\n');
                 }
             }
@@ -229,29 +230,42 @@ impl TypeScriptBackend {
     /// and double-advance the field — those ticks stay server-side. Same
     /// `OirPersistence::Runtime` discriminator the rest of the codegen uses
     /// (handlers.rs `needs_runtime_entity_store`, backend_hono.rs).
+    /// The client-loop ticks whose effects write browser-stored data: each firing also sends one
+    /// `runTick` leg to the browser store (`sendTick`), which runs those effects there (drift D-1).
+    pub(crate) fn browser_leg_ticks(
+        &self,
+        trait_def: &OirTrait,
+        module: &OirModule,
+    ) -> std::collections::BTreeSet<String> {
+        if !self.runs_client_tick_loop(trait_def, module) {
+            return std::collections::BTreeSet::new();
+        }
+        let legs =
+            trait_def.browser_leg_events(&orbital_core::effects::Residence::of_module(module));
+        trait_def
+            .ticks
+            .iter()
+            .filter(|t| legs.contains(&orbital_core::effects::tick_event_key(&t.name)))
+            .map(|t| t.name.clone())
+            .collect()
+    }
+
+    /// The per-trait client tick loop exists for a trait with a client-run tick
+    /// (`tick_runs_on_client`) that is not on a `[shared]` entity (see `generate_tick_effects`).
+    fn runs_client_tick_loop(&self, trait_def: &OirTrait, module: &OirModule) -> bool {
+        self.shared_linked_entity(trait_def, module).is_none()
+            && trait_def.ticks.iter().any(|t| {
+                crate::backend::server::ticks::tick_runs_on_client(trait_def, t, module)
+            })
+    }
+
     pub(crate) fn generate_tick_effects(&self, trait_def: &OirTrait, module: &OirModule) -> String {
         let mut code = String::new();
+        let leg_ticks = self.browser_leg_ticks(trait_def, module);
 
-        let entity_is_runtime = trait_def.linked_entity.as_ref().is_some_and(|name| {
-            module
-                .entities
-                .iter()
-                .any(|e| &e.name == name && matches!(e.persistence, OirPersistence::Runtime))
-        });
-        if !entity_is_runtime {
-            // Persisted-entity ticks advance server-side; no client-side
-            // optimistic mutation loop is emitted.
-            return code;
-        }
-        // A `[shared]` entity coalesces every writer trait's ticks into ONE
-        // per-orbital `runTickFrame` driver (see `generate_shared_tick_driver`,
-        // invoked once from the render trait's hook —
-        // `generate_shared_trait_logic_hook`) instead of each trait
-        // dispatching its own reducer-local `TICK` action. Skip the
-        // per-trait loop entirely here: the entity mutates store-only
-        // (silent), and repaint happens exactly once, from the render
-        // trait's `useSharedEntitySnapshot` subscription.
-        if self.shared_linked_entity(trait_def, module).is_some() {
+        // Persisted-entity ticks advance server-side, and a `[shared]` entity's writer ticks
+        // run through one per-orbital `runTickFrame` driver (`generate_shared_tick_driver`).
+        if !self.runs_client_tick_loop(trait_def, module) {
             return code;
         }
 
@@ -272,6 +286,9 @@ impl TypeScriptBackend {
         code.push_str("  _tickEntityRef.current = { ...fields };\n\n");
 
         for tick in &trait_def.ticks {
+            if !crate::backend::server::ticks::tick_runs_on_client(trait_def, tick, module) {
+                continue;
+            }
             // Transpile guard condition with ref replacements (`fields?.`
             // included — the guard reads the same live mirror as the body,
             // never the mount-time closure).
@@ -291,6 +308,20 @@ impl TypeScriptBackend {
                         .replace("fields?.", "_tickEntityRef.current?.")
                 })
                 .unwrap_or_else(|| "true".to_string());
+            // `appliesTo`: the tick runs only while the trait is in one of these states.
+            let guard_ts = if tick.applies_to.is_empty() {
+                guard_ts
+            } else {
+                let states: Vec<String> = tick
+                    .applies_to
+                    .iter()
+                    .map(|state| serde_json::to_string(state).expect("a state name serializes"))
+                    .collect();
+                format!(
+                    "[{}].includes(_tickStateRef.current) && ({guard_ts})",
+                    states.join(", ")
+                )
+            };
 
             // Build the tick body: local entity copy, then the effects as
             // STATEMENTS (statement-level `if`/`when` control flow survives —
@@ -304,6 +335,13 @@ impl TypeScriptBackend {
             // client write path on ONE value type avoids the
             // EventPayloadValue-vs-FieldValue assignment friction.
             tick_body.push_str("        const _ent: Record<string, EventPayloadValue | undefined> = { ..._tickEntityRef.current };\n");
+            let legs = leg_ticks.contains(&tick.name);
+            if legs {
+                // The leg replays the tick from the pre-tick state and row.
+                tick_body.push_str(
+                    "        const _legRow = { ..._tickEntityRef.current } as EntityRow;\n",
+                );
+            }
 
             let mut written_fields: Vec<String> = Vec::new();
             let mut effects_ts = String::new();
@@ -318,7 +356,7 @@ impl TypeScriptBackend {
                     &mut written_fields,
                 );
             }
-            if effects_ts.is_empty() {
+            if effects_ts.is_empty() && !legs {
                 continue;
             }
             let defers_emits = effects_ts.contains("_emits.push(");
@@ -344,6 +382,12 @@ impl TypeScriptBackend {
             tick_body.push_str("        _tickEntityRef.current = _ent as EntityRow;\n");
             if defers_emits {
                 tick_body.push_str("        for (const _emit of _emits) _emit();\n");
+            }
+            if legs {
+                tick_body.push_str(&format!(
+                    "        void sendTick('{}', _tickStateRef.current, _legRow);\n",
+                    tick.name
+                ));
             }
 
             let stamps_now = tick
@@ -636,7 +680,9 @@ impl TypeScriptBackend {
             }
             code.push_str("      const writes: EntityFieldWrite[] = [];\n");
             // Read the frame as the per-trait tick reads its row (an `EventPayloadValue` view).
-            code.push_str("      const frame: Record<string, EventPayloadValue | undefined> = scratch;\n");
+            code.push_str(
+                "      const frame: Record<string, EventPayloadValue | undefined> = scratch;\n",
+            );
             if body.contains("_emits.push(") {
                 code.push_str("      const _emits = _sharedTickEmitsRef.current;\n");
             }
@@ -918,11 +964,11 @@ mod repro_tests {
             "no rAF loop:\n{ts}"
         );
         assert!(
-            ts.contains("const vy1 = (+(_ent?.player?.vy ?? 0) + 1)"),
+            ts.contains("const let__vy1 = (+((_ent?.player as EventPayload | undefined)?.vy ?? 0) + 1)"),
             "let-local vy1 not emitted onto _ent copy:\n{ts}"
         );
         assert!(
-            ts.contains("const px1 ="),
+            ts.contains("const let__px1 ="),
             "let-local px1 not emitted:\n{ts}"
         );
         assert!(
@@ -942,11 +988,18 @@ mod repro_tests {
     #[test]
     fn tick_emit_publishes_the_source_qualified_key_after_the_dispatch() {
         let mut tick = OirTick::new("clock", OirInterval::Frame);
-        tick.effects.push(OirExpr::effect(OirEffect::set(OirBinding::parse("@entity.score").unwrap(), OirExpr::number(1.0))));
-        tick.effects.push(OirExpr::effect(OirEffect::emit_with_payload(
-            "PING",
-            OirExpr::object(orbital_core::ir::OirFields::from([("n".to_string(), bind("@entity.score"))])),
+        tick.effects.push(OirExpr::effect(OirEffect::set(
+            OirBinding::parse("@entity.score").unwrap(),
+            OirExpr::number(1.0),
         )));
+        tick.effects
+            .push(OirExpr::effect(OirEffect::emit_with_payload(
+                "PING",
+                OirExpr::object(orbital_core::ir::OirFields::from([(
+                    "n".to_string(),
+                    bind("@entity.score"),
+                )])),
+            )));
         let mut tr = OirTrait::new("Clock");
         tr.orbital_name = "Game".to_string();
         tr.linked_entity = Some("Game".to_string());
@@ -979,9 +1032,14 @@ mod repro_tests {
             ts.contains("emitCascadeEvent(eventBus, 'Game', 'Clock', { event: 'PING', payload: _p"),
             "the tick emit must publish the source-qualified key:\n{ts}"
         );
-        assert!(ts.contains("})({ n: _ent?.score }));"), "the payload reads the tick's own frame:\n{ts}");
+        assert!(
+            ts.contains("})({ n: _ent?.score }));"),
+            "the payload reads the tick's own frame:\n{ts}"
+        );
         let dispatch = ts.find("dispatchReducer({ type: 'TICK'").expect("dispatch");
-        let flush = ts.find("for (const _emit of _emits) _emit();").expect("flush");
+        let flush = ts
+            .find("for (const _emit of _emits) _emit();")
+            .expect("flush");
         assert!(flush > dispatch, "emits fire after the tick commits:\n{ts}");
     }
 
@@ -991,7 +1049,10 @@ mod repro_tests {
     fn tick_null_branch_is_a_no_op_not_a_throw() {
         let conditional = OirExpr::if_then_else(
             bind("@entity.flag"),
-            OirExpr::effect(OirEffect::set(OirBinding::parse("@entity.score").unwrap(), OirExpr::number(1.0))),
+            OirExpr::effect(OirEffect::set(
+                OirBinding::parse("@entity.score").unwrap(),
+                OirExpr::number(1.0),
+            )),
             OirExpr::null(),
         );
         let mut tick = OirTick::new("clock", OirInterval::Frame);
@@ -1023,8 +1084,14 @@ mod repro_tests {
 
         let ts = TypeScriptBackend::new().generate_tick_effects(&tr, &module);
 
-        assert!(!ts.contains("unlowered effect expression"), "a null branch must not throw:\n{ts}");
-        assert!(ts.contains("_ent['score'] = 1"), "the then-branch set must still be emitted:\n{ts}");
+        assert!(
+            !ts.contains("unlowered effect expression"),
+            "a null branch must not throw:\n{ts}"
+        );
+        assert!(
+            ts.contains("_ent['score'] = 1"),
+            "the then-branch set must still be emitted:\n{ts}"
+        );
     }
 
     #[test]
@@ -1193,16 +1260,40 @@ mod repro_tests {
         let entity = module.find_entity("SharedState").unwrap().clone();
         let hooks: Vec<String> = ["Render", "Render2"]
             .iter()
-            .map(|n| backend.generate_shared_trait_logic_hook(module.find_trait(n).unwrap(), &module, &entity).content)
+            .map(|n| {
+                backend
+                    .generate_shared_trait_logic_hook(
+                        module.find_trait(n).unwrap(),
+                        &module,
+                        &entity,
+                    )
+                    .content
+            })
             .collect();
-        let drivers: usize = hooks.iter().map(|h| h.matches("runTickFrame(_sharedEntityId").count()).sum();
+        let drivers: usize = hooks
+            .iter()
+            .map(|h| h.matches("runTickFrame(_sharedEntityId").count())
+            .sum();
         assert_eq!(drivers, 1, "{hooks:#?}");
-        assert!(hooks[0].contains("runTickFrame(_sharedEntityId"), "the first renderer hosts it");
+        assert!(
+            hooks[0].contains("runTickFrame(_sharedEntityId"),
+            "the first renderer hosts it"
+        );
         for h in &hooks {
-            assert!(h.contains("const _sharedStore = useSharedEntityStoreContext();"), "{h}");
-            assert!(h.contains("useSharedEntitySnapshot(_sharedStore, _sharedEntityId)"), "{h}");
+            assert!(
+                h.contains("const _sharedStore = useSharedEntityStoreContext();"),
+                "{h}"
+            );
+            assert!(
+                h.contains("useSharedEntitySnapshot(_sharedStore, _sharedEntityId)"),
+                "{h}"
+            );
         }
-        assert!(!hooks[1].contains("runTickFrame"), "no unused import in the reader:\n{}", hooks[1]);
+        assert!(
+            !hooks[1].contains("runTickFrame"),
+            "no unused import in the reader:\n{}",
+            hooks[1]
+        );
     }
 
     #[test]
@@ -1542,6 +1633,60 @@ mod repro_tests {
     // C-TICK-RUNTIME-ENTITY-MIRROR: a [runtime] entity's row is the
     // `fields` mirror — refs seed from it, the guard reads it live.
     // ------------------------------------------------------------------
+
+    fn runtime_board(applies_to: &[&str]) -> (OirTrait, OirModule) {
+        let mut tick = OirTick::new("step", OirInterval::Milliseconds { value: 150 });
+        tick.applies_to = applies_to.iter().map(|s| s.to_string()).collect();
+        tick.effects.push(OirExpr::effect(OirEffect::set(
+            OirBinding::parse("@entity.a").unwrap(),
+            OirExpr::add(bind("@entity.a"), OirExpr::number(1.0)),
+        )));
+        let mut tr = OirTrait::new("Board");
+        tr.linked_entity = Some("Game".to_string());
+        tr.ticks.push(tick);
+        let mut module = OirModule::new("AppliesTo", "0.1.0");
+        module.entities.push(OirEntity {
+            shared: false,
+            identity: false,
+            local: false,
+            seed_mock: false,
+            id: None,
+            name: "Game".to_string(),
+            description: None,
+            collection: "Game".to_string(),
+            persistence: OirPersistence::Runtime,
+            fields: vec![OirField::new("id", OirType::String)],
+            defaults: None,
+            instances: vec![],
+            used_by_traits: vec![],
+            used_by_pages: vec![],
+            read_policy: None,
+            create_policy: None,
+            update_policy: None,
+            delete_policy: None,
+        });
+        (tr, module)
+    }
+
+    #[test]
+    fn a_tick_runs_only_in_the_states_it_applies_to() {
+        let (tr, module) = runtime_board(&["running", "paused"]);
+        let ts = TypeScriptBackend::new().generate_tick_effects(&tr, &module);
+        assert!(
+            ts.contains(r#"["running", "paused"].includes(_tickStateRef.current)"#),
+            "the tick must check the live state against appliesTo:\n{ts}"
+        );
+    }
+
+    #[test]
+    fn control_a_tick_without_applies_to_runs_in_every_state() {
+        let (tr, module) = runtime_board(&[]);
+        let ts = TypeScriptBackend::new().generate_tick_effects(&tr, &module);
+        assert!(
+            !ts.contains(".includes(_tickStateRef.current)"),
+            "no state gate without appliesTo:\n{ts}"
+        );
+    }
 
     #[test]
     fn runtime_tick_reads_the_fields_mirror_not_the_data_collection() {

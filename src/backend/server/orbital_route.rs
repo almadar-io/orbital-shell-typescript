@@ -213,7 +213,9 @@ impl TypeScriptBackend {
         code.push_str("    }\n");
         code.push_str("    let r: EventResponse;\n");
         code.push_str("    try {\n");
-        code.push_str("      r = await run({ ...base, event: seed.event, targetTrait: seed.trait }, user);\n");
+        code.push_str(
+            "      r = await run({ ...base, event: seed.event, targetTrait: seed.trait }, user);\n",
+        );
         code.push_str("    } catch (error) {\n");
         code.push_str("      (merged.rejections ??= []).push({ code: 'effect-failed', trait: seed.trait, event: seed.event, error: error instanceof Error ? error.message : String(error) });\n");
         code.push_str("      continue;\n");

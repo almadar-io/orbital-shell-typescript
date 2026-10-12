@@ -74,14 +74,22 @@ impl TypeScriptBackend {
     /// Events that write one slot from transitions entering different states (guarded arms
     /// such as std-record-detail's `RecordItemLoaded` → editing | viewing). The slot's
     /// writer for these is `event>state`, so the view shows the arm that fired.
-    pub(crate) fn split_writer_events(&self, trait_def: &OirTrait) -> std::collections::BTreeSet<String> {
-        let mut targets: std::collections::BTreeMap<(String, String), std::collections::BTreeSet<String>> =
-            std::collections::BTreeMap::new();
+    pub(crate) fn split_writer_events(
+        &self,
+        trait_def: &OirTrait,
+    ) -> std::collections::BTreeSet<String> {
+        let mut targets: std::collections::BTreeMap<
+            (String, String),
+            std::collections::BTreeSet<String>,
+        > = std::collections::BTreeMap::new();
         for entry in self.collect_transition_slot_renders(trait_def) {
             if entry.is_clear {
                 continue;
             }
-            targets.entry((entry.event, entry.slot)).or_default().insert(entry.to_state);
+            targets
+                .entry((entry.event, entry.slot))
+                .or_default()
+                .insert(entry.to_state);
         }
         targets
             .into_iter()
@@ -630,10 +638,11 @@ impl TypeScriptBackend {
                 continue;
             }
             let writer = Self::slot_writer_key(&split_writers, &entry.event, &entry.to_state);
-            slot_write_entries
-                .entry(entry.slot)
-                .or_default()
-                .push((writer, entry.event, entry.node));
+            slot_write_entries.entry(entry.slot).or_default().push((
+                writer,
+                entry.event,
+                entry.node,
+            ));
         }
 
         if slot_write_entries.is_empty() {
@@ -785,7 +794,7 @@ impl TypeScriptBackend {
                     // the predicted skeleton stands in.
                     if let Some(aw) = &awaiting_expr {
                         parts.push(format!(
-                            "{{(() => {{ const __awaiting = {aw}; return slotWriter['{slot_name}'] == null && __awaiting ? <SkeletonTree node={{__awaiting}} /> : null; }})()}}"
+                            "{{(() => {{ const __awaiting: SkeletonNode | undefined = {aw}; return slotWriter['{slot_name}'] == null && __awaiting ? <SkeletonTree node={{__awaiting}} /> : null; }})()}}"
                         ));
                     }
                     parts.push(inner_jsx);
@@ -844,6 +853,13 @@ impl TypeScriptBackend {
                 1,
             );
         }
+        if code.contains("const __awaiting: SkeletonNode") {
+            code = code.replacen(
+                "import { UISlotComponent } from '@almadar/ui/components';\n",
+                "import { UISlotComponent } from '@almadar/ui/components';\nimport type { SkeletonNode } from '@almadar/core';\n",
+                1,
+            );
+        }
         if code.contains("enterClassName(") {
             code = code.replacen(
                 "import { UISlotComponent } from '@almadar/ui/components';\n",
@@ -860,13 +876,16 @@ impl TypeScriptBackend {
         }
         let value_imports = self.view_value_imports.take();
         if !value_imports.is_empty() {
-            let mut by_module: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+            let mut by_module: std::collections::BTreeMap<String, Vec<String>> =
+                std::collections::BTreeMap::new();
             for (module, name) in value_imports {
                 by_module.entry(module).or_default().push(name);
             }
             let lines: String = by_module
                 .into_iter()
-                .map(|(module, names)| format!("import {{ {} }} from '{}';\n", names.join(", "), module))
+                .map(|(module, names)| {
+                    format!("import {{ {} }} from '{}';\n", names.join(", "), module)
+                })
                 .collect();
             let anchor = "import { UISlotComponent";
             if let Some(at) = code.find(anchor) {
@@ -1295,10 +1314,21 @@ mod wrapper_pattern_tracks_active_branch_tests {
     fn guarded_arms_into_different_states_each_render_their_own_branch() {
         let tr = loaded_trait(&[("editing", "document-panel"), ("viewing", "detail-panel")]);
         let view = view_of(&tr);
-        assert!(view.contains("slotWriter['main'] === 'LOADED>editing'"), "{view}");
-        assert!(view.contains("slotWriter['main'] === 'LOADED>viewing'"), "{view}");
-        let writer = TypeScriptBackend::new().render_writer_fn(&tr).expect("a writer function");
-        assert!(writer.contains("RecordDetailRenderWriter") && writer.contains("'LOADED'"), "{writer}");
+        assert!(
+            view.contains("slotWriter['main'] === 'LOADED>editing'"),
+            "{view}"
+        );
+        assert!(
+            view.contains("slotWriter['main'] === 'LOADED>viewing'"),
+            "{view}"
+        );
+        let writer = TypeScriptBackend::new()
+            .render_writer_fn(&tr)
+            .expect("a writer function");
+        assert!(
+            writer.contains("RecordDetailRenderWriter") && writer.contains("'LOADED'"),
+            "{writer}"
+        );
     }
 
     #[test]
@@ -1604,6 +1634,17 @@ mod wrapper_pattern_tracks_active_branch_tests {
             content
         );
         assert!(!content.contains("awaitingSkeleton="), "got: {}", content);
+        // Outside a typed prop the literal would widen `variant` to `string` (TS2322).
+        assert!(
+            content.contains("const __awaiting: SkeletonNode | undefined = "),
+            "got: {}",
+            content
+        );
+        assert!(
+            content.contains("import type { SkeletonNode } from '@almadar/core';"),
+            "got: {}",
+            content
+        );
     }
 }
 
@@ -1637,32 +1678,63 @@ mod message_tests {
             let mut tr = OirTrait::new("CanvasView");
             tr.orbital_name = "Studio".to_string();
             tr.states.push(OirState::initial("idle"));
-            tr.transitions.push(OirTransition::new("idle", "idle", "INIT").with_effects(vec![OirExpr::Effect {
-                effect: Box::new(OirEffect::RenderUi { slot: "main".to_string(), pattern }),
-            }]));
-            TypeScriptBackend::new().generate_trait_component(&tr, &OirModule::new("App", "1.0.0"), &HashSet::new()).content
+            tr.transitions.push(
+                OirTransition::new("idle", "idle", "INIT").with_effects(vec![OirExpr::Effect {
+                    effect: Box::new(OirEffect::RenderUi {
+                        slot: "main".to_string(),
+                        pattern,
+                    }),
+                }]),
+            );
+            TypeScriptBackend::new()
+                .generate_trait_component(&tr, &OirModule::new("App", "1.0.0"), &HashSet::new())
+                .content
         };
         let inspector = render(
             OirPattern::new("orb-inspector")
                 .with_config("node", OirValue::String("@entity.node".into()))
                 .with_config("schema", OirValue::String("@entity.program".into())),
         );
-        assert!(inspector.contains("node={decodePreviewNodeData(fields?.node)}"), "{inspector}");
-        assert!(inspector.contains("schema={parseOrbitalSchema(fields?.program)}"), "{inspector}");
-        assert!(inspector.contains("import { decodePreviewNodeData } from '@almadar/ui/avl';"), "{inspector}");
-        assert!(inspector.contains("import { parseOrbitalSchema } from '@almadar/core';"), "{inspector}");
+        assert!(
+            inspector.contains("node={decodePreviewNodeData(fields?.node)}"),
+            "{inspector}"
+        );
+        assert!(
+            inspector.contains("schema={parseOrbitalSchema(fields?.program)}"),
+            "{inspector}"
+        );
+        assert!(
+            inspector.contains("import { decodePreviewNodeData } from '@almadar/ui/avl';"),
+            "{inspector}"
+        );
+        assert!(
+            inspector.contains("import { parseOrbitalSchema } from '@almadar/core';"),
+            "{inspector}"
+        );
 
         let canvas = render(
             OirPattern::new("flow-canvas")
                 .with_config("schema", OirValue::String("@entity.program".into()))
-                .with_config("nodePositions", OirValue::String("@entity.positions".into()))
+                .with_config(
+                    "nodePositions",
+                    OirValue::String("@entity.positions".into()),
+                )
                 .with_config("onSchemaChange", OirValue::String("SCHEMA_CHANGE".into())),
         );
         assert!(canvas.contains("schema={((v: EventPayloadValue) => typeof v === 'string' ? v : parseOrbitalSchema(v))(fields?.program)}"), "{canvas}");
-        assert!(canvas.contains("EventPayloadValue") && canvas.contains("from '@almadar/core'"), "{canvas}");
+        assert!(
+            canvas.contains("EventPayloadValue") && canvas.contains("from '@almadar/core'"),
+            "{canvas}"
+        );
         assert!(canvas.contains("nodePositions={((fields?.positions) == null ? undefined : decodeNodePlacements(fields?.positions))}"), "{canvas}");
-        assert!(canvas.contains("dispatch('SCHEMA_CHANGE', { schema: toPayloadValue(schema) })"), "{canvas}");
-        assert!(canvas.contains("import { parseOrbitalSchema, toPayloadValue } from '@almadar/core';"), "{canvas}");
+        assert!(
+            canvas.contains("dispatch('SCHEMA_CHANGE', { schema: toPayloadValue(schema) })"),
+            "{canvas}"
+        );
+        assert!(
+            canvas.contains("import { parseOrbitalSchema, toPayloadValue } from '@almadar/core';"),
+            "{canvas}"
+        );
     }
 
     #[test]
@@ -1670,14 +1742,22 @@ mod message_tests {
         let mut tr = OirTrait::new("PlainView");
         tr.orbital_name = "Studio".to_string();
         tr.states.push(OirState::initial("idle"));
-        tr.transitions.push(OirTransition::new("idle", "idle", "INIT").with_effects(vec![OirExpr::Effect {
-            effect: Box::new(OirEffect::RenderUi {
-                slot: "main".to_string(),
-                pattern: OirPattern::new("typography").with_config("content", OirValue::String("@entity.title".into())),
-            }),
-        }]));
-        let view = TypeScriptBackend::new().generate_trait_component(&tr, &OirModule::new("App", "1.0.0"), &HashSet::new()).content;
-        assert!(!view.contains("@almadar/ui/avl") && !view.contains("toPayloadValue"), "{view}");
+        tr.transitions.push(
+            OirTransition::new("idle", "idle", "INIT").with_effects(vec![OirExpr::Effect {
+                effect: Box::new(OirEffect::RenderUi {
+                    slot: "main".to_string(),
+                    pattern: OirPattern::new("typography")
+                        .with_config("content", OirValue::String("@entity.title".into())),
+                }),
+            }]),
+        );
+        let view = TypeScriptBackend::new()
+            .generate_trait_component(&tr, &OirModule::new("App", "1.0.0"), &HashSet::new())
+            .content;
+        assert!(
+            !view.contains("@almadar/ui/avl") && !view.contains("toPayloadValue"),
+            "{view}"
+        );
     }
 
     /// G-ORB-189: a required boolean prop in an inline view render takes the binding's truthiness.
@@ -1690,14 +1770,18 @@ mod message_tests {
             OirTransition::new("idle", "idle", "INIT").with_effects(vec![OirExpr::Effect {
                 effect: Box::new(OirEffect::RenderUi {
                     slot: "main".to_string(),
-                    pattern: OirPattern::new("command-palette").with_config("open", OirValue::String("@entity.paletteOpen".into())),
+                    pattern: OirPattern::new("command-palette")
+                        .with_config("open", OirValue::String("@entity.paletteOpen".into())),
                 }),
             }]),
         );
         let view = TypeScriptBackend::new()
             .generate_trait_component(&tr, &OirModule::new("App", "1.0.0"), &HashSet::new())
             .content;
-        assert!(view.contains("open={Boolean(fields?.paletteOpen)}"), "{view}");
+        assert!(
+            view.contains("open={Boolean(fields?.paletteOpen)}"),
+            "{view}"
+        );
     }
 
     #[test]

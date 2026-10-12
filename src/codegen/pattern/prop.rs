@@ -76,10 +76,24 @@ impl TypeScriptBackend {
     }
 
     /// The prop is declared `boolean` only and required.
-    pub(crate) fn required_boolean_prop(pattern_type: Option<&str>, key: &str) -> bool {
+    /// Whether the pattern declares `key` required: its value type then admits no `undefined`.
+    pub(crate) fn required_prop(pattern_type: Option<&str>, key: &str) -> bool {
         pattern_type
             .and_then(|pt| get_props_schema(pt)?.get(key).map(|p| p.required))
             .unwrap_or(false)
+    }
+
+    /// `string | number`, with `| undefined` only when the prop is optional.
+    pub(crate) fn string_or_number_ts(pattern_type: Option<&str>, key: &str) -> &'static str {
+        if Self::required_prop(pattern_type, key) {
+            "string | number"
+        } else {
+            "string | number | undefined"
+        }
+    }
+
+    pub(crate) fn required_boolean_prop(pattern_type: Option<&str>, key: &str) -> bool {
+        Self::required_prop(pattern_type, key)
             && pattern_type
                 .and_then(|pt| orbital_core::language::pattern_props::get_prop_types(pt, key))
                 .is_some_and(|types| !types.is_empty() && types.iter().all(|t| *t == "boolean"))
@@ -154,7 +168,7 @@ impl TypeScriptBackend {
             return format!("(Number({}{}) as {})", compiled, or("0"), union);
         }
         if has_string && has_number {
-            format!("(({}) as string | number | undefined)", compiled)
+            format!("(({}) as {})", compiled, Self::string_or_number_ts(pattern_type, key))
         } else if has_string {
             let t = compiled.trim_start();
             // A literal (a knob conditional folded at codegen) is already a string.
@@ -410,7 +424,12 @@ impl TypeScriptBackend {
                         } else if needs_string_coerce {
                             format!("{}={{{}}}", key, crate::codegen::effect::shared::string_coerce_ts(&expr))
                         } else if needs_string_or_number_coerce {
-                            format!("{}={{({} as string | number | undefined)}}", key, expr)
+                            format!(
+                                "{}={{({} as {})}}",
+                                key,
+                                expr,
+                                Self::string_or_number_ts(pattern_type, key)
+                            )
                         } else if needs_array_coerce {
                             // Strict `readonly T[]` prop fed by a wide payload
                             // binding (`@payload.X` → `EventPayloadValue`).
@@ -636,6 +655,16 @@ impl TypeScriptBackend {
                                 if nested_is_string_only {
                                     let expr = self.binding_string_to_ts(s);
                                     return Some(format!("{}: {}", k, crate::codegen::effect::shared::string_coerce_ts(&expr)));
+                                }
+                                // A number-only member: unset stays unset, as on the runtime path.
+                                let nested = nested_prop_schema.and_then(|p| p.get(k.as_str()));
+                                if nested.is_some_and(|np| !np.types.is_empty() && np.types.iter().all(|t| t == "number")) {
+                                    let expr = self.binding_string_to_ts(s);
+                                    return Some(if nested.is_some_and(|np| np.required.required_on_parent()) {
+                                        format!("{}: Number({} ?? 0)", k, expr)
+                                    } else {
+                                        format!("{}: ({e} == null ? undefined : Number({e}))", k, e = expr)
+                                    });
                                 }
                             }
                         }
@@ -1497,6 +1526,34 @@ mod trait_binding_prop_tests {
 }
 
 #[cfg(test)]
+mod object_prop_member_tests {
+    use super::*;
+
+    /// kflow-import feeds import-progress `counts.committed` from `?committed`: a payload read
+    /// is `EventPayloadValue`, the member a `number` (TS2322).
+    #[test]
+    fn a_number_member_of_an_object_prop_coerces_a_wide_binding() {
+        let backend = TypeScriptBackend::new();
+        let mut counts = orbital_core::ir::OirObject::new();
+        counts.insert("committed".to_string(), OirValue::String("@payload.committed".to_string()));
+        let out = backend.config_value_to_jsx_prop_with_pattern(Some("import-progress"), "counts", &OirValue::Object(counts));
+        assert!(
+            out.contains("committed: (lastPayload?.committed == null ? undefined : Number(lastPayload?.committed))"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn control_a_number_literal_member_stays_literal() {
+        let backend = TypeScriptBackend::new();
+        let mut counts = orbital_core::ir::OirObject::new();
+        counts.insert("committed".to_string(), OirValue::Number(3.0));
+        let out = backend.config_value_to_jsx_prop_with_pattern(Some("import-progress"), "counts", &OirValue::Object(counts));
+        assert!(out.contains("committed: 3"), "{out}");
+    }
+}
+
+#[cfg(test)]
 mod string_or_number_prop_binding_tests {
     use super::*;
 
@@ -1507,7 +1564,8 @@ mod string_or_number_prop_binding_tests {
     /// into a `string | number` prop (`stat-display.value`) must cast to the
     /// prop's own declared union — never a bare pass-through (accepts
     /// `boolean`/`null` the prop doesn't) and never `String(...)` (would
-    /// reject a genuine `number`).
+    /// reject a genuine `number`). `value` is required, so the union admits
+    /// no `undefined` (TS2322); an optional prop keeps it (badge `label` below).
     #[test]
     fn scalar_config_binding_into_string_or_number_prop_casts_to_the_declared_union() {
         let backend = TypeScriptBackend::new();
@@ -1518,7 +1576,7 @@ mod string_or_number_prop_binding_tests {
         );
         assert_eq!(
             out,
-            "value={(config?.value as string | number | undefined)}"
+            "value={(config?.value as string | number)}"
         );
     }
 }

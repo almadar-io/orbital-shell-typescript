@@ -1475,7 +1475,10 @@ mod to_many_relation_field_tests {
             OirType::array(OirType::row("Revision")),
         ));
         assert!(types.contains("revisions?: Revision[];"), "{types}");
-        assert!(schemas.contains("z.array(z.lazy(() => revisionSchema))"), "{schemas}");
+        assert!(
+            schemas.contains("z.array(z.lazy(() => revisionSchema))"),
+            "{schemas}"
+        );
         assert!(!schemas.contains("z.array(z.array("), "{schemas}");
     }
 
@@ -1503,7 +1506,11 @@ mod to_many_relation_field_tests {
             "z.record(FieldValueSchema.optional())"
         );
         assert_eq!(
-            backend.map_type_to_zod_with_refs(&OirType::reference("Revision"), None, ZodRefMode::IdString),
+            backend.map_type_to_zod_with_refs(
+                &OirType::reference("Revision"),
+                None,
+                ZodRefMode::IdString
+            ),
             "z.string()"
         );
     }
@@ -1912,7 +1919,10 @@ mod system_timestamp_tests {
                 &Default::default(),
             )
             .content;
-        assert!(ts.contains("  createdAt: string;\n  updatedAt: string;\n"), "{ts}");
+        assert!(
+            ts.contains("  createdAt: string;\n  updatedAt: string;\n"),
+            "{ts}"
+        );
         assert!(!ts.contains(": Date;"), "{ts}");
     }
 

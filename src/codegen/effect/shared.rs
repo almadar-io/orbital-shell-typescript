@@ -53,18 +53,25 @@ pub(crate) fn walk_effect_block(
     match expr {
         OirExpr::Call { function, args } if function == "let" && args.len() == 2 => {
             sink.on_scope_open(indent);
+            let mut bound: Vec<String> = Vec::new();
             if let OirExpr::Array { items } = &args[0] {
                 for pair in items {
                     if let OirExpr::Array { items: kv } = pair {
                         if kv.len() == 2 {
                             if let OirExpr::String { value: name } = &kv[0] {
-                                sink.on_let_binding(backend, name, &kv[1], indent);
+                                let ident = TypeScriptBackend::let_ident(name);
+                                backend.with_locals(&bound, true, || {
+                                    sink.on_let_binding(backend, &ident, &kv[1], indent)
+                                });
+                                bound.push(name.clone());
                             }
                         }
                     }
                 }
             }
-            walk_effect_block(backend, &args[1], indent, sink);
+            backend.with_locals(&bound, true, || {
+                walk_effect_block(backend, &args[1], indent, sink)
+            });
             sink.on_scope_close(indent);
         }
         OirExpr::Call { function, args } if function == "do" => {
@@ -153,12 +160,13 @@ pub(crate) fn effect_block_control_reads_root(expr: &OirExpr, root: &OirBindingR
 }
 
 /// Operators whose compiled form reads the dispatch's `now` stamp.
-const NOW_OPERATORS: [&str; 5] = [
+const NOW_OPERATORS: [&str; 6] = [
     "time/now",
     "time/today",
     "time/isPast",
     "time/isFuture",
     "time/isToday",
+    "time/relative",
 ];
 
 /// True when `expr` reads the dispatch's `now` stamp: the `@now` binding or a time operator.
@@ -169,7 +177,21 @@ pub(crate) fn expr_reads_now(expr: &OirExpr) -> bool {
         || NOW_OPERATORS.iter().any(|op| expr.calls_function(op))
 }
 
-/// True when any guard, effect, tick or listener expression of the trait reads `now`.
+/// A render-ui pattern value reads `now`: render-ui configs are data, so `expr_reads_now` never sees them.
+fn value_reads_now(value: &orbital_core::ir::OirValue) -> bool {
+    use orbital_core::ir::OirValue;
+    match value {
+        OirValue::String(s) => s == "@now",
+        OirValue::Array(items) => {
+            matches!(items.first(), Some(OirValue::String(op)) if NOW_OPERATORS.contains(&op.as_str()))
+                || items.iter().any(value_reads_now)
+        }
+        OirValue::Object(map) => map.values().any(value_reads_now),
+        _ => false,
+    }
+}
+
+/// True when any guard, effect, tick or listener expression of the trait, or a render-ui it draws, reads `now`.
 pub(crate) fn trait_reads_now(trait_def: &OirTrait) -> bool {
     let transitions = trait_def
         .transitions
@@ -184,10 +206,17 @@ pub(crate) fn trait_reads_now(trait_def: &OirTrait) -> bool {
             .iter()
             .chain(l.payload_mapping.iter().flat_map(|m| m.values()))
     });
+    let render_ui = |effects: &[OirExpr]| {
+        orbital_core::ir::render_ui_patterns(effects)
+            .iter()
+            .any(|p| p.config.values().any(value_reads_now))
+    };
     transitions
         .chain(ticks)
         .chain(listeners)
         .any(expr_reads_now)
+        || trait_def.transitions.iter().any(|t| render_ui(&t.effects))
+        || trait_def.ticks.iter().any(|t| render_ui(&t.effects))
 }
 
 /// A dynamic read compiles to `EventPayloadValue | undefined`, too wide for a `string` slot: wrap

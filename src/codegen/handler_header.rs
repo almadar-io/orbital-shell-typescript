@@ -472,7 +472,14 @@ fn oir_value_has_binding(value: &OirValue) -> bool {
 /// tuple cast (`pattern_value_to_ts_server`) needs. `navigate`'s own casts
 /// (`String(...)`, `as Record<string, string>`) need no extra import.
 pub fn trait_needs_sexpr_import(trait_def: &OirTrait) -> bool {
-    trait_def.transitions.iter().any(|t| {
+    // A handler's payload parameter is typed from the event's schema.
+    let payload_uses_sexpr = trait_def
+        .events
+        .iter()
+        .filter_map(|e| e.payload_schema.as_ref())
+        .flat_map(|schema| schema.values())
+        .any(crate::backend::oir_type_uses_sexpr);
+    payload_uses_sexpr || trait_def.transitions.iter().any(|t| {
         t.effects.iter().any(|e| {
             if let OirExpr::Effect { effect } = e {
                 matches!(

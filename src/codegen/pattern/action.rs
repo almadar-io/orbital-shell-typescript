@@ -127,11 +127,7 @@ impl TypeScriptBackend {
     ) -> Option<String> {
         let source_ts = self.compile_action_operand(source)?;
         let lambda_ts = self.compile_action_operand(lambda)?;
-        let elt = if element_ts.contains(" | ") {
-            format!("({element_ts})")
-        } else {
-            element_ts.to_string()
-        };
+        let elt = crate::backend::array_element_ts(element_ts);
         let guarded = if source_ts.trim_start().starts_with('[') {
             source_ts
         } else {
@@ -151,11 +147,7 @@ impl TypeScriptBackend {
     /// empty source literal infers `never[]`, and a source whose elements
     /// carry a compiled `when` closure would otherwise widen past the prop.
     fn qualify_computed_actions(&self, computed: &str, element_ts: &str) -> String {
-        let elt = if element_ts.contains(" | ") {
-            format!("({element_ts})")
-        } else {
-            element_ts.to_string()
-        };
+        let elt = crate::backend::array_element_ts(element_ts);
         let typed = format!("(({computed}) as readonly {elt}[])");
         match self.current_trait_scope.snapshot() {
             Some(scope) => format!(

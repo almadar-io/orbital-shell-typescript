@@ -76,6 +76,50 @@ impl<T> CodegenCell<T> {
     }
 }
 
+impl CodegenCell<Vec<Vec<(String, bool)>>> {
+    fn push(&self, scope: Vec<(String, bool)>) {
+        self.0.borrow_mut().push(scope);
+    }
+
+    fn pop(&self) {
+        self.0.borrow_mut().pop();
+    }
+}
+
+impl TypeScriptBackend {
+    /// The emitted identifier of a `let`-bound name.
+    pub(crate) fn let_ident(name: &str) -> String {
+        format!("let__{name}")
+    }
+
+    /// Compile `f` with `names` in scope: `let` names (`is_let`) renamed, lambda parameters as is.
+    pub(crate) fn with_locals<R>(
+        &self,
+        names: &[String],
+        is_let: bool,
+        f: impl FnOnce() -> R,
+    ) -> R {
+        self.local_scopes
+            .push(names.iter().map(|n| (n.clone(), is_let)).collect());
+        let out = f();
+        self.local_scopes.pop();
+        out
+    }
+
+    /// The identifier a local read compiles to: the innermost binder of `name` decides.
+    pub(crate) fn local_ident(&self, name: &str) -> String {
+        let scopes = self.local_scopes.borrow();
+        match scopes
+            .iter()
+            .rev()
+            .find_map(|scope| scope.iter().rev().find(|(n, _)| n == name))
+        {
+            Some((_, true)) => Self::let_ident(name),
+            _ => name.to_string(),
+        }
+    }
+}
+
 impl<T: Default> CodegenCell<T> {
     /// Take the stored value, leaving the default behind.
     pub(crate) fn take(&self) -> T {
@@ -151,6 +195,10 @@ pub struct TypeScriptBackend {
     pub current_trait_scope: CodegenCell<Option<String>>,
     /// Set while a transition's guard or effects compile; `None` elsewhere (ticks, renders).
     pub current_transition: CodegenCell<Option<TransitionScope>>,
+    /// Local names in scope while a `let` or lambda body compiles, innermost last. A `let` name
+    /// (`true`) is emitted as `let__<name>` so it never shadows a shell local such as `fields`;
+    /// a lambda parameter (`false`) keeps its name and hides an outer `let` of the same name.
+    pub local_scopes: CodegenCell<Vec<Vec<(String, bool)>>>,
     /// Gap #13 sibling — resolves an `is_event_name_prop` value to the scope
     /// that actually owns it, for embedded/hoisted chrome whose bare event
     /// belongs to whatever trait embeds it, not to itself (an embedded
@@ -339,6 +387,7 @@ impl Default for TypeScriptBackend {
             browser_schema: None,
             current_trait_scope: CodegenCell::new(None),
             current_transition: CodegenCell::new(None),
+            local_scopes: CodegenCell::new(Vec::new()),
             current_event_scope_chain: CodegenCell::new(Vec::new()),
             entity_catalog: CodegenCell::new(HashMap::new()),
             current_linked_entity: CodegenCell::new(None),
@@ -1035,6 +1084,7 @@ impl Backend for TypeScriptBackend {
             browser_schema: self.browser_schema.clone(),
             current_trait_scope: CodegenCell::new(None),
             current_transition: CodegenCell::new(None),
+            local_scopes: CodegenCell::new(Vec::new()),
             current_event_scope_chain: CodegenCell::new(Vec::new()),
             entity_catalog: CodegenCell::new(HashMap::new()),
             current_linked_entity: CodegenCell::new(None),
@@ -1085,7 +1135,7 @@ mod pages;
 pub(crate) mod server;
 mod shared;
 mod types;
-pub(crate) use types::{map_type_ts, TsTypeMode};
+pub(crate) use types::{array_element_ts, map_type_ts, oir_type_uses_sexpr, TsTypeMode};
 mod utils;
 
 // Free helpers / case converters used across submodules.
@@ -2091,16 +2141,25 @@ mod index_css_theme_parity_tests {
     #[test]
     fn the_client_imports_every_built_in_theme() {
         let css = TypeScriptBackend::new().generate_index_css_with_themes(&[]);
-        assert!(css.contains("@import '@almadar/ui/themes/index.css';"), "{css}");
-        assert!(!css.contains("_foundation.css"), "the entry already includes the foundation: {css}");
+        assert!(
+            css.contains("@import '@almadar/ui/themes/index.css';"),
+            "{css}"
+        );
+        assert!(
+            !css.contains("_foundation.css"),
+            "the entry already includes the foundation: {css}"
+        );
     }
 
     #[test]
     fn control_the_program_s_own_themes_still_follow_the_built_ins() {
         let theme: orbital_core::ThemeDefinition =
-            serde_json::from_value(serde_json::json!({ "name": "sunset", "tokens": {} })).expect("theme");
+            serde_json::from_value(serde_json::json!({ "name": "sunset", "tokens": {} }))
+                .expect("theme");
         let css = TypeScriptBackend::new().generate_index_css_with_themes(&[theme]);
-        let built_ins = css.find("@import '@almadar/ui/themes/index.css';").expect(&css);
+        let built_ins = css
+            .find("@import '@almadar/ui/themes/index.css';")
+            .expect(&css);
         let own = css.find("@import './themes/sunset.css';").expect(&css);
         assert!(built_ins < own, "{css}");
     }

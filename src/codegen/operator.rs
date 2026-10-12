@@ -122,7 +122,7 @@ impl TypeScriptBackend {
         // source AND assignable FROM by typed entities (covariant).
         let elem = element_type.unwrap_or("EntityRow");
         let elem_arr = element_type
-            .map(|t| format!("readonly {}[]", t))
+            .map(|t| format!("readonly {}[]", crate::backend::array_element_ts(t)))
             .unwrap_or_else(|| "readonly EntityRow[]".to_string());
         let a = |i: usize| args.get(i).map(|s| s.as_str()).unwrap_or("undefined");
         // String-op receiver: `(x ?? '')` guards runtime nullish but does NOT
@@ -307,7 +307,11 @@ impl TypeScriptBackend {
         let elem_array_arg = |i: usize| -> String {
             match element_type {
                 Some(t) if !fact(i).array => {
-                    format!("(({} as readonly {}[] | undefined) ?? [])", a(i), t)
+                    format!(
+                        "(({} as readonly {}[] | undefined) ?? [])",
+                        a(i),
+                        crate::backend::array_element_ts(t)
+                    )
                 }
                 _ => array_arg(i),
             }
@@ -411,7 +415,6 @@ impl TypeScriptBackend {
                     format!("(({} ?? []) as {{ readonly length: number }}).length", src)
                 }
             }
-            "sum" if args.len() == 1 => format!("({} ?? []).reduce((a, b) => a + b, 0)", a(0)),
             // Cast the array source to `readonly EventPayloadValue[]` so
             // TS accepts `[0]` indexing when the source resolves to an
             // EventPayloadValue (the wide payload union from
@@ -480,6 +483,7 @@ impl TypeScriptBackend {
                 "((s: EventPayloadValue | undefined): EventPayloadValue => {{ if (typeof s !== 'string') return null; try {{ return JSON.parse(s) as EventPayloadValue; }} catch {{ return null; }} }})({})",
                 a(0)
             ),
+            "json/stringify" if nn(0) => format!("(JSON.stringify({}) ?? 'null')", a(0)),
             "json/stringify" => format!("(JSON.stringify({} ?? null) ?? 'null')", a(0)),
 
             // --- std-str ---
@@ -711,7 +715,8 @@ impl TypeScriptBackend {
             // Date/array/object/boolean, none of which TS accepts as an
             // index type (TS2538) on `(v as EntityRow)?.[…]`.
             "sum" | "array/sum" if args.len() == 2 => format!("({} as {}).reduce((s: number, v: {}) => s + (Number((v as EntityRow)?.[{}]) || 0), 0)", array_arg(0), elem_arr, elem, sr(1)),
-            "array/sum" => format!("{}.reduce((s, v) => s + v, 0)", array_arg(0)),
+            // orbital-core `to_number`: numbers, numeric strings, booleans, null as 0; the rest adds 0.
+            "sum" | "array/sum" => format!("{}.reduce((s: number, v) => s + (Number(v) || 0), 0)", array_arg(0)),
             // Cosine core shared by array/cosine + array/nearest — one Rust-side
             // definition (COSINE_TS), twin of the interpreter's
             // `cosine_similarity` (orbital-core evaluator) and the JS
@@ -755,9 +760,12 @@ impl TypeScriptBackend {
             "array/shuffle" => format!("[...{}].sort(() => Math.random() - 0.5)", array_arg(0)),
             "array/partition" => format!("[{0}.filter({1}), {0}.filter((x: {2}) => !({1})(x))]", array_arg(0), a(1), elem),
             "array/reject" => format!("{}.filter((x: {}) => !({})(x))", array_arg(0), elem, a(1)),
-            "array/range" if args.len() == 1 => format!("Array.from({{ length: Math.ceil({0}) }}, (_, i) => i)", a(0)),
-            "array/range" if args.len() == 2 => format!("Array.from({{ length: Math.ceil(({1} - {0})) }}, (_, i) => {0} + i)", a(0), a(1)),
-            "array/range" => format!("Array.from({{ length: Math.ceil(({1} - {0}) / ({2} ?? 1)) }}, (_, i) => {0} + i * ({2} ?? 1))", a(0), a(1), a(2)),
+            "array/range" if args.len() == 1 => format!("Array.from({{ length: Math.ceil({0}) }}, (_, i) => i)", nc(0)),
+            "array/range" if args.len() == 2 => format!("Array.from({{ length: Math.ceil(({1} - {0})) }}, (_, i) => {0} + i)", nc(0), nc(1)),
+            "array/range" => {
+                let step = if fact(2).number { format!("({})", a(2)) } else { format!("Number({} ?? 1)", a(2)) };
+                format!("Array.from({{ length: Math.ceil(({1} - {0}) / {2}) }}, (_, i) => {0} + i * {2})", nc(0), nc(1), step)
+            }
             "array/repeat" => format!("Array({}).fill({})", a(1), a(0)),
 
             // --- std-object ---
@@ -1297,6 +1305,55 @@ mod twin_survivor_tests {
             ts.contains("...([1])"),
             "control: a literal spreads as is: {ts}"
         );
+    }
+
+    /// kflow-import stringifies `{ summary: …, items: … }`: an object literal is never nullish,
+    /// so `?? null` after it is unreachable (TS2869).
+    #[test]
+    fn json_stringify_of_a_never_nullish_operand_takes_no_fallback() {
+        let b = TypeScriptBackend::new();
+        let lit = ArgFacts { object_literal: true, never_nullish: true, ..Default::default() };
+        let ts = b.call_to_ts_typed("json/stringify", &["{ a: 1 }".into()], &[lit], None);
+        assert_eq!(ts, "(JSON.stringify({ a: 1 }) ?? 'null')");
+        let wide = b.call_to_ts_typed("json/stringify", &["x".into()], &[], None);
+        assert_eq!(wide, "(JSON.stringify(x ?? null) ?? 'null')", "control: a nullable operand keeps it");
+    }
+
+    /// `(array/range @entity.totalItems)`: a field read is `EventPayloadValue`, which
+    /// `Math.ceil` rejects (TS2345); every bound is coerced to a number, as the evaluator does.
+    #[test]
+    fn array_range_coerces_a_wide_bound_to_a_number() {
+        let b = TypeScriptBackend::new();
+        let ts = b.call_to_ts_typed("array/range", &["fields?.totalItems".into()], &[], None);
+        assert!(ts.contains("Math.ceil(Number(fields?.totalItems ?? 0))"), "{ts}");
+        let known = b.call_to_ts_typed("array/range", &["192".into()], &[num()], None);
+        assert!(known.contains("Math.ceil((192))"), "control: a known number is not re-coerced: {known}");
+        let two = b.call_to_ts_typed("array/range", &["lo".into(), "hi".into()], &[], None);
+        assert!(two.contains("(_, i) => Number(lo ?? 0) + i"), "{two}");
+    }
+
+    /// `array/sum` adds what orbital-core's `to_number` accepts (numbers, numeric strings,
+    /// booleans, null as 0): a mapped field read is `FieldValue | undefined`, and a bare
+    /// `s + v` both mistypes (TS2365) and concatenates a string.
+    #[test]
+    fn array_sum_coerces_each_element_like_the_core_evaluator() {
+        let b = TypeScriptBackend::new();
+        let ts = b.call_to_ts_typed("array/sum", &["xs".into()], &[], None);
+        assert!(ts.contains(".reduce((s: number, v) => s + (Number(v) || 0), 0)"), "{ts}");
+        let keyed = b.call_to_ts_typed("array/sum", &["xs".into(), "\"n\"".into()], &[], None);
+        assert!(keyed.contains("(Number((v as EntityRow)?.["), "control: the keyed form is unchanged: {keyed}");
+    }
+
+    /// std-agent-session casts `@entity.entries` to its declared element, a union of message
+    /// shapes: `readonly A | B[]` binds `[]` to B alone (TS1354), so the element is parenthesized.
+    #[test]
+    fn a_union_element_array_cast_parenthesizes_the_element() {
+        let b = TypeScriptBackend::new();
+        let union = "{ role: string } | { tool: string }";
+        let ts = b.call_to_ts_typed("array/map", &["src".into(), "((x) => x)".into()], &[], Some(union));
+        assert!(ts.contains("as readonly ({ role: string } | { tool: string })[]"), "{ts}");
+        let plain = b.call_to_ts_typed("array/map", &["src".into(), "((x) => x)".into()], &[], Some("EntityRow"));
+        assert!(plain.contains("as readonly EntityRow[]"), "control: a single element stays bare: {plain}");
     }
 
     /// `time/relative` emits the same buckets as the runtime evaluator and orbital-core
@@ -2239,9 +2296,10 @@ mod twin_survivor_tests {
         let b = TypeScriptBackend::new();
         // Interpreter semantics (orbital-core evaluator): (array/range N) is
         // [0..N-1] — never the NaN-producing 3-arg form with undefined bounds.
-        let ts = b.call_to_ts_typed("array/range", &["192".into()], &[], None);
+        let lit = crate::codegen::infer::ArgFacts { number: true, never_nullish: true, ..Default::default() };
+        let ts = b.call_to_ts_typed("array/range", &["192".into()], &[lit], None);
         assert!(
-            ts.contains("Array.from({ length: Math.ceil(192) }, (_, i) => i)"),
+            ts.contains("Array.from({ length: Math.ceil((192)) }, (_, i) => i)"),
             "single-arg array/range must be 0-based, got: {ts}"
         );
         assert!(

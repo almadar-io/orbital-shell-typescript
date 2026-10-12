@@ -127,7 +127,11 @@ export function withinDispatch<T>(ctx: ClientDispatch, fn: () => T): T {\n  cons
     /// its own), and the answer re-enters the bus like any response.
     /// `, locale: __viewerLocale` on a request body when the app declares locales.
     fn viewer_locale_field(&self) -> &'static str {
-        if self.browser_locales.snapshot().is_empty() { "" } else { ", locale: __viewerLocale" }
+        if self.browser_locales.snapshot().is_empty() {
+            ""
+        } else {
+            ", locale: __viewerLocale"
+        }
     }
 
     fn generate_off_page_relay(
@@ -299,11 +303,13 @@ export function withinDispatch<T>(ctx: ClientDispatch, fn: () => T): T {\n  cons
             "import { useCallback } from 'react';\n"
         });
         let viewer_locale = !self.browser_locales.snapshot().is_empty();
-        code.push_str(if self.browser_legs.snapshot().is_empty() && !viewer_locale {
-            "import { useEventBus } from '@almadar/ui/hooks';\n"
-        } else {
-            "import { useEventBus, useTranslate } from '@almadar/ui/hooks';\n"
-        });
+        code.push_str(
+            if self.browser_legs.snapshot().is_empty() && !viewer_locale {
+                "import { useEventBus } from '@almadar/ui/hooks';\n"
+            } else {
+                "import { useEventBus, useTranslate } from '@almadar/ui/hooks';\n"
+            },
+        );
         code.push_str(&crate::codegen::handler_header::core_imports_clause(
             &if !keyed_emit {
                 ["EntityRow", "EventPayload", "EventPayloadValue"]
@@ -391,6 +397,10 @@ export function withinDispatch<T>(ctx: ClientDispatch, fn: () => T): T {\n  cons
             "  /** Send an orbital event to the server over WebSocket (send-server operator). */\n",
         );
         code.push_str("  sendServerEvent: (event: string, payload?: EventPayload) => void;\n");
+        if !browser_legs.is_empty() {
+            code.push_str("  /** Run a tick's browser-stored data effects in the browser store (one `runTick` leg from the pre-tick state and row). */\n");
+            code.push_str("  sendTick: (tick: string, currentState: string, fields: EntityRow) => Promise<EventResponse>;\n");
+        }
         code.push_str("  /** The event bus instance (shared with cross-trait listeners) */\n");
         code.push_str("  eventBus: ReturnType<typeof useEventBus>;\n");
         code.push_str("}\n\n");
@@ -471,7 +481,9 @@ export function withinDispatch<T>(ctx: ClientDispatch, fn: () => T): T {\n  cons
         code.push_str("interface __MountItem extends __MountRequest { orbitalName: string; resolve: (r: EventResponse) => void; reject: (e: Error) => void }\n");
         code.push_str("const __mountBatches = new Map<string, __MountItem[]>();\n");
         if viewer_locale {
-            code.push_str("// The page's locale (its I18nProvider); servers evaluate `i18n/t` with it.\n");
+            code.push_str(
+                "// The page's locale (its I18nProvider); servers evaluate `i18n/t` with it.\n",
+            );
             code.push_str("let __viewerLocale: string | undefined;\n");
         }
         code.push_str("/** The lifecycle sends of every hook mounting in one commit share ONE `mount` request to the orbital route. */\n");
@@ -590,7 +602,11 @@ export function withinDispatch<T>(ctx: ClientDispatch, fn: () => T): T {\n  cons
         if viewer_locale {
             code.push_str("  __viewerLocale = __locale;\n");
         }
-        let locale_field = if viewer_locale { ", locale: __viewerLocale" } else { "" };
+        let locale_field = if viewer_locale {
+            ", locale: __viewerLocale"
+        } else {
+            ""
+        };
         code.push('\n');
         code.push_str("  const sendEvent = useCallback(\n");
         code.push_str("    async (\n");
@@ -862,7 +878,17 @@ export function withinDispatch<T>(ctx: ClientDispatch, fn: () => T): T {\n  cons
             code.push_str("    };\n");
             code.push_str("  }, [eventBus]);\n\n");
         }
-        code.push_str("  return { sendEvent, sendServerEvent, eventBus };\n");
+        if routed {
+            code.push_str("  const sendTick = useCallback(async (tick: string, currentState: string, fields: EntityRow): Promise<EventResponse> => {\n");
+            code.push_str("    const event = `$TICK_${tick}`;\n");
+            code.push_str("    const result = await __browserSend(orbitalName, { event, runTick: { trait: traitName, tick }, tick, targetTrait: traitName, clientId: _clientId, traits: [{ trait: traitName, from: currentState }], entityByTrait: { [traitName]: fields } }, __locale);\n");
+            code.push_str("    if (!result.success) eventBus.emit(`${traitName}:${event}:ERROR`, { event, success: false, error: result.error });\n");
+            code.push_str("    return result;\n");
+            code.push_str("  }, [orbitalName, traitName, eventBus, __locale]);\n\n");
+            code.push_str("  return { sendEvent, sendServerEvent, sendTick, eventBus };\n");
+        } else {
+            code.push_str("  return { sendEvent, sendServerEvent, eventBus };\n");
+        }
         code.push_str("}\n\n");
         code.push_str("export default useOrbitalBridge;\n");
 
@@ -975,8 +1001,14 @@ mod viewer_locale_tests {
     fn every_server_send_carries_the_viewer_locale_when_the_app_declares_locales() {
         for framework in [ServerFramework::Express, ServerFramework::Hono] {
             let js = bridge(&["en", "ar"], framework);
-            assert!(js.contains("import { useEventBus, useTranslate } from '@almadar/ui/hooks';"), "{js}");
-            assert!(js.contains("let __viewerLocale: string | undefined;"), "{js}");
+            assert!(
+                js.contains("import { useEventBus, useTranslate } from '@almadar/ui/hooks';"),
+                "{js}"
+            );
+            assert!(
+                js.contains("let __viewerLocale: string | undefined;"),
+                "{js}"
+            );
             assert!(js.contains("  const { locale: __locale } = useTranslate();\n  __viewerLocale = __locale;\n"), "{js}");
             assert!(js.contains("entityByTrait: fields ? { [traitName]: fields } : undefined, locale: __viewerLocale }),"), "{js}");
             assert!(js.contains("        locale: __viewerLocale,\n"), "{js}");

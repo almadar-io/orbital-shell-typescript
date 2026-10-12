@@ -4,6 +4,7 @@
 pub(crate) mod access_policies;
 mod handlers;
 pub(crate) use handlers::{resolve_access_imports, ACCESS_IMPORT_MARKER};
+pub(crate) mod i18n;
 mod listeners;
 mod orbital_route;
 mod routes;
@@ -13,4 +14,3 @@ pub(crate) mod ticks;
 #[cfg(test)]
 mod ticks_tests;
 pub(crate) mod viewer;
-pub(crate) mod i18n;

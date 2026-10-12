@@ -155,11 +155,7 @@ pub(super) fn array_coerce_value(expr: &str, elt: &str, cast: ArrayCast) -> Stri
     // member a bare string literal) — TS2322 against the component's real
     // `readonly (…)[]` prop. Parenthesize once here, the one place every
     // cast variant appends `[]` to `elt`.
-    let elt = if elt.contains(" | ") {
-        format!("({})", elt)
-    } else {
-        elt.to_string()
-    };
+    let elt = crate::backend::array_element_ts(elt);
     let elt = elt.as_str();
     let inner = match cast {
         ArrayCast::Readonly => format!("({e}) as readonly {b}[]", e = expr, b = elt),
@@ -380,14 +376,30 @@ impl TypeScriptBackend {
         // function's doc comment).
         // A call the registry does not declare as returning an array (`object/get`'s
         // field value) is the wide `EventPayloadValue`: cast it to an array.
+        // So is a payload read: `lastPayload` carries no per-field types.
         let non_array_call = matches!(&arr[1], OirValue::Array(call)
             if matches!(call.first(), Some(OirValue::String(head))
-                if orbital_core::language::registry::is_known_operator(head) && !crate::codegen::infer::operator_returns_array(head)));
+                if orbital_core::language::registry::is_known_operator(head) && !crate::codegen::infer::operator_returns_array(head)))
+            || matches!(&arr[1], OirValue::String(b)
+                if b.starts_with('@') && orbital_core::ir::OirBinding::parse(b)
+                    .is_some_and(|b| matches!(b.root, orbital_core::ir::OirBindingRoot::Payload)));
         let literal_array = matches!(&arr[1], OirValue::Array(items)
             if !matches!(items.first(), Some(OirValue::String(head)) if orbital_core::language::registry::is_known_operator(head)));
+        // An operator result that is never nullish (a choice between literal arrays) takes no guard either.
+        let never_nullish_call = matches!(&arr[1], OirValue::Array(call)
+            if self.try_compile_sexpr_prop_facts(call, crate::codegen::expr::BindingFlavor::Render)
+                .is_some_and(|(_, never_nullish)| never_nullish));
+
         if literal_array {
             Some(format!(
                 "{{({}).map(({}) => ({}))}}",
+                coll,
+                params.join(", "),
+                body_jsx
+            ))
+        } else if non_array_call && never_nullish_call {
+            Some(format!(
+                "{{({} as readonly EventPayloadValue[]).map(({}) => ({}))}}",
                 coll,
                 params.join(", "),
                 body_jsx
@@ -399,6 +411,8 @@ impl TypeScriptBackend {
                 params.join(", "),
                 body_jsx
             ))
+        } else if never_nullish_call {
+            Some(format!("{{({}).map(({}) => ({}))}}", coll, params.join(", "), body_jsx))
         } else {
             Some(format!(
                 "{{({} ?? []).map(({}) => ({}))}}",
@@ -890,7 +904,15 @@ impl TypeScriptBackend {
                     }
                     OirValue::Object(_) | OirValue::Array(_) => {
                         let lit = self.value_to_jsx_literal(entity_val);
-                        props.push(format!("entity={{{}}}", lit));
+                        // A computed list (an operator call) is entity data like a bound one.
+                        let computed = matches!(entity_val, OirValue::Array(call)
+                            if matches!(call.first(), Some(OirValue::String(head))
+                                if orbital_core::language::registry::is_known_operator(head)));
+                        if computed {
+                            props.push(emit_entity_data_prop(&lit, &entity_base, entity_is_record));
+                        } else {
+                            props.push(format!("entity={{{}}}", lit));
+                        }
                         entity_handled = true;
                     }
                     _ => {
@@ -2237,6 +2259,12 @@ impl TypeScriptBackend {
                                 || s.starts_with("@_item.");
                             let is_lambda_param_field_binding =
                                 s.starts_with('@') && s.contains('.') && !is_known_scope_binding;
+                            // A bare lambda parameter (`@n` over a payload list) is as wide as a field read.
+                            let is_bare_param_binding = orbital_core::ir::OirBinding::parse(s).is_some_and(|b| {
+                                b.path.is_empty()
+                                    && matches!(&b.root, orbital_core::ir::OirBindingRoot::Local(n)
+                                        if n.chars().next().is_some_and(|c| c.is_lowercase()) && n != "now")
+                            });
                             // SKIP coercion when the consumer prop is a
                             // bounded enum union (e.g. `variant: "primary"
                             // | "success" | ...`). String(...) widens
@@ -2294,7 +2322,7 @@ impl TypeScriptBackend {
                                 props.push(format!("{}={{{} as {}}}", key, ts_expr, union));
                             } else if is_string_or_number_prop
                                 && !is_numeric_binding
-                                && ts_expr.contains("?.")
+                                && (ts_expr.contains("?.") || is_bare_param_binding)
                             {
                                 // A number stays a number (the component formats it); anything else becomes text.
                                 if prop_optional {
@@ -3813,6 +3841,95 @@ mod conditional_children_codegen_tests {
         assert!(jsx.contains(": (<Split"), "{jsx}");
     }
 
+    /// kflow-chrome maps `?items` (`@payload.items`): a payload read is the wide
+    /// `EventPayloadValue`, on which `.map` does not exist (TS2339) until it is cast to an array.
+    #[test]
+    fn mapped_children_over_a_payload_read_cast_the_source_to_an_array() {
+        let backend = TypeScriptBackend::new();
+        let mut config = orbital_core::ir::OirObject::new();
+        config.insert(
+            "children".to_string(),
+            OirValue::Array(vec![
+                s("array/map"),
+                s("@payload.items"),
+                OirValue::Array(vec![
+                    s("fn"),
+                    s("p"),
+                    obj(&[("type", s("typography")), ("content", s("@p.title"))]),
+                ]),
+            ]),
+        );
+        let jsx = backend.generate_pattern_from_registry("stack", &config, None, None);
+        assert!(
+            jsx.contains("((lastPayload?.items as readonly EventPayloadValue[] | undefined) ?? []).map((p) => ("),
+            "{jsx}"
+        );
+    }
+
+    /// kflow-site-chrome maps `(if <product> [links…] [links…])`: a choice between literal arrays
+    /// is never nullish, so `?? []` after it is unreachable (TS2869).
+    #[test]
+    fn mapped_children_over_a_never_nullish_choice_take_no_fallback() {
+        let backend = TypeScriptBackend::new();
+        let links = |l: &str| OirValue::Array(vec![obj(&[("label", s(l))])]);
+        let mut config = orbital_core::ir::OirObject::new();
+        config.insert(
+            "children".to_string(),
+            OirValue::Array(vec![
+                s("array/map"),
+                OirValue::Array(vec![s("if"), s("@config.flag"), links("a"), links("b")]),
+                OirValue::Array(vec![s("fn"), s("l"), obj(&[("type", s("typography")), ("content", s("@l.label"))])]),
+            ]),
+        );
+        let jsx = backend.generate_pattern_from_registry("stack", &config, None, None);
+        assert!(!jsx.contains("?? [])"), "{jsx}");
+        assert!(jsx.contains(".map((l) => ("), "{jsx}");
+    }
+
+    /// kflow-path lists `?conceptNames` as badges: a parameter over a payload list is
+    /// `EventPayloadValue`, so a `string | number` prop casts it like any wide binding (TS2322).
+    #[test]
+    fn a_mapped_parameter_into_a_string_or_number_prop_casts_to_the_prop_union() {
+        let backend = TypeScriptBackend::new();
+        let mut config = orbital_core::ir::OirObject::new();
+        config.insert(
+            "children".to_string(),
+            OirValue::Array(vec![
+                s("array/map"),
+                s("@payload.names"),
+                OirValue::Array(vec![s("fn"), s("n"), obj(&[("type", s("badge")), ("label", s("@n"))])]),
+            ]),
+        );
+        let jsx = backend.generate_pattern_from_registry("stack", &config, None, None);
+        assert!(
+            jsx.contains("label={(n == null ? undefined : typeof n === 'number' ? n : String(n))}"),
+            "{jsx}"
+        );
+    }
+
+    /// kflow-peers feeds data-list `entity` a mapped list of rows built with `object/get`
+    /// (`FieldValue | undefined` members): it is entity data, cast to the prop's declared row
+    /// shape like a bound `entity`, or `id: FieldValue` fails `EntityRow`'s `id?: string` (TS2322).
+    #[test]
+    fn a_computed_entity_list_casts_to_the_declared_row_shape() {
+        let backend = TypeScriptBackend::new();
+        let mut config = orbital_core::ir::OirObject::new();
+        config.insert(
+            "entity".to_string(),
+            OirValue::Array(vec![
+                s("array/map"),
+                s("@payload.peers"),
+                OirValue::Array(vec![
+                    s("fn"),
+                    s("p"),
+                    obj(&[("id", OirValue::Array(vec![s("object/get"), s("@p"), s("peerRef")]))]),
+                ]),
+            ]),
+        );
+        let jsx = backend.generate_pattern_from_registry("data-list", &config, None, None);
+        assert!(jsx.contains(") as readonly EntityRow[]) : []}"), "{jsx}");
+    }
+
     #[test]
     fn control_mapped_children_with_an_object_body_bind_only_the_declared_param() {
         let backend = TypeScriptBackend::new();
@@ -4229,7 +4346,7 @@ mod mapped_children_source_tests {
         );
         let jsx = b.generate_pattern_from_registry("stack", &config, None, None);
         assert!(
-            jsx.contains("as readonly EventPayloadValue[] | undefined) ?? []).map((entry) =>"),
+            jsx.contains("as readonly EventPayloadValue[]).map((entry) =>"),
             "{jsx}"
         );
     }

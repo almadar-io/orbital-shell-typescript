@@ -214,6 +214,7 @@ impl TypeScriptBackend {
                 ui_hooks_imports.join(", ")
             ));
         }
+        code.push_str(Self::guard_holds_import(trait_def));
         if dispatch_scope {
             code.push_str("import { dispatchScopeOf, type DispatchScope } from '@almadar/core';\n");
             code.push_str("import { beginDispatch, currentDispatch, withinDispatch, type DispatchVia } from '../dispatchContext';\n");
@@ -950,6 +951,26 @@ mod dispatch_tests {
     /// A writer trait (no render-ui) with one guarded transition — the shape
     /// (e.g. `PongMechanic` reacting to `PADDLE_MOVE`) that
     /// `C-SHARED-TRAIT-NO-EVENT-DISPATCH` found completely inert.
+    /// A guarded arm runs through `@almadar/core`'s `guardHolds` (D-7), so the shared hook
+    /// imports it exactly like the per-trait hook does.
+    #[test]
+    fn a_guarded_shared_hook_imports_guard_holds() {
+        let module = module_with_guarded_writer_transition();
+        let writer = module.traits[0].clone();
+        let entity = module.entities[0].clone();
+        let ts = &TypeScriptBackend::new()
+            .generate_shared_trait_logic_hook(&writer, &module, &entity)
+            .content;
+        assert!(
+            ts.contains("guardHolds("),
+            "the guarded arm calls guardHolds:\n{ts}"
+        );
+        assert!(
+            ts.contains("import { guardHolds } from '@almadar/core';"),
+            "and imports it:\n{ts}"
+        );
+    }
+
     fn module_with_guarded_writer_transition() -> OirModule {
         let transition = OirTransition::new("s", "s", "MOVE")
             .with_guard(OirExpr::eq(bind("@entity.result"), OirExpr::string("none")))

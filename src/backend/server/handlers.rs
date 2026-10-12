@@ -362,7 +362,7 @@ impl TypeScriptBackend {
         // simply never calls them (cheap to import even when unused, see
         // above).
         let mut core_values: std::collections::BTreeSet<&str> =
-            ["resolveEntityView", "omitFrameFields"]
+            ["resolveEntityView", "omitFrameFields", "guardHolds"]
                 .into_iter()
                 .collect();
         if reads_dispatch {
@@ -1039,6 +1039,17 @@ impl TypeScriptBackend {
                     (*t, guard_code)
                 })
                 .filter(|(_, g)| g.as_deref() != Some("false"))
+                // A guard that throws blocks its arm like a false guard (`@almadar/core`
+                // `guardHolds`, the JS runtime's rule too); the error is logged, never dropped.
+                .map(|(t, g)| {
+                    let wrapped = g.map(|g| {
+                        format!(
+                            "guardHolds(() => Boolean({g}), (error) => console.error(`[guard] {}.{} {} -> {} threw:`, error.message))",
+                            trait_def.name, event_key, from_state, t.to
+                        )
+                    });
+                    (t, wrapped)
+                })
                 .collect();
 
             code.push_str(&format!("    case '{}':\n", from_state));
@@ -1079,65 +1090,67 @@ impl TypeScriptBackend {
                     ));
                 }
             } else {
-                // Multiple transitions for same state: guarded first, unguarded last
-                let mut guarded: Vec<(&OirTransition, &str)> = Vec::new();
-                let mut unguarded: Vec<&OirTransition> = Vec::new();
-                for (trans, guard_code) in &group {
-                    if let Some(g) = guard_code {
-                        guarded.push((trans, g.as_str()));
-                    } else {
-                        unguarded.push(trans);
+                // Multiple transitions for this (state, event): tried in declaration order, as on
+                // every other path. A guarded arm is the next `if`/`else if`; an unguarded arm is the
+                // chain's final `else` and ends it (anything declared after it never fires). A guard
+                // that is the complement of an earlier one covers every remaining case, so it closes
+                // the chain as its `else` too (re-testing it is a comparison TS has already narrowed
+                // away — TS2367, G-ORB-189(1)).
+                let mut opened = false;
+                let mut closed = false;
+                for (i, (trans, guard_code)) in group.iter().enumerate() {
+                    match guard_code {
+                        Some(guard_code) => {
+                            let complements_earlier =
+                                group[..i].iter().any(|(earlier, earlier_guard)| {
+                                    earlier_guard.is_some()
+                                        && guards_complementary(
+                                            earlier.guard.as_ref(),
+                                            trans.guard.as_ref(),
+                                        )
+                                });
+                            if !opened {
+                                code.push_str(&format!("      if ({guard_code}) {{\n"));
+                                opened = true;
+                            } else if complements_earlier {
+                                code.push_str("      } else {\n");
+                                closed = true;
+                            } else {
+                                code.push_str(&format!("      }} else if ({guard_code}) {{\n"));
+                            }
+                            code.push_str(&self.generate_transition_body_impl(
+                                trans, trait_def, module, "        ", framework,
+                            ));
+                        }
+                        None if !opened => {
+                            code.push_str(&self.generate_transition_body_impl(
+                                trans, trait_def, module, "      ", framework,
+                            ));
+                            closed = true;
+                        }
+                        None => {
+                            code.push_str("      } else {\n");
+                            code.push_str(&self.generate_transition_body_impl(
+                                trans, trait_def, module, "        ", framework,
+                            ));
+                            closed = true;
+                        }
                     }
-                }
-
-                // A guard that is the complement of an earlier one covers every remaining case
-                // (guards are tried in order), so it is the chain's `else`; re-testing it is a
-                // comparison TS has already narrowed away (TS2367, G-ORB-189(1)).
-                let mut closed_by_complement = false;
-                for (i, (trans, guard_code)) in guarded.iter().enumerate() {
-                    let complements_earlier = guarded[..i]
-                        .iter()
-                        .any(|(earlier, _)| guards_complementary(earlier.guard.as_ref(), trans.guard.as_ref()));
-                    if i == 0 {
-                        code.push_str(&format!("      if ({guard_code}) {{\n"));
-                    } else if complements_earlier {
-                        code.push_str("      } else {\n");
-                        closed_by_complement = true;
-                    } else {
-                        code.push_str(&format!("      }} else if ({guard_code}) {{\n"));
-                    }
-                    code.push_str(&self.generate_transition_body_impl(
-                        trans, trait_def, module, "        ", framework,
-                    ));
-                    if closed_by_complement {
+                    if closed {
                         break;
                     }
                 }
-
-                if closed_by_complement {
-                    code.push_str("      }\n");
-                } else if let Some(trans) = unguarded.first() {
-                    if guarded.is_empty() {
-                        // All unguarded (shouldn't happen, but handle gracefully)
-                        code.push_str(&self.generate_transition_body_impl(
-                            trans, trait_def, module, "      ", framework,
-                        ));
-                    } else {
+                if opened {
+                    if !closed {
+                        // Only guarded transitions, no fallback — a no-op (§84).
                         code.push_str("      } else {\n");
-                        code.push_str(&self.generate_transition_body_impl(
-                            trans, trait_def, module, "        ", framework,
-                        ));
-                        code.push_str("      }\n");
+                        Self::push_guard_noop_response(
+                            &mut code,
+                            from_state,
+                            &trait_def.name,
+                            event_key,
+                        );
                     }
-                } else if !guarded.is_empty() {
-                    // Only guarded transitions, no fallback — a no-op (§84).
-                    code.push_str("      } else {\n");
-                    Self::push_guard_noop_response(
-                        &mut code,
-                        from_state,
-                        &trait_def.name,
-                        event_key,
-                    );
                     code.push_str("      }\n");
                 }
             }
@@ -1452,11 +1465,12 @@ impl TypeScriptBackend {
     }
 }
 
-
 /// `b` holds exactly when `a` does not: `(= x y)` / `(!= x y)` over the same operands (either
 /// order), or `(not a)`.
 fn guards_complementary(a: Option<&OirExpr>, b: Option<&OirExpr>) -> bool {
-    let (Some(a), Some(b)) = (a, b) else { return false };
+    let (Some(a), Some(b)) = (a, b) else {
+        return false;
+    };
     let negates = |x: &OirExpr, y: &OirExpr| matches!(y, OirExpr::UnaryOp { op: orbital_core::ir::OirUnaryOp::Not, operand } if operand.as_ref() == x);
     if negates(a, b) || negates(b, a) {
         return true;
@@ -1464,9 +1478,19 @@ fn guards_complementary(a: Option<&OirExpr>, b: Option<&OirExpr>) -> bool {
     use orbital_core::ir::OirBinaryOp::{Eq, Ne};
     match (a, b) {
         (
-            OirExpr::BinaryOp { op: op_a, left: la, right: ra },
-            OirExpr::BinaryOp { op: op_b, left: lb, right: rb },
-        ) if matches!((op_a, op_b), (Eq, Ne) | (Ne, Eq)) => (la == lb && ra == rb) || (la == rb && ra == lb),
+            OirExpr::BinaryOp {
+                op: op_a,
+                left: la,
+                right: ra,
+            },
+            OirExpr::BinaryOp {
+                op: op_b,
+                left: lb,
+                right: rb,
+            },
+        ) if matches!((op_a, op_b), (Eq, Ne) | (Ne, Eq)) => {
+            (la == lb && ra == rb) || (la == rb && ra == lb)
+        }
         _ => false,
     }
 }
@@ -1477,7 +1501,11 @@ mod guard_complement_tests {
     use orbital_core::ir::{OirBinaryOp, OirExpr, OirUnaryOp};
 
     fn cmp(op: OirBinaryOp, l: OirExpr, r: OirExpr) -> OirExpr {
-        OirExpr::BinaryOp { op, left: Box::new(l), right: Box::new(r) }
+        OirExpr::BinaryOp {
+            op,
+            left: Box::new(l),
+            right: Box::new(r),
+        }
     }
 
     #[test]
@@ -1485,9 +1513,18 @@ mod guard_complement_tests {
         let tier = OirExpr::string("@entity.tier");
         let org = OirExpr::string("organism");
         let eq = cmp(OirBinaryOp::Eq, tier.clone(), org.clone());
-        assert!(guards_complementary(Some(&eq), Some(&cmp(OirBinaryOp::Ne, tier.clone(), org.clone()))));
-        assert!(guards_complementary(Some(&eq), Some(&cmp(OirBinaryOp::Ne, org.clone(), tier.clone()))));
-        let not = OirExpr::UnaryOp { op: OirUnaryOp::Not, operand: Box::new(eq.clone()) };
+        assert!(guards_complementary(
+            Some(&eq),
+            Some(&cmp(OirBinaryOp::Ne, tier.clone(), org.clone()))
+        ));
+        assert!(guards_complementary(
+            Some(&eq),
+            Some(&cmp(OirBinaryOp::Ne, org.clone(), tier.clone()))
+        ));
+        let not = OirExpr::UnaryOp {
+            op: OirUnaryOp::Not,
+            operand: Box::new(eq.clone()),
+        };
         assert!(guards_complementary(Some(&eq), Some(&not)));
     }
 
@@ -1498,7 +1535,10 @@ mod guard_complement_tests {
         let ne_other = cmp(OirBinaryOp::Ne, tier.clone(), OirExpr::string("subset"));
         assert!(!guards_complementary(Some(&eq), Some(&ne_other)));
         assert!(!guards_complementary(Some(&eq), None));
-        assert!(!guards_complementary(Some(&eq), Some(&cmp(OirBinaryOp::Lt, tier, OirExpr::string("organism")))));
+        assert!(!guards_complementary(
+            Some(&eq),
+            Some(&cmp(OirBinaryOp::Lt, tier, OirExpr::string("organism")))
+        ));
     }
 }
 
@@ -1933,6 +1973,37 @@ mod create_entity_seed_tests {
         }
     }
 
+    /// std-agent-suggestions updates with `{ id: (object/get (array/first ?data) id), … }`: a
+    /// literal row of wide reads is no `EntityRow` (`id: FieldValue`), so the frame strip takes
+    /// it through an `EntityRow` assertion (TS2322 otherwise).
+    #[test]
+    fn a_literal_row_is_asserted_to_an_entity_row_before_the_frame_strip() {
+        let backend = TypeScriptBackend::new();
+        let module = module_with_task_frame_field();
+        let mut trait_def = OirTrait::new("TaskLifecycle");
+        trait_def.linked_entity = Some("Task".to_string());
+        let mut trans = OirTransition::new("backlog", "backlog", "SAVE");
+        trans.effects.push(OirExpr::effect(OirEffect::Persist {
+            operation: OirPersistOp::Update,
+            entity_type: "Task".to_string(),
+            data: OirExpr::object(
+                [(
+                    "id".to_string(),
+                    OirExpr::call("object/get", vec![OirExpr::binding(OirBinding::parse("@payload.row").unwrap()), OirExpr::string("id")]),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+            emit: None,
+        }));
+        trait_def.transitions.push(trans);
+        let event_def = OirEvent::new("SAVE");
+        trait_def.events.push(event_def.clone());
+        let js = backend.generate_event_handler_function(&trait_def, &event_def, &module, "handleSave");
+        assert!(js.contains("omitFrameFields(({ id: "), "{js}");
+        assert!(js.contains(" as EntityRow, ['draft'])"), "{js}");
+    }
+
     /// §88: `(persist create Task @entity)` on a policied entity must check
     /// the `@create` policy AND write the store with `entity`'s `@intrinsic`
     /// frame fields stripped — `entity` carries the client-supplied frame
@@ -2184,6 +2255,28 @@ mod create_entity_seed_tests {
                 !js.contains("...(__row ?? {}), ...(fields ?? {})"),
                 "{name} handler must not regress to the old untrusted spread-merge:\n{js}"
             );
+        }
+    }
+
+    /// std-learn-generate's FILL carries `roster : SExpr!`: the handler's payload parameter is
+    /// typed `{ roster: SExpr }`, so both backends import `SExpr` (TS2304 otherwise).
+    #[test]
+    fn both_backends_import_sexpr_for_a_payload_that_carries_one() {
+        let backend = TypeScriptBackend::new();
+        let module = module_with_task();
+        let mut trait_def = OirTrait::new("TaskLifecycle");
+        trait_def.linked_entity = Some("Task".to_string());
+        trait_def.states.push(OirState::initial("backlog"));
+        trait_def.transitions.push(OirTransition::new("backlog", "backlog", "FILL"));
+        let mut fill = OirEvent::new("FILL");
+        fill.payload_schema = Some([("roster".to_string(), OirType::SExpr)].into_iter().collect());
+        trait_def.events.push(fill);
+        let express_js = backend.generate_trait_event_handler_file(&trait_def, &module, "task-lifecycle").content;
+        let hono_js = backend.generate_trait_event_handler_file_hono(&trait_def, &module, "task-lifecycle").content;
+        for (name, js) in [("Express", &express_js), ("Hono", &hono_js)] {
+            let core_import = js.lines().find(|l| l.starts_with("import type {") && l.ends_with("from '@almadar/core';")).unwrap_or("");
+            assert!(js.contains("roster: SExpr"), "{name}:\n{js}");
+            assert!(core_import.contains("SExpr"), "{name} must import SExpr: {core_import}");
         }
     }
 
@@ -2805,6 +2898,92 @@ mod guard_rejection_is_a_noop_tests {
         m
     }
 
+    fn two_arms(unguarded_first: bool) -> String {
+        let backend = TypeScriptBackend::new();
+        let module = module_with_chat_message();
+        let mut trait_def = OirTrait::new("ChatComposer");
+        trait_def.linked_entity = Some("ChatMessage".to_string());
+        let plain = OirTransition::new("ready", "plainTarget", "SEND");
+        let mut guarded = OirTransition::new("ready", "guardedTarget", "SEND");
+        guarded.guard = Some(OirExpr::binding(OirBinding::entity(vec![
+            "activeChannel".to_string()
+        ])));
+        if unguarded_first {
+            trait_def.transitions.push(plain);
+            trait_def.transitions.push(guarded);
+        } else {
+            trait_def.transitions.push(guarded);
+            trait_def.transitions.push(plain);
+        }
+        let event_def = OirEvent::new("SEND");
+        trait_def.events.push(event_def.clone());
+        backend.generate_event_handler_function(&trait_def, &event_def, &module, "handleSend")
+    }
+
+    /// Transitions sharing (state, event) are tried in declaration order on every path
+    /// (Rust kernel, JS runtime, generated client): an unguarded arm declared first wins.
+    /// A guard that throws blocks its arm like a false guard (D-7): every generated guard goes
+    /// through `@almadar/core`'s `guardHolds`, the rule the JS runtime uses too.
+    #[test]
+    fn a_generated_guard_runs_through_guard_holds() {
+        let js = two_arms(false);
+        assert!(
+            js.contains("guardHolds(() =>"),
+            "guards must run through guardHolds:\n{js}"
+        );
+    }
+
+    #[test]
+    fn the_handler_file_imports_guard_holds_from_core() {
+        let mut trait_def = OirTrait::new("ChatComposer");
+        trait_def.linked_entity = Some("ChatMessage".to_string());
+        trait_def
+            .states
+            .push(orbital_core::ir::OirState::initial("ready"));
+        let mut guarded = OirTransition::new("ready", "sent", "SEND");
+        guarded.guard = Some(OirExpr::binding(OirBinding::entity(vec![
+            "activeChannel".to_string()
+        ])));
+        trait_def.transitions.push(guarded);
+        trait_def.events.push(OirEvent::new("SEND"));
+        let file = TypeScriptBackend::new().generate_trait_event_handler_file(
+            &trait_def,
+            &module_with_chat_message(),
+            "chat",
+        );
+        assert!(
+            file.content.lines().any(|l| l.starts_with("import")
+                && l.contains("guardHolds")
+                && l.contains("@almadar/core")),
+            "guardHolds must be imported from @almadar/core:\n{}",
+            file.content
+        );
+    }
+
+    #[test]
+    fn an_unguarded_arm_declared_first_is_the_one_that_fires() {
+        let js = two_arms(true);
+        assert!(
+            js.contains("plainTarget"),
+            "the first-declared unguarded arm must be generated:\n{js}"
+        );
+        assert!(
+            !js.contains("guardedTarget"),
+            "an arm declared after an unguarded one is unreachable and must not fire on the server:\n{js}"
+        );
+    }
+
+    #[test]
+    fn control_a_guarded_arm_declared_first_is_tried_first() {
+        let js = two_arms(false);
+        let guarded = js.find("guardedTarget").expect("guarded arm generated");
+        let plain = js.find("plainTarget").expect("fallback arm generated");
+        assert!(
+            guarded < plain,
+            "declaration order: guarded arm first, fallback after:\n{js}"
+        );
+    }
+
     /// A single guarded arm (`SEND -> ready when @entity.activeChannel`),
     /// no unguarded fallback for the event in this state — the shape that
     /// previously fell into the "Access denied" branch.
@@ -2943,7 +3122,9 @@ mod guard_rejection_is_a_noop_tests {
         let mut view = OirEntity::new("DeployView");
         view.fields.push(OirField::new(
             "steps",
-            OirType::array(OirType::Struct { fields: vec![OirField::new("step", OirType::String)] }),
+            OirType::array(OirType::Struct {
+                fields: vec![OirField::new("step", OirType::String)],
+            }),
         ));
         module.entities.push(view);
         let mut trait_def = OirTrait::new("DeployPanel");
@@ -2955,7 +3136,11 @@ mod guard_rejection_is_a_noop_tests {
             OirValue::Array(vec![
                 OirValue::String("fn".into()),
                 OirValue::String("s".into()),
-                OirValue::Object([("title".to_string(), OirValue::String("@s.step".into()))].into_iter().collect()),
+                OirValue::Object(
+                    [("title".to_string(), OirValue::String("@s.step".into()))]
+                        .into_iter()
+                        .collect(),
+                ),
             ]),
         ]);
         trans.effects.push(OirExpr::effect(OirEffect::RenderUi {
@@ -2966,7 +3151,8 @@ mod guard_rejection_is_a_noop_tests {
         let event_def = OirEvent::new("SHOW");
         trait_def.events.push(event_def.clone());
         module.traits.push(trait_def.clone());
-        let js = backend.generate_event_handler_function(&trait_def, &event_def, &module, "handleShow");
+        let js =
+            backend.generate_event_handler_function(&trait_def, &event_def, &module, "handleShow");
         assert!(js.contains(".map(((s) =>"), "{js}");
         assert!(!js.contains("(s: EntityRow)"), "{js}");
     }
