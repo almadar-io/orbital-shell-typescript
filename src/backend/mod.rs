@@ -167,6 +167,16 @@ pub enum ServerFramework {
     Hono,
 }
 
+/// Who runs the generated app's execution steps.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum HostMode {
+    /// The generated per-event handlers and hooks (default).
+    #[default]
+    Generated,
+    /// `@almadar/kernel` runs every step; only the host glue is generated.
+    Kernel,
+}
+
 /// TypeScript code generation backend
 pub struct TypeScriptBackend {
     /// Use strict TypeScript mode
@@ -183,6 +193,8 @@ pub struct TypeScriptBackend {
     pub dev_logs: bool,
     /// Server framework for backend code generation (Express or Hono)
     pub server_framework: ServerFramework,
+    /// Whether the generated handlers and hooks, or the embedded kernel, run the app.
+    pub host: HostMode,
     /// The resolved schema, bundled into the client for its browser-store legs.
     pub browser_schema: Option<orbital_core::OrbitalSchema>,
     /// Gap #13 — current `Orbital.Trait` scope used to qualify event-string
@@ -384,6 +396,7 @@ impl Default for TypeScriptBackend {
             schema_language: "en".to_string(),
             dev_logs: false,
             server_framework: ServerFramework::default(),
+            host: HostMode::default(),
             browser_schema: None,
             current_trait_scope: CodegenCell::new(None),
             current_transition: CodegenCell::new(None),
@@ -670,9 +683,13 @@ impl TypeScriptBackend {
         // block. Emitted for both backends so client code can consume them.
         files.push(self.generate_shared_trait_configs(module));
         // Shared index: Hono version omits events.ts re-export
-        match self.server_framework {
-            ServerFramework::Hono => files.push(self.generate_shared_index_hono()),
-            ServerFramework::Express => files.push(self.generate_shared_index()),
+        match (self.host, self.server_framework) {
+            (HostMode::Kernel, _) => {
+                files.push(self.generate_shared_index_kernel());
+                files.extend(self.generate_kernel_program());
+            }
+            (HostMode::Generated, ServerFramework::Hono) => files.push(self.generate_shared_index_hono()),
+            (HostMode::Generated, ServerFramework::Express) => files.push(self.generate_shared_index()),
         }
         match self.server_framework {
             ServerFramework::Hono => files.push(self.generate_shared_package_json_hono()),
@@ -694,7 +711,11 @@ impl TypeScriptBackend {
         let embedded_traits = orbital_core::ir::build_embedded_trait_set(module);
 
         // 2. Generate client trait hooks (logic) + components (presentation)
-        if self.target == "client" || self.target == "full" {
+        if self.host == HostMode::Kernel {
+            if self.target == "client" || self.target == "full" {
+                files.extend(self.generate_kernel_client(module));
+            }
+        } else if self.target == "client" || self.target == "full" {
             for trait_def in &module.traits {
                 // Logic hook + Presentation component (idiomatic React)
                 files.push(self.generate_trait_logic_hook(trait_def, module));
@@ -726,7 +747,7 @@ impl TypeScriptBackend {
         }
 
         // 3. Generate client pages/features
-        if self.target == "client" || self.target == "full" {
+        if self.host == HostMode::Generated && (self.target == "client" || self.target == "full") {
             for page in &module.pages {
                 files.extend(self.generate_page_feature(page, module, &embedded_traits));
             }
@@ -736,7 +757,16 @@ impl TypeScriptBackend {
 
         // 4. Generate server event handlers (NOT CRUD routes)
         // All data operations go through trait event handlers with guard enforcement
-        if self.target == "server" || self.target == "full" {
+        if self.host == HostMode::Kernel {
+            if self.target == "server" || self.target == "full" {
+                files.extend(self.generate_kernel_server());
+                if let Some(f) = self.generate_access_policies(entities) {
+                    files.push(f);
+                }
+                files.push(self.generate_sse_module(entities, false));
+                files.push(self.generate_viewer_module(entities, ServerFramework::Express));
+            }
+        } else if self.target == "server" || self.target == "full" {
             let server_ticks = server::ticks::module_has_server_ticks(module);
             match self.server_framework {
                 ServerFramework::Hono => {
@@ -781,7 +811,11 @@ impl TypeScriptBackend {
         }
 
         // 5. Generate tests for generated code (mode-aware)
-        let test_files = crate::generators::generate_tests(module);
+        let test_files = if self.host == HostMode::Kernel {
+            Vec::new()
+        } else {
+            crate::generators::generate_tests(module)
+        };
         for test_file in test_files {
             // Filter tests based on target mode
             let is_client_test = test_file.path.contains("packages/client/")
@@ -867,11 +901,13 @@ impl TypeScriptBackend {
             ));
             // Where the orbital-events route lends the running app to service
             // calls, as the caller (`llm call-tools`).
-            files.push(InternalFile::new(
-                "packages/server/src/services/host.ts",
-                crate::codegen::generate_service_host(),
-                GeneratedFileType::Config,
-            ));
+            if self.host == HostMode::Generated {
+                files.push(InternalFile::new(
+                    "packages/server/src/services/host.ts",
+                    crate::codegen::generate_service_host(),
+                    GeneratedFileType::Config,
+                ));
+            }
 
             // Inbound-hook provider map derived from invoked services × the
             // registry's hook declarations (I-26) — always emitted so the
@@ -1055,7 +1091,7 @@ impl Backend for TypeScriptBackend {
                 .into_iter()
                 .map(|f| f.into_generated_file())
                 .collect(),
-            warnings: vec![],
+            warnings: self.kernel_host_warnings(),
         }
     }
 
@@ -1081,6 +1117,7 @@ impl Backend for TypeScriptBackend {
             schema_language: self.schema_language.clone(),
             dev_logs: self.dev_logs,
             server_framework: self.server_framework,
+            host: self.host,
             browser_schema: self.browser_schema.clone(),
             current_trait_scope: CodegenCell::new(None),
             current_transition: CodegenCell::new(None),
@@ -1131,6 +1168,7 @@ impl Backend for TypeScriptBackend {
 // TypeScriptBackend` blocks and resolve via the type regardless of module.
 // ============================================================================
 mod client;
+pub mod kernel_host;
 mod pages;
 pub(crate) mod server;
 mod shared;

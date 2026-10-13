@@ -1,6 +1,9 @@
 //! `orb-shell-typescript`: the TypeScript shell as a program (`orbital_core::shell_protocol`).
 
-use crate::{express_shell, hono_shell, ExtraComponentMapping, ServerFramework, TypeScriptBackend};
+use crate::{
+    express_shell, hono_shell, ExtraComponentMapping, HostMode, ServerFramework, TypeScriptBackend, KERNEL_CLIENT_DEPENDENCIES,
+    KERNEL_SERVER_DEPENDENCIES,
+};
 use orbital_core::project::{copy_public, resolve_public_dir, write_project};
 use orbital_core::shell_protocol::{
     GenerateRequest, GenerateResponse, IrVersions, ShellDescription, ShellFailure, ShellOption, ShellProgram,
@@ -17,6 +20,7 @@ const SCHEMA_LANGUAGE: &str = "schemaLanguage";
 const DEV_LOGS: &str = "devLogs";
 const BACKEND_URL: &str = "backendUrl";
 const PROJECT_PATTERNS: &str = "projectPatterns";
+const HOST: &str = "host";
 
 fn option(name: &str, description: &str, values: Option<&[&str]>, default: Option<&str>) -> ShellOption {
     ShellOption {
@@ -99,6 +103,27 @@ pub fn write_backend_url(output: &Path, url: &str) -> std::io::Result<()> {
     std::fs::write(path, content)
 }
 
+/// Add `dependencies` to a template `package.json`'s `"dependencies"` block, keeping every other
+/// line; a package already listed is left as the template pins it.
+pub fn add_dependencies(path: &Path, dependencies: &[(&str, &str)]) -> std::io::Result<()> {
+    let existing = std::fs::read_to_string(path)?;
+    let updated = with_dependencies(&existing, dependencies).ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{} has no \"dependencies\" block", path.display()))
+    })?;
+    std::fs::write(path, updated)
+}
+
+fn with_dependencies(package_json: &str, dependencies: &[(&str, &str)]) -> Option<String> {
+    const ANCHOR: &str = "\"dependencies\": {\n";
+    let at = package_json.find(ANCHOR)? + ANCHOR.len();
+    let added: String = dependencies
+        .iter()
+        .filter(|(name, _)| !package_json.contains(&format!("\"{name}\":")))
+        .map(|(name, version)| format!("    \"{name}\": \"{version}\",\n"))
+        .collect();
+    Some(format!("{}{}{}", &package_json[..at], added, &package_json[at..]))
+}
+
 impl ShellProgram for TypeScriptProgram {
     fn describe(&self) -> ShellDescription {
         ShellDescription {
@@ -112,6 +137,12 @@ impl ShellProgram for TypeScriptProgram {
                 option(DEV_LOGS, "Emit development logging", Some(&["true", "false"]), Some("false")),
                 option(BACKEND_URL, "Backend URL written to .env as VITE_API_URL", None, None),
                 option(PROJECT_PATTERNS, "The project's patterns.json (component mappings)", None, None),
+                option(
+                    HOST,
+                    "Who runs the app's execution steps: the generated handlers and hooks, or the embedded @almadar/kernel (Express only)",
+                    Some(&["generated", "kernel"]),
+                    Some("generated"),
+                ),
             ],
         }
     }
@@ -130,6 +161,10 @@ impl ShellProgram for TypeScriptProgram {
                 let from = resolve_public_dir(source, public).map_err(|m| ShellFailure::new(CODE_GENERATE_FAILED, m))?;
                 copy_public(&from, &output.join("packages/client/public")).map_err(|e| failed("copy public folder", e))?;
             }
+        }
+        if backend.host == HostMode::Kernel {
+            add_dependencies(&output.join("packages/server/package.json"), KERNEL_SERVER_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the server", e))?;
+            add_dependencies(&output.join("packages/client/package.json"), KERNEL_CLIENT_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the client", e))?;
         }
         let mut next_steps = Vec::new();
         if let Some(url) = string_option(request, BACKEND_URL)? {
@@ -161,7 +196,16 @@ fn backend(request: &GenerateRequest) -> Result<TypeScriptBackend, ShellFailure>
         "false" => false,
         other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("devLogs must be true or false, got {other}"))),
     };
+    let host = match string_option(request, HOST)?.unwrap_or("generated") {
+        "generated" => HostMode::Generated,
+        "kernel" => HostMode::Kernel,
+        other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("host must be generated or kernel, got {other}"))),
+    };
+    if host == HostMode::Kernel && framework != ServerFramework::Express {
+        return Err(ShellFailure::new(CODE_BAD_REQUEST, "host kernel needs framework express: the runtime's router is Express"));
+    }
     Ok(TypeScriptBackend {
+        host,
         extra_mappings: request.options.get(PROJECT_PATTERNS).and_then(component_mappings),
         schema_language: string_option(request, SCHEMA_LANGUAGE)?.unwrap_or("en").to_string(),
         dev_logs,
@@ -197,6 +241,52 @@ mod tests {
         write_backend_url(&dir, "http://new").unwrap();
         assert_eq!(std::fs::read_to_string(dir.join(".env")).unwrap(), "A=1\nVITE_API_URL=http://new\nB=2");
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    fn request_with(options: &[(&str, &str)]) -> GenerateRequest {
+        GenerateRequest {
+            ir_version: IR_VERSION,
+            module: orbital_core::ir::OirModule::new("App", "1.0.0"),
+            resolved: None,
+            source_path: None,
+            write: Default::default(),
+            options: options.iter().map(|(k, v)| (k.to_string(), Value::String(v.to_string()))).collect(),
+        }
+    }
+
+    #[test]
+    fn the_host_option_is_declared_with_generated_as_its_default() {
+        let host = TypeScriptProgram.describe().options.into_iter().find(|o| o.name == HOST).expect("host option");
+        assert_eq!(host.default.as_deref(), Some("generated"));
+        assert_eq!(host.values, Some(vec!["generated".to_string(), "kernel".to_string()]));
+    }
+
+    #[test]
+    fn the_host_option_selects_the_kernel_and_defaults_to_the_generated_handlers() {
+        let host = |options: &[(&str, &str)]| backend(&request_with(options)).ok().map(|b| b.host);
+        assert_eq!(host(&[(HOST, "kernel")]), Some(HostMode::Kernel));
+        assert_eq!(host(&[(HOST, "generated")]), Some(HostMode::Generated));
+        assert_eq!(host(&[]), Some(HostMode::Generated));
+    }
+
+    #[test]
+    fn edge_a_bad_host_and_a_hono_kernel_are_refused() {
+        let code = |options: &[(&str, &str)]| backend(&request_with(options)).err().map(|e| e.code);
+        assert_eq!(code(&[(HOST, "wasm")]), Some(CODE_BAD_REQUEST.to_string()));
+        assert_eq!(code(&[(HOST, "kernel"), (FRAMEWORK, "hono")]), Some(CODE_BAD_REQUEST.to_string()));
+        assert!(backend(&request_with(&[(HOST, "generated"), (FRAMEWORK, "hono")])).is_ok());
+    }
+
+    #[test]
+    fn dependencies_are_added_once_and_the_template_keeps_the_rest() {
+        let template = "{\n  \"dependencies\": {\n    \"@almadar/core\": \"^10.0.0\",\n    \"zod\": \"^3.22.0\"\n  }\n}\n";
+        let once = with_dependencies(template, &[("@almadar/kernel", "^18.0.0"), ("zod", "^4.0.0")]).unwrap();
+        assert!(once.contains("\"@almadar/kernel\": \"^18.0.0\","));
+        assert!(once.contains("\"zod\": \"^3.22.0\""), "a listed package keeps the template's pin:\n{once}");
+        assert!(!once.contains("^4.0.0"));
+        let twice = with_dependencies(&once, &[("@almadar/kernel", "^18.0.0")]).unwrap();
+        assert_eq!(once, twice);
+        assert!(with_dependencies("{}", &[("a", "1")]).is_none());
     }
 
     #[test]

@@ -13,7 +13,8 @@ pub mod pattern_registry;
 pub mod shell_program;
 mod shell;
 
-pub use backend::{classify_oir_type, EntityFieldInfo, ExtraComponentMapping, ServerFramework, TypeScriptBackend};
+pub use backend::kernel_host::{KERNEL_CLIENT_DEPENDENCIES, KERNEL_SERVER_DEPENDENCIES};
+pub use backend::{classify_oir_type, EntityFieldInfo, ExtraComponentMapping, HostMode, ServerFramework, TypeScriptBackend};
 pub use codegen::target::{
     ClientEffectEmitter, ComponentRenderer, WebClientEffectEmitter, WebComponentRenderer,
 };
