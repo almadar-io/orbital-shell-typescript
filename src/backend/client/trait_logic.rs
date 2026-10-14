@@ -618,6 +618,9 @@ impl TypeScriptBackend {
         if uses_navstack {
             code.push_str("import { useNavStack } from '@almadar/ui/hooks';\n");
         }
+        if self.uses_tick_visibility(trait_def, module) {
+            code.push_str("import { useTickVisibility } from '@almadar/ui/hooks';\n");
+        }
         if shared_overlay_entity.is_some() {
             code.push_str(
                 "import { useSharedEntityStoreContext, useSharedEntitySnapshot } from '@almadar/ui/hooks';\n",

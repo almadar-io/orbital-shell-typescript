@@ -151,14 +151,6 @@ impl TargetTypeRenderer for TsRenderer<'_> {
             TsTypeMode::Inferred => "EntityRow".to_string(),
         }
     }
-    fn scalar(&self) -> String {
-        // The point of `scalar` over `json`: emit the CLOSED union, so a value
-        // that nests is a type error in the generated app instead of silently
-        // accepted. Assignable to the `EntityRow` index signature
-        // (`FieldValue | undefined`) in both modes, since every member is a
-        // `FieldValue` — so this needs no mode split the way `json` does.
-        "string | number | boolean | null".to_string()
-    }
     fn union_ty(&self, variants: &[OirField]) -> String {
         // A real TS discriminated union. Each variant already renders as an
         // inline struct literal carrying its own literal-typed tag field, so
@@ -340,11 +332,6 @@ impl TargetTypeRenderer for TsRenderer<'_> {
     fn classify_json(&self) -> TypeMappingClass {
         TypeMappingClass::Lossy
     }
-    fn classify_scalar(&self) -> TypeMappingClass {
-        // The closed union `string | number | boolean | null` — the whole
-        // point of `scalar()` over `json()` (see the rendering twin).
-        TypeMappingClass::Faithful
-    }
     fn classify_node(&self) -> TypeMappingClass {
         TypeMappingClass::Faithful
     }
@@ -480,7 +467,6 @@ impl TypeScriptBackend {
             OirType::Money => "number",
             OirType::File => "object",
             OirType::Json => "string",
-            OirType::Scalar => "string",
             OirType::Node => "string",
             OirType::Array { inner: _ } | OirType::Tuple { .. } => "array",
             OirType::Map { .. } => "object",

@@ -259,6 +259,32 @@ impl TypeScriptBackend {
             })
     }
 
+    /// The trait runs a client tick loop with a `[visible]` tick, so its hook imports and calls
+    /// `useTickVisibility`.
+    pub(crate) fn uses_tick_visibility(&self, trait_def: &OirTrait, module: &OirModule) -> bool {
+        self.runs_client_tick_loop(trait_def, module)
+            && trait_def.ticks.iter().any(|t| {
+                t.while_visible
+                    && crate::backend::server::ticks::tick_runs_on_client(trait_def, t, module)
+            })
+    }
+
+    /// A `[shared]` entity's writer ticks: a `[visible]` writer follows every trait bound to the
+    /// entity, since a writer renders nothing itself.
+    pub(crate) fn shared_driver_uses_tick_visibility(
+        &self,
+        module: &OirModule,
+        render_trait: &OirTrait,
+        entity: &OirEntity,
+    ) -> bool {
+        module.traits.iter().any(|t| {
+            t.orbital_name == render_trait.orbital_name
+                && t.links_entity(entity)
+                && self.trait_tick_writes_entity(t)
+                && t.ticks.iter().any(|tick| tick.while_visible)
+        })
+    }
+
     pub(crate) fn generate_tick_effects(&self, trait_def: &OirTrait, module: &OirModule) -> String {
         let mut code = String::new();
         let leg_ticks = self.browser_leg_ticks(trait_def, module);
@@ -284,6 +310,12 @@ impl TypeScriptBackend {
         code.push_str("  const _tickEntityRef = useRef<EntityRow>({ ...fields });\n");
         code.push_str("  _tickStateRef.current = state;\n");
         code.push_str("  _tickEntityRef.current = { ...fields };\n\n");
+        if self.uses_tick_visibility(trait_def, module) {
+            code.push_str(&format!(
+                "  const _tickVisible = useTickVisibility({});\n\n",
+                serde_json::to_string(&[&trait_def.name]).expect("a trait name serializes")
+            ));
+        }
 
         for tick in &trait_def.ticks {
             if !crate::backend::server::ticks::tick_runs_on_client(trait_def, tick, module) {
@@ -321,6 +353,13 @@ impl TypeScriptBackend {
                     "[{}].includes(_tickStateRef.current) && ({guard_ts})",
                     states.join(", ")
                 )
+            };
+
+            // `[visible]`: pauses while the trait's output is off screen (LOLO §11).
+            let guard_ts = if tick.while_visible {
+                format!("_tickVisible() && ({guard_ts})")
+            } else {
+                guard_ts
             };
 
             // Build the tick body: local entity copy, then the effects as
@@ -632,6 +671,18 @@ impl TypeScriptBackend {
             })
             .collect();
 
+        if self.shared_driver_uses_tick_visibility(module, render_trait, entity) {
+            let group: Vec<&str> = module
+                .traits
+                .iter()
+                .filter(|t| t.orbital_name == render_trait.orbital_name && t.links_entity(entity))
+                .map(|t| t.name.as_str())
+                .collect();
+            code.push_str(&format!(
+                "  const _sharedTickVisible = useTickVisibility({});\n",
+                serde_json::to_string(&group).expect("trait names serialize")
+            ));
+        }
         // Writers defer their emits here; the driver fires them once the frame commits.
         code.push_str("  const _sharedTickEmitsRef = useRef<Array<() => void>>([]);\n");
         code.push_str(
@@ -667,6 +718,11 @@ impl TypeScriptBackend {
                 .as_ref()
                 .map(|g| Self::tick_entity_read_to_local(&self.expr_to_client_ts(g), "frame"))
                 .unwrap_or_else(|| "true".to_string());
+            let guard_ts = if tick.while_visible {
+                format!("_sharedTickVisible() && ({guard_ts})")
+            } else {
+                guard_ts
+            };
 
             code.push_str(&format!("    // writer {}.{}\n", writer.name, tick.name));
             code.push_str("    (scratch: EntityFrameState): readonly EntityFieldWrite[] => {\n");

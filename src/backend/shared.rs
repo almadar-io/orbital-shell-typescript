@@ -1207,7 +1207,6 @@ export type { UserContext } from '@almadar/core';
             OirType::Json => "z.record(FieldValueSchema.optional())".to_string(),
             // The closed union, enforced at runtime too — this is exactly what
             // `json` never gave us: a value that nests is REJECTED.
-            OirType::Scalar => "z.union([z.string(), z.number(), z.boolean(), z.null()])".to_string(),
             // Renderable content: the inline `PatternValueSchema`
             // (`PATTERN_VALUE_SCHEMA_DECL`), twin of `PatternValue`.
             OirType::Node => "PatternValueSchema".to_string(),
@@ -1384,10 +1383,6 @@ pub(crate) fn oir_type_to_form_type(t: &OirType) -> &'static str {
         OirType::Money => "money",
         OirType::File => "file",
         OirType::Json => "object",
-        // A form control for a scalar is a plain text input: the union's widest
-        // renderable member. `object` would render a fieldset for a value that
-        // has no fields.
-        OirType::Scalar => "string",
         OirType::Node => "object",
         OirType::Array { .. } | OirType::Tuple { .. } => "array",
         OirType::Map { .. } => "object",

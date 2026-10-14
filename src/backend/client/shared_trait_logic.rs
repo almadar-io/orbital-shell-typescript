@@ -196,6 +196,9 @@ impl TypeScriptBackend {
         if hosts_driver {
             ui_hooks_imports.push("runTickFrame");
         }
+        if hosts_driver && self.shared_driver_uses_tick_visibility(module, trait_def, entity) {
+            ui_hooks_imports.push("useTickVisibility");
+        }
         if has_dispatch || driver_uses_bus {
             ui_hooks_imports.push("useEventBus");
         }

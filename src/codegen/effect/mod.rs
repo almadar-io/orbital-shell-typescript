@@ -21,6 +21,8 @@ mod client;
 mod dispatch_roots_tests;
 #[cfg(test)]
 mod now_stamp_tests;
+#[cfg(test)]
+mod visible_tick_tests;
 mod persist;
 mod persist_batch;
 #[cfg(test)]

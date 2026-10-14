@@ -18,6 +18,18 @@ use crate::backend::TypeScriptBackend;
 /// `Value::to_number` (numbers, booleans as 1/0, null as 0, numeric strings); an element or
 /// absent field that reads as none is skipped.
 const NUMBERS_OF_TS: &str = "((vs: readonly EventPayloadValue[], key: string | undefined): number[] => { const isRecord = (x: EventPayloadValue): x is Readonly<Record<string, EventPayloadValue>> => x !== null && typeof x === 'object' && !Array.isArray(x) && !(x instanceof Date); return vs.flatMap((e) => { const v = key === undefined ? e : isRecord(e) && key in e ? e[key] : undefined; return typeof v === 'number' ? [v] : typeof v === 'boolean' ? [v ? 1 : 0] : v === null ? [0] : typeof v === 'string' && v !== '' && !Number.isNaN(Number(v)) ? [Number(v)] : []; }); })";
+/// `csv/parse` — the kernel's contract (orbital-core `operators/csv.rs`): RFC 4180 records keyed by the header row; a non-string, empty or header-only text is `[]`.
+const CSV_PARSE_TS: &str = r##"((s: EventPayloadValue | undefined): Array<{ [k: string]: string }> => { if (typeof s !== 'string') return []; const recs: string[][] = []; let r: string[] = []; let f = ''; let q = false; let iq = false; const end = (): void => { if (r.length > 0 || f !== '' || q) { r.push(f); recs.push(r); r = []; f = ''; q = false; } }; for (let i = s.charCodeAt(0) === 0xfeff ? 1 : 0; i < s.length; i++) { const c = s[i]; if (iq) { if (c === '"') { if (s[i + 1] === '"') { f += '"'; i++; } else { iq = false; } } else { f += c; } } else if (c === '"' && f === '') { iq = true; q = true; } else if (c === ',') { r.push(f); f = ''; q = false; } else if (c === '\r' || c === '\n') { if (c === '\r' && s[i + 1] === '\n') i++; end(); } else { f += c; } } end(); const [h, ...rows] = recs; if (h === undefined) return []; return rows.map((cells) => { const o: { [k: string]: string } = {}; h.forEach((n, i) => { o[n] = cells[i] ?? ''; }); return o; }); })"##;
+/// `src ?? []` for an array operand. A source that is the literal `undefined` (a residual
+/// binding the server cannot read) is `[]` itself: `undefined ?? []` is TS2871.
+fn or_empty(src: &str) -> String {
+    if src == "undefined" {
+        "[]".to_string()
+    } else {
+        format!("({src} ?? [])")
+    }
+}
+
 const COSINE_TS: &str = "((a: readonly number[], b: readonly number[]) => { if (a.length !== b.length) throw new Error(`array/cosine: vector length mismatch (${a.length} vs ${b.length})`); if (a.length === 0) throw new Error('array/cosine: empty vector has no defined similarity'); let dot = 0; let na = 0; let nb = 0; for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i]; } if (na === 0 || nb === 0) throw new Error('array/cosine: zero-magnitude vector has no defined direction to compare'); return dot / (Math.sqrt(na) * Math.sqrt(nb)); })";
 
 /// `time/format`'s 2-arg (timestamp, token-string) form: moment/dayjs-style
@@ -288,6 +300,9 @@ impl TypeScriptBackend {
             let src = a(i);
             if fact(i).array {
                 format!("({})", src)
+            } else if src == "undefined" {
+                // The literal `undefined` guarded by `??` is TS2871 (always nullish).
+                "([] as readonly EventPayloadValue[])".to_string()
             } else {
                 // Cast to the nullable union FIRST, then guard: the `??`
                 // stays reachable on TS-known arrays (`never[]` reduce
@@ -412,7 +427,7 @@ impl TypeScriptBackend {
                     // Never nullish (an `object/get` with a default) — a `?? []` is TS2869.
                     format!("(({}) as {{ readonly length: number }}).length", src)
                 } else {
-                    format!("(({} ?? []) as {{ readonly length: number }}).length", src)
+                    format!("({} as {{ readonly length: number }}).length", or_empty(src))
                 }
             }
             // Cast the array source to `readonly EventPayloadValue[]` so
@@ -468,10 +483,10 @@ impl TypeScriptBackend {
                     )
                 }
             },
-            "in" if args.len() == 2 => format!("(({} ?? []) as {}).includes({} as {})", a(1), elem_arr, a(0), elem),
+            "in" if args.len() == 2 => format!("({} as {}).includes({} as {})", or_empty(a(1)), elem_arr, a(0), elem),
             "empty" => format!("(!({})) || Object.keys({} ?? {{}}).length === 0", a(0), a(0)),
             "merge" | "object/merge" => format!("Object.assign({{}}, {})", args.join(", ")),
-            "average" => format!("((arr) => arr.length ? arr.reduce((s: number, v: number) => s + v, 0) / arr.length : 0)({} ?? [])", a(0)),
+            "average" => format!("((arr) => arr.length ? arr.reduce((s: number, v: number) => s + v, 0) / arr.length : 0)({})", or_empty(a(0))),
 
             // Literal-array constructor (`["list", e1, e2, …]`) — see
             // `mark_literal_list_in_place`. Lowers to a JS array literal;
@@ -485,6 +500,9 @@ impl TypeScriptBackend {
             ),
             "json/stringify" if nn(0) => format!("(JSON.stringify({}) ?? 'null')", a(0)),
             "json/stringify" => format!("(JSON.stringify({} ?? null) ?? 'null')", a(0)),
+
+            // --- std-csv ---
+            "csv/parse" => format!("{}({})", CSV_PARSE_TS, a(0)),
 
             // --- std-str ---
             "str/len" => format!("{}.length", sr(0)),
@@ -558,7 +576,7 @@ impl TypeScriptBackend {
                     // comes from the OirExpr-level inference when known;
                     // falls back to `readonly EntityRow[]` for opaque
                     // sources (chosen for index-signature compatibility).
-                    format!("(({} ?? []) as {}).map({})", src, elem_arr, body)
+                    format!("({} as {}).map({})", or_empty(src), elem_arr, body)
                 }
             }
             // Cast to `readonly any[]` so TS doesn't reject `.filter` on the
@@ -579,7 +597,7 @@ impl TypeScriptBackend {
                     if known {
                         format!("({})", a(0))
                     } else {
-                        format!("(({} ?? []) as {})", a(0), elem_arr)
+                        format!("({} as {})", or_empty(a(0)), elem_arr)
                     }
                 } else if fact(1).bool_literal == Some(false) {
                     format!("([] as {})", elem_arr)
@@ -604,7 +622,7 @@ impl TypeScriptBackend {
                     if known {
                         format!("({}).filter({})", a(0), a(1))
                     } else {
-                        format!("(({} ?? []) as {}).filter({})", a(0), elem_arr, a(1))
+                        format!("({} as {}).filter({})", or_empty(a(0)), elem_arr, a(1))
                     }
                 } else {
                     // A bare VALUE expression (not a lambda) used as the
@@ -629,12 +647,12 @@ impl TypeScriptBackend {
                     if known {
                         format!("({}).filter({})", a(0), wrapped_pred)
                     } else {
-                        format!("(({} ?? []) as {}).filter({})", a(0), elem_arr, wrapped_pred)
+                        format!("({} as {}).filter({})", or_empty(a(0)), elem_arr, wrapped_pred)
                     }
                 }
             }
             "array/count" if args.len() >= 2 => format!("{}.filter({}).length", elem_array_arg(0), a(1)),
-            "array/count" => format!("(({} ?? []) as {{ readonly length: number }}).length", a(0)),
+            "array/count" => format!("({} as {{ readonly length: number }}).length", or_empty(a(0))),
             "array/find" | "find" => format!("{}.find({})", elem_array_arg(0), a(1)),
             // JS `arr.reduce(fn, initial)` — the lolo arg order is
             // (array, initial, fn) (orbital-core evaluator `["reduce", …]`).
@@ -655,6 +673,8 @@ impl TypeScriptBackend {
                     // guard — TS2869 right-operand-unreachable.
                     if fact(i).array || fact(i).string || fact(i).object_literal {
                         format!("...({})", a)
+                    } else if a.as_str() == "undefined" {
+                        "...([])".to_string()
                     } else {
                         // Cast first: an unknown operand (a reducer accumulator) is the
                         // wide `EventPayloadValue`, not iterable as typed (TS2488).
@@ -689,8 +709,8 @@ impl TypeScriptBackend {
                 array_arg(0), a(1), a(2), sort_comparator_params(0)
             ),
             "array/unique" => format!("[...new Set({})]", array_arg(0)),
-            "array/flatten" if args.len() == 1 => format!("({} ?? []).flat()", a(0)),
-            "array/flatten" => format!("({} ?? []).flat({})", a(0), a(1)),
+            "array/flatten" if args.len() == 1 => format!("{}.flat()", or_empty(a(0))),
+            "array/flatten" => format!("{}.flat({})", or_empty(a(0)), a(1)),
             // Bare `join` is the .lolo-era short name (operator_names.rs).
             // `.join` always returns a string, so no `?? ''` tail (same as
             // str/join above).
@@ -773,7 +793,7 @@ impl TypeScriptBackend {
             "object/values" => format!("Object.values({} ?? {{}})", a(0)),
             "object/entries" if nn(0) => format!("Object.entries({})", a(0)),
             "object/entries" => format!("Object.entries({} ?? {{}})", a(0)),
-            "object/fromEntries" => format!("Object.fromEntries({} ?? [])", a(0)),
+            "object/fromEntries" => format!("Object.fromEntries({})", or_empty(a(0))),
             "object/deepMerge" => format!("structuredClone(Object.assign({{}}, {}, {}))", a(0), a(1)),
             // `getNestedValue` (from `@almadar/core`) owns the dot-path
             // walk — one typed implementation shared with the runtime path
@@ -891,7 +911,7 @@ impl TypeScriptBackend {
             "validate/length" if args.len() == 2 => format!("(({} ?? '').length >= {})", a(0), a(1)),
             "validate/length" => format!("(({0} ?? '').length >= {1} && ({0} ?? '').length <= {2})", a(0), a(1), a(2)),
             "validate/equals" => format!("({} === {})", a(0), a(1)),
-            "validate/oneOf" => format!("({} ?? []).includes({})", a(1), a(0)),
+            "validate/oneOf" => format!("{}.includes({})", or_empty(a(1)), a(0)),
 
             // --- std-format ---
             // Mirror `evalFormatNumber`/`evalFormatCurrency`: `en-US` unless a locale is given,
@@ -1536,6 +1556,41 @@ mod twin_survivor_tests {
         }
     }
 
+    /// `csv/parse` keeps the kernel's contract (orbital-core `operators/csv.rs`, `@almadar/evaluator`
+    /// `std/csv.ts`): quoted commas, escaped quotes, CRLF, a trailing newline, empty and header-only text.
+    #[test]
+    fn csv_parse_follows_the_kernel_contract() {
+        let b = TypeScriptBackend::new();
+        let run = |call: String, x: &str| {
+            let script = format!("type EventPayloadValue = string | number | boolean | null | Date | readonly EventPayloadValue[] | {{ readonly [k: string]: EventPayloadValue }}; const x: EventPayloadValue | undefined = {x}; process.stdout.write(JSON.stringify({call}));");
+            let out = std::process::Command::new("node")
+                .args(["--input-type=module-typescript", "-e", &script])
+                .output()
+                .expect("node must be on PATH");
+            assert!(
+                out.status.success(),
+                "{script}\n{}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+            String::from_utf8(out.stdout).unwrap()
+        };
+        let parse = b.call_to_ts_typed("csv/parse", &["x".into()], &[opaque()], None);
+        assert!(!parse.contains("UNSUPPORTED"), "{parse}");
+        for (x, expected) in [
+            ("'name,age\\nAda,36'", "[{\"name\":\"Ada\",\"age\":\"36\"}]"),
+            ("'a,b\\n\"x, y\",\"she said \"\"hi\"\"\"'", "[{\"a\":\"x, y\",\"b\":\"she said \\\"hi\\\"\"}]"),
+            ("'a,b\\r\\n1,2\\r\\n'", "[{\"a\":\"1\",\"b\":\"2\"}]"),
+            ("'a,b\\n1,2\\n'", "[{\"a\":\"1\",\"b\":\"2\"}]"),
+            ("'a,b\\n\\n1'", "[{\"a\":\"1\",\"b\":\"\"}]"),
+            ("''", "[]"),
+            ("'a,b\\n'", "[]"),
+            ("42", "[]"),
+            ("undefined", "[]"),
+        ] {
+            assert_eq!(run(parse.clone(), x), expected, "csv/parse of {x}");
+        }
+    }
+
     /// G-ORB-152: `object/pick` inside a user lambda whose parameter is `k` picks from that
     /// object, not from a lowering-local `k`; a missing key is left out; a nullish object is `{}`.
     #[test]
@@ -2100,6 +2155,30 @@ mod twin_survivor_tests {
         assert_eq!(
             bare, "((items ?? []) as { readonly length: number }).length",
             "control: an un-defaulted source keeps its guard, got: {bare}"
+        );
+    }
+
+    /// A residual `@config.X` the server cannot read compiles to the literal `undefined`; guarding
+    /// it as `undefined ?? []` is TS2871 (always nullish), so the operand is the empty list itself.
+    #[test]
+    fn an_absent_array_operand_is_the_empty_list_not_an_always_nullish_guard() {
+        let b = TypeScriptBackend::new();
+        for (op, expected) in [
+            ("array/len", "([] as { readonly length: number }).length"),
+            ("array/count", "([] as { readonly length: number }).length"),
+            ("array/flatten", "[].flat()"),
+        ] {
+            let ts = b.call_to_ts_typed(op, &["undefined".into()], &[], None);
+            assert_eq!(ts, expected, "{op}");
+            assert!(!ts.contains("undefined ??"), "{op}: {ts}");
+        }
+        let first = b.call_to_ts_typed("array/first", &["undefined".into()], &[], None);
+        assert!(!first.contains("undefined as"), "array/first: {first}");
+        assert!(!first.contains("undefined ??"), "array/first: {first}");
+        let bare = b.call_to_ts_typed("array/count", &["rows".into()], &[], None);
+        assert_eq!(
+            bare, "((rows ?? []) as { readonly length: number }).length",
+            "control: a readable source keeps its guard, got: {bare}"
         );
     }
 

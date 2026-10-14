@@ -195,7 +195,6 @@ fn get_default_test_value(field_type: &orbital_core::ir::OirType) -> &'static st
         OirType::Row { .. } => "{}",
         OirType::Enum { .. } => "'default'",
         OirType::Json => "{}",
-        OirType::Scalar => "'test-value'",
         OirType::Union { .. } => "{}",
         OirType::Struct { .. } => "{}",
         OirType::Trait => "'@trait.MockTrait'",

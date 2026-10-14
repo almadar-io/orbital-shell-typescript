@@ -319,9 +319,15 @@ impl TypeScriptBackend {
     /// string literal. Selected per branch alongside `wrapper_pattern_expr`
     /// so `<UISlotComponent enter>` skips the theme-default slot entry exactly
     /// when the shown root animates itself (or opts out with `none`).
-    fn render_ui_node_enter(node: &RenderUiNode<'_>) -> Option<String> {
+    fn render_ui_node_enter(&self, node: &RenderUiNode<'_>) -> Option<String> {
         match node {
             RenderUiNode::Leaf(pattern) => match pattern.config.get("enter") {
+                Some(OirValue::String(v)) if v.starts_with('@') => {
+                    let knob = self.binding_string_to_ts(v);
+                    Some(format!(
+                        "asEnterAnimation(typeof {knob} === 'string' ? {knob} : undefined)"
+                    ))
+                }
                 Some(OirValue::String(v)) => Some(format!("{:?}", v)),
                 _ => None,
             },
@@ -702,7 +708,7 @@ impl TypeScriptBackend {
                             presence,
                         );
                         let branch_pattern = Self::render_ui_node_pattern_type(node);
-                        let branch_enter = Self::render_ui_node_enter(node).map(|e| {
+                        let branch_enter = self.render_ui_node_enter(node).map(|e| {
                             format!(
                                 "slotWriter['{}'] === '{}' ? {} : undefined",
                                 slot_name, event, e
@@ -749,7 +755,7 @@ impl TypeScriptBackend {
                                 "slotWriter['{}'] === '{}' ? \"{}\" : ",
                                 slot_name, event_name, branch_pattern
                             ));
-                            if let Some(e) = Self::render_ui_node_enter(node) {
+                            if let Some(e) = self.render_ui_node_enter(node) {
                                 any_enter = true;
                                 enter_expr.push_str(&format!(
                                     "slotWriter['{}'] === '{}' ? {} : ",
@@ -860,10 +866,17 @@ impl TypeScriptBackend {
                 1,
             );
         }
-        if code.contains("enterClassName(") {
+        let entry_helpers: Vec<&str> = ["asEnterAnimation", "enterClassName"]
+            .into_iter()
+            .filter(|helper| code.contains(&format!("{helper}(")))
+            .collect();
+        if !entry_helpers.is_empty() {
             code = code.replacen(
                 "import { UISlotComponent } from '@almadar/ui/components';\n",
-                "import { UISlotComponent } from '@almadar/ui/components';\nimport { enterClassName } from '@almadar/ui/lib';\n",
+                &format!(
+                    "import {{ UISlotComponent }} from '@almadar/ui/components';\nimport {{ {} }} from '@almadar/ui/lib';\n",
+                    entry_helpers.join(", ")
+                ),
                 1,
             );
         }
@@ -1604,6 +1617,55 @@ mod wrapper_pattern_tracks_active_branch_tests {
             "a wrapped slot draws through UISlotComponent, got: {}",
             content
         );
+    }
+
+    fn badge_trait(enter: &str) -> OirTrait {
+        let mut tr = OirTrait::new("BadgeRender");
+        tr.orbital_name = "BadgeOrbital".to_string();
+        tr.states.push(OirState::initial("idle"));
+        tr.transitions.push(
+            OirTransition::new("idle", "idle", "INIT").with_effects(vec![OirExpr::Effect {
+                effect: Box::new(OirEffect::RenderUi {
+                    slot: "main".to_string(),
+                    pattern: OirPattern::new("badge").with_config(
+                        "enter",
+                        orbital_core::ir::OirValue::String(enter.to_string()),
+                    ),
+                }),
+            }]),
+        );
+        tr
+    }
+
+    #[test]
+    fn a_config_bound_enter_reaches_the_slot_wrapper_as_the_narrowed_knob_not_the_binding_text() {
+        let content = view_of(&badge_trait("@config.enter"));
+        assert!(
+            !content.contains("\"@config.enter\""),
+            "the binding text must not be emitted as the enter value, got: {}",
+            content
+        );
+        assert!(
+            content.contains("enter={slotWriter['main'] === 'INIT' ? asEnterAnimation("),
+            "the wrapper takes the config knob through asEnterAnimation, got: {}",
+            content
+        );
+        assert!(
+            content.contains("import { asEnterAnimation, enterClassName } from '@almadar/ui/lib';"),
+            "the helper is imported once, beside the class helper, got: {}",
+            content
+        );
+    }
+
+    #[test]
+    fn control_a_literal_enter_stays_a_string_literal_on_the_slot_wrapper() {
+        let content = view_of(&badge_trait("rise"));
+        assert!(
+            content.contains("enter={slotWriter['main'] === 'INIT' ? \"rise\" : undefined}"),
+            "got: {}",
+            content
+        );
+        assert!(!content.contains("asEnterAnimation"), "got: {}", content);
     }
 
     #[test]
