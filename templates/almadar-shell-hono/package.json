@@ -1,6 +1,6 @@
 {
   "name": "@almadar/shell-hono",
-  "version": "0.1.125",
+  "version": "0.1.126",
   "description": "Minimal full-stack shell template for Almadar applications (Hono server)",
   "workspaces": [
     "packages/*"
