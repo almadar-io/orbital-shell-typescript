@@ -7,6 +7,7 @@ pub(crate) use handlers::{resolve_access_imports, ACCESS_IMPORT_MARKER};
 pub(crate) mod i18n;
 mod listeners;
 mod orbital_route;
+pub(crate) mod pushdown;
 mod routes;
 mod seed;
 mod sse;

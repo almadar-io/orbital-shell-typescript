@@ -88,7 +88,7 @@ impl TypeScriptBackend {
         code.push_str(" *\n");
         code.push_str(" * Each const is the `@read`/`@create`/`@update`/`@delete` S-expression\n");
         code.push_str(" * exactly as authored. The generated handlers hand them to\n");
-        code.push_str(" * `@almadar/runtime/entityAccess`, which is the same evaluator the\n");
+        code.push_str(" * `@almadar/evaluator/entityAccess`, which is the same evaluator the\n");
         code.push_str(
             " * interpreter uses — so both paths reach the same verdict by construction.\n",
         );

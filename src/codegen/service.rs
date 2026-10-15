@@ -12,7 +12,15 @@ use std::collections::BTreeSet;
 ///
 /// Instead of generating raw fetch() clients, we import the RuntimeIntegrationManager
 /// which provides retry, validation, structured errors, and centralized credential management.
-pub fn generate_service_clients(services: &[ServiceRef], invoked: &BTreeSet<String>) -> String {
+///
+/// `http_egress` is `Some(origins)` when the program runs an `http` effect: the module then also
+/// exports `httpCall`, the one function every generated `http` site calls, with the program's
+/// egress list. `None` emits no http support (and imports nothing from `@almadar/kernel`).
+pub fn generate_service_clients(
+    services: &[ServiceRef],
+    invoked: &BTreeSet<String>,
+    http_egress: Option<&[String]>,
+) -> String {
     let mut ts = String::new();
 
     ts.push_str("/**\n");
@@ -23,7 +31,14 @@ pub fn generate_service_clients(services: &[ServiceRef], invoked: &BTreeSet<Stri
     ts.push_str(" */\n\n");
 
     ts.push_str("import { RuntimeIntegrationManager } from '@almadar/integrations/runtime';\n");
-    ts.push_str("import { CredentialStore, type CredentialPersistence } from '@almadar/integrations';\n\n");
+    if http_egress.is_some() {
+        ts.push_str("import { CredentialStore, resolveCredentialRef, type CredentialPersistence } from '@almadar/integrations';\n");
+        ts.push_str("import { lookup } from 'node:dns/promises';\n");
+        ts.push_str("import type { HttpReplyPayload } from '@almadar/core';\n");
+        ts.push_str("import { buildHttpRequest, isPublicAddress } from '@almadar/kernel';\n\n");
+    } else {
+        ts.push_str("import { CredentialStore, type CredentialPersistence } from '@almadar/integrations';\n\n");
+    }
 
     ts.push_str("const manager = new RuntimeIntegrationManager();\n");
     ts.push_str("manager.configureFromEnv();\n\n");
@@ -45,6 +60,10 @@ pub fn generate_service_clients(services: &[ServiceRef], invoked: &BTreeSet<Stri
     ts.push_str(" * @param params - Action parameters\n");
     ts.push_str(" */\n");
     ts.push_str("export const callService = manager.getCallServiceHandler();\n\n");
+
+    if let Some(egress) = http_egress {
+        ts.push_str(&generate_http_call(egress));
+    }
 
     // Also export the service names for type safety
     ts.push_str("/** Services declared in this schema */\n");
@@ -121,6 +140,53 @@ pub fn generate_service_host() -> String {
     ts.push_str("    controller.abort();\n");
     ts.push_str("  }\n");
     ts.push_str("}\n");
+    ts
+}
+
+/// `httpCall`: the generated app's one entry to the `http` effect. The request itself (query and
+/// body encoding, auth headers, origin check, egress check) is `@almadar/kernel`'s
+/// `buildHttpRequest`; this function only resolves credentials, refuses non-public addresses,
+/// sends the built request and shapes the reply.
+fn generate_http_call(egress: &[String]) -> String {
+    let mut ts = String::new();
+    ts.push_str("/** Origins the program's `http` effects may reach (the schema's `egress`) */\n");
+    ts.push_str("export const httpEgress: readonly string[] = [\n");
+    for origin in egress {
+        ts.push_str(&format!("  '{}',\n", origin));
+    }
+    ts.push_str("];\n\n");
+    ts.push_str("export type HttpCallInput = Parameters<typeof buildHttpRequest>[0];\n");
+    ts.push_str("export type HttpFailureKind = 'timeout' | 'failed' | 'refused';\n\n");
+    ts.push_str("export class HttpCallError extends Error {\n");
+    ts.push_str("  constructor(message: string, readonly kind: HttpFailureKind) {\n");
+    ts.push_str("    super(message);\n");
+    ts.push_str("  }\n");
+    ts.push_str("}\n\n");
+    ts.push_str("export async function httpCall(\n");
+    ts.push_str("  call: HttpCallInput,\n");
+    ts.push_str("  options: { signal?: AbortSignal },\n");
+    ts.push_str("): Promise<HttpReplyPayload> {\n");
+    ts.push_str("  const built = buildHttpRequest(call, (name) => resolveCredentialRef(name), httpEgress);\n");
+    ts.push_str("  const host = new URL(built.url).hostname;\n");
+    ts.push_str("  const address = await lookup(host);\n");
+    ts.push_str("  if (!httpEgress.includes(new URL(built.url).origin) || !isPublicAddress(address.address)) {\n");
+    ts.push_str("    throw new HttpCallError(`address of ${host} is not public`, 'refused');\n");
+    ts.push_str("  }\n");
+    ts.push_str("  const signals = [options.signal, built.timeoutMs === undefined ? undefined : AbortSignal.timeout(built.timeoutMs)];\n");
+    ts.push_str("  const response = await fetch(built.url, {\n");
+    ts.push_str("    method: built.method,\n");
+    ts.push_str("    headers: built.headers,\n");
+    ts.push_str("    body: built.body,\n");
+    ts.push_str("    signal: AbortSignal.any(signals.filter((s) => s !== undefined)),\n");
+    ts.push_str("  }).catch((error: Error) => {\n");
+    ts.push_str("    throw new HttpCallError(error.message, error.name === 'TimeoutError' ? 'timeout' : 'failed');\n");
+    ts.push_str("  });\n");
+    ts.push_str("  return {\n");
+    ts.push_str("    status: response.status,\n");
+    ts.push_str("    headers: Object.fromEntries([...response.headers].map(([k, v]) => [k.toLowerCase(), v])),\n");
+    ts.push_str("    body: built.responseAs === 'bytes' ? Buffer.from(await response.arrayBuffer()).toString('base64') : await response.text(),\n");
+    ts.push_str("  };\n");
+    ts.push_str("}\n\n");
     ts
 }
 
@@ -295,7 +361,7 @@ mod tests {
     #[test]
     fn test_generate_service_clients_uses_integration_manager() {
         let services = vec![ServiceRef::Inline(create_test_rest_service())];
-        let ts = generate_service_clients(&services, &BTreeSet::new());
+        let ts = generate_service_clients(&services, &BTreeSet::new(), None);
 
         assert!(ts.contains("RuntimeIntegrationManager"));
         assert!(ts.contains("@almadar/integrations/runtime"));
@@ -305,9 +371,34 @@ mod tests {
     }
 
     #[test]
+    fn http_support_is_absent_unless_the_program_runs_http() {
+        let ts = generate_service_clients(&[], &BTreeSet::new(), None);
+        assert!(!ts.contains("httpCall"), "{ts}");
+        assert!(!ts.contains("@almadar/kernel"), "{ts}");
+    }
+
+    #[test]
+    fn http_call_is_exported_with_the_schema_egress_and_delegates_to_the_kernel() {
+        let egress = vec!["https://api.iconify.design".to_string(), "https://api.example.com:8443".to_string()];
+        let ts = generate_service_clients(&[], &BTreeSet::new(), Some(&egress));
+        assert!(ts.contains("export async function httpCall("), "{ts}");
+        assert!(ts.contains("export class HttpCallError extends Error"), "{ts}");
+        assert!(ts.contains("  'https://api.iconify.design',\n  'https://api.example.com:8443',\n];"), "{ts}");
+        assert!(ts.contains("import { buildHttpRequest, isPublicAddress } from '@almadar/kernel';"), "{ts}");
+        assert!(ts.contains("buildHttpRequest(call, (name) => resolveCredentialRef(name), httpEgress)"), "{ts}");
+        assert!(ts.contains("callService = manager.getCallServiceHandler()"), "{ts}");
+    }
+
+    #[test]
+    fn edge_empty_egress_still_exports_an_empty_allow_list() {
+        let ts = generate_service_clients(&[], &BTreeSet::new(), Some(&[]));
+        assert!(ts.contains("export const httpEgress: readonly string[] = [\n];"), "{ts}");
+    }
+
+    #[test]
     fn test_declared_services_lists_all_services() {
         let services = vec![ServiceRef::Inline(create_test_rest_service())];
-        let ts = generate_service_clients(&services, &BTreeSet::new());
+        let ts = generate_service_clients(&services, &BTreeSet::new(), None);
 
         assert!(ts.contains("declaredServices"));
         assert!(ts.contains("'openweather'"));
@@ -318,7 +409,7 @@ mod tests {
         let invoked: BTreeSet<String> = ["email".to_string(), "twilio".to_string()]
             .into_iter()
             .collect();
-        let ts = generate_service_clients(&[], &invoked);
+        let ts = generate_service_clients(&[], &invoked, None);
 
         assert!(ts.contains("invokedServices"));
         assert!(ts.contains("  'email',\n  'twilio',\n"));

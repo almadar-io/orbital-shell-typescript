@@ -9,11 +9,23 @@ use crate::backend::server::access_policies::policy_const_name;
 /// `entityAccess.ts` — a consumer distinguishing "denied" from "failed" reads
 /// this string, so the compiled path must produce it byte-for-byte. A test
 /// asserts the two definitions agree.
-fn access_denied_literal(op: &str, entity_type: &str) -> String {
+pub(crate) fn access_denied_literal(op: &str, entity_type: &str) -> String {
     format!(
         "\"@{} denied: the declared access policy for '{}' rejected this row\"",
         op, entity_type
     )
+}
+
+/// The entity's declared required fields as a TS array body, for a guard's ordering comparisons.
+pub(crate) fn required_field_list(node: Option<&OirEntity>) -> String {
+    node.map(|entity| {
+        entity
+            .required_fields()
+            .map(|f| format!("'{}'", f.name))
+            .collect::<Vec<_>>()
+            .join(", ")
+    })
+    .unwrap_or_default()
 }
 
 /// How the generated persist code should bind the incoming `data` expression
@@ -102,7 +114,10 @@ impl TypeScriptBackend {
             } if path.is_empty()
         );
         let frame_fields = node.map(|entity| entity.frame_fields()).unwrap_or_default();
-        let store_data_expr = if matches!(operation, OirPersistOp::Create | OirPersistOp::Update)
+        let store_data_expr = if matches!(
+            operation,
+            OirPersistOp::Create | OirPersistOp::Upsert | OirPersistOp::Update
+        )
             && !frame_fields.is_empty()
         {
             let keys = frame_fields
@@ -122,7 +137,9 @@ impl TypeScriptBackend {
         };
 
         match operation {
-            OirPersistOp::Create => {
+            OirPersistOp::Create | OirPersistOp::Upsert => {
+                let is_upsert = matches!(operation, OirPersistOp::Upsert);
+                let action_word = operation_to_string(operation);
                 // Bind `createData` per the active validation strategy. After
                 // this prelude, the rest of the persist + emit + log chain is
                 // identical for every backend.
@@ -168,12 +185,12 @@ impl TypeScriptBackend {
                     ));
                     code.push_str("        if (createData && !createAllowed) {\n");
                     code.push_str(&format!(
-                        "          effectsLog.warn('persist:access-denied', {{ action: 'create', entityType: '{}' }});\n",
-                        resolved_entity
+                        "          effectsLog.warn('persist:access-denied', {{ action: '{}', entityType: '{}' }});\n",
+                        action_word, resolved_entity
                     ));
                     code.push_str("          effectResults.push({\n");
                     code.push_str("            effect: 'persist',\n");
-                    code.push_str("            action: 'create',\n");
+                    code.push_str(&format!("            action: '{}',\n", action_word));
                     code.push_str(&format!("            entityType: '{}',\n", resolved_entity));
                     code.push_str("            success: false,\n");
                     code.push_str(&format!(
@@ -194,11 +211,96 @@ impl TypeScriptBackend {
                 // emitted directly or nested inside the required-column gate
                 // below — one block, not a duplicated copy per branch.
                 let mut success_block = String::new();
+                // One write through the shared driver (`@almadar/db/pushdown`): a create that names its id is one
+                // `writeWhere` when the store declares it, else a check that the id is free and the service's own
+                // `create`; an upsert replaces the row whole by id. A taken id is `duplicate-id` (EXEC-STEP-8).
+                let write_expr = if is_upsert {
+                    let update_policy = node
+                        .and_then(|e| e.update_policy.as_ref())
+                        .map(|_| policy_const_name(resolved_entity, "UPDATE"));
+                    format!(
+                        "await pushUpsert<{}>(getDataService(), {{ collection: '{}', data: createData, updatePolicy: {}, access: rowAccess({{ user, now, payload: payload as EventPayload | undefined }}) }})",
+                        entity_type_ref(resolved_entity),
+                        collection,
+                        update_policy.as_deref().unwrap_or("undefined")
+                    )
+                } else {
+                    format!(
+                        "await pushCreate<{}>(getDataService(), {{ collection: '{}', data: createData }})",
+                        entity_type_ref(resolved_entity),
+                        collection
+                    )
+                };
                 success_block.push_str(&format!(
-                    "          const created = createData ? await getDataService().create<{}>('{}', createData) : null;\n",
-                    entity_type_ref(resolved_entity),
-                    collection
+                    "          const __write = createData ? {} : null;\n",
+                    write_expr
                 ));
+                let duplicate_error = format!(
+                    "`Entity {} ${{createData?.id}} already exists`",
+                    resolved_entity
+                );
+                success_block.push_str("          if (__write !== null && __write.kind === 'duplicate-id') {\n");
+                success_block.push_str(&format!(
+                    "            effectsLog.warn('persist:duplicate-id', {{ action: '{}', entityType: '{}', resultId: createData?.id }});\n",
+                    action_word, resolved_entity
+                ));
+                success_block.push_str("            effectResults.push({\n");
+                success_block.push_str("              effect: 'persist',\n");
+                success_block.push_str(&format!("              action: '{}',\n", action_word));
+                success_block.push_str(&format!("              entityType: '{}',\n", resolved_entity));
+                success_block.push_str("              success: false,\n");
+                success_block.push_str(&format!("              error: {},\n", duplicate_error));
+                success_block.push_str("              code: 'duplicate-id',\n");
+                success_block.push_str("            });\n");
+                success_block.push_str(&self.emit_failure_js_impl(
+                    emit,
+                    &duplicate_error,
+                    ", code: 'duplicate-id'",
+                    "            ",
+                ));
+                if is_upsert {
+                    let no_key_error = format!("'persist upsert {} resolved no row key'", resolved_entity);
+                    success_block.push_str("          } else if (__write !== null && __write.kind === 'no-row-key') {\n");
+                    success_block.push_str("            effectResults.push({\n");
+                    success_block.push_str("              effect: 'persist',\n");
+                    success_block.push_str("              action: 'upsert',\n");
+                    success_block.push_str(&format!("              entityType: '{}',\n", resolved_entity));
+                    success_block.push_str("              success: false,\n");
+                    success_block.push_str(&format!("              error: {},\n", no_key_error));
+                    success_block.push_str("              code: 'no-row-key',\n");
+                    success_block.push_str("            });\n");
+                    success_block.push_str(&self.emit_failure_js_impl(
+                        emit,
+                        &no_key_error,
+                        ", code: 'no-row-key'",
+                        "            ",
+                    ));
+                    success_block.push_str("          } else if (__write !== null && __write.kind === 'denied') {\n");
+                    success_block.push_str(&format!(
+                        "            effectsLog.warn('persist:access-denied', {{ action: 'update', entityType: '{}', resultId: createData?.id }});\n",
+                        resolved_entity
+                    ));
+                    success_block.push_str("            effectResults.push({\n");
+                    success_block.push_str("              effect: 'persist',\n");
+                    success_block.push_str("              action: 'upsert',\n");
+                    success_block.push_str(&format!("              entityType: '{}',\n", resolved_entity));
+                    success_block.push_str("              success: false,\n");
+                    success_block.push_str(&format!(
+                        "              error: {},\n",
+                        access_denied_literal("update", resolved_entity)
+                    ));
+                    success_block.push_str("            });\n");
+                    success_block.push_str(&self.emit_failure_js_impl(
+                        emit,
+                        &access_denied_literal("update", resolved_entity),
+                        "",
+                        "            ",
+                    ));
+                }
+                success_block.push_str("          } else {\n");
+                success_block.push_str(
+                    "          const created = __write !== null && __write.kind === 'ok' ? __write.row : null;\n",
+                );
                 // The store assigns the real id on create. When this create's
                 // data source is the bare `@entity` binding (the local
                 // `entity` var the handler header resolved/seeded), write the
@@ -216,12 +318,12 @@ impl TypeScriptBackend {
                 // assignable to LogMeta without a Record-string-unknown
                 // cast.
                 success_block.push_str(&format!(
-                    "          effectsLog.debug('persist:store-mutate', {{ action: 'create', entityType: '{}', resultId: created?.id, success: !!created }});\n",
-                    resolved_entity
+                    "          effectsLog.debug('persist:store-mutate', {{ action: '{}', entityType: '{}', resultId: created?.id, success: !!created }});\n",
+                    action_word, resolved_entity
                 ));
                 success_block.push_str("          effectResults.push({\n");
                 success_block.push_str("            effect: 'persist',\n");
-                success_block.push_str("            action: 'create',\n");
+                success_block.push_str(&format!("            action: '{}',\n", action_word));
                 success_block
                     .push_str(&format!("            entityType: '{}',\n", resolved_entity));
                 success_block.push_str("            success: !!created,\n");
@@ -234,6 +336,7 @@ impl TypeScriptBackend {
                     "          ",
                     Some(resolved_entity),
                 ));
+                success_block.push_str("          }\n");
 
                 // A `persist create` whose data is missing a declared REQUIRED
                 // column (schema-level definition: `OirEntity::
@@ -263,8 +366,8 @@ impl TypeScriptBackend {
                         "        const __missingRequired = createData ? __requiredFields.filter((k) => { const v = (createData as Record<string, FieldValue | undefined>)[k]; return v === undefined || v === null || v === ''; }) : [];\n",
                     );
                     let missing_error_expr = format!(
-                        "`persist create {}: required field(s) ${{__missingRequired.join(', ')}} missing`",
-                        resolved_entity
+                        "`persist {} {}: required field(s) ${{__missingRequired.join(', ')}} missing`",
+                        action_word, resolved_entity
                     );
                     code.push_str("        if (createData && __missingRequired.length > 0) {\n");
                     code.push_str(&format!(
@@ -273,7 +376,7 @@ impl TypeScriptBackend {
                     ));
                     code.push_str("          effectResults.push({\n");
                     code.push_str("            effect: 'persist',\n");
-                    code.push_str("            action: 'create',\n");
+                    code.push_str(&format!("            action: '{}',\n", action_word));
                     code.push_str(&format!("            entityType: '{}',\n", resolved_entity));
                     code.push_str("            success: false,\n");
                     code.push_str(&format!("            error: {},\n", missing_error_expr));
@@ -363,24 +466,21 @@ impl TypeScriptBackend {
                     resolved_entity, id_access_expr
                 ));
                 code.push_str("        if (updateId) {\n");
-                // `@update` is checked against the EXISTING row, read fresh — what the
-                // caller may touch is decided by the stored row, not by the patch
-                // they sent. The extra read is emitted ONLY when the directive
-                // exists, so unpoliced entities keep their single round-trip.
-                if let Some(policy) = node
+                // One guarded write (`pushUpdate`): the store tests `@update` against the stored row and
+                // writes in one step when it declares `writeWhere`; otherwise the helper reads the row, checks
+                // `@update` against it and updates. A miss is `not-found`, a policy refusal `denied`.
+                let update_policy = node
                     .and_then(|e| e.update_policy.as_ref())
-                    .map(|_| policy_const_name(resolved_entity, "UPDATE"))
-                {
-                    code.push_str(&format!(
-                        "          const __existingUpdate = await getDataService().getById<{}>('{}', updateId as string);\n",
-                        entity_type_ref(resolved_entity),
-                        collection
-                    ));
-                    code.push_str(&format!(
-                        "          const updateAllowed = !!__existingUpdate && checkMutationAccess(__existingUpdate, {}, {{ user, now }});\n",
-                        policy
-                    ));
-                    code.push_str(&format!("          if (!updateAllowed) {{\n"));
+                    .map(|_| policy_const_name(resolved_entity, "UPDATE"));
+                code.push_str(&format!(
+                    "          const __updWrite = await pushUpdate<{}>(getDataService(), {{ collection: '{}', id: updateId, data: updateData ?? {{}}, policy: {}, requiredFields: [{}], access: rowAccess({{ user, now, payload: payload as EventPayload | undefined }}) }});\n",
+                    entity_type_ref(resolved_entity),
+                    collection,
+                    update_policy.as_deref().unwrap_or("undefined"),
+                    required_field_list(node)
+                ));
+                if update_policy.is_some() {
+                    code.push_str("          if (__updWrite.kind === 'denied') {\n");
                     code.push_str(&format!(
                         "            effectsLog.warn('persist:access-denied', {{ action: 'update', entityType: '{}', resolvedId: updateId }});\n",
                         resolved_entity
@@ -406,11 +506,9 @@ impl TypeScriptBackend {
                     ));
                     code.push_str("          } else {\n");
                 }
-                code.push_str(&format!(
-                    "          const updated = await getDataService().update<{}>('{}', updateId, updateData ?? {{}});\n",
-                    entity_type_ref(resolved_entity),
-                    collection
-                ));
+                code.push_str(
+                    "          const updated = __updWrite.kind === 'ok' ? __updWrite.row : null;\n",
+                );
                 // `updated` is `null` when the store's own lookup missed —
                 // the row resolved an id but that id names no existing
                 // record. Reporting `success:true`/`data:null` here told the
@@ -523,24 +621,19 @@ impl TypeScriptBackend {
                     resolved_entity
                 ));
                 code.push_str("        if (deleteId) {\n");
-                // `@delete` is checked against the EXISTING row, read fresh — what the
-                // caller may touch is decided by the stored row, not by the patch
-                // they sent. The extra read is emitted ONLY when the directive
-                // exists, so unpoliced entities keep their single round-trip.
-                if let Some(policy) = node
+                // One guarded write (`pushDelete`), as the update above.
+                let delete_policy = node
                     .and_then(|e| e.delete_policy.as_ref())
-                    .map(|_| policy_const_name(resolved_entity, "DELETE"))
-                {
-                    code.push_str(&format!(
-                        "          const __existingDelete = await getDataService().getById<{}>('{}', deleteId as string);\n",
-                        entity_type_ref(resolved_entity),
-                        collection
-                    ));
-                    code.push_str(&format!(
-                        "          const deleteAllowed = !!__existingDelete && checkMutationAccess(__existingDelete, {}, {{ user, now }});\n",
-                        policy
-                    ));
-                    code.push_str(&format!("          if (!deleteAllowed) {{\n"));
+                    .map(|_| policy_const_name(resolved_entity, "DELETE"));
+                code.push_str(&format!(
+                    "          const __delWrite = await pushDelete<{}>(getDataService(), {{ collection: '{}', id: deleteId, data: {{}}, policy: {}, requiredFields: [{}], access: rowAccess({{ user, now, payload: payload as EventPayload | undefined }}) }});\n",
+                    entity_type_ref(resolved_entity),
+                    collection,
+                    delete_policy.as_deref().unwrap_or("undefined"),
+                    required_field_list(node)
+                ));
+                if delete_policy.is_some() {
+                    code.push_str("          if (__delWrite.kind === 'denied') {\n");
                     code.push_str(&format!(
                         "            effectsLog.warn('persist:access-denied', {{ action: 'delete', entityType: '{}', resolvedId: deleteId }});\n",
                         resolved_entity
@@ -566,10 +659,7 @@ impl TypeScriptBackend {
                     ));
                     code.push_str("          } else {\n");
                 }
-                code.push_str(&format!(
-                    "          const deleted = await getDataService().delete('{}', deleteId as string);\n",
-                    collection
-                ));
+                code.push_str("          const deleted = __delWrite.kind === 'deleted';\n");
                 // `deleted` is `false` when the store's own lookup missed —
                 // the resolved id names no existing record. Reporting
                 // `success:true`/`{ deleted: true }` here told the caller a

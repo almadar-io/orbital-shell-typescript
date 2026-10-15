@@ -896,7 +896,11 @@ impl TypeScriptBackend {
             let invoked_services = crate::codegen::collect_invoked_services(module);
             files.push(InternalFile::new(
                 "packages/server/src/services/clients.ts",
-                generate_service_clients(&module.services, &invoked_services),
+                generate_service_clients(
+                    &module.services,
+                    &invoked_services,
+                    crate::codegen::handler_header::module_has_http_effects(module).then_some(module.egress.as_slice()),
+                ),
                 GeneratedFileType::Config,
             ));
             // Where the orbital-events route lends the running app to service

@@ -38,6 +38,25 @@ impl TypeScriptBackend {
                 code.push_str(&format!("      // Fetch {} entities\n", resolved_entity));
                 code.push_str("      {\n");
 
+                // A collection fetch the store may answer with one `queryPage`. The
+                // legacy list+filter+sort+slice path stays as the `else` branch.
+                let pushdown = self.emit_fetch_pushdown_prelude(
+                    resolved_entity,
+                    &collection,
+                    entity_node,
+                    id,
+                    filter,
+                    order_by,
+                    offset.as_ref(),
+                    limit.as_ref(),
+                    linked_entity.is_some(),
+                    true,
+                );
+                let pushed = pushdown.is_some();
+                if let Some(prelude) = pushdown {
+                    code.push_str(&prelude);
+                }
+
                 // Shared id-load / list+filter prelude (see emit_entity_load_block).
                 // Filtering/sorting beyond `filter` is handled by the explicit
                 // order_by/offset/limit arguments below.
@@ -50,6 +69,11 @@ impl TypeScriptBackend {
                     linked_entity.is_some(),
                 ));
 
+                // No order_by: the default order, `createdAt` ascending then `id` (EXEC-FETCH-1).
+                if order_by.is_none() && id.is_none() {
+                    code.push_str(&Self::emit_default_order(resolved_entity));
+                }
+
                 // Apply order_by if present
                 // Supports: static "field:dir" strings, or dynamic s-expressions
                 if let Some(sort_expr) = order_by {
@@ -58,11 +82,15 @@ impl TypeScriptBackend {
 
                     // Check if it's a static string literal (e.g., 'name:asc')
                     // If so, we can split at compile time for a cleaner sort
-                    let is_static = matches!(sort_expr, OirExpr::String { .. });
+                    let static_spec = match sort_expr {
+                        OirExpr::String { value } => Some(value.as_str()),
+                        _ => None,
+                    };
+                    let is_static = static_spec.is_some();
 
                     if is_static {
                         // Static: e.g., OirExpr::String("name:asc") → sort_ts = "'name:asc'"
-                        let raw = sort_ts.trim_matches('\'');
+                        let raw = static_spec.unwrap_or_default();
                         let parts: Vec<&str> = raw.split(':').collect();
                         let sort_field = parts[0];
                         let asc = parts.get(1).copied() != Some("desc");
@@ -120,8 +148,9 @@ impl TypeScriptBackend {
                 code.push_str(&format!(
                     // `data['<entity>']: EntityRow[]` — `.length` is typed
                     // off the array directly; no `as unknown[]` cast.
-                    "          const __totalCount_{0} = data['{0}'].length;\n",
-                    resolved_entity
+                    "          {1}__totalCount_{0} = data['{0}'].length;\n",
+                    resolved_entity,
+                    if pushed { "" } else { "const " }
                 ));
 
                 code.push_str(&self.emit_page_slice(
@@ -129,6 +158,9 @@ impl TypeScriptBackend {
                     limit.as_ref(),
                     resolved_entity,
                 ));
+                if pushed {
+                    code.push_str("        }\n");
+                }
 
                 // Populate relation fields if include is specified.
                 // Cycle-safe (shallow clone + self-ref neutralize) via the shared
@@ -194,6 +226,25 @@ impl TypeScriptBackend {
                 ));
                 code.push_str("      {\n");
 
+                // A ref's own load is pushed like a fetch's (its filter and limit, plus `@read`);
+                // it declares no order, so none is sent.
+                let pushdown = self.emit_fetch_pushdown_prelude(
+                    resolved_entity,
+                    &collection,
+                    entity_node,
+                    id,
+                    filter,
+                    &None,
+                    None,
+                    limit.as_ref(),
+                    linked_entity.is_some(),
+                    false,
+                );
+                let pushed = pushdown.is_some();
+                if let Some(prelude) = pushdown {
+                    code.push_str(&prelude);
+                }
+
                 // Same id-load / list+filter prelude as fetch.
                 code.push_str(&self.emit_entity_load_block(
                     resolved_entity,
@@ -204,7 +255,13 @@ impl TypeScriptBackend {
                     linked_entity.is_some(),
                 ));
 
+                if id.is_none() {
+                    code.push_str(&Self::emit_default_order(resolved_entity));
+                }
                 code.push_str(&self.emit_page_slice(None, limit.as_ref(), resolved_entity));
+                if pushed {
+                    code.push_str("        }\n");
+                }
 
                 if let Some(includes) = include {
                     if !includes.is_empty() {
@@ -583,6 +640,98 @@ impl TypeScriptBackend {
                     emit,
                     "err instanceof Error ? err.message : String(err)",
                     "",
+                    failure_indent,
+                ));
+                if key_expr.is_some() {
+                    code.push_str("        }\n");
+                    code.push_str("      } finally {\n");
+                    code.push_str("        endKeyedCall(__callKey, __callCtl);\n");
+                    code.push_str("      }\n");
+                    code.push_str("      }\n\n");
+                } else {
+                    code.push_str("      }\n\n");
+                }
+            }
+
+            OirEffect::Http {
+                method,
+                origin,
+                path,
+                request,
+                key,
+                emit,
+            } => {
+                let verb = format!("{:?}", method).to_uppercase();
+                let origin_expr = self.expr_to_ts_server(origin);
+                let path_expr = self.expr_to_ts_server(path);
+                let request_expr = request
+                    .as_ref()
+                    .map(|r| self.expr_to_ts_server(r))
+                    .unwrap_or_else(|| "{}".to_string());
+                let key_expr = key.as_ref().map(|k| self.expr_to_ts_server(k));
+                code.push_str(&format!("      // Http {}\n", verb));
+                if let Some(k) = &key_expr {
+                    code.push_str("      {\n");
+                    code.push_str(&format!("      const __callKey = String({});\n", k));
+                    code.push_str("      const __callCtl = beginKeyedCall(__callKey);\n");
+                }
+                code.push_str("      try {\n");
+                let mut options: Vec<String> = Vec::new();
+                if key_expr.is_some() {
+                    options.push("signal: __callCtl.signal".to_string());
+                }
+                if let Some(on_message) = emit.as_ref().and_then(|e| e.on_message.as_ref()) {
+                    options.push(format!(
+                        "onMessage: (__message) => pushToOrigin(clientId, {{ type: 'bus', event: '{}', payload: __message, source: __ORBITAL_SOURCE, timestamp: Date.now(), target: 'origin' }})",
+                        on_message
+                    ));
+                }
+                code.push_str(&format!(
+                    "        const httpResult = await httpCall({{ method: '{}', origin: {}, path: {}, request: {} }}, {{ {} }});\n",
+                    verb,
+                    origin_expr,
+                    path_expr,
+                    request_expr,
+                    options.join(", ")
+                ));
+                if key_expr.is_some() {
+                    code.push_str(
+                        "        if (__callCtl.signal.aborted) { throw new Error('call cancelled'); }\n",
+                    );
+                }
+                code.push_str("        effectResults.push({\n");
+                code.push_str("          effect: 'http',\n");
+                code.push_str("          success: true,\n");
+                code.push_str("          data: httpResult as EventPayloadValue,\n");
+                code.push_str("        });\n");
+                code.push_str(&self.emit_success_js(emit, "success", "httpResult", "        "));
+                code.push_str("      } catch (err) {\n");
+                let failure_indent = if key_expr.is_some() {
+                    code.push_str("        if (__callCtl.signal.aborted) {\n");
+                    let cancelled = self.emit_cancelled_js(emit, "          ");
+                    if cancelled.is_empty() {
+                        code.push_str(
+                            "          // aborted by cancel-call; no emit.cancelled declared\n",
+                        );
+                    } else {
+                        code.push_str(&cancelled);
+                    }
+                    code.push_str("        } else {\n");
+                    "          "
+                } else {
+                    "        "
+                };
+                code.push_str(&format!("{failure_indent}effectResults.push({{\n"));
+                code.push_str(&format!("{failure_indent}  effect: 'http',\n"));
+                code.push_str(&format!("{failure_indent}  success: false,\n"));
+                code.push_str(&format!(
+                    "{failure_indent}  error: err instanceof Error ? err.message : String(err),\n"
+                ));
+                code.push_str(&format!("{failure_indent}}});\n"));
+                code.push_str(&self.emit_failure_js_impl(
+                    emit,
+                    "err instanceof Error ? err.message : String(err)",
+                    ", kind: err instanceof HttpCallError ? err.kind : 'failed'",
                     failure_indent,
                 ));
                 if key_expr.is_some() {

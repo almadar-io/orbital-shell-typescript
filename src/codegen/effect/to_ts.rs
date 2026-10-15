@@ -69,6 +69,7 @@ impl TypeScriptBackend {
             } => {
                 let op = match operation {
                     OirPersistOp::Create => "create",
+                    OirPersistOp::Upsert => "upsert",
                     OirPersistOp::Read => "read",
                     OirPersistOp::Update => "update",
                     OirPersistOp::Delete => "delete",
@@ -149,6 +150,24 @@ impl TypeScriptBackend {
                     service,
                     method,
                     self.expr_to_ts(args)
+                )
+            }
+            OirEffect::Http {
+                method,
+                origin,
+                path,
+                request,
+                ..
+            } => {
+                format!(
+                    "{{ type: 'http', method: '{}', origin: {}, path: {}, request: {} }}",
+                    format!("{:?}", method).to_uppercase(),
+                    self.expr_to_ts(origin),
+                    self.expr_to_ts(path),
+                    request
+                        .as_ref()
+                        .map(|r| self.expr_to_ts(r))
+                        .unwrap_or_else(|| "{}".to_string())
                 )
             }
             OirEffect::CancelCall { key } => {

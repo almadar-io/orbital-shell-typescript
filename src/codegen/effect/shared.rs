@@ -627,6 +627,79 @@ impl TypeScriptBackend {
         (resolved_name, collection, entity)
     }
 
+    /// The push-down head of a collection `fetch`: one `pushFetch` (a `queryPage` when the data service's store
+    /// declares it), then `if (pushed) { take the page } else {` — the caller emits the legacy list+filter path and
+    /// closes the `else`. `None` (the legacy path alone, byte-identical) when the fetch is by id, the entity is
+    /// unknown, or the filter reads the issuing trait's frame or has no S-expression form.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_fetch_pushdown_prelude(
+        &self,
+        resolved_entity: &str,
+        collection: &str,
+        entity_node: Option<&OirEntity>,
+        id: &Option<OirExpr>,
+        filter: &Option<OirExpr>,
+        order_by: &Option<OirExpr>,
+        offset: Option<&OirExpr>,
+        limit: Option<&OirExpr>,
+        has_issuer_entity: bool,
+        with_total: bool,
+    ) -> Option<String> {
+        if id.is_some() {
+            return None;
+        }
+        let entity = entity_node?;
+        let filter_literal = match filter {
+            None => "undefined".to_string(),
+            Some(expr) => {
+                if has_issuer_entity && rewrite_filter_issuer_frame_refs(expr).1 {
+                    return None;
+                }
+                let sexpr = expr.to_sexpression()?;
+                serde_json::to_string(&sexpr.to_canonical_json()).ok()?
+            }
+        };
+        let read_policy = entity
+            .read_policy
+            .as_ref()
+            .map_or_else(|| "undefined".to_string(), |_| policy_const_name(resolved_entity, "READ"));
+        let order_ts = order_by.as_ref().map_or_else(
+            || "undefined".to_string(),
+            |expr| format!("String({})", self.compile_guard_to_ts(expr)),
+        );
+        let number_ts = |expr: Option<&OirExpr>| {
+            expr.map_or_else(|| "0".to_string(), |e| format!("Number({})", self.compile_guard_to_ts(e)))
+        };
+        let required = entity
+            .required_fields()
+            .map(|f| format!("'{}'", f.name))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let mut code = String::new();
+        code.push_str(&format!(
+            "        const __pushed_{e} = await pushFetch(getDataService(), {{ entityType: '{collection}', readPolicy: {read_policy}, filter: {filter_literal}, orderBy: {order_ts}, offset: {off}, limit: {lim}, requiredFields: [{required}], access: rowAccess({{ user, now, payload: payload as EventPayload | undefined }}) }});\n",
+            e = resolved_entity,
+            off = number_ts(offset),
+            lim = number_ts(limit),
+        ));
+        if with_total {
+            code.push_str(&format!("        let __totalCount_{}: number;\n", resolved_entity));
+        }
+        code.push_str(&format!("        if (__pushed_{} !== null) {{\n", resolved_entity));
+        code.push_str(&format!("          data['{e}'] = __pushed_{e}.rows;\n", e = resolved_entity));
+        if with_total {
+            code.push_str(&format!("          __totalCount_{e} = __pushed_{e}.total;\n", e = resolved_entity));
+        }
+        code.push_str("        } else {\n");
+        Some(code)
+    }
+
+    /// The sort of a fetch/ref with no `order_by` (EXEC-FETCH-1): `@almadar/core`'s `orderRows` with no order, the one
+    /// owner of "`createdAt` ascending, a row without one last, ties by `id`".
+    pub(crate) fn emit_default_order(entity: &str) -> String {
+        format!("          data['{entity}'] = orderRows(data['{entity}'], undefined);\n")
+    }
+
     /// Emit the shared entity-loading prelude for `fetch`/`ref`: a `getById`
     /// single-row load when `id` is present, otherwise a `list` followed by an
     /// optional client-side `filter`. Result lands in `data['<entity>']`.

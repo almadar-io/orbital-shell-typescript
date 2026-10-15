@@ -166,6 +166,9 @@ impl ShellProgram for TypeScriptProgram {
             add_dependencies(&output.join("packages/server/package.json"), KERNEL_SERVER_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the server", e))?;
             add_dependencies(&output.join("packages/client/package.json"), KERNEL_CLIENT_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the client", e))?;
         }
+        if backend.host == HostMode::Generated && crate::codegen::handler_header::module_has_http_effects(&request.module) {
+            add_dependencies(&output.join("packages/server/package.json"), KERNEL_CLIENT_DEPENDENCIES).map_err(|e| failed("add @almadar/kernel to the server", e))?;
+        }
         let mut next_steps = Vec::new();
         if let Some(url) = string_option(request, BACKEND_URL)? {
             write_backend_url(output, url).map_err(|e| failed("write .env", e))?;

@@ -68,6 +68,9 @@ pub(crate) fn resolve_access_imports(code: String, entities: &[OirEntity]) -> St
     if body.contains("checkMutationAccess(") {
         helpers.push("checkMutationAccess");
     }
+    if body.contains("rowAccess(") {
+        helpers.push("rowAccess");
+    }
 
     let consts: Vec<String> = crate::backend::server::access_policies::declared_policies(entities)
         .into_iter()
@@ -75,13 +78,29 @@ pub(crate) fn resolve_access_imports(code: String, entities: &[OirEntity]) -> St
         .filter(|name| body.contains(name.as_str()))
         .collect();
 
-    if helpers.is_empty() && consts.is_empty() {
+    let pushdown: Vec<&str> = crate::backend::server::pushdown::PUSHDOWN_HELPERS
+        .iter()
+        .copied()
+        .filter(|name| body.contains(&format!("{name}(")) || body.contains(&format!("{name}<")))
+        .collect();
+
+    let orders_rows = body.contains("orderRows(");
+    if helpers.is_empty() && consts.is_empty() && pushdown.is_empty() && !orders_rows {
         return body;
     }
     let mut imports = String::new();
+    if orders_rows {
+        imports.push_str("import { orderRows } from '@almadar/core';\n");
+    }
+    if !pushdown.is_empty() {
+        imports.push_str(&format!(
+            "import {{ {} }} from '@almadar/db/pushdown';\n",
+            pushdown.join(", ")
+        ));
+    }
     if !helpers.is_empty() {
         imports.push_str(&format!(
-            "import {{ {} }} from '@almadar/runtime/entityAccess';\n",
+            "import {{ {} }} from '@almadar/evaluator/entityAccess';\n",
             helpers.join(", ")
         ));
     }
@@ -185,6 +204,18 @@ impl TypeScriptBackend {
                     }
                     OirEffect::CallService { args, key, .. } => {
                         stack.push(args);
+                        stack.extend(key);
+                    }
+                    OirEffect::Http {
+                        origin,
+                        path,
+                        request,
+                        key,
+                        ..
+                    } => {
+                        stack.push(origin);
+                        stack.push(path);
+                        stack.extend(request);
                         stack.extend(key);
                     }
                     OirEffect::CancelCall { key } => stack.push(key),
@@ -406,6 +437,12 @@ impl TypeScriptBackend {
         // Import service handler when call-service effects are used
         if has_call_service_effects {
             code.push_str("import { callService } from '../../../services/clients.js';\n");
+        }
+        if let Some(http_import) = crate::codegen::handler_header::http_call_import(
+            trait_def,
+            "../../../services/clients.js",
+        ) {
+            code.push_str(&http_import);
         }
         if let Some(host_import) = crate::codegen::handler_header::service_host_import(
             trait_def,
@@ -1302,11 +1339,33 @@ impl TypeScriptBackend {
                 body.push_str(&format!(
                     "{indent}if (__row !== null && entityId !== undefined) {{\n"
                 ));
+                let update_policy = linked_node.and_then(|e| e.update_policy.as_ref()).map_or_else(
+                    || "undefined".to_string(),
+                    |_| crate::backend::server::access_policies::policy_const_name(linked_entity, "UPDATE"),
+                );
                 body.push_str(&format!(
-                    "{indent}  await getDataService().update<{ty}>('{coll}', entityId, omitFrameFields(entity, __FRAME_KEYS) as Partial<{ty}>);\n",
+                    "{indent}  const __autoWrite = await pushUpdate<{ty}>(getDataService(), {{ collection: '{coll}', id: entityId, data: omitFrameFields(entity, __FRAME_KEYS) as Partial<{ty}>, policy: {policy}, requiredFields: [{required}], access: rowAccess({{ user, now, payload: payload as EventPayload | undefined }}) }});\n",
                     ty = entity_ref(linked_entity),
-                    coll = collection
+                    coll = collection,
+                    policy = update_policy,
+                    required = crate::codegen::effect::persist::required_field_list(linked_node)
                 ));
+                body.push_str(&format!("{indent}  if (__autoWrite.kind === 'denied') {{\n"));
+                body.push_str(&format!(
+                    "{indent}    effectsLog.warn('persist:access-denied', {{ action: 'update', entityType: '{}', resolvedId: entityId }});\n",
+                    linked_entity
+                ));
+                body.push_str(&format!("{indent}    effectResults.push({{\n"));
+                body.push_str(&format!("{indent}      effect: 'persist',\n"));
+                body.push_str(&format!("{indent}      action: 'update',\n"));
+                body.push_str(&format!("{indent}      entityType: '{}',\n", linked_entity));
+                body.push_str(&format!("{indent}      success: false,\n"));
+                body.push_str(&format!(
+                    "{indent}      error: {},\n",
+                    crate::codegen::effect::persist::access_denied_literal("update", linked_entity)
+                ));
+                body.push_str(&format!("{indent}    }});\n"));
+                body.push_str(&format!("{indent}  }} else {{\n"));
                 body.push_str(&format!("{indent}  effectResults.push({{\n"));
                 body.push_str(&format!("{indent}    effect: 'persist',\n"));
                 body.push_str(&format!("{indent}    action: 'update',\n"));
@@ -1314,6 +1373,7 @@ impl TypeScriptBackend {
                 body.push_str(&format!("{indent}    success: true,\n"));
                 body.push_str(&format!("{indent}    data: entity,\n"));
                 body.push_str(&format!("{indent}  }});\n"));
+                body.push_str(&format!("{indent}  }}\n"));
                 body.push_str(&format!("{indent}}}\n"));
             }
         }
@@ -1324,20 +1384,70 @@ impl TypeScriptBackend {
         // so the response includes it for EntityStore.advance() on the client
         {
             // Collect entity types that have ref effects across all traits
-            let mut ref_entities: std::collections::HashSet<String> =
-                std::collections::HashSet::new();
+            // The page each ref'd entity needs re-sent: the ref's own `(filter, limit)` when its filter reads
+            // only `@user`/`@config` (anything else belongs to the issuing request, which this handler cannot
+            // evaluate) and all its refs agree; `None` otherwise, so the viewer's whole readable set is re-sent.
+            let mut ref_entities: std::collections::HashMap<String, Option<(Option<String>, u64)>> =
+                std::collections::HashMap::new();
             for t in &module.traits {
                 for tr in &t.transitions {
                     for eff_expr in &tr.effects {
                         if let OirExpr::Effect { effect: eff } = eff_expr {
-                            if let OirEffect::Ref { entity_type, .. } = eff.as_ref() {
+                            if let OirEffect::Ref {
+                                entity_type,
+                                id: ref_id,
+                                filter: ref_filter,
+                                limit: ref_limit,
+                                ..
+                            } = eff.as_ref()
+                            {
                                 let resolved = if entity_type == "@entity" {
                                     t.linked_entity.clone().unwrap_or_default()
                                 } else {
                                     entity_type.clone()
                                 };
                                 if !resolved.is_empty() {
-                                    ref_entities.insert(resolved);
+                                    let limit = match ref_limit {
+                                        None => Some(0),
+                                        Some(OirExpr::Number { value }) if *value >= 1.0 => {
+                                            Some(value.floor() as u64)
+                                        }
+                                        Some(_) => None,
+                                    };
+                                    let filter = match ref_filter {
+                                        None => Some(None),
+                                        Some(expr) => {
+                                            let own = expr.collect_bindings().iter().all(|b| {
+                                                matches!(
+                                                    b.root,
+                                                    orbital_core::ir::OirBindingRoot::User
+                                                        | orbital_core::ir::OirBindingRoot::Config
+                                                )
+                                            });
+                                            if own {
+                                                expr.to_sexpression()
+                                                    .and_then(|x| serde_json::to_string(&x.to_canonical_json()).ok())
+                                                    .map(Some)
+                                            } else {
+                                                None
+                                            }
+                                        }
+                                    };
+                                    let query = match (ref_id, limit, filter) {
+                                        (None, Some(limit), Some(filter)) => Some((filter, limit)),
+                                        _ => None,
+                                    };
+                                    ref_entities
+                                        .entry(resolved)
+                                        .and_modify(|seen| {
+                                            *seen = match (seen.take(), query.clone()) {
+                                                (Some((fa, la)), Some((fb, lb))) if fa == fb => {
+                                                    Some((fa, if la == 0 || lb == 0 { 0 } else { la.max(lb) }))
+                                                }
+                                                _ => None,
+                                            }
+                                        })
+                                        .or_insert(query);
                                 }
                             }
                         }
@@ -1378,7 +1488,7 @@ impl TypeScriptBackend {
 
             // Generate auto-fetch for mutated ref'd entity types
             for entity_type in &mutated {
-                if ref_entities.contains(entity_type) {
+                if let Some(page) = ref_entities.get(entity_type) {
                     let collection = module
                         .entities
                         .iter()
@@ -1386,14 +1496,33 @@ impl TypeScriptBackend {
                         .map(|e| &e.collection)
                         .cloned()
                         .unwrap_or_else(|| to_snake_case(entity_type));
+                    let entity_node = module.entities.iter().find(|e| e.name == *entity_type);
+                    let read_policy = entity_node
+                        .and_then(|e| e.read_policy.as_ref())
+                        .map_or_else(
+                            || "undefined".to_string(),
+                            |_| crate::backend::server::access_policies::policy_const_name(entity_type, "READ"),
+                        );
+                    let required = entity_node
+                        .map(|e| {
+                            e.required_fields()
+                                .map(|f| format!("'{}'", f.name))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        })
+                        .unwrap_or_default();
                     body.push_str(&format!(
-                        "\n{indent}// Auto-refresh ref'd entity after mutation\n"
+                        "\n{indent}// Re-send the ref'd entity after mutation: the ref's own page (or the viewer's readable rows), one queryPage when the store takes it\n"
                     ));
                     body.push_str(&format!(
-                        "{indent}data['{}'] = await getDataService().list<{}>('{}');\n",
+                        "{indent}data['{}'] = await refreshRows<{}>(getDataService(), {{ collection: '{}', readPolicy: {}, filter: {}, limit: {}, requiredFields: [{}], access: rowAccess({{ user, now, payload: payload as EventPayload | undefined }}) }});\n",
                         entity_type,
                         entity_ref(entity_type),
-                        collection
+                        collection,
+                        read_policy,
+                        page.as_ref().and_then(|(f, _)| f.clone()).unwrap_or_else(|| "undefined".to_string()),
+                        page.as_ref().map_or(0, |(_, l)| *l),
+                        required
                     ));
                 }
             }
@@ -2055,7 +2184,7 @@ mod create_entity_seed_tests {
             js
         );
         assert!(
-            js.contains("await getDataService().create<Task>('tasks', createData)"),
+            js.contains("await pushCreate<Task>(getDataService(), { collection: 'tasks', data: createData })"),
             "store write must use the same frame-stripped createData, got:\n{}",
             js
         );
@@ -2094,13 +2223,13 @@ mod create_entity_seed_tests {
         );
 
         assert!(
-            js.contains("const __existingUpdate = await getDataService().getById<Task>('tasks', updateId as string);"),
-            "must re-fetch the row fresh before checking the update policy, got:\n{}",
+            js.contains("const __updWrite = await pushUpdate<Task>(getDataService(), { collection: 'tasks', id: updateId, data: updateData ?? {}, policy: TASK_UPDATE_POLICY,"),
+            "the update policy must reach the guarded write as the stored-row guard, got:\n{}",
             js
         );
         assert!(
-            js.contains("checkMutationAccess(__existingUpdate, TASK_UPDATE_POLICY, { user, now })"),
-            "policy call site must reference the freshly fetched row, got:\n{}",
+            js.contains("if (__updWrite.kind === 'denied')"),
+            "a refused guarded write must take the denied branch, got:\n{}",
             js
         );
         assert!(
@@ -2213,7 +2342,7 @@ mod create_entity_seed_tests {
         );
         assert!(
             js.contains(
-                "await getDataService().update<Task>('tasks', entityId, omitFrameFields(entity, __FRAME_KEYS) as Partial<Task>);"
+                "await pushUpdate<Task>(getDataService(), { collection: 'tasks', id: entityId, data: omitFrameFields(entity, __FRAME_KEYS) as Partial<Task>, policy: undefined,"
             ),
             "auto-persist write must strip the entity's frame fields, got:\n{}",
             js
@@ -2337,7 +2466,7 @@ mod create_entity_seed_tests {
                 "{name} handler must evaluate the @create policy:\n{js}"
             );
             assert!(
-                js.contains("import { checkMutationAccess } from '@almadar/runtime/entityAccess';"),
+                js.contains("import { checkMutationAccess } from '@almadar/evaluator/entityAccess';"),
                 "{name} handler must import the helper it calls:\n{js}"
             );
             assert!(
@@ -2454,7 +2583,7 @@ mod create_entity_seed_tests {
 
         for (name, js) in [("Express", &express_js), ("Hono", &hono_js)] {
             assert!(
-                js.contains("const deleted = await getDataService().delete("),
+                js.contains("const __delWrite = await pushDelete<Task>(getDataService(), { collection: 'tasks', id: deleteId,"),
                 "{name} handler must capture the delete result:\n{js}"
             );
             assert!(
@@ -2607,14 +2736,14 @@ mod create_entity_seed_tests {
 
         for (name, js) in [("Express", &express_js), ("Hono", &hono_js)] {
             assert!(
-                js.contains("if (!updateAllowed)"),
+                js.contains("if (__updWrite.kind === 'denied')"),
                 "{name} handler must still gate on the update policy:\n{js}"
             );
             assert!(
                 js.contains("getServerEventBus().emit('TASK_UPDATE_FAILED'"),
                 "{name} handler must fire emit.failure when the policy denies the update:\n{js}"
             );
-            let denied_idx = js.find("if (!updateAllowed)").unwrap();
+            let denied_idx = js.find("if (__updWrite.kind === 'denied')").unwrap();
             let failure_idx = js
                 .find("getServerEventBus().emit('TASK_UPDATE_FAILED'")
                 .unwrap();

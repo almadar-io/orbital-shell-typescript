@@ -198,6 +198,7 @@ pub(crate) fn rewrite_non_local_entity_refs(
 pub(crate) fn operation_to_string(op: &OirPersistOp) -> &'static str {
     match op {
         OirPersistOp::Create => "create",
+        OirPersistOp::Upsert => "upsert",
         OirPersistOp::Read => "read",
         OirPersistOp::Update => "update",
         OirPersistOp::Delete => "delete",

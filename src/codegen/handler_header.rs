@@ -364,12 +364,46 @@ pub fn has_call_service_effects(trait_def: &OirTrait) -> bool {
     })
 }
 
-/// Whether any transition runs a `call-service` carrying a `key` (registered
-/// so `cancel-call` can abort it), at any depth.
+/// Detect whether any transition runs an `http` effect, at any depth.
+pub fn trait_has_http_effects(trait_def: &OirTrait) -> bool {
+    fn visit(e: &OirExpr) -> bool {
+        if let OirExpr::Effect { effect } = e {
+            if matches!(effect.as_ref(), OirEffect::Http { .. }) {
+                return true;
+            }
+        }
+        e.child_exprs().into_iter().any(visit)
+    }
+    trait_def
+        .transitions
+        .iter()
+        .any(|t| t.effects.iter().any(visit))
+}
+
+/// Whether any trait of the module runs an `http` effect.
+pub fn module_has_http_effects(module: &orbital_core::ir::OirModule) -> bool {
+    module.traits.iter().any(trait_has_http_effects)
+}
+
+/// The `services/clients` import line a trait's handlers need for `http`
+/// effects; `None` when the trait runs none.
+pub fn http_call_import(trait_def: &OirTrait, module_path: &str) -> Option<String> {
+    trait_has_http_effects(trait_def).then(|| {
+        format!(
+            "import {{ httpCall, HttpCallError }} from '{}';\n",
+            module_path
+        )
+    })
+}
+
+/// Whether any transition runs a `call-service` or `http` carrying a `key`
+/// (registered so `cancel-call` can abort it), at any depth.
 pub fn trait_has_keyed_call_service(trait_def: &OirTrait) -> bool {
     fn visit(e: &OirExpr) -> bool {
         if let OirExpr::Effect { effect } = e {
-            if let OirEffect::CallService { key: Some(_), .. } = effect.as_ref() {
+            if let OirEffect::CallService { key: Some(_), .. }
+            | OirEffect::Http { key: Some(_), .. } = effect.as_ref()
+            {
                 return true;
             }
         }
@@ -439,6 +473,7 @@ pub fn transitions_have_emit_effects<'a>(
                     OirEffect::Persist { emit, .. } => emit.is_some(),
                     OirEffect::PersistBatch { emit, .. } => emit.is_some(),
                     OirEffect::CallService { emit, .. } => emit.is_some(),
+                    OirEffect::Http { emit, .. } => emit.is_some(),
                     OirEffect::Ref { emit, .. } => emit.is_some(),
                     _ => false,
                 }
@@ -524,6 +559,9 @@ pub fn trait_has_call_service_message(trait_def: &OirTrait) -> bool {
     fn visit(e: &OirExpr) -> bool {
         if let OirExpr::Effect { effect } = e {
             if let OirEffect::CallService {
+                emit: Some(cfg), ..
+            }
+            | OirEffect::Http {
                 emit: Some(cfg), ..
             } = effect.as_ref()
             {
@@ -657,7 +695,7 @@ pub fn collect_entity_types_with_persist_ops(
                     };
                     if let Some(r) = resolved {
                         match operation {
-                            OirPersistOp::Create => {
+                            OirPersistOp::Create | OirPersistOp::Upsert => {
                                 create.insert(r);
                             }
                             OirPersistOp::Update => {
@@ -921,5 +959,69 @@ mod get_nested_value_decl_tests {
             GET_NESTED_VALUE_DECL.contains("if (typeof obj !== 'object') return undefined;"),
             "{GET_NESTED_VALUE_DECL}"
         );
+    }
+}
+
+#[cfg(test)]
+mod http_detection_tests {
+    use super::{http_call_import, module_has_http_effects, trait_has_call_service_message, trait_has_keyed_call_service, trait_has_emit_effects, trait_has_http_effects, service_host_import};
+    use orbital_core::ir::{OirEffect, OirEmitConfig, OirExpr, OirModule, OirTrait, OirTransition};
+    use orbital_core::runtime::http_request::HttpMethod;
+
+    fn trait_with(effect: OirEffect) -> OirTrait {
+        let mut t = OirTrait::new("Fetcher");
+        let mut tr = OirTransition::new("idle", "idle", "GO");
+        tr.effects.push(OirExpr::effect(effect));
+        t.transitions.push(tr);
+        t
+    }
+
+    fn http(key: Option<OirExpr>, emit: Option<OirEmitConfig>) -> OirEffect {
+        OirEffect::Http {
+            method: HttpMethod::Get,
+            origin: OirExpr::string("https://api.example.com"),
+            path: OirExpr::string("/x"),
+            request: None,
+            key,
+            emit,
+        }
+    }
+
+    #[test]
+    fn an_http_effect_needs_the_http_call_import_and_nothing_else_does() {
+        let t = trait_with(http(None, None));
+        assert!(trait_has_http_effects(&t));
+        let import = http_call_import(&t, "../../../services/clients.js").expect("import");
+        assert_eq!(import, "import { httpCall, HttpCallError } from '../../../services/clients.js';\n");
+        assert!(service_host_import(&t, "../../../services/host.js").is_none());
+        let other = trait_with(OirEffect::cancel_call(OirExpr::string("k")));
+        assert!(!trait_has_http_effects(&other));
+        assert!(http_call_import(&other, "x").is_none());
+    }
+
+    #[test]
+    fn a_keyed_http_registers_in_the_keyed_call_registry() {
+        let t = trait_with(http(Some(OirExpr::string("k")), None));
+        assert!(trait_has_keyed_call_service(&t));
+        assert!(service_host_import(&t, "../../../services/host.js").unwrap().contains("beginKeyedCall, endKeyedCall"));
+        assert!(!trait_has_keyed_call_service(&trait_with(http(None, None))));
+    }
+
+    #[test]
+    fn http_emit_and_on_message_are_detected() {
+        let emit = OirEmitConfig { success: Some("OK".to_string()), on_message: Some("MSG".to_string()), ..Default::default() };
+        let t = trait_with(http(None, Some(emit)));
+        assert!(trait_has_emit_effects(&t));
+        assert!(trait_has_call_service_message(&t));
+        assert!(!trait_has_emit_effects(&trait_with(http(None, None))));
+    }
+
+    #[test]
+    fn module_detection_walks_every_trait() {
+        let mut m = OirModule::new("App", "0.1.0");
+        m.traits.push(trait_with(OirEffect::cancel_call(OirExpr::string("k"))));
+        assert!(!module_has_http_effects(&m));
+        m.traits.push(trait_with(http(None, None)));
+        assert!(module_has_http_effects(&m));
     }
 }

@@ -115,7 +115,7 @@ impl TypeScriptBackend {
             } else {
                 "import { getDataService } from '@almadar/server';\n"
             });
-            code.push_str("import { applyRowAccess } from '@almadar/runtime/entityAccess';\n");
+            code.push_str("import { applyRowAccess } from '@almadar/evaluator/entityAccess';\n");
             let policies: Vec<String> = readable
                 .iter()
                 .filter(|e| e.read_policy.is_some())

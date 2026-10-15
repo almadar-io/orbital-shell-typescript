@@ -20,6 +20,10 @@ use crate::backend::TypeScriptBackend;
 const NUMBERS_OF_TS: &str = "((vs: readonly EventPayloadValue[], key: string | undefined): number[] => { const isRecord = (x: EventPayloadValue): x is Readonly<Record<string, EventPayloadValue>> => x !== null && typeof x === 'object' && !Array.isArray(x) && !(x instanceof Date); return vs.flatMap((e) => { const v = key === undefined ? e : isRecord(e) && key in e ? e[key] : undefined; return typeof v === 'number' ? [v] : typeof v === 'boolean' ? [v ? 1 : 0] : v === null ? [0] : typeof v === 'string' && v !== '' && !Number.isNaN(Number(v)) ? [Number(v)] : []; }); })";
 /// `csv/parse` — the kernel's contract (orbital-core `operators/csv.rs`): RFC 4180 records keyed by the header row; a non-string, empty or header-only text is `[]`.
 const CSV_PARSE_TS: &str = r##"((s: EventPayloadValue | undefined): Array<{ [k: string]: string }> => { if (typeof s !== 'string') return []; const recs: string[][] = []; let r: string[] = []; let f = ''; let q = false; let iq = false; const end = (): void => { if (r.length > 0 || f !== '' || q) { r.push(f); recs.push(r); r = []; f = ''; q = false; } }; for (let i = s.charCodeAt(0) === 0xfeff ? 1 : 0; i < s.length; i++) { const c = s[i]; if (iq) { if (c === '"') { if (s[i + 1] === '"') { f += '"'; i++; } else { iq = false; } } else { f += c; } } else if (c === '"' && f === '') { iq = true; q = true; } else if (c === ',') { r.push(f); f = ''; q = false; } else if (c === '\r' || c === '\n') { if (c === '\r' && s[i + 1] === '\n') i++; end(); } else { f += c; } } end(); const [h, ...rows] = recs; if (h === undefined) return []; return rows.map((cells) => { const o: { [k: string]: string } = {}; h.forEach((n, i) => { o[n] = cells[i] ?? ''; }); return o; }); })"##;
+/// `path/astar` — twin of orbital-core `operators/path.rs`: linear-scan open set, tie-break lower f, lower h, earliest insertion; `[]` when unreachable.
+const PATH_ASTAR_TS: &str = r##"((s0: EventPayloadValue | undefined, g0: EventPayloadValue | undefined, bl: EventPayloadValue | undefined, w0: EventPayloadValue | undefined, h0: EventPayloadValue | undefined, d0: EventPayloadValue | undefined): Array<{ x: number; y: number }> => { const cell = (v: EventPayloadValue | undefined): { x: number; y: number } => { const o = v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date) ? (v as { readonly [k: string]: EventPayloadValue }) : {}; return { x: Math.trunc(typeof o.x === 'number' ? o.x : 0), y: Math.trunc(typeof o.y === 'number' ? o.y : 0) }; }; const key = (c: { x: number; y: number }): string => `${c.x},${c.y}`; const blocked = new Set(Array.isArray(bl) ? bl.map((b) => key(cell(b))) : []); const start = cell(s0); const goal = cell(g0); const w = Math.trunc(Number(w0)); const h = Math.trunc(Number(h0)); const diag = d0 === true; const offs: Array<[number, number]> = [[0, -1], [1, 0], [0, 1], [-1, 0]]; if (diag) offs.push([1, -1], [1, 1], [-1, 1], [-1, -1]); const heur = (c: { x: number; y: number }): number => { const dx = Math.abs(c.x - goal.x); const dy = Math.abs(c.y - goal.y); return diag ? Math.max(dx, dy) : dx + dy; }; type N = { cell: { x: number; y: number }; g: number; h: number; f: number; order: number }; let counter = 0; const open: N[] = []; const came = new Map<string, { x: number; y: number }>(); const gs = new Map<string, number>(); const closed = new Set<string>(); const hs = heur(start); open.push({ cell: start, g: 0, h: hs, f: hs, order: counter++ }); gs.set(key(start), 0); while (open.length > 0) { let best = 0; for (let i = 1; i < open.length; i++) { const n = open[i]; const b = open[best]; if (n.f < b.f || (n.f === b.f && n.h < b.h) || (n.f === b.f && n.h === b.h && n.order < b.order)) best = i; } const cur = open[best]; open[best] = open[open.length - 1]; open.pop(); if (cur.cell.x === goal.x && cur.cell.y === goal.y) { const path = [goal]; let k = key(goal); let prev = came.get(k); while (prev !== undefined) { path.push(prev); k = key(prev); prev = came.get(k); } return path.reverse().map((c) => ({ x: c.x, y: c.y })); } closed.add(key(cur.cell)); for (const [dx, dy] of offs) { const nb = { x: cur.cell.x + dx, y: cur.cell.y + dy }; if (nb.x < 0 || nb.x >= w || nb.y < 0 || nb.y >= h) continue; const nk = key(nb); if (blocked.has(nk) || closed.has(nk)) continue; const t = cur.g + 1; const known = gs.get(nk); if (known === undefined || t < known) { came.set(nk, cur.cell); gs.set(nk, t); const hh = heur(nb); open.push({ cell: nb, g: t, h: hh, f: t + hh, order: counter++ }); } } } return []; })"##;
+/// `path/reachable` — twin of orbital-core `operators/path.rs`: BFS within `steps`, start included, sorted row-major (y, then x).
+const PATH_REACHABLE_TS: &str = r##"((s0: EventPayloadValue | undefined, st: EventPayloadValue | undefined, bl: EventPayloadValue | undefined, w0: EventPayloadValue | undefined, h0: EventPayloadValue | undefined, d0: EventPayloadValue | undefined): Array<{ x: number; y: number }> => { const cell = (v: EventPayloadValue | undefined): { x: number; y: number } => { const o = v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date) ? (v as { readonly [k: string]: EventPayloadValue }) : {}; return { x: Math.trunc(typeof o.x === 'number' ? o.x : 0), y: Math.trunc(typeof o.y === 'number' ? o.y : 0) }; }; const key = (c: { x: number; y: number }): string => `${c.x},${c.y}`; const blocked = new Set(Array.isArray(bl) ? bl.map((b) => key(cell(b))) : []); const start = cell(s0); const steps = Math.trunc(Number(st)); const w = Math.trunc(Number(w0)); const h = Math.trunc(Number(h0)); const offs: Array<[number, number]> = [[0, -1], [1, 0], [0, 1], [-1, 0]]; if (d0 === true) offs.push([1, -1], [1, 1], [-1, 1], [-1, -1]); const visited = new Set([key(start)]); const result = [start]; const frontier: Array<[{ x: number; y: number }, number]> = [[start, 0]]; for (let i = 0; i < frontier.length; i++) { const [c, dist] = frontier[i]; if (dist >= steps) continue; for (const [dx, dy] of offs) { const nb = { x: c.x + dx, y: c.y + dy }; if (nb.x < 0 || nb.x >= w || nb.y < 0 || nb.y >= h) continue; const nk = key(nb); if (blocked.has(nk) || visited.has(nk)) continue; visited.add(nk); result.push(nb); frontier.push([nb, dist + 1]); } } return result.sort((p, q) => p.y - q.y || p.x - q.x); })"##;
 /// `src ?? []` for an array operand. A source that is the literal `undefined` (a residual
 /// binding the server cannot read) is `[]` itself: `undefined ?? []` is TS2871.
 fn or_empty(src: &str) -> String {
@@ -503,6 +507,10 @@ impl TypeScriptBackend {
 
             // --- std-csv ---
             "csv/parse" => format!("{}({})", CSV_PARSE_TS, a(0)),
+
+            // --- std-path ---
+            "path/astar" => format!("{}({}, {}, {}, {}, {}, {})", PATH_ASTAR_TS, a(0), a(1), a(2), a(3), a(4), a(5)),
+            "path/reachable" => format!("{}({}, {}, {}, {}, {}, {})", PATH_REACHABLE_TS, a(0), a(1), a(2), a(3), a(4), a(5)),
 
             // --- std-str ---
             "str/len" => format!("{}.length", sr(0)),
@@ -2747,5 +2755,84 @@ mod runtime_parity_format_tests {
             "{ts}"
         );
         assert!(ts.ends_with("(fields?.draft)"), "{ts}");
+    }
+}
+
+#[cfg(test)]
+mod path_twin_tests {
+    use crate::backend::TypeScriptBackend;
+    use orbital_core::evaluator::{BindingContextBuilder, Evaluator, Value};
+    use orbital_core::schema::SExpression;
+
+    const ARGS: [&str; 6] = ["start", "goal", "blocked", "w", "h", "diag"];
+
+    fn cells(v: &serde_json::Value) -> Vec<(i64, i64)> {
+        v.as_array()
+            .expect("an array of cells")
+            .iter()
+            .map(|c| (c["x"].as_f64().unwrap() as i64, c["y"].as_f64().unwrap() as i64))
+            .collect()
+    }
+
+    fn kernel(op: &str, payload: &serde_json::Value) -> Vec<(i64, i64)> {
+        let mut call = vec![serde_json::json!(op)];
+        call.extend(ARGS.iter().map(|k| serde_json::json!(format!("@payload.{k}"))));
+        let expr: SExpression = serde_json::from_value(serde_json::Value::Array(call)).unwrap();
+        let ctx = BindingContextBuilder::new()
+            .payload(serde_json::from_value::<Value>(payload.clone()).unwrap())
+            .build();
+        let out = Evaluator::new().evaluate(&expr, &ctx).unwrap();
+        cells(&serde_json::to_value(&out).unwrap())
+    }
+
+    fn compiled(op: &str, payload: &serde_json::Value) -> Vec<(i64, i64)> {
+        let args: Vec<String> = ARGS.iter().map(|k| format!("payload.{k}")).collect();
+        let facts = vec![crate::codegen::infer::ArgFacts::default(); args.len()];
+        let call = TypeScriptBackend::new().call_to_ts_typed(op, &args, &facts, None);
+        assert!(!call.contains("UNSUPPORTED"), "{call}");
+        let script = format!("type EventPayloadValue = string | number | boolean | null | Date | readonly EventPayloadValue[] | {{ readonly [k: string]: EventPayloadValue }}; const payload: {{ readonly [k: string]: EventPayloadValue | undefined }} = {payload}; process.stdout.write(JSON.stringify({call}));");
+        let out = std::process::Command::new("node")
+            .args(["--input-type=module-typescript", "-e", &script])
+            .output()
+            .expect("node must be on PATH");
+        assert!(out.status.success(), "{script}\n{}", String::from_utf8_lossy(&out.stderr));
+        cells(&serde_json::from_slice(&out.stdout).unwrap())
+    }
+
+    fn grid(start: (i64, i64), goal: (i64, i64), blocked: &[(i64, i64)], diag: bool) -> serde_json::Value {
+        let blocked: Vec<serde_json::Value> = blocked.iter().map(|(x, y)| serde_json::json!({"x": x, "y": y})).collect();
+        serde_json::json!({
+            "start": {"x": start.0, "y": start.1},
+            "goal": {"x": goal.0, "y": goal.1},
+            "blocked": blocked,
+            "w": 6, "h": 5, "diag": diag,
+        })
+    }
+
+    #[test]
+    fn compiled_path_operators_match_the_kernel() {
+        let wall = [(2, 0), (2, 1), (2, 2), (2, 3)];
+        let boxed = [(1, 0), (0, 1), (1, 1)];
+        let cases = [
+            grid((0, 0), (5, 4), &[], false),
+            grid((0, 0), (5, 4), &[], true),
+            grid((0, 0), (4, 0), &wall, false),
+            grid((0, 0), (4, 0), &wall, true),
+            grid((0, 0), (3, 3), &boxed, false),
+            grid((1, 2), (1, 2), &[], false),
+            grid((0, 0), (9, 9), &[], false),
+        ];
+        for payload in &cases {
+            let astar = kernel("path/astar", payload);
+            assert_eq!(compiled("path/astar", payload), astar, "path/astar of {payload}");
+            let mut reach = payload.clone();
+            reach["goal"] = serde_json::json!(2);
+            assert_eq!(compiled("path/reachable", &reach), kernel("path/reachable", &reach), "path/reachable of {reach}");
+        }
+        let walled = &cases[2];
+        assert_eq!(kernel("path/astar", walled).last(), Some(&(4, 0)), "the wall is walked around");
+        assert!(kernel("path/astar", &cases[4]).is_empty(), "a boxed-in start has no path");
+        assert!(kernel("path/astar", &cases[6]).is_empty(), "an off-grid goal has no path");
+        assert_eq!(kernel("path/astar", &cases[5]), vec![(1, 2)], "start == goal is a one-cell path");
     }
 }

@@ -39,7 +39,8 @@ fn schema() -> orbital_core::OrbitalSchema {
             { "name": "Books", "entity": { "name": "Invoice", "persistence": "persistent", "collection": "invoices", "fields": [{ "name": "id", "type": "string" }] }, "traits": [], "pages": [] }
         ]
     }))
-    .expect("schema fixture")
+    .expect("schema fixture"),
+    egress: None,
 }
 
 fn fnv1a(bytes: &[u8], mut hash: u64) -> u64 {
@@ -65,8 +66,8 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         })
 }
 
-/// The digest of today's default output for `module()` and `schema()`, recorded before the kernel host existed.
-const DEFAULT_OUTPUT_DIGEST: u64 = 10_817_555_447_281_699_131;
+/// The digest of today's default output for `module()` and `schema()`, recorded when the store push-down driver moved to @almadar/db/pushdown (no emitted module).
+const DEFAULT_OUTPUT_DIGEST: u64 = 384_154_814_540_623_126;
 
 #[test]
 fn control_the_default_output_is_byte_identical_to_the_recorded_one() {

@@ -202,6 +202,12 @@ impl TypeScriptBackend {
         if has_call_service_effects {
             code.push_str("import { callService } from '../../../services/clients.js';\n");
         }
+        if let Some(http_import) = crate::codegen::handler_header::http_call_import(
+            trait_def,
+            "../../../services/clients.js",
+        ) {
+            code.push_str(&http_import);
+        }
         if let Some(host_import) = crate::codegen::handler_header::service_host_import(
             trait_def,
             "../../../services/host.js",
@@ -752,7 +758,7 @@ impl TypeScriptBackend {
                     .map(|e| e.name.clone())
                     .unwrap_or_else(|| ref_name_zod.to_string());
                 let validation = match operation {
-                    OirPersistOp::Create | OirPersistOp::Update => {
+                    OirPersistOp::Create | OirPersistOp::Upsert | OirPersistOp::Update => {
                         crate::codegen::effect::PersistDataValidation::ZodSchema {
                             entity_lower: to_camel_case(&resolved_entity_for_zod),
                         }
@@ -844,6 +850,7 @@ impl TypeScriptBackend {
         ("@almadar/auth", "^0.1.0"),
         ("@almadar/core", "^10.97.0"),
         ("@almadar/db", "^0.1.0"),
+        ("@almadar/evaluator", "^2.61.0"),
         ("@almadar/integrations", "^2.36.0"),
         ("@almadar/logger", "^1.12.0"),
         ("@almadar/runtime", "^6.83.0"),
@@ -854,7 +861,7 @@ impl TypeScriptBackend {
     ///
     /// The template's static copy declares a FIXED `@almadar/*` dependency
     /// set that drifts from what the generated handlers/routes/services/SSE
-    /// module actually import — `@almadar/runtime/entityAccess`
+    /// module actually import — `@almadar/evaluator/entityAccess`
     /// (`handlers.rs`/`sse.rs`'s `entityAccess` imports), e.g., was missing
     /// entirely, and under bun's isolated linker a missing `dependencies`
     /// entry is a BOOT failure (the package is never linked into

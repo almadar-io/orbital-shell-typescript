@@ -23,10 +23,12 @@ mod dispatch_roots_tests;
 mod now_stamp_tests;
 #[cfg(test)]
 mod visible_tick_tests;
-mod persist;
+pub(crate) mod persist;
 mod persist_batch;
 #[cfg(test)]
 mod persist_batch_tests;
+#[cfg(test)]
+mod http_tests;
 #[cfg(test)]
 mod runs_on_tests;
 mod server;

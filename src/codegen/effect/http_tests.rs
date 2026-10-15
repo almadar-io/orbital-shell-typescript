@@ -1,0 +1,120 @@
+use crate::TypeScriptBackend;
+use orbital_core::ir::{OirEffect, OirEmitConfig, OirExpr, OirFields, OirModule};
+use orbital_core::runtime::http_request::HttpMethod;
+
+fn http(method: HttpMethod, key: Option<OirExpr>, emit: Option<OirEmitConfig>) -> OirEffect {
+    let mut request = OirFields::new();
+    request.insert("timeoutMs".to_string(), OirExpr::number(6000.0));
+    OirEffect::Http {
+        method,
+        origin: OirExpr::string("https://api.iconify.design"),
+        path: OirExpr::string("/search"),
+        request: Some(OirExpr::object(request)),
+        key,
+        emit,
+    }
+}
+
+fn full_emit() -> OirEmitConfig {
+    OirEmitConfig {
+        success: Some("SEARCHED".to_string()),
+        failure: Some("SEARCH_FAILED".to_string()),
+        cancelled: Some("SEARCH_CANCELLED".to_string()),
+        ..Default::default()
+    }
+}
+
+fn server_js(effect: &OirEffect) -> String {
+    TypeScriptBackend::new().generate_server_effect_code(effect, &OirModule::new("TestApp", "0.1.0"), None)
+}
+
+#[test]
+fn http_calls_the_one_helper_with_the_method_origin_path_and_request() {
+    let js = server_js(&http(HttpMethod::Post, None, None));
+    assert!(
+        js.contains("await httpCall({ method: 'POST', origin: \"https://api.iconify.design\", path: \"/search\", request: "),
+        "{js}"
+    );
+    assert!(js.contains("effect: 'http',"), "{js}");
+    assert!(!js.contains("beginKeyedCall"), "{js}");
+    assert!(!js.contains("callService("), "{js}");
+}
+
+#[test]
+fn http_without_a_request_passes_an_empty_one() {
+    let effect = OirEffect::http(
+        HttpMethod::Get,
+        OirExpr::string("https://api.example.com"),
+        OirExpr::string("/x"),
+    );
+    assert!(server_js(&effect).contains("request: {} }"));
+}
+
+#[test]
+fn http_emits_success_and_failure_with_the_failure_kind() {
+    let js = server_js(&http(HttpMethod::Get, None, Some(full_emit())));
+    assert!(js.contains("getServerEventBus().emit('SEARCHED'"), "{js}");
+    let catch_block = &js[js.find("} catch (err) {").expect("a catch block")..];
+    assert!(
+        catch_block.contains("{ error: err instanceof Error ? err.message : String(err), kind: err instanceof HttpCallError ? err.kind : 'failed' }"),
+        "{js}"
+    );
+    assert!(catch_block.contains("emittedEvents.push({ event: 'SEARCH_FAILED'"), "{js}");
+    assert!(!js.contains("SEARCH_CANCELLED"), "an unkeyed call cannot be cancelled: {js}");
+}
+
+#[test]
+fn a_keyed_http_registers_its_controller_passes_the_signal_and_routes_cancellation() {
+    let js = server_js(&http(
+        HttpMethod::Get,
+        Some(OirExpr::string("search-1")),
+        Some(full_emit()),
+    ));
+    assert!(js.contains("const __callKey = String(\"search-1\");"), "{js}");
+    assert!(js.contains("const __callCtl = beginKeyedCall(__callKey);"), "{js}");
+    assert!(js.contains("{ signal: __callCtl.signal });"), "{js}");
+    assert!(js.contains("if (__callCtl.signal.aborted) { throw new Error('call cancelled'); }"), "{js}");
+    assert!(js.contains("emittedEvents.push({ event: 'SEARCH_CANCELLED'"), "{js}");
+    let finally_idx = js.find("} finally {").expect("finally block");
+    assert!(js.find("endKeyedCall(__callKey, __callCtl);").unwrap() > finally_idx, "{js}");
+    let aborted = js.find("if (__callCtl.signal.aborted) {\n").expect("aborted branch");
+    assert!(js[aborted..].find("SEARCH_FAILED").unwrap() > js[aborted..].find("} else {").unwrap(), "{js}");
+}
+
+#[test]
+fn http_on_message_routes_live_messages_to_the_origin_tab() {
+    let emit = OirEmitConfig {
+        success: Some("DONE".to_string()),
+        on_message: Some("CHUNK".to_string()),
+        ..Default::default()
+    };
+    let js = server_js(&http(HttpMethod::Get, None, Some(emit)));
+    assert!(
+        js.contains("{ onMessage: (__message) => pushToOrigin(clientId, { type: 'bus', event: 'CHUNK', payload: __message, source: __ORBITAL_SOURCE, timestamp: Date.now(), target: 'origin' }) });"),
+        "{js}"
+    );
+}
+
+#[test]
+fn every_method_spells_its_verb() {
+    for (method, verb) in [
+        (HttpMethod::Get, "GET"),
+        (HttpMethod::Post, "POST"),
+        (HttpMethod::Put, "PUT"),
+        (HttpMethod::Patch, "PATCH"),
+        (HttpMethod::Delete, "DELETE"),
+    ] {
+        let js = server_js(&http(method, None, None));
+        assert!(js.contains(&format!("method: '{verb}'")), "{js}");
+    }
+}
+
+#[test]
+fn control_http_is_not_a_client_effect() {
+    let js = TypeScriptBackend::new().generate_server_effect_code_hono(
+        &http(HttpMethod::Get, None, None),
+        &OirModule::new("TestApp", "0.1.0"),
+        None,
+    );
+    assert!(js.contains("httpCall("), "the hono server shares the arm: {js}");
+}

@@ -5,9 +5,10 @@
 //! block therefore routes by entity NAME through small lookup functions built from the
 //! module's entities (collection, required create columns, `@create`/`@update`/`@delete`
 //! policy consts), and runs every op through the same gates the single forms use:
-//! policy check, required-column check, store write. The first failing op stops the
-//! batch (earlier ops stay written) and routes `emit.failure` with `{ error }`; success
-//! emits `{ operations, completedCount, totalCount }`.
+//! policy check, required-column check, store write. When the store declares an atomic
+//! `writeBatch` the whole batch is one write (all or nothing); otherwise the first failing
+//! op stops the batch (earlier ops stay written). A failure routes `emit.failure` with
+//! `{ error }`; success emits `{ operations, completedCount, totalCount }`.
 
 use super::*;
 use crate::backend::server::access_policies::policy_const_name;
@@ -97,6 +98,17 @@ impl TypeScriptBackend {
         code.push_str("        } else if (__batchList.length === 0) {\n");
         code.push_str("          __batchError = 'Batch requires a non-empty operations array';\n");
         code.push_str("        } else {\n");
+        code.push_str("          const __pushedBatch = await pushBatch(getDataService(), __batchList, { collectionOf: __batchCollectionOf, requiredOf: __batchRequiredOf, policyOf: __batchPolicyOf }, rowAccess({ user, now }));\n");
+        code.push_str("          if (__pushedBatch !== null) {\n");
+        code.push_str("            if (__pushedBatch.kind === 'failed') {\n");
+        code.push_str("              __batchError = __pushedBatch.error;\n");
+        code.push_str("            } else {\n");
+        code.push_str("              for (const __row of __pushedBatch.done) {\n");
+        code.push_str("                __batchDone.push(__row);\n");
+        code.push_str("                if (typeof __row.entityType === 'string') { __batchTouched.add(__row.entityType); }\n");
+        code.push_str("              }\n");
+        code.push_str("            }\n");
+        code.push_str("          } else {\n");
         code.push_str("          for (const __op of __batchList) {\n");
         code.push_str("            if (!Array.isArray(__op)) { __batchError = `Invalid batch operation format: ${JSON.stringify(__op)}`; break; }\n");
         code.push_str("            const __action = __op[0];\n");
@@ -123,6 +135,9 @@ impl TypeScriptBackend {
         code.push_str("                if (__missing.length > 0) {\n");
         code.push_str("                  effectsLog.warn('persist:required-missing', { entityType: __entityName, missing: __missing });\n");
         code.push_str("                  throw new Error(`persist create ${__entityName}: required field(s) ${__missing.join(', ')} missing`);\n");
+        code.push_str("                }\n");
+        code.push_str("                if (typeof __data.id === 'string' && __data.id !== '' && (await getDataService().getById<EntityRow>(__collection, __data.id)) !== null) {\n");
+        code.push_str("                  throw new Error(`${__entityName} ${__data.id} already exists`);\n");
         code.push_str("                }\n");
         code.push_str("                const __created = await getDataService().create<EntityRow>(__collection, __data);\n");
         code.push_str("                __batchDone.push({ ...(__created ?? __data), action: 'create', entityType: __entityName, id: __created?.id });\n");
@@ -154,6 +169,7 @@ impl TypeScriptBackend {
         code.push_str("              __batchError = `Batch operation [${__action}, ${__entityName}] failed: ${__err instanceof Error ? __err.message : String(__err)}`;\n");
         code.push_str("              break;\n");
         code.push_str("            }\n");
+        code.push_str("          }\n");
         code.push_str("          }\n");
         code.push_str("        }\n");
 

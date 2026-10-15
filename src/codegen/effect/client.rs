@@ -269,6 +269,7 @@ impl TypeScriptBackend {
             | OirEffect::PersistBatch { .. }
             | OirEffect::Fetch { .. }
             | OirEffect::CallService { .. }
+            | OirEffect::Http { .. }
             | OirEffect::CancelCall { .. }
             | OirEffect::Swap { .. }
             | OirEffect::Atomic { .. }
