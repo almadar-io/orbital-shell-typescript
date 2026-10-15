@@ -41,13 +41,20 @@ fn http_calls_the_one_helper_with_the_method_origin_path_and_request() {
 }
 
 #[test]
+fn an_unkeyed_http_sends_a_null_key_and_a_keyed_one_its_call_key() {
+    assert!(server_js(&http(HttpMethod::Get, None, None)).contains(", key: null }, { principal: user?.id });"));
+    let keyed = server_js(&http(HttpMethod::Get, Some(OirExpr::string("k")), None));
+    assert!(keyed.contains(", key: __callKey }, { signal: __callCtl.signal, principal: user?.id });"), "{keyed}");
+}
+
+#[test]
 fn http_without_a_request_passes_an_empty_one() {
     let effect = OirEffect::http(
         HttpMethod::Get,
         OirExpr::string("https://api.example.com"),
         OirExpr::string("/x"),
     );
-    assert!(server_js(&effect).contains("request: {} }"));
+    assert!(server_js(&effect).contains("request: {}, key: null }"));
 }
 
 #[test]
@@ -56,7 +63,7 @@ fn http_emits_success_and_failure_with_the_failure_kind() {
     assert!(js.contains("getServerEventBus().emit('SEARCHED'"), "{js}");
     let catch_block = &js[js.find("} catch (err) {").expect("a catch block")..];
     assert!(
-        catch_block.contains("{ error: err instanceof Error ? err.message : String(err), kind: err instanceof HttpCallError ? err.kind : 'failed' }"),
+        catch_block.contains("{ error: err instanceof Error ? err.message : String(err), kind: err instanceof HttpCallError ? err.kind : 'failed', key: err instanceof HttpCallError ? err.key : null }"),
         "{js}"
     );
     assert!(catch_block.contains("emittedEvents.push({ event: 'SEARCH_FAILED'"), "{js}");
@@ -72,7 +79,7 @@ fn a_keyed_http_registers_its_controller_passes_the_signal_and_routes_cancellati
     ));
     assert!(js.contains("const __callKey = String(\"search-1\");"), "{js}");
     assert!(js.contains("const __callCtl = beginKeyedCall(__callKey);"), "{js}");
-    assert!(js.contains("{ signal: __callCtl.signal });"), "{js}");
+    assert!(js.contains("{ signal: __callCtl.signal, principal: user?.id });"), "{js}");
     assert!(js.contains("if (__callCtl.signal.aborted) { throw new Error('call cancelled'); }"), "{js}");
     assert!(js.contains("emittedEvents.push({ event: 'SEARCH_CANCELLED'"), "{js}");
     let finally_idx = js.find("} finally {").expect("finally block");
@@ -117,4 +124,28 @@ fn control_http_is_not_a_client_effect() {
         None,
     );
     assert!(js.contains("httpCall("), "the hono server shares the arm: {js}");
+}
+
+#[test]
+fn keyed_call_service_echoes_its_key_in_success_and_failure_and_unkeyed_does_not() {
+    let backend = TypeScriptBackend::new();
+    let module = OirModule::new("TestApp", "0.1.0");
+    let call = |key: Option<OirExpr>| OirEffect::CallService {
+        service: "llm".to_string(),
+        method: "classifyMany".to_string(),
+        args: OirExpr::object(OirFields::new()),
+        key,
+        emit: Some(full_emit()),
+    };
+    let keyed = backend.generate_server_effect_code(&call(Some(OirExpr::string("b1"))), &module, None);
+    assert!(keyed.contains("{ ...serviceResult, key: __callKey }"), "{keyed}");
+    assert!(keyed.contains("{ error: err instanceof Error ? err.message : String(err), key: __callKey }"), "{keyed}");
+    let unkeyed = backend.generate_server_effect_code(&call(None), &module, None);
+    assert!(!unkeyed.contains("key: __callKey"), "{unkeyed}");
+}
+
+#[test]
+fn control_http_does_not_merge_a_key_again() {
+    let js = server_js(&http(HttpMethod::Get, Some(OirExpr::string("k")), Some(full_emit())));
+    assert!(!js.contains("...httpResult"), "{js}");
 }

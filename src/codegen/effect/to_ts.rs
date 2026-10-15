@@ -173,6 +173,15 @@ impl TypeScriptBackend {
             OirEffect::CancelCall { key } => {
                 format!("{{ type: 'cancel-call', key: {} }}", self.expr_to_ts(key))
             }
+            OirEffect::RandomBytes { bytes, .. } => {
+                format!("{{ type: 'random-bytes', bytes: {} }}", self.expr_to_ts(bytes))
+            }
+            OirEffect::CredentialStatus { credential, .. } => {
+                format!("{{ type: 'credential-status', credential: {} }}", self.expr_to_ts(credential))
+            }
+            OirEffect::CredentialForget { credential, .. } => {
+                format!("{{ type: 'credential-forget', credential: {} }}", self.expr_to_ts(credential))
+            }
             OirEffect::Spawn { entity_type, props } => {
                 format!(
                     "{{ type: 'spawn', entityType: '{}', props: {} }}",

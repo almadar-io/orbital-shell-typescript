@@ -219,6 +219,13 @@ impl TypeScriptBackend {
                         stack.extend(key);
                     }
                     OirEffect::CancelCall { key } => stack.push(key),
+                    OirEffect::RandomBytes { bytes: expr, .. }
+                    | OirEffect::CredentialStatus {
+                        credential: expr, ..
+                    }
+                    | OirEffect::CredentialForget {
+                        credential: expr, ..
+                    } => stack.push(expr),
                     OirEffect::Spawn { props, .. } => stack.push(props),
                     OirEffect::Despawn { entity_id } => stack.push(entity_id),
                     OirEffect::Log { message, .. } => stack.push(message),

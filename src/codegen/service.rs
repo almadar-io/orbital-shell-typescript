@@ -32,10 +32,12 @@ pub fn generate_service_clients(
 
     ts.push_str("import { RuntimeIntegrationManager } from '@almadar/integrations/runtime';\n");
     if http_egress.is_some() {
-        ts.push_str("import { CredentialStore, resolveCredentialRef, type CredentialPersistence } from '@almadar/integrations';\n");
-        ts.push_str("import { lookup } from 'node:dns/promises';\n");
-        ts.push_str("import type { HttpReplyPayload } from '@almadar/core';\n");
-        ts.push_str("import { buildHttpRequest, isPublicAddress } from '@almadar/kernel';\n\n");
+        ts.push_str("import { CredentialStore, type CredentialPersistence } from '@almadar/integrations';\n");
+        ts.push_str("import { createRequire } from 'node:module';\n");
+        ts.push_str("import { dirname, join } from 'node:path';\n");
+        ts.push_str("import type { HttpFailurePayload, JsonValue, RuntimeValue } from '@almadar/core';\n");
+        ts.push_str("import { createHttpPorts, credentialForgetPayload, credentialStatusPayload, randomBytesPayload, runHttpCall, type HttpCall, type HttpRunOptions } from '@almadar/runtime/kernel';\n");
+        ts.push_str("import { loadHttpKernel } from '@almadar/runtime/kernelNode';\n\n");
     } else {
         ts.push_str("import { CredentialStore, type CredentialPersistence } from '@almadar/integrations';\n\n");
     }
@@ -143,10 +145,10 @@ pub fn generate_service_host() -> String {
     ts
 }
 
-/// `httpCall`: the generated app's one entry to the `http` effect. The request itself (query and
-/// body encoding, auth headers, origin check, egress check) is `@almadar/kernel`'s
-/// `buildHttpRequest`; this function only resolves credentials, refuses non-public addresses,
-/// sends the built request and shapes the reply.
+/// `httpCall`: the generated app's one entry to the `http` effect. `@almadar/kernel`'s step machine
+/// (`httpDriverStart`/`httpDriverResume`) owns the request, OAuth, pagination and framing; the shared
+/// transport in `@almadar/runtime/kernel` answers its asks (credential store, pinned fetch). This
+/// function only loads the kernel and turns a failed outcome into the error the call site catches.
 fn generate_http_call(egress: &[String]) -> String {
     let mut ts = String::new();
     ts.push_str("/** Origins the program's `http` effects may reach (the schema's `egress`) */\n");
@@ -155,37 +157,37 @@ fn generate_http_call(egress: &[String]) -> String {
         ts.push_str(&format!("  '{}',\n", origin));
     }
     ts.push_str("];\n\n");
-    ts.push_str("export type HttpCallInput = Parameters<typeof buildHttpRequest>[0];\n");
-    ts.push_str("export type HttpFailureKind = 'timeout' | 'failed' | 'refused';\n\n");
+    ts.push_str("const httpPorts = createHttpPorts({\n");
+    ts.push_str("  kernel: () => loadHttpKernel(join(dirname(createRequire(import.meta.url).resolve('@almadar/kernel')), '..')),\n");
+    ts.push_str("  egress: httpEgress,\n");
+    ts.push_str("});\n\n");
     ts.push_str("export class HttpCallError extends Error {\n");
-    ts.push_str("  constructor(message: string, readonly kind: HttpFailureKind) {\n");
-    ts.push_str("    super(message);\n");
+    ts.push_str("  constructor(readonly payload: HttpFailurePayload) {\n");
+    ts.push_str("    super(payload.error);\n");
+    ts.push_str("  }\n");
+    ts.push_str("  get kind(): HttpFailurePayload['kind'] {\n");
+    ts.push_str("    return this.payload.kind;\n");
+    ts.push_str("  }\n");
+    ts.push_str("  get key(): string | null {\n");
+    ts.push_str("    return this.payload.key;\n");
     ts.push_str("  }\n");
     ts.push_str("}\n\n");
-    ts.push_str("export async function httpCall(\n");
-    ts.push_str("  call: HttpCallInput,\n");
-    ts.push_str("  options: { signal?: AbortSignal },\n");
-    ts.push_str("): Promise<HttpReplyPayload> {\n");
-    ts.push_str("  const built = buildHttpRequest(call, (name) => resolveCredentialRef(name), httpEgress);\n");
-    ts.push_str("  const host = new URL(built.url).hostname;\n");
-    ts.push_str("  const address = await lookup(host);\n");
-    ts.push_str("  if (!httpEgress.includes(new URL(built.url).origin) || !isPublicAddress(address.address)) {\n");
-    ts.push_str("    throw new HttpCallError(`address of ${host} is not public`, 'refused');\n");
-    ts.push_str("  }\n");
-    ts.push_str("  const signals = [options.signal, built.timeoutMs === undefined ? undefined : AbortSignal.timeout(built.timeoutMs)];\n");
-    ts.push_str("  const response = await fetch(built.url, {\n");
-    ts.push_str("    method: built.method,\n");
-    ts.push_str("    headers: built.headers,\n");
-    ts.push_str("    body: built.body,\n");
-    ts.push_str("    signal: AbortSignal.any(signals.filter((s) => s !== undefined)),\n");
-    ts.push_str("  }).catch((error: Error) => {\n");
-    ts.push_str("    throw new HttpCallError(error.message, error.name === 'TimeoutError' ? 'timeout' : 'failed');\n");
-    ts.push_str("  });\n");
-    ts.push_str("  return {\n");
-    ts.push_str("    status: response.status,\n");
-    ts.push_str("    headers: Object.fromEntries([...response.headers].map(([k, v]) => [k.toLowerCase(), v])),\n");
-    ts.push_str("    body: built.responseAs === 'bytes' ? Buffer.from(await response.arrayBuffer()).toString('base64') : await response.text(),\n");
-    ts.push_str("  };\n");
+    ts.push_str("export async function httpCall(call: HttpCall, options: HttpRunOptions): Promise<JsonValue> {\n");
+    ts.push_str("  const outcome = await runHttpCall(httpPorts, call, options);\n");
+    ts.push_str("  if ('error' in outcome) throw new HttpCallError(outcome.error);\n");
+    ts.push_str("  return outcome.ok;\n");
+    ts.push_str("}\n\n");
+    ts.push_str("/** `random-bytes`: `{ value }` from the host CSPRNG. */\n");
+    ts.push_str("export function hostRandomBytes(bytes: RuntimeValue): { value: string } {\n");
+    ts.push_str("  return randomBytesPayload(httpPorts, bytes);\n");
+    ts.push_str("}\n\n");
+    ts.push_str("/** `credential-status`: `{ connected }` for the signed-in viewer. */\n");
+    ts.push_str("export function hostCredentialStatus(credential: RuntimeValue, principal: string | undefined): Promise<{ connected: boolean }> {\n");
+    ts.push_str("  return credentialStatusPayload(httpPorts, credential, principal);\n");
+    ts.push_str("}\n\n");
+    ts.push_str("/** `credential-forget`: drops the signed-in viewer's credential. */\n");
+    ts.push_str("export function hostCredentialForget(credential: RuntimeValue, principal: string | undefined): Promise<{ connected: false }> {\n");
+    ts.push_str("  return credentialForgetPayload(httpPorts, credential, principal);\n");
     ts.push_str("}\n\n");
     ts
 }
@@ -374,7 +376,7 @@ mod tests {
     fn http_support_is_absent_unless_the_program_runs_http() {
         let ts = generate_service_clients(&[], &BTreeSet::new(), None);
         assert!(!ts.contains("httpCall"), "{ts}");
-        assert!(!ts.contains("@almadar/kernel"), "{ts}");
+        assert!(!ts.contains("@almadar/runtime/kernel"), "{ts}");
     }
 
     #[test]
@@ -384,8 +386,13 @@ mod tests {
         assert!(ts.contains("export async function httpCall("), "{ts}");
         assert!(ts.contains("export class HttpCallError extends Error"), "{ts}");
         assert!(ts.contains("  'https://api.iconify.design',\n  'https://api.example.com:8443',\n];"), "{ts}");
-        assert!(ts.contains("import { buildHttpRequest, isPublicAddress } from '@almadar/kernel';"), "{ts}");
-        assert!(ts.contains("buildHttpRequest(call, (name) => resolveCredentialRef(name), httpEgress)"), "{ts}");
+        assert!(ts.contains("import { createHttpPorts, credentialForgetPayload, credentialStatusPayload, randomBytesPayload, runHttpCall, type HttpCall, type HttpRunOptions } from '@almadar/runtime/kernel';"), "{ts}");
+        assert!(ts.contains("export function hostRandomBytes(bytes: RuntimeValue): { value: string }"), "{ts}");
+        assert!(ts.contains("export function hostCredentialStatus("), "{ts}");
+        assert!(ts.contains("export function hostCredentialForget("), "{ts}");
+        assert!(ts.contains("await runHttpCall(httpPorts, call, options)"), "{ts}");
+        assert!(!ts.contains("fetch("), "the shared transport owns the network: {ts}");
+        assert!(!ts.contains("oauth") && !ts.contains("paginate"), "{ts}");
         assert!(ts.contains("callService = manager.getCallServiceHandler()"), "{ts}");
     }
 

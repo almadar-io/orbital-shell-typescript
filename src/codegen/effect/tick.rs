@@ -614,6 +614,34 @@ impl TypeScriptBackend {
             .map(|t| t.name.as_str())
     }
 
+    /// Seed the shared store from the entity's declared field defaults (`x: number = 0`) so
+    /// every reader sees them at frame 0 — idempotent + no-notify, from the same
+    /// `OirField.default` source the interpreter seeds from (frame-0 parity). Every hook that
+    /// reads or commits the shared entity emits it: the store keeps whichever seed or commit
+    /// lands first.
+    pub(crate) fn shared_entity_seed(entity: &OirEntity) -> String {
+        let default_pairs: Vec<String> = entity
+            .fields
+            .iter()
+            .filter_map(|f| {
+                f.default.as_ref().map(|d| {
+                    format!(
+                        "'{}': {}",
+                        f.name,
+                        crate::backend::oir_value_to_ts_literal(d)
+                    )
+                })
+            })
+            .collect();
+        if default_pairs.is_empty() {
+            return String::new();
+        }
+        format!(
+            "  _sharedStore.seed(_sharedEntityId, {{ {} }});\n",
+            default_pairs.join(", ")
+        )
+    }
+
     /// `host`: this hook runs the driver (writers + interval loop); every other
     /// rendering trait on the entity gets only the store prelude.
     pub(crate) fn generate_shared_tick_driver(
@@ -633,29 +661,7 @@ impl TypeScriptBackend {
         code.push_str("  const _sharedStore = useSharedEntityStoreContext();\n");
         code.push_str(&format!("  const _sharedEntityId = '{}';\n", entity.name));
 
-        // Seed the shared store from the entity's declared field defaults
-        // (`x: number = 0`) so the render below reads them at frame 0, before
-        // the first tick fires — idempotent + no-notify, from the same
-        // `OirField.default` source the interpreter seeds from (frame-0 parity).
-        let default_pairs: Vec<String> = entity
-            .fields
-            .iter()
-            .filter_map(|f| {
-                f.default.as_ref().map(|d| {
-                    format!(
-                        "'{}': {}",
-                        f.name,
-                        crate::backend::oir_value_to_ts_literal(d)
-                    )
-                })
-            })
-            .collect();
-        if !default_pairs.is_empty() {
-            code.push_str(&format!(
-                "  _sharedStore.seed(_sharedEntityId, {{ {} }});\n",
-                default_pairs.join(", ")
-            ));
-        }
+        code.push_str(&Self::shared_entity_seed(entity));
 
         if !host {
             return code;

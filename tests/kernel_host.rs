@@ -39,8 +39,7 @@ fn schema() -> orbital_core::OrbitalSchema {
             { "name": "Books", "entity": { "name": "Invoice", "persistence": "persistent", "collection": "invoices", "fields": [{ "name": "id", "type": "string" }] }, "traits": [], "pages": [] }
         ]
     }))
-    .expect("schema fixture"),
-    egress: None,
+    .expect("schema fixture")
 }
 
 fn fnv1a(bytes: &[u8], mut hash: u64) -> u64 {

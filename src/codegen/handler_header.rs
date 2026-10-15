@@ -364,36 +364,75 @@ pub fn has_call_service_effects(trait_def: &OirTrait) -> bool {
     })
 }
 
-/// Detect whether any transition runs an `http` effect, at any depth.
-pub fn trait_has_http_effects(trait_def: &OirTrait) -> bool {
-    fn visit(e: &OirExpr) -> bool {
+/// Whether any transition runs an effect `matches`, at any depth.
+fn trait_has_effect(trait_def: &OirTrait, matches: fn(&OirEffect) -> bool) -> bool {
+    fn visit(e: &OirExpr, matches: fn(&OirEffect) -> bool) -> bool {
         if let OirExpr::Effect { effect } = e {
-            if matches!(effect.as_ref(), OirEffect::Http { .. }) {
+            if matches(effect.as_ref()) {
                 return true;
             }
         }
-        e.child_exprs().into_iter().any(visit)
+        e.child_exprs().into_iter().any(|child| visit(child, matches))
     }
     trait_def
         .transitions
         .iter()
-        .any(|t| t.effects.iter().any(visit))
+        .any(|t| t.effects.iter().any(|e| visit(e, matches)))
 }
 
-/// Whether any trait of the module runs an `http` effect.
+fn is_http(effect: &OirEffect) -> bool {
+    matches!(effect, OirEffect::Http { .. })
+}
+
+fn is_random_bytes(effect: &OirEffect) -> bool {
+    matches!(effect, OirEffect::RandomBytes { .. })
+}
+
+fn is_credential_status(effect: &OirEffect) -> bool {
+    matches!(effect, OirEffect::CredentialStatus { .. })
+}
+
+fn is_credential_forget(effect: &OirEffect) -> bool {
+    matches!(effect, OirEffect::CredentialForget { .. })
+}
+
+/// Detect whether any transition runs an `http` effect, at any depth.
+pub fn trait_has_http_effects(trait_def: &OirTrait) -> bool {
+    trait_has_effect(trait_def, is_http)
+}
+
+/// Whether any transition runs `random-bytes`, `credential-status` or `credential-forget`.
+pub fn trait_has_host_effects(trait_def: &OirTrait) -> bool {
+    trait_has_effect(trait_def, is_random_bytes)
+        || trait_has_effect(trait_def, is_credential_status)
+        || trait_has_effect(trait_def, is_credential_forget)
+}
+
+/// Whether any trait of the module needs the kernel's http ports: an `http` effect or a host effect.
 pub fn module_has_http_effects(module: &orbital_core::ir::OirModule) -> bool {
-    module.traits.iter().any(trait_has_http_effects)
+    module
+        .traits
+        .iter()
+        .any(|t| trait_has_http_effects(t) || trait_has_host_effects(t))
 }
 
-/// The `services/clients` import line a trait's handlers need for `http`
+/// The `services/clients` import line a trait's handlers need for `http` and host
 /// effects; `None` when the trait runs none.
 pub fn http_call_import(trait_def: &OirTrait, module_path: &str) -> Option<String> {
-    trait_has_http_effects(trait_def).then(|| {
-        format!(
-            "import {{ httpCall, HttpCallError }} from '{}';\n",
-            module_path
-        )
-    })
+    let mut symbols: Vec<&str> = Vec::new();
+    if trait_has_http_effects(trait_def) {
+        symbols.extend(["httpCall", "HttpCallError"]);
+    }
+    if trait_has_effect(trait_def, is_random_bytes) {
+        symbols.push("hostRandomBytes");
+    }
+    if trait_has_effect(trait_def, is_credential_status) {
+        symbols.push("hostCredentialStatus");
+    }
+    if trait_has_effect(trait_def, is_credential_forget) {
+        symbols.push("hostCredentialForget");
+    }
+    (!symbols.is_empty()).then(|| format!("import {{ {} }} from '{}';\n", symbols.join(", "), module_path))
 }
 
 /// Whether any transition runs a `call-service` or `http` carrying a `key`
@@ -474,6 +513,9 @@ pub fn transitions_have_emit_effects<'a>(
                     OirEffect::PersistBatch { emit, .. } => emit.is_some(),
                     OirEffect::CallService { emit, .. } => emit.is_some(),
                     OirEffect::Http { emit, .. } => emit.is_some(),
+                    OirEffect::RandomBytes { emit, .. }
+                    | OirEffect::CredentialStatus { emit, .. }
+                    | OirEffect::CredentialForget { emit, .. } => emit.is_some(),
                     OirEffect::Ref { emit, .. } => emit.is_some(),
                     _ => false,
                 }
@@ -964,7 +1006,7 @@ mod get_nested_value_decl_tests {
 
 #[cfg(test)]
 mod http_detection_tests {
-    use super::{http_call_import, module_has_http_effects, trait_has_call_service_message, trait_has_keyed_call_service, trait_has_emit_effects, trait_has_http_effects, service_host_import};
+    use super::{http_call_import, trait_has_host_effects, module_has_http_effects, trait_has_call_service_message, trait_has_keyed_call_service, trait_has_emit_effects, trait_has_http_effects, service_host_import};
     use orbital_core::ir::{OirEffect, OirEmitConfig, OirExpr, OirModule, OirTrait, OirTransition};
     use orbital_core::runtime::http_request::HttpMethod;
 
@@ -997,6 +1039,43 @@ mod http_detection_tests {
         let other = trait_with(OirEffect::cancel_call(OirExpr::string("k")));
         assert!(!trait_has_http_effects(&other));
         assert!(http_call_import(&other, "x").is_none());
+    }
+
+    #[test]
+    fn host_effects_import_exactly_the_host_functions_they_call() {
+        let random = trait_with(OirEffect::random_bytes(OirExpr::number(8.0), None));
+        assert!(trait_has_host_effects(&random) && !trait_has_http_effects(&random));
+        assert_eq!(
+            http_call_import(&random, "../c.js").unwrap(),
+            "import { hostRandomBytes } from '../c.js';\n"
+        );
+        let both = {
+            let mut t = trait_with(OirEffect::credential_status(OirExpr::string("k"), None));
+            let mut tr = OirTransition::new("idle", "idle", "STOP");
+            tr.effects.push(OirExpr::effect(OirEffect::credential_forget(OirExpr::string("k"), None)));
+            tr.effects.push(OirExpr::effect(http(None, None)));
+            t.transitions.push(tr);
+            t
+        };
+        assert_eq!(
+            http_call_import(&both, "../c.js").unwrap(),
+            "import { httpCall, HttpCallError, hostCredentialStatus, hostCredentialForget } from '../c.js';\n"
+        );
+        assert!(http_call_import(&trait_with(OirEffect::cancel_call(OirExpr::string("k"))), "x").is_none());
+    }
+
+    #[test]
+    fn a_module_with_only_host_effects_still_gets_the_http_ports() {
+        let mut m = OirModule::new("App", "0.1.0");
+        m.traits.push(trait_with(OirEffect::credential_forget(OirExpr::string("k"), None)));
+        assert!(module_has_http_effects(&m));
+    }
+
+    #[test]
+    fn host_effect_emit_is_detected() {
+        let emit = OirEmitConfig { success: Some("OK".to_string()), ..Default::default() };
+        assert!(trait_has_emit_effects(&trait_with(OirEffect::random_bytes(OirExpr::number(8.0), Some(emit)))));
+        assert!(!trait_has_emit_effects(&trait_with(OirEffect::random_bytes(OirExpr::number(8.0), None))));
     }
 
     #[test]

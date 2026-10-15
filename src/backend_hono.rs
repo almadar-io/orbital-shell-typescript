@@ -169,9 +169,7 @@ impl TypeScriptBackend {
             .iter()
             .any(|op| Self::substrate_op_is_program_effect(op));
         let needs_server_substrate = substrate_ops.iter().any(|op| {
-            op.starts_with("session/")
-                || op.starts_with("workspace/")
-                || op.starts_with("integration/")
+            op.starts_with("session/") || op.starts_with("workspace/")
         });
         if needs_server_substrate {
             server_imports.push("getSubstrateService");

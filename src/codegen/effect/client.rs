@@ -271,6 +271,9 @@ impl TypeScriptBackend {
             | OirEffect::CallService { .. }
             | OirEffect::Http { .. }
             | OirEffect::CancelCall { .. }
+            | OirEffect::RandomBytes { .. }
+            | OirEffect::CredentialStatus { .. }
+            | OirEffect::CredentialForget { .. }
             | OirEffect::Swap { .. }
             | OirEffect::Atomic { .. }
             | OirEffect::FetchStream { .. }

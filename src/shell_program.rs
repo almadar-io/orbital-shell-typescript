@@ -103,6 +103,12 @@ pub fn write_backend_url(output: &Path, url: &str) -> std::io::Result<()> {
     std::fs::write(path, content)
 }
 
+/// What a generated server needs to run an `http` effect: the kernel and the runtime's shared transport.
+const HTTP_SERVER_DEPENDENCIES: &[(&str, &str)] = &[("@almadar/kernel", "^18.0.0"), ("@almadar/runtime", "^6.112.0")];
+
+/// What a generated client needs to send a keyless `http` from the browser store.
+const HTTP_CLIENT_DEPENDENCIES: &[(&str, &str)] = &[("@almadar/kernel", "^18.0.0"), ("@almadar/runtime", "^6.112.0")];
+
 /// Add `dependencies` to a template `package.json`'s `"dependencies"` block, keeping every other
 /// line; a package already listed is left as the template pins it.
 pub fn add_dependencies(path: &Path, dependencies: &[(&str, &str)]) -> std::io::Result<()> {
@@ -167,7 +173,10 @@ impl ShellProgram for TypeScriptProgram {
             add_dependencies(&output.join("packages/client/package.json"), KERNEL_CLIENT_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the client", e))?;
         }
         if backend.host == HostMode::Generated && crate::codegen::handler_header::module_has_http_effects(&request.module) {
-            add_dependencies(&output.join("packages/server/package.json"), KERNEL_CLIENT_DEPENDENCIES).map_err(|e| failed("add @almadar/kernel to the server", e))?;
+            add_dependencies(&output.join("packages/server/package.json"), HTTP_SERVER_DEPENDENCIES).map_err(|e| failed("add the http effect's packages to the server", e))?;
+        }
+        if backend.host == HostMode::Generated && TypeScriptBackend::module_runs_client_http(&request.module) {
+            add_dependencies(&output.join("packages/client/package.json"), HTTP_CLIENT_DEPENDENCIES).map_err(|e| failed("add the http effect's packages to the client", e))?;
         }
         let mut next_steps = Vec::new();
         if let Some(url) = string_option(request, BACKEND_URL)? {

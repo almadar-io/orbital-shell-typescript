@@ -28,6 +28,8 @@ mod persist_batch;
 #[cfg(test)]
 mod persist_batch_tests;
 #[cfg(test)]
+mod host_effect_tests;
+#[cfg(test)]
 mod http_tests;
 #[cfg(test)]
 mod runs_on_tests;

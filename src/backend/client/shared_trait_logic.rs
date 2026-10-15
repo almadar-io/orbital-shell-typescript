@@ -472,7 +472,9 @@ impl TypeScriptBackend {
                 // demand, at call time. Same store instance the render
                 // trait's tick driver uses (via context).
                 code.push_str("  const _sharedStore = useSharedEntityStoreContext();\n");
-                code.push_str(&format!("  const _sharedEntityId = '{}';\n\n", entity.name));
+                code.push_str(&format!("  const _sharedEntityId = '{}';\n", entity.name));
+                code.push_str(&Self::shared_entity_seed(entity));
+                code.push('\n');
             }
             // Writer-only trait: no view, no live read — its writes flow
             // through the render trait's tick driver (ticks) and/or its own
@@ -972,6 +974,31 @@ mod dispatch_tests {
             ts.contains("import { guardHolds } from '@almadar/core';"),
             "and imports it:\n{ts}"
         );
+    }
+
+    /// A dispatching writer trait commits to the shared store; when it mounts before the
+    /// rendering trait (a renderless sibling's INIT), the store's first-commit-wins seed would
+    /// otherwise drop every declared default the render reads (dnd-dungeon-delver's `delveFloor`).
+    #[test]
+    fn a_dispatching_writer_seeds_the_declared_defaults_before_it_commits() {
+        let mut module = module_with_guarded_writer_transition();
+        module.entities[0].fields[1].default = Some(orbital_core::ir::OirValue::String("none".to_string()));
+        let writer = module.traits[0].clone();
+        let entity = module.entities[0].clone();
+        let ts = TypeScriptBackend::new()
+            .generate_shared_trait_logic_hook(&writer, &module, &entity)
+            .content;
+        let seed = ts
+            .find("_sharedStore.seed(_sharedEntityId, { 'result': \"none\" });")
+            .unwrap_or_else(|| panic!("the writer seeds the declared default:\n{ts}"));
+        let commit = ts.find("_sharedStore.commit(").expect("the writer commits");
+        assert!(seed < commit, "seeded before any commit:\n{ts}");
+
+        let bare = module_with_guarded_writer_transition();
+        let ts = TypeScriptBackend::new()
+            .generate_shared_trait_logic_hook(&bare.traits[0], &bare, &bare.entities[0])
+            .content;
+        assert!(!ts.contains("_sharedStore.seed("), "control: no declared default, no seed:\n{ts}");
     }
 
     fn module_with_guarded_writer_transition() -> OirModule {

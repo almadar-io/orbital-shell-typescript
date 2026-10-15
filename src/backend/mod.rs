@@ -321,6 +321,8 @@ pub struct TypeScriptBackend {
     pub browser_legs: CodegenCell<BTreeSet<String>>,
     /// The program calls a browser-only service: the browser store answers it.
     pub browser_services: CodegenCell<bool>,
+    /// The program runs a keyless `http` in the browser: the browser store sends it with the browser's `fetch`.
+    pub browser_http: CodegenCell<bool>,
     /// The program's declared locales, whose catalogs the browser store translates with.
     pub browser_locales: CodegenCell<Vec<String>>,
     /// `(module, name)` value imports the trait view being generated needs: rich-prop decoders and
@@ -421,6 +423,7 @@ impl Default for TypeScriptBackend {
             app_has_server_leg: CodegenCell::new(false),
             browser_legs: CodegenCell::new(BTreeSet::new()),
             browser_services: CodegenCell::new(false),
+            browser_http: CodegenCell::new(false),
             browser_locales: CodegenCell::new(Vec::new()),
             view_value_imports: CodegenCell::new(BTreeSet::new()),
         }
@@ -666,6 +669,7 @@ impl TypeScriptBackend {
         self.browser_legs.set(Self::compute_browser_legs(module));
         self.browser_services
             .set(!module.browser_services.is_empty());
+        self.browser_http.set(Self::module_runs_client_http(module));
         self.browser_locales.set(module.locales.clone());
 
         // 1. Generate shared package - entity types + event response types + package.json
@@ -744,6 +748,7 @@ impl TypeScriptBackend {
             }
             files.extend(self.generate_browser_schema_file(module));
             files.extend(Self::generate_browser_services_file(module));
+            files.extend(Self::generate_browser_http_file(module));
         }
 
         // 3. Generate client pages/features
@@ -1146,6 +1151,7 @@ impl Backend for TypeScriptBackend {
             app_has_server_leg: CodegenCell::new(false),
             browser_legs: CodegenCell::new(BTreeSet::new()),
             browser_services: CodegenCell::new(false),
+            browser_http: CodegenCell::new(false),
             browser_locales: CodegenCell::new(Vec::new()),
             view_value_imports: CodegenCell::new(BTreeSet::new()),
         };

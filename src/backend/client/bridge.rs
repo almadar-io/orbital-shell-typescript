@@ -340,6 +340,9 @@ export function withinDispatch<T>(ctx: ClientDispatch, fn: () => T): T {\n  cons
             if self.browser_services.snapshot() {
                 code.push_str("import { browserCallService } from '@/browserServices';\n");
             }
+            if self.browser_http.snapshot() {
+                code.push_str("import { browserHttp } from '@/browserHttp';\n");
+            }
         }
         let dispatch_scope = self.dispatch_scope.snapshot();
         if dispatch_scope {
@@ -464,11 +467,11 @@ export function withinDispatch<T>(ctx: ClientDispatch, fn: () => T): T {\n  cons
             code.push_str("function __browserSend(orbitalName: string, request: EventRequest, locale: string): Promise<EventResponse> {\n");
             code.push_str("  let transport = __browserTransports.get(locale);\n");
             code.push_str("  if (transport === undefined) {\n");
-            code.push_str(if self.browser_services.snapshot() {
-                "    transport = import('@/browserSchema.json').then((m) => openBundledBrowserStore(m.default, locale, browserCallService, __BROWSER_MESSAGES));\n"
-            } else {
-                "    transport = import('@/browserSchema.json').then((m) => openBundledBrowserStore(m.default, locale, undefined, __BROWSER_MESSAGES));\n"
-            });
+            let call_service = if self.browser_services.snapshot() { "browserCallService" } else { "undefined" };
+            let http_ports = if self.browser_http.snapshot() { ", browserHttp" } else { "" };
+            code.push_str(&format!(
+                "    transport = import('@/browserSchema.json').then((m) => openBundledBrowserStore(m.default, locale, {call_service}, __BROWSER_MESSAGES{http_ports}));\n"
+            ));
             code.push_str("    __browserTransports.set(locale, transport);\n");
             code.push_str("  }\n");
             code.push_str(

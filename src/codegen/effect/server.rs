@@ -610,7 +610,12 @@ impl TypeScriptBackend {
                 code.push_str("          success: true,\n");
                 code.push_str("          data: serviceResult as EventPayloadValue,\n");
                 code.push_str("        });\n");
-                code.push_str(&self.emit_success_js(emit, "success", "serviceResult", "        "));
+                let success_value = if key_expr.is_some() {
+                    "(serviceResult !== null && typeof serviceResult === 'object' && !Array.isArray(serviceResult) ? { ...serviceResult, key: __callKey } : serviceResult)"
+                } else {
+                    "serviceResult"
+                };
+                code.push_str(&self.emit_success_js(emit, "success", success_value, "        "));
                 code.push_str("      } catch (err) {\n");
                 let failure_indent = if key_expr.is_some() {
                     code.push_str("        if (__callCtl.signal.aborted) {\n");
@@ -639,7 +644,7 @@ impl TypeScriptBackend {
                 code.push_str(&self.emit_failure_js_impl(
                     emit,
                     "err instanceof Error ? err.message : String(err)",
-                    "",
+                    if key_expr.is_some() { ", key: __callKey" } else { "" },
                     failure_indent,
                 ));
                 if key_expr.is_some() {
@@ -686,12 +691,14 @@ impl TypeScriptBackend {
                         on_message
                     ));
                 }
+                options.push("principal: user?.id".to_string());
                 code.push_str(&format!(
-                    "        const httpResult = await httpCall({{ method: '{}', origin: {}, path: {}, request: {} }}, {{ {} }});\n",
+                    "        const httpResult = await httpCall({{ method: '{}', origin: {}, path: {}, request: {}, key: {} }}, {{ {} }});\n",
                     verb,
                     origin_expr,
                     path_expr,
                     request_expr,
+                    if key_expr.is_some() { "__callKey" } else { "null" },
                     options.join(", ")
                 ));
                 if key_expr.is_some() {
@@ -731,7 +738,7 @@ impl TypeScriptBackend {
                 code.push_str(&self.emit_failure_js_impl(
                     emit,
                     "err instanceof Error ? err.message : String(err)",
-                    ", kind: err instanceof HttpCallError ? err.kind : 'failed'",
+                    ", kind: err instanceof HttpCallError ? err.kind : 'failed', key: err instanceof HttpCallError ? err.key : null",
                     failure_indent,
                 ));
                 if key_expr.is_some() {
@@ -743,6 +750,54 @@ impl TypeScriptBackend {
                 } else {
                     code.push_str("      }\n\n");
                 }
+            }
+
+            OirEffect::RandomBytes { bytes: arg, emit }
+            | OirEffect::CredentialStatus {
+                credential: arg,
+                emit,
+            }
+            | OirEffect::CredentialForget {
+                credential: arg,
+                emit,
+            } => {
+                let (name, call) = match effect {
+                    OirEffect::RandomBytes { .. } => (
+                        "random-bytes",
+                        format!("hostRandomBytes({})", self.expr_to_ts_server(arg)),
+                    ),
+                    OirEffect::CredentialStatus { .. } => (
+                        "credential-status",
+                        format!(
+                            "await hostCredentialStatus({}, user?.id)",
+                            self.expr_to_ts_server(arg)
+                        ),
+                    ),
+                    _ => (
+                        "credential-forget",
+                        format!(
+                            "await hostCredentialForget({}, user?.id)",
+                            self.expr_to_ts_server(arg)
+                        ),
+                    ),
+                };
+                code.push_str(&format!("      // {name}\n"));
+                code.push_str("      try {\n");
+                code.push_str(&format!("        const hostResult = {call};\n"));
+                code.push_str(&self.emit_success_js(emit, "success", "hostResult", "        "));
+                code.push_str("      } catch (err) {\n");
+                let routed = emit.as_ref().is_some_and(|e| e.failure.is_some());
+                if routed {
+                    code.push_str(&self.emit_failure_js_impl(
+                        emit,
+                        "err instanceof Error ? err.message : String(err)",
+                        "",
+                        "        ",
+                    ));
+                } else {
+                    code.push_str("        throw err;\n");
+                }
+                code.push_str("      }\n\n");
             }
 
             OirEffect::CancelCall { key } => {

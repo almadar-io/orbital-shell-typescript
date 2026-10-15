@@ -412,8 +412,13 @@ impl TypeScriptBackend {
                         return format!("(data['{}'] ?? [])?.[0]?.{}", parts[0], remaining);
                     }
                 }
-                // Lambda variable or unknown — pass through
-                parts[0]
+                // A `let` local reads under its declared `let__` name; a lambda variable passes through.
+                let local = self.local_ident(parts[0]);
+                return if parts.len() == 1 {
+                    local
+                } else {
+                    format!("{}?.{}", local, parts[1..].join("?."))
+                };
             }
         };
 
@@ -734,6 +739,13 @@ impl TypeScriptBackend {
                             OirExpr::Bool { value: a },
                             OirExpr::Bool { value: b },
                         ) => Some((a != b).to_string()),
+                        (OirBinaryOp::Eq, OirExpr::Null, OirExpr::Null) => Some("true".to_string()),
+                        (OirBinaryOp::Ne, OirExpr::Null, OirExpr::Null) => Some("false".to_string()),
+                        // The kernel reads an absent field as null; TS reads it as undefined.
+                        (OirBinaryOp::Eq, _, OirExpr::Null) => Some(format!("({} == null)", l)),
+                        (OirBinaryOp::Eq, OirExpr::Null, _) => Some(format!("({} == null)", r)),
+                        (OirBinaryOp::Ne, _, OirExpr::Null) => Some(format!("({} != null)", l)),
+                        (OirBinaryOp::Ne, OirExpr::Null, _) => Some(format!("({} != null)", r)),
                         _ => None,
                     };
                     folded.unwrap_or_else(|| format!("({} {} {})", l, op_str, r))
@@ -2284,6 +2296,55 @@ mod flavor_tests {
                 path: vec![path.to_string()],
             },
         }
+    }
+
+    /// A render-position `let` declares `let__<name>`; its reads must use the same name (the
+    /// dnd-dungeon-delver board's `(let ((tkey …) (ts (object/get … @tkey))) …)` crashed the page
+    /// with `tkey is not defined`). Lambda parameters are not renamed.
+    #[test]
+    fn a_render_let_reads_its_renamed_local() {
+        let b = TypeScriptBackend::new();
+        let local = |n: &str| OirExpr::Binding {
+            binding: OirBinding { root: OirBindingRoot::Local(n.to_string()), path: vec![] },
+        };
+        let let_expr = OirExpr::call(
+            "let",
+            vec![
+                OirExpr::Array {
+                    items: vec![OirExpr::Array {
+                        items: vec![OirExpr::string("tkey"), OirExpr::string("floor")],
+                    }],
+                },
+                OirExpr::call("object/get", vec![entity_binding("terrainSprites"), local("tkey")]),
+            ],
+        );
+        let ts = b.expr_to_ts_flavored(&let_expr, BindingFlavor::Render);
+        assert!(ts.contains("const let__tkey = \"floor\";"), "{ts}");
+        assert!(ts.contains("let__tkey)") && !ts.contains("(tkey)"), "the read uses the declared name: {ts}");
+
+        let lambda = b.with_locals(&["t".to_string()], false, || {
+            b.expr_to_ts_flavored(&local("t"), BindingFlavor::Render)
+        });
+        assert_eq!(lambda, "t", "control: a lambda parameter keeps its name");
+    }
+
+    /// The kernel reads an absent field as null, so `(== @entity.x null)` holds for a missing
+    /// field; a strict `=== null` would not (dnd-dungeon-delver's "Rolls appear here").
+    #[test]
+    fn a_null_comparison_also_matches_an_absent_field() {
+        let b = TypeScriptBackend::new();
+        let eq = |op, l: OirExpr, r: OirExpr| {
+            b.expr_to_client_ts(&OirExpr::BinaryOp { op, left: Box::new(l), right: Box::new(r) })
+        };
+        assert_eq!(eq(OirBinaryOp::Eq, entity_binding("x"), OirExpr::Null), "(fields?.x == null)");
+        assert_eq!(eq(OirBinaryOp::Eq, OirExpr::Null, entity_binding("x")), "(fields?.x == null)");
+        assert_eq!(eq(OirBinaryOp::Ne, entity_binding("x"), OirExpr::Null), "(fields?.x != null)");
+        assert_eq!(eq(OirBinaryOp::Eq, OirExpr::Null, OirExpr::Null), "true");
+        assert_eq!(
+            eq(OirBinaryOp::Eq, entity_binding("x"), OirExpr::Number { value: 0.0 }),
+            "(fields?.x === 0)",
+            "control: a non-null comparison stays strict"
+        );
     }
 
     // @entity.field resolves differently per flavour: client/general → the

@@ -49,6 +49,43 @@ impl TypeScriptBackend {
         ))
     }
 
+    /// Whether the program runs a keyless `http` (no `auth` key): it runs where its trait does, so in a
+    /// browser leg it needs the browser store's request driver.
+    pub(crate) fn module_runs_client_http(module: &OirModule) -> bool {
+        fn client_http(expr: &OirExpr) -> bool {
+            if let OirExpr::Effect { effect } = expr {
+                if matches!(effect.as_ref(), OirEffect::Http { .. })
+                    && orbital_core::effects::ir_effect_site(effect, &orbital_core::effects::Residence::none())
+                        == orbital_core::effects::RunsOn::Client
+                {
+                    return true;
+                }
+            }
+            expr.child_exprs().into_iter().any(client_http)
+        }
+        module.traits.iter().any(|t| {
+            t.transitions.iter().any(|tr| tr.effects.iter().any(client_http))
+                || t.ticks.iter().any(|tick| tick.effects.iter().any(client_http))
+        })
+    }
+
+    /// The browser store's `http` ports: the kernel's request driver over the browser's `fetch`, bounded by the
+    /// program's `egress` and the browser's own CORS (a browser cannot resolve a name, so there is no address check).
+    pub(crate) fn generate_browser_http_file(module: &OirModule) -> Option<InternalFile> {
+        if !Self::module_runs_client_http(module) {
+            return None;
+        }
+        let egress: Vec<String> = module.egress.iter().map(|o| format!("'{o}'")).collect();
+        Some(InternalFile::new(
+            "packages/client/src/browserHttp.ts".to_string(),
+            format!(
+                "import initKernel, * as kernel from '@almadar/kernel';\nimport wasmUrl from '@almadar/kernel/kernel.wasm?url';\nimport {{ createBrowserHttpPorts }} from '@almadar/runtime/kernel';\n\nexport const browserHttp = createBrowserHttpPorts({{\n  kernel: async () => {{\n    await initKernel({{ module_or_path: wasmUrl }});\n    return kernel;\n  }},\n  egress: [{}],\n}});\n",
+                egress.join(", ")
+            ),
+            GeneratedFileType::Config,
+        ))
+    }
+
     /// The resolved schema restricted to the orbitals that own a browser leg.
     pub(crate) fn generate_browser_schema_file(&self, module: &OirModule) -> Option<InternalFile> {
         let residence = orbital_core::effects::Residence::of_module(module);
@@ -333,6 +370,85 @@ mod tests {
         ] {
             assert!(bridge.contains(marker), "missing {marker:?}:\n{bridge}");
         }
+    }
+
+    fn http_module(auth: bool) -> OirModule {
+        let mut fields = orbital_core::ir::OirFields::new();
+        if auth {
+            fields.insert("auth".to_string(), OirExpr::object(orbital_core::ir::OirFields::new()));
+        }
+        let mut effect = OirEffect::http(
+            orbital_core::runtime::http_request::HttpMethod::Get,
+            OirExpr::string("https://api.example.com"),
+            OirExpr::string("/x"),
+        );
+        if let OirEffect::Http { request, .. } = &mut effect {
+            *request = Some(OirExpr::object(fields));
+        }
+        let mut load = OirTrait::new("Loader");
+        load.orbital_name = "Feed".to_string();
+        load.states.push(OirState::initial("idle"));
+        load.transitions.push(
+            OirTransition::new("idle", "idle", "LOAD").with_effects(vec![OirExpr::effect(effect)]),
+        );
+        let mut module = OirModule::new("Feed", "1.0.0");
+        module.traits.push(load);
+        module.egress = vec!["https://api.example.com".to_string()];
+        module
+    }
+
+    #[test]
+    fn a_keyless_http_is_a_browser_leg_and_the_client_wires_its_request_driver() {
+        let module = http_module(false);
+        assert_eq!(
+            TypeScriptBackend::compute_browser_legs(&module).into_iter().collect::<Vec<_>>(),
+            vec![browser_leg_key("Loader", "LOAD")]
+        );
+        assert!(TypeScriptBackend::module_runs_client_http(&module));
+        let file = TypeScriptBackend::generate_browser_http_file(&module).expect("browserHttp.ts");
+        assert_eq!(file.path, "packages/client/src/browserHttp.ts");
+        for marker in [
+            "import { createBrowserHttpPorts } from '@almadar/runtime/kernel';",
+            "import wasmUrl from '@almadar/kernel/kernel.wasm?url';",
+            "await initKernel({ module_or_path: wasmUrl });",
+            "egress: ['https://api.example.com'],",
+        ] {
+            assert!(file.content.contains(marker), "missing {marker:?}:\n{}", file.content);
+        }
+    }
+
+    #[test]
+    fn control_an_http_with_auth_stays_a_server_leg_and_the_client_wires_no_driver() {
+        let module = http_module(true);
+        assert!(TypeScriptBackend::compute_browser_legs(&module).is_empty());
+        assert!(!TypeScriptBackend::module_runs_client_http(&module));
+        assert!(TypeScriptBackend::generate_browser_http_file(&module).is_none());
+    }
+
+    #[test]
+    fn the_browser_store_is_opened_with_the_request_driver() {
+        let backend = backend_with_schema();
+        backend
+            .browser_legs
+            .set(TypeScriptBackend::compute_browser_legs(&http_module(false)));
+        backend.browser_http.set(true);
+        let bridge = backend.generate_orbital_bridge_hook().content;
+        for marker in [
+            "import { browserHttp } from '@/browserHttp';",
+            "import('@/browserSchema.json').then((m) => openBundledBrowserStore(m.default, locale, undefined, __BROWSER_MESSAGES, browserHttp))",
+        ] {
+            assert!(bridge.contains(marker), "missing {marker:?}:\n{bridge}");
+        }
+    }
+
+    #[test]
+    fn control_a_program_without_a_client_http_opens_the_store_without_a_driver() {
+        let backend = backend_with_schema();
+        backend
+            .browser_legs
+            .set(TypeScriptBackend::compute_browser_legs(&module(true)));
+        let bridge = backend.generate_orbital_bridge_hook().content;
+        assert!(!bridge.contains("browserHttp"), "{bridge}");
     }
 
     #[test]
