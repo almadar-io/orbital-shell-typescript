@@ -29,6 +29,16 @@ fn server_js(effect: &OirEffect) -> String {
 }
 
 #[test]
+fn http_passes_the_existing_dispatch_stamp_and_preserves_the_whole_failure_payload() {
+    for keyed in [false, true] {
+        let js = server_js(&http(HttpMethod::Get, keyed.then(|| OirExpr::string("job")), Some(full_emit())));
+        assert!(js.contains("nowMs: now"), "{js}");
+        assert!(js.contains("...(err instanceof HttpCallError ? err.payload : { kind: 'failed', key: null, credential: null })"), "{js}");
+        assert!(!js.contains("nowMs: Date.now()"), "{js}");
+    }
+}
+
+#[test]
 fn http_calls_the_one_helper_with_the_method_origin_path_and_request() {
     let js = server_js(&http(HttpMethod::Post, None, None));
     assert!(
@@ -42,9 +52,9 @@ fn http_calls_the_one_helper_with_the_method_origin_path_and_request() {
 
 #[test]
 fn an_unkeyed_http_sends_a_null_key_and_a_keyed_one_its_call_key() {
-    assert!(server_js(&http(HttpMethod::Get, None, None)).contains(", key: null }, { principal: user?.id });"));
+    assert!(server_js(&http(HttpMethod::Get, None, None)).contains(", key: null, nowMs: now }, { principal: user?.id });"));
     let keyed = server_js(&http(HttpMethod::Get, Some(OirExpr::string("k")), None));
-    assert!(keyed.contains(", key: __callKey }, { signal: __callCtl.signal, principal: user?.id });"), "{keyed}");
+    assert!(keyed.contains(", key: __callKey, nowMs: now }, { signal: __callCtl.signal, principal: user?.id });"), "{keyed}");
 }
 
 #[test]
@@ -54,7 +64,7 @@ fn http_without_a_request_passes_an_empty_one() {
         OirExpr::string("https://api.example.com"),
         OirExpr::string("/x"),
     );
-    assert!(server_js(&effect).contains("request: {}, key: null }"));
+    assert!(server_js(&effect).contains("request: {}, key: null, nowMs: now }"));
 }
 
 #[test]
@@ -63,7 +73,7 @@ fn http_emits_success_and_failure_with_the_failure_kind() {
     assert!(js.contains("getServerEventBus().emit('SEARCHED'"), "{js}");
     let catch_block = &js[js.find("} catch (err) {").expect("a catch block")..];
     assert!(
-        catch_block.contains("{ error: err instanceof Error ? err.message : String(err), kind: err instanceof HttpCallError ? err.kind : 'failed', key: err instanceof HttpCallError ? err.key : null }"),
+        catch_block.contains("{ error: err instanceof Error ? err.message : String(err), ...(err instanceof HttpCallError ? err.payload : { kind: 'failed', key: null, credential: null }) }"),
         "{js}"
     );
     assert!(catch_block.contains("emittedEvents.push({ event: 'SEARCH_FAILED'"), "{js}");
@@ -77,7 +87,7 @@ fn a_keyed_http_registers_its_controller_passes_the_signal_and_routes_cancellati
         Some(OirExpr::string("search-1")),
         Some(full_emit()),
     ));
-    assert!(js.contains("const __callKey = String(\"search-1\");"), "{js}");
+    assert!(js.contains("const __callKey = \"search-1\";"), "{js}");
     assert!(js.contains("const __callCtl = beginKeyedCall(__callKey);"), "{js}");
     assert!(js.contains("{ signal: __callCtl.signal, principal: user?.id });"), "{js}");
     assert!(js.contains("if (__callCtl.signal.aborted) { throw new Error('call cancelled'); }"), "{js}");
@@ -97,7 +107,7 @@ fn http_on_message_routes_live_messages_to_the_origin_tab() {
     };
     let js = server_js(&http(HttpMethod::Get, None, Some(emit)));
     assert!(
-        js.contains("{ onMessage: (__message) => pushToOrigin(clientId, { type: 'bus', event: 'CHUNK', payload: __message, source: __ORBITAL_SOURCE, timestamp: Date.now(), target: 'origin' }) });"),
+        js.contains("{ onMessage: (__message) => pushToOrigin(clientId, { type: 'bus', event: 'CHUNK', payload: __message, source: __ORBITAL_SOURCE, timestamp: Date.now(), target: 'origin' }), principal: user?.id });"),
         "{js}"
     );
 }
@@ -148,4 +158,33 @@ fn keyed_call_service_echoes_its_key_in_success_and_failure_and_unkeyed_does_not
 fn control_http_does_not_merge_a_key_again() {
     let js = server_js(&http(HttpMethod::Get, Some(OirExpr::string("k")), Some(full_emit())));
     assert!(!js.contains("...httpResult"), "{js}");
+}
+
+fn client_js(effect: &OirEffect) -> String {
+    TypeScriptBackend::new()
+        .transpile_client_effect(effect, "", Some("Probe"), None)
+        .expect("a page-facts effect transpiles on the client")
+}
+
+fn facts_effect(key: Option<OirExpr>) -> OirEffect {
+    OirEffect::BrowserPageFacts {
+        fields: vec![orbital_core::ir::PageFactField::Referrer],
+        key,
+        emit: Some(OirEmitConfig {
+            success: Some("FACTS".to_string()),
+            failure: Some("FACTS_FAILED".to_string()),
+            ..Default::default()
+        }),
+    }
+}
+
+#[test]
+fn a_keyed_page_facts_echoes_its_key_on_success_and_failure_and_an_unkeyed_one_carries_none() {
+    let keyed = client_js(&facts_effect(Some(OirExpr::string("k1"))));
+    assert!(keyed.contains("{ ...__facts, key: __key }"), "{keyed}");
+    assert!(keyed.contains("...(__key !== undefined ? { key: __key } : {})"), "{keyed}");
+    assert!(keyed.contains("key must be a non-empty string"), "{keyed}");
+    let unkeyed = client_js(&facts_effect(None));
+    assert!(!unkeyed.contains("__key"), "{unkeyed}");
+    assert!(unkeyed.contains("{ ...__result }"), "{unkeyed}");
 }

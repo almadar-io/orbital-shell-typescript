@@ -154,6 +154,7 @@ impl ShellProgram for TypeScriptProgram {
     }
 
     fn generate(&self, request: &GenerateRequest, output: &Path) -> Result<GenerateResponse, ShellFailure> {
+        language_ready(orbital_core::language_data::preflight)?;
         let backend = backend(request)?;
         let shell = match backend.server_framework {
             ServerFramework::Express => express_shell(),
@@ -192,8 +193,17 @@ impl ShellProgram for TypeScriptProgram {
 
     fn emit(&self, request: &GenerateRequest) -> Result<orbital_core::generate::GeneratedOutput, ShellFailure> {
         use orbital_core::generate::Backend as _;
+        language_ready(orbital_core::language_data::preflight)?;
         Ok(backend(request)?.generate(&request.module))
     }
+}
+
+/// The installed core and std must load for this shell before it generates: an incompatible
+/// install (a std naming operators this shell predates) is a structured failure, never a panic.
+fn language_ready(
+    preflight: impl FnOnce() -> Result<(), orbital_core::language_data::LanguageDataError>,
+) -> Result<(), ShellFailure> {
+    preflight().map_err(|e| ShellFailure::new(e.code(), e.to_string()))
 }
 
 /// The backend `request`'s options describe.
@@ -287,6 +297,20 @@ mod tests {
         assert_eq!(code(&[(HOST, "wasm")]), Some(CODE_BAD_REQUEST.to_string()));
         assert_eq!(code(&[(HOST, "kernel"), (FRAMEWORK, "hono")]), Some(CODE_BAD_REQUEST.to_string()));
         assert!(backend(&request_with(&[(HOST, "generated"), (FRAMEWORK, "hono")])).is_ok());
+    }
+
+    #[test]
+    fn an_incompatible_language_install_is_a_structured_failure() {
+        let failure = language_ready(|| {
+            Err(orbital_core::language_data::LanguageDataError::Invalid {
+                path: std::path::PathBuf::from("std"),
+                reason: "declares csv/parse".to_string(),
+            })
+        })
+        .expect_err("an install that does not load is refused");
+        assert_eq!(failure.code, "ORB_LANGUAGE_DATA_INVALID");
+        assert!(failure.message.contains("csv/parse"), "{}", failure.message);
+        assert!(language_ready(|| Ok(())).is_ok(), "control: a loading install generates");
     }
 
     #[test]

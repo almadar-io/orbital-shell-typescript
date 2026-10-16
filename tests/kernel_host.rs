@@ -65,8 +65,8 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         })
 }
 
-/// The digest of today's default output for `module()` and `schema()`, recorded when the store push-down driver moved to @almadar/db/pushdown (no emitted module).
-const DEFAULT_OUTPUT_DIGEST: u64 = 384_154_814_540_623_126;
+/// The digest of today's default output for `module()` and `schema()`, recorded when client-resolved handlers began returning the arm that fired (its slot branch, and only its renders write or clear a slot).
+const DEFAULT_OUTPUT_DIGEST: u64 = 16_618_978_761_557_398_861;
 
 #[test]
 fn control_the_default_output_is_byte_identical_to_the_recorded_one() {

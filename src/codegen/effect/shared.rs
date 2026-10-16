@@ -53,25 +53,29 @@ pub(crate) fn walk_effect_block(
     match expr {
         OirExpr::Call { function, args } if function == "let" && args.len() == 2 => {
             sink.on_scope_open(indent);
-            let mut bound: Vec<String> = Vec::new();
-            if let OirExpr::Array { items } = &args[0] {
-                for pair in items {
-                    if let OirExpr::Array { items: kv } = pair {
-                        if kv.len() == 2 {
-                            if let OirExpr::String { value: name } = &kv[0] {
-                                let ident = TypeScriptBackend::let_ident(name);
-                                backend.with_locals(&bound, true, || {
-                                    sink.on_let_binding(backend, &ident, &kv[1], indent)
-                                });
-                                bound.push(name.clone());
+            backend.with_operand_locals(
+                std::slice::from_ref(expr),
+                crate::codegen::expr::BindingFlavor::Client,
+                &[],
+                || {
+                    backend.with_local_scope(|| {
+                        if let OirExpr::Array { items } = &args[0] {
+                            for pair in items {
+                                if let OirExpr::Array { items: kv } = pair {
+                                    if kv.len() == 2 {
+                                        if let OirExpr::String { value: name } = &kv[0] {
+                                            backend.bind_local_after(name, true, |ident| {
+                                                sink.on_let_binding(backend, ident, &kv[1], indent)
+                                            });
+                                        }
+                                    }
+                                }
                             }
                         }
-                    }
-                }
-            }
-            backend.with_locals(&bound, true, || {
-                walk_effect_block(backend, &args[1], indent, sink)
-            });
+                        walk_effect_block(backend, &args[1], indent, sink)
+                    })
+                },
+            );
             sink.on_scope_close(indent);
         }
         OirExpr::Call { function, args } if function == "do" => {

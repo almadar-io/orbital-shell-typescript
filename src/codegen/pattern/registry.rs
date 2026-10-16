@@ -365,8 +365,24 @@ impl TypeScriptBackend {
         if params.len() == 1 && Self::reads_binding_root(body, "index") {
             params.push("index".to_string());
         }
-        let body_jsx =
-            jsx_text_to_expression(self.child_to_jsx(body, linked_entity, entity_field_types));
+        let body_oir = orbital_core::lower::lower_sexpr(&Self::oirvalue_to_sexpr(body))
+            .into_iter()
+            .collect::<Vec<_>>();
+        let (body_jsx, params) = self.with_operand_locals(
+            &body_oir,
+            crate::codegen::expr::BindingFlavor::Render,
+            &params,
+            || {
+                self.with_locals_assigned(&params, false, |emitted| {
+                    let body_jsx = jsx_text_to_expression(self.child_to_jsx(
+                        body,
+                        linked_entity,
+                        entity_field_types,
+                    ));
+                    (body_jsx, emitted.to_vec())
+                })
+            },
+        );
         let coll = self.value_to_jsx_literal(&arr[1]);
         // A literal-array source (config-resolved `[]`/`[…]`) is never nullish
         // — TS 5.9 flags the guard itself as unreachable (TS2869), so only
@@ -392,17 +408,29 @@ impl TypeScriptBackend {
         // The source's declared element type (a payload field of the pinned event, an entity
         // field), read off the same inference the operator path uses.
         let declared_element = if non_array_call {
-            orbital_core::lower::lower_sexpr(&Self::oirvalue_to_sexpr(&arr[1])).ok().and_then(|oir| {
-                crate::codegen::infer::infer_oirexpr_element_type_ts(&oir, &self.build_codegen_ctx(None, None, None))
-            })
+            orbital_core::lower::lower_sexpr(&Self::oirvalue_to_sexpr(&arr[1]))
+                .ok()
+                .and_then(|oir| {
+                    crate::codegen::infer::infer_oirexpr_element_type_ts(
+                        &oir,
+                        &self.build_codegen_ctx(None, None, None),
+                    )
+                })
         } else {
             None
         };
 
         if let (true, Some(elem)) = (non_array_call, declared_element.as_deref()) {
             let elt = crate::backend::array_element_ts(elem);
-            let (open, close) = if never_nullish_call { ("(", ")") } else { ("((", " | undefined) ?? [])") };
-            Some(format!("{{{open}{coll} as readonly {elt}[]{close}.map(({}) => ({body_jsx}))}}", params.join(", ")))
+            let (open, close) = if never_nullish_call {
+                ("(", ")")
+            } else {
+                ("((", " | undefined) ?? [])")
+            };
+            Some(format!(
+                "{{{open}{coll} as readonly {elt}[]{close}.map(({}) => ({body_jsx}))}}",
+                params.join(", ")
+            ))
         } else if literal_array {
             Some(format!(
                 "{{({}).map(({}) => ({}))}}",
@@ -425,7 +453,12 @@ impl TypeScriptBackend {
                 body_jsx
             ))
         } else if never_nullish_call {
-            Some(format!("{{({}).map(({}) => ({}))}}", coll, params.join(", "), body_jsx))
+            Some(format!(
+                "{{({}).map(({}) => ({}))}}",
+                coll,
+                params.join(", "),
+                body_jsx
+            ))
         } else {
             Some(format!(
                 "{{({} ?? []).map(({}) => ({}))}}",
@@ -1759,8 +1792,7 @@ impl TypeScriptBackend {
                 }
                 // Handle renderItem lambda: ["fn", "paramName", { pattern body }]
                 // Generates: {(paramName: <RowType>) => (<PatternJSX />)}
-                // The lambda param (e.g., "item") is used directly as the variable name.
-                // @item.field in the body compiles to item?.field. No invisible rewriting.
+                // Declarations and local reads share the callback's assigned identifiers.
                 //
                 // Row type: the trait's `linked_entity` — every field declared
                 // on the entity is narrowly typed via the generated interface
@@ -1778,7 +1810,14 @@ impl TypeScriptBackend {
                             Some(OirValue::String(s)) if s == "fn"
                         );
                         if is_fn && lambda.len() >= 3 {
-                            let params = lambda_params(&lambda[1..lambda.len() - 1]);
+                            let mut params = lambda_params(&lambda[1..lambda.len() - 1]);
+                            if params.len() == 1
+                                && lambda
+                                    .last()
+                                    .is_some_and(|body| Self::reads_binding_root(body, "index"))
+                            {
+                                params.push("index".to_string());
+                            }
                             if let Some(OirValue::Object(body_obj)) = lambda.last() {
                                 if let (false, Some(OirValue::String(body_type))) =
                                     (params.is_empty(), body_obj.get("type"))
@@ -1789,11 +1828,27 @@ impl TypeScriptBackend {
                                         .map(|(k, v)| (k.clone(), v.clone()))
                                         .collect();
                                     // @item.field compiles to item?.field via sexpr_to_ts.
-                                    let body_jsx = self.generate_pattern_from_registry(
-                                        body_type,
-                                        &body_config,
-                                        linked_entity,
-                                        entity_field_types,
+                                    let body_oir =
+                                        orbital_core::lower::lower_sexpr(&Self::oirvalue_to_sexpr(
+                                            &OirValue::Object(body_config.clone()),
+                                        ))
+                                        .into_iter()
+                                        .collect::<Vec<_>>();
+                                    let (body_jsx, emitted_params) = self.with_operand_locals(
+                                        &body_oir,
+                                        crate::codegen::expr::BindingFlavor::Render,
+                                        &params,
+                                        || {
+                                            self.with_locals_assigned(&params, false, |emitted| {
+                                                let body_jsx = self.generate_pattern_from_registry(
+                                                    body_type,
+                                                    &body_config,
+                                                    linked_entity,
+                                                    entity_field_types,
+                                                );
+                                                (body_jsx, emitted.to_vec())
+                                            })
+                                        },
                                     );
                                     // Row type for the FIRST param. @almadar/ui's
                                     // renderItem prop is universally
@@ -1811,15 +1866,16 @@ impl TypeScriptBackend {
                                     let decls: Vec<String> = params
                                         .iter()
                                         .enumerate()
-                                        .map(|(i, p)| {
+                                        .zip(&emitted_params)
+                                        .map(|((i, p), emitted)| {
                                             if i == 0 && !entity_is_lambda_param_binding {
-                                                format!("{}: {}", p, row_type)
+                                                format!("{}: {}", emitted, row_type)
                                             } else if p == "index" {
                                                 // The component calls renderItem
                                                 // with (item, index: number).
-                                                format!("{}: number", p)
+                                                format!("{}: number", emitted)
                                             } else {
-                                                p.clone()
+                                                emitted.clone()
                                             }
                                         })
                                         .collect();
@@ -1857,7 +1913,7 @@ impl TypeScriptBackend {
                                         {
                                             decls.join(", ")
                                         } else {
-                                            params.join(", ")
+                                            emitted_params.join(", ")
                                         };
                                         // `body_jsx` is one
                                         // `generate_pattern_from_registry`

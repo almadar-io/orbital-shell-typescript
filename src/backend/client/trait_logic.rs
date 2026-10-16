@@ -446,8 +446,7 @@ impl TypeScriptBackend {
         let entity_is_runtime = matches!(dispatch_mode, OirDispatchMode::RuntimeOptimistic);
         // A client-only trait still sends the legs of its browser-leg events
         // (their data lives in the browser store), and only those.
-        let leg_events =
-            trait_def.browser_leg_events(&orbital_core::effects::Residence::of_module(module));
+        let leg_events = Self::trait_browser_leg_events(trait_def, module);
         let gated_leg =
             matches!(dispatch_mode, OirDispatchMode::HybridClientOnly) && !leg_events.is_empty();
 
@@ -778,7 +777,7 @@ impl TypeScriptBackend {
         // transition's per-slot write/clear sets so the reducer can update
         // `slotWriter` precisely instead of the trait-wide boolean.
         code.push_str(&format!(
-            "  | {{ type: 'EVENT_SUCCESS'; event: {}Event; newState: string; data: Record<string, EntityRow[]>; payload?: {}; fields?: Record<string, EventPayloadValue | undefined>; renderBearing?: boolean; renderWrite?: {}[]; renderClear?: {}[] }}\n",
+            "  | {{ type: 'EVENT_SUCCESS'; event: {}Event; newState: string; data: Record<string, EntityRow[]>; payload?: {}; fields?: Record<string, EventPayloadValue | undefined>; renderBearing?: boolean; renderWrite?: {}[]; renderClear?: {}[]; arm?: number }}\n",
             name, payload_union, slot_ty, slot_ty
         ));
         code.push_str("  | { type: 'EVENT_ERROR'; error: string }\n");
@@ -788,6 +787,9 @@ impl TypeScriptBackend {
             name
         ));
         code.push_str("  | { type: 'END_EVENT' }\n");
+        if self.writes_toast_slot(trait_def) {
+            code.push_str(&format!("  | {{ type: 'SLOT_CLEARED'; slot: {} }}\n", slot_ty));
+        }
         // SET_FIELD accepts an EventPayloadValue so payload-sourced bindings
         // (`(set @entity.X @payload.Y)`) can flow in without a cast at the
         // dispatch site. FieldValue is a subtype of EventPayloadValue (every
@@ -830,6 +832,10 @@ impl TypeScriptBackend {
         code.push_str(
             "      return { ...state, loading: false, pendingEvent: null, pendingFrom: null };\n",
         );
+        if self.writes_toast_slot(trait_def) {
+            code.push_str("    case 'SLOT_CLEARED':\n");
+            code.push_str("      return { ...state, slotWriter: { ...state.slotWriter, [action.slot]: null } };\n");
+        }
         code.push_str("    case 'EVENT_SUCCESS':\n");
         let fields_cast_ts = match &trait_def.linked_entity {
             Some(linked_entity) => format!(
@@ -869,7 +875,7 @@ impl TypeScriptBackend {
         code.push_str("          ...state.slotWriter,\n");
         code.push_str(
             if self.render_writer_fn(trait_def).is_some() {
-                format!("          ...Object.fromEntries((action.renderWrite ?? []).map((s) => [s, {}RenderWriter(action.event, action.newState)] as const)),\n", trait_def.name)
+                format!("          ...Object.fromEntries((action.renderWrite ?? []).map((s) => [s, {}RenderWriter(action.event, action.newState, action.arm)] as const)),\n", trait_def.name)
             } else {
                 "          ...Object.fromEntries((action.renderWrite ?? []).map((s) => [s, action.event] as const)),\n".to_string()
             }
@@ -1005,6 +1011,9 @@ impl TypeScriptBackend {
         code.push_str(&format!("  actions: {};\n", actions_type));
         if uses_now {
             code.push_str("  now: number;\n");
+        }
+        if self.writes_toast_slot(trait_def) {
+            code.push_str(&format!("  clearSlot: (slot: {}Slot) => void;\n", name));
         }
         // `config` on the hook return is non-optional WHEN the trait has
         // declared defaults — in that case the hook returns mergedConfig
@@ -1330,6 +1339,9 @@ impl TypeScriptBackend {
                 None => "    const liveData: Record<string, EntityRow[]> = {};\n".to_string(),
             };
             code.push_str(&live_data_ts);
+            if gated_leg {
+                code.push_str("    const _preRow = { ...fieldsRef.current } as EntityRow;\n");
+            }
             code.push_str(&format!(
                 "    const _optimistic = {};\n",
                 tx(&format!(
@@ -1349,7 +1361,7 @@ impl TypeScriptBackend {
                 name = name
             ));
             code.push_str("    }\n");
-            code.push_str("    const _renderSlots = getRenderUiSlots(prevState, event);\n");
+            code.push_str("    const _renderSlots = getRenderUiSlots(prevState, event, _optimistic.arm);\n");
             code.push_str(
                 "    const _renderBearing = _renderSlots.write.length > 0 || _renderSlots.clear.length > 0;\n",
             );
@@ -1372,6 +1384,7 @@ impl TypeScriptBackend {
             code.push_str("      renderBearing: _renderBearing,\n");
             code.push_str("      renderWrite: _renderSlots.write,\n");
             code.push_str("      renderClear: _renderSlots.clear,\n");
+            code.push_str("      arm: _optimistic.arm,\n");
             code.push_str("    });\n");
             code.push_str(&self.generate_cascade_record(trait_def, "    "));
             // Refs must reflect the commit IMMEDIATELY so a chained dispatch
@@ -1419,10 +1432,13 @@ impl TypeScriptBackend {
                 // whatever the in-memory store already holds server-side
                 // (`getRuntimeEntity`), so there is nothing for the client
                 // to hand over here.
-                code.push_str(if dispatch_scope {
-                    "        const response = await sendEvent(event, payload, prevState, undefined, __cont);\n"
-                } else {
-                    "        const response = await sendEvent(event, payload, prevState);\n"
+                // The browser store replays a leg statelessly from the pre-dispatch state, so it
+                // gets the pre-dispatch row; a server keeps its own [runtime] copy.
+                code.push_str(match (gated_leg, dispatch_scope) {
+                    (true, true) => "        const response = await sendEvent(event, payload, prevState, _preRow, __cont);\n",
+                    (true, false) => "        const response = await sendEvent(event, payload, prevState, _preRow);\n",
+                    (false, true) => "        const response = await sendEvent(event, payload, prevState, undefined, __cont);\n",
+                    (false, false) => "        const response = await sendEvent(event, payload, prevState);\n",
                 });
                 if gated_leg {
                     // The browser store runs the leg's own success cascade in
@@ -1800,6 +1816,9 @@ impl TypeScriptBackend {
         code.push_str("    actions,\n");
         if uses_now {
             code.push_str("    now,\n");
+        }
+        if self.writes_toast_slot(trait_def) {
+            code.push_str(&format!("    clearSlot: (slot: {}Slot) => dispatchReducer({{ type: 'SLOT_CLEARED', slot }}),\n", name));
         }
         // Return mergedConfig (defaults + caller overrides) so views read
         // declared defaults when no consumer override is present.
@@ -2646,7 +2665,7 @@ mod optimistic_dispatch_tests {
         );
         // The transpiled handler must be in resolve_new_state shape.
         assert!(
-            ts.contains("return { fields: _fields, newState: _newState, emits: _emits };"),
+            ts.contains("return { fields: _fields, newState: _newState, emits: _emits, arm: _arm };"),
             "runtime-linked trait's handler must resolve newState locally:\n{ts}"
         );
     }

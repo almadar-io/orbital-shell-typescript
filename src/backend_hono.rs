@@ -265,7 +265,7 @@ impl TypeScriptBackend {
             // `resolveEntityView`/`omitFrameFields` back the §87/§88 `@entity`
             // frame binding and auto-persist strip — see the Express
             // handler's identical import for the full rationale.
-            let mut core_values: BTreeSet<&str> = ["resolveEntityView", "omitFrameFields"]
+            let mut core_values: BTreeSet<&str> = ["resolveEntityView", "omitFrameFields", "guardHolds"]
                 .into_iter()
                 .collect();
             if crate::codegen::effect::shared::trait_reads_dispatch_scope(trait_def) {

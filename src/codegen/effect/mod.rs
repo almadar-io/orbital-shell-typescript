@@ -10,7 +10,7 @@
 
 use orbital_core::ir::{
     OirBinding, OirBindingRoot, OirEffect, OirEmitConfig, OirEntity, OirExpr, OirInterval,
-    OirLogLevel, OirModule, OirPersistOp, OirPersistence, OirTrait, OirTransitionFrom, OirType,
+    OirLogLevel, OirModule, OirPersistOp, OirTrait, OirTransitionFrom, OirType,
 };
 
 use crate::backend::{operation_to_string, to_camel_case, to_snake_case, TypeScriptBackend};
@@ -54,7 +54,7 @@ pub(crate) use persist::PersistDataValidation;
 mod tests {
     use crate::TypeScriptBackend;
     use orbital_core::ir::{
-        OirBinding, OirConstraint, OirEffect, OirEntity, OirExpr, OirField, OirModule,
+        OirBinding, OirEffect, OirEntity, OirExpr, OirField, OirModule,
         OirPersistOp, OirPersistence, OirType,
     };
 

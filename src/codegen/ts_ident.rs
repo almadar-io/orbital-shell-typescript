@@ -28,6 +28,27 @@ pub(crate) fn ts_member_name(name: &str) -> String {
     }
 }
 
+/// One optional-chain step for a binding-path segment (EXEC binding-path): an identifier
+/// reads `?.name`; a canonical number indexes (`?.[0]`); anything else (a literal
+/// bracket key such as `items[0]`) is one quoted key (`?.["items[0]"]`).
+pub(crate) fn opt_step(seg: &str) -> String {
+    let canonical_index = !seg.is_empty()
+        && seg.bytes().all(|b| b.is_ascii_digit())
+        && (seg == "0" || !seg.starts_with('0'));
+    if canonical_index {
+        format!("?.[{seg}]")
+    } else if is_valid_identifier(seg) {
+        format!("?.{seg}")
+    } else {
+        format!("?.[\"{}\"]", escape_js_string(seg))
+    }
+}
+
+/// [`opt_step`] over every segment of a binding path.
+pub(crate) fn opt_path<S: AsRef<str>>(segs: &[S]) -> String {
+    segs.iter().map(|s| opt_step(s.as_ref())).collect()
+}
+
 /// A TS DECLARATION-position name (interface / type / function), where quoting
 /// is not available: bare when already a valid identifier (preserving every
 /// existing generated name verbatim), Pascal-collapsed otherwise — so an event

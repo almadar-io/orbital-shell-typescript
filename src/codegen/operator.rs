@@ -9,6 +9,130 @@
 
 use crate::backend::TypeScriptBackend;
 
+pub(crate) struct CoreOperatorDependencies {
+    pub(crate) operator: &'static str,
+    pub(crate) imports: &'static [&'static str],
+    pub(crate) intrinsics: &'static [&'static str],
+    pub(crate) arity: usize,
+    pub(crate) arity_constructor: &'static str,
+}
+
+impl CoreOperatorDependencies {
+    fn arity_error(&self) -> String {
+        let expected = match self.arity {
+            1 => "one argument",
+            2 => "two arguments",
+            3 => "three arguments",
+            _ => unreachable!(),
+        };
+        format!("((): never => {{ throw new {}('Invalid argument: {}: expected exactly {expected}'); }})()", self.arity_constructor, self.operator)
+    }
+}
+
+const TIME_PARSE_TS: &str = "((__v: EventPayloadValue | undefined): number => { if (typeof __v !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (__v == null ? 'null' : Array.isArray(__v) ? 'array' : typeof __v)); const __m = /^(\\d{4})-(\\d{2})-(\\d{2})(?:T(\\d{2}):(\\d{2})(?::(\\d{2})(?:\\.(\\d+))?)?(Z|[+-]\\d{2}:\\d{2})?)?$/.exec(__v); if (__m === null) throw new Error('time/parse: \"' + __v + '\" is not an ISO 8601 date or date-time'); const __y = Number(__m[1]); const __mo = Number(__m[2]); const __dy = Number(__m[3]); const __d = new Date(0); __d.setUTCFullYear(__y, __mo - 1, __dy); __d.setUTCHours(0, 0, 0, 0); if (__d.getUTCFullYear() !== __y || __d.getUTCMonth() !== __mo - 1 || __d.getUTCDate() !== __dy) throw new Error('time/parse: \"' + __v + '\" is not a calendar date'); const __h = Number(__m[4] ?? 0); const __mi = Number(__m[5] ?? 0); const __s = Number(__m[6] ?? 0); const __ms = Number((__m[7] ?? '0').slice(0, 3).padEnd(3, '0')); if (__h > 23 || __mi > 59 || __s > 59) throw new Error('time/parse: \"' + __v + '\" has a time of day out of range'); let __off = 0; const __z = __m[8]; if (__z !== undefined && __z !== 'Z') { const __oh = Number(__z.slice(1, 3)); const __om = Number(__z.slice(4, 6)); if (__oh > 23 || __om > 59) throw new Error('time/parse: \"' + __v + '\" has an offset out of range'); __off = (__z[0] === '-' ? -1 : 1) * (__oh * 60 + __om); } return __d.getTime() + ((__h * 60 + __mi - __off) * 60 + __s) * 1000 + __ms; })";
+
+pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
+    CoreOperatorDependencies {
+        operator: "str/to-number",
+        imports: &[],
+        intrinsics: &["Number", "TypeError", "Array"],
+        arity: 1,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "json/valid",
+        imports: &[],
+        intrinsics: &["JSON", "TypeError", "Array"],
+        arity: 1,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "xml/parse",
+        imports: &["parseXml"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 2,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "xml/valid",
+        imports: &["xmlValid"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 1,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "str/encode-uri-component",
+        imports: &["encodeUriComponent"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 1,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "str/decode-uri-component",
+        imports: &["decodeUriComponent"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 1,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "str/uri-component-valid",
+        imports: &["decodeUriComponent", "CodecError"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 1,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "base64/encode",
+        imports: &["encodeBase64"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 1,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "base64/decode",
+        imports: &["decodeBase64"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 1,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "base64/valid",
+        imports: &["decodeBase64", "CodecError"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 1,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "hash/sha256",
+        imports: &["utf8Bytes", "sha256Bytes", "encodeDigest", "CodecError"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 2,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "hash/md5",
+        imports: &["base64DecodeBytes", "md5Bytes", "encodeDigest", "CodecError"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 2,
+        arity_constructor: "Error",
+    },
+    CoreOperatorDependencies {
+        operator: "hmac/sha256",
+        imports: &["utf8Bytes", "hmacSha256Bytes", "encodeDigest", "CodecError"],
+        intrinsics: &["TypeError", "Array"],
+        arity: 3,
+        arity_constructor: "Error",
+    },
+];
+
+pub(crate) fn core_operator_dependencies(
+    operator: &str,
+) -> Option<&'static CoreOperatorDependencies> {
+    CORE_OPERATOR_IMPORTS
+        .iter()
+        .find(|dependencies| dependencies.operator == operator)
+}
+
 /// Inline TS cosine core, twin of the interpreter's `cosine_similarity`
 /// (`orbital-core/src/evaluator/operators/array.rs`) — same math, same three
 /// error conditions, byte-identical messages. One Rust-side definition so
@@ -22,6 +146,9 @@ const NUMBERS_OF_TS: &str = "((vs: readonly EventPayloadValue[], key: string | u
 const CSV_PARSE_TS: &str = r##"((s: EventPayloadValue | undefined): Array<{ [k: string]: string }> => { if (typeof s !== 'string') return []; const recs: string[][] = []; let r: string[] = []; let f = ''; let q = false; let iq = false; const end = (): void => { if (r.length > 0 || f !== '' || q) { r.push(f); recs.push(r); r = []; f = ''; q = false; } }; for (let i = s.charCodeAt(0) === 0xfeff ? 1 : 0; i < s.length; i++) { const c = s[i]; if (iq) { if (c === '"') { if (s[i + 1] === '"') { f += '"'; i++; } else { iq = false; } } else { f += c; } } else if (c === '"' && f === '') { iq = true; q = true; } else if (c === ',') { r.push(f); f = ''; q = false; } else if (c === '\r' || c === '\n') { if (c === '\r' && s[i + 1] === '\n') i++; end(); } else { f += c; } } end(); const [h, ...rows] = recs; if (h === undefined) return []; return rows.map((cells) => { const o: { [k: string]: string } = {}; h.forEach((n, i) => { o[n] = cells[i] ?? ''; }); return o; }); })"##;
 /// `path/astar` — twin of orbital-core `operators/path.rs`: linear-scan open set, tie-break lower f, lower h, earliest insertion; `[]` when unreachable.
 const PATH_ASTAR_TS: &str = r##"((s0: EventPayloadValue | undefined, g0: EventPayloadValue | undefined, bl: EventPayloadValue | undefined, w0: EventPayloadValue | undefined, h0: EventPayloadValue | undefined, d0: EventPayloadValue | undefined): Array<{ x: number; y: number }> => { const cell = (v: EventPayloadValue | undefined): { x: number; y: number } => { const o = v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date) ? (v as { readonly [k: string]: EventPayloadValue }) : {}; return { x: Math.trunc(typeof o.x === 'number' ? o.x : 0), y: Math.trunc(typeof o.y === 'number' ? o.y : 0) }; }; const key = (c: { x: number; y: number }): string => `${c.x},${c.y}`; const blocked = new Set(Array.isArray(bl) ? bl.map((b) => key(cell(b))) : []); const start = cell(s0); const goal = cell(g0); const w = Math.trunc(Number(w0)); const h = Math.trunc(Number(h0)); const diag = d0 === true; const offs: Array<[number, number]> = [[0, -1], [1, 0], [0, 1], [-1, 0]]; if (diag) offs.push([1, -1], [1, 1], [-1, 1], [-1, -1]); const heur = (c: { x: number; y: number }): number => { const dx = Math.abs(c.x - goal.x); const dy = Math.abs(c.y - goal.y); return diag ? Math.max(dx, dy) : dx + dy; }; type N = { cell: { x: number; y: number }; g: number; h: number; f: number; order: number }; let counter = 0; const open: N[] = []; const came = new Map<string, { x: number; y: number }>(); const gs = new Map<string, number>(); const closed = new Set<string>(); const hs = heur(start); open.push({ cell: start, g: 0, h: hs, f: hs, order: counter++ }); gs.set(key(start), 0); while (open.length > 0) { let best = 0; for (let i = 1; i < open.length; i++) { const n = open[i]; const b = open[best]; if (n.f < b.f || (n.f === b.f && n.h < b.h) || (n.f === b.f && n.h === b.h && n.order < b.order)) best = i; } const cur = open[best]; open[best] = open[open.length - 1]; open.pop(); if (cur.cell.x === goal.x && cur.cell.y === goal.y) { const path = [goal]; let k = key(goal); let prev = came.get(k); while (prev !== undefined) { path.push(prev); k = key(prev); prev = came.get(k); } return path.reverse().map((c) => ({ x: c.x, y: c.y })); } closed.add(key(cur.cell)); for (const [dx, dy] of offs) { const nb = { x: cur.cell.x + dx, y: cur.cell.y + dy }; if (nb.x < 0 || nb.x >= w || nb.y < 0 || nb.y >= h) continue; const nk = key(nb); if (blocked.has(nk) || closed.has(nk)) continue; const t = cur.g + 1; const known = gs.get(nk); if (known === undefined || t < known) { came.set(nk, cur.cell); gs.set(nk, t); const hh = heur(nb); open.push({ cell: nb, g: t, h: hh, f: t + hh, order: counter++ }); } } } return []; })"##;
+/// `array/sort` total order: twin of orbital-core `sort_order` / almadar-evaluator `compareSortValues`.
+const SORT_COMPARE_TS: &str = "const r = (v: EventPayloadValue | undefined): number => v === null || v === undefined ? 0 : typeof v === 'boolean' ? 1 : typeof v === 'number' ? 2 : typeof v === 'string' ? 3 : Array.isArray(v) ? 4 : 5; const cmp = (x: EventPayloadValue | undefined, y: EventPayloadValue | undefined): number => { const rx = r(x), ry = r(y); if (rx !== ry) return rx - ry; if (rx === 1) return Number(x) - Number(y); if (rx === 2) { const nx = Number.isNaN(x as number), ny = Number.isNaN(y as number); if (nx || ny) return Number(nx) - Number(ny); } if (rx === 3) { const sx = x as string, sy = y as string; let i = 0, j = 0; while (i < sx.length && j < sy.length) { const ca = sx.codePointAt(i) ?? 0, cb = sy.codePointAt(j) ?? 0; if (ca !== cb) return ca < cb ? -1 : 1; i += ca > 0xffff ? 2 : 1; j += cb > 0xffff ? 2 : 1; } return i < sx.length ? 1 : j < sy.length ? -1 : 0; } if (rx === 2) { if ((x as number) < (y as number)) return -1; if ((x as number) > (y as number)) return 1; } return 0; };";
+
 /// `path/reachable` — twin of orbital-core `operators/path.rs`: BFS within `steps`, start included, sorted row-major (y, then x).
 const PATH_REACHABLE_TS: &str = r##"((s0: EventPayloadValue | undefined, st: EventPayloadValue | undefined, bl: EventPayloadValue | undefined, w0: EventPayloadValue | undefined, h0: EventPayloadValue | undefined, d0: EventPayloadValue | undefined): Array<{ x: number; y: number }> => { const cell = (v: EventPayloadValue | undefined): { x: number; y: number } => { const o = v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date) ? (v as { readonly [k: string]: EventPayloadValue }) : {}; return { x: Math.trunc(typeof o.x === 'number' ? o.x : 0), y: Math.trunc(typeof o.y === 'number' ? o.y : 0) }; }; const key = (c: { x: number; y: number }): string => `${c.x},${c.y}`; const blocked = new Set(Array.isArray(bl) ? bl.map((b) => key(cell(b))) : []); const start = cell(s0); const steps = Math.trunc(Number(st)); const w = Math.trunc(Number(w0)); const h = Math.trunc(Number(h0)); const offs: Array<[number, number]> = [[0, -1], [1, 0], [0, 1], [-1, 0]]; if (d0 === true) offs.push([1, -1], [1, 1], [-1, 1], [-1, -1]); const visited = new Set([key(start)]); const result = [start]; const frontier: Array<[{ x: number; y: number }, number]> = [[start, 0]]; for (let i = 0; i < frontier.length; i++) { const [c, dist] = frontier[i]; if (dist >= steps) continue; for (const [dx, dy] of offs) { const nb = { x: c.x + dx, y: c.y + dy }; if (nb.x < 0 || nb.x >= w || nb.y < 0 || nb.y >= h) continue; const nk = key(nb); if (blocked.has(nk) || visited.has(nk)) continue; visited.add(nk); result.push(nb); frontier.push([nb, dist + 1]); } } return result.sort((p, q) => p.y - q.y || p.x - q.x); })"##;
 /// `src ?? []` for an array operand. A source that is the literal `undefined` (a residual
@@ -125,6 +252,11 @@ impl TypeScriptBackend {
         facts: &[crate::codegen::infer::ArgFacts],
         element_type: Option<&str>,
     ) -> String {
+        if let Some(dependencies) = core_operator_dependencies(function) {
+            if args.len() != dependencies.arity {
+                return dependencies.arity_error();
+            }
+        }
         // What each argument IS, read off its OIR by the caller — never off its text.
         let fact = |i: usize| facts.get(i).cloned().unwrap_or_default();
         let nn = |i: usize| fact(i).never_nullish;
@@ -497,13 +629,94 @@ impl TypeScriptBackend {
             // without it the fallback emits an undefined `list(...)` call.
             "list" | "array/of" => format!("[{}]", args.join(", ")),
 
+            // --- std-codec ---
+            "str/encode-uri-component" | "base64/encode" | "base64/decode" => {
+                let helper = match function {
+                    "str/encode-uri-component" => "encodeUriComponent",
+                    "base64/encode" => "encodeBase64",
+                    "base64/decode" => "decodeBase64",
+                    _ => unreachable!(),
+                };
+                self.with_generated_locals(&["__v"], |names| {
+                    let value = &names[0];
+                    format!(
+                        "(({value}: EventPayloadValue | undefined): string => {{ if (typeof {value} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + ({value} == null ? 'null' : Array.isArray({value}) ? 'array' : typeof {value})); return {helper}({value}); }})({})",
+                        a(0)
+                    )
+                })
+            },
+            "str/decode-uri-component" => self.with_generated_locals(&["__v"], |names| {
+                let value = &names[0];
+                format!(
+                    "(({value}: EventPayloadValue | undefined): string | null => {{ if ({value} == null) return null; if (typeof {value} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (Array.isArray({value}) ? 'array' : typeof {value})); return decodeUriComponent({value}); }})({})",
+                    a(0)
+                )
+            }),
+            "str/uri-component-valid" => self.with_generated_locals(&["__v"], |names| {
+                let value = &names[0];
+                format!(
+                    "(({value}: EventPayloadValue | undefined): boolean => {{ if ({value} == null) return false; if (typeof {value} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (Array.isArray({value}) ? 'array' : typeof {value})); try {{ decodeUriComponent({value}); return true; }} catch (__e) {{ if (__e instanceof CodecError) return false; throw __e; }} }})({})",
+                    a(0)
+                )
+            }),
+            "base64/valid" => self.with_generated_locals(&["__v"], |names| {
+                let value = &names[0];
+                format!(
+                    "(({value}: EventPayloadValue | undefined): boolean => {{ if ({value} == null) return false; if (typeof {value} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (Array.isArray({value}) ? 'array' : typeof {value})); try {{ decodeBase64({value}); return true; }} catch (__e) {{ if (__e instanceof CodecError) return false; throw __e; }} }})({})",
+                    a(0)
+                )
+            }),
+            "hash/sha256" => self.with_generated_locals(&["__message", "__digest", "__encoding"], |names| {
+                let message = &names[0];
+                let digest = &names[1];
+                let encoding = &names[2];
+                format!(
+                    "(({message}: EventPayloadValue | undefined): string => {{ if (typeof {message} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + ({message} == null ? 'null' : Array.isArray({message}) ? 'array' : typeof {message})); const {digest} = sha256Bytes(utf8Bytes({message})); return (({encoding}: EventPayloadValue | undefined): string => {{ if (typeof {encoding} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + ({encoding} == null ? 'null' : Array.isArray({encoding}) ? 'array' : typeof {encoding})); if ({encoding} !== 'hex' && {encoding} !== 'base64') throw new CodecError('encoding must be \"hex\" or \"base64\", got \"' + {encoding} + '\"'); return encodeDigest({digest}, {encoding}); }})({}); }})({})",
+                    a(1), a(0)
+                )
+            }),
+            "hash/md5" => self.with_generated_locals(&["__data", "__digest", "__encoding"], |names| {
+                let data = &names[0];
+                let digest = &names[1];
+                let encoding = &names[2];
+                format!(
+                    "(({data}: EventPayloadValue | undefined): string => {{ if (typeof {data} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + ({data} == null ? 'null' : Array.isArray({data}) ? 'array' : typeof {data})); const {digest} = md5Bytes(base64DecodeBytes({data})); return (({encoding}: EventPayloadValue | undefined): string => {{ if (typeof {encoding} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + ({encoding} == null ? 'null' : Array.isArray({encoding}) ? 'array' : typeof {encoding})); if ({encoding} !== 'hex' && {encoding} !== 'base64') throw new CodecError('encoding must be \"hex\" or \"base64\", got \"' + {encoding} + '\"'); return encodeDigest({digest}, {encoding}); }})({}); }})({})",
+                    a(1), a(0)
+                )
+            }),
+            "hmac/sha256" => self.with_generated_locals(&["__key", "__keyBytes", "__message", "__digest", "__encoding"], |names| {
+                let key = &names[0];
+                let key_bytes = &names[1];
+                let message = &names[2];
+                let digest = &names[3];
+                let encoding = &names[4];
+                format!(
+                    "(({key}: EventPayloadValue | undefined): string => {{ if (typeof {key} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + ({key} == null ? 'null' : Array.isArray({key}) ? 'array' : typeof {key})); const {key_bytes} = utf8Bytes({key}); return (({message}: EventPayloadValue | undefined): string => {{ if (typeof {message} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + ({message} == null ? 'null' : Array.isArray({message}) ? 'array' : typeof {message})); const {digest} = hmacSha256Bytes({key_bytes}, utf8Bytes({message})); return (({encoding}: EventPayloadValue | undefined): string => {{ if (typeof {encoding} !== 'string') throw new TypeError('Type mismatch: expected string, got ' + ({encoding} == null ? 'null' : Array.isArray({encoding}) ? 'array' : typeof {encoding})); if ({encoding} !== 'hex' && {encoding} !== 'base64') throw new CodecError('encoding must be \"hex\" or \"base64\", got \"' + {encoding} + '\"'); return encodeDigest({digest}, {encoding}); }})({}); }})({}); }})({})",
+                    a(2), a(1), a(0)
+                )
+            }),
+
             // --- std-json --- (the kernel contract: parse never throws, stringify always a string)
+            "json/valid" => format!(
+                "((__v: EventPayloadValue | undefined): boolean => {{ if (typeof __v !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (__v == null ? 'null' : Array.isArray(__v) ? 'array' : typeof __v)); try {{ JSON.parse(__v); return true; }} catch {{ return false; }} }})({})",
+                a(0)
+            ),
             "json/parse" => format!(
                 "((s: EventPayloadValue | undefined): EventPayloadValue => {{ if (typeof s !== 'string') return null; try {{ return JSON.parse(s) as EventPayloadValue; }} catch {{ return null; }} }})({})",
                 a(0)
             ),
             "json/stringify" if nn(0) => format!("(JSON.stringify({}) ?? 'null')", a(0)),
             "json/stringify" => format!("(JSON.stringify({} ?? null) ?? 'null')", a(0)),
+
+            // --- std-xml ---
+            "xml/parse" => format!(
+                "((__v: EventPayloadValue | undefined): EventPayloadValue => {{ if (__v == null) return null; if (typeof __v !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (Array.isArray(__v) ? 'array' : typeof __v)); return parseXml(__v); }})({})",
+                a(0)
+            ),
+            "xml/valid" => format!(
+                "((__v: EventPayloadValue | undefined): boolean => {{ if (typeof __v !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (__v == null ? 'null' : Array.isArray(__v) ? 'array' : typeof __v)); return xmlValid(__v); }})({})",
+                a(0)
+            ),
 
             // --- std-csv ---
             "csv/parse" => format!("{}({})", CSV_PARSE_TS, a(0)),
@@ -513,6 +726,10 @@ impl TypeScriptBackend {
             "path/reachable" => format!("{}({}, {}, {}, {}, {}, {})", PATH_REACHABLE_TS, a(0), a(1), a(2), a(3), a(4), a(5)),
 
             // --- std-str ---
+            "str/to-number" => format!(
+                "((__v: EventPayloadValue | undefined): number => {{ if (typeof __v !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (__v == null ? 'null' : Array.isArray(__v) ? 'array' : typeof __v)); return Number(__v); }})({})",
+                a(0)
+            ),
             "str/len" => format!("{}.length", sr(0)),
             "str/concat" => format!("[{}].join('')", args.join(", ")),
             "str/upper" => format!("{}.toUpperCase()", sr(0)),
@@ -692,30 +909,19 @@ impl TypeScriptBackend {
                 format!("[{}]", spreads.join(", "))
             }
             "array/reverse" => format!("[...{}].reverse()", elem_array_arg(0)),
-            "array/sort" if args.len() == 1 => format!("[...{}].sort()", elem_array_arg(0)),
-            // Key-name 2/3-arg form mirrors @almadar/evaluator's
-            // `evalArraySort(arr, keyName, dir?)`. The 2nd arg is a STRING
-            // property key on each row, not a comparator. Direction defaults
-            // to "asc"; "desc" reverses the order. Comparator wraps both `<`
-            // and `>` so it works for numbers and strings.
-            "array/sort" if args.len() == 2 => format!(
-                // Comparator params: see `sort_comparator_params` above.
-                // The body re-casts via `(a as EntityRow)` regardless of
-                // whether the params are annotated or TS-inferred.
-                "[...{0}].sort(({2}) => {{ const av = (a as EntityRow)?.[{1}], bv = (b as EntityRow)?.[{1}]; if ((av as number) < (bv as number)) return -1; if ((av as number) > (bv as number)) return 1; return 0; }})",
-                array_arg(0), a(1), sort_comparator_params(0)
-            ),
-            "array/sort" => format!(
-                // Widen `{2}` to `string` so TS doesn't constant-fold the
-                // literal comparison and trip TS2367 "comparison appears
-                // unintentional because '\"asc\"' and '\"desc\"' have no
-                // overlap" when the lolo passes a string literal
-                // (`(array/sort coll "field" "asc")`). Runtime semantics
-                // unchanged — both branches still resolve to ±1. Comparator
-                // params: see `sort_comparator_params` above.
-                "[...{0}].sort(({3}) => {{ const av = (a as EntityRow)?.[{1}], bv = (b as EntityRow)?.[{1}]; const dir = (({2}) as string) === 'desc' ? -1 : 1; if ((av as number) < (bv as number)) return -1 * dir; if ((av as number) > (bv as number)) return 1 * dir; return 0; }})",
-                array_arg(0), a(1), a(2), sort_comparator_params(0)
-            ),
+            // Twin of @almadar/evaluator `evalArraySort(arr, key?, dir?)` and orbital-core `ArraySortOp`:
+            // a null/empty key sorts the elements themselves, `dir` is "asc" (default) or else descending,
+            // `<`/`>` ordering, stable.
+            "array/sort" => {
+                // Widen the key and direction to `string` so TS doesn't constant-fold the literal comparison
+                // (TS2367) when the lolo passes a string literal. Params: see `sort_comparator_params`.
+                let key = if args.len() > 1 { a(1) } else { "null" };
+                let dir = if args.len() > 2 { a(2) } else { "\"asc\"" };
+                format!(
+                    "[...{0}].sort(({3}) => {{ {4} const k = ({1}) as string | null | undefined; const av = k ? (a as EntityRow)?.[k] : (a as EventPayloadValue), bv = k ? (b as EntityRow)?.[k] : (b as EventPayloadValue); const ord = cmp(av as EventPayloadValue | undefined, bv as EventPayloadValue | undefined); return (({2}) as string) === 'asc' ? ord : -ord; }})",
+                    array_arg(0), key, dir, sort_comparator_params(0), SORT_COMPARE_TS
+                )
+            }
             "array/unique" => format!("[...new Set({})]", array_arg(0)),
             "array/flatten" if args.len() == 1 => format!("{}.flat()", or_empty(a(0))),
             "array/flatten" => format!("{}.flat({})", or_empty(a(0)), a(1)),
@@ -871,7 +1077,16 @@ impl TypeScriptBackend {
             "time/format" => TIME_FORMAT_TOKEN_TEMPLATE
                 .replace("__TS__", &dt(0))
                 .replace("__FMT__", &a(1)),
-            "time/parse" => format!("new Date({}).getTime()", dt(0)),
+            // Same semantics as orbital-core `TimeParseOp` and `@almadar/evaluator` `evalTimeParse`
+            // (shared vectors `time-vectors.json`): RFC 3339 / ISO 8601, a date is midnight UTC, no
+            // offset reads as UTC, anything else throws. Emitted inline: generated apps do not import
+            // the evaluator, and `new Date(str)` reads an offset-less date-time as local time.
+            "time/parse" => format!("{}({})", TIME_PARSE_TS, a(0)),
+            // time/valid is time/parse's own emission with the failure mapped to false; null is false.
+            "time/valid" => format!(
+                "((__x: EventPayloadValue | undefined): boolean => {{ if (__x == null) return false; if (typeof __x !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (Array.isArray(__x) ? 'array' : typeof __x)); try {{ {TIME_PARSE_TS}(__x); return true; }} catch (__e) {{ if (__e instanceof TypeError) throw __e; return false; }} }})({})",
+                a(0)
+            ),
             // Same buckets as `@almadar/evaluator` `evalTimeRelative` and orbital-core `TimeRelativeOp`.
             "time/relative" => format!(
                 "((__ts: number): string => {{ const __d = __ts - now; const __ms = Math.abs(__d); const __M = 60000; const __H = 3600000; const __D = 86400000; if (__ms < __M) return 'just now'; const __pick: [number, string] = __ms < __H ? [Math.round(__ms / __M), 'minute'] : __ms < __D ? [Math.round(__ms / __H), 'hour'] : __ms < 7 * __D ? [Math.round(__ms / __D), 'day'] : __ms < 30 * __D ? [Math.round(__ms / (7 * __D)), 'week'] : __ms < 365 * __D ? [Math.round(__ms / (30 * __D)), 'month'] : [Math.round(__ms / (365 * __D)), 'year']; const __w = __pick[0] === 1 ? __pick[1] : __pick[1] + 's'; return __d < 0 ? `${{__pick[0]}} ${{__w}} ago` : `in ${{__pick[0]}} ${{__w}}`; }})({})",
@@ -953,37 +1168,6 @@ impl TypeScriptBackend {
                 a(1)
             ),
             "behavior/ref" => format!("behaviorRef(String({}))", a(0)),
-
-            // --- Lambda: ["fn", "param", body] → (param: <elem>) => body ---
-            "fn" | "lambda" if args.len() == 2 => {
-                let param = fact(0).string_value.unwrap_or_else(|| a(0).to_string());
-                let body = a(1);
-                // Wrap object-literal bodies in parens — `(p) => { foo: bar }`
-                // is a JS BLOCK with `foo:` as a labeled statement, not an
-                // object expression. Mirrors the same wrap in
-                // sexpr_to_ts.rs::compile_lambda.
-                let wrapped_body = if fact(1).object_literal {
-                    format!("({})", body)
-                } else {
-                    body.to_string()
-                };
-                // Element type comes from the enclosing array operator's
-                // inference (the default is `EventPayloadValue` from
-                // `call_to_ts_typed`'s fallback when no inference is
-                // available). Substitute `EntityRow` if we'd emit
-                // `EventPayloadValue` — the lambda body's
-                // `param.<field>` dynamic reads need an index signature
-                // (EntityRow has one; EventPayloadValue's union doesn't),
-                // and the runtime row IS structurally an EntityRow.
-                // String-literal comparisons still typecheck because
-                // FieldValue (the index value) includes `string`.
-                let resolved_elem = if elem == "EventPayloadValue" {
-                    "EntityRow"
-                } else {
-                    elem
-                };
-                format!("(({}: {}) => {})", param, resolved_elem, wrapped_body)
-            }
 
             // --- Pipeline-1 parity superset (B1): canonical expression
             // operators the older `compile_operator_call` handled but this
@@ -2834,5 +3018,60 @@ mod path_twin_tests {
         assert!(kernel("path/astar", &cases[4]).is_empty(), "a boxed-in start has no path");
         assert!(kernel("path/astar", &cases[6]).is_empty(), "an off-grid goal has no path");
         assert_eq!(kernel("path/astar", &cases[5]), vec![(1, 2)], "start == goal is a one-cell path");
+    }
+}
+
+#[cfg(test)]
+mod sort_twin_tests {
+    use crate::backend::TypeScriptBackend;
+    use orbital_core::lower::lower_sexpr;
+    use orbital_core::schema::SExpression;
+    use serde_json::json;
+
+    fn compiled(expr: serde_json::Value) -> serde_json::Value {
+        let sexpr: SExpression = serde_json::from_value(expr).unwrap();
+        let ts = TypeScriptBackend::new().expr_to_ts(&lower_sexpr(&sexpr).unwrap());
+        assert!(!ts.contains("UNSUPPORTED"), "{ts}");
+        let script = format!("type EventPayloadValue = string | number | boolean | null | Date | readonly EventPayloadValue[] | {{ readonly [k: string]: EventPayloadValue }}; type EntityRow = Record<string, unknown>; process.stdout.write(JSON.stringify({ts}));");
+        let out = std::process::Command::new("node")
+            .args(["--input-type=module-typescript", "-e", &script])
+            .output()
+            .expect("node must be on PATH");
+        assert!(out.status.success(), "{script}\n{}", String::from_utf8_lossy(&out.stderr));
+        serde_json::from_slice(&out.stdout).unwrap()
+    }
+
+    #[test]
+    fn sort_codegen_matches_the_evaluator_contract() {
+        // numbers sort numerically, not as strings
+        assert_eq!(compiled(json!(["array/sort", [10, 9, 1]])), json!([1, 9, 10]));
+        assert_eq!(compiled(json!(["array/sort", [3, 1, 2], null, "desc"])), json!([3, 2, 1]));
+        assert_eq!(compiled(json!(["array/sort", [3, 1, 2], null, "asc"])), json!([1, 2, 3]));
+        assert_eq!(compiled(json!(["array/sort", ["b", "a", "B", "é"]])), json!(["B", "a", "b", "é"]));
+        assert_eq!(compiled(json!(["array/sort", ["b", "a", "B", "é"], null, "desc"])), json!(["é", "b", "a", "B"]));
+        let rows = json!([{"price": 3}, {"price": 9}, {"price": 5}]);
+        assert_eq!(compiled(json!(["array/sort", rows, "price", "desc"])), json!([{"price": 9}, {"price": 5}, {"price": 3}]));
+        assert_eq!(compiled(json!(["array/sort", rows, "price"])), json!([{"price": 3}, {"price": 5}, {"price": 9}]));
+        let ties = json!([{"k": 1, "i": "a"}, {"k": 0, "i": "b"}, {"k": 1, "i": "c"}, {"k": 1, "i": "d"}]);
+        assert_eq!(
+            compiled(json!(["array/sort", ties, "k", "desc"])),
+            json!([{"k": 1, "i": "a"}, {"k": 1, "i": "c"}, {"k": 1, "i": "d"}, {"k": 0, "i": "b"}])
+        );
+        assert_eq!(compiled(json!(["array/sort", [1, 3, 2], null, "bogus"])), json!([3, 2, 1]));
+        assert_eq!(
+            compiled(json!(["array/sort", [{"k": 2}, {"k": null}, {"k": 1}], "k"])),
+            json!([{"k": null}, {"k": 1}, {"k": 2}])
+        );
+        assert_eq!(compiled(json!(["array/sort", []])), json!([]));
+        assert_eq!(compiled(json!(["array/sort", ["\u{FF5E}", "\u{1F600}", "a"]])), json!(["a", "\u{FF5E}", "\u{1F600}"]));
+        let mixed = json!([2, "a", true, 1, null, [1], "B", {"x": 1}, false]);
+        assert_eq!(
+            compiled(json!(["array/sort", mixed])),
+            json!([null, false, true, 1, 2, "B", "a", [1], {"x": 1}])
+        );
+        assert_eq!(
+            compiled(json!(["array/sort", mixed, null, "desc"])),
+            json!([{"x": 1}, [1], "a", "B", 2, 1, true, false, null])
+        );
     }
 }

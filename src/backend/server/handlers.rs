@@ -225,7 +225,14 @@ impl TypeScriptBackend {
                     }
                     | OirEffect::CredentialForget {
                         credential: expr, ..
-                    } => stack.push(expr),
+                    }
+                    | OirEffect::OAuthConnectionStatus { provider: expr, .. }
+                    | OirEffect::OAuthConnectionForget { provider: expr, .. } => stack.push(expr),
+                    OirEffect::OAuthAuthorize { client, options, key, .. } => {
+                        stack.push(client);
+                        stack.push(options);
+                        stack.extend(key);
+                    }
                     OirEffect::Spawn { props, .. } => stack.push(props),
                     OirEffect::Despawn { entity_id } => stack.push(entity_id),
                     OirEffect::Log { message, .. } => stack.push(message),

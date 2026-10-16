@@ -39,7 +39,7 @@ use orbital_core::ir::{
 };
 
 use crate::backend::{escape_js_string, TypeScriptBackend};
-use crate::codegen::ts_ident::ts_member_name;
+use crate::codegen::ts_ident::{opt_path, opt_step, ts_member_name};
 
 /// Single-owner payload identifier per emission scope. Every site that
 /// resolves `@payload` (a resolver) or declares the binding (a scope
@@ -54,47 +54,6 @@ use crate::codegen::ts_ident::ts_member_name;
 ///   `binding_string_to_ts` reads it directly with no extra alias.
 pub(crate) const CLIENT_PAYLOAD_VAR: &str = "payloadObj";
 pub(crate) const RENDER_PAYLOAD_VAR: &str = "lastPayload";
-
-/// Typed parameter list for an OirExpr `Lambda`. A body that reads the
-/// array-operator index `@index` (lowered to `Local("index")`) without
-/// declaring it as a param gets a typed `index` appended so the
-/// `.map((el, index) => …)` call site lines up (TS2304).
-///
-/// `annotate_first` controls param-0 typing. Pass `true` for lambdas emitted
-/// into a position with NO contextual type — a `filter` stored in a config
-/// object literal `[{ filter: (row) => … }]` — so param 0 gets `EntityRow`
-/// (the index-signature row type) instead of falling to implicit-any
-/// (TS7006). Pass `false` for the chain-style array-operator args
-/// (`(object/entries …).map(fn)`) where the source already produces a typed
-/// array (e.g. `[string, T[]][]` from `Object.entries`) and TS infers the
-/// param contextually — annotating there would mis-type the tuple (TS2345).
-/// Later declared params are always left as-authored — their type depends on
-/// the operator (`object/mapValues` key, `reduce` accumulator).
-fn lambda_param_decl(params: &[String], body: &OirExpr, first_param_type: Option<&str>) -> String {
-    let references_free_index = !params.iter().any(|p| p == "index")
-        && body
-            .collect_bindings()
-            .iter()
-            .any(|b| matches!(&b.root, OirBindingRoot::Local(n) if n == "index"));
-    let mut decl: Vec<String> = params
-        .iter()
-        .enumerate()
-        .map(|(i, p)| {
-            if i == 0 {
-                if let Some(ty) = first_param_type {
-                    return format!("{}: {}", p, ty);
-                }
-                p.clone()
-            } else {
-                p.clone()
-            }
-        })
-        .collect();
-    if references_free_index {
-        decl.push("index: number".to_string());
-    }
-    decl.join(", ")
-}
 
 /// Binding-resolution flavour for the shared `expr_to_ts_flavored` core.
 ///
@@ -137,7 +96,171 @@ pub(crate) enum BindingFlavor {
     ServerRenderUi,
 }
 
+impl BindingFlavor {
+    fn collection(self) -> Self {
+        if self == Self::Client {
+            Self::General
+        } else {
+            self
+        }
+    }
+
+    fn chained_callback(self) -> Self {
+        match self {
+            Self::Render => Self::Render,
+            Self::Client => Self::Client,
+            Self::Server | Self::ServerRenderUi => Self::Server,
+            Self::General | Self::Guard | Self::ListenerPayload => Self::General,
+        }
+    }
+}
+
 impl TypeScriptBackend {
+    fn lambda_local_names(params: &[String], body: &OirExpr) -> Vec<String> {
+        let mut bound = params.to_vec();
+        if !params.iter().any(|name| name == "index")
+            && body.collect_bindings().iter().any(
+                |binding| matches!(&binding.root, OirBindingRoot::Local(name) if name == "index"),
+            )
+        {
+            bound.push("index".to_string());
+        }
+        bound
+    }
+
+    fn chained_callback_call(function: &str, args: &[OirExpr]) -> bool {
+        matches!(function, "array/map" | "map" | "array/filter" | "filter")
+            && args.len() == 2
+            && matches!(&args[0], OirExpr::Call { .. })
+    }
+
+    fn binding_to_ts_flavored(&self, binding: &OirBinding, flavor: BindingFlavor) -> String {
+        match flavor {
+            BindingFlavor::General => self.binding_to_ts(binding),
+            BindingFlavor::Server => self.binding_to_ts_server(binding),
+            BindingFlavor::Client => self.binding_to_client_ts(binding),
+            BindingFlavor::Guard => self.binding_to_ts_guard(binding),
+            BindingFlavor::Render => self.binding_string_to_ts(&binding.to_string()),
+            BindingFlavor::ListenerPayload => self.binding_to_ts_listener_payload(binding),
+            BindingFlavor::ServerRenderUi => self.binding_to_ts_server_render(binding),
+        }
+    }
+
+    pub(crate) fn reserve_expr_free_identifiers(
+        &self,
+        expr: &OirExpr,
+        flavor: BindingFlavor,
+        bound: &[String],
+    ) {
+        let visit_body = |params: &[String], body: &OirExpr, selected, implicit_index| {
+            let mut nested = bound.to_vec();
+            nested.extend(if implicit_index {
+                Self::lambda_local_names(params, body)
+            } else {
+                params.to_vec()
+            });
+            self.reserve_expr_free_identifiers(body, selected, &nested);
+        };
+        match expr {
+            OirExpr::Binding { binding } => {
+                if !matches!(&binding.root, OirBindingRoot::Local(name) if bound.contains(name)) {
+                    let _ = self.binding_to_ts_flavored(binding, flavor);
+                }
+            }
+            OirExpr::Lambda { params, body } => visit_body(params, body, flavor, true),
+            OirExpr::Map {
+                source,
+                variable,
+                body,
+            } => {
+                self.reserve_expr_free_identifiers(source, flavor.collection(), bound);
+                visit_body(
+                    std::slice::from_ref(variable),
+                    body,
+                    flavor.collection(),
+                    false,
+                );
+            }
+            OirExpr::Filter {
+                source,
+                variable,
+                predicate,
+            } => {
+                self.reserve_expr_free_identifiers(source, flavor.collection(), bound);
+                visit_body(
+                    std::slice::from_ref(variable),
+                    predicate,
+                    flavor.collection(),
+                    false,
+                );
+            }
+            OirExpr::Reduce {
+                source,
+                variable,
+                accumulator,
+                initial,
+                body,
+            } => {
+                self.reserve_expr_free_identifiers(source, flavor.collection(), bound);
+                self.reserve_expr_free_identifiers(initial, flavor.collection(), bound);
+                visit_body(
+                    &[accumulator.clone(), variable.clone()],
+                    body,
+                    flavor.collection(),
+                    false,
+                );
+            }
+            OirExpr::Call { function, args } if function == "let" && args.len() == 2 => {
+                let mut nested = bound.to_vec();
+                if let OirExpr::Array { items } = &args[0] {
+                    for pair in items {
+                        if let OirExpr::Array { items: kv } = pair {
+                            if kv.len() == 2 {
+                                if let OirExpr::String { value: name } = &kv[0] {
+                                    self.reserve_expr_free_identifiers(&kv[1], flavor, &nested);
+                                    nested.push(name.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+                self.reserve_expr_free_identifiers(&args[1], flavor, &nested);
+            }
+            OirExpr::Call { function, args } => {
+                if (function == "fn" || function == "lambda") && args.len() == 2 {
+                    if let OirExpr::String { value: param } = &args[0] {
+                        visit_body(std::slice::from_ref(param), &args[1], flavor, true);
+                        return;
+                    }
+                }
+                if let Some(dependencies) =
+                    crate::codegen::operator::core_operator_dependencies(function)
+                {
+                    if args.len() != dependencies.arity {
+                        self.reserve_identifier(dependencies.arity_constructor);
+                        return;
+                    }
+                    for identifier in dependencies.imports.iter().chain(dependencies.intrinsics) {
+                        self.reserve_identifier(identifier);
+                    }
+                }
+                for (index, argument) in args.iter().enumerate() {
+                    let selected = if index == 1 && Self::chained_callback_call(function, args) {
+                        flavor.chained_callback()
+                    } else {
+                        flavor
+                    };
+                    self.reserve_expr_free_identifiers(argument, selected, bound);
+                }
+            }
+            _ => {
+                for child in expr.child_exprs() {
+                    self.reserve_expr_free_identifiers(child, flavor, bound);
+                }
+            }
+        }
+    }
+
     /// Convert OirValue to string
     pub(crate) fn value_to_string(&self, value: &OirValue) -> String {
         match value {
@@ -166,59 +289,74 @@ impl TypeScriptBackend {
         }
     }
 
-    /// Compile a fn-form lambda (`OirExpr::Call("fn", [param_name, body])`)
-    /// WITHOUT a type annotation on the param. The fn handler in operator.rs
-    /// uses the surrounding operator's element type for the annotation; that's
-    /// wrong when the source is a `Call` whose JS-typed return shape (tuples,
-    /// records) doesn't match the default. Letting TS infer contextually from
-    /// the consumer's `.map`/`.filter` signature produces the correct narrow
-    /// type. Falls back to the normal `expr_to_ts` path when args don't fit
-    /// the fn shape.
-    pub(crate) fn compile_unannotated_fn_lambda(&self, expr: &OirExpr) -> String {
+    /// Assign explicit and implicit parameters before emitting their declarations and body.
+    pub(crate) fn with_lambda_locals<R>(
+        &self,
+        params: &[String],
+        body: &OirExpr,
+        first_param_type: Option<&str>,
+        flavor: BindingFlavor,
+        f: impl FnOnce(String) -> R,
+    ) -> R {
+        let bound = Self::lambda_local_names(params, body);
+        self.with_operand_locals(std::slice::from_ref(body), flavor, &bound, || {
+            self.with_locals_assigned(&bound, false, |emitted| {
+                let decl = emitted
+                    .iter()
+                    .enumerate()
+                    .map(|(index, emitted)| {
+                        if index == 0 {
+                            if let Some(ty) = first_param_type {
+                                return format!("{emitted}: {ty}");
+                            }
+                        }
+                        if index >= params.len() {
+                            format!("{emitted}: number")
+                        } else {
+                            emitted.clone()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                f(decl)
+            })
+        })
+    }
+
+    fn compile_unannotated_fn_lambda_flavored(
+        &self,
+        expr: &OirExpr,
+        flavor: BindingFlavor,
+    ) -> String {
         if let OirExpr::Lambda { params, body } = expr {
-            let param_decl = lambda_param_decl(params, body, None);
-            let body = self.with_locals(params, false, || self.expr_to_ts(body));
-            let wrapped_body = if body.trim_start().starts_with('{') {
-                format!("({})", body)
-            } else {
-                body
-            };
-            return format!("(({}) => {})", param_decl, wrapped_body);
+            return self.with_lambda_locals(params, body, None, flavor, |param_decl| {
+                let body = self.expr_to_ts_flavored(body, flavor);
+                let wrapped_body = if body.trim_start().starts_with('{') {
+                    format!("({body})")
+                } else {
+                    body
+                };
+                format!("(({param_decl}) => {wrapped_body})")
+            });
         }
-        self.expr_to_ts(expr)
+        self.expr_to_ts_flavored(expr, flavor)
+    }
+
+    pub(crate) fn compile_unannotated_fn_lambda(&self, expr: &OirExpr) -> String {
+        self.compile_unannotated_fn_lambda_flavored(expr, BindingFlavor::General)
     }
 
     /// Client-emit variant of `compile_unannotated_fn_lambda` — recurses via
     /// `expr_to_client_ts` so nested @entity / @payload bindings lower with
     /// the client-side resolution (`fields?.X`, `lastPayload?.X`).
     pub(crate) fn compile_unannotated_fn_lambda_client(&self, expr: &OirExpr) -> String {
-        if let OirExpr::Lambda { params, body } = expr {
-            let param_decl = lambda_param_decl(params, body, None);
-            let body = self.with_locals(params, false, || self.expr_to_client_ts(body));
-            let wrapped_body = if body.trim_start().starts_with('{') {
-                format!("({})", body)
-            } else {
-                body
-            };
-            return format!("(({}) => {})", param_decl, wrapped_body);
-        }
-        self.expr_to_client_ts(expr)
+        self.compile_unannotated_fn_lambda_flavored(expr, BindingFlavor::Client)
     }
 
     /// Server-emit variant — recurses via `expr_to_ts_server` so `@entity.X`
     /// resolves to the single-record server form.
     pub(crate) fn compile_unannotated_fn_lambda_server(&self, expr: &OirExpr) -> String {
-        if let OirExpr::Lambda { params, body } = expr {
-            let param_decl = lambda_param_decl(params, body, None);
-            let body = self.with_locals(params, false, || self.expr_to_ts_server(body));
-            let wrapped_body = if body.trim_start().starts_with('{') {
-                format!("({})", body)
-            } else {
-                body
-            };
-            return format!("(({}) => {})", param_decl, wrapped_body);
-        }
-        self.expr_to_ts_server(expr)
+        self.compile_unannotated_fn_lambda_flavored(expr, BindingFlavor::Server)
     }
 
     /// Compile a `@callsitePayload.<path>` reference — the CHILD trait's own
@@ -248,14 +386,14 @@ impl TypeScriptBackend {
     ///   honest.
     fn compile_callsite_payload_ref(&self, full_path: &[&str]) -> String {
         if full_path.is_empty() {
-            return "undefined".to_string();
+            return self.reserve_identifier("undefined").to_string();
         }
         let Some(trait_name) = self
             .current_trait_scope
             .snapshot()
             .and_then(|scope| scope.rsplit('.').next().map(|s| s.to_string()))
         else {
-            return "undefined".to_string();
+            return self.reserve_identifier("undefined").to_string();
         };
         let field_dotted = full_path.join(".");
         let pair_hit: Option<(String, Vec<String>)> = self
@@ -274,9 +412,9 @@ impl TypeScriptBackend {
                 })
             });
         if let Some((knob, tail)) = pair_hit {
-            let mut chain = format!("config?.{}", knob);
+            let mut chain = format!("{}{}", self.reserve_identifier("config"), opt_step(&knob));
             for seg in &tail {
-                chain = format!("({} as EventPayload | undefined)?.{}", chain, seg);
+                chain = format!("({} as EventPayload | undefined){}", chain, opt_step(seg));
             }
             return chain;
         }
@@ -285,13 +423,17 @@ impl TypeScriptBackend {
             .borrow()
             .contains(&trait_name)
         {
-            let mut chain = format!("config?.callsitePayload?.{}", full_path[0]);
+            let mut chain = format!(
+                "{}?.callsitePayload{}",
+                self.reserve_identifier("config"),
+                opt_step(&full_path[0])
+            );
             for seg in &full_path[1..] {
-                chain = format!("({} as EventPayload | undefined)?.{}", chain, seg);
+                chain = format!("({} as EventPayload | undefined){}", chain, opt_step(seg));
             }
             return chain;
         }
-        "undefined".to_string()
+        self.reserve_identifier("undefined").to_string()
     }
 
     /// Note: In render-ui context, @payload maps to lastPayload (stored from last event dispatch)
@@ -310,47 +452,62 @@ impl TypeScriptBackend {
             return self.binding_string_to_ts(first_binding);
         }
 
+        if let Some(local) = OirBinding::parse(s)
+            .and_then(|binding| self.scoped_local_binding_to_ts(&binding, false))
+        {
+            return local;
+        }
+
         let s = &s[1..]; // Remove @
         let parts: Vec<&str> = s.split('.').collect();
 
         if parts.is_empty() {
-            return "undefined".to_string();
+            return self.reserve_identifier("undefined").to_string();
         }
 
         // `@now` reads the dispatch's one stamp, bound as `now` in every generated scope.
         if parts.len() == 1 && parts[0] == "now" {
-            return "now".to_string();
+            return self.reserve_identifier("now").to_string();
         }
 
         // `@locale` is the view's `useTranslate()` locale (render-time only).
         if parts.len() == 1 && parts[0] == "locale" {
-            return "__locale".to_string();
+            return self.reserve_identifier("__locale").to_string();
         }
 
         // @payload.row, @payload.item, @payload.data — direct payload access
         if parts.len() >= 2 && parts[0] == "payload" && matches!(parts[1], "row" | "item" | "data")
         {
             if parts.len() == 2 {
-                return format!("{}?.{}", RENDER_PAYLOAD_VAR, parts[1]);
+                return format!(
+                    "{}{}",
+                    self.reserve_identifier(RENDER_PAYLOAD_VAR),
+                    opt_step(parts[1])
+                );
             }
             // `.length` only typechecks on string / array branches of the
             // `EventPayloadValue` union. Without the cast, `?.length` errors
             // against the wide payload type. The `?.` chain still short-
             // circuits to undefined at runtime, so behavior is unchanged.
             if parts.last() == Some(&"length") {
-                let prefix = parts[1..parts.len() - 1].join("?.");
+                let prefix = opt_path(&parts[1..parts.len() - 1]);
                 return format!(
-                    "({}?.{} as {{ readonly length: number }} | undefined)?.length",
-                    RENDER_PAYLOAD_VAR, prefix
+                    "({}{} as {{ readonly length: number }} | undefined)?.length",
+                    self.reserve_identifier(RENDER_PAYLOAD_VAR),
+                    prefix
                 );
             }
             // Each hop past `lastPayload?.<root>` reads a property off the
             // wide `EventPayloadValue` union — re-widen per hop or the
             // access is ill-typed (TS2339). Runtime behavior unchanged: the
             // `?.` chain still short-circuits to undefined.
-            let mut chain = format!("{}?.{}", RENDER_PAYLOAD_VAR, parts[1]);
+            let mut chain = format!(
+                "{}{}",
+                self.reserve_identifier(RENDER_PAYLOAD_VAR),
+                opt_step(parts[1])
+            );
             for part in &parts[2..] {
-                chain = format!("({} as EventPayload | undefined)?.{}", chain, part);
+                chain = format!("({} as EventPayload | undefined){}", chain, opt_step(part));
             }
             return chain;
         }
@@ -369,16 +526,19 @@ impl TypeScriptBackend {
         let root = match parts[0] {
             "entity" => {
                 if parts.len() > 1 {
-                    let remaining = parts[1..].join("?.");
-                    return format!("fields?.{}", remaining);
+                    return format!(
+                        "{}{}",
+                        self.reserve_identifier("fields"),
+                        opt_path(&parts[1..])
+                    );
                 }
-                "entity"
+                self.reserve_identifier("entity")
             }
-            "_item" => "item", // Item-scoped binding for data-list/data-grid render-prop children (legacy)
-            "payload" => RENDER_PAYLOAD_VAR, // Event payload stored in reducer
-            "state" => "state",
-            "config" => "config",
-            "user" => "user",
+            "_item" => self.reserve_identifier("item"), // Item-scoped binding for data-list/data-grid render-prop children (legacy)
+            "payload" => self.reserve_identifier(RENDER_PAYLOAD_VAR), // Event payload stored in reducer
+            "state" => self.reserve_identifier("state"),
+            "config" => self.reserve_identifier("config"),
+            "user" => self.reserve_identifier("user"),
             // `@trait.<Name>` as a config VALUE (`hud: @trait.PongHud`) is a
             // render-time TraitFieldRef the CLIENT resolves via TraitFrame —
             // preserve the literal string (matching the literal-preserving
@@ -406,18 +566,28 @@ impl TypeScriptBackend {
                     // @EntityName.field -> (data['EntityName'] ?? [])?.[0]?.field
                     // This is a shorthand for accessing the first entity in the collection
                     if parts.len() == 1 {
-                        return format!("(data['{}'] ?? [])", parts[0]);
+                        return format!(
+                            "({}['{}'] ?? [])",
+                            self.reserve_identifier("data"),
+                            parts[0]
+                        );
                     } else {
-                        let remaining = parts[1..].join("?.");
-                        return format!("(data['{}'] ?? [])?.[0]?.{}", parts[0], remaining);
+                        let remaining = opt_path(&parts[1..]);
+                        return format!(
+                            "({}['{}'] ?? [])?.[0]{}",
+                            self.reserve_identifier("data"),
+                            parts[0],
+                            remaining
+                        );
                     }
                 }
                 // A `let` local reads under its declared `let__` name; a lambda variable passes through.
                 let local = self.local_ident(parts[0]);
+                self.reserve_identifier(&local);
                 return if parts.len() == 1 {
                     local
                 } else {
-                    format!("{}?.{}", local, parts[1..].join("?."))
+                    format!("{}{}", local, opt_path(&parts[1..]))
                 };
             }
         };
@@ -426,26 +596,11 @@ impl TypeScriptBackend {
             root.to_string()
         } else {
             // Always use optional chaining at the first hop. `config` is
-            // sometimes optional (when the trait has no declared
-            // defaults: `mergedConfig = config` → `config?: <T>Config` on
-            // the hook return) and sometimes required (defaults exist).
-            // `?.` is safe in both cases — on the non-optional path it's
-            // a no-op for TS, and on the optional path it correctly
-            // narrows. Field-level non-optionality for defaulted config
-            // fields still holds via the generated `<T>Config` interface
-            // marking those fields required, so `config?.articles[0]`
-            // returns the entry directly (no further `?.` needed before
-            // the indexed access).
-            let first_hop = "?.";
-            // Path segments may contain literal index access (`articles[0]`)
-            // — keep those un-chained (`[0]` not `?.[0]`) so index access
-            // resolves to `T` not `T | undefined`. The tsconfig that
-            // consumes generated code does not enable
-            // `noUncheckedIndexedAccess`, and an out-of-bounds access
-            // surfaces loudly via TypeError, matching the lolo author's
-            // intent of "this index exists" (e.g. `articles[0]` after
-            // declaring 3 articles in the default).
-            format!("{}{}{}", root, first_hop, parts[1..].join("?."))
+            // sometimes optional (when the trait has no declared defaults)
+            // and sometimes required; `?.` is safe in both. Each segment
+            // follows EXEC binding-path: a dotted number indexes
+            // (`?.[0]`), a bracket segment is one literal key.
+            format!("{}{}", root, opt_path(&parts[1..]))
         }
     }
 
@@ -476,11 +631,7 @@ impl TypeScriptBackend {
         // form rather than client `payloadObj`. Preserve that by downgrading
         // Client→General for these arms only.
         let recur_complex = |e: &OirExpr| {
-            let f = if flavor == BindingFlavor::Client {
-                BindingFlavor::General
-            } else {
-                flavor
-            };
+            let f = flavor.collection();
             self.expr_to_ts_flavored(e, f)
         };
         match expr {
@@ -506,14 +657,15 @@ impl TypeScriptBackend {
                         // source array (annotating there mis-types config-object
                         // and tuple sources — TS2345).
                         if let OirExpr::Lambda { params, body } = v {
-                            let pd = lambda_param_decl(params, body, Some("EntityRow"));
-                            let b = self.with_locals(params, false, || recur(body));
-                            let b = if b.trim_start().starts_with('{') {
-                                format!("({})", b)
-                            } else {
-                                b
-                            };
-                            format!("{}: ({}) => {}", ts_member_name(k), pd, b)
+                            self.with_lambda_locals(params, body, Some("EntityRow"), flavor, |pd| {
+                                let b = recur(body);
+                                let b = if b.trim_start().starts_with('{') {
+                                    format!("({b})")
+                                } else {
+                                    b
+                                };
+                                format!("{}: ({pd}) => {b}", ts_member_name(k))
+                            })
                         } else if let OirExpr::String { value } = v {
                             // String literals in object literals must not widen
                             // to `string`: pattern-descriptor arrays (drawables,
@@ -538,7 +690,7 @@ impl TypeScriptBackend {
                 // …`) that flows into a `ClientEffectTuple` array element —
                 // a UNION-typed position TS does not contextually type
                 // through, unlike a direct `.map(callback)`/typed-variable
-                // assignment (the other `lambda_param_decl` call sites,
+                // assignment (the other lambda declaration call sites,
                 // which stay contextually-inferred on purpose), so the
                 // param is otherwise implicit-`any` (TS7006). `EntityRow`
                 // — the SAME annotation the one other "per-item shape is
@@ -551,26 +703,17 @@ impl TypeScriptBackend {
                 // casts other bodies use.
                 let first_param_type =
                     matches!(flavor, BindingFlavor::ServerRenderUi).then_some("EntityRow");
-                let param_decl = lambda_param_decl(params, body, first_param_type);
-                let body_ts = self.with_locals(params, false, || recur(body));
-                let wrapped = if body_ts.trim_start().starts_with('{') {
-                    format!("({})", body_ts)
-                } else {
-                    body_ts
-                };
-                format!("({}) => {}", param_decl, wrapped)
+                self.with_lambda_locals(params, body, first_param_type, flavor, |param_decl| {
+                    let body_ts = recur(body);
+                    let wrapped = if body_ts.trim_start().starts_with('{') {
+                        format!("({body_ts})")
+                    } else {
+                        body_ts
+                    };
+                    format!("({param_decl}) => {wrapped}")
+                })
             }
-            OirExpr::Binding { binding } => match flavor {
-                BindingFlavor::General => self.binding_to_ts(binding),
-                BindingFlavor::Server => self.binding_to_ts_server(binding),
-                BindingFlavor::Client => self.binding_to_client_ts(binding),
-                BindingFlavor::Guard => self.binding_to_ts_guard(binding),
-                // Reuse the render-ui string resolver via the binding's
-                // canonical `@`-string round-trip (Display ↔ parse).
-                BindingFlavor::Render => self.binding_string_to_ts(&binding.to_string()),
-                BindingFlavor::ListenerPayload => self.binding_to_ts_listener_payload(binding),
-                BindingFlavor::ServerRenderUi => self.binding_to_ts_server_render(binding),
-            },
+            OirExpr::Binding { binding } => self.binding_to_ts_flavored(binding, flavor),
             OirExpr::BinaryOp { op, left, right } => {
                 let l = recur(left);
                 let r = recur(right);
@@ -740,7 +883,9 @@ impl TypeScriptBackend {
                             OirExpr::Bool { value: b },
                         ) => Some((a != b).to_string()),
                         (OirBinaryOp::Eq, OirExpr::Null, OirExpr::Null) => Some("true".to_string()),
-                        (OirBinaryOp::Ne, OirExpr::Null, OirExpr::Null) => Some("false".to_string()),
+                        (OirBinaryOp::Ne, OirExpr::Null, OirExpr::Null) => {
+                            Some("false".to_string())
+                        }
                         // The kernel reads an absent field as null; TS reads it as undefined.
                         (OirBinaryOp::Eq, _, OirExpr::Null) => Some(format!("({} == null)", l)),
                         (OirBinaryOp::Eq, OirExpr::Null, _) => Some(format!("({} == null)", r)),
@@ -784,6 +929,36 @@ impl TypeScriptBackend {
                 }
             }
             OirExpr::Call { function, args } => {
+                if (function == "fn" || function == "lambda") && args.len() == 2 {
+                    if let OirExpr::String { value: param } = &args[0] {
+                        return self.with_lambda_locals(
+                            std::slice::from_ref(param),
+                            &args[1],
+                            Some("EntityRow"),
+                            flavor,
+                            |decl| {
+                                let body = recur(&args[1]);
+                                let wrapped = if matches!(&args[1], OirExpr::Object { .. }) {
+                                    format!("({body})")
+                                } else {
+                                    body
+                                };
+                                format!("(({decl}) => {wrapped})")
+                            },
+                        );
+                    }
+                }
+                if flavor == BindingFlavor::Render {
+                    if let Some(dependencies) =
+                        crate::codegen::operator::core_operator_dependencies(function)
+                    {
+                        let mut imports = self.view_value_imports.take();
+                        for symbol in dependencies.imports {
+                            imports.insert(("@almadar/core".into(), (*symbol).into()));
+                        }
+                        self.view_value_imports.set(imports);
+                    }
+                }
                 // `(let ((name value)…) body)` in a VALUE/GUARD position →
                 // an IIFE returning the body, with each binding as a `const`.
                 // (The effect/statement context handles `let` separately in
@@ -791,27 +966,38 @@ impl TypeScriptBackend {
                 // as bare identifiers, so the consts are in scope.
                 if function == "let" && args.len() == 2 {
                     if let OirExpr::Array { items } = &args[0] {
-                        let mut decls: Vec<String> = Vec::new();
-                        let mut bound: Vec<String> = Vec::new();
-                        for pair in items {
-                            if let OirExpr::Array { items: kv } = pair {
-                                if kv.len() == 2 {
-                                    if let OirExpr::String { value: name } = &kv[0] {
-                                        let value =
-                                            self.with_locals(&bound, true, || recur(&kv[1]));
-                                        decls.push(format!(
-                                            "const {} = {};",
-                                            Self::let_ident(name),
-                                            value
-                                        ));
-                                        bound.push(name.clone());
+                        let result = self.with_operand_locals(
+                            std::slice::from_ref(expr),
+                            flavor,
+                            &[],
+                            || {
+                                self.with_local_scope(|| {
+                                    let mut decls: Vec<String> = Vec::new();
+                                    for pair in items {
+                                        if let OirExpr::Array { items: kv } = pair {
+                                            if kv.len() == 2 {
+                                                if let OirExpr::String { value: name } = &kv[0] {
+                                                    let value = recur(&kv[1]);
+                                                    let ident = self.bind_local(name, true);
+                                                    decls.push(format!("const {ident} = {value};"));
+                                                }
+                                            }
+                                        }
                                     }
-                                }
-                            }
-                        }
-                        if !decls.is_empty() {
-                            let body = self.with_locals(&bound, true, || recur(&args[1]));
-                            return format!("(() => {{ {} return {}; }})()", decls.join(" "), body);
+                                    if decls.is_empty() {
+                                        None
+                                    } else {
+                                        let body = recur(&args[1]);
+                                        Some(format!(
+                                            "(() => {{ {} return {body}; }})()",
+                                            decls.join(" ")
+                                        ))
+                                    }
+                                })
+                            },
+                        );
+                        if let Some(result) = result {
+                            return result;
                         }
                     }
                 }
@@ -843,27 +1029,21 @@ impl TypeScriptBackend {
                 // The wide cast still applies when the source is a
                 // Binding (@payload.X, @entity.X) — those resolve to
                 // opaque payload/field types that genuinely need the cast.
-                if (function == "array/map"
-                    || function == "map"
-                    || function == "array/filter"
-                    || function == "filter")
-                    && args.len() == 2
-                    && matches!(&args[0], OirExpr::Call { .. })
-                {
+                if Self::chained_callback_call(function, args) {
                     let inner = recur(&args[0]);
-                    let lambda = match flavor {
-                        BindingFlavor::General
-                        | BindingFlavor::Guard
-                        | BindingFlavor::Render
-                        | BindingFlavor::ListenerPayload => {
-                            self.compile_unannotated_fn_lambda(&args[1])
-                        }
-                        BindingFlavor::Server | BindingFlavor::ServerRenderUi => {
+                    let lambda = match flavor.chained_callback() {
+                        BindingFlavor::General => self.compile_unannotated_fn_lambda(&args[1]),
+                        BindingFlavor::Render => self.compile_unannotated_fn_lambda_flavored(
+                            &args[1],
+                            BindingFlavor::Render,
+                        ),
+                        BindingFlavor::Server => {
                             self.compile_unannotated_fn_lambda_server(&args[1])
                         }
                         BindingFlavor::Client => {
                             self.compile_unannotated_fn_lambda_client(&args[1])
                         }
+                        _ => unreachable!(),
                     };
                     let method = if function.starts_with("array/filter") || function == "filter" {
                         "filter"
@@ -933,20 +1113,29 @@ impl TypeScriptBackend {
                         );
                     }
                 }
-                self.call_to_ts_typed(function, &ts_args, &facts, elem_ts.as_deref())
+                self.with_operand_locals(args, flavor, &[], || {
+                    self.call_to_ts_typed(function, &ts_args, &facts, elem_ts.as_deref())
+                })
             }
             OirExpr::Map {
                 source,
                 variable,
                 body,
             } => {
-                format!(
-                    "{}.map({} => {})",
-                    recur_complex(source),
-                    variable,
-                    self.with_locals(std::slice::from_ref(variable), false, || recur_complex(
-                        body
-                    ))
+                let source = recur_complex(source);
+                self.with_operand_locals(
+                    std::slice::from_ref(body),
+                    flavor.collection(),
+                    std::slice::from_ref(variable),
+                    || {
+                        self.with_locals(std::slice::from_ref(variable), false, || {
+                            format!(
+                                "{source}.map({} => {})",
+                                self.local_ident(variable),
+                                recur_complex(body)
+                            )
+                        })
+                    },
                 )
             }
             OirExpr::Filter {
@@ -954,13 +1143,20 @@ impl TypeScriptBackend {
                 variable,
                 predicate,
             } => {
-                format!(
-                    "{}.filter({} => {})",
-                    recur_complex(source),
-                    variable,
-                    self.with_locals(std::slice::from_ref(variable), false, || recur_complex(
-                        predicate
-                    ))
+                let source = recur_complex(source);
+                self.with_operand_locals(
+                    std::slice::from_ref(predicate),
+                    flavor.collection(),
+                    std::slice::from_ref(variable),
+                    || {
+                        self.with_locals(std::slice::from_ref(variable), false, || {
+                            format!(
+                                "{source}.filter({} => {})",
+                                self.local_ident(variable),
+                                recur_complex(predicate)
+                            )
+                        })
+                    },
                 )
             }
             OirExpr::Reduce {
@@ -970,15 +1166,26 @@ impl TypeScriptBackend {
                 initial,
                 body,
             } => {
-                format!(
-                    "{}.reduce(({}, {}) => {}, {})",
-                    recur_complex(source),
-                    accumulator,
-                    variable,
-                    self.with_locals(&[accumulator.clone(), variable.clone()], false, || {
-                        recur_complex(body)
-                    }),
-                    recur_complex(initial)
+                let source = recur_complex(source);
+                let initial = recur_complex(initial);
+                self.with_operand_locals(
+                    std::slice::from_ref(body),
+                    flavor.collection(),
+                    &[accumulator.clone(), variable.clone()],
+                    || {
+                        self.with_locals_assigned(
+                            &[accumulator.clone(), variable.clone()],
+                            false,
+                            |emitted| {
+                                format!(
+                                    "{source}.reduce(({}, {}) => {}, {initial})",
+                                    emitted[0],
+                                    emitted[1],
+                                    recur_complex(body)
+                                )
+                            },
+                        )
+                    },
                 )
             }
             OirExpr::Effect { effect } => {
@@ -994,19 +1201,21 @@ impl TypeScriptBackend {
     /// state and `@toState` the transition's target (Runtime Spec Clauses 3.3, 5.5).
     pub(crate) fn dispatch_root_ts(&self, binding: &OirBinding, from_state: &str) -> String {
         match &binding.root {
-            OirBindingRoot::Event => binding
-                .path
-                .iter()
-                .fold("__dispatch.event".to_string(), |expr, seg| {
-                    format!("({expr} as EventPayload | undefined)?.{seg}")
-                }),
-            OirBindingRoot::PrevEvents => "__dispatch.prevEvents".to_string(),
-            OirBindingRoot::PrevStates => "__dispatch.prevStates".to_string(),
+            OirBindingRoot::Event => binding.path.iter().fold(
+                format!("{}.event", self.reserve_identifier("__dispatch")),
+                |expr, seg| format!("({expr} as EventPayload | undefined){}", opt_step(seg)),
+            ),
+            OirBindingRoot::PrevEvents => {
+                format!("{}.prevEvents", self.reserve_identifier("__dispatch"))
+            }
+            OirBindingRoot::PrevStates => {
+                format!("{}.prevStates", self.reserve_identifier("__dispatch"))
+            }
             OirBindingRoot::ToState => match &*self.current_transition.borrow() {
                 Some(scope) => format!("'{}'", escape_js_string(&scope.to)),
-                None => from_state.to_string(),
+                None => self.reserve_identifier(from_state).to_string(),
             },
-            _ => from_state.to_string(),
+            _ => self.reserve_identifier(from_state).to_string(),
         }
     }
 
@@ -1023,7 +1232,30 @@ impl TypeScriptBackend {
         }
     }
 
+    fn scoped_local_binding_to_ts(
+        &self,
+        binding: &OirBinding,
+        cast_members: bool,
+    ) -> Option<String> {
+        let OirBindingRoot::Local(name) = &binding.root else {
+            return None;
+        };
+        let mut emitted = self.bound_local_ident(name)?;
+        self.reserve_identifier(&emitted);
+        for segment in &binding.path {
+            emitted = if cast_members {
+                format!("({emitted} as EventPayload | undefined){}", opt_step(segment))
+            } else {
+                format!("{emitted}{}", opt_step(segment))
+            };
+        }
+        Some(emitted)
+    }
+
     pub(crate) fn binding_to_ts(&self, binding: &OirBinding) -> String {
+        if let Some(local) = self.scoped_local_binding_to_ts(binding, true) {
+            return local;
+        }
         if let Some(committed) = self.post_commit_state_ts(binding) {
             return committed;
         }
@@ -1034,17 +1266,20 @@ impl TypeScriptBackend {
             | OirBindingRoot::FromState
             | OirBindingRoot::ToState => return self.dispatch_root_ts(binding, "state"),
             // The view's `useTranslate()` locale (render-time only).
-            OirBindingRoot::Locale => return "__locale".to_string(),
+            OirBindingRoot::Locale => return self.reserve_identifier("__locale").to_string(),
             // `entity` bare → the linked-collection array. `entity.<field>`
             // → `fields?.<field>` — the trait's reducer mirror populated by
             // `set @entity.X` effects. See the module-level docstring for
             // the rationale (no-heuristics rule; row[0] fallback removed).
             OirBindingRoot::Entity => {
                 if binding.path.is_empty() {
-                    "entity".to_string()
+                    self.reserve_identifier("entity").to_string()
                 } else {
-                    let path = binding.path.join("?.");
-                    return format!("fields?.{}", path);
+                    return format!(
+                        "{}{}",
+                        self.reserve_identifier("fields"),
+                        opt_path(&binding.path)
+                    );
                 }
             }
             // Deep payload access threads through `EventPayload`. The payload
@@ -1058,20 +1293,26 @@ impl TypeScriptBackend {
             // narrows the final `EventPayloadValue | undefined` to the
             // expected field type. No `any` anywhere in the chain.
             OirBindingRoot::Payload => {
+                let payload = self.reserve_identifier("payload");
                 if binding.path.is_empty() {
-                    return "payload".to_string();
+                    return payload.to_string();
                 }
                 if binding.path.len() == 1 {
-                    return format!("(payload as EventPayload | undefined)?.{}", binding.path[0]);
+                    return format!(
+                        "({payload} as EventPayload | undefined){}",
+                        opt_step(&binding.path[0])
+                    );
                 }
-                let mut expr =
-                    format!("(payload as EventPayload | undefined)?.{}", binding.path[0]);
+                let mut expr = format!(
+                    "({payload} as EventPayload | undefined){}",
+                    opt_step(&binding.path[0])
+                );
                 for seg in &binding.path[1..] {
-                    expr = format!("({} as EventPayload | undefined)?.{}", expr, seg);
+                    expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                 }
                 return expr;
             }
-            OirBindingRoot::State => "state".to_string(),
+            OirBindingRoot::State => self.reserve_identifier("state").to_string(),
             // Config is fully inlined before server-side codegen — measured zero
             // reachable sites across the corpus (config-only atoms included). It
             // previously fell through to `user`, so a validator miss would have
@@ -1079,32 +1320,33 @@ impl TypeScriptBackend {
             // (C-SERVER-CONFIG-BINDING-COMPILES-TO-USER). Emit `undefined` like
             // the `Trait(_)` arm below: evaluate cleanly, never cross-wire.
             OirBindingRoot::Config => return self.captured_knob_server_ts(binding),
-            OirBindingRoot::User => "user".to_string(),
+            OirBindingRoot::User => self.reserve_identifier("user").to_string(),
             OirBindingRoot::Trait(_) | OirBindingRoot::Pages | OirBindingRoot::CurrentTheme => {
                 // `@trait.X` is a client-only render-time binding; it should
                 // never reach this server-side TS expression compiler. If it
                 // does (validator miss), emit `undefined` so the expression
                 // evaluates cleanly instead of producing invalid JS.
-                return "undefined".to_string();
+                return self.reserve_identifier("undefined").to_string();
             }
             OirBindingRoot::Local(name) => {
                 if name == "now" {
-                    return "now".to_string();
+                    return self.reserve_identifier("now").to_string();
                 }
                 let renamed = self.local_ident(name);
                 let name = &renamed;
                 // @context.field → user?.field (context is an alias for user)
                 if name == "context" {
-                    "user".to_string()
+                    self.reserve_identifier("user").to_string()
                 }
                 // @EntityName.field → entity?.[0]?.field (PascalCase = entity type reference, array)
                 else if name.chars().next().is_some_and(|c| c.is_uppercase()) {
                     if binding.path.is_empty() {
-                        "entity".to_string()
+                        self.reserve_identifier("entity").to_string()
                     } else {
-                        "entity?.[0]".to_string()
+                        format!("{}?.[0]", self.reserve_identifier("entity"))
                     }
                 } else {
+                    self.reserve_identifier(name);
                     // Lambda param over an opaque payload collection: widen
                     // through the `(x as EventPayload | undefined)?.seg` chain
                     // (same as the guard flavor and the Payload arm above) —
@@ -1113,11 +1355,11 @@ impl TypeScriptBackend {
                     // (C-COMPILED-PATH-RED §25).
                     if !binding.path.is_empty() {
                         let mut expr = format!(
-                            "({} as EventPayload | undefined)?.{}",
-                            name, binding.path[0]
+                            "({} as EventPayload | undefined){}",
+                            name, opt_step(&binding.path[0])
                         );
                         for seg in &binding.path[1..] {
-                            expr = format!("({} as EventPayload | undefined)?.{}", expr, seg);
+                            expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                         }
                         return expr;
                     }
@@ -1129,7 +1371,7 @@ impl TypeScriptBackend {
         if binding.path.is_empty() {
             root
         } else {
-            format!("{}?.{}", root, binding.path.join("?."))
+            format!("{}{}", root, opt_path(&binding.path))
         }
     }
 
@@ -1150,6 +1392,9 @@ impl TypeScriptBackend {
     /// `@config`/`@trait`→`undefined` (inlined or render-only). Distinct from
     /// the render resolver `binding_to_ts` (`fields?.x`).
     pub(crate) fn binding_to_ts_guard(&self, binding: &OirBinding) -> String {
+        if let Some(local) = self.scoped_local_binding_to_ts(binding, true) {
+            return local;
+        }
         if let Some(committed) = self.post_commit_state_ts(binding) {
             return committed;
         }
@@ -1159,23 +1404,29 @@ impl TypeScriptBackend {
             | OirBindingRoot::PrevStates
             | OirBindingRoot::FromState
             | OirBindingRoot::ToState => return self.dispatch_root_ts(binding, "state"),
-            OirBindingRoot::User => "user",
+            OirBindingRoot::User => self.reserve_identifier("user"),
             OirBindingRoot::Payload => {
+                let payload = self.reserve_identifier("payload");
                 if binding.path.is_empty() {
-                    "payload"
+                    payload
                 } else if binding.path.len() == 1 {
-                    return format!("(payload as EventPayload | undefined)?.{}", binding.path[0]);
+                    return format!(
+                        "({payload} as EventPayload | undefined){}",
+                        opt_step(&binding.path[0])
+                    );
                 } else {
-                    let mut expr =
-                        format!("(payload as EventPayload | undefined)?.{}", binding.path[0]);
+                    let mut expr = format!(
+                        "({payload} as EventPayload | undefined){}",
+                        opt_step(&binding.path[0])
+                    );
                     for seg in &binding.path[1..] {
-                        expr = format!("({} as EventPayload | undefined)?.{}", expr, seg);
+                        expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                     }
                     return expr;
                 }
             }
-            OirBindingRoot::Entity => "entity",
-            OirBindingRoot::State => "state",
+            OirBindingRoot::Entity => self.reserve_identifier("entity"),
+            OirBindingRoot::State => self.reserve_identifier("state"),
             // `@config.X` is normally inlined to a literal before codegen
             // (Phase 3.A). A residual `@config`/`@trait` binding → `undefined`
             // so the guard short-circuits cleanly (never reads `user`).
@@ -1183,18 +1434,19 @@ impl TypeScriptBackend {
             OirBindingRoot::Trait(_)
             | OirBindingRoot::Pages
             | OirBindingRoot::CurrentTheme
-            | OirBindingRoot::Locale => return "undefined".to_string(),
+            | OirBindingRoot::Locale => return self.reserve_identifier("undefined").to_string(),
             OirBindingRoot::Local(name) => {
                 if name == "now" {
-                    return "now".to_string();
+                    return self.reserve_identifier("now").to_string();
                 }
                 let renamed = self.local_ident(name);
                 let name = &renamed;
                 if name == "context" {
-                    "user"
+                    self.reserve_identifier("user")
                 } else if name.chars().next().is_some_and(|c| c.is_uppercase()) {
-                    "entity"
+                    self.reserve_identifier("entity")
                 } else {
+                    self.reserve_identifier(name);
                     // Lambda param over an opaque payload collection: the
                     // element type is the wide `EventPayloadValue` union
                     // (operator.rs `array_arg` cast), on which a bare
@@ -1204,11 +1456,11 @@ impl TypeScriptBackend {
                     // payload arm uses (C-COMPILED-PATH-RED §25).
                     if !binding.path.is_empty() {
                         let mut expr = format!(
-                            "({} as EventPayload | undefined)?.{}",
-                            name, binding.path[0]
+                            "({} as EventPayload | undefined){}",
+                            name, opt_step(&binding.path[0])
                         );
                         for seg in &binding.path[1..] {
-                            expr = format!("({} as EventPayload | undefined)?.{}", expr, seg);
+                            expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                         }
                         return expr;
                     }
@@ -1220,7 +1472,7 @@ impl TypeScriptBackend {
         if binding.path.is_empty() {
             root.to_string()
         } else {
-            format!("{}?.{}", root, binding.path.join("?."))
+            format!("{}{}", root, opt_path(&binding.path))
         }
     }
 
@@ -1232,44 +1484,49 @@ impl TypeScriptBackend {
     /// are `undefined` here on BOTH paths — a mapping must not work compiled
     /// and silently yield nothing interpreted, or vice versa.
     pub(crate) fn binding_to_ts_listener_payload(&self, binding: &OirBinding) -> String {
+        if let Some(local) = self.scoped_local_binding_to_ts(binding, false) {
+            return local;
+        }
         match &binding.root {
             // A listens `when` runs before any transition is chosen: no target state.
-            OirBindingRoot::ToState => "undefined".to_string(),
+            OirBindingRoot::ToState => self.reserve_identifier("undefined").to_string(),
             OirBindingRoot::Event
             | OirBindingRoot::PrevEvents
             | OirBindingRoot::PrevStates
             | OirBindingRoot::FromState => self.dispatch_root_ts(binding, "fromState"),
             OirBindingRoot::Payload => {
+                let event = self.reserve_identifier("event");
                 if binding.path.is_empty() {
-                    return "event.payload".to_string();
+                    return format!("{event}.payload");
                 }
                 let mut expr = format!(
-                    "(event.payload as EventPayload | undefined)?.{}",
-                    binding.path[0]
+                    "({event}.payload as EventPayload | undefined){}",
+                    opt_step(&binding.path[0])
                 );
                 for seg in &binding.path[1..] {
-                    expr = format!("({} as EventPayload | undefined)?.{}", expr, seg);
+                    expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                 }
                 expr
             }
             OirBindingRoot::Local(name) => {
                 if name == "now" {
-                    return "now".to_string();
+                    return self.reserve_identifier("now").to_string();
                 }
                 let renamed = self.local_ident(name);
                 let name = &renamed;
                 // Lambda parameters inside a mapping expression render bare.
                 if name.chars().next().is_some_and(|c| c.is_lowercase()) {
+                    self.reserve_identifier(name);
                     if binding.path.is_empty() {
                         name.clone()
                     } else {
-                        format!("{}?.{}", name, binding.path.join("?."))
+                        format!("{}{}", name, opt_path(&binding.path))
                     }
                 } else {
-                    "undefined".to_string()
+                    self.reserve_identifier("undefined").to_string()
                 }
             }
-            _ => "undefined".to_string(),
+            _ => self.reserve_identifier("undefined").to_string(),
         }
     }
 
@@ -1293,7 +1550,7 @@ impl TypeScriptBackend {
             });
         match captured {
             Some(value) if binding.path.len() == 1 => self.pattern_value_to_ts_server(&value),
-            _ => "undefined".to_string(),
+            _ => self.reserve_identifier("undefined").to_string(),
         }
     }
 
@@ -1303,10 +1560,13 @@ impl TypeScriptBackend {
         (matches!(binding.root, OirBindingRoot::Locale)
             && binding.path.is_empty()
             && !self.browser_locales.snapshot().is_empty())
-        .then(|| "currentLocale()".to_string())
+        .then(|| format!("{}()", self.reserve_identifier("currentLocale")))
     }
 
     pub(crate) fn binding_to_ts_server(&self, binding: &OirBinding) -> String {
+        if let Some(local) = self.scoped_local_binding_to_ts(binding, true) {
+            return local;
+        }
         if let Some(locale) = self.server_locale_ts(binding) {
             return locale;
         }
@@ -1319,22 +1579,28 @@ impl TypeScriptBackend {
             | OirBindingRoot::PrevStates
             | OirBindingRoot::FromState
             | OirBindingRoot::ToState => return self.dispatch_root_ts(binding, "state"),
-            OirBindingRoot::Entity => "entity".to_string(),
+            OirBindingRoot::Entity => self.reserve_identifier("entity").to_string(),
             OirBindingRoot::Payload => {
+                let payload = self.reserve_identifier("payload");
                 if binding.path.is_empty() {
-                    return "payload".to_string();
+                    return payload.to_string();
                 }
                 if binding.path.len() == 1 {
-                    return format!("(payload as EventPayload | undefined)?.{}", binding.path[0]);
+                    return format!(
+                        "({payload} as EventPayload | undefined){}",
+                        opt_step(&binding.path[0])
+                    );
                 }
-                let mut expr =
-                    format!("(payload as EventPayload | undefined)?.{}", binding.path[0]);
+                let mut expr = format!(
+                    "({payload} as EventPayload | undefined){}",
+                    opt_step(&binding.path[0])
+                );
                 for seg in &binding.path[1..] {
-                    expr = format!("({} as EventPayload | undefined)?.{}", expr, seg);
+                    expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                 }
                 return expr;
             }
-            OirBindingRoot::State => "state".to_string(),
+            OirBindingRoot::State => self.reserve_identifier("state").to_string(),
             // Config is fully inlined before server-side codegen — measured zero
             // reachable sites across the corpus (config-only atoms included). It
             // previously fell through to `user`, so a validator miss would have
@@ -1342,47 +1608,51 @@ impl TypeScriptBackend {
             // (C-SERVER-CONFIG-BINDING-COMPILES-TO-USER). Emit `undefined` like
             // the `Trait(_)` arm below: evaluate cleanly, never cross-wire.
             OirBindingRoot::Config => return self.captured_knob_server_ts(binding),
-            OirBindingRoot::User => "user".to_string(),
+            OirBindingRoot::User => self.reserve_identifier("user").to_string(),
             OirBindingRoot::Trait(_)
             | OirBindingRoot::Pages
             | OirBindingRoot::CurrentTheme
             | OirBindingRoot::Locale => {
                 // Client-only binding; see `binding_to_ts` above for reasoning.
-                return "undefined".to_string();
+                return self.reserve_identifier("undefined").to_string();
             }
             OirBindingRoot::Local(name) if name == "callsitePayload" => {
                 // The server never has a composing payload: read it as absent.
-                let mut expr = "(undefined as EventPayload | undefined)".to_string();
+                let mut expr = format!(
+                    "({} as EventPayload | undefined)",
+                    self.reserve_identifier("undefined")
+                );
                 for (i, seg) in binding.path.iter().enumerate() {
                     expr = if i == 0 {
-                        format!("{expr}?.{seg}")
+                        format!("{expr}{}", opt_step(seg))
                     } else {
-                        format!("({expr} as EventPayload | undefined)?.{seg}")
+                        format!("({expr} as EventPayload | undefined){}", opt_step(seg))
                     };
                 }
                 return expr;
             }
             OirBindingRoot::Local(name) => {
                 if name == "now" {
-                    return "now".to_string();
+                    return self.reserve_identifier("now").to_string();
                 }
                 let renamed = self.local_ident(name);
                 let name = &renamed;
                 if name == "context" {
-                    "user".to_string()
+                    self.reserve_identifier("user").to_string()
                 } else if name.chars().next().is_some_and(|c| c.is_uppercase()) {
-                    "entity".to_string()
+                    self.reserve_identifier("entity").to_string()
                 } else {
+                    self.reserve_identifier(name);
                     // Lambda param member reads widen through the EventPayload
                     // chain — same reasoning as the guard/server arms above
                     // (C-COMPILED-PATH-RED §25).
                     if !binding.path.is_empty() {
                         let mut expr = format!(
-                            "({} as EventPayload | undefined)?.{}",
-                            name, binding.path[0]
+                            "({} as EventPayload | undefined){}",
+                            name, opt_step(&binding.path[0])
                         );
                         for seg in &binding.path[1..] {
-                            expr = format!("({} as EventPayload | undefined)?.{}", expr, seg);
+                            expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                         }
                         return expr;
                     }
@@ -1394,7 +1664,7 @@ impl TypeScriptBackend {
         if binding.path.is_empty() {
             root
         } else {
-            format!("{}?.{}", root, binding.path.join("?."))
+            format!("{}{}", root, opt_path(&binding.path))
         }
     }
 
@@ -1610,6 +1880,9 @@ impl TypeScriptBackend {
     /// - @config → `config` (hook config parameter)
     /// - @user → `user` (user context, if available)
     pub(crate) fn binding_to_client_ts(&self, binding: &OirBinding) -> String {
+        if let Some(local) = self.scoped_local_binding_to_ts(binding, true) {
+            return local;
+        }
         if let Some(committed) = self.post_commit_state_ts(binding) {
             return committed;
         }
@@ -1624,15 +1897,15 @@ impl TypeScriptBackend {
             // `set @entity.X` effects.
             OirBindingRoot::Entity => {
                 if binding.path.is_empty() {
-                    "entity".to_string()
+                    self.reserve_identifier("entity").to_string()
                 } else {
-                    "fields".to_string()
+                    self.reserve_identifier("fields").to_string()
                 }
             }
-            OirBindingRoot::Payload => CLIENT_PAYLOAD_VAR.to_string(),
-            OirBindingRoot::State => "state".to_string(),
-            OirBindingRoot::Config => "config".to_string(),
-            OirBindingRoot::User => "user".to_string(),
+            OirBindingRoot::Payload => self.reserve_identifier(CLIENT_PAYLOAD_VAR).to_string(),
+            OirBindingRoot::State => self.reserve_identifier("state").to_string(),
+            OirBindingRoot::Config => self.reserve_identifier("config").to_string(),
+            OirBindingRoot::User => self.reserve_identifier("user").to_string(),
             OirBindingRoot::Trait(_)
             | OirBindingRoot::Pages
             | OirBindingRoot::CurrentTheme
@@ -1641,11 +1914,11 @@ impl TypeScriptBackend {
                 // `<TraitFrame>`, not by this S-expression compiler. If it
                 // reaches here (validator miss), emit `undefined` to keep
                 // the generated JS syntactically valid.
-                return "undefined".to_string();
+                return self.reserve_identifier("undefined").to_string();
             }
             OirBindingRoot::Local(name) => {
                 if name == "now" {
-                    return "now".to_string();
+                    return self.reserve_identifier("now").to_string();
                 }
                 let renamed = self.local_ident(name);
                 let name = &renamed;
@@ -1663,16 +1936,17 @@ impl TypeScriptBackend {
                 }
                 // @context.field → user?.field (context is an alias for user)
                 if name == "context" {
-                    "user".to_string()
+                    self.reserve_identifier("user").to_string()
                 }
                 // @EntityName.field → entity?.[0]?.field (PascalCase = entity type reference, array)
                 else if name.chars().next().is_some_and(|c| c.is_uppercase()) {
                     if binding.path.is_empty() {
-                        "entity".to_string()
+                        self.reserve_identifier("entity").to_string()
                     } else {
-                        "entity?.[0]".to_string()
+                        format!("{}?.[0]", self.reserve_identifier("entity"))
                     }
                 } else {
+                    self.reserve_identifier(name);
                     // Lambda param over an opaque payload collection
                     // (`(array/find @payload.data (fn row (= @row.staffAccount
                     // @user.id)))`): widen through the `(x as EventPayload |
@@ -1684,11 +1958,11 @@ impl TypeScriptBackend {
                     // (C-COMPILED-PATH-RED §25).
                     if !binding.path.is_empty() {
                         let mut expr = format!(
-                            "({} as EventPayload | undefined)?.{}",
-                            name, binding.path[0]
+                            "({} as EventPayload | undefined){}",
+                            name, opt_step(&binding.path[0])
                         );
                         for seg in &binding.path[1..] {
-                            expr = format!("({} as EventPayload | undefined)?.{}", expr, seg);
+                            expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                         }
                         return expr;
                     }
@@ -1707,17 +1981,20 @@ impl TypeScriptBackend {
         // object alternatives don't support further `.field` access, but
         // structured sub-payloads are always `EventPayload` at runtime.
         // The client `fields` mirror holds the same `EventPayloadValue`s, so `@entity` widens too.
-        let widens = matches!(binding.root, OirBindingRoot::Payload | OirBindingRoot::Entity);
+        let widens = matches!(
+            binding.root,
+            OirBindingRoot::Payload | OirBindingRoot::Entity
+        );
         if !widens || binding.path.len() <= 1 {
-            return format!("{}?.{}", root, binding.path.join("?."));
+            return format!("{}{}", root, opt_path(&binding.path));
         }
 
         let mut expr = root;
         for (i, segment) in binding.path.iter().enumerate() {
             if i == 0 {
-                expr = format!("{}?.{}", expr, segment);
+                expr = format!("{}{}", expr, opt_step(segment));
             } else {
-                expr = format!("({} as EventPayload | undefined)?.{}", expr, segment);
+                expr = format!("({} as EventPayload | undefined){}", expr, opt_step(segment));
             }
         }
         expr

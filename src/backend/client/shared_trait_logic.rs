@@ -110,8 +110,7 @@ impl TypeScriptBackend {
         // server-bound effect of its own).
         let mode_leg = Self::trait_has_server_leg(trait_def, Some(entity), module);
         // A client-only trait still sends the legs of its browser-leg events.
-        let leg_events =
-            trait_def.browser_leg_events(&orbital_core::effects::Residence::of_module(module));
+        let leg_events = Self::trait_browser_leg_events(trait_def, module);
         let gated_leg = has_dispatch && !mode_leg && !leg_events.is_empty();
         let server_leg = mode_leg || gated_leg;
         let api_path = to_kebab_case(name);
@@ -393,6 +392,9 @@ impl TypeScriptBackend {
             "Record<string, never>".to_string()
         };
         code.push_str(&format!("  actions: {};\n", actions_type));
+        if self.writes_toast_slot(trait_def) {
+            code.push_str(&format!("  clearSlot: (slot: {}) => void;\n", slot_ty));
+        }
         if uses_now {
             code.push_str("  now: number;\n");
         }
@@ -784,7 +786,7 @@ impl TypeScriptBackend {
         }
         code.push_str("    machineStateRef.current = result.newState;\n");
         code.push_str("    setMachineState(result.newState);\n");
-        code.push_str("    const _renderSlots = getRenderUiSlots(prevState, event);\n");
+        code.push_str("    const _renderSlots = getRenderUiSlots(prevState, event, result.arm);\n");
         code.push_str(
             "    if (_renderSlots.write.length > 0 || _renderSlots.clear.length > 0) {\n",
         );
@@ -796,7 +798,7 @@ impl TypeScriptBackend {
         // dispatches' machineState updates above).
         code.push_str("      setSlotWriter((prev) => ({\n");
         let writer = if self.render_writer_fn(trait_def).is_some() {
-            format!("{}RenderWriter(event, result.newState)", trait_def.name)
+            format!("{}RenderWriter(event, result.newState, result.arm)", trait_def.name)
         } else {
             "event".to_string()
         };
@@ -887,6 +889,12 @@ impl TypeScriptBackend {
         code.push_str("    actions,\n");
         if uses_now {
             code.push_str("    now,\n");
+        }
+        if self.writes_toast_slot(trait_def) {
+            code.push_str(&format!(
+                "    clearSlot: (slot: {}) => setSlotWriter((prev) => ({{ ...prev, [slot]: null }})),\n",
+                slot_ty
+            ));
         }
         code.push_str("    config: mergedConfig,\n");
         code.push_str("  };\n");

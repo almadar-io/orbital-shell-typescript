@@ -165,6 +165,7 @@ impl TypeScriptBackend {
 /// `SExpression` walker) onto one. A policy that fails to bridge (none does,
 /// for a validated program — `render_access_policies_content` above already
 /// requires it) contributes no owner columns rather than panicking.
+#[cfg(test)]
 pub(crate) fn owner_fields(entity: &OirEntity) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     for policy in [

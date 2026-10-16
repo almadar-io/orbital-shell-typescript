@@ -396,6 +396,14 @@ fn is_credential_forget(effect: &OirEffect) -> bool {
     matches!(effect, OirEffect::CredentialForget { .. })
 }
 
+fn is_oauth_authorize(effect: &OirEffect) -> bool {
+    matches!(effect, OirEffect::OAuthAuthorize { .. })
+}
+
+fn is_oauth_connection(effect: &OirEffect) -> bool {
+    matches!(effect, OirEffect::OAuthConnectionStatus { .. } | OirEffect::OAuthConnectionForget { .. })
+}
+
 /// Detect whether any transition runs an `http` effect, at any depth.
 pub fn trait_has_http_effects(trait_def: &OirTrait) -> bool {
     trait_has_effect(trait_def, is_http)
@@ -406,6 +414,8 @@ pub fn trait_has_host_effects(trait_def: &OirTrait) -> bool {
     trait_has_effect(trait_def, is_random_bytes)
         || trait_has_effect(trait_def, is_credential_status)
         || trait_has_effect(trait_def, is_credential_forget)
+        || trait_has_effect(trait_def, is_oauth_authorize)
+        || trait_has_effect(trait_def, is_oauth_connection)
 }
 
 /// Whether any trait of the module needs the kernel's http ports: an `http` effect or a host effect.
@@ -431,6 +441,15 @@ pub fn http_call_import(trait_def: &OirTrait, module_path: &str) -> Option<Strin
     }
     if trait_has_effect(trait_def, is_credential_forget) {
         symbols.push("hostCredentialForget");
+    }
+    if trait_has_effect(trait_def, is_oauth_authorize) {
+        symbols.push("hostOAuthAuthorize");
+    }
+    if trait_has_effect(trait_def, is_oauth_connection) {
+        symbols.push("hostOAuthConnection");
+    }
+    if trait_has_effect(trait_def, is_oauth_authorize) || trait_has_effect(trait_def, is_oauth_connection) {
+        symbols.push("OAuthEffectFailure");
     }
     (!symbols.is_empty()).then(|| format!("import {{ {} }} from '{}';\n", symbols.join(", "), module_path))
 }
@@ -515,7 +534,10 @@ pub fn transitions_have_emit_effects<'a>(
                     OirEffect::Http { emit, .. } => emit.is_some(),
                     OirEffect::RandomBytes { emit, .. }
                     | OirEffect::CredentialStatus { emit, .. }
-                    | OirEffect::CredentialForget { emit, .. } => emit.is_some(),
+                    | OirEffect::CredentialForget { emit, .. }
+                    | OirEffect::OAuthAuthorize { emit, .. }
+                    | OirEffect::OAuthConnectionStatus { emit, .. }
+                    | OirEffect::OAuthConnectionForget { emit, .. } => emit.is_some(),
                     OirEffect::Ref { emit, .. } => emit.is_some(),
                     _ => false,
                 }

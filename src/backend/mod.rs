@@ -76,8 +76,8 @@ impl<T> CodegenCell<T> {
     }
 }
 
-impl CodegenCell<Vec<Vec<(String, bool)>>> {
-    fn push(&self, scope: Vec<(String, bool)>) {
+impl CodegenCell<Vec<Vec<(Option<String>, String)>>> {
+    fn push(&self, scope: Vec<(Option<String>, String)>) {
         self.0.borrow_mut().push(scope);
     }
 
@@ -87,36 +87,159 @@ impl CodegenCell<Vec<Vec<(String, bool)>>> {
 }
 
 impl TypeScriptBackend {
-    /// The emitted identifier of a `let`-bound name.
+    /// The preferred identifier of a `let`-bound name.
     pub(crate) fn let_ident(name: &str) -> String {
         format!("let__{name}")
     }
 
-    /// Compile `f` with `names` in scope: `let` names (`is_let`) renamed, lambda parameters as is.
+    pub(crate) fn with_local_scope<R>(&self, f: impl FnOnce() -> R) -> R {
+        self.local_scopes.push(Vec::new());
+        let out = f();
+        self.local_scopes.pop();
+        out
+    }
+
+    fn fresh_local_ident(&self, preferred: &str, shadowed: Option<&str>) -> String {
+        let scopes = self.local_scopes.borrow();
+        let scope_count = scopes.len();
+        let reserved: BTreeSet<&str> = scopes
+            .iter()
+            .enumerate()
+            .flat_map(|(index, scope)| {
+                scope.iter().filter(move |(authored, _)| {
+                    shadowed.is_none()
+                        || index + 1 == scope_count
+                        || authored.as_deref() != shadowed
+                })
+            })
+            .map(|(_, emitted)| emitted.as_str())
+            .chain(
+                crate::codegen::operator::CORE_OPERATOR_IMPORTS
+                    .iter()
+                    .flat_map(|dependencies| dependencies.imports.iter().copied()),
+            )
+            .collect();
+        if !reserved.contains(preferred) {
+            return preferred.to_string();
+        }
+        for suffix in 1usize.. {
+            let candidate = format!("{preferred}__{suffix}");
+            if !reserved.contains(candidate.as_str()) {
+                return candidate;
+            }
+        }
+        unreachable!()
+    }
+
+    pub(crate) fn bind_local(&self, authored: &str, is_let: bool) -> String {
+        self.bind_local_after(authored, is_let, |_| {})
+    }
+
+    pub(crate) fn bind_local_after(
+        &self,
+        authored: &str,
+        is_let: bool,
+        initialize: impl FnOnce(&str),
+    ) -> String {
+        let preferred = if is_let {
+            Self::let_ident(authored)
+        } else {
+            authored.to_string()
+        };
+        let emitted = self.fresh_local_ident(&preferred, (!is_let).then_some(authored));
+        initialize(&emitted);
+        self.local_scopes
+            .0
+            .borrow_mut()
+            .last_mut()
+            .expect("local binding requires a scope")
+            .push((Some(authored.to_string()), emitted.clone()));
+        emitted
+    }
+
+    /// Compile declarations and references against the same assigned identifiers.
     pub(crate) fn with_locals<R>(
         &self,
         names: &[String],
         is_let: bool,
         f: impl FnOnce() -> R,
     ) -> R {
-        self.local_scopes
-            .push(names.iter().map(|n| (n.clone(), is_let)).collect());
-        let out = f();
-        self.local_scopes.pop();
-        out
+        self.with_locals_assigned(names, is_let, |_| f())
+    }
+
+    pub(crate) fn with_locals_assigned<R>(
+        &self,
+        names: &[String],
+        is_let: bool,
+        f: impl FnOnce(&[String]) -> R,
+    ) -> R {
+        self.with_local_scope(|| {
+            let emitted = names
+                .iter()
+                .map(|name| self.bind_local(name, is_let))
+                .collect::<Vec<_>>();
+            f(&emitted)
+        })
+    }
+
+    pub(crate) fn reserve_identifier<'a>(&self, identifier: &'a str) -> &'a str {
+        if let Some(scope) = self.local_scopes.0.borrow_mut().last_mut() {
+            scope.push((None, identifier.to_string()));
+        }
+        identifier
+    }
+
+    pub(crate) fn with_operand_locals<R>(
+        &self,
+        operands: &[OirExpr],
+        flavor: crate::codegen::expr::BindingFlavor,
+        bound: &[String],
+        f: impl FnOnce() -> R,
+    ) -> R {
+        self.with_local_scope(|| {
+            for operand in operands {
+                self.reserve_expr_free_identifiers(operand, flavor, bound);
+            }
+            f()
+        })
+    }
+
+    pub(crate) fn with_generated_locals<R>(
+        &self,
+        preferred: &[&str],
+        f: impl FnOnce(&[String]) -> R,
+    ) -> R {
+        self.with_local_scope(|| {
+            let mut names = Vec::new();
+            for name in preferred {
+                let emitted = self.fresh_local_ident(name, None);
+                self.local_scopes
+                    .0
+                    .borrow_mut()
+                    .last_mut()
+                    .unwrap()
+                    .push((None, emitted.clone()));
+                names.push(emitted);
+            }
+            f(&names)
+        })
     }
 
     /// The identifier a local read compiles to: the innermost binder of `name` decides.
     pub(crate) fn local_ident(&self, name: &str) -> String {
+        self.bound_local_ident(name)
+            .unwrap_or_else(|| name.to_string())
+    }
+
+    pub(crate) fn bound_local_ident(&self, name: &str) -> Option<String> {
         let scopes = self.local_scopes.borrow();
-        match scopes
-            .iter()
-            .rev()
-            .find_map(|scope| scope.iter().rev().find(|(n, _)| n == name))
-        {
-            Some((_, true)) => Self::let_ident(name),
-            _ => name.to_string(),
-        }
+        scopes.iter().rev().find_map(|scope| {
+            scope
+                .iter()
+                .rev()
+                .find(|(authored, _)| authored.as_deref() == Some(name))
+                .map(|(_, emitted)| emitted.clone())
+        })
     }
 }
 
@@ -207,10 +330,8 @@ pub struct TypeScriptBackend {
     pub current_trait_scope: CodegenCell<Option<String>>,
     /// Set while a transition's guard or effects compile; `None` elsewhere (ticks, renders).
     pub current_transition: CodegenCell<Option<TransitionScope>>,
-    /// Local names in scope while a `let` or lambda body compiles, innermost last. A `let` name
-    /// (`true`) is emitted as `let__<name>` so it never shadows a shell local such as `fields`;
-    /// a lambda parameter (`false`) keeps its name and hides an outer `let` of the same name.
-    pub local_scopes: CodegenCell<Vec<Vec<(String, bool)>>>,
+    /// Authored-to-emitted bindings, innermost last; `None` reserves a generated or operand identifier.
+    pub local_scopes: CodegenCell<Vec<Vec<(Option<String>, String)>>>,
     /// Gap #13 sibling — resolves an `is_event_name_prop` value to the scope
     /// that actually owns it, for embedded/hoisted chrome whose bare event
     /// belongs to whatever trait embeds it, not to itself (an embedded

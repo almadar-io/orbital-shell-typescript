@@ -36,6 +36,13 @@ impl TypeScriptBackend {
                 self.collect_nested_pattern_imports(&pattern.config, &mut imports);
             }
         }
+        // A toast-slot write renders as `Toast` (the `notification` pattern).
+        if self.writes_toast_slot(trait_def) {
+            let (component, path) = self.pattern_to_import("notification");
+            if !component.is_empty() {
+                imports.insert((component, path));
+            }
+        }
 
         imports.into_iter().collect()
     }

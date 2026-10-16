@@ -240,8 +240,7 @@ impl TypeScriptBackend {
         if !self.runs_client_tick_loop(trait_def, module) {
             return std::collections::BTreeSet::new();
         }
-        let legs =
-            trait_def.browser_leg_events(&orbital_core::effects::Residence::of_module(module));
+        let legs = Self::trait_browser_leg_events(trait_def, module);
         trait_def
             .ticks
             .iter()

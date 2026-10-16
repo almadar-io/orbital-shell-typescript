@@ -274,6 +274,9 @@ impl TypeScriptBackend {
             | OirEffect::RandomBytes { .. }
             | OirEffect::CredentialStatus { .. }
             | OirEffect::CredentialForget { .. }
+            | OirEffect::OAuthAuthorize { .. }
+            | OirEffect::OAuthConnectionStatus { .. }
+            | OirEffect::OAuthConnectionForget { .. }
             | OirEffect::Swap { .. }
             | OirEffect::Atomic { .. }
             | OirEffect::FetchStream { .. }
@@ -419,6 +422,42 @@ impl TypeScriptBackend {
                 Some(self.browser_iife(indent, emit, source_trait, &body, "{ endpoint: __json.endpoint, p256dh: __json.keys.p256dh, auth: __json.keys.auth }"))
             }
 
+            OirEffect::BrowserPageFacts { fields, key: Some(key), emit } => {
+                let facts = self.client_page_facts_body(fields, indent);
+                let key_ts = self.expr_to_client_ts(key);
+                let source_ts = Self::source_stamp(source_trait);
+                let emit_line = |event: &Option<String>, payload: &str| {
+                    event.as_ref().map(|ev| format!("{indent}        eventBus.emit('{ev}', {payload}{source_ts});\n"))
+                };
+                let success = emit.as_ref().and_then(|c| emit_line(&c.success, "{ ...__facts, key: __key }"));
+                let failure = emit.as_ref().and_then(|c| {
+                    emit_line(
+                        &c.failure,
+                        "{ error: __err instanceof Error ? __err.message : String(__err), ...(__key !== undefined ? { key: __key } : {}) }",
+                    )
+                });
+                let mut out = String::new();
+                out.push_str(&format!("{indent}(async () => {{\n{indent}    let __key: string | undefined;\n{indent}    try {{\n"));
+                out.push_str(&format!("{indent}        const __candidate = {key_ts};\n"));
+                out.push_str(&format!("{indent}        if (typeof __candidate !== 'string' || __candidate === '') {{ throw new Error('browser/page-facts: key must be a non-empty string'); }}\n"));
+                out.push_str(&format!("{indent}        __key = __candidate;\n"));
+                out.push_str(&facts);
+                out.push_str(&success.unwrap_or_default());
+                out.push_str(&format!("{indent}    }} catch (__err) {{\n"));
+                out.push_str(&failure.unwrap_or_default());
+                out.push_str(&format!("{indent}    }}\n{indent}}})();"));
+                Some(out)
+            }
+
+            OirEffect::BrowserPageFacts { fields, emit, .. } => {
+                let body = self.client_page_facts_body(fields, indent);
+                Some(self.browser_iife_flat(indent, emit, source_trait, &body, "__facts"))
+            }
+
+            // Delivered by the browser store's one http driver: a transition that sends a beacon is a browser leg
+            // (`trait_browser_leg_events`), so the client holds no delivery code of its own.
+            OirEffect::BrowserBeacon { .. } => None,
+
             // Custom effects — emit as comments for manual wiring
             OirEffect::Custom { name, args, .. } => {
                 let args_ts: Vec<String> = args
@@ -445,6 +484,26 @@ impl TypeScriptBackend {
         }
     }
 
+    /// The statements that read the requested page facts into `__facts`, in list order.
+    fn client_page_facts_body(&self, fields: &[orbital_core::ir::PageFactField], indent: &str) -> String {
+        let mut body = String::new();
+        body.push_str(indent);
+        body.push_str("        const __facts = { available: typeof window !== 'undefined' && typeof document !== 'undefined', hostname: '', referrer: '', screenWidth: null as number | null };\n");
+        body.push_str(indent);
+        body.push_str("        if (__facts.available) {\n");
+        for field in fields {
+            body.push_str(indent);
+            body.push_str(match field.as_str() {
+                "hostname" => "            __facts.hostname = window.location.hostname;\n",
+                "referrer" => "            __facts.referrer = document.referrer;\n",
+                _ => "            __facts.screenWidth = window.screen?.width ?? null;\n",
+            });
+        }
+        body.push_str(indent);
+        body.push_str("        }\n");
+        body
+    }
+
     /// Build the optional success/failure completion-emit statements for a
     /// browser device effect. Each returned line is already indented for the
     /// inside of the IIFE try/catch block and ends with `;` (no trailing
@@ -459,13 +518,14 @@ impl TypeScriptBackend {
         emit: &Option<OirEmitConfig>,
         source_ts: &str,
         indent: &str,
+        flat: bool,
     ) -> (Option<String>, Option<String>) {
         let success = emit.as_ref().and_then(|c| c.success.as_ref()).map(|ev| {
             let mut s = String::new();
             s.push_str(indent);
             s.push_str("    eventBus.emit('");
             s.push_str(ev);
-            s.push_str("', { result: __result }");
+            s.push_str(if flat { "', { ...__result }" } else { "', { result: __result }" });
             s.push_str(source_ts);
             s.push_str(");");
             s
@@ -497,8 +557,32 @@ impl TypeScriptBackend {
         compute_body: &str,
         result_expr: &str,
     ) -> String {
+        self.browser_iife_shaped(indent, emit, source_trait, compute_body, result_expr, false)
+    }
+
+    /// [`Self::browser_iife`] whose success event carries the result's fields flat, not wrapped in `{ result }`.
+    fn browser_iife_flat(
+        &self,
+        indent: &str,
+        emit: &Option<OirEmitConfig>,
+        source_trait: Option<&str>,
+        compute_body: &str,
+        result_expr: &str,
+    ) -> String {
+        self.browser_iife_shaped(indent, emit, source_trait, compute_body, result_expr, true)
+    }
+
+    fn browser_iife_shaped(
+        &self,
+        indent: &str,
+        emit: &Option<OirEmitConfig>,
+        source_trait: Option<&str>,
+        compute_body: &str,
+        result_expr: &str,
+        flat: bool,
+    ) -> String {
         let source_ts = Self::source_stamp(source_trait);
-        let (succ, fail) = self.device_emit_lines(emit, &source_ts, indent);
+        let (succ, fail) = self.device_emit_lines(emit, &source_ts, indent, flat);
         let mut out = String::new();
         out.push_str(indent);
         out.push_str("(async () => {\n");
@@ -549,6 +633,7 @@ impl TypeScriptBackend {
                     | OirEffect::BrowserClipboardRead { .. }
                     | OirEffect::BrowserClipboardWrite { .. }
                     | OirEffect::BrowserGeolocationCurrent { .. }
+                    | OirEffect::BrowserPageFacts { .. }
                     | OirEffect::BrowserPushSubscribe { .. }
             )
         }
@@ -571,7 +656,7 @@ impl TypeScriptBackend {
             .any(|e| e.calls_function(function))
     }
 
-    /// The `@almadar/core` value import a trait needs for the language trio's
+    /// The `@almadar/core` value import a trait needs for pure language/XML forms
     /// pure forms (`behavior/apply` → `applyBehaviorOverrides` over core's schemas,
     /// `quasiquote` → `instantiateQuasiquote` + `toProgramData`), scanning
     /// guards as well as effects and ticks. Empty when it uses neither.
@@ -582,6 +667,7 @@ impl TypeScriptBackend {
                     .transitions
                     .iter()
                     .filter_map(|t| t.guard.as_ref())
+                    .chain(trait_def.ticks.iter().filter_map(|t| t.guard.as_ref()))
                     .any(|g| g.calls_function(f))
         };
         let mut syms: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
@@ -598,6 +684,11 @@ impl TypeScriptBackend {
         }
         if uses("behavior/ref") {
             syms.insert("behaviorRef");
+        }
+        for dependencies in crate::codegen::operator::CORE_OPERATOR_IMPORTS {
+            if uses(dependencies.operator) {
+                syms.extend(dependencies.imports.iter().copied());
+            }
         }
         if syms.is_empty() {
             String::new()
@@ -771,6 +862,10 @@ impl TypeScriptBackend {
             OirEffect::BrowserClipboardWrite { text, .. } => check_expr(text),
             OirEffect::BrowserGeolocationCurrent { options, .. } => {
                 options.as_ref().is_some_and(&check_expr)
+            }
+            OirEffect::BrowserPageFacts { .. } => false,
+            OirEffect::BrowserBeacon { url, request, key, .. } => {
+                check_expr(url) || check_expr(request) || key.as_ref().is_some_and(&check_expr)
             }
             _ => false,
         }
@@ -972,6 +1067,7 @@ impl TypeScriptBackend {
         // transition defined", mirroring the server's rejection.
         if resolve_new_state {
             code.push_str("    let _newState: string | undefined = undefined;\n");
+            code.push_str("    let _arm: number | undefined = undefined;\n");
         }
 
         // Declare variables for client effects. `CLIENT_PAYLOAD_VAR` is the
@@ -1062,7 +1158,7 @@ impl TypeScriptBackend {
         code.push('\n');
 
         let mut first_branch = true;
-        for trans in &trait_def.transitions {
+        for (arm, trans) in trait_def.transitions.iter().enumerate() {
             // In server-backed mode, a transition with no transpilable client
             // effects contributes nothing (the server alone resolves its
             // state) — skip it, exactly as before. In `resolve_new_state`
@@ -1163,6 +1259,7 @@ impl TypeScriptBackend {
             }
             if resolve_new_state {
                 code.push_str(&format!("      _newState = '{}';\n", trans.to));
+                code.push_str(&format!("      _arm = {arm};\n"));
             }
 
             code.push_str("    }");
@@ -1176,7 +1273,7 @@ impl TypeScriptBackend {
         // Return the accumulated field updates so dispatch can fold them
         // into EVENT_SUCCESS in one reducer commit.
         if resolve_new_state {
-            code.push_str("    return { fields: _fields, newState: _newState, emits: _emits };\n");
+            code.push_str("    return { fields: _fields, newState: _newState, emits: _emits, arm: _arm };\n");
         } else {
             code.push_str("    return _fields;\n");
         }
@@ -1224,7 +1321,14 @@ impl TypeScriptBackend {
             String,
             BTreeMap<String, (BTreeSet<String>, BTreeSet<String>)>,
         > = BTreeMap::new();
+        let mut by_arm: BTreeMap<usize, (BTreeSet<String>, BTreeSet<String>)> = BTreeMap::new();
         for entry in self.collect_transition_slot_renders(trait_def) {
+            let (arm_write, arm_clear) = by_arm.entry(entry.arm).or_default();
+            if entry.is_clear {
+                arm_clear.insert(entry.slot.clone());
+            } else {
+                arm_write.insert(entry.slot.clone());
+            }
             for from in &entry.from_states {
                 let (write, clear) = by_from
                     .entry(from.clone())
@@ -1241,8 +1345,24 @@ impl TypeScriptBackend {
 
         let mut code = String::new();
         code.push_str(&format!(
-            "  const getRenderUiSlots = useCallback((fromState: string, event: string): {{ write: {slot_ty}[]; clear: {slot_ty}[] }} => {{\n"
+            "  const getRenderUiSlots = useCallback((fromState: string, event: string, arm?: number): {{ write: {slot_ty}[]; clear: {slot_ty}[] }} => {{\n"
         ));
+        // The arm that fired, when the client resolved it: only that arm's renders write or clear.
+        if !by_arm.is_empty() {
+            code.push_str("    if (arm !== undefined) {\n");
+            code.push_str("      switch (arm) {\n");
+            for (arm, (write, clear)) in &by_arm {
+                let write_list: Vec<String> = write.iter().map(|s| format!("'{}'", s)).collect();
+                let clear_list: Vec<String> = clear.iter().map(|s| format!("'{}'", s)).collect();
+                code.push_str(&format!(
+                    "        case {}: return {{ write: [{}] as {slot_ty}[], clear: [{}] as {slot_ty}[] }};\n",
+                    arm, write_list.join(", "), clear_list.join(", ")
+                ));
+            }
+            code.push_str("        default: return { write: [], clear: [] };\n");
+            code.push_str("      }\n");
+            code.push_str("    }\n");
+        }
         if by_from.is_empty() {
             code.push_str("    return { write: [], clear: [] };\n");
         } else {
@@ -1400,17 +1520,9 @@ impl TypeScriptBackend {
             .iter()
             .filter(|t| t.orbital_name == orbital_name && t.name != source_trait)
             .filter(|t| t.transitions.iter().any(|tr| tr.event == event))
-            // An explicit listen for this emit already delivers it.
-            .filter(|t| {
-                !t.listeners.iter().any(|l| {
-                    l.event_pattern == event
-                        && l.triggers == event
-                        && l.source_trait.as_deref() == Some(source_trait)
-                        && l.source_orbital
-                            .as_deref()
-                            .is_none_or(|o| o == orbital_name)
-                })
-            })
+            // A trigger a sourced listen feeds hears only that source (the kernel delivers an emit to
+            // declared listeners alone); that listen also covers the case where the source is this emitter.
+            .filter(|t| !t.listeners.iter().any(|l| l.triggers == event))
             .map(|t| t.name.clone())
             .collect()
     }
@@ -2006,7 +2118,7 @@ mod resolve_new_state_tests {
             "an effect-less transition must still stamp _newState in resolve_new_state mode:\n{ts}"
         );
         assert!(
-            ts.contains("return { fields: _fields, newState: _newState, emits: _emits };"),
+            ts.contains("return { fields: _fields, newState: _newState, emits: _emits, arm: _arm };"),
             "resolve_new_state mode's return shape must carry newState:\n{ts}"
         );
     }
@@ -2431,6 +2543,55 @@ mod implicit_emit_fanout_tests {
         assert!(
             !ts.contains("eventBus.emit('UI:Pong.PongMechanic.PADDLE_MOVE'"),
             "a listens edge is source-keyed; no destination-scoped relay line for it:\n{ts}"
+        );
+    }
+
+    /// Two tours composing one atom, each wired to its OWN transport by a
+    /// sourced listen (`OwnTransport.LEARN_STEP -> LEARN_STEP`). Transport A's
+    /// emit must reach only its listener: tour B's `LEARN_STEP` trigger is
+    /// owned by its listen from transport B, so no direct line targets it.
+    #[test]
+    fn sibling_whose_trigger_is_owned_by_another_sources_listen_gets_no_fanout() {
+        use orbital_core::ir::OirListener;
+
+        let mut module = OirModule::new("Home", "0.1.0");
+        let tour = |name: &str, transport: &str| {
+            let mut t = OirTrait::new(name);
+            t.orbital_name = "Home".to_string();
+            t.states.push(OirState::initial("idle"));
+            t.transitions
+                .push(OirTransition::new("idle", "idle", "LEARN_STEP"));
+            let mut l = OirListener::new("LEARN_STEP", "LEARN_STEP");
+            l.source_trait = Some(transport.to_string());
+            t.listeners.push(l);
+            t
+        };
+        module.traits.push(tour("TourA", "TransportA"));
+        module.traits.push(tour("TourB", "TransportB"));
+
+        let mut transport_a = OirTrait::new("TransportA");
+        transport_a.orbital_name = "Home".to_string();
+        transport_a.states.push(OirState::initial("idle"));
+        transport_a.transitions.push(
+            OirTransition::new("idle", "idle", "STEP")
+                .with_effects(vec![OirExpr::effect(OirEffect::emit("LEARN_STEP"))]),
+        );
+        module.traits.push(transport_a.clone());
+
+        let backend = TypeScriptBackend::new();
+        let ts = backend.generate_transpiled_effect_handler_impl(&transport_a, &module, true, true);
+
+        assert!(
+            ts.contains("emitCascadeEvent(eventBus, 'Home', 'TransportA', { event: 'LEARN_STEP'"),
+            "the listen edge is served by the source-qualified cascade key:\n{ts}"
+        );
+        assert!(
+            !ts.contains("UI:Home.TourB.LEARN_STEP"),
+            "TourB hears LEARN_STEP only from TransportB:\n{ts}"
+        );
+        assert!(
+            !ts.contains("UI:Home.TourA.LEARN_STEP"),
+            "TourA is reached by its listen, not a destination line:\n{ts}"
         );
     }
 
@@ -3350,5 +3511,36 @@ mod at_most_once_delivery_tests {
             "LEARN_STEP",
         );
         assert_eq!(targets, vec!["Tour".to_string()]);
+    }
+}
+
+#[cfg(test)]
+mod render_slots_by_arm_tests {
+    use crate::backend::TypeScriptBackend;
+    use orbital_core::ir::{OirEffect, OirExpr, OirPattern, OirState, OirTrait, OirTransition};
+
+    /// std-checkout: `NEXT` from `step1` either advances (renders nothing) or refuses with a
+    /// toast. Only the refusing arm writes the toast; the advancing arm must not.
+    #[test]
+    fn a_slot_is_written_only_by_the_arm_that_rendered_into_it() {
+        let mut tr = OirTrait::new("Rules");
+        tr.orbital_name = "Shop".to_string();
+        tr.states.push(OirState::initial("step1"));
+        tr.states.push(OirState::new("step2"));
+        tr.transitions.push(OirTransition::new("step1", "step2", "NEXT"));
+        tr.transitions.push(OirTransition::new("step1", "step1", "NEXT").with_effects(vec![OirExpr::Effect {
+            effect: Box::new(OirEffect::RenderUi { slot: "toast".to_string(), pattern: OirPattern::new("alert") }),
+        }]));
+        let lookup = TypeScriptBackend::new().generate_render_ui_lookup(&tr);
+        assert!(lookup.contains("(fromState: string, event: string, arm?: number)"), "{lookup}");
+        assert!(lookup.contains("case 1: return { write: ['toast'] as RulesSlot[], clear: [] as RulesSlot[] };"), "{lookup}");
+        assert!(
+            lookup.contains("if (arm !== undefined) {") && lookup.contains("default: return { write: [], clear: [] };"),
+            "an arm that rendered nothing writes nothing:\n{lookup}"
+        );
+        assert!(
+            lookup.contains("case 'NEXT': return { write: ['toast'] as RulesSlot[], clear: [] as RulesSlot[] };"),
+            "control: without the arm (a server-resolved transition) the (state, event) table stays:\n{lookup}"
+        );
     }
 }

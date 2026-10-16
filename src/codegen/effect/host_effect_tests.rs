@@ -44,3 +44,61 @@ fn host_effects_are_not_reported_as_http_effects_in_the_effect_results() {
     let js = server_js(&OirEffect::random_bytes(OirExpr::number(8.0), routed()));
     assert!(!js.contains("effectResults.push"), "{js}");
 }
+
+#[test]
+fn oauth_effects_call_the_runtime_owners_with_the_viewer_id_and_route_code_and_reason() {
+    let client = OirExpr::string("client");
+    let options = OirExpr::string("options");
+    let authorize = server_js(&OirEffect::OAuthAuthorize { client, options, key: None, emit: routed() });
+    assert!(authorize.contains("const hostResult = await hostOAuthAuthorize(\"client\", \"options\", user?.id);"), "{authorize}");
+    assert!(authorize.contains("getServerEventBus().emit('DRAWN'"), "{authorize}");
+    let catch_block = &authorize[authorize.find("} catch (err) {").expect("a catch block")..];
+    assert!(catch_block.contains("err instanceof OAuthEffectFailure ? { code: err.payload.code, reason: err.payload.reason } : {}"), "{authorize}");
+    assert!(catch_block.contains("emittedEvents.push({ event: 'DRAW_FAILED'"), "{authorize}");
+    for (effect, head) in [
+        (OirEffect::OAuthConnectionStatus { provider: OirExpr::string("google"), emit: routed() }, "oauth-connection-status"),
+        (OirEffect::OAuthConnectionForget { provider: OirExpr::string("google"), emit: routed() }, "oauth-connection-forget"),
+    ] {
+        let js = server_js(&effect);
+        assert!(js.contains(&format!("const hostResult = await hostOAuthConnection('{head}', \"google\", user?.id);")), "{js}");
+    }
+}
+
+#[test]
+fn an_unrouted_oauth_failure_is_thrown_and_never_reported_as_an_http_result() {
+    let js = server_js(&OirEffect::OAuthConnectionStatus { provider: OirExpr::string("google"), emit: None });
+    let catch_block = &js[js.find("} catch (err) {").expect("a catch block")..];
+    assert!(catch_block.contains("throw err;"), "{js}");
+    assert!(!js.contains("effectResults.push"), "{js}");
+}
+
+#[test]
+fn the_generated_service_clients_wire_the_oauth_port_and_the_two_host_functions() {
+    let ts = crate::generate_service_clients(&[], &std::collections::BTreeSet::new(), Some(&[]));
+    for needle in [
+        "oauth: createOAuthPort({ pending: pendingGrantStore, connections: installedOAuthConnectionStore }),",
+        "export function hostOAuthAuthorize(",
+        "return oauthAuthorizePayload(httpPorts, client, options, principal, key);",
+        "export function hostOAuthConnection(",
+        "return oauthConnectionPayload(httpPorts, head, provider, principal);",
+        "export { OAuthEffectFailure };",
+    ] {
+        assert!(ts.contains(needle), "missing {needle}: {ts}");
+    }
+}
+
+#[test]
+fn a_keyed_oauth_authorize_evaluates_the_key_once_passes_it_and_echoes_it_on_failure() {
+    let js = server_js(&OirEffect::OAuthAuthorize {
+        client: OirExpr::string("client"),
+        options: OirExpr::string("options"),
+        key: Some(OirExpr::string("job")),
+        emit: routed(),
+    });
+    assert!(js.contains("const __authKey = \"job\";"), "{js}");
+    assert!(js.trim_end().ends_with("}"), "the key is scoped to a block: {js}");
+    assert!(js.contains("await hostOAuthAuthorize(\"client\", \"options\", user?.id, __authKey);"), "{js}");
+    let catch_block = &js[js.find("} catch (err) {").expect("a catch block")..];
+    assert!(catch_block.contains("key: __authKey"), "{js}");
+}
+

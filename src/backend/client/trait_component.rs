@@ -37,6 +37,8 @@ pub(crate) struct TransitionSlotRender<'a> {
     pub(crate) slot: String,
     pub(crate) node: RenderUiNode<'a>,
     pub(crate) is_clear: bool,
+    /// The transition's index in the trait: which arm wrote the slot.
+    pub(crate) arm: usize,
 }
 
 impl TypeScriptBackend {
@@ -47,7 +49,7 @@ impl TypeScriptBackend {
         trait_def: &'a OirTrait,
     ) -> Vec<TransitionSlotRender<'a>> {
         let mut out = Vec::new();
-        for trans in &trait_def.transitions {
+        for (arm, trans) in trait_def.transitions.iter().enumerate() {
             let from_states: Vec<String> = match &trans.from {
                 OirTransitionFrom::Single(s) => vec![s.clone()],
                 OirTransitionFrom::Multiple(states) => states.clone(),
@@ -64,6 +66,7 @@ impl TypeScriptBackend {
                         slot,
                         node,
                         is_clear,
+                        arm,
                     });
                 }
             }
@@ -91,9 +94,32 @@ impl TypeScriptBackend {
                 .or_default()
                 .insert(entry.to_state);
         }
+        let arm_split = self.arm_split_events(trait_def);
         targets
             .into_iter()
             .filter(|(_, to)| to.len() > 1)
+            .map(|((event, _), _)| event)
+            .filter(|event| !arm_split.contains(event))
+            .collect()
+    }
+
+    /// Events that write one slot from guarded arms sharing a target state (std-checkout's
+    /// `CheckoutStepEntered` → wizard, one step per guard). The target state cannot tell those
+    /// arms apart, so their writer is `event#arm`: the index of the arm that fired.
+    pub(crate) fn arm_split_events(&self, trait_def: &OirTrait) -> std::collections::BTreeSet<String> {
+        let mut renders: std::collections::BTreeMap<(String, String), Vec<String>> =
+            std::collections::BTreeMap::new();
+        for entry in self.collect_transition_slot_renders(trait_def) {
+            if !entry.is_clear {
+                renders.entry((entry.event, entry.slot)).or_default().push(entry.to_state);
+            }
+        }
+        renders
+            .into_iter()
+            .filter(|(_, to)| {
+                let distinct: std::collections::BTreeSet<&String> = to.iter().collect();
+                distinct.len() < to.len()
+            })
             .map(|((event, _), _)| event)
             .collect()
     }
@@ -111,18 +137,23 @@ impl TypeScriptBackend {
         }
     }
 
-    /// Module-level `{Name}RenderWriter(event, newState)` for a trait with split writer
-    /// events; `None` when every render is keyed by its event alone.
+    /// Module-level `{Name}RenderWriter(event, newState, arm)` for a trait with split writer
+    /// events; `None` when every render is keyed by its event alone. `arm` is known only where
+    /// the client resolves the transition; without it an arm-split event keeps its event key.
     pub(crate) fn render_writer_fn(&self, trait_def: &OirTrait) -> Option<String> {
         let split = self.split_writer_events(trait_def);
-        if split.is_empty() {
+        let arm_split = self.arm_split_events(trait_def);
+        if split.is_empty() && arm_split.is_empty() {
             return None;
         }
-        let events: Vec<String> = split.iter().map(|e| format!("'{e}'")).collect();
+        let list = |set: &std::collections::BTreeSet<String>| {
+            set.iter().map(|e| format!("'{e}'")).collect::<Vec<_>>().join(", ")
+        };
         Some(format!(
-            "function {name}RenderWriter(event: string, newState: string): string {{\n  return [{events}].includes(event) ? `${{event}}>${{newState}}` : event;\n}}\n\n",
+            "function {name}RenderWriter(event: string, newState: string, arm?: number): string {{\n  if (arm !== undefined && [{arms}].includes(event)) return `${{event}}#${{arm}}`;\n  return [{events}].includes(event) ? `${{event}}>${{newState}}` : event;\n}}\n\n",
             name = trait_def.name,
-            events = events.join(", ")
+            arms = list(&arm_split),
+            events = list(&split)
         ))
     }
 
@@ -201,6 +232,48 @@ impl TypeScriptBackend {
                     .collect()
             }
             _ => Vec::new(),
+        }
+    }
+
+    /// Whether any transition writes content into the `toast` slot.
+    pub(crate) fn writes_toast_slot(&self, trait_def: &OirTrait) -> bool {
+        self.collect_transition_slot_renders(trait_def)
+            .iter()
+            .any(|e| !e.is_clear && e.slot == "toast")
+    }
+
+    /// A toast-slot write, rendered as the runtime's `SlotToasts` renders it: a `Toast`
+    /// (the `notification` pattern) from the content's `variant`, `title` and `message`, whose
+    /// dismiss and timeout clear the slot.
+    fn render_toast_node_to_jsx(
+        &self,
+        node: &RenderUiNode<'_>,
+        entity: Option<&str>,
+        entity_fields_ref: Option<&HashMap<String, EntityFieldInfo>>,
+    ) -> String {
+        match node {
+            RenderUiNode::Leaf(pattern) => {
+                let mut toast = OirPattern::new("notification");
+                for key in ["variant", "title", "message"] {
+                    if let Some(value) = pattern.config.get(key) {
+                        toast.config.insert(key.to_string(), value.clone());
+                    }
+                }
+                self.pending_root_props
+                    .set(Some(vec!["onDismiss={() => clearSlot('toast')}".to_string()]));
+                self.pattern_to_jsx_with_data(&toast, entity, entity_fields_ref)
+            }
+            RenderUiNode::If { condition_ts, then_node, else_node } => {
+                let then_jsx = then_node
+                    .as_deref()
+                    .map(|n| self.render_toast_node_to_jsx(n, entity, entity_fields_ref))
+                    .unwrap_or_else(|| "null".to_string());
+                let else_jsx = else_node
+                    .as_deref()
+                    .map(|n| self.render_toast_node_to_jsx(n, entity, entity_fields_ref))
+                    .unwrap_or_else(|| "null".to_string());
+                format!("({}) ? ({}) : ({})", condition_ts, then_jsx, else_jsx)
+            }
         }
     }
 
@@ -540,8 +613,9 @@ impl TypeScriptBackend {
             ""
         };
         code.push_str(&format!(
-            "  const {{ state, data, lastPayload, lastEvent, slotWriter, loading, pendingEvent, pendingFrom, error, fields, dispatch, actions, {now_binding}config }} = {}(propsConfig);\n\n",
-            hook_name
+            "  const {{ state, data, lastPayload, lastEvent, slotWriter, loading, pendingEvent, pendingFrom, error, fields, dispatch, actions, {now_binding}{clear_binding}config }} = {}(propsConfig);\n\n",
+            hook_name,
+            clear_binding = if self.writes_toast_slot(trait_def) { "clearSlot, " } else { "" }
         ));
 
         // Add entity variable from linked entity.
@@ -629,6 +703,7 @@ impl TypeScriptBackend {
         // first-declared one wins (pre-existing dedup discipline, now
         // trait-wide instead of per-state).
         let split_writers = self.split_writer_events(trait_def);
+        let arm_split = self.arm_split_events(trait_def);
         let mut slot_write_entries: std::collections::BTreeMap<
             String,
             Vec<(String, String, RenderUiNode<'_>)>,
@@ -641,6 +716,13 @@ impl TypeScriptBackend {
                 // `slotWriter[slot]` to `null` so a previously-open slot
                 // actually closes (handled by `getRenderUiSlots`/the reducer,
                 // not here).
+                continue;
+            }
+            if arm_split.contains(&entry.event) {
+                let slot_entries = slot_write_entries.entry(entry.slot.clone()).or_default();
+                slot_entries.push((format!("{}#{}", entry.event, entry.arm), entry.event.clone(), entry.node.clone()));
+                // Where the transition is resolved off the client, no arm comes back: the event key keeps the first arm.
+                slot_entries.push((entry.event.clone(), entry.event, entry.node));
                 continue;
             }
             let writer = Self::slot_writer_key(&split_writers, &entry.event, &entry.to_state);
@@ -701,12 +783,16 @@ impl TypeScriptBackend {
                     if unique_entries.len() == 1 {
                         let (event, trigger, node) = unique_entries[0];
                         pin_event_schema(trigger);
-                        let branch_jsx = self.render_ui_node_to_jsx(
-                            node,
-                            trait_def.linked_entity.as_deref(),
-                            entity_fields_ref,
-                            presence,
-                        );
+                        let branch_jsx = if slot_name == "toast" {
+                            self.render_toast_node_to_jsx(node, trait_def.linked_entity.as_deref(), entity_fields_ref)
+                        } else {
+                            self.render_ui_node_to_jsx(
+                                node,
+                                trait_def.linked_entity.as_deref(),
+                                entity_fields_ref,
+                                presence,
+                            )
+                        };
                         let branch_pattern = Self::render_ui_node_pattern_type(node);
                         let branch_enter = self.render_ui_node_enter(node).map(|e| {
                             format!(
@@ -740,12 +826,16 @@ impl TypeScriptBackend {
                         let mut any_enter = false;
                         for (event_name, trigger, node) in &unique_entries {
                             pin_event_schema(trigger);
-                            let branch_jsx = self.render_ui_node_to_jsx(
-                                node,
-                                trait_def.linked_entity.as_deref(),
-                                entity_fields_ref,
-                                presence,
-                            );
+                            let branch_jsx = if slot_name == "toast" {
+                                self.render_toast_node_to_jsx(node, trait_def.linked_entity.as_deref(), entity_fields_ref)
+                            } else {
+                                self.render_ui_node_to_jsx(
+                                    node,
+                                    trait_def.linked_entity.as_deref(),
+                                    entity_fields_ref,
+                                    presence,
+                                )
+                            };
                             selector.push_str(&format!(
                                 "slotWriter['{}'] === '{}' ? ({}) : ",
                                 slot_name, event_name, branch_jsx
@@ -1344,6 +1434,30 @@ mod wrapper_pattern_tracks_active_branch_tests {
         );
     }
 
+    /// std-checkout: `CheckoutStepEntered` stays in `wizard` and renders a different step by
+    /// guard (`when (= ?step "step2")`). The view must show the arm that fired, keyed by the arm.
+    #[test]
+    fn guarded_arms_into_the_same_state_each_render_their_own_branch() {
+        let mut tr = loaded_trait(&[("viewing", "detail-panel"), ("viewing", "document-panel")]);
+        for (i, step) in ["one", "two"].iter().enumerate() {
+            tr.transitions[i].guard = Some(OirExpr::eq(
+                OirExpr::binding(orbital_core::ir::OirBinding::parse("@payload.step").unwrap()),
+                OirExpr::string(*step),
+            ));
+        }
+        let view = view_of(&tr);
+        assert!(view.contains("slotWriter['main'] === 'LOADED#0'"), "{view}");
+        assert!(view.contains("slotWriter['main'] === 'LOADED#1'"), "{view}");
+        let writer = TypeScriptBackend::new()
+            .render_writer_fn(&tr)
+            .expect("a writer function");
+        assert!(writer.contains("`${event}#${arm}`"), "{writer}");
+        let module = OirModule::new("App", "1.0.0");
+        let handler = TypeScriptBackend::new().generate_transpiled_effect_handler_impl(&tr, &module, true, true);
+        assert!(handler.contains("_arm = 0;") && handler.contains("_arm = 1;"), "{handler}");
+        assert!(handler.contains("return { fields: _fields, newState: _newState, emits: _emits, arm: _arm };"), "{handler}");
+    }
+
     #[test]
     fn control_one_target_state_keeps_the_event_key_and_no_writer_function() {
         let tr = loaded_trait(&[("viewing", "detail-panel")]);
@@ -1404,6 +1518,41 @@ mod wrapper_pattern_tracks_active_branch_tests {
                 "{pattern_type}: {view}"
             );
         }
+    }
+
+    /// A toast-slot write renders as a dismissible `Toast` (the runtime's `SlotToasts`): its
+    /// dismiss, and its own timeout, clear the slot.
+    #[test]
+    fn a_toast_slot_renders_a_toast_whose_dismiss_clears_the_slot() {
+        let tr = modal_trait(
+            "toast",
+            OirPattern::new("alert")
+                .with_config("message", OirValue::String("Order placed".into()))
+                .with_config("variant", OirValue::String("success".into()))
+                .with_config("dismissible", OirValue::Bool(true)),
+        );
+        let view = view_of(&tr);
+        assert!(view.contains("<Toast "), "{view}");
+        assert!(!view.contains("<Alert "), "{view}");
+        assert!(view.contains("message=\"Order placed\""), "{view}");
+        assert!(view.contains("variant=\"success\""), "{view}");
+        assert!(view.contains("onDismiss={() => clearSlot('toast')}"), "{view}");
+        assert!(view.contains(" clearSlot, "), "the view takes clearSlot from its hook:\n{view}");
+        assert!(
+            view.lines().any(|l| l.starts_with("import {") && l.contains("Toast")),
+            "the view imports the Toast it renders:\n{view}"
+        );
+        let module = orbital_core::ir::OirModule::new("App", "1.0.0");
+        let hook = TypeScriptBackend::new().generate_trait_logic_hook(&tr, &module).content;
+        assert!(hook.contains("case 'SLOT_CLEARED':"), "{hook}");
+        assert!(hook.contains("clearSlot: (slot: EditDialogSlot) => dispatchReducer({ type: 'SLOT_CLEARED', slot }),"), "{hook}");
+    }
+
+    #[test]
+    fn control_a_modal_slot_keeps_its_pattern_and_no_clear_slot() {
+        let view = view_of(&modal_trait("modal", OirPattern::new("alert")));
+        assert!(view.contains("<Alert "), "{view}");
+        assert!(!view.contains("clearSlot"), "{view}");
     }
 
     #[test]

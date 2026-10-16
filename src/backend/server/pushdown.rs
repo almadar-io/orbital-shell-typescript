@@ -17,7 +17,6 @@ pub(crate) const PUSHDOWN_HELPERS: [&str; 7] = [
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::backend::*;
     use orbital_core::ir::{
         OirBinding, OirEffect, OirEvent, OirExpr, OirField, OirModule, OirPersistOp, OirTrait,

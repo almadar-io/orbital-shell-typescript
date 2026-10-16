@@ -4,7 +4,7 @@
 //! This replaces the old raw-fetch codegen with a unified integration layer that
 //! provides retry, validation, structured errors, and centralized credential management.
 
-use orbital_core::ir::{OirEffect, OirExpr, OirModule};
+use orbital_core::ir::OirModule;
 use orbital_core::schema::{ServiceDefinition, ServiceRef};
 use std::collections::BTreeSet;
 
@@ -35,8 +35,10 @@ pub fn generate_service_clients(
         ts.push_str("import { CredentialStore, type CredentialPersistence } from '@almadar/integrations';\n");
         ts.push_str("import { createRequire } from 'node:module';\n");
         ts.push_str("import { dirname, join } from 'node:path';\n");
-        ts.push_str("import type { HttpFailurePayload, JsonValue, RuntimeValue } from '@almadar/core';\n");
-        ts.push_str("import { createHttpPorts, credentialForgetPayload, credentialStatusPayload, randomBytesPayload, runHttpCall, type HttpCall, type HttpRunOptions } from '@almadar/runtime/kernel';\n");
+        ts.push_str("import { installedOAuthConnectionStore } from '@almadar/integrations';\n");
+        ts.push_str("import { pendingGrantStore } from '@almadar/auth/server';\n");
+        ts.push_str("import type { HttpFailurePayload, JsonValue, OAuthAuthorizePayload, OAuthConnectionPayload, RuntimeValue } from '@almadar/core';\n");
+        ts.push_str("import { createHttpPorts, createOAuthPort, credentialForgetPayload, credentialStatusPayload, oauthAuthorizePayload, oauthConnectionPayload, OAuthEffectFailure, randomBytesPayload, runHttpCall, type HttpCall, type HttpRunOptions } from '@almadar/runtime/kernel';\n");
         ts.push_str("import { loadHttpKernel } from '@almadar/runtime/kernelNode';\n\n");
     } else {
         ts.push_str("import { CredentialStore, type CredentialPersistence } from '@almadar/integrations';\n\n");
@@ -160,7 +162,9 @@ fn generate_http_call(egress: &[String]) -> String {
     ts.push_str("const httpPorts = createHttpPorts({\n");
     ts.push_str("  kernel: () => loadHttpKernel(join(dirname(createRequire(import.meta.url).resolve('@almadar/kernel')), '..')),\n");
     ts.push_str("  egress: httpEgress,\n");
+    ts.push_str("  oauth: createOAuthPort({ pending: pendingGrantStore, connections: installedOAuthConnectionStore }),\n");
     ts.push_str("});\n\n");
+    ts.push_str("export { OAuthEffectFailure };\n\n");
     ts.push_str("export class HttpCallError extends Error {\n");
     ts.push_str("  constructor(readonly payload: HttpFailurePayload) {\n");
     ts.push_str("    super(payload.error);\n");
@@ -184,6 +188,14 @@ fn generate_http_call(egress: &[String]) -> String {
     ts.push_str("/** `credential-status`: `{ connected }` for the signed-in viewer. */\n");
     ts.push_str("export function hostCredentialStatus(credential: RuntimeValue, principal: string | undefined): Promise<{ connected: boolean }> {\n");
     ts.push_str("  return credentialStatusPayload(httpPorts, credential, principal);\n");
+    ts.push_str("}\n\n");
+    ts.push_str("/** `oauth-authorize`: `{ authUrl, state }`; the pending grant stays with the host's store. */\n");
+    ts.push_str("export function hostOAuthAuthorize(client: RuntimeValue, options: RuntimeValue, principal: string | undefined, key?: RuntimeValue): Promise<OAuthAuthorizePayload> {\n");
+    ts.push_str("  return oauthAuthorizePayload(httpPorts, client, options, principal, key);\n");
+    ts.push_str("}\n\n");
+    ts.push_str("/** `oauth-connection-status` / `oauth-connection-forget`: the signed-in viewer's connection row. */\n");
+    ts.push_str("export function hostOAuthConnection(head: 'oauth-connection-status' | 'oauth-connection-forget', provider: RuntimeValue, principal: string | undefined): Promise<OAuthConnectionPayload> {\n");
+    ts.push_str("  return oauthConnectionPayload(httpPorts, head, provider, principal);\n");
     ts.push_str("}\n\n");
     ts.push_str("/** `credential-forget`: drops the signed-in viewer's credential. */\n");
     ts.push_str("export function hostCredentialForget(credential: RuntimeValue, principal: string | undefined): Promise<{ connected: false }> {\n");
@@ -386,13 +398,13 @@ mod tests {
         assert!(ts.contains("export async function httpCall("), "{ts}");
         assert!(ts.contains("export class HttpCallError extends Error"), "{ts}");
         assert!(ts.contains("  'https://api.iconify.design',\n  'https://api.example.com:8443',\n];"), "{ts}");
-        assert!(ts.contains("import { createHttpPorts, credentialForgetPayload, credentialStatusPayload, randomBytesPayload, runHttpCall, type HttpCall, type HttpRunOptions } from '@almadar/runtime/kernel';"), "{ts}");
+        assert!(ts.contains("import { createHttpPorts, createOAuthPort, credentialForgetPayload, credentialStatusPayload, oauthAuthorizePayload, oauthConnectionPayload, OAuthEffectFailure, randomBytesPayload, runHttpCall, type HttpCall, type HttpRunOptions } from '@almadar/runtime/kernel';"), "{ts}");
         assert!(ts.contains("export function hostRandomBytes(bytes: RuntimeValue): { value: string }"), "{ts}");
         assert!(ts.contains("export function hostCredentialStatus("), "{ts}");
         assert!(ts.contains("export function hostCredentialForget("), "{ts}");
         assert!(ts.contains("await runHttpCall(httpPorts, call, options)"), "{ts}");
         assert!(!ts.contains("fetch("), "the shared transport owns the network: {ts}");
-        assert!(!ts.contains("oauth") && !ts.contains("paginate"), "{ts}");
+        assert!(!ts.contains("code_verifier") && !ts.contains("client_secret") && !ts.contains("paginate"), "no OAuth or paging logic is generated: {ts}");
         assert!(ts.contains("callService = manager.getCallServiceHandler()"), "{ts}");
     }
 

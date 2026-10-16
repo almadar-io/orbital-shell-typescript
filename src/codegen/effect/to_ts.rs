@@ -182,6 +182,19 @@ impl TypeScriptBackend {
             OirEffect::CredentialForget { credential, .. } => {
                 format!("{{ type: 'credential-forget', credential: {} }}", self.expr_to_ts(credential))
             }
+            OirEffect::OAuthAuthorize { client, options, .. } => {
+                format!(
+                    "{{ type: 'oauth-authorize', client: {}, options: {} }}",
+                    self.expr_to_ts(client),
+                    self.expr_to_ts(options)
+                )
+            }
+            OirEffect::OAuthConnectionStatus { provider, .. } => {
+                format!("{{ type: 'oauth-connection-status', provider: {} }}", self.expr_to_ts(provider))
+            }
+            OirEffect::OAuthConnectionForget { provider, .. } => {
+                format!("{{ type: 'oauth-connection-forget', provider: {} }}", self.expr_to_ts(provider))
+            }
             OirEffect::Spawn { entity_type, props } => {
                 format!(
                     "{{ type: 'spawn', entityType: '{}', props: {} }}",
@@ -347,6 +360,17 @@ impl TypeScriptBackend {
                 } else {
                     "{ type: 'browser/geolocation-current' }".to_string()
                 }
+            }
+            OirEffect::BrowserPageFacts { fields, .. } => {
+                let words: Vec<String> = fields.iter().map(|f| format!("'{}'", f.as_str())).collect();
+                format!("{{ type: 'browser/page-facts', fields: [{}] }}", words.join(", "))
+            }
+            OirEffect::BrowserBeacon { url, request, .. } => {
+                format!(
+                    "{{ type: 'browser/beacon', url: {}, request: {} }}",
+                    self.expr_to_ts(url),
+                    self.expr_to_ts(request)
+                )
             }
         }
     }

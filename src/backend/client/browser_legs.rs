@@ -14,14 +14,48 @@ pub(crate) fn browser_leg_key(trait_name: &str, event: &str) -> String {
     format!("{trait_name}\u{0}{event}")
 }
 
+/// Whether `expr` holds a `browser/beacon` at any depth: the compiled client has no executor of its own, so a
+/// beacon is delivered by the browser store's one http driver, reached as a browser leg like a keyless `http`.
+fn runs_beacon(expr: &OirExpr) -> bool {
+    match expr {
+        OirExpr::Effect { effect } if matches!(effect.as_ref(), OirEffect::BrowserBeacon { .. }) => true,
+        OirExpr::Conditional { condition, then_branch, else_branch } => {
+            (!condition.is_statically_false() && runs_beacon(then_branch)) || runs_beacon(else_branch)
+        }
+        _ => expr.child_exprs().into_iter().any(runs_beacon),
+    }
+}
+
 impl TypeScriptBackend {
-    pub(crate) fn compute_browser_legs(module: &OirModule) -> BTreeSet<String> {
+    /// The events whose leg goes to the browser store: the core set (`OirTrait::browser_leg_events`) plus every live
+    /// transition or client tick that sends a `browser/beacon`.
+    pub(crate) fn trait_browser_leg_events(trait_def: &OirTrait, module: &OirModule) -> BTreeSet<String> {
         let residence = orbital_core::effects::Residence::of_module(module);
+        let mut events = trait_def.browser_leg_events(&residence);
+        events.extend(
+            trait_def
+                .transitions
+                .iter()
+                .filter(|t| !t.guard.as_ref().is_some_and(|g| g.is_statically_false()))
+                .filter(|t| t.effects.iter().any(runs_beacon))
+                .map(|t| t.event.clone()),
+        );
+        events.extend(
+            trait_def
+                .ticks
+                .iter()
+                .filter(|t| !t.background && t.effects.iter().any(runs_beacon))
+                .map(|t| orbital_core::effects::tick_event_key(&t.name)),
+        );
+        events
+    }
+
+    pub(crate) fn compute_browser_legs(module: &OirModule) -> BTreeSet<String> {
         module
             .traits
             .iter()
             .flat_map(|t| {
-                t.browser_leg_events(&residence)
+                Self::trait_browser_leg_events(t, module)
                     .into_iter()
                     .map(|event| browser_leg_key(&t.name, &event))
             })
@@ -49,10 +83,13 @@ impl TypeScriptBackend {
         ))
     }
 
-    /// Whether the program runs a keyless `http` (no `auth` key): it runs where its trait does, so in a
-    /// browser leg it needs the browser store's request driver.
+    /// Whether the program runs a keyless `http` (no `auth` key) or a `browser/beacon`: it runs where its trait
+    /// does, so in a browser leg it needs the browser store's request driver.
     pub(crate) fn module_runs_client_http(module: &OirModule) -> bool {
         fn client_http(expr: &OirExpr) -> bool {
+            if runs_beacon(expr) {
+                return true;
+            }
             if let OirExpr::Effect { effect } = expr {
                 if matches!(effect.as_ref(), OirEffect::Http { .. })
                     && orbital_core::effects::ir_effect_site(effect, &orbital_core::effects::Residence::none())
@@ -88,11 +125,10 @@ impl TypeScriptBackend {
 
     /// The resolved schema restricted to the orbitals that own a browser leg.
     pub(crate) fn generate_browser_schema_file(&self, module: &OirModule) -> Option<InternalFile> {
-        let residence = orbital_core::effects::Residence::of_module(module);
         let legged: Vec<&OirTrait> = module
             .traits
             .iter()
-            .filter(|t| !t.browser_leg_events(&residence).is_empty())
+            .filter(|t| !Self::trait_browser_leg_events(t, module).is_empty())
             .collect();
         if legged.is_empty() {
             return None;
@@ -398,6 +434,22 @@ mod tests {
     }
 
     #[test]
+    fn a_beacon_is_a_browser_leg_and_the_client_wires_its_request_driver() {
+        let mut module = http_module(false);
+        module.traits[0].transitions[0].effects = vec![OirExpr::effect(OirEffect::BrowserBeacon {
+            url: OirExpr::string("https://api.example.com/e"),
+            request: OirExpr::object(orbital_core::ir::OirFields::new()),
+            key: None,
+            emit: None,
+        })];
+        assert_eq!(
+            TypeScriptBackend::compute_browser_legs(&module).into_iter().collect::<Vec<_>>(),
+            vec![browser_leg_key("Loader", "LOAD")]
+        );
+        assert!(TypeScriptBackend::generate_browser_http_file(&module).is_some());
+    }
+
+    #[test]
     fn a_keyless_http_is_a_browser_leg_and_the_client_wires_its_request_driver() {
         let module = http_module(false);
         assert_eq!(
@@ -493,6 +545,21 @@ mod tests {
         assert!(hook.contains("commandPump.enqueue(async () => {"), "{hook}");
         assert!(hook.contains("        if (response.success) {\n"), "{hook}");
         assert!(!hook.contains("=== _optimistic.newState"), "{hook}");
+    }
+
+    /// The browser store runs one leg statelessly: it replays the transition from the pre-dispatch
+    /// state, so it needs the pre-dispatch row (std-checkout's `COMPLETE` guard reads the name,
+    /// email and address the earlier steps set on the client).
+    #[test]
+    fn a_browser_leg_carries_the_rows_state_before_the_dispatch() {
+        let backend = backend_with_schema();
+        let module = module(true);
+        let list = module.find_trait("InvoiceList").unwrap();
+        let hook = backend.generate_trait_logic_hook(list, &module).content;
+        let pre = hook.find("const _preRow = { ...fieldsRef.current } as EntityRow;").expect(&hook);
+        let commit = hook.find("fieldsRef.current = { ...fieldsRef.current, ..._optimistic.fields }").expect(&hook);
+        assert!(pre < commit, "the row is taken before the local commit:\n{hook}");
+        assert!(hook.contains("const response = await sendEvent(event, payload, prevState, _preRow);"), "{hook}");
     }
 
     #[test]

@@ -495,6 +495,8 @@ impl TypeScriptBackend {
             | OirEffect::BrowserClipboardRead { .. }
             | OirEffect::BrowserClipboardWrite { .. }
             | OirEffect::BrowserGeolocationCurrent { .. }
+            | OirEffect::BrowserPageFacts { .. }
+            | OirEffect::BrowserBeacon { .. }
             | OirEffect::BrowserPushSubscribe { .. } => {
                 // Client host device APIs — transpiled on the client (Phase 4).
                 // No server-side code needed.
@@ -677,7 +679,8 @@ impl TypeScriptBackend {
                 code.push_str(&format!("      // Http {}\n", verb));
                 if let Some(k) = &key_expr {
                     code.push_str("      {\n");
-                    code.push_str(&format!("      const __callKey = String({});\n", k));
+                    code.push_str(&format!("      const __callKey = {};\n", k));
+                    code.push_str("      if (typeof __callKey !== 'string' || __callKey === '') { throw new Error(`http key: key resolved to ${String(__callKey)}`); }\n");
                     code.push_str("      const __callCtl = beginKeyedCall(__callKey);\n");
                 }
                 code.push_str("      try {\n");
@@ -693,7 +696,7 @@ impl TypeScriptBackend {
                 }
                 options.push("principal: user?.id".to_string());
                 code.push_str(&format!(
-                    "        const httpResult = await httpCall({{ method: '{}', origin: {}, path: {}, request: {}, key: {} }}, {{ {} }});\n",
+                    "        const httpResult = await httpCall({{ method: '{}', origin: {}, path: {}, request: {}, key: {}, nowMs: now }}, {{ {} }});\n",
                     verb,
                     origin_expr,
                     path_expr,
@@ -738,7 +741,7 @@ impl TypeScriptBackend {
                 code.push_str(&self.emit_failure_js_impl(
                     emit,
                     "err instanceof Error ? err.message : String(err)",
-                    ", kind: err instanceof HttpCallError ? err.kind : 'failed', key: err instanceof HttpCallError ? err.key : null",
+                    ", ...(err instanceof HttpCallError ? err.payload : { kind: 'failed', key: null, credential: null })",
                     failure_indent,
                 ));
                 if key_expr.is_some() {
@@ -798,6 +801,29 @@ impl TypeScriptBackend {
                     code.push_str("        throw err;\n");
                 }
                 code.push_str("      }\n\n");
+            }
+
+            OirEffect::OAuthAuthorize { client, options, key, emit } => {
+                let key_ts = key.as_ref().map(|k| self.expr_to_ts_server(k));
+                if let Some(key_ts) = &key_ts {
+                    code.push_str(&format!("      {{\n      const __authKey = {key_ts};\n"));
+                }
+                let call = format!(
+                    "await hostOAuthAuthorize({}, {}, user?.id{})",
+                    self.expr_to_ts_server(client),
+                    self.expr_to_ts_server(options),
+                    if key_ts.is_some() { ", __authKey" } else { "" }
+                );
+                self.push_oauth_effect(&mut code, "oauth-authorize", &call, emit, key_ts.is_some());
+                if key_ts.is_some() {
+                    code.push_str("      }\n");
+                }
+            }
+
+            OirEffect::OAuthConnectionStatus { provider, emit } | OirEffect::OAuthConnectionForget { provider, emit } => {
+                let name = effect.kind();
+                let call = format!("await hostOAuthConnection('{name}', {}, user?.id)", self.expr_to_ts_server(provider));
+                self.push_oauth_effect(&mut code, name, &call, emit, false);
             }
 
             OirEffect::CancelCall { key } => {
@@ -1464,6 +1490,30 @@ impl TypeScriptBackend {
 }
 
 impl TypeScriptBackend {
+    /// One OAuth effect: the runtime's payload function (the same owner the interpreter calls) in a try block;
+    /// a routed failure carries the closed `code` and `reason` beside the fixed safe `error`.
+    fn push_oauth_effect(&self, code: &mut String, name: &str, call: &str, emit: &Option<orbital_core::ir::OirEmitConfig>, keyed: bool) {
+        code.push_str(&format!("      // {name}\n"));
+        code.push_str("      try {\n");
+        code.push_str(&format!("        const hostResult = {call};\n"));
+        code.push_str(&self.emit_success_js(emit, "success", "hostResult", "        "));
+        code.push_str("      } catch (err) {\n");
+        if emit.as_ref().is_some_and(|e| e.failure.is_some()) {
+            code.push_str(&self.emit_failure_js_impl(
+                emit,
+                "err instanceof Error ? err.message : String(err)",
+                if keyed {
+                    ", ...(err instanceof OAuthEffectFailure ? { code: err.payload.code, reason: err.payload.reason } : {}), key: __authKey"
+                } else {
+                    ", ...(err instanceof OAuthEffectFailure ? { code: err.payload.code, reason: err.payload.reason } : {})"
+                },
+                "        ",
+            ));
+        } else {
+            code.push_str("        throw err;\n");
+        }
+        code.push_str("      }\n\n");
+    }
     /// The one compiled page rule: offset and limit each apply only when > 0 (as `resolve_page_option`).
     pub(crate) fn emit_page_slice(
         &self,
