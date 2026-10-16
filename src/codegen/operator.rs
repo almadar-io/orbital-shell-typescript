@@ -14,10 +14,15 @@ pub(crate) struct CoreOperatorDependencies {
     pub(crate) imports: &'static [&'static str],
     pub(crate) intrinsics: &'static [&'static str],
     pub(crate) arity: usize,
+    pub(crate) max_arity: usize,
     pub(crate) arity_constructor: &'static str,
 }
 
 impl CoreOperatorDependencies {
+    pub(crate) fn accepts(&self, count: usize) -> bool {
+        (self.arity..=self.max_arity).contains(&count)
+    }
+
     fn arity_error(&self) -> String {
         let expected = match self.arity {
             1 => "one argument",
@@ -25,7 +30,15 @@ impl CoreOperatorDependencies {
             3 => "three arguments",
             _ => unreachable!(),
         };
-        format!("((): never => {{ throw new {}('Invalid argument: {}: expected exactly {expected}'); }})()", self.arity_constructor, self.operator)
+        let expected = if self.max_arity > self.arity {
+            format!("between {} and {} arguments", self.arity, self.max_arity)
+        } else {
+            format!("exactly {expected}")
+        };
+        format!(
+            "((): never => {{ throw new {}('Invalid argument: {}: expected {expected}'); }})()",
+            self.arity_constructor, self.operator
+        )
     }
 }
 
@@ -37,6 +50,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &[],
         intrinsics: &["Number", "TypeError", "Array"],
         arity: 1,
+        max_arity: 1,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -44,6 +58,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &[],
         intrinsics: &["JSON", "TypeError", "Array"],
         arity: 1,
+        max_arity: 1,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -51,6 +66,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["parseXml"],
         intrinsics: &["TypeError", "Array"],
         arity: 2,
+        max_arity: 3,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -58,6 +74,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["xmlValid"],
         intrinsics: &["TypeError", "Array"],
         arity: 1,
+        max_arity: 1,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -65,6 +82,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["encodeUriComponent"],
         intrinsics: &["TypeError", "Array"],
         arity: 1,
+        max_arity: 1,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -72,6 +90,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["decodeUriComponent"],
         intrinsics: &["TypeError", "Array"],
         arity: 1,
+        max_arity: 1,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -79,6 +98,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["decodeUriComponent", "CodecError"],
         intrinsics: &["TypeError", "Array"],
         arity: 1,
+        max_arity: 1,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -86,6 +106,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["encodeBase64"],
         intrinsics: &["TypeError", "Array"],
         arity: 1,
+        max_arity: 1,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -93,6 +114,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["decodeBase64"],
         intrinsics: &["TypeError", "Array"],
         arity: 1,
+        max_arity: 1,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -100,6 +122,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["decodeBase64", "CodecError"],
         intrinsics: &["TypeError", "Array"],
         arity: 1,
+        max_arity: 1,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -107,13 +130,20 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["utf8Bytes", "sha256Bytes", "encodeDigest", "CodecError"],
         intrinsics: &["TypeError", "Array"],
         arity: 2,
+        max_arity: 2,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
         operator: "hash/md5",
-        imports: &["base64DecodeBytes", "md5Bytes", "encodeDigest", "CodecError"],
+        imports: &[
+            "base64DecodeBytes",
+            "md5Bytes",
+            "encodeDigest",
+            "CodecError",
+        ],
         intrinsics: &["TypeError", "Array"],
         arity: 2,
+        max_arity: 2,
         arity_constructor: "Error",
     },
     CoreOperatorDependencies {
@@ -121,6 +151,7 @@ pub(crate) const CORE_OPERATOR_IMPORTS: [CoreOperatorDependencies; 13] = [
         imports: &["utf8Bytes", "hmacSha256Bytes", "encodeDigest", "CodecError"],
         intrinsics: &["TypeError", "Array"],
         arity: 3,
+        max_arity: 3,
         arity_constructor: "Error",
     },
 ];
@@ -253,7 +284,7 @@ impl TypeScriptBackend {
         element_type: Option<&str>,
     ) -> String {
         if let Some(dependencies) = core_operator_dependencies(function) {
-            if args.len() != dependencies.arity {
+            if !dependencies.accepts(args.len()) {
                 return dependencies.arity_error();
             }
         }
@@ -709,6 +740,11 @@ impl TypeScriptBackend {
             "json/stringify" => format!("(JSON.stringify({} ?? null) ?? 'null')", a(0)),
 
             // --- std-xml ---
+            "xml/parse" if args.len() > 2 => format!(
+                "((__v: EventPayloadValue | undefined): EventPayloadValue => {{ if (__v == null) return null; if (typeof __v !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (Array.isArray(__v) ? 'array' : typeof __v)); return parseXml(__v, {}); }})({})",
+                a(2),
+                a(0)
+            ),
             "xml/parse" => format!(
                 "((__v: EventPayloadValue | undefined): EventPayloadValue => {{ if (__v == null) return null; if (typeof __v !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (Array.isArray(__v) ? 'array' : typeof __v)); return parseXml(__v); }})({})",
                 a(0)
@@ -1526,11 +1562,18 @@ mod twin_survivor_tests {
     #[test]
     fn json_stringify_of_a_never_nullish_operand_takes_no_fallback() {
         let b = TypeScriptBackend::new();
-        let lit = ArgFacts { object_literal: true, never_nullish: true, ..Default::default() };
+        let lit = ArgFacts {
+            object_literal: true,
+            never_nullish: true,
+            ..Default::default()
+        };
         let ts = b.call_to_ts_typed("json/stringify", &["{ a: 1 }".into()], &[lit], None);
         assert_eq!(ts, "(JSON.stringify({ a: 1 }) ?? 'null')");
         let wide = b.call_to_ts_typed("json/stringify", &["x".into()], &[], None);
-        assert_eq!(wide, "(JSON.stringify(x ?? null) ?? 'null')", "control: a nullable operand keeps it");
+        assert_eq!(
+            wide, "(JSON.stringify(x ?? null) ?? 'null')",
+            "control: a nullable operand keeps it"
+        );
     }
 
     /// `(array/range @entity.totalItems)`: a field read is `EventPayloadValue`, which
@@ -1539,9 +1582,15 @@ mod twin_survivor_tests {
     fn array_range_coerces_a_wide_bound_to_a_number() {
         let b = TypeScriptBackend::new();
         let ts = b.call_to_ts_typed("array/range", &["fields?.totalItems".into()], &[], None);
-        assert!(ts.contains("Math.ceil(Number(fields?.totalItems ?? 0))"), "{ts}");
+        assert!(
+            ts.contains("Math.ceil(Number(fields?.totalItems ?? 0))"),
+            "{ts}"
+        );
         let known = b.call_to_ts_typed("array/range", &["192".into()], &[num()], None);
-        assert!(known.contains("Math.ceil((192))"), "control: a known number is not re-coerced: {known}");
+        assert!(
+            known.contains("Math.ceil((192))"),
+            "control: a known number is not re-coerced: {known}"
+        );
         let two = b.call_to_ts_typed("array/range", &["lo".into(), "hi".into()], &[], None);
         assert!(two.contains("(_, i) => Number(lo ?? 0) + i"), "{two}");
     }
@@ -1553,9 +1602,15 @@ mod twin_survivor_tests {
     fn array_sum_coerces_each_element_like_the_core_evaluator() {
         let b = TypeScriptBackend::new();
         let ts = b.call_to_ts_typed("array/sum", &["xs".into()], &[], None);
-        assert!(ts.contains(".reduce((s: number, v) => s + (Number(v) || 0), 0)"), "{ts}");
+        assert!(
+            ts.contains(".reduce((s: number, v) => s + (Number(v) || 0), 0)"),
+            "{ts}"
+        );
         let keyed = b.call_to_ts_typed("array/sum", &["xs".into(), "\"n\"".into()], &[], None);
-        assert!(keyed.contains("(Number((v as EntityRow)?.["), "control: the keyed form is unchanged: {keyed}");
+        assert!(
+            keyed.contains("(Number((v as EntityRow)?.["),
+            "control: the keyed form is unchanged: {keyed}"
+        );
     }
 
     /// std-agent-session casts `@entity.entries` to its declared element, a union of message
@@ -1564,10 +1619,26 @@ mod twin_survivor_tests {
     fn a_union_element_array_cast_parenthesizes_the_element() {
         let b = TypeScriptBackend::new();
         let union = "{ role: string } | { tool: string }";
-        let ts = b.call_to_ts_typed("array/map", &["src".into(), "((x) => x)".into()], &[], Some(union));
-        assert!(ts.contains("as readonly ({ role: string } | { tool: string })[]"), "{ts}");
-        let plain = b.call_to_ts_typed("array/map", &["src".into(), "((x) => x)".into()], &[], Some("EntityRow"));
-        assert!(plain.contains("as readonly EntityRow[]"), "control: a single element stays bare: {plain}");
+        let ts = b.call_to_ts_typed(
+            "array/map",
+            &["src".into(), "((x) => x)".into()],
+            &[],
+            Some(union),
+        );
+        assert!(
+            ts.contains("as readonly ({ role: string } | { tool: string })[]"),
+            "{ts}"
+        );
+        let plain = b.call_to_ts_typed(
+            "array/map",
+            &["src".into(), "((x) => x)".into()],
+            &[],
+            Some("EntityRow"),
+        );
+        assert!(
+            plain.contains("as readonly EntityRow[]"),
+            "control: a single element stays bare: {plain}"
+        );
     }
 
     /// `time/relative` emits the same buckets as the runtime evaluator and orbital-core
@@ -1770,7 +1841,10 @@ mod twin_survivor_tests {
         assert!(!parse.contains("UNSUPPORTED"), "{parse}");
         for (x, expected) in [
             ("'name,age\\nAda,36'", "[{\"name\":\"Ada\",\"age\":\"36\"}]"),
-            ("'a,b\\n\"x, y\",\"she said \"\"hi\"\"\"'", "[{\"a\":\"x, y\",\"b\":\"she said \\\"hi\\\"\"}]"),
+            (
+                "'a,b\\n\"x, y\",\"she said \"\"hi\"\"\"'",
+                "[{\"a\":\"x, y\",\"b\":\"she said \\\"hi\\\"\"}]",
+            ),
             ("'a,b\\r\\n1,2\\r\\n'", "[{\"a\":\"1\",\"b\":\"2\"}]"),
             ("'a,b\\n1,2\\n'", "[{\"a\":\"1\",\"b\":\"2\"}]"),
             ("'a,b\\n\\n1'", "[{\"a\":\"1\",\"b\":\"\"}]"),
@@ -2582,7 +2656,11 @@ mod twin_survivor_tests {
     fn case_and_pad_string_ops_coerce_a_wide_receiver() {
         let b = TypeScriptBackend::new();
         for op in STR_RECEIVER_OPS {
-            let args = ["getNestedValue(r, \"name\")".into(), "4".into(), "' '".into()];
+            let args = [
+                "getNestedValue(r, \"name\")".into(),
+                "4".into(),
+                "' '".into(),
+            ];
             let ts = b.call_to_ts_typed(op, &args, &[], None);
             assert!(
                 ts.starts_with("(String(getNestedValue(r, \"name\") ?? ''))."),
@@ -2594,11 +2672,18 @@ mod twin_survivor_tests {
     #[test]
     fn control_case_and_pad_string_ops_leave_a_string_receiver_bare() {
         let b = TypeScriptBackend::new();
-        let string = crate::codegen::infer::ArgFacts { string: true, never_nullish: true, ..Default::default() };
+        let string = crate::codegen::infer::ArgFacts {
+            string: true,
+            never_nullish: true,
+            ..Default::default()
+        };
         for op in STR_RECEIVER_OPS {
             let args = ["\"Hello World\"".into(), "4".into(), "' '".into()];
             let ts = b.call_to_ts_typed(op, &args, std::slice::from_ref(&string), None);
-            assert!(ts.starts_with("(\"Hello World\")."), "{op} must leave a string bare, got: {ts}");
+            assert!(
+                ts.starts_with("(\"Hello World\")."),
+                "{op} must leave a string bare, got: {ts}"
+            );
         }
     }
 
@@ -2607,15 +2692,24 @@ mod twin_survivor_tests {
         let b = TypeScriptBackend::new();
         for op in ["str/padStart", "str/padEnd"] {
             let ts = b.call_to_ts_typed(op, &["code".into(), "4".into()], &[], None);
-            assert!(ts.ends_with("(4)"), "{op} with no pad string must not pass one, got: {ts}");
+            assert!(
+                ts.ends_with("(4)"),
+                "{op} with no pad string must not pass one, got: {ts}"
+            );
         }
     }
 
     // G-ORB-242: `(array/map (array/take @entity.rows n) (fn row … @row.behavior))` — the
     // element-preserving ops must keep a known source element type, or the mapped row is
     // the wide `EventPayloadValue` union and `row?.behavior` fails tsc (TS2339).
-    const ELEMENT_PRESERVING_OPS: [&str; 6] =
-        ["array/take", "array/takeLast", "array/drop", "array/dropLast", "array/remove", "array/shuffle"];
+    const ELEMENT_PRESERVING_OPS: [&str; 6] = [
+        "array/take",
+        "array/takeLast",
+        "array/drop",
+        "array/dropLast",
+        "array/remove",
+        "array/shuffle",
+    ];
 
     #[test]
     fn element_preserving_array_ops_keep_a_known_element_type() {
@@ -2626,7 +2720,10 @@ mod twin_survivor_tests {
                 ts.contains("((rows as readonly CatalogRow[] | undefined) ?? [])"),
                 "{op} must cast its source to the known element type, got: {ts}"
             );
-            assert!(!ts.contains("EventPayloadValue"), "{op} must not widen a typed source, got: {ts}");
+            assert!(
+                !ts.contains("EventPayloadValue"),
+                "{op} must not widen a typed source, got: {ts}"
+            );
         }
     }
 
@@ -2646,8 +2743,16 @@ mod twin_survivor_tests {
     fn edge_element_preserving_array_ops_leave_a_known_array_unguarded() {
         let b = TypeScriptBackend::new();
         for op in ["array/take", "array/drop", "array/remove"] {
-            let ts = b.call_to_ts_typed(op, &["[1, 2, 3]".into(), "1".into()], &[arr(), num()], Some("number"));
-            assert!(!ts.contains("?? []"), "{op} must not guard a known array, got: {ts}");
+            let ts = b.call_to_ts_typed(
+                op,
+                &["[1, 2, 3]".into(), "1".into()],
+                &[arr(), num()],
+                Some("number"),
+            );
+            assert!(
+                !ts.contains("?? []"),
+                "{op} must not guard a known array, got: {ts}"
+            );
         }
     }
 
@@ -2656,7 +2761,11 @@ mod twin_survivor_tests {
         let b = TypeScriptBackend::new();
         // Interpreter semantics (orbital-core evaluator): (array/range N) is
         // [0..N-1] — never the NaN-producing 3-arg form with undefined bounds.
-        let lit = crate::codegen::infer::ArgFacts { number: true, never_nullish: true, ..Default::default() };
+        let lit = crate::codegen::infer::ArgFacts {
+            number: true,
+            never_nullish: true,
+            ..Default::default()
+        };
         let ts = b.call_to_ts_typed("array/range", &["192".into()], &[lit], None);
         assert!(
             ts.contains("Array.from({ length: Math.ceil((192)) }, (_, i) => i)"),
@@ -2954,13 +3063,21 @@ mod path_twin_tests {
         v.as_array()
             .expect("an array of cells")
             .iter()
-            .map(|c| (c["x"].as_f64().unwrap() as i64, c["y"].as_f64().unwrap() as i64))
+            .map(|c| {
+                (
+                    c["x"].as_f64().unwrap() as i64,
+                    c["y"].as_f64().unwrap() as i64,
+                )
+            })
             .collect()
     }
 
     fn kernel(op: &str, payload: &serde_json::Value) -> Vec<(i64, i64)> {
         let mut call = vec![serde_json::json!(op)];
-        call.extend(ARGS.iter().map(|k| serde_json::json!(format!("@payload.{k}"))));
+        call.extend(
+            ARGS.iter()
+                .map(|k| serde_json::json!(format!("@payload.{k}"))),
+        );
         let expr: SExpression = serde_json::from_value(serde_json::Value::Array(call)).unwrap();
         let ctx = BindingContextBuilder::new()
             .payload(serde_json::from_value::<Value>(payload.clone()).unwrap())
@@ -2979,12 +3096,24 @@ mod path_twin_tests {
             .args(["--input-type=module-typescript", "-e", &script])
             .output()
             .expect("node must be on PATH");
-        assert!(out.status.success(), "{script}\n{}", String::from_utf8_lossy(&out.stderr));
+        assert!(
+            out.status.success(),
+            "{script}\n{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
         cells(&serde_json::from_slice(&out.stdout).unwrap())
     }
 
-    fn grid(start: (i64, i64), goal: (i64, i64), blocked: &[(i64, i64)], diag: bool) -> serde_json::Value {
-        let blocked: Vec<serde_json::Value> = blocked.iter().map(|(x, y)| serde_json::json!({"x": x, "y": y})).collect();
+    fn grid(
+        start: (i64, i64),
+        goal: (i64, i64),
+        blocked: &[(i64, i64)],
+        diag: bool,
+    ) -> serde_json::Value {
+        let blocked: Vec<serde_json::Value> = blocked
+            .iter()
+            .map(|(x, y)| serde_json::json!({"x": x, "y": y}))
+            .collect();
         serde_json::json!({
             "start": {"x": start.0, "y": start.1},
             "goal": {"x": goal.0, "y": goal.1},
@@ -3008,16 +3137,38 @@ mod path_twin_tests {
         ];
         for payload in &cases {
             let astar = kernel("path/astar", payload);
-            assert_eq!(compiled("path/astar", payload), astar, "path/astar of {payload}");
+            assert_eq!(
+                compiled("path/astar", payload),
+                astar,
+                "path/astar of {payload}"
+            );
             let mut reach = payload.clone();
             reach["goal"] = serde_json::json!(2);
-            assert_eq!(compiled("path/reachable", &reach), kernel("path/reachable", &reach), "path/reachable of {reach}");
+            assert_eq!(
+                compiled("path/reachable", &reach),
+                kernel("path/reachable", &reach),
+                "path/reachable of {reach}"
+            );
         }
         let walled = &cases[2];
-        assert_eq!(kernel("path/astar", walled).last(), Some(&(4, 0)), "the wall is walked around");
-        assert!(kernel("path/astar", &cases[4]).is_empty(), "a boxed-in start has no path");
-        assert!(kernel("path/astar", &cases[6]).is_empty(), "an off-grid goal has no path");
-        assert_eq!(kernel("path/astar", &cases[5]), vec![(1, 2)], "start == goal is a one-cell path");
+        assert_eq!(
+            kernel("path/astar", walled).last(),
+            Some(&(4, 0)),
+            "the wall is walked around"
+        );
+        assert!(
+            kernel("path/astar", &cases[4]).is_empty(),
+            "a boxed-in start has no path"
+        );
+        assert!(
+            kernel("path/astar", &cases[6]).is_empty(),
+            "an off-grid goal has no path"
+        );
+        assert_eq!(
+            kernel("path/astar", &cases[5]),
+            vec![(1, 2)],
+            "start == goal is a one-cell path"
+        );
     }
 }
 
@@ -3037,33 +3188,65 @@ mod sort_twin_tests {
             .args(["--input-type=module-typescript", "-e", &script])
             .output()
             .expect("node must be on PATH");
-        assert!(out.status.success(), "{script}\n{}", String::from_utf8_lossy(&out.stderr));
+        assert!(
+            out.status.success(),
+            "{script}\n{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
         serde_json::from_slice(&out.stdout).unwrap()
     }
 
     #[test]
     fn sort_codegen_matches_the_evaluator_contract() {
         // numbers sort numerically, not as strings
-        assert_eq!(compiled(json!(["array/sort", [10, 9, 1]])), json!([1, 9, 10]));
-        assert_eq!(compiled(json!(["array/sort", [3, 1, 2], null, "desc"])), json!([3, 2, 1]));
-        assert_eq!(compiled(json!(["array/sort", [3, 1, 2], null, "asc"])), json!([1, 2, 3]));
-        assert_eq!(compiled(json!(["array/sort", ["b", "a", "B", "é"]])), json!(["B", "a", "b", "é"]));
-        assert_eq!(compiled(json!(["array/sort", ["b", "a", "B", "é"], null, "desc"])), json!(["é", "b", "a", "B"]));
+        assert_eq!(
+            compiled(json!(["array/sort", [10, 9, 1]])),
+            json!([1, 9, 10])
+        );
+        assert_eq!(
+            compiled(json!(["array/sort", [3, 1, 2], null, "desc"])),
+            json!([3, 2, 1])
+        );
+        assert_eq!(
+            compiled(json!(["array/sort", [3, 1, 2], null, "asc"])),
+            json!([1, 2, 3])
+        );
+        assert_eq!(
+            compiled(json!(["array/sort", ["b", "a", "B", "é"]])),
+            json!(["B", "a", "b", "é"])
+        );
+        assert_eq!(
+            compiled(json!(["array/sort", ["b", "a", "B", "é"], null, "desc"])),
+            json!(["é", "b", "a", "B"])
+        );
         let rows = json!([{"price": 3}, {"price": 9}, {"price": 5}]);
-        assert_eq!(compiled(json!(["array/sort", rows, "price", "desc"])), json!([{"price": 9}, {"price": 5}, {"price": 3}]));
-        assert_eq!(compiled(json!(["array/sort", rows, "price"])), json!([{"price": 3}, {"price": 5}, {"price": 9}]));
-        let ties = json!([{"k": 1, "i": "a"}, {"k": 0, "i": "b"}, {"k": 1, "i": "c"}, {"k": 1, "i": "d"}]);
+        assert_eq!(
+            compiled(json!(["array/sort", rows, "price", "desc"])),
+            json!([{"price": 9}, {"price": 5}, {"price": 3}])
+        );
+        assert_eq!(
+            compiled(json!(["array/sort", rows, "price"])),
+            json!([{"price": 3}, {"price": 5}, {"price": 9}])
+        );
+        let ties =
+            json!([{"k": 1, "i": "a"}, {"k": 0, "i": "b"}, {"k": 1, "i": "c"}, {"k": 1, "i": "d"}]);
         assert_eq!(
             compiled(json!(["array/sort", ties, "k", "desc"])),
             json!([{"k": 1, "i": "a"}, {"k": 1, "i": "c"}, {"k": 1, "i": "d"}, {"k": 0, "i": "b"}])
         );
-        assert_eq!(compiled(json!(["array/sort", [1, 3, 2], null, "bogus"])), json!([3, 2, 1]));
+        assert_eq!(
+            compiled(json!(["array/sort", [1, 3, 2], null, "bogus"])),
+            json!([3, 2, 1])
+        );
         assert_eq!(
             compiled(json!(["array/sort", [{"k": 2}, {"k": null}, {"k": 1}], "k"])),
             json!([{"k": null}, {"k": 1}, {"k": 2}])
         );
         assert_eq!(compiled(json!(["array/sort", []])), json!([]));
-        assert_eq!(compiled(json!(["array/sort", ["\u{FF5E}", "\u{1F600}", "a"]])), json!(["a", "\u{FF5E}", "\u{1F600}"]));
+        assert_eq!(
+            compiled(json!(["array/sort", ["\u{FF5E}", "\u{1F600}", "a"]])),
+            json!(["a", "\u{FF5E}", "\u{1F600}"])
+        );
         let mixed = json!([2, "a", true, 1, null, [1], "B", {"x": 1}, false]);
         assert_eq!(
             compiled(json!(["array/sort", mixed])),

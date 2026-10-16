@@ -236,7 +236,7 @@ impl TypeScriptBackend {
                 if let Some(dependencies) =
                     crate::codegen::operator::core_operator_dependencies(function)
                 {
-                    if args.len() != dependencies.arity {
+                    if !dependencies.accepts(args.len()) {
                         self.reserve_identifier(dependencies.arity_constructor);
                         return;
                     }
@@ -1244,7 +1244,10 @@ impl TypeScriptBackend {
         self.reserve_identifier(&emitted);
         for segment in &binding.path {
             emitted = if cast_members {
-                format!("({emitted} as EventPayload | undefined){}", opt_step(segment))
+                format!(
+                    "({emitted} as EventPayload | undefined){}",
+                    opt_step(segment)
+                )
             } else {
                 format!("{emitted}{}", opt_step(segment))
             };
@@ -1356,10 +1359,12 @@ impl TypeScriptBackend {
                     if !binding.path.is_empty() {
                         let mut expr = format!(
                             "({} as EventPayload | undefined){}",
-                            name, opt_step(&binding.path[0])
+                            name,
+                            opt_step(&binding.path[0])
                         );
                         for seg in &binding.path[1..] {
-                            expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
+                            expr =
+                                format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                         }
                         return expr;
                     }
@@ -1457,10 +1462,12 @@ impl TypeScriptBackend {
                     if !binding.path.is_empty() {
                         let mut expr = format!(
                             "({} as EventPayload | undefined){}",
-                            name, opt_step(&binding.path[0])
+                            name,
+                            opt_step(&binding.path[0])
                         );
                         for seg in &binding.path[1..] {
-                            expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
+                            expr =
+                                format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                         }
                         return expr;
                     }
@@ -1649,10 +1656,12 @@ impl TypeScriptBackend {
                     if !binding.path.is_empty() {
                         let mut expr = format!(
                             "({} as EventPayload | undefined){}",
-                            name, opt_step(&binding.path[0])
+                            name,
+                            opt_step(&binding.path[0])
                         );
                         for seg in &binding.path[1..] {
-                            expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
+                            expr =
+                                format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                         }
                         return expr;
                     }
@@ -1959,10 +1968,12 @@ impl TypeScriptBackend {
                     if !binding.path.is_empty() {
                         let mut expr = format!(
                             "({} as EventPayload | undefined){}",
-                            name, opt_step(&binding.path[0])
+                            name,
+                            opt_step(&binding.path[0])
                         );
                         for seg in &binding.path[1..] {
-                            expr = format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
+                            expr =
+                                format!("({} as EventPayload | undefined){}", expr, opt_step(seg));
                         }
                         return expr;
                     }
@@ -1994,7 +2005,11 @@ impl TypeScriptBackend {
             if i == 0 {
                 expr = format!("{}{}", expr, opt_step(segment));
             } else {
-                expr = format!("({} as EventPayload | undefined){}", expr, opt_step(segment));
+                expr = format!(
+                    "({} as EventPayload | undefined){}",
+                    expr,
+                    opt_step(segment)
+                );
             }
         }
         expr
@@ -2374,12 +2389,19 @@ mod static_unroll_tests {
     #[test]
     fn arithmetic_coerces_an_operand_that_may_be_null() {
         let b = TypeScriptBackend::new();
-        let max = OirExpr::call("array/max", vec![OirExpr::binding(OirBinding::parse("@payload.data").unwrap())]);
+        let max = OirExpr::call(
+            "array/max",
+            vec![OirExpr::binding(
+                OirBinding::parse("@payload.data").unwrap(),
+            )],
+        );
         let sub = OirExpr::BinaryOp {
             op: OirBinaryOp::Sub,
             left: Box::new(OirExpr::number(10.0)),
             right: Box::new(OirExpr::Conditional {
-                condition: Box::new(OirExpr::binding(OirBinding::parse("@payload.empty").unwrap())),
+                condition: Box::new(OirExpr::binding(
+                    OirBinding::parse("@payload.empty").unwrap(),
+                )),
                 then_branch: Box::new(OirExpr::number(0.0)),
                 else_branch: Box::new(max),
             }),
@@ -2392,7 +2414,11 @@ mod static_unroll_tests {
             left: Box::new(OirExpr::number(10.0)),
             right: Box::new(OirExpr::number(2.0)),
         };
-        assert_eq!(b.expr_to_client_ts(&plain), "(10 - 2)", "control: known numbers stay bare");
+        assert_eq!(
+            b.expr_to_client_ts(&plain),
+            "(10 - 2)",
+            "control: known numbers stay bare"
+        );
     }
 
     /// std-agent-suggestions emits `@entity.pendingProposal.signature`: the client `fields`
@@ -2406,7 +2432,11 @@ mod static_unroll_tests {
             "(fields?.pendingProposal as EventPayload | undefined)?.signature"
         );
         let flat = OirBinding::parse("@entity.title").unwrap();
-        assert_eq!(b.binding_to_client_ts(&flat), "fields?.title", "control: one hop stays bare");
+        assert_eq!(
+            b.binding_to_client_ts(&flat),
+            "fields?.title",
+            "control: one hop stays bare"
+        );
     }
 
     #[test]
@@ -2582,7 +2612,10 @@ mod flavor_tests {
     fn a_render_let_reads_its_renamed_local() {
         let b = TypeScriptBackend::new();
         let local = |n: &str| OirExpr::Binding {
-            binding: OirBinding { root: OirBindingRoot::Local(n.to_string()), path: vec![] },
+            binding: OirBinding {
+                root: OirBindingRoot::Local(n.to_string()),
+                path: vec![],
+            },
         };
         let let_expr = OirExpr::call(
             "let",
@@ -2592,12 +2625,18 @@ mod flavor_tests {
                         items: vec![OirExpr::string("tkey"), OirExpr::string("floor")],
                     }],
                 },
-                OirExpr::call("object/get", vec![entity_binding("terrainSprites"), local("tkey")]),
+                OirExpr::call(
+                    "object/get",
+                    vec![entity_binding("terrainSprites"), local("tkey")],
+                ),
             ],
         );
         let ts = b.expr_to_ts_flavored(&let_expr, BindingFlavor::Render);
         assert!(ts.contains("const let__tkey = \"floor\";"), "{ts}");
-        assert!(ts.contains("let__tkey)") && !ts.contains("(tkey)"), "the read uses the declared name: {ts}");
+        assert!(
+            ts.contains("let__tkey)") && !ts.contains("(tkey)"),
+            "the read uses the declared name: {ts}"
+        );
 
         let lambda = b.with_locals(&["t".to_string()], false, || {
             b.expr_to_ts_flavored(&local("t"), BindingFlavor::Render)
@@ -2611,14 +2650,31 @@ mod flavor_tests {
     fn a_null_comparison_also_matches_an_absent_field() {
         let b = TypeScriptBackend::new();
         let eq = |op, l: OirExpr, r: OirExpr| {
-            b.expr_to_client_ts(&OirExpr::BinaryOp { op, left: Box::new(l), right: Box::new(r) })
+            b.expr_to_client_ts(&OirExpr::BinaryOp {
+                op,
+                left: Box::new(l),
+                right: Box::new(r),
+            })
         };
-        assert_eq!(eq(OirBinaryOp::Eq, entity_binding("x"), OirExpr::Null), "(fields?.x == null)");
-        assert_eq!(eq(OirBinaryOp::Eq, OirExpr::Null, entity_binding("x")), "(fields?.x == null)");
-        assert_eq!(eq(OirBinaryOp::Ne, entity_binding("x"), OirExpr::Null), "(fields?.x != null)");
+        assert_eq!(
+            eq(OirBinaryOp::Eq, entity_binding("x"), OirExpr::Null),
+            "(fields?.x == null)"
+        );
+        assert_eq!(
+            eq(OirBinaryOp::Eq, OirExpr::Null, entity_binding("x")),
+            "(fields?.x == null)"
+        );
+        assert_eq!(
+            eq(OirBinaryOp::Ne, entity_binding("x"), OirExpr::Null),
+            "(fields?.x != null)"
+        );
         assert_eq!(eq(OirBinaryOp::Eq, OirExpr::Null, OirExpr::Null), "true");
         assert_eq!(
-            eq(OirBinaryOp::Eq, entity_binding("x"), OirExpr::Number { value: 0.0 }),
+            eq(
+                OirBinaryOp::Eq,
+                entity_binding("x"),
+                OirExpr::Number { value: 0.0 }
+            ),
             "(fields?.x === 0)",
             "control: a non-null comparison stays strict"
         );

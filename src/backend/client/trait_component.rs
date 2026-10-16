@@ -150,7 +150,7 @@ impl TypeScriptBackend {
             set.iter().map(|e| format!("'{e}'")).collect::<Vec<_>>().join(", ")
         };
         Some(format!(
-            "function {name}RenderWriter(event: string, newState: string, arm?: number): string {{\n  if (arm !== undefined && [{arms}].includes(event)) return `${{event}}#${{arm}}`;\n  return [{events}].includes(event) ? `${{event}}>${{newState}}` : event;\n}}\n\n",
+            "function {name}RenderWriter(event: string, newState: string | undefined, arm?: number): string {{\n  if (arm !== undefined && [{arms}].includes(event)) return `${{event}}#${{arm}}`;\n  return [{events}].includes(event) ? `${{event}}>${{newState}}` : event;\n}}\n\n",
             name = trait_def.name,
             arms = list(&arm_split),
             events = list(&split)
@@ -1452,10 +1452,18 @@ mod wrapper_pattern_tracks_active_branch_tests {
             .render_writer_fn(&tr)
             .expect("a writer function");
         assert!(writer.contains("`${event}#${arm}`"), "{writer}");
+        assert!(
+            writer.contains("(event: string, newState: string | undefined, arm?: number)"),
+            "the writer takes a dispatch result's newState as returned: {writer}"
+        );
         let module = OirModule::new("App", "1.0.0");
         let handler = TypeScriptBackend::new().generate_transpiled_effect_handler_impl(&tr, &module, true, true);
         assert!(handler.contains("_arm = 0;") && handler.contains("_arm = 1;"), "{handler}");
         assert!(handler.contains("return { fields: _fields, newState: _newState, emits: _emits, arm: _arm };"), "{handler}");
+        assert!(
+            handler.contains("emits: Array<() => void>; arm: number | undefined } =>"),
+            "the declared return type carries the arm it returns: {handler}"
+        );
     }
 
     #[test]

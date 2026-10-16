@@ -964,12 +964,12 @@ impl TypeScriptBackend {
                 // so every resolve_new_state caller — the [shared] dispatch AND
                 // the T9 optimistic dispatch — can call it uniformly.
                 code.push_str(&format!(
-                    "  const executeTransitionEffects = useCallback((_fromState: string, _event: string, _liveData: Record<string, EntityRow[]>, _payload?: EventPayload{dispatch_param}): {{ fields: Record<string, EventPayloadValue | undefined>; newState: string | undefined; emits: Array<() => void> }} => {{\n",
+                    "  const executeTransitionEffects = useCallback((_fromState: string, _event: string, _liveData: Record<string, EntityRow[]>, _payload?: EventPayload{dispatch_param}): {{ fields: Record<string, EventPayloadValue | undefined>; newState: string | undefined; emits: Array<() => void>; arm: number | undefined }} => {{\n",
                 ));
                 code.push_str(
                     "    // All effects handled server-side or via declarative render-ui\n",
                 );
-                code.push_str("    return { fields: {}, newState: undefined, emits: [] };\n");
+                code.push_str("    return { fields: {}, newState: undefined, emits: [], arm: undefined };\n");
             } else {
                 code.push_str(&format!(
                     "  const executeTransitionEffects = useCallback((_fromState: string, _event: string, _payload?: EventPayload{dispatch_param}): Record<string, EventPayloadValue | undefined> => {{\n",
@@ -1012,7 +1012,7 @@ impl TypeScriptBackend {
             "_payload?: EventPayload"
         };
         let return_ty = if resolve_new_state {
-            "{ fields: Record<string, EventPayloadValue | undefined>; newState: string | undefined; emits: Array<() => void> }"
+            "{ fields: Record<string, EventPayloadValue | undefined>; newState: string | undefined; emits: Array<() => void>; arm: number | undefined }"
         } else {
             "Record<string, EventPayloadValue | undefined>"
         };

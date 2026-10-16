@@ -86,6 +86,23 @@ fn xml_codegen_calls_the_core_owner_without_string_coercion() {
 }
 
 #[test]
+fn xml_parse_codegen_passes_the_list_paths_through_and_a_bare_name_passes_none() {
+    let with_paths = emit(json!([
+        "xml/parse",
+        "<a/>",
+        "Row",
+        ["list", ["list", "entry"], ["list", "entry", "author"]]
+    ]));
+    assert!(with_paths.contains("parseXml(__v, "), "{with_paths}");
+    assert!(
+        with_paths.contains(r#"[["entry"], ["entry", "author"]]"#),
+        "{with_paths}"
+    );
+    let bare = emit(json!(["xml/parse", "<a/>", "Row"]));
+    assert!(bare.contains("parseXml(__v)"), "{bare}");
+}
+
+#[test]
 fn xml_valid_codegen_executes_every_shared_vector() {
     let cases: Vec<ValidCase> = serde_json::from_str(VALID_VECTORS).unwrap();
     assert_eq!(cases.len(), 68);
@@ -151,7 +168,7 @@ fn xml_valid_codegen_executes_every_shared_vector() {
 #[test]
 fn xml_parse_codegen_executes_the_existing_parse_corpus() {
     let cases: Vec<ParseCase> = serde_json::from_str(PARSE_VECTORS).unwrap();
-    assert_eq!(cases.len(), 35);
+    assert_eq!(cases.len(), 45);
     assert_eq!(cases.iter().filter(|case| case.error).count(), 13);
     let expressions: Vec<String> = cases
         .iter()
