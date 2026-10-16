@@ -13,7 +13,7 @@
 //! - a `[runtime]` entity emits `seedCount: 1` in BOTH frameworks, where Express
 //!   used to skip it entirely and Hono used to emit 10.
 
-use orbital_core::ir::{OirEntity, OirField, OirPersistence, OirType, OirValue};
+use orbital_core_base::ir::{OirEntity, OirField, OirPersistence, OirType, OirValue};
 use orbital_shell_typescript::TypeScriptBackend;
 
 fn entity(name: &str, persistence: OirPersistence, fields: Vec<OirField>) -> OirEntity {
@@ -111,7 +111,7 @@ fn array_and_object_defaults_reach_the_generated_app() {
             with_default(
                 "hero",
                 OirType::Json,
-                OirValue::Object(orbital_core::ir::OirObject::from([(
+                OirValue::Object(orbital_core_base::ir::OirObject::from([(
                     "label".to_string(),
                     OirValue::String("Label".into()),
                 )])),

@@ -12,7 +12,7 @@
 //!    declare no directive; if their emission shifted, every generated file in
 //!    the corpus would re-diff.
 
-use orbital_core::ir::{OirEntity, OirExpr, OirField, OirPersistence, OirType};
+use orbital_core_base::ir::{OirEntity, OirExpr, OirField, OirPersistence, OirType};
 use orbital_shell_typescript::TypeScriptBackend;
 
 fn entity(name: &str, collection: &str) -> OirEntity {

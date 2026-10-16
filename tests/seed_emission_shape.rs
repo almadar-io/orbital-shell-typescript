@@ -4,7 +4,7 @@
 //! entity (a later one on a shared collection backfills), each field exactly as
 //! declared, and the access directives owner columns and the `@create` gate come from.
 
-use orbital_core::ir::{OirEntity, OirExpr, OirField, OirPersistence, OirType};
+use orbital_core_base::ir::{OirEntity, OirExpr, OirField, OirPersistence, OirType};
 use orbital_shell_typescript::TypeScriptBackend;
 use serde_json::json;
 

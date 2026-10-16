@@ -4,7 +4,7 @@
 
 use super::*;
 use crate::backend::server::access_policies::policy_const_name;
-use orbital_core::ir::OirBinding;
+use orbital_core_base::ir::OirBinding;
 
 /// Statement-level shapes `walk_effect_block` hands back to its caller: a
 /// `let` binding, an `if`/`when` (open/else/close around the recursed
@@ -182,8 +182,8 @@ pub(crate) fn expr_reads_now(expr: &OirExpr) -> bool {
 }
 
 /// A render-ui pattern value reads `now`: render-ui configs are data, so `expr_reads_now` never sees them.
-fn value_reads_now(value: &orbital_core::ir::OirValue) -> bool {
-    use orbital_core::ir::OirValue;
+fn value_reads_now(value: &orbital_core_base::ir::OirValue) -> bool {
+    use orbital_core_base::ir::OirValue;
     match value {
         OirValue::String(s) => s == "@now",
         OirValue::Array(items) => {
@@ -211,7 +211,7 @@ pub(crate) fn trait_reads_now(trait_def: &OirTrait) -> bool {
             .chain(l.payload_mapping.iter().flat_map(|m| m.values()))
     });
     let render_ui = |effects: &[OirExpr]| {
-        orbital_core::ir::render_ui_patterns(effects)
+        orbital_core_base::ir::render_ui_patterns(effects)
             .iter()
             .any(|p| p.config.values().any(value_reads_now))
     };
@@ -303,7 +303,7 @@ fn find_include_relation_field<'a>(
     module: &'a OirModule,
     entity: &str,
     field_name: &str,
-) -> Option<&'a orbital_core::ir::OirField> {
+) -> Option<&'a orbital_core_base::ir::OirField> {
     module
         .entities
         .iter()
@@ -604,7 +604,7 @@ impl TypeScriptBackend {
         module: &'a OirModule,
         linked_entity: Option<&str>,
         linked_entity_id: Option<&str>,
-        entity_ref_ids: Option<&orbital_core::ir::OirIdMap>,
+        entity_ref_ids: Option<&orbital_core_base::ir::OirIdMap>,
     ) -> (String, String, Option<&'a OirEntity>) {
         // `@entity` resolves via the trait's linkedEntity + its id sibling; a
         // NON-linked entity token (positional `fetch`/`ref`/`deref`/`swap` arg)
@@ -810,7 +810,7 @@ impl TypeScriptBackend {
 
     pub(crate) fn emit_success_js(
         &self,
-        emit: &Option<orbital_core::ir::OirEmitConfig>,
+        emit: &Option<orbital_core_base::ir::OirEmitConfig>,
         event_key: &str,
         result_var: &str,
         indent: &str,
@@ -829,7 +829,7 @@ impl TypeScriptBackend {
     /// per connection before relaying the row.
     pub(crate) fn emit_success_js_impl(
         &self,
-        emit: &Option<orbital_core::ir::OirEmitConfig>,
+        emit: &Option<orbital_core_base::ir::OirEmitConfig>,
         event_key: &str,
         result_var: &str,
         indent: &str,
@@ -889,7 +889,7 @@ impl TypeScriptBackend {
     /// emits. Nothing when no `cancelled` event is declared.
     pub(crate) fn emit_cancelled_js(
         &self,
-        emit: &Option<orbital_core::ir::OirEmitConfig>,
+        emit: &Option<orbital_core_base::ir::OirEmitConfig>,
         indent: &str,
     ) -> String {
         let Some(name) = emit.as_ref().and_then(|c| c.cancelled.as_deref()) else {
@@ -914,7 +914,7 @@ impl TypeScriptBackend {
     /// after `error: <error_expr>` (e.g. `", code: 'not-found'"`, or `""`).
     pub(crate) fn emit_failure_js_impl(
         &self,
-        emit: &Option<orbital_core::ir::OirEmitConfig>,
+        emit: &Option<orbital_core_base::ir::OirEmitConfig>,
         error_expr: &str,
         extra_fields_js: &str,
         indent: &str,
@@ -942,7 +942,7 @@ mod v4_rename_equivalence {
     //! produce equivalent generated wiring — the trait→entity / page→trait joins
     //! resolve to the SAME node in both, with no broken join.
     use crate::backend::TypeScriptBackend;
-    use orbital_core::ir::{OirEntity, OirModule, OirTrait};
+    use orbital_core_base::ir::{OirEntity, OirModule, OirTrait};
 
     fn entity(name: &str, id: Option<&str>, collection: &str) -> OirEntity {
         let mut e = OirEntity::new(name);
@@ -1032,7 +1032,7 @@ mod v4_rename_equivalence {
             .entities
             .push(entity("Item", Some("ent_9"), "items"));
 
-        let mut side_map = orbital_core::ir::OirIdMap::new();
+        let mut side_map = orbital_core_base::ir::OirIdMap::new();
         side_map.insert("Product".to_string(), "ent_9".to_string());
 
         // WITH the side-map: the stale token resolves by id to the renamed
@@ -1072,7 +1072,7 @@ mod v4_rename_equivalence {
 
         // Token missing from a present map → name fallback (here to the
         // snake_case default, matching pre-V4 behavior for an unknown name).
-        let empty = orbital_core::ir::OirIdMap::new();
+        let empty = orbital_core_base::ir::OirIdMap::new();
         let (miss_name, miss_coll, _) =
             TypeScriptBackend::resolve_entity_collection("Ghost", &m, None, None, Some(&empty));
         assert_eq!((miss_name.as_str(), miss_coll.as_str()), ("Ghost", "ghost"));
@@ -1110,7 +1110,7 @@ mod self_relation_hydration {
     //! the whole reply tree, ending a branch where an id repeats an ancestor —
     //! twin of the runtime's `populate-self-relation-depth.test.ts`.
     use super::emit_relation_hydration;
-    use orbital_core::ir::{OirCardinality, OirEntity, OirField, OirModule, OirRelation, OirType};
+    use orbital_core_base::ir::{OirCardinality, OirEntity, OirField, OirModule, OirRelation, OirType};
 
     fn module() -> OirModule {
         let mut m = OirModule::new("app", "1.0.0");
@@ -1214,12 +1214,12 @@ mod self_relation_hydration {
     }
 }
 
-fn value_uses_messages(value: &orbital_core::ir::OirValue) -> bool {
-    use orbital_core::ir::OirValue;
+fn value_uses_messages(value: &orbital_core_base::ir::OirValue) -> bool {
+    use orbital_core_base::ir::OirValue;
     match value {
         OirValue::String(s) => s == "@locale",
         OirValue::Array(items) => {
-            matches!(items.first(), Some(OirValue::String(op)) if op == orbital_core::messages::TRANSLATE_OP)
+            matches!(items.first(), Some(OirValue::String(op)) if op == orbital_core_base::messages::TRANSLATE_OP)
                 || items.iter().any(value_uses_messages)
         }
         OirValue::Object(map) => map.values().any(value_uses_messages),
@@ -1232,7 +1232,7 @@ fn value_uses_messages(value: &orbital_core::ir::OirValue) -> bool {
 /// needs `useTranslate()` in scope.
 pub(crate) fn trait_uses_messages(trait_def: &OirTrait) -> bool {
     let uses = |expr: &OirExpr| {
-        expr.calls_function(orbital_core::messages::TRANSLATE_OP)
+        expr.calls_function(orbital_core_base::messages::TRANSLATE_OP)
             || expr
                 .collect_bindings()
                 .iter()

@@ -1,8 +1,8 @@
 //! The kernel-hosted output (`HostMode::Kernel`): the generated app hands every execution step to
 //! `@almadar/kernel` and emits no per-event logic; the default output is unchanged.
 
-use orbital_core::generate::Backend;
-use orbital_core::ir::{
+use orbital_core_base::generate::Backend;
+use orbital_core_base::ir::{
     OirEffect, OirEntity, OirExpr, OirField, OirModule, OirPersistence, OirState, OirTrait,
     OirTransition, OirType,
 };
@@ -32,7 +32,7 @@ fn module() -> OirModule {
     module
 }
 
-fn schema() -> orbital_core::OrbitalSchema {
+fn schema() -> orbital_core_base::schema::types::OrbitalSchema {
     serde_json::from_value(serde_json::json!({
         "name": "Books",
         "orbitals": [
@@ -180,7 +180,7 @@ fn control_the_default_output_still_emits_the_per_event_logic() {
 fn a_client_only_compile_emits_no_server_files_and_a_server_only_one_no_client_files() {
     let module = module();
     let client =
-        kernel_backend().generate_with_mode(&module, orbital_core::generate::ShellMode::Client);
+        kernel_backend().generate_with_mode(&module, orbital_core_base::generate::ShellMode::Client);
     assert!(client
         .files
         .iter()
@@ -190,7 +190,7 @@ fn a_client_only_compile_emits_no_server_files_and_a_server_only_one_no_client_f
         .iter()
         .any(|f| f.path.starts_with("packages/server/")));
     let server =
-        kernel_backend().generate_with_mode(&module, orbital_core::generate::ShellMode::Server);
+        kernel_backend().generate_with_mode(&module, orbital_core_base::generate::ShellMode::Server);
     assert!(server
         .files
         .iter()

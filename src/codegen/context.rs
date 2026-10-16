@@ -3,7 +3,7 @@
 //! emitter (`sexpr_to_ts/`). Lives here (not under `sexpr_to_ts/`) so it
 //! survives the eventual deletion of the legacy emission tree.
 
-use orbital_core::ir::{OirEntity, OirType};
+use orbital_core_base::ir::{OirEntity, OirType};
 use std::collections::HashMap;
 
 /// Context for code generation
@@ -31,7 +31,7 @@ pub struct CodegenContext {
     pub linked_entity_name: Option<String>,
     /// The narrowed payload schema for the current event/transition (field
     /// name → OirType). Used to resolve `@payload.<field>` source types.
-    pub current_payload_schema: Option<orbital_core::ir::OirTypeMap>,
+    pub current_payload_schema: Option<orbital_core_base::ir::OirTypeMap>,
     /// All entities keyed by name. Used to resolve `@<EntityName>`,
     /// `Reference { entity }`, and the linked entity's field types when
     /// inferring lambda element types.

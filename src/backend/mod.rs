@@ -10,8 +10,8 @@
 //! - packages/client/src/features/{page}/*.tsx - Page components
 //! - packages/server/src/routes/features/{entity}/ - Entity routes (handlers.ts, routes.ts)
 
-pub(crate) use orbital_core::generate::{Backend, GeneratedFile, GeneratedOutput};
-pub(crate) use orbital_core::ir::{
+pub(crate) use orbital_core_base::generate::{Backend, GeneratedFile, GeneratedOutput};
+pub(crate) use orbital_core_base::ir::{
     OirBindingRoot, OirCardinality, OirConstraint, OirDispatchMode, OirEffect, OirEntity, OirEvent,
     OirExpr, OirModule, OirPage, OirPattern, OirPersistOp, OirPersistence, OirTrait, OirTransition,
     OirTransitionFrom, OirType, OirValue,
@@ -22,7 +22,7 @@ pub(crate) use crate::codegen::{
     generate_all_themes_config_ts, generate_env_manifest, generate_service_clients,
     generate_theme_css, is_operator_name, theme_font_imports, ts_member_name,
 };
-pub(crate) use orbital_core::schema::SExpression;
+pub(crate) use orbital_core_base::schema::SExpression;
 
 pub(crate) use crate::pattern_registry::get_component_mapping;
 
@@ -319,7 +319,7 @@ pub struct TypeScriptBackend {
     /// Whether the generated handlers and hooks, or the embedded kernel, run the app.
     pub host: HostMode,
     /// The resolved schema, bundled into the client for its browser-store legs.
-    pub browser_schema: Option<orbital_core::OrbitalSchema>,
+    pub browser_schema: Option<orbital_core_base::schema::types::OrbitalSchema>,
     /// Gap #13 — current `Orbital.Trait` scope used to qualify event-string
     /// codegen in render-ui props. Set in `generate_trait_component` before
     /// pattern emission, cleared after. `None` outside a trait View. Held in
@@ -351,7 +351,7 @@ pub struct TypeScriptBackend {
     /// construction can hand it to `infer_array_element_type_ts` for
     /// `@<EntityName>` source resolution and Reference dereferencing.
     /// Same [`CodegenCell`] pattern as `current_trait_scope`.
-    pub entity_catalog: CodegenCell<HashMap<String, orbital_core::ir::OirEntity>>,
+    pub entity_catalog: CodegenCell<HashMap<String, orbital_core_base::ir::OirEntity>>,
     /// Phase E — trait-scoped linked-entity name. Set in
     /// `generate_trait_component`, `generate_server_handlers`, and the
     /// per-trait hook codegen before each `compile_sexpr*` call. Read
@@ -371,7 +371,7 @@ pub struct TypeScriptBackend {
     /// resolve a token to its entity by id (id-first, name-fallback), so a
     /// call-site entity rename never breaks the collection/type join. `None`
     /// or a missing key → byte-identical to the pre-flip name-only path.
-    pub current_entity_ref_ids: CodegenCell<Option<orbital_core::ir::OirIdMap>>,
+    pub current_entity_ref_ids: CodegenCell<Option<orbital_core_base::ir::OirIdMap>>,
     /// V4 leverage-ids — `@trait.X` render-embed resolution. Precomputed at
     /// trait entry from the current trait's `trait_embed_ids` side-map (embed
     /// token NAME → trait id) by resolving each id to the CURRENT declaration
@@ -383,7 +383,7 @@ pub struct TypeScriptBackend {
     /// Phase E — current event's narrowed payload schema. Set in each
     /// per-event handler codegen block so `@payload.<F>` source
     /// inference resolves to real types.
-    pub current_payload_schema: CodegenCell<Option<orbital_core::ir::OirTypeMap>>,
+    pub current_payload_schema: CodegenCell<Option<orbital_core_base::ir::OirTypeMap>>,
     /// Extra JSX attributes for the NEXT pattern root emitted by
     /// `generate_pattern_from_registry` (taken on entry, so nested children
     /// never see them). Set for a compiled self-overlay modal branch so its
@@ -421,7 +421,7 @@ pub struct TypeScriptBackend {
     /// `@config.<knob>` in the child body; the server, which has no composing
     /// payload, compiles the captured value itself (absent payload) instead
     /// of the `undefined` every other leftover `@config` gets.
-    pub trait_callsite_knob_values: CodegenCell<HashMap<String, orbital_core::ir::OirObject>>,
+    pub trait_callsite_knob_values: CodegenCell<HashMap<String, orbital_core_base::ir::OirObject>>,
     /// §60 — mount-racy `listens` edges: qualified bus key → listening trait
     /// names. An edge is racy when the listening trait is embedded in a render
     /// tree produced by a transition of the SOURCE trait on the trigger event
@@ -461,7 +461,7 @@ pub struct TypeScriptBackend {
 pub(crate) fn nested_callsite_payload_fields(v: &OirValue, out: &mut Vec<String>) {
     match v {
         OirValue::String(s) => {
-            if let Some(field) = orbital_core::schema::callsite_payload_path(s) {
+            if let Some(field) = orbital_core_base::schema::callsite_payload_path(s) {
                 out.push(field.to_string());
             }
         }
@@ -490,7 +490,7 @@ fn trait_effects_reference_callsite_payload(trait_def: &OirTrait) -> bool {
     fn walk(v: &serde_json::Value) -> bool {
         match v {
             serde_json::Value::String(s) => {
-                orbital_core::schema::callsite_payload_path(s).is_some()
+                orbital_core_base::schema::callsite_payload_path(s).is_some()
             }
             serde_json::Value::Object(map) => {
                 let is_local_callsite = map
@@ -623,7 +623,7 @@ impl TypeScriptBackend {
         &self,
         renderer: &dyn crate::codegen::target::ComponentRenderer,
         pattern_type: &str,
-        config: &orbital_core::ir::OirObject,
+        config: &orbital_core_base::ir::OirObject,
         linked_entity: Option<&str>,
         entity_field_types: Option<&HashMap<String, EntityFieldInfo>>,
     ) -> String {
@@ -699,7 +699,7 @@ impl TypeScriptBackend {
                             continue;
                         }
                         if let OirValue::String(s) = value {
-                            if let Some(field) = orbital_core::schema::callsite_payload_path(s) {
+                            if let Some(field) = orbital_core_base::schema::callsite_payload_path(s) {
                                 let ts_type = t
                                     .declared_config_schema
                                     .as_ref()
@@ -749,7 +749,7 @@ impl TypeScriptBackend {
             }
             self.trait_callsite_payload_flagged.set(flagged);
 
-            let mut knob_values: HashMap<String, orbital_core::ir::OirObject> = HashMap::new();
+            let mut knob_values: HashMap<String, orbital_core_base::ir::OirObject> = HashMap::new();
             for t in &module.traits {
                 // The call-site value wins over the declared default.
                 for source in [t.declared_config_defaults.as_ref(), t.config.as_ref()] {
@@ -833,7 +833,7 @@ impl TypeScriptBackend {
         //     skip the page double-renders the atom.
         // Mirrors `collectEmbeddedTraits` in
         // `packages/almadar-ui/runtime/embedded-traits.ts`.
-        let embedded_traits = orbital_core::ir::build_embedded_trait_set(module);
+        let embedded_traits = orbital_core_base::ir::build_embedded_trait_set(module);
 
         // 2. Generate client trait hooks (logic) + components (presentation)
         if self.host == HostMode::Kernel {
@@ -1162,7 +1162,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     /// Uses the unified theme system where each theme defines complete variables
     /// for both light and dark modes via `[data-theme="name-light"]` and `[data-theme="name-dark"]`.
     /// No :root fallback needed - ThemeProvider always sets data-theme.
-    fn generate_index_css_with_themes(&self, themes: &[orbital_core::ThemeDefinition]) -> String {
+    fn generate_index_css_with_themes(&self, themes: &[orbital_core_base::schema::types::ThemeDefinition]) -> String {
         let mut css = String::new();
 
         css.push_str("/**\n");
@@ -1228,9 +1228,9 @@ impl Backend for TypeScriptBackend {
     fn generate_with_mode(
         &self,
         module: &OirModule,
-        mode: orbital_core::generate::ShellMode,
+        mode: orbital_core_base::generate::ShellMode,
     ) -> GeneratedOutput {
-        use orbital_core::generate::ShellMode;
+        use orbital_core_base::generate::ShellMode;
 
         // Create a new backend with the appropriate target based on mode
         let target = match mode {
@@ -1317,7 +1317,7 @@ pub use types::classify_oir_type;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orbital_core::ir::OirField;
+    use orbital_core_base::ir::OirField;
 
     #[test]
     fn test_to_camel_case() {
@@ -1446,7 +1446,7 @@ mod tests {
     #[test]
     fn char_inferred_mode_diverges_from_declared() {
         let mut catalog = std::collections::HashMap::new();
-        catalog.insert("User".to_string(), orbital_core::ir::OirEntity::new("User"));
+        catalog.insert("User".to_string(), orbital_core_base::ir::OirEntity::new("User"));
         let inf = |t: &OirType| map_type_ts(t, None, Some(&catalog), TsTypeMode::Inferred);
         // The axes a mode-collapse would flatten:
         assert_eq!(inf(&OirType::Date), "Date | string | number");
@@ -1498,7 +1498,7 @@ mod tests {
     #[test]
     fn char_inferred_reference_to_declared_entity_stays_bare_while_anonymous_struct_expands() {
         let mut catalog = std::collections::HashMap::new();
-        catalog.insert("Note".to_string(), orbital_core::ir::OirEntity::new("Note"));
+        catalog.insert("Note".to_string(), orbital_core_base::ir::OirEntity::new("Note"));
         let inf = |t: &OirType| map_type_ts(t, None, Some(&catalog), TsTypeMode::Inferred);
 
         // A declared entity: bare name, not an inline literal.
@@ -1715,7 +1715,7 @@ mod tests {
 
     #[test]
     fn test_state_dispatch_switch_default_case_per_framework() {
-        use orbital_core::ir::{OirModule, OirState, OirTrait, OirTransition};
+        use orbital_core_base::ir::{OirModule, OirState, OirTrait, OirTransition};
         let backend = TypeScriptBackend::new();
         let mut trait_def = OirTrait::new("CartItemCrud");
         trait_def.states = vec![
@@ -2041,7 +2041,7 @@ mod tests {
 
     #[test]
     fn routes_registration_mounts_sse_route_for_both_frameworks() {
-        use orbital_core::ir::OirTrait;
+        use orbital_core_base::ir::OirTrait;
         let backend = TypeScriptBackend::new();
         let traits: Vec<OirTrait> = vec![];
 
@@ -2328,7 +2328,7 @@ mod index_css_theme_parity_tests {
 
     #[test]
     fn control_the_program_s_own_themes_still_follow_the_built_ins() {
-        let theme: orbital_core::ThemeDefinition =
+        let theme: orbital_core_base::schema::types::ThemeDefinition =
             serde_json::from_value(serde_json::json!({ "name": "sunset", "tokens": {} }))
                 .expect("theme");
         let css = TypeScriptBackend::new().generate_index_css_with_themes(&[theme]);

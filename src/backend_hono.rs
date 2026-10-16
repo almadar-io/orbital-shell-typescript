@@ -12,7 +12,7 @@
 
 use std::collections::BTreeSet;
 
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirEffect, OirEntity, OirEvent, OirModule, OirPersistOp, OirPersistence, OirTrait,
 };
 

@@ -1,4 +1,4 @@
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirBinding, OirBindingRoot, OirEffect, OirEmitConfig, OirEvent, OirExpr, OirFields, OirModule,
     OirState, OirTrait, OirTransition,
 };

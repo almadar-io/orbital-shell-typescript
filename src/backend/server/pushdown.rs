@@ -18,7 +18,7 @@ pub(crate) const PUSHDOWN_HELPERS: [&str; 7] = [
 #[cfg(test)]
 mod tests {
     use crate::backend::*;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirEvent, OirExpr, OirField, OirModule, OirPersistOp, OirTrait,
         OirTransition, OirType,
     };
@@ -326,7 +326,7 @@ mod tests {
     fn own_filter() -> OirExpr {
         OirExpr::eq(
             OirExpr::binding(OirBinding::entity(vec!["title".to_string()])),
-            OirExpr::binding(OirBinding::new(orbital_core::ir::OirBindingRoot::User, vec!["id".to_string()])),
+            OirExpr::binding(OirBinding::new(orbital_core_base::ir::OirBindingRoot::User, vec!["id".to_string()])),
         )
     }
 
@@ -371,7 +371,7 @@ mod tests {
     #[test]
     fn the_refresh_is_the_refs_own_filtered_page_when_the_filter_reads_only_the_viewer() {
         let viewer_only = OirExpr::eq(
-            OirExpr::binding(OirBinding::new(orbital_core::ir::OirBindingRoot::User, vec!["id".to_string()])),
+            OirExpr::binding(OirBinding::new(orbital_core_base::ir::OirBindingRoot::User, vec!["id".to_string()])),
             OirExpr::string("u1"),
         );
         let js = refresh_js(Some(viewer_only));

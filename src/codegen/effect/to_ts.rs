@@ -423,7 +423,7 @@ impl TypeScriptBackend {
     /// (`@almadar/integrations/program` `runProgramEffect`) — the one truth both
     /// the handler-file import and the effect emission read.
     pub(crate) fn substrate_op_is_program_effect(name: &str) -> bool {
-        orbital_core::language::registry::is_program_host_effect(name)
+        orbital_core_base::language::registry::is_program_host_effect(name)
     }
 
     /// Compile a substrate operator used in VALUE position (inside `set`,
@@ -433,7 +433,7 @@ impl TypeScriptBackend {
     pub(crate) fn substrate_value_to_ts(
         &self,
         name: &str,
-        args: &orbital_core::ir::OirFields,
+        args: &orbital_core_base::ir::OirFields,
     ) -> Option<String> {
         let mut sorted: Vec<(&String, &OirExpr)> = args.iter().collect();
         sorted.sort_by(|a, b| a.0.cmp(b.0));
@@ -490,7 +490,7 @@ impl TypeScriptBackend {
 #[cfg(test)]
 mod substrate_value_tests {
     use super::*;
-    use orbital_core::ir::OirExpr;
+    use orbital_core_base::ir::OirExpr;
 
     /// C1-R2 item 3: `.lolo`'s `llm/call-tools` declares two positional args
     /// (`prompt: string`, `tools: array`) but `LLMClient.callWithTools` takes
@@ -501,7 +501,7 @@ mod substrate_value_tests {
     #[test]
     fn call_tools_value_position_emits_one_object_arg_not_two_positional() {
         let backend = TypeScriptBackend::new();
-        let mut args: orbital_core::ir::OirFields = orbital_core::ir::OirFields::new();
+        let mut args: orbital_core_base::ir::OirFields = orbital_core_base::ir::OirFields::new();
         args.insert(
             "prompt".to_string(),
             OirExpr::String {

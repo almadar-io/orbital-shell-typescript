@@ -1,6 +1,6 @@
 use crate::TypeScriptBackend;
-use orbital_core::ir::{OirEffect, OirEmitConfig, OirExpr, OirModule};
-use orbital_core::runtime::os::OsOp;
+use orbital_core_base::ir::{OirEffect, OirEmitConfig, OirExpr, OirModule};
+use orbital_core_base::os::OsOp;
 
 fn server_js(effect: &OirEffect) -> String {
     TypeScriptBackend::new().generate_server_effect_code(effect, &OirModule::new("TestApp", "0.1.0"), None)

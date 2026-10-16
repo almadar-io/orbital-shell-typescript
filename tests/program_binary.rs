@@ -1,9 +1,9 @@
 //! The built `orb-shell-typescript` executable speaks the shell protocol across
 //! a real process boundary, as `orb` drives it.
 
-use orbital_core::ir::OirModule;
-use orbital_core::project::WriteOptions;
-use orbital_core::shell_protocol::{describe, invoke, invoke_emit, GenerateRequest, CODE_IR_INCOMPATIBLE, IR_VERSION};
+use orbital_core_base::ir::OirModule;
+use orbital_core_base::project::WriteOptions;
+use orbital_core_base::shell_protocol::{describe, invoke, invoke_emit, GenerateRequest, CODE_IR_INCOMPATIBLE, IR_VERSION};
 use std::collections::BTreeMap;
 use std::path::Path;
 

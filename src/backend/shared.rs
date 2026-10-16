@@ -1442,7 +1442,7 @@ mod cardinality_tests {
 #[cfg(test)]
 mod to_many_relation_field_tests {
     use super::*;
-    use orbital_core::ir::{OirEntity, OirField, OirRelation};
+    use orbital_core_base::ir::{OirEntity, OirField, OirRelation};
 
     fn revision_entity(cardinality: OirCardinality, field_type: OirType) -> OirEntity {
         let mut field = OirField::optional("revisions", field_type);
@@ -1525,7 +1525,7 @@ mod to_many_relation_field_tests {
 #[cfg(test)]
 mod named_type_schema_import_tests {
     use super::*;
-    use orbital_core::ir::OirField;
+    use orbital_core_base::ir::OirField;
 
     fn nav_item_named_types() -> std::collections::BTreeMap<String, OirType> {
         let mut named_types = std::collections::BTreeMap::new();
@@ -1731,14 +1731,14 @@ mod named_type_schema_import_tests {
 #[cfg(test)]
 mod config_named_type_import_tests {
     use super::*;
-    use orbital_core::ir::OirConfigFieldType;
+    use orbital_core_base::ir::OirConfigFieldType;
 
     /// A trait whose `config {}` block declares a field typed `TypeRef {
     /// name: "NavItem" }` — the shape a `nav-items` config knob referencing
     /// a named struct type lowers to.
     fn trait_with_nav_item_config() -> OirTrait {
         let mut tr = OirTrait::new("Sidebar");
-        let mut schema = orbital_core::ir::OirConfigSchema::new();
+        let mut schema = orbital_core_base::ir::OirConfigSchema::new();
         schema.insert(
             "items".to_string(),
             OirConfigFieldType {
@@ -1776,7 +1776,7 @@ mod config_named_type_import_tests {
         let backend = TypeScriptBackend::new();
         let mut module = OirModule::new("App", "1.0.0");
         let mut tr = OirTrait::new("Plain");
-        let mut schema = orbital_core::ir::OirConfigSchema::new();
+        let mut schema = orbital_core_base::ir::OirConfigSchema::new();
         schema.insert(
             "title".to_string(),
             OirConfigFieldType {
@@ -1859,7 +1859,7 @@ mod event_protocol_extends_core_tests {
         let module = OirModule::new("App", "1.0.0");
         let file = backend.generate_shared_event_types(&module);
 
-        let fixture_text = orbital_core::fixtures::event_wire_case("render-ui-3")
+        let fixture_text = orbital_core_base::fixtures::event_wire_case("render-ui-3")
             .expect("baked events-wire case render-ui-3")
             .response();
         let fixture: serde_json::Value = serde_json::from_str(fixture_text)
@@ -1882,7 +1882,7 @@ mod event_protocol_extends_core_tests {
 #[cfg(test)]
 mod system_timestamp_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirEntity, OirField, OirPersistence, OirType};
+    use orbital_core_base::ir::{OirEntity, OirField, OirPersistence, OirType};
 
     fn entity(fields: Vec<OirField>) -> OirEntity {
         OirEntity {
@@ -1945,7 +1945,7 @@ mod system_timestamp_tests {
 #[cfg(test)]
 mod nested_named_type_import_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirEntity, OirEvent, OirField, OirModule, OirPersistence, OirTrait, OirType,
     };
 
@@ -1999,7 +1999,7 @@ mod nested_named_type_import_tests {
         });
         let mut t = OirTrait::new("Generator");
         t.linked_entity = Some("Draft".to_string());
-        t.states.push(orbital_core::ir::OirState::initial("idle"));
+        t.states.push(orbital_core_base::ir::OirState::initial("idle"));
         let mut described = OirEvent::new("DESCRIBED");
         described.payload_schema = Some(
             [(

@@ -19,7 +19,7 @@
 
 use std::collections::BTreeSet;
 
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirBindingRoot, OirEffect, OirExpr, OirModule, OirPattern, OirPersistOp, OirTrait,
     OirTransition, OirValue,
 };
@@ -424,7 +424,7 @@ pub fn trait_has_host_effects(trait_def: &OirTrait) -> bool {
 }
 
 /// Whether any trait of the module needs the kernel's http ports: an `http` effect or a host effect.
-pub fn module_has_http_effects(module: &orbital_core::ir::OirModule) -> bool {
+pub fn module_has_http_effects(module: &orbital_core_base::ir::OirModule) -> bool {
     module
         .traits
         .iter()
@@ -720,8 +720,8 @@ pub fn collect_effect_entity_types(trait_def: &OirTrait, module: &OirModule) -> 
 /// Mirrors what `map_type_aliased` would emit at the type position so the
 /// import set is the exact set of entity identifiers the handler text
 /// references.
-fn collect_entity_refs_in_type(t: &orbital_core::ir::OirType, out: &mut BTreeSet<String>) {
-    use orbital_core::ir::OirType;
+fn collect_entity_refs_in_type(t: &orbital_core_base::ir::OirType, out: &mut BTreeSet<String>) {
+    use orbital_core_base::ir::OirType;
     match t {
         OirType::Reference { entity } | OirType::Row { entity } => {
             out.insert(entity.clone());
@@ -787,7 +787,7 @@ pub fn collect_entity_types_with_persist_ops(
 #[cfg(test)]
 mod persist_success_emit_tests {
     use super::trait_has_persist_success_emit;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirEffect, OirEmitConfig, OirExpr, OirPersistOp, OirTrait, OirTransition,
     };
 
@@ -858,13 +858,13 @@ mod persist_success_emit_tests {
 #[cfg(test)]
 mod call_service_message_tests {
     use super::trait_has_call_service_message;
-    use orbital_core::ir::{OirEffect, OirEmitConfig, OirExpr, OirTrait, OirTransition};
+    use orbital_core_base::ir::{OirEffect, OirEmitConfig, OirExpr, OirTrait, OirTransition};
 
     fn call_service(on_message: Option<&str>) -> OirExpr {
         OirExpr::effect(OirEffect::CallService {
             service: "llm".to_string(),
             method: "call-tools".to_string(),
-            args: OirExpr::object(orbital_core::ir::OirFields::new()),
+            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: None,
             emit: Some(OirEmitConfig {
                 success: Some("ANSWERED".to_string()),
@@ -925,7 +925,7 @@ mod runtime_entity_binding_tests {
 #[cfg(test)]
 mod service_host_import_tests {
     use super::service_host_import;
-    use orbital_core::ir::{OirEffect, OirExpr, OirTrait, OirTransition};
+    use orbital_core_base::ir::{OirEffect, OirExpr, OirTrait, OirTransition};
 
     fn trait_with(effects: Vec<OirExpr>) -> OirTrait {
         let mut t = OirTrait::new("Runner");
@@ -939,7 +939,7 @@ mod service_host_import_tests {
         OirExpr::effect(OirEffect::CallService {
             service: "llm".to_string(),
             method: "generate".to_string(),
-            args: OirExpr::object(orbital_core::ir::OirFields::new()),
+            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: key.map(OirExpr::string),
             emit: None,
         })
@@ -1038,8 +1038,8 @@ mod get_nested_value_decl_tests {
 #[cfg(test)]
 mod http_detection_tests {
     use super::{http_call_import, trait_has_host_effects, module_has_http_effects, trait_has_call_service_message, trait_has_keyed_call_service, trait_has_emit_effects, trait_has_http_effects, service_host_import};
-    use orbital_core::ir::{OirEffect, OirEmitConfig, OirExpr, OirModule, OirTrait, OirTransition};
-    use orbital_core::runtime::http_request::HttpMethod;
+    use orbital_core_base::ir::{OirEffect, OirEmitConfig, OirExpr, OirModule, OirTrait, OirTransition};
+    use orbital_core_base::http_wire::HttpMethod;
 
     fn trait_with(effect: OirEffect) -> OirTrait {
         let mut t = OirTrait::new("Fetcher");
@@ -1063,7 +1063,7 @@ mod http_detection_tests {
     #[test]
     fn an_os_effect_needs_the_host_os_import() {
         let t = trait_with(OirEffect::os(
-            orbital_core::runtime::os::OsOp::ReadFile,
+            orbital_core_base::os::OsOp::ReadFile,
             vec![OirExpr::string("/data/a")],
             None,
             None,

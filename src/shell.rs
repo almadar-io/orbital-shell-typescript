@@ -1,12 +1,12 @@
 //! The TypeScript shells: the Express and Hono web templates as `BaseShell`s.
 
-use orbital_core::shell::BaseShell;
+use orbital_core_base::shell::BaseShell;
 use std::path::PathBuf;
 
 const EXTENSIONS: &[&str] = &["ts", "tsx", "js", "jsx"];
 
 fn template(name: &str) -> PathBuf {
-    orbital_core::renderer_packs::shell_template(name, std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+    orbital_core_base::renderer_packs::shell_template(name, std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
 }
 
 /// The React client + Express server template (`almadar-shell`).
@@ -40,7 +40,7 @@ pub fn hono_shell() -> BaseShell {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orbital_core::shell::Shell;
+    use orbital_core_base::shell::Shell;
 
     #[test]
     fn each_framework_uses_its_own_template() {

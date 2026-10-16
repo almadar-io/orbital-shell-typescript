@@ -1,5 +1,5 @@
-use orbital_core::schema::{ThemeDefinition, ThemeTokens};
-use orbital_core::str_utils::capitalize_first;
+use orbital_core_base::schema::{ThemeDefinition, ThemeTokens};
+use orbital_core_base::str_utils::capitalize_first;
 
 /// Generate TypeScript theme config file
 pub fn generate_theme_config_ts(theme: &ThemeDefinition) -> String {

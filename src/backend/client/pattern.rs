@@ -26,7 +26,7 @@ impl TypeScriptBackend {
         let mut imports = std::collections::BTreeSet::new();
 
         for trans in &trait_def.transitions {
-            for pattern in orbital_core::ir::render_ui_patterns(&trans.effects) {
+            for pattern in orbital_core_base::ir::render_ui_patterns(&trans.effects) {
                 // Collect import for the top-level pattern
                 let (component, path) = self.pattern_to_import(&pattern.pattern_type);
                 if !component.is_empty() {
@@ -62,7 +62,7 @@ impl TypeScriptBackend {
             match v {
                 OirValue::String(s) => s == "@locale",
                 OirValue::Array(items) => {
-                    matches!(items.first(), Some(OirValue::String(op)) if op == orbital_core::messages::TRANSLATE_OP)
+                    matches!(items.first(), Some(OirValue::String(op)) if op == orbital_core_base::messages::TRANSLATE_OP)
                         || items.iter().any(value_uses_messages)
                 }
                 OirValue::Object(obj) => obj.values().any(value_uses_messages),
@@ -70,7 +70,7 @@ impl TypeScriptBackend {
             }
         }
         let effects_use = |effects: &[OirExpr]| -> bool {
-            orbital_core::ir::render_ui_patterns(effects)
+            orbital_core_base::ir::render_ui_patterns(effects)
                 .iter()
                 .any(|pattern| pattern.config.values().any(value_uses_messages))
         };
@@ -91,7 +91,7 @@ impl TypeScriptBackend {
             }
         }
         let effects_use_user = |effects: &[OirExpr]| -> bool {
-            orbital_core::ir::render_ui_patterns(effects)
+            orbital_core_base::ir::render_ui_patterns(effects)
                 .iter()
                 .any(|pattern| pattern.config.values().any(value_has_user_binding))
         };
@@ -109,7 +109,7 @@ impl TypeScriptBackend {
     /// front, so any leak-through here is treated as invalid and
     /// ignored for import collection / JSX emission.
     pub(crate) fn parse_trait_binding(&self, s: &str) -> Option<String> {
-        let rest = orbital_core::ir::parse_trait_embed_token(s)?;
+        let rest = orbital_core_base::ir::parse_trait_embed_token(s)?;
         // V4 leverage-ids: an embed token names a sibling trait by its DISPLAY
         // name; if that sibling was renamed, `current_trait_embed_names` maps
         // the (stale) token to the current declaration name via the stable id
@@ -156,7 +156,7 @@ impl TypeScriptBackend {
     /// handling both array and single-object values.
     pub(crate) fn collect_nested_pattern_imports(
         &self,
-        config: &orbital_core::ir::OirObject,
+        config: &orbital_core_base::ir::OirObject,
         imports: &mut std::collections::BTreeSet<(String, String)>,
     ) {
         for value in config.values() {
@@ -174,7 +174,7 @@ impl TypeScriptBackend {
                                 self.collect_pattern_from_object(child_obj, imports);
                             }
                             OirValue::Array(_) => {
-                                let nested: orbital_core::ir::OirObject =
+                                let nested: orbital_core_base::ir::OirObject =
                                     [("_".to_string(), item.clone())].into_iter().collect();
                                 self.collect_nested_pattern_imports(&nested, imports);
                             }
@@ -219,7 +219,7 @@ impl TypeScriptBackend {
     /// then recurse into its remaining config keys.
     pub(crate) fn collect_pattern_from_object(
         &self,
-        obj: &orbital_core::ir::OirObject,
+        obj: &orbital_core_base::ir::OirObject,
         imports: &mut std::collections::BTreeSet<(String, String)>,
     ) {
         if let Some(OirValue::String(child_type)) = obj.get("type") {
@@ -232,7 +232,7 @@ impl TypeScriptBackend {
         // even when the object itself carries no `type` key (a plain wrapper
         // knob like `notificationTemplate: {…}` still nests renderable
         // pattern objects that the view will emit as components).
-        let child_config: orbital_core::ir::OirObject = obj
+        let child_config: orbital_core_base::ir::OirObject = obj
             .iter()
             .filter(|(k, _)| *k != "type")
             .map(|(k, v)| (k.clone(), v.clone()))
@@ -305,7 +305,7 @@ impl TypeScriptBackend {
 #[cfg(test)]
 mod conditional_render_ui_import_tests {
     use super::*;
-    use orbital_core::ir::{OirBinaryOp, OirBinding};
+    use orbital_core_base::ir::{OirBinaryOp, OirBinding};
 
     /// The exact shipped crash: `PersonBrowseView` referenced `DataGrid` at
     /// runtime (`Uncaught ReferenceError: DataGrid is not defined`) because

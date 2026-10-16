@@ -244,7 +244,7 @@ impl TypeScriptBackend {
         trait_def
             .ticks
             .iter()
-            .filter(|t| legs.contains(&orbital_core::effects::tick_event_key(&t.name)))
+            .filter(|t| legs.contains(&orbital_core_base::bus_event::tick_event_key(&t.name)))
             .map(|t| t.name.clone())
             .collect()
     }
@@ -786,7 +786,7 @@ impl TypeScriptBackend {
         tick_body: &str,
         stamps_now: bool,
     ) -> String {
-        let fields = orbital_core::cron::parse_cron(expression).unwrap_or_else(|e| {
+        let fields = orbital_core_base::cron::parse_cron(expression).unwrap_or_else(|e| {
             panic!(
                 "codegen invariant violated: OirInterval::Cron carried an invalid \
                  expression '{expression}' (resolve_tick should have rejected this \
@@ -936,7 +936,7 @@ impl TypeScriptBackend {
 #[cfg(test)]
 mod repro_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirEntity, OirExpr, OirField, OirInterval, OirModule, OirPattern,
         OirPersistence, OirState, OirTick, OirTrait, OirTransition, OirType,
     };
@@ -967,7 +967,7 @@ mod repro_tests {
             "object/merge",
             vec![
                 bind("@entity.player"),
-                OirExpr::object(orbital_core::ir::OirFields::from([
+                OirExpr::object(orbital_core_base::ir::OirFields::from([
                     ("x".to_string(), bind("@px1")),
                     ("vy".to_string(), bind("@vy1")),
                 ])),
@@ -1056,7 +1056,7 @@ mod repro_tests {
         tick.effects
             .push(OirExpr::effect(OirEffect::emit_with_payload(
                 "PING",
-                OirExpr::object(orbital_core::ir::OirFields::from([(
+                OirExpr::object(orbital_core_base::ir::OirFields::from([(
                     "n".to_string(),
                     bind("@entity.score"),
                 )])),

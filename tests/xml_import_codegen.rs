@@ -1,5 +1,5 @@
-use orbital_core::generate::{Backend, GeneratedOutput};
-use orbital_core::ir::{
+use orbital_core_base::generate::{Backend, GeneratedOutput};
+use orbital_core_base::ir::{
     OirBinaryOp, OirBinding, OirBindingRoot, OirEffect, OirEntity, OirEvent, OirExpr, OirField,
     OirFields, OirInterval, OirModule, OirPattern, OirPersistence, OirState, OirTick, OirTrait,
     OirTransition, OirType, OirValue,

@@ -1,6 +1,6 @@
 use crate::TypeScriptBackend;
-use orbital_core::ir::{OirEffect, OirEmitConfig, OirExpr, OirFields, OirModule};
-use orbital_core::runtime::http_request::HttpMethod;
+use orbital_core_base::ir::{OirEffect, OirEmitConfig, OirExpr, OirFields, OirModule};
+use orbital_core_base::http_wire::HttpMethod;
 
 fn http(method: HttpMethod, key: Option<OirExpr>, emit: Option<OirEmitConfig>) -> OirEffect {
     let mut request = OirFields::new();
@@ -168,7 +168,7 @@ fn client_js(effect: &OirEffect) -> String {
 
 fn facts_effect(key: Option<OirExpr>) -> OirEffect {
     OirEffect::BrowserPageFacts {
-        fields: vec![orbital_core::ir::PageFactField::Referrer],
+        fields: vec![orbital_core_base::ir::PageFactField::Referrer],
         key,
         emit: Some(OirEmitConfig {
             success: Some("FACTS".to_string()),

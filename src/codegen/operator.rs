@@ -1492,7 +1492,7 @@ impl TypeScriptBackend {
             // then they fail loud, never silent.
             _ => format!(
                 "undefined /* {} */",
-                orbital_core::unsupported_operator_marker(function)
+                orbital_core_base::generate::unsupported_operator_marker(function)
             ),
         }
     }
@@ -1946,7 +1946,7 @@ mod twin_survivor_tests {
     /// so it fits any entity field or payload slot a value is stored in, like a quasiquote hole.
     #[test]
     fn behavior_apply_yields_program_data_and_imports_its_helper() {
-        use orbital_core::ir::{OirBinding, OirEffect, OirExpr, OirTrait, OirTransition};
+        use orbital_core_base::ir::{OirBinding, OirEffect, OirExpr, OirTrait, OirTransition};
         let b = TypeScriptBackend::new();
         let ts = b.call_to_ts_typed(
             "behavior/apply",
@@ -1984,7 +1984,7 @@ mod twin_survivor_tests {
     /// `behavior/ref` builds a whole-behavior value through core's `behaviorRef`, imported where used.
     #[test]
     fn behavior_ref_calls_the_core_constructor_and_imports_it() {
-        use orbital_core::ir::{OirBinding, OirEffect, OirExpr, OirTrait, OirTransition};
+        use orbital_core_base::ir::{OirBinding, OirEffect, OirExpr, OirTrait, OirTransition};
         let b = TypeScriptBackend::new();
         let ts = b.call_to_ts_typed("behavior/ref", &["s".into()], &[opaque()], None);
         assert_eq!(ts, "behaviorRef(String(s))");
@@ -2216,11 +2216,11 @@ mod twin_survivor_tests {
     #[test]
     fn compiled_quote_decodes_the_shared_fixture() {
         let cases: Vec<serde_json::Value> =
-            serde_json::from_str(orbital_core::fixtures::quote_cases()).unwrap();
+            serde_json::from_str(orbital_core_base::fixtures::quote_cases()).unwrap();
         let b = TypeScriptBackend::new();
         for case in cases {
             let body = case["body"].as_str().unwrap();
-            let arg = format!("\"{}\"", orbital_core::str_utils::escape_js_string(body));
+            let arg = format!("\"{}\"", orbital_core_base::str_utils::escape_js_string(body));
             let ts = b.call_to_ts_typed("quote", &[arg], &[], None);
             let script = format!("process.stdout.write(JSON.stringify({ts}));");
             let out = std::process::Command::new("node")
@@ -3054,8 +3054,8 @@ mod runtime_parity_format_tests {
 #[cfg(test)]
 mod path_twin_tests {
     use crate::backend::TypeScriptBackend;
-    use orbital_core::evaluator::{BindingContextBuilder, Evaluator, Value};
-    use orbital_core::schema::SExpression;
+    use {orbital_core_eval::evaluator::{BindingContextBuilder, Evaluator}, orbital_core_base::value::Value};
+    use orbital_core_base::schema::SExpression;
 
     const ARGS: [&str; 6] = ["start", "goal", "blocked", "w", "h", "diag"];
 
@@ -3175,8 +3175,8 @@ mod path_twin_tests {
 #[cfg(test)]
 mod sort_twin_tests {
     use crate::backend::TypeScriptBackend;
-    use orbital_core::lower::lower_sexpr;
-    use orbital_core::schema::SExpression;
+    use orbital_core_eval::lower::lower_sexpr;
+    use orbital_core_base::schema::SExpression;
     use serde_json::json;
 
     fn compiled(expr: serde_json::Value) -> serde_json::Value {

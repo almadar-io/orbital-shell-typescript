@@ -122,7 +122,7 @@ impl TypeScriptBackend {
         {
             let keys = frame_fields
                 .iter()
-                .map(|field| format!("'{}'", orbital_core::str_utils::escape_js_string(field)))
+                .map(|field| format!("'{}'", orbital_core_base::str_utils::escape_js_string(field)))
                 .collect::<Vec<_>>()
                 .join(", ");
             // A literal row of wide reads (`id: FieldValue`) is no `EntityRow` until asserted.

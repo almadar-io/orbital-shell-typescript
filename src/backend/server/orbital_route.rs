@@ -166,7 +166,7 @@ impl TypeScriptBackend {
 
         // Declared external inputs, from the IR's shared input records — the
         // same JSON the runtime's `GET /inputs` serves.
-        let inputs: Vec<&orbital_core::runtime::external_inputs::ExternalInput> = module
+        let inputs: Vec<&orbital_core_base::external_inputs::ExternalInput> = module
             .traits
             .iter()
             .flat_map(|t| t.events.iter())
@@ -687,7 +687,7 @@ mod tests {
     fn module_with_an_input() -> OirModule {
         let mut m = module_with_two_orbitals();
         let mut ev = OirEvent::new("DO_CREATE");
-        ev.external = Some(orbital_core::runtime::external_inputs::ExternalInput {
+        ev.external = Some(orbital_core_base::external_inputs::ExternalInput {
             orbital: "NoteOrbital".to_string(),
             trait_name: "NotePersistor".to_string(),
             event: "DO_CREATE".to_string(),
@@ -967,7 +967,7 @@ mod tests {
         let module = module_with_two_orbitals();
         let file = backend.generate_orbital_events_route(&module);
 
-        let fixture_text = orbital_core::fixtures::event_wire_case("stateless-traits")
+        let fixture_text = orbital_core_base::fixtures::event_wire_case("stateless-traits")
             .expect("baked events-wire case stateless-traits")
             .request();
         let fixture: serde_json::Value = serde_json::from_str(fixture_text)

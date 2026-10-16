@@ -5,7 +5,7 @@
 //! drifted from `MockDataService.FieldSchema` (`enumValues` vs `values`). These
 //! pin all three surfaces the declared domain has to reach.
 
-use orbital_core::ir::{OirEntity, OirField, OirPersistence, OirType};
+use orbital_core_base::ir::{OirEntity, OirField, OirPersistence, OirType};
 use orbital_shell_typescript::TypeScriptBackend;
 
 fn entity(fields: Vec<OirField>) -> OirEntity {

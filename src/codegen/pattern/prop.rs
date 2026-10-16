@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use orbital_core::ir::OirValue;
+use orbital_core_base::ir::OirValue;
 
 use crate::backend::{escape_js_string, TypeScriptBackend};
 use crate::codegen::expr::RENDER_PAYLOAD_VAR;
@@ -19,7 +19,7 @@ impl TypeScriptBackend {
     /// JSX boundary as a `string` where a `Date` is required (CG-SWEEP-1 Cat 13).
     fn prop_date_coercion(pattern_type: Option<&str>, key: &str) -> Option<bool> {
         let prop_types = pattern_type.and_then(|pt| {
-            orbital_core::language::pattern_props::get_prop_types(pt, key)
+            orbital_core_base::language::pattern_props::get_prop_types(pt, key)
         })?;
         if !prop_types
             .iter()
@@ -95,7 +95,7 @@ impl TypeScriptBackend {
     pub(crate) fn required_boolean_prop(pattern_type: Option<&str>, key: &str) -> bool {
         Self::required_prop(pattern_type, key)
             && pattern_type
-                .and_then(|pt| orbital_core::language::pattern_props::get_prop_types(pt, key))
+                .and_then(|pt| orbital_core_base::language::pattern_props::get_prop_types(pt, key))
                 .is_some_and(|types| !types.is_empty() && types.iter().all(|t| *t == "boolean"))
     }
 
@@ -113,7 +113,7 @@ impl TypeScriptBackend {
             }
         };
         let Some(types) = pattern_type.and_then(|pt| {
-            orbital_core::language::pattern_props::get_prop_types(pt, key)
+            orbital_core_base::language::pattern_props::get_prop_types(pt, key)
         }) else {
             return compiled.to_string();
         };
@@ -149,7 +149,7 @@ impl TypeScriptBackend {
         // the one other owner of this cast.
         if let Some(values) = pattern_type
             .and_then(|pt| {
-                orbital_core::language::pattern_props::get_prop_enum_values(pt, key)
+                orbital_core_base::language::pattern_props::get_prop_enum_values(pt, key)
             })
             .filter(|v| !v.is_empty())
         {
@@ -210,7 +210,7 @@ impl TypeScriptBackend {
     ) -> String {
         let is_array_prop = pattern_type
             .and_then(|pt| {
-                orbital_core::language::pattern_props::get_prop_types(pt, key)
+                orbital_core_base::language::pattern_props::get_prop_types(pt, key)
             })
             .is_some_and(|types| types.iter().any(|t| *t == "array"));
         if !is_array_prop {
@@ -338,12 +338,12 @@ impl TypeScriptBackend {
                         // The coercion is a no-op at runtime for string values.
                         let expr = self.binding_string_to_ts(s);
                         let prop_types = pattern_type.and_then(|pt| {
-                            orbital_core::language::pattern_props::get_prop_types(
+                            orbital_core_base::language::pattern_props::get_prop_types(
                                 pt, key,
                             )
                         });
                         let enum_values = pattern_type.and_then(|pt| {
-                            orbital_core::language::pattern_props::get_prop_enum_values(pt, key)
+                            orbital_core_base::language::pattern_props::get_prop_enum_values(pt, key)
                         });
                         let needs_string_coerce = prop_types
                             .map(|types| {
@@ -575,7 +575,7 @@ impl TypeScriptBackend {
                     let is_array_prop = !arr.is_empty()
                         && pattern_type
                             .and_then(|pt| {
-                                orbital_core::language::pattern_props::get_prop_types(
+                                orbital_core_base::language::pattern_props::get_prop_types(
                                     pt, key,
                                 )
                             })
@@ -613,7 +613,7 @@ impl TypeScriptBackend {
                 // top-level prop coercion above without requiring a
                 // schema lookup at every binding site.
                 let nested_prop_schema = pattern_type.and_then(|pt| {
-                    orbital_core::language::registry::get_pattern(pt)
+                    orbital_core_base::language::registry::get_pattern(pt)
                         .and_then(|p| p.props_schema.get(key))
                         .and_then(|prop| prop.properties.as_ref())
                 });
@@ -849,7 +849,7 @@ impl TypeScriptBackend {
                             .map(|e| e.contains_key(pattern_type.as_str()))
                             .unwrap_or(false);
                     if is_known {
-                        let config: orbital_core::ir::OirObject = obj
+                        let config: orbital_core_base::ir::OirObject = obj
                             .iter()
                             .filter(|(k, _)| *k != "type")
                             .map(|(k, v)| (k.clone(), v.clone()))
@@ -968,7 +968,7 @@ pub(crate) fn fill_absent_nullable_keys(
 
 /// An operator call (`["array/map", …]`) rather than a data array.
 pub(crate) fn is_sexpr_call(arr: &[OirValue]) -> bool {
-    matches!(arr.first(), Some(OirValue::String(head)) if orbital_core::language::registry::is_known_operator(head))
+    matches!(arr.first(), Some(OirValue::String(head)) if orbital_core_base::language::registry::is_known_operator(head))
 }
 
 /// Whether an S-expression call can evaluate to `null`: a `null` branch, a one-armed
@@ -1217,7 +1217,7 @@ mod absent_value_prop_tests {
     use super::*;
 
     fn link() -> OirValue {
-        let mut o = orbital_core::ir::OirObject::new();
+        let mut o = orbital_core_base::ir::OirObject::new();
         o.insert("label".to_string(), OirValue::String("Next".to_string()));
         o.insert("href".to_string(), OirValue::String("/next".to_string()));
         OirValue::Object(o)
@@ -1351,7 +1351,7 @@ mod object_key_quoting_tests {
     #[test]
     fn a_key_that_is_not_an_identifier_is_quoted() {
         let b = TypeScriptBackend::new();
-        let mut obj = orbital_core::ir::OirObject::new();
+        let mut obj = orbital_core_base::ir::OirObject::new();
         obj.insert("in-stock".to_string(), OirValue::String("In stock".to_string()));
         obj.insert("low".to_string(), OirValue::String("Low".to_string()));
         let out = b.value_to_jsx_literal(&OirValue::Object(obj));
@@ -1415,7 +1415,7 @@ mod escaping_tests {
     #[test]
     fn object_field_string_escapes_quotes_backslash_newline() {
         let backend = TypeScriptBackend::new();
-        let mut fields = orbital_core::ir::OirObject::new();
+        let mut fields = orbital_core_base::ir::OirObject::new();
         fields.insert("description".to_string(), OirValue::String(RAW.to_string()));
         let out = backend.value_to_jsx_literal_with_context(&OirValue::Object(fields), None);
         assert_eq!(
@@ -1434,7 +1434,7 @@ mod escaping_tests {
     #[test]
     fn a_binding_string_inside_an_object_reads_the_binding() {
         let backend = TypeScriptBackend::new();
-        let mut fields = orbital_core::ir::OirObject::new();
+        let mut fields = orbital_core_base::ir::OirObject::new();
         fields.insert("label".to_string(), OirValue::String("Score".to_string()));
         fields.insert(
             "value".to_string(),
@@ -1465,7 +1465,7 @@ mod escaping_tests {
     #[test]
     fn control_a_binding_string_under_a_runtime_key_stays_data() {
         let backend = TypeScriptBackend::new();
-        let mut fields = orbital_core::ir::OirObject::new();
+        let mut fields = orbital_core_base::ir::OirObject::new();
         fields.insert(
             "field".to_string(),
             OirValue::String("@item.done".to_string()),
@@ -1576,7 +1576,7 @@ mod object_prop_member_tests {
     #[test]
     fn a_number_member_of_an_object_prop_coerces_a_wide_binding() {
         let backend = TypeScriptBackend::new();
-        let mut counts = orbital_core::ir::OirObject::new();
+        let mut counts = orbital_core_base::ir::OirObject::new();
         counts.insert("committed".to_string(), OirValue::String("@payload.committed".to_string()));
         let out = backend.config_value_to_jsx_prop_with_pattern(Some("import-progress"), "counts", &OirValue::Object(counts));
         assert!(
@@ -1591,7 +1591,7 @@ mod object_prop_member_tests {
     #[test]
     fn required_members_of_an_object_prop_never_pass_undefined() {
         let backend = TypeScriptBackend::new();
-        let mut scene = orbital_core::ir::OirObject::new();
+        let mut scene = orbital_core_base::ir::OirObject::new();
         scene.insert("steps".to_string(), OirValue::String("@entity.scene".to_string()));
         scene.insert("cursor".to_string(), OirValue::String("@entity.cursor".to_string()));
         let out = backend.config_value_to_jsx_prop_with_pattern(Some("flow-canvas"), "scene", &OirValue::Object(scene));
@@ -1603,7 +1603,7 @@ mod object_prop_member_tests {
     #[test]
     fn control_a_number_literal_member_stays_literal() {
         let backend = TypeScriptBackend::new();
-        let mut counts = orbital_core::ir::OirObject::new();
+        let mut counts = orbital_core_base::ir::OirObject::new();
         counts.insert("committed".to_string(), OirValue::Number(3.0));
         let out = backend.config_value_to_jsx_prop_with_pattern(Some("import-progress"), "counts", &OirValue::Object(counts));
         assert!(out.contains("committed: 3"), "{out}");
@@ -1792,7 +1792,7 @@ mod array_map_of_get_prop_narrowing_tests {
     #[test]
     fn array_map_of_object_literal_into_named_struct_array_prop_casts_the_whole_result() {
         let backend = TypeScriptBackend::new();
-        let mut fields = orbital_core::ir::OirObject::new();
+        let mut fields = orbital_core_base::ir::OirObject::new();
         fields.insert(
             "id".to_string(),
             OirValue::Array(vec![

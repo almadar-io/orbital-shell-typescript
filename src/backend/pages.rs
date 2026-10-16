@@ -58,8 +58,8 @@ impl TypeScriptBackend {
             .set(Self::build_trait_embed_names(trait_def, module));
         let mut directly_embedded: HashSet<String> = HashSet::new();
         for trans in &trait_def.transitions {
-            for pattern in orbital_core::ir::render_ui_patterns(&trans.effects) {
-                orbital_core::ir::collect_trait_refs_from_pattern(
+            for pattern in orbital_core_base::ir::render_ui_patterns(&trans.effects) {
+                orbital_core_base::ir::collect_trait_refs_from_pattern(
                     pattern,
                     &|s| self.parse_trait_binding(s),
                     &mut directly_embedded,
@@ -312,7 +312,7 @@ impl TypeScriptBackend {
         let gated = module
             .pages
             .iter()
-            .any(|p| p.access == Some(orbital_core::schema::PageAccess::Authenticated));
+            .any(|p| p.access == Some(orbital_core_base::schema::PageAccess::Authenticated));
         code.push_str("import React, { lazy, Suspense } from 'react';\n");
         code.push_str(if gated {
             "import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';\n"
@@ -426,7 +426,7 @@ impl TypeScriptBackend {
             for locale in &module.locales {
                 code.push_str(&format!(
                     "  {locale}: {{ locale: '{locale}', direction: '{}' as const, messages: messages_{locale}, t: createTranslate(messages_{locale}) }},\n",
-                    orbital_core::messages::locale_direction(locale)
+                    orbital_core_base::messages::locale_direction(locale)
                 ));
             }
             code.push_str("};\n");
@@ -497,7 +497,7 @@ impl TypeScriptBackend {
 
         // Generate route for each page
         let page_element = |page: &OirPage| -> String {
-            let inner = if page.access == Some(orbital_core::schema::PageAccess::Authenticated) {
+            let inner = if page.access == Some(orbital_core_base::schema::PageAccess::Authenticated) {
                 format!("<AuthenticatedPage><{} /></AuthenticatedPage>", page.name)
             } else {
                 format!("<{} />", page.name)
@@ -600,7 +600,7 @@ fn page_head_literal(page: &OirPage, module: &OirModule) -> Option<String> {
             put("siteName", name.clone().into());
         }
     }
-    if let Some(alternates) = orbital_core::generate::locale_alternates(module, page) {
+    if let Some(alternates) = orbital_core_base::generate::locale_alternates(module, page) {
         put("alternates", alternates);
         if let Some(default_locale) = module.locales.first() {
             put("defaultLocale", default_locale.clone().into());
@@ -616,7 +616,7 @@ fn page_head_literal(page: &OirPage, module: &OirModule) -> Option<String> {
 #[cfg(test)]
 mod page_access_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirModule, OirPage};
+    use orbital_core_base::ir::{OirModule, OirPage};
 
     fn app(pages: &[(&str, &str)]) -> String {
         let mut module = OirModule::new("App", "1.0.0");
@@ -657,11 +657,11 @@ mod page_access_tests {
     fn gated_app() -> String {
         let mut module = OirModule::new("App", "1.0.0");
         let mut account = OirPage::new("AccountPage", "/account");
-        account.access = Some(orbital_core::schema::PageAccess::Authenticated);
+        account.access = Some(orbital_core_base::schema::PageAccess::Authenticated);
         let mut home = OirPage::new("HomePage", "/");
-        home.access = Some(orbital_core::schema::PageAccess::Public);
+        home.access = Some(orbital_core_base::schema::PageAccess::Public);
         module.pages = vec![home, account, OirPage::new("DocsPage", "/docs")];
-        module.site = Some(orbital_core::schema::SiteMeta {
+        module.site = Some(orbital_core_base::schema::SiteMeta {
             sign_in: Some("/login".into()),
             ..Default::default()
         });
@@ -709,7 +709,7 @@ mod page_access_tests {
 
     fn page_component(page: OirPage) -> String {
         let mut module = OirModule::new("App", "1.0.0");
-        module.site = Some(orbital_core::schema::SiteMeta {
+        module.site = Some(orbital_core_base::schema::SiteMeta {
             origin: Some("https://example.org".into()),
             name: Some("Example".into()),
             ..Default::default()
@@ -723,13 +723,13 @@ mod page_access_tests {
     fn a_translated_page_carries_its_alternates_and_default_locale() {
         let mut module = OirModule::new("App", "1.0.0");
         module.locales = vec!["en".into(), "ar".into()];
-        module.site = Some(orbital_core::schema::SiteMeta {
+        module.site = Some(orbital_core_base::schema::SiteMeta {
             origin: Some("https://example.org".into()),
             ..Default::default()
         });
         for (name, path) in [("HomeEN", "/"), ("HomeAR", "/ar")] {
             let mut p = OirPage::new(name, path);
-            p.access = Some(orbital_core::schema::PageAccess::Public);
+            p.access = Some(orbital_core_base::schema::PageAccess::Public);
             p.source_page = Some("pag_home".into());
             module.pages.push(p);
         }
@@ -750,15 +750,15 @@ mod page_access_tests {
     #[test]
     fn control_a_page_without_translations_carries_no_alternates() {
         let mut page = OirPage::new("HomePage", "/");
-        page.access = Some(orbital_core::schema::PageAccess::Public);
+        page.access = Some(orbital_core_base::schema::PageAccess::Public);
         assert!(!page_component(page).contains("alternates"));
     }
 
     #[test]
     fn a_page_declaring_head_modifiers_keeps_the_head_on_its_contract() {
         let mut page = OirPage::new("HomePage", "/");
-        page.access = Some(orbital_core::schema::PageAccess::Public);
-        page.title = Some(orbital_core::schema::PageMeta::message("site:meta.home"));
+        page.access = Some(orbital_core_base::schema::PageAccess::Public);
+        page.title = Some(orbital_core_base::schema::PageMeta::message("site:meta.home"));
         let ts = page_component(page);
         assert!(
             ts.contains("import { usePageHead } from '@almadar/ui/hooks';"),
@@ -790,7 +790,7 @@ mod page_access_tests {
 #[cfg(test)]
 mod page_transition_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::OirModule;
+    use orbital_core_base::ir::OirModule;
 
     #[test]
     fn app_tsx_wraps_routes_in_a_location_keyed_page_transition_host() {
@@ -822,7 +822,7 @@ mod page_transition_tests {
 #[cfg(test)]
 mod document_language_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::OirModule;
+    use orbital_core_base::ir::OirModule;
 
     #[test]
     fn the_app_root_i18n_provider_owns_the_document_lang_and_dir() {
@@ -852,7 +852,7 @@ mod document_language_tests {
 #[cfg(test)]
 mod nav_pages_label_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirModule, OirPage};
+    use orbital_core_base::ir::{OirModule, OirPage};
 
     #[test]
     fn nav_pages_carry_the_declared_label_json_encoded() {
@@ -877,7 +877,7 @@ mod nav_pages_label_tests {
 #[cfg(test)]
 mod shared_entity_provider_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirEntity, OirField, OirModule, OirPage, OirPersistence, OirTrait, OirTraitBinding, OirType,
     };
     use std::collections::HashSet;
@@ -1021,7 +1021,7 @@ mod shared_entity_provider_tests {
     /// with no `SharedEntityStoreContext` and threw.
     #[test]
     fn page_gets_provider_for_a_shared_entity_trait_embedded_only_transitively() {
-        use orbital_core::ir::{OirEffect, OirExpr, OirPattern, OirState, OirTransition, OirValue};
+        use orbital_core_base::ir::{OirEffect, OirExpr, OirPattern, OirState, OirTransition, OirValue};
 
         let mut trait_a = OirTrait::new("HostView");
         trait_a.states.push(OirState::initial("ready"));
@@ -1082,7 +1082,7 @@ mod shared_entity_provider_tests {
 #[cfg(test)]
 mod route_params_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirModule, OirPage, OirTrait, OirTraitBinding};
+    use orbital_core_base::ir::{OirModule, OirPage, OirTrait, OirTraitBinding};
     use std::collections::HashSet;
 
     fn module_with_page(path: &str) -> (OirModule, OirPage) {
@@ -1177,7 +1177,7 @@ mod route_params_tests {
 #[cfg(test)]
 mod locale_route_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirModule, OirPage};
+    use orbital_core_base::ir::{OirModule, OirPage};
 
     fn module(locales: &[&str], paths: &[(&str, &str)]) -> OirModule {
         let mut module = OirModule::new("Site", "1.0.0");

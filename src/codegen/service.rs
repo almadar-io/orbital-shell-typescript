@@ -4,8 +4,8 @@
 //! This replaces the old raw-fetch codegen with a unified integration layer that
 //! provides retry, validation, structured errors, and centralized credential management.
 
-use orbital_core::ir::OirModule;
-use orbital_core::schema::{ServiceDefinition, ServiceRef};
+use orbital_core_base::ir::OirModule;
+use orbital_core_base::schema::{ServiceDefinition, ServiceRef};
 use std::collections::BTreeSet;
 
 /// Generate a TypeScript service client module that delegates to @almadar/integrations.
@@ -222,8 +222,8 @@ pub fn generate_env_manifest(module: &OirModule) -> Option<(String, String)> {
         return None;
     }
 
-    let registry = orbital_core::language::registry::baked_service_credentials();
-    let with_creds: Vec<(&String, &Vec<orbital_core::language::registry::EmbeddedServiceCredential>)> =
+    let registry = orbital_core_base::language::registry::baked_service_credentials();
+    let with_creds: Vec<(&String, &Vec<orbital_core_base::language::registry::EmbeddedServiceCredential>)> =
         invoked
             .iter()
             .filter_map(|name| registry.get(name).filter(|c| !c.is_empty()).map(|c| (name, c)))
@@ -292,8 +292,8 @@ pub fn generate_env_manifest(module: &OirModule) -> Option<(String, String)> {
 /// service declares hooks) so the template server can unconditionally import
 /// it; the checked-in template stub keeps standalone CI builds green.
 pub fn generate_hooks_providers(invoked: &BTreeSet<String>) -> String {
-    let registry = orbital_core::language::registry::baked_service_hooks();
-    let mut hooks: Vec<&orbital_core::language::registry::EmbeddedServiceHook> = invoked
+    let registry = orbital_core_base::language::registry::baked_service_hooks();
+    let mut hooks: Vec<&orbital_core_base::language::registry::EmbeddedServiceHook> = invoked
         .iter()
         .filter_map(|name| registry.get(name))
         .flatten()
@@ -352,7 +352,7 @@ pub fn extract_inline_services(services: &[ServiceRef]) -> Vec<&ServiceDefinitio
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orbital_core::schema::{
+    use orbital_core_base::schema::{
         AuthKeyLocation, RestAuthConfig, RestAuthType, RestServiceDefInner,
     };
 

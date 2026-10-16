@@ -3,7 +3,7 @@ use super::emitters::{
     emit_density, emit_diagram, emit_elevation, emit_geometry, emit_iconography, emit_motion,
     emit_scene, emit_surface, emit_type_scale,
 };
-use orbital_core::schema::{ThemeTokens, ThemeVariant};
+use orbital_core_base::schema::{ThemeTokens, ThemeVariant};
 use std::collections::BTreeMap;
 
 /// Pick the right Option for each axis: prefer dark_variant.<axis> if Some, else base_tokens.<axis>.

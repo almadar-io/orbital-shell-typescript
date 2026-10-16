@@ -1,6 +1,6 @@
 // Compiled path of the dispatch roots (Runtime Spec Clauses 3.3, 5.5): scope plumbing, literal targets, and no change for apps that don't read them.
 use crate::backend::*;
-use orbital_core::ir::{OirBinding, OirField, OirListener, OirState};
+use orbital_core_base::ir::{OirBinding, OirField, OirListener, OirState};
 
 fn bind(s: &str) -> OirExpr {
     OirExpr::binding(OirBinding::parse(s).unwrap())

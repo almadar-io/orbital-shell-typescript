@@ -2,7 +2,7 @@
 //!
 //! Split from `pattern/registry.rs` as a pure module breakup.
 
-use orbital_core::ir::{OirModule, OirTrait, OirValue};
+use orbital_core_base::ir::{OirModule, OirTrait, OirValue};
 use std::collections::{HashMap, HashSet};
 
 use crate::backend::TypeScriptBackend;
@@ -49,7 +49,7 @@ impl TypeScriptBackend {
                 if op == "if" && crate::codegen::is_operator_name(op) {
                     let cond_sexpr = Self::oirvalue_to_sexpr(cond);
                     if let Ok(cond_oir) =
-                        orbital_core::lower::lower_sexpr(&cond_sexpr)
+                        orbital_core_eval::lower::lower_sexpr(&cond_sexpr)
                     {
                         let cond_ts = self.expr_to_ts_flavored(&cond_oir, BindingFlavor::Render);
                         let then_ts =
@@ -112,7 +112,7 @@ impl TypeScriptBackend {
     /// lowering + expression emitter (render binding flavor).
     fn compile_action_operand(&self, operand: &OirValue) -> Option<String> {
         let sexpr = Self::oirvalue_to_sexpr(operand);
-        let lowered = orbital_core::lower::lower_sexpr(&sexpr).ok()?;
+        let lowered = orbital_core_eval::lower::lower_sexpr(&sexpr).ok()?;
         Some(self.expr_to_ts_flavored(&lowered, BindingFlavor::Render))
     }
 
@@ -502,7 +502,7 @@ impl TypeScriptBackend {
 mod host_scope_tests {
     use super::*;
     use crate::backend::TypeScriptBackend;
-    use orbital_core::ir::{OirModule, OirTransition};
+    use orbital_core_base::ir::{OirModule, OirTransition};
 
     /// The shipped bug: an embedded `ButtonRender`'s `action` config names
     /// `NEW_MESSAGE` — an event only its HOST (`ChatRoom`) has a transition
@@ -645,7 +645,7 @@ mod host_scope_tests {
     fn qualify_event_walks_to_a_host_that_only_declares_the_event_as_an_emit() {
         let mut host = OirTrait::new("ChatRoom");
         host.orbital_name = "ChatMessageOrbital".to_string();
-        host.emits.push(orbital_core::ir::OirEmit::new("CREATE_CHANNEL"));
+        host.emits.push(orbital_core_base::ir::OirEmit::new("CREATE_CHANNEL"));
         // No transition on CREATE_CHANNEL — a sibling trait's `listens`
         // block is what actually reacts to it.
 
@@ -655,7 +655,7 @@ mod host_scope_tests {
         // Config-ref rename baked this in too (real per-instance data, but
         // must NOT count for the self entry — see the regression this
         // guards, below).
-        embedded.emits.push(orbital_core::ir::OirEmit::new("CREATE_CHANNEL"));
+        embedded.emits.push(orbital_core_base::ir::OirEmit::new("CREATE_CHANNEL"));
 
         let mut module = OirModule::new("app", "1.0.0");
         module.traits.push(host);
@@ -695,7 +695,7 @@ mod host_scope_tests {
         // The config-ref rename (`@config.action -> external {}` resolving
         // to `NEW_MESSAGE -> external {}`) bakes this in on the embedded
         // trait too — real data, but must not win self-scope.
-        embedded.emits.push(orbital_core::ir::OirEmit::new("NEW_MESSAGE"));
+        embedded.emits.push(orbital_core_base::ir::OirEmit::new("NEW_MESSAGE"));
 
         let mut module = OirModule::new("app", "1.0.0");
         module.traits.push(host);
@@ -721,7 +721,7 @@ mod host_scope_tests {
 #[cfg(test)]
 mod object_type_nullable_tests {
     use crate::backend::TypeScriptBackend;
-    use orbital_core::language::pattern_registry::PropTypeSchema;
+    use orbital_core_base::language::pattern_registry::PropTypeSchema;
     use std::collections::HashMap;
 
     fn props(json: serde_json::Value) -> HashMap<String, PropTypeSchema> {

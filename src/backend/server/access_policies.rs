@@ -179,7 +179,7 @@ pub(crate) fn owner_fields(entity: &OirEntity) -> Vec<String> {
         let Some(sexpr) = policy.to_sexpression() else {
             continue;
         };
-        for field in orbital_core::runtime::owner_columns_from_policy(&sexpr) {
+        for field in orbital_core_base::policy::owner_columns_from_policy(&sexpr) {
             if !out.contains(&field) {
                 out.push(field);
             }
@@ -197,7 +197,7 @@ pub(crate) fn owner_fields(entity: &OirEntity) -> Vec<String> {
 #[cfg(test)]
 mod owner_fields_tests {
     use super::*;
-    use orbital_core::ir::{OirBinaryOp, OirBinding, OirEntity};
+    use orbital_core_base::ir::{OirBinaryOp, OirBinding, OirEntity};
 
     fn binding(s: &str) -> OirExpr {
         OirExpr::Binding {

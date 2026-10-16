@@ -5,7 +5,7 @@
 //! away with it.
 
 use crate::codegen::CodegenContext;
-use orbital_core::ir::{OirEntity, OirType};
+use orbital_core_base::ir::{OirEntity, OirType};
 
 /// What the operator table decides an argument's emission from — read off the OIR, never
 /// off the emitted text: whether it is never nullish, a definite number / array / string,
@@ -23,10 +23,10 @@ pub(crate) struct ArgFacts {
     pub string_value: Option<String>,
 }
 
-pub(crate) fn arg_facts(expr: &orbital_core::ir::OirExpr) -> ArgFacts {
-    use orbital_core::ir::{OirBinaryOp, OirBindingRoot, OirExpr, OirUnaryOp};
+pub(crate) fn arg_facts(expr: &orbital_core_base::ir::OirExpr) -> ArgFacts {
+    use orbital_core_base::ir::{OirBinaryOp, OirBindingRoot, OirExpr, OirUnaryOp};
     let returns = |name: &str, kinds: &[&str]| {
-        orbital_core::language::canonical_operators::get_canonical_operator(name)
+        orbital_core_base::language::canonical_operators::get_canonical_operator(name)
             .is_some_and(|meta| meta.return_semantics.is_none() && kinds.contains(&meta.return_type))
     };
     let number = match expr {
@@ -80,13 +80,13 @@ pub(crate) fn arg_facts(expr: &orbital_core::ir::OirExpr) -> ArgFacts {
 
 /// `@locale` — the viewer's locale, a definite string on every side (the view's
 /// `useTranslate()` locale, the server's request locale).
-fn is_locale_binding(binding: &orbital_core::ir::OirBinding) -> bool {
-    matches!(binding.root, orbital_core::ir::OirBindingRoot::Locale) && binding.path.is_empty()
+fn is_locale_binding(binding: &orbital_core_base::ir::OirBinding) -> bool {
+    matches!(binding.root, orbital_core_base::ir::OirBindingRoot::Locale) && binding.path.is_empty()
 }
 
 /// Coerce compiled TS to a `string` from what the OIR expression IS: a string as is,
 /// a never-nullish value through `String(…)`, anything else through `String(… ?? '')`.
-pub(crate) fn string_coerce_for(expr: &orbital_core::ir::OirExpr, compiled: &str) -> String {
+pub(crate) fn string_coerce_for(expr: &orbital_core_base::ir::OirExpr, compiled: &str) -> String {
     let facts = arg_facts(expr);
     let t = compiled.trim_start();
     // Folded to a literal at codegen (a literal-knob conditional): already a string.
@@ -99,8 +99,8 @@ pub(crate) fn string_coerce_for(expr: &orbital_core::ir::OirExpr, compiled: &str
     }
 }
 
-fn contains_lambda(expr: &orbital_core::ir::OirExpr) -> bool {
-    use orbital_core::ir::OirExpr;
+fn contains_lambda(expr: &orbital_core_base::ir::OirExpr) -> bool {
+    use orbital_core_base::ir::OirExpr;
     match expr {
         OirExpr::Lambda { .. } => true,
         OirExpr::Array { items } => items.iter().any(contains_lambda),
@@ -112,7 +112,7 @@ fn contains_lambda(expr: &orbital_core::ir::OirExpr) -> bool {
 /// Whether operator `name` is declared (registry `returnType`) to return an array —
 /// the one rule for trusting a call as a typed array source of `.map`/`.filter`.
 pub(crate) fn operator_returns_array(name: &str) -> bool {
-    orbital_core::language::canonical_operators::get_canonical_operator(name)
+    orbital_core_base::language::canonical_operators::get_canonical_operator(name)
         .is_some_and(|meta| meta.return_type == "array")
 }
 
@@ -122,8 +122,8 @@ pub(crate) fn operator_returns_array(name: &str) -> bool {
 /// concat/not/negate, and a conditional whose branches all are. A binding, an
 /// `and`/`or`, or a call is not (a call's result is opaque to that rule), except an
 /// operator the registry declares as returning a definite number, string or boolean.
-pub(crate) fn oir_expr_ts_never_nullish(expr: &orbital_core::ir::OirExpr) -> bool {
-    use orbital_core::ir::{OirBinaryOp, OirExpr};
+pub(crate) fn oir_expr_ts_never_nullish(expr: &orbital_core_base::ir::OirExpr) -> bool {
+    use orbital_core_base::ir::{OirBinaryOp, OirExpr};
     match expr {
         OirExpr::Binding { binding } if is_locale_binding(binding) => true,
         OirExpr::Null | OirExpr::Binding { .. } | OirExpr::Effect { .. } => false,
@@ -145,7 +145,7 @@ pub(crate) fn oir_expr_ts_never_nullish(expr: &orbital_core::ir::OirExpr) -> boo
             oir_expr_ts_never_nullish(&args[2])
         }
         OirExpr::Call { function, .. } => {
-            orbital_core::language::canonical_operators::get_canonical_operator(function)
+            orbital_core_base::language::canonical_operators::get_canonical_operator(function)
                 .is_some_and(|meta| meta.return_semantics.is_none() && matches!(meta.return_type, "number" | "string" | "boolean"))
         }
     }
@@ -156,10 +156,10 @@ pub(crate) fn oir_expr_ts_never_nullish(expr: &orbital_core::ir::OirExpr) -> boo
 /// `OirExpr`, not `SExpression`. Resolution rules mirror the
 /// SExpression-side function for parity.
 pub fn infer_oirexpr_element_type_ts(
-    expr: &orbital_core::ir::OirExpr,
+    expr: &orbital_core_base::ir::OirExpr,
     ctx: &CodegenContext,
 ) -> Option<String> {
-    use orbital_core::ir::{OirBindingRoot, OirExpr};
+    use orbital_core_base::ir::{OirBindingRoot, OirExpr};
     match expr {
         OirExpr::Binding { binding } => match &binding.root {
             OirBindingRoot::Entity => {
@@ -284,7 +284,7 @@ fn array_inner_ts(ty: &OirType, ctx: &CodegenContext) -> Option<String> {
 #[cfg(test)]
 mod never_nullish_tests {
     use super::oir_expr_ts_never_nullish;
-    use orbital_core::ir::{OirBinding, OirExpr};
+    use orbital_core_base::ir::{OirBinding, OirExpr};
 
     fn bind(s: &str) -> OirExpr {
         OirExpr::binding(OirBinding::parse(s).unwrap())
@@ -310,7 +310,7 @@ mod never_nullish_tests {
 #[cfg(test)]
 mod arg_facts_tests {
     use super::arg_facts;
-    use orbital_core::ir::{OirBinding, OirExpr};
+    use orbital_core_base::ir::{OirBinding, OirExpr};
 
     fn bind(s: &str) -> OirExpr {
         OirExpr::binding(OirBinding::parse(s).unwrap())
@@ -333,11 +333,11 @@ mod arg_facts_tests {
         let defaulted = arg_facts(&OirExpr::call("object/get", vec![bind("@entity.a"), OirExpr::string("xs"), OirExpr::array(vec![])]));
         assert!(defaulted.never_nullish, "an object/get with a never-nullish default");
         assert!(!arg_facts(&OirExpr::call("object/get", vec![bind("@entity.a"), OirExpr::string("xs")])).never_nullish);
-        let obj = arg_facts(&OirExpr::object(orbital_core::ir::OirFields::from([("done".to_string(), OirExpr::bool(true))])));
+        let obj = arg_facts(&OirExpr::object(orbital_core_base::ir::OirFields::from([("done".to_string(), OirExpr::bool(true))])));
         assert!(obj.object_literal && !obj.embeds_lambda);
         let lam = arg_facts(&OirExpr::lambda(vec!["row".to_string()], bind("@row.x")));
         assert_eq!(lam.lambda_params, Some(vec!["row".to_string()]));
-        let with_fn = arg_facts(&OirExpr::array(vec![OirExpr::object(orbital_core::ir::OirFields::from([(
+        let with_fn = arg_facts(&OirExpr::array(vec![OirExpr::object(orbital_core_base::ir::OirFields::from([(
             "filter".to_string(),
             OirExpr::lambda(vec!["r".to_string()], OirExpr::bool(true)),
         )]))]));
@@ -354,7 +354,7 @@ mod arg_facts_tests {
 #[cfg(test)]
 mod never_nullish_coercion_tests {
     use super::*;
-    use orbital_core::ir::{OirBinding, OirBindingRoot, OirExpr};
+    use orbital_core_base::ir::{OirBinding, OirBindingRoot, OirExpr};
 
     fn s(v: &str) -> OirExpr {
         OirExpr::String { value: v.into() }

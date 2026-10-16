@@ -13,7 +13,7 @@
 //! exact shape that reaches `emit_success_js_impl`'s
 //! `effectsLog.debug('emit:push', ...)` call.
 
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirEffect, OirEmitConfig, OirEvent, OirExpr, OirModule, OirState, OirTransition, OirTrait,
 };
 use orbital_shell_typescript::TypeScriptBackend;

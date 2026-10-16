@@ -1,6 +1,6 @@
 // The compiled client emits no body for a `runsOn: server` effect and keeps one for client and `any` effects.
 use crate::backend::*;
-use orbital_core::effects::{effect_runs_on, RunsOn};
+use orbital_core_base::runs_on::{effect_runs_on, RunsOn};
 
 fn client(effect: &OirEffect) -> Option<String> {
     TypeScriptBackend::new().transpile_client_effect(effect, "", Some("T"), None)

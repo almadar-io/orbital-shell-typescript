@@ -8,7 +8,7 @@ use super::shared::{
     EffectBlockSink,
 };
 use crate::codegen::expr::BindingFlavor;
-use orbital_core::effects::{effect_runs_on, RunsOn};
+use orbital_core_base::runs_on::{effect_runs_on, RunsOn};
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 /// Declared type of the per-transition `fields` staging variable (and its
@@ -486,7 +486,7 @@ impl TypeScriptBackend {
     }
 
     /// The statements that read the requested page facts into `__facts`, in list order.
-    fn client_page_facts_body(&self, fields: &[orbital_core::ir::PageFactField], indent: &str) -> String {
+    fn client_page_facts_body(&self, fields: &[orbital_core_base::ir::PageFactField], indent: &str) -> String {
         let mut body = String::new();
         body.push_str(indent);
         body.push_str("        const __facts = { available: typeof window !== 'undefined' && typeof document !== 'undefined', hostname: '', referrer: '', screenWidth: null as number | null };\n");
@@ -932,7 +932,7 @@ impl TypeScriptBackend {
     ) -> String {
         let mut code = String::new();
         let browser_leg_events =
-            trait_def.browser_leg_events(&orbital_core::effects::Residence::of_module(module));
+            trait_def.browser_leg_events(&orbital_core_base::runs_on::Residence::of_module(module));
 
         // Collect transitions that have client-side effects
         let mut has_any_effects = false;
@@ -1534,7 +1534,7 @@ impl TypeScriptBackend {
     pub(crate) fn listener_bus_key(
         &self,
         trait_def: &OirTrait,
-        listener: &orbital_core::ir::OirListener,
+        listener: &orbital_core_base::ir::OirListener,
     ) -> String {
         match (&listener.source_orbital, &listener.source_trait) {
             (Some(orbital), Some(trait_name)) => {
@@ -1559,7 +1559,7 @@ impl TypeScriptBackend {
         match expr {
             OirExpr::Effect { effect } => {
                 if let OirEffect::RenderUi { pattern, .. } = effect.as_ref() {
-                    orbital_core::ir::collect_trait_refs_from_pattern(
+                    orbital_core_base::ir::collect_trait_refs_from_pattern(
                         pattern,
                         &|s| self.parse_trait_binding(s),
                         out,
@@ -1709,14 +1709,14 @@ impl TypeScriptBackend {
     ) -> BTreeMap<String, Vec<crate::backend::OffPageListen>> {
         let dispatch_scope = self.dispatch_scope.snapshot();
         let mut table: BTreeMap<String, Vec<crate::backend::OffPageListen>> = BTreeMap::new();
-        let residence = orbital_core::effects::Residence::of_module(module);
+        let residence = orbital_core_base::runs_on::Residence::of_module(module);
         for trait_def in &module.traits {
             let entity_def = trait_def.linked_entity.as_ref().and_then(|ename| {
                 module.resolve_entity_ref(trait_def.linked_entity_id.as_deref(), ename)
             });
             if matches!(
                 trait_def.dispatch_mode(entity_def, &residence),
-                orbital_core::ir::OirDispatchMode::HybridClientOnly
+                orbital_core_base::ir::OirDispatchMode::HybridClientOnly
             ) {
                 continue;
             }
@@ -1828,7 +1828,7 @@ impl TypeScriptBackend {
         // on this name too, so the target is folded in as well. A numeric
         // suffix below covers the fully-degenerate remaining case (two
         // listeners identical in source, event AND target).
-        let unsub_base_name = |listener: &orbital_core::ir::OirListener| -> String {
+        let unsub_base_name = |listener: &orbital_core_base::ir::OirListener| -> String {
             let event_part = to_camel_case(
                 &listener
                     .event_pattern
@@ -2048,7 +2048,7 @@ mod string_coerce_client_tests {
 #[cfg(test)]
 mod resolve_new_state_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirExpr, OirModule, OirState, OirTrait, OirTransition,
     };
 
@@ -2174,7 +2174,7 @@ mod resolve_new_state_tests {
 #[cfg(test)]
 mod conditional_effect_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirExpr, OirModule, OirState, OirTrait, OirTransition,
     };
 
@@ -2368,7 +2368,7 @@ mod conditional_effect_tests {
 #[cfg(test)]
 mod implicit_emit_fanout_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirEffect, OirExpr, OirModule, OirState, OirTrait, OirTransition};
+    use orbital_core_base::ir::{OirEffect, OirExpr, OirModule, OirState, OirTrait, OirTransition};
 
     /// `(emit SAVE { content: @entity.draft }) (set @entity.draft "")` —
     /// the emit's payload must be evaluated at the emit's own position in
@@ -2377,7 +2377,7 @@ mod implicit_emit_fanout_tests {
     /// compiled chat composer persisted every message with `content: ""`).
     #[test]
     fn deferred_emit_binds_payload_before_a_later_set_rebinds_fields() {
-        use orbital_core::ir::OirBinding;
+        use orbital_core_base::ir::OirBinding;
 
         let mut module = OirModule::new("Chat", "0.1.0");
         let mut persistor = OirTrait::new("Persistor");
@@ -2393,7 +2393,7 @@ mod implicit_emit_fanout_tests {
         composer.orbital_name = "Chat".to_string();
         composer.linked_entity = Some("Message".to_string());
         composer.states.push(OirState::initial("ready"));
-        let mut payload = orbital_core::ir::OirFields::new();
+        let mut payload = orbital_core_base::ir::OirFields::new();
         payload.insert(
             "content".to_string(),
             OirExpr::binding(OirBinding::parse("@entity.draft").unwrap()),
@@ -2503,7 +2503,7 @@ mod implicit_emit_fanout_tests {
     /// -> INIT` on the compiled path).
     #[test]
     fn sibling_listens_remap_gets_qualified_fanout() {
-        use orbital_core::ir::OirListener;
+        use orbital_core_base::ir::OirListener;
 
         let mut module = OirModule::new("Pong", "0.1.0");
 
@@ -2553,7 +2553,7 @@ mod implicit_emit_fanout_tests {
     /// owned by its listen from transport B, so no direct line targets it.
     #[test]
     fn sibling_whose_trigger_is_owned_by_another_sources_listen_gets_no_fanout() {
-        use orbital_core::ir::OirListener;
+        use orbital_core_base::ir::OirListener;
 
         let mut module = OirModule::new("Home", "0.1.0");
         let tour = |name: &str, transport: &str| {
@@ -2655,7 +2655,7 @@ mod implicit_emit_fanout_tests {
 #[cfg(test)]
 mod racy_listens_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirEffect, OirExpr, OirListener, OirModule, OirPattern, OirState, OirTrait, OirTransition,
         OirValue,
     };
@@ -3092,7 +3092,7 @@ mod racy_listens_tests {
 #[cfg(test)]
 mod listener_refinement_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirBinding, OirExpr, OirListener, OirModule, OirState, OirTrait};
+    use orbital_core_base::ir::{OirBinding, OirExpr, OirListener, OirModule, OirState, OirTrait};
 
     fn trait_with_listener(listener: OirListener) -> OirTrait {
         let mut tr = OirTrait::new("LookupRung");
@@ -3109,7 +3109,7 @@ mod listener_refinement_tests {
     fn payload_mapping_projects_the_delivered_payload() {
         let mut li = OirListener::new("EXACT_UNMATCHED", "LOOKUP");
         li.source_trait = Some("ExactRung".to_string());
-        let mut mapping = orbital_core::ir::OirFields::new();
+        let mut mapping = orbital_core_base::ir::OirFields::new();
         mapping.insert(
             "candidate".to_string(),
             OirExpr::binding(OirBinding::parse("@payload.candidate").unwrap()),
@@ -3210,7 +3210,7 @@ mod listener_refinement_tests {
 #[cfg(test)]
 mod fanout_listener_unsub_name_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirListener, OirModule, OirState, OirTrait};
+    use orbital_core_base::ir::{OirListener, OirModule, OirState, OirTrait};
 
     fn trait_with_listeners(listeners: Vec<OirListener>) -> OirTrait {
         let mut tr = OirTrait::new("FanoutSink");
@@ -3280,7 +3280,7 @@ mod fanout_listener_unsub_name_tests {
 #[cfg(test)]
 mod let_scope_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirExpr, OirModule, OirState, OirTrait, OirTransition,
     };
 
@@ -3453,7 +3453,7 @@ mod let_scope_tests {
 #[cfg(test)]
 mod at_most_once_delivery_tests {
     use super::*;
-    use orbital_core::ir::{OirListener, OirModule, OirState, OirTransition};
+    use orbital_core_base::ir::{OirListener, OirModule, OirState, OirTransition};
 
     fn tour_module(listen_trigger: &str) -> (OirModule, OirTrait) {
         let mut transport = OirTrait::new("TourTransport");
@@ -3518,7 +3518,7 @@ mod at_most_once_delivery_tests {
 #[cfg(test)]
 mod render_slots_by_arm_tests {
     use crate::backend::TypeScriptBackend;
-    use orbital_core::ir::{OirEffect, OirExpr, OirPattern, OirState, OirTrait, OirTransition};
+    use orbital_core_base::ir::{OirEffect, OirExpr, OirPattern, OirState, OirTrait, OirTransition};
 
     /// std-checkout: `NEXT` from `step1` either advances (renders nothing) or refuses with a
     /// toast. Only the refusing arm writes the toast; the advancing arm must not.

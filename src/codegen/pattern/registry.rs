@@ -2,7 +2,7 @@
 //!
 //! Split from the former `pattern.rs` as a pure module breakup.
 
-use orbital_core::ir::OirValue;
+use orbital_core_base::ir::OirValue;
 use std::collections::HashMap;
 
 use crate::backend::{
@@ -233,7 +233,7 @@ impl TypeScriptBackend {
     /// declaring it is a registry gap to close where patterns are declared,
     /// not to infer from the prop's name here.
     fn event_descriptor_field(pattern_type: &str, key: &str) -> Option<&'static str> {
-        orbital_core::language::pattern_props::PATTERN_EVENT_LIST_PROPS
+        orbital_core_base::language::pattern_props::PATTERN_EVENT_LIST_PROPS
             .get(pattern_type)
             .and_then(|m| m.get(key))
             .copied()
@@ -365,7 +365,7 @@ impl TypeScriptBackend {
         if params.len() == 1 && Self::reads_binding_root(body, "index") {
             params.push("index".to_string());
         }
-        let body_oir = orbital_core::lower::lower_sexpr(&Self::oirvalue_to_sexpr(body))
+        let body_oir = orbital_core_eval::lower::lower_sexpr(&Self::oirvalue_to_sexpr(body))
             .into_iter()
             .collect::<Vec<_>>();
         let (body_jsx, params) = self.with_operand_locals(
@@ -395,12 +395,12 @@ impl TypeScriptBackend {
         // So is a payload read: `lastPayload` carries no per-field types.
         let non_array_call = matches!(&arr[1], OirValue::Array(call)
             if matches!(call.first(), Some(OirValue::String(head))
-                if orbital_core::language::registry::is_known_operator(head) && !crate::codegen::infer::operator_returns_array(head)))
+                if orbital_core_base::language::registry::is_known_operator(head) && !crate::codegen::infer::operator_returns_array(head)))
             || matches!(&arr[1], OirValue::String(b)
-                if b.starts_with('@') && orbital_core::ir::OirBinding::parse(b)
-                    .is_some_and(|b| matches!(b.root, orbital_core::ir::OirBindingRoot::Payload)));
+                if b.starts_with('@') && orbital_core_base::ir::OirBinding::parse(b)
+                    .is_some_and(|b| matches!(b.root, orbital_core_base::ir::OirBindingRoot::Payload)));
         let literal_array = matches!(&arr[1], OirValue::Array(items)
-            if !matches!(items.first(), Some(OirValue::String(head)) if orbital_core::language::registry::is_known_operator(head)));
+            if !matches!(items.first(), Some(OirValue::String(head)) if orbital_core_base::language::registry::is_known_operator(head)));
         // An operator result that is never nullish (a choice between literal arrays) takes no guard either.
         let never_nullish_call = matches!(&arr[1], OirValue::Array(call)
             if self.try_compile_sexpr_prop_facts(call, crate::codegen::expr::BindingFlavor::Render)
@@ -408,7 +408,7 @@ impl TypeScriptBackend {
         // The source's declared element type (a payload field of the pinned event, an entity
         // field), read off the same inference the operator path uses.
         let declared_element = if non_array_call {
-            orbital_core::lower::lower_sexpr(&Self::oirvalue_to_sexpr(&arr[1]))
+            orbital_core_eval::lower::lower_sexpr(&Self::oirvalue_to_sexpr(&arr[1]))
                 .ok()
                 .and_then(|oir| {
                     crate::codegen::infer::infer_oirexpr_element_type_ts(
@@ -616,7 +616,7 @@ impl TypeScriptBackend {
         }
         let cond_sexpr = Self::oirvalue_to_sexpr(cond);
         let cond_oir =
-            orbital_core::lower::lower_sexpr(&cond_sexpr).ok()?;
+            orbital_core_eval::lower::lower_sexpr(&cond_sexpr).ok()?;
         let cond_ts = self.expr_to_ts_flavored(&cond_oir, BindingFlavor::Render);
         let then_e = then_expr.unwrap_or_else(|| "undefined".to_string());
         let else_e = else_expr.unwrap_or_else(|| "undefined".to_string());
@@ -655,7 +655,7 @@ impl TypeScriptBackend {
                     if op == "if" && crate::codegen::is_operator_name(op) {
                         let cond_sexpr = Self::oirvalue_to_sexpr(cond);
                         if let Ok(cond_oir) =
-                            orbital_core::lower::lower_sexpr(&cond_sexpr)
+                            orbital_core_eval::lower::lower_sexpr(&cond_sexpr)
                         {
                             let cond_ts =
                                 self.expr_to_ts_flavored(&cond_oir, BindingFlavor::Render);
@@ -677,7 +677,7 @@ impl TypeScriptBackend {
             }
             OirValue::Object(child_obj) => {
                 if let Some(OirValue::String(child_type)) = child_obj.get("type") {
-                    let child_config: orbital_core::ir::OirObject = child_obj
+                    let child_config: orbital_core_base::ir::OirObject = child_obj
                         .iter()
                         .filter(|(k, _)| *k != "type")
                         .map(|(k, v)| (k.clone(), v.clone()))
@@ -727,7 +727,7 @@ impl TypeScriptBackend {
     pub fn generate_pattern_from_registry(
         &self,
         pattern_type: &str,
-        config: &orbital_core::ir::OirObject,
+        config: &orbital_core_base::ir::OirObject,
         linked_entity: Option<&str>,
         entity_field_types: Option<&HashMap<String, EntityFieldInfo>>,
     ) -> String {
@@ -953,7 +953,7 @@ impl TypeScriptBackend {
                         // A computed list (an operator call) is entity data like a bound one.
                         let computed = matches!(entity_val, OirValue::Array(call)
                             if matches!(call.first(), Some(OirValue::String(head))
-                                if orbital_core::language::registry::is_known_operator(head)));
+                                if orbital_core_base::language::registry::is_known_operator(head)));
                         if computed {
                             props.push(emit_entity_data_prop(&lit, &entity_base, entity_is_record));
                         } else {
@@ -1822,14 +1822,14 @@ impl TypeScriptBackend {
                                 if let (false, Some(OirValue::String(body_type))) =
                                     (params.is_empty(), body_obj.get("type"))
                                 {
-                                    let body_config: orbital_core::ir::OirObject = body_obj
+                                    let body_config: orbital_core_base::ir::OirObject = body_obj
                                         .iter()
                                         .filter(|(k, _)| *k != "type")
                                         .map(|(k, v)| (k.clone(), v.clone()))
                                         .collect();
                                     // @item.field compiles to item?.field via sexpr_to_ts.
                                     let body_oir =
-                                        orbital_core::lower::lower_sexpr(&Self::oirvalue_to_sexpr(
+                                        orbital_core_eval::lower::lower_sexpr(&Self::oirvalue_to_sexpr(
                                             &OirValue::Object(body_config.clone()),
                                         ))
                                         .into_iter()
@@ -2000,7 +2000,7 @@ impl TypeScriptBackend {
                                     None
                                 }
                             });
-                            let child_config: orbital_core::ir::OirObject = child_obj
+                            let child_config: orbital_core_base::ir::OirObject = child_obj
                                 .iter()
                                 .filter(|(k, _)| *k != "type")
                                 .map(|(k, v)| (k.clone(), v.clone()))
@@ -2329,9 +2329,9 @@ impl TypeScriptBackend {
                             let is_lambda_param_field_binding =
                                 s.starts_with('@') && s.contains('.') && !is_known_scope_binding;
                             // A bare lambda parameter (`@n` over a payload list) is as wide as a field read.
-                            let is_bare_param_binding = orbital_core::ir::OirBinding::parse(s).is_some_and(|b| {
+                            let is_bare_param_binding = orbital_core_base::ir::OirBinding::parse(s).is_some_and(|b| {
                                 b.path.is_empty()
-                                    && matches!(&b.root, orbital_core::ir::OirBindingRoot::Local(n)
+                                    && matches!(&b.root, orbital_core_base::ir::OirBindingRoot::Local(n)
                                         if n.chars().next().is_some_and(|c| c.is_lowercase()) && n != "now")
                             });
                             // SKIP coercion when the consumer prop is a
@@ -2344,7 +2344,7 @@ impl TypeScriptBackend {
                             // binding alone and let the validator's enum
                             // rule catch any genuine value mismatches.
                             let enum_union =
-                                orbital_core::language::pattern_props::get_prop_enum_values(pattern_type, key)
+                                orbital_core_base::language::pattern_props::get_prop_enum_values(pattern_type, key)
                                     .filter(|v: &&[&str]| !v.is_empty())
                                     .map(|v| {
                                         v.iter()
@@ -2665,7 +2665,7 @@ impl TypeScriptBackend {
                         if is_node_prop {
                             if let OirValue::Object(node_obj) = value {
                                 if let Some(OirValue::String(node_type)) = node_obj.get("type") {
-                                    let node_config: orbital_core::ir::OirObject = node_obj
+                                    let node_config: orbital_core_base::ir::OirObject = node_obj
                                         .iter()
                                         .filter(|(k, _)| *k != "type")
                                         .map(|(k, v)| (k.clone(), v.clone()))
@@ -2868,7 +2868,7 @@ impl TypeScriptBackend {
                                     props.push(format!("{}={{[]}}", prop_name));
                                 }
                                 // A single allowed value (a draw child's `type`) is the only valid default.
-                                "string" => match orbital_core::language::pattern_props::get_prop_enum_values(pattern_type, prop_name).as_deref() {
+                                "string" => match orbital_core_base::language::pattern_props::get_prop_enum_values(pattern_type, prop_name).as_deref() {
                                     Some([only]) => props.push(format!("{}=\"{}\"", prop_name, only)),
                                     _ => props.push(format!("{}=\"\"", prop_name)),
                                 },
@@ -3164,11 +3164,11 @@ mod relation_field_tests {
     fn a_computed_form_fields_list_compiles_to_an_expression() {
         let backend = TypeScriptBackend::new();
         let lambda_body = {
-            let mut o = orbital_core::ir::OirObject::new();
+            let mut o = orbital_core_base::ir::OirObject::new();
             o.insert("name".to_string(), OirValue::String("@f".to_string()));
             OirValue::Object(o)
         };
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "fields".to_string(),
             OirValue::Array(vec![
@@ -3194,7 +3194,7 @@ mod relation_field_tests {
     #[test]
     fn a_list_constructor_of_form_fields_is_its_field_names() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "fields".to_string(),
             OirValue::Array(vec![
@@ -3212,7 +3212,7 @@ mod relation_field_tests {
     #[test]
     fn control_a_literal_form_fields_list_stays_field_names() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "fields".to_string(),
             OirValue::Array(vec![OirValue::String("title".to_string())]),
@@ -3224,7 +3224,7 @@ mod relation_field_tests {
     #[test]
     fn many_cardinality_survives_into_form_field_injection() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "fields".to_string(),
             OirValue::Array(vec![OirValue::String("assignees".to_string())]),
@@ -3254,7 +3254,7 @@ mod relation_field_tests {
     #[test]
     fn many_cardinality_survives_into_detail_panel_field_injection() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "fields".to_string(),
             OirValue::Array(vec![OirValue::String("assignees".to_string())]),
@@ -3288,7 +3288,7 @@ mod relation_field_tests {
     #[test]
     fn relations_data_only_injected_when_pattern_declares_it() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "fields".to_string(),
             OirValue::Array(vec![OirValue::String("assignees".to_string())]),
@@ -3338,8 +3338,8 @@ mod relation_field_tests {
     #[test]
     fn relations_data_reads_columns_key_and_field_override() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
-        let mut column = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
+        let mut column = orbital_core_base::ir::OirObject::new();
         column.insert(
             "key".to_string(),
             OirValue::String("interviewer".to_string()),
@@ -3379,7 +3379,7 @@ mod drawable_items_tests {
     use super::*;
 
     fn mesh() -> OirValue {
-        let mut m = orbital_core::ir::OirObject::new();
+        let mut m = orbital_core_base::ir::OirObject::new();
         m.insert("type".to_string(), OirValue::String("draw-mesh".to_string()));
         m.insert("shape".to_string(), OirValue::String("sphere".to_string()));
         m.insert("radius".to_string(), OirValue::Number(1.0));
@@ -3391,7 +3391,7 @@ mod drawable_items_tests {
     #[test]
     fn drawable_items_compile_to_data_not_elements() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("items".to_string(), OirValue::Array(vec![mesh()]));
         let jsx = backend.generate_pattern_from_registry("draw-group", &config, None, None);
         assert!(!jsx.contains("<DrawMesh"), "{jsx}");
@@ -3402,7 +3402,7 @@ mod drawable_items_tests {
     #[test]
     fn control_an_empty_drawable_list_stays_empty() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("items".to_string(), OirValue::Array(vec![]));
         let jsx = backend.generate_pattern_from_registry("draw-group", &config, None, None);
         assert!(jsx.contains("items={[]}"), "{jsx}");
@@ -3418,7 +3418,7 @@ mod required_discriminant_tests {
     #[test]
     fn a_missing_single_value_required_prop_takes_that_value() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("shape".to_string(), OirValue::String("sphere".to_string()));
         let jsx = backend.generate_pattern_from_registry("draw-mesh", &config, None, None);
         assert!(jsx.contains("type=\"draw-mesh\""), "{jsx}");
@@ -3428,7 +3428,7 @@ mod required_discriminant_tests {
     #[test]
     fn control_a_missing_free_text_required_prop_stays_empty() {
         let backend = TypeScriptBackend::new();
-        let config = orbital_core::ir::OirObject::new();
+        let config = orbital_core_base::ir::OirObject::new();
         let jsx = backend.generate_pattern_from_registry("notification", &config, None, None);
         assert!(jsx.contains("message=\"\""), "{jsx}");
     }
@@ -3443,7 +3443,7 @@ mod string_or_number_prop_tests {
     #[test]
     fn a_wide_binding_into_a_string_or_number_prop_keeps_its_number() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("value".to_string(), OirValue::String("@payload.total".to_string()));
         config.insert("label".to_string(), OirValue::String("Total".to_string()));
         config.insert("format".to_string(), OirValue::String("currency".to_string()));
@@ -3454,7 +3454,7 @@ mod string_or_number_prop_tests {
     #[test]
     fn control_a_wide_binding_into_a_string_only_prop_is_still_a_string() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("value".to_string(), OirValue::Number(1.0));
         config.insert("label".to_string(), OirValue::String("@payload.name".to_string()));
         let jsx = backend.generate_pattern_from_registry("stat-display", &config, None, None);
@@ -3482,13 +3482,13 @@ mod entity_prop_operator_expression_tests {
         let backend = TypeScriptBackend::new();
 
         let mut catalog = std::collections::HashMap::new();
-        catalog.insert("Note".to_string(), orbital_core::ir::OirEntity::new("Note"));
+        catalog.insert("Note".to_string(), orbital_core_base::ir::OirEntity::new("Note"));
         backend.entity_catalog.set(catalog);
 
-        let mut payload_schema = orbital_core::ir::OirTypeMap::new();
+        let mut payload_schema = orbital_core_base::ir::OirTypeMap::new();
         payload_schema.insert(
             "data".to_string(),
-            orbital_core::ir::OirType::array(orbital_core::ir::OirType::reference("Note")),
+            orbital_core_base::ir::OirType::array(orbital_core_base::ir::OirType::reference("Note")),
         );
         backend.current_payload_schema.set(Some(payload_schema));
 
@@ -3508,7 +3508,7 @@ mod entity_prop_operator_expression_tests {
                 ]),
             ]),
         ]);
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("entity".to_string(), entity_expr);
         config.insert("fields".to_string(), OirValue::Array(vec![]));
 
@@ -3532,7 +3532,7 @@ mod conditional_item_actions_codegen_tests {
     use super::*;
 
     fn descriptor(event: &str) -> OirValue {
-        let mut obj = orbital_core::ir::OirObject::new();
+        let mut obj = orbital_core_base::ir::OirObject::new();
         obj.insert("label".to_string(), OirValue::String("Edit".to_string()));
         obj.insert("event".to_string(), OirValue::String(event.to_string()));
         OirValue::Object(obj)
@@ -3562,7 +3562,7 @@ mod conditional_item_actions_codegen_tests {
         backend
             .current_trait_scope
             .set(Some("MyOrbital.MyTrait".to_string()));
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "itemActions".to_string(),
             conditional_item_actions("EDIT_ITEM", "VIEW_ITEM"),
@@ -3600,7 +3600,7 @@ mod conditional_item_actions_codegen_tests {
         backend
             .current_trait_scope
             .set(Some("MyOrbital.MyTrait".to_string()));
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "itemActions".to_string(),
             OirValue::Array(vec![descriptor("EDIT_ITEM")]),
@@ -3670,7 +3670,7 @@ mod computed_and_row_conditional_item_actions_tests {
     }
 
     fn descriptor(event: &str, when: Option<OirValue>) -> OirValue {
-        let mut obj = orbital_core::ir::OirObject::new();
+        let mut obj = orbital_core_base::ir::OirObject::new();
         obj.insert("label".to_string(), s("Edit"));
         obj.insert("event".to_string(), s(event));
         if let Some(w) = when {
@@ -3684,7 +3684,7 @@ mod computed_and_row_conditional_item_actions_tests {
         backend
             .current_trait_scope
             .set(Some("MyOrbital.MyTrait".to_string()));
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("itemActions".to_string(), actions);
         backend.generate_pattern_from_registry(pattern, &config, None, None)
     }
@@ -3797,18 +3797,18 @@ mod conditional_children_codegen_tests {
     fn if_array_child_compiles_to_ternary_not_invalid_child() {
         let backend = TypeScriptBackend::new();
 
-        let mut typography_obj = orbital_core::ir::OirObject::new();
+        let mut typography_obj = orbital_core_base::ir::OirObject::new();
         typography_obj.insert(
             "type".to_string(),
             OirValue::String("typography".to_string()),
         );
 
-        let mut button_obj = orbital_core::ir::OirObject::new();
+        let mut button_obj = orbital_core_base::ir::OirObject::new();
         button_obj.insert("type".to_string(), OirValue::String("button".to_string()));
         button_obj.insert("label".to_string(), OirValue::String("Edit".to_string()));
         button_obj.insert("event".to_string(), OirValue::String("NEW_TAG".to_string()));
 
-        let mut data_grid_obj = orbital_core::ir::OirObject::new();
+        let mut data_grid_obj = orbital_core_base::ir::OirObject::new();
         data_grid_obj.insert(
             "type".to_string(),
             OirValue::String("data-grid".to_string()),
@@ -3825,7 +3825,7 @@ mod conditional_children_codegen_tests {
             OirValue::Null,
         ]);
 
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "children".to_string(),
             OirValue::Array(vec![
@@ -3867,8 +3867,8 @@ mod conditional_children_codegen_tests {
         OirValue::String(v.to_string())
     }
 
-    fn mapped_children(body: OirValue) -> orbital_core::ir::OirObject {
-        let mut config = orbital_core::ir::OirObject::new();
+    fn mapped_children(body: OirValue) -> orbital_core_base::ir::OirObject {
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "children".to_string(),
             OirValue::Array(vec![
@@ -3915,7 +3915,7 @@ mod conditional_children_codegen_tests {
     #[test]
     fn mapped_children_over_a_payload_read_cast_the_source_to_an_array() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "children".to_string(),
             OirValue::Array(vec![
@@ -3940,15 +3940,15 @@ mod conditional_children_codegen_tests {
     /// `EventPayloadValue` (TS2339).
     #[test]
     fn mapped_children_over_a_typed_payload_read_cast_to_its_element_type() {
-        use orbital_core::ir::{OirField, OirType};
+        use orbital_core_base::ir::{OirField, OirType};
         let backend = TypeScriptBackend::new();
-        let mut schema = orbital_core::ir::OirTypeMap::new();
+        let mut schema = orbital_core_base::ir::OirTypeMap::new();
         let issue = OirType::Struct {
             fields: vec![OirField::new("code", OirType::String), OirField::new("message", OirType::String)],
         };
         schema.insert("issues".to_string(), OirType::array(issue));
         backend.current_payload_schema.set(Some(schema));
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         let item = obj(&[("type", s("typography")), ("content", s("@i.code"))]);
         config.insert(
             "children".to_string(),
@@ -3962,12 +3962,12 @@ mod conditional_children_codegen_tests {
 
     #[test]
     fn edge_mapped_children_over_an_undeclared_payload_field_keep_the_wide_cast() {
-        use orbital_core::ir::OirType;
+        use orbital_core_base::ir::OirType;
         let backend = TypeScriptBackend::new();
-        let mut schema = orbital_core::ir::OirTypeMap::new();
+        let mut schema = orbital_core_base::ir::OirTypeMap::new();
         schema.insert("other".to_string(), OirType::array(OirType::String));
         backend.current_payload_schema.set(Some(schema));
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         let item = obj(&[("type", s("typography")), ("content", s("@p.title"))]);
         config.insert(
             "children".to_string(),
@@ -3986,7 +3986,7 @@ mod conditional_children_codegen_tests {
     fn mapped_children_over_a_never_nullish_choice_take_no_fallback() {
         let backend = TypeScriptBackend::new();
         let links = |l: &str| OirValue::Array(vec![obj(&[("label", s(l))])]);
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "children".to_string(),
             OirValue::Array(vec![
@@ -4005,7 +4005,7 @@ mod conditional_children_codegen_tests {
     #[test]
     fn a_mapped_parameter_into_a_string_or_number_prop_casts_to_the_prop_union() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "children".to_string(),
             OirValue::Array(vec![
@@ -4027,7 +4027,7 @@ mod conditional_children_codegen_tests {
     #[test]
     fn a_computed_entity_list_casts_to_the_declared_row_shape() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "entity".to_string(),
             OirValue::Array(vec![
@@ -4076,7 +4076,7 @@ mod conditional_prop_literal_codegen_tests {
     #[test]
     fn if_literal_true_on_callback_prop_folds_to_dispatch_wrapper() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "onNodeAction".to_string(),
             if_prop(
@@ -4107,7 +4107,7 @@ mod conditional_prop_literal_codegen_tests {
     #[test]
     fn if_literal_false_on_callback_prop_omits_the_prop() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "onNodeAction".to_string(),
             if_prop(
@@ -4133,7 +4133,7 @@ mod conditional_prop_literal_codegen_tests {
     #[test]
     fn if_dynamic_cond_on_callback_prop_emits_ternary_with_undefined() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "onNodeAction".to_string(),
             if_prop(
@@ -4164,7 +4164,7 @@ mod conditional_prop_literal_codegen_tests {
     #[test]
     fn if_on_event_ref_prop_emits_undefined_not_null() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "editEvent".to_string(),
             if_prop(
@@ -4207,7 +4207,7 @@ mod dual_mode_event_ref_prop_codegen_tests {
     #[test]
     fn onchange_on_dual_typed_input_prop_emits_qualified_string_not_closure() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "onChange".to_string(),
             OirValue::String("DRAFT_CHANGED".to_string()),
@@ -4230,7 +4230,7 @@ mod dual_mode_event_ref_prop_codegen_tests {
     #[test]
     fn onchange_on_dual_typed_checkbox_prop_emits_qualified_string_not_closure() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "onChange".to_string(),
             OirValue::String("TOGGLE_ACTIVE".to_string()),
@@ -4257,7 +4257,7 @@ mod dual_mode_event_ref_prop_codegen_tests {
     #[test]
     fn onchange_on_callback_only_switch_prop_still_wraps_in_dispatch_closure() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "onChange".to_string(),
             OirValue::String("TOGGLED".to_string()),
@@ -4290,7 +4290,7 @@ mod node_typed_actions_codegen_tests {
     #[test]
     fn alert_actions_config_forward_routes_through_render_pattern_value_not_array_cast() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "actions".to_string(),
             OirValue::String("@config.actions".to_string()),
@@ -4317,7 +4317,7 @@ mod node_typed_actions_codegen_tests {
     #[test]
     fn array_typed_actions_config_forward_still_casts_as_an_array() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "actions".to_string(),
             OirValue::String("@config.actions".to_string()),
@@ -4344,7 +4344,7 @@ mod absent_optional_prop_tests {
     #[test]
     fn an_absent_optional_knob_stays_absent() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "tileWidth".to_string(),
             OirValue::String("@config.tileWidth".to_string()),
@@ -4374,7 +4374,7 @@ mod absent_optional_prop_tests {
     #[test]
     fn control_a_required_number_prop_keeps_its_default() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "value".to_string(),
             OirValue::String("@config.progress".to_string()),
@@ -4396,7 +4396,7 @@ mod authored_text_attribute_tests {
     #[test]
     fn a_card_description_needing_an_escape_is_an_expression() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "description".to_string(),
             OirValue::String("Don't say \"never\"".to_string()),
@@ -4411,7 +4411,7 @@ mod authored_text_attribute_tests {
     #[test]
     fn control_a_plain_card_description_stays_an_attribute() {
         let backend = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "description".to_string(),
             OirValue::String("Plain".to_string()),
@@ -4432,7 +4432,7 @@ mod mapped_children_source_tests {
         OirValue::String(v.to_string())
     }
     fn item_node() -> OirValue {
-        let mut o = orbital_core::ir::OirObject::new();
+        let mut o = orbital_core_base::ir::OirObject::new();
         o.insert("type".to_string(), st("typography"));
         o.insert("content".to_string(), st("@entry.label"));
         OirValue::Object(o)
@@ -4444,7 +4444,7 @@ mod mapped_children_source_tests {
     #[test]
     fn mapped_children_over_a_non_array_call_cast_the_source() {
         let b = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "children".to_string(),
             call(vec![
@@ -4468,7 +4468,7 @@ mod mapped_children_source_tests {
     #[test]
     fn control_mapped_children_over_an_array_call_keep_the_bare_source() {
         let b = TypeScriptBackend::new();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "children".to_string(),
             call(vec![
@@ -4499,7 +4499,7 @@ mod render_item_lambda_shape_tests {
             _ => unreachable!(),
         };
         lambda.push(OirValue::Object(body.into_iter().collect()));
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("entity".to_string(), s("@entity.boards"));
         config.insert("renderItem".to_string(), OirValue::Array(lambda));
         TypeScriptBackend::new().generate_pattern_from_registry("data-grid", &config, None, None)

@@ -1,6 +1,6 @@
 use crate::backend::*;
 use crate::codegen::expr::BindingFlavor;
-use orbital_core::ir::OirField;
+use orbital_core_base::ir::OirField;
 
 impl TypeScriptBackend {
     /// The relation TARGET entity name for one field, when the field names
@@ -63,7 +63,7 @@ impl TypeScriptBackend {
     ) -> HashSet<String> {
         let mut entity_types = HashSet::new();
         for trans in &trait_def.transitions {
-            for pattern in orbital_core::ir::render_ui_patterns(&trans.effects) {
+            for pattern in orbital_core_base::ir::render_ui_patterns(&trans.effects) {
                 self.collect_entity_types_from_config(
                     &pattern.config,
                     trait_def.linked_entity.as_deref(),
@@ -114,7 +114,7 @@ impl TypeScriptBackend {
     /// Recursively collect entity type names from pattern config.
     pub(crate) fn collect_entity_types_from_config(
         &self,
-        config: &orbital_core::ir::OirObject,
+        config: &orbital_core_base::ir::OirObject,
         linked_entity: Option<&str>,
         entity_types: &mut HashSet<String>,
     ) {
@@ -136,7 +136,7 @@ impl TypeScriptBackend {
                     for item in items {
                         if let OirValue::Object(child_obj) = item {
                             if child_obj.contains_key("type") {
-                                let child_config: orbital_core::ir::OirObject = child_obj
+                                let child_config: orbital_core_base::ir::OirObject = child_obj
                                     .iter()
                                     .filter(|(k, _)| *k != "type")
                                     .map(|(k, v)| (k.clone(), v.clone()))
@@ -152,7 +152,7 @@ impl TypeScriptBackend {
                 }
                 OirValue::Object(child_obj) => {
                     if child_obj.contains_key("type") {
-                        let child_config: orbital_core::ir::OirObject = child_obj
+                        let child_config: orbital_core_base::ir::OirObject = child_obj
                             .iter()
                             .filter(|(k, _)| *k != "type")
                             .map(|(k, v)| (k.clone(), v.clone()))
@@ -257,7 +257,7 @@ impl TypeScriptBackend {
         if let OirValue::String(op) = first {
             if !op.starts_with('@') && is_operator_name(op) {
                 let sexpr = Self::oirvalue_to_sexpr(&OirValue::Array(arr.to_vec()));
-                if let Ok(oir) = orbital_core::lower::lower_sexpr(&sexpr) {
+                if let Ok(oir) = orbital_core_eval::lower::lower_sexpr(&sexpr) {
                     let never_nullish = crate::codegen::infer::oir_expr_ts_never_nullish(&oir);
                     return Some((self.expr_to_ts_flavored(&oir, flavor), never_nullish));
                 }
@@ -310,7 +310,7 @@ impl TypeScriptBackend {
 #[cfg(test)]
 mod render_prop_pivot_tests {
     use super::*;
-    use orbital_core::ir::OirValue;
+    use orbital_core_base::ir::OirValue;
 
     fn s(x: &str) -> OirValue {
         OirValue::String(x.to_string())
@@ -397,7 +397,7 @@ mod render_prop_pivot_tests {
 #[cfg(test)]
 mod relation_target_import_tests {
     use super::*;
-    use orbital_core::ir::{OirCardinality, OirEntity, OirField, OirRelation};
+    use orbital_core_base::ir::{OirCardinality, OirEntity, OirField, OirRelation};
 
     /// A scalar `Reference`-typed field (`authorId : Author!`) and an
     /// array-of-reference relation field (`tagIds : [NoteTagRef]`, whose
@@ -414,14 +414,14 @@ mod relation_target_import_tests {
         let mut note = OirEntity::new("Note");
         note.fields.push(OirField::new(
             "authorId",
-            orbital_core::ir::OirType::Reference {
+            orbital_core_base::ir::OirType::Reference {
                 entity: "Author".to_string(),
             },
         ));
         let mut tag_ids = OirField::new(
             "tagIds",
-            orbital_core::ir::OirType::Array {
-                inner: Box::new(orbital_core::ir::OirType::String),
+            orbital_core_base::ir::OirType::Array {
+                inner: Box::new(orbital_core_base::ir::OirType::String),
             },
         );
         tag_ids.relation = Some(OirRelation {
@@ -434,7 +434,7 @@ mod relation_target_import_tests {
         // A plain scalar field (no relation) must NOT contribute a spurious
         // "target".
         note.fields
-            .push(OirField::new("title", orbital_core::ir::OirType::String));
+            .push(OirField::new("title", orbital_core_base::ir::OirType::String));
 
         let mut module = OirModule::new("TestApp", "0.1.0");
         module.entities.push(note);
@@ -473,7 +473,7 @@ mod relation_target_import_tests {
     /// import (TS2304).
     #[test]
     fn collects_entity_names_from_event_payload_schema_not_just_linked_entity() {
-        use orbital_core::ir::{OirEntity, OirEvent};
+        use orbital_core_base::ir::{OirEntity, OirEvent};
 
         let backend = TypeScriptBackend::new();
         let mut module = OirModule::new("TestApp", "0.1.0");
@@ -484,11 +484,11 @@ mod relation_target_import_tests {
         trait_def.linked_entity = Some("HelpCategory".to_string());
 
         let mut loaded = OirEvent::new("CategoryArticlesLoaded");
-        let mut schema = orbital_core::ir::OirTypeMap::new();
+        let mut schema = orbital_core_base::ir::OirTypeMap::new();
         schema.insert(
             "data".to_string(),
-            orbital_core::ir::OirType::Array {
-                inner: Box::new(orbital_core::ir::OirType::Reference {
+            orbital_core_base::ir::OirType::Array {
+                inner: Box::new(orbital_core_base::ir::OirType::Reference {
                     entity: "HelpArticle".to_string(),
                 }),
             },
@@ -500,13 +500,13 @@ mod relation_target_import_tests {
         // in this file, not `@app/shared` — "NotAnEntity" must be rejected).
         schema.insert(
             "sponsor".to_string(),
-            orbital_core::ir::OirType::TypeRef {
+            orbital_core_base::ir::OirType::TypeRef {
                 name: "Sponsor".to_string(),
             },
         );
         schema.insert(
             "shape".to_string(),
-            orbital_core::ir::OirType::TypeRef {
+            orbital_core_base::ir::OirType::TypeRef {
                 name: "NotAnEntity".to_string(),
             },
         );

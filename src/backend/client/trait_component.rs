@@ -1,6 +1,6 @@
 use crate::backend::*;
 use crate::codegen::expr::BindingFlavor;
-use orbital_core::slots::SELF_OVERLAY_PATTERN_TYPES;
+use orbital_core_base::slots::SELF_OVERLAY_PATTERN_TYPES;
 
 /// A render-ui effect extracted from a transition, preserving any `(if …)`
 /// nesting the `.lolo` source used to pick between variants (e.g.
@@ -1039,7 +1039,7 @@ impl TypeScriptBackend {
 #[cfg(test)]
 mod conditional_render_ui_tests {
     use super::*;
-    use orbital_core::ir::{OirBinaryOp, OirBinding};
+    use orbital_core_base::ir::{OirBinaryOp, OirBinding};
 
     fn config_render_ui_conditional(then_pattern: &str, else_pattern: &str) -> OirExpr {
         OirExpr::Conditional {
@@ -1182,7 +1182,7 @@ mod conditional_render_ui_tests {
 #[cfg(test)]
 mod wrapper_pattern_tracks_active_branch_tests {
     use super::*;
-    use orbital_core::ir::{OirModule, OirState, OirTransition};
+    use orbital_core_base::ir::{OirModule, OirState, OirTransition};
 
     /// The exact shipped shape: a portal slot (`modal`) with an INIT arm
     /// that clears it (`render-ui modal null`, declared first — matching
@@ -1441,7 +1441,7 @@ mod wrapper_pattern_tracks_active_branch_tests {
         let mut tr = loaded_trait(&[("viewing", "detail-panel"), ("viewing", "document-panel")]);
         for (i, step) in ["one", "two"].iter().enumerate() {
             tr.transitions[i].guard = Some(OirExpr::eq(
-                OirExpr::binding(orbital_core::ir::OirBinding::parse("@payload.step").unwrap()),
+                OirExpr::binding(orbital_core_base::ir::OirBinding::parse("@payload.step").unwrap()),
                 OirExpr::string(*step),
             ));
         }
@@ -1550,7 +1550,7 @@ mod wrapper_pattern_tracks_active_branch_tests {
             view.lines().any(|l| l.starts_with("import {") && l.contains("Toast")),
             "the view imports the Toast it renders:\n{view}"
         );
-        let module = orbital_core::ir::OirModule::new("App", "1.0.0");
+        let module = orbital_core_base::ir::OirModule::new("App", "1.0.0");
         let hook = TypeScriptBackend::new().generate_trait_logic_hook(&tr, &module).content;
         assert!(hook.contains("case 'SLOT_CLEARED':"), "{hook}");
         assert!(hook.contains("clearSlot: (slot: EditDialogSlot) => dispatchReducer({ type: 'SLOT_CLEARED', slot }),"), "{hook}");
@@ -1729,7 +1729,7 @@ mod wrapper_pattern_tracks_active_branch_tests {
     }
 
     fn browse_trait(with_prediction: bool) -> OirTrait {
-        use orbital_core::ir::{AwaitRender, SkeletonNode, SkeletonShape};
+        use orbital_core_base::ir::{AwaitRender, SkeletonNode, SkeletonShape};
         let mut tr = OirTrait::new("ItemBrowse");
         tr.orbital_name = "ItemOrbital".to_string();
         tr.states.push(OirState::initial("idle"));
@@ -1786,7 +1786,7 @@ mod wrapper_pattern_tracks_active_branch_tests {
                     slot: "main".to_string(),
                     pattern: OirPattern::new("badge").with_config(
                         "enter",
-                        orbital_core::ir::OirValue::String(enter.to_string()),
+                        orbital_core_base::ir::OirValue::String(enter.to_string()),
                     ),
                 }),
             }]),
@@ -1870,7 +1870,7 @@ mod wrapper_pattern_tracks_active_branch_tests {
 #[cfg(test)]
 mod message_tests {
     use super::*;
-    use orbital_core::ir::{OirModule, OirState, OirTransition};
+    use orbital_core_base::ir::{OirModule, OirState, OirTransition};
 
     fn view_rendering(content: OirValue) -> String {
         let mut tr = OirTrait::new("HomeView");

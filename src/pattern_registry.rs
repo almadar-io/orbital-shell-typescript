@@ -5,4 +5,4 @@
 //! call sites are unchanged. See that module for why the per-shell copies were
 //! removed.
 
-pub use orbital_core::language::pattern_registry::*;
+pub use orbital_core_base::language::pattern_registry::*;

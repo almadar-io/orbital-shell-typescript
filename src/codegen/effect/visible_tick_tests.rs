@@ -1,7 +1,7 @@
 // A `[visible]` tick (`whileVisible`) pauses while its trait is off screen: the generated loop asks
 // `useTickVisibility` before its guard; an untagged tick keeps firing (LOLO §11).
 use crate::backend::*;
-use orbital_core::ir::{OirBinding, OirField, OirInterval, OirState, OirTick};
+use orbital_core_base::ir::{OirBinding, OirField, OirInterval, OirState, OirTick};
 
 fn module() -> OirModule {
     let mut m = OirModule::new("VisibleApp", "0.1.0");

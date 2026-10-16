@@ -1,9 +1,9 @@
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirBinding, OirBindingRoot, OirEffect, OirEvent, OirExpr, OirFields, OirModule, OirState, OirTrait,
     OirTransition,
 };
-use orbital_core::fixtures::binding_path_cases;
-use orbital_core::runtime::http_request::HttpMethod;
+use orbital_core_base::fixtures::binding_path_cases;
+use orbital_core_base::http_wire::HttpMethod;
 use orbital_shell_typescript::TypeScriptBackend;
 use serde_json::{json, Value};
 use std::process::Command;
@@ -314,7 +314,7 @@ fn beacon_module() -> OirModule {
 }
 
 fn generated_files(module: &OirModule) -> Vec<(String, String)> {
-    use orbital_core::generate::Backend;
+    use orbital_core_base::generate::Backend;
     TypeScriptBackend::default()
         .generate(module)
         .files
@@ -440,7 +440,7 @@ fn beacon_the_compiled_client_wires_the_browser_driver_and_transpiles_no_deliver
 fn beacon_control_a_program_without_one_gets_no_browser_driver() {
     let mut module = beacon_module();
     module.traits[0].transitions[0].effects = vec![OirExpr::effect(OirEffect::Log {
-        level: orbital_core::ir::OirLogLevel::Info,
+        level: orbital_core_base::ir::OirLogLevel::Info,
         message: OirExpr::string("hi"),
     })];
     let files = generated_files(&module);

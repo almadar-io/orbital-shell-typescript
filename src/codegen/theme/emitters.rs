@@ -1,4 +1,4 @@
-use orbital_core::schema::{
+use orbital_core_base::schema::{
     DensityTokens, DiagramTokens, ElevationTokens, EnterAnimation, GeometryTokens, IconFamily,
     IconographyTokens, MotionDurationKey, MotionEasingKey, MotionIntent, MotionTokens, SceneTokens,
     SpacingScale, SurfaceTokens, TypeIntent, TypeScale, TypeScaleEntry, TypeScaleTokens,
@@ -624,7 +624,7 @@ pub(crate) fn emit_scene(sc: Option<&SceneTokens>, indent: &str) -> String {
 #[cfg(test)]
 mod motion_tests {
     use super::emit_motion;
-    use orbital_core::schema::MotionTokens;
+    use orbital_core_base::schema::MotionTokens;
 
     /// The compiled app emits every motion var `@almadar/ui` `themeTokens.ts` `emitMotion` does.
     #[test]

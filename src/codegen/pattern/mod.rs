@@ -26,7 +26,7 @@ mod registry;
 #[cfg(test)]
 mod tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirEffect, OirExpr, OirPattern, OirState, OirTrait, OirTransition, OirValue,
     };
 
@@ -79,7 +79,7 @@ mod tests {
         // forward it was emitted bare and dispatched INIT with no payload at
         // all.
         let backend = TypeScriptBackend::default();
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "children".to_string(),
             OirValue::Array(vec![OirValue::String("@trait.ItemSearch".to_string())]),
@@ -114,7 +114,7 @@ mod tests {
             );
             m
         });
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert(
             "children".to_string(),
             OirValue::Array(vec![OirValue::String("@trait.ErrText".to_string())]),
@@ -139,10 +139,10 @@ mod tests {
         let backend = TypeScriptBackend::default();
 
         // Build a child pattern object: { type: "box" }
-        let mut box_obj = orbital_core::ir::OirObject::new();
+        let mut box_obj = orbital_core_base::ir::OirObject::new();
         box_obj.insert("type".to_string(), OirValue::String("box".to_string()));
 
-        let mut stack_config = orbital_core::ir::OirObject::new();
+        let mut stack_config = orbital_core_base::ir::OirObject::new();
         stack_config.insert(
             "children".to_string(),
             OirValue::Array(vec![
@@ -176,7 +176,7 @@ mod tests {
         // "item", { type: badge, label: "@item.name" }]]` must codegen a
         // `.map()` over the collection producing the per-item node JSX.
         let backend = TypeScriptBackend::default();
-        let mut badge = orbital_core::ir::OirObject::new();
+        let mut badge = orbital_core_base::ir::OirObject::new();
         badge.insert("type".to_string(), OirValue::String("badge".to_string()));
         badge.insert(
             "label".to_string(),
@@ -191,7 +191,7 @@ mod tests {
                 OirValue::Object(badge),
             ]),
         ]);
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("children".to_string(), OirValue::Array(vec![map_tuple]));
         let jsx = backend.generate_pattern_from_registry("stack", &config, Some("Item"), None);
         assert!(
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn fc5_literal_collection_drops_nullish_guard() {
         let backend = TypeScriptBackend::default();
-        let mut badge = orbital_core::ir::OirObject::new();
+        let mut badge = orbital_core_base::ir::OirObject::new();
         badge.insert("type".to_string(), OirValue::String("badge".to_string()));
         badge.insert("label".to_string(), OirValue::String("@n.name".to_string()));
         let map_tuple = OirValue::Array(vec![
@@ -230,7 +230,7 @@ mod tests {
                 OirValue::Object(badge),
             ]),
         ]);
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("children".to_string(), map_tuple);
         let jsx = backend.generate_pattern_from_registry("stack", &config, Some("Item"), None);
         assert!(
@@ -258,7 +258,7 @@ mod tests {
     #[test]
     fn actions_dynamic_if_compiles_to_real_ternary_not_flattened_objects() {
         let backend = TypeScriptBackend::default();
-        let mut cancel_action = orbital_core::ir::OirObject::new();
+        let mut cancel_action = orbital_core_base::ir::OirObject::new();
         cancel_action.insert(
             "label".to_string(),
             OirValue::String("Cancel appointment".to_string()),
@@ -278,7 +278,7 @@ mod tests {
             OirValue::Array(vec![OirValue::Object(cancel_action)]),
             OirValue::Array(vec![]),
         ]);
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("actions".to_string(), dynamic_actions);
         let jsx =
             backend.generate_pattern_from_registry("detail-panel", &config, Some("Item"), None);
@@ -301,7 +301,7 @@ mod tests {
     fn fc5_bare_array_map_children_value_emits_map() {
         // `children: (array/map …)` — the whole value is one producer.
         let backend = TypeScriptBackend::default();
-        let mut badge = orbital_core::ir::OirObject::new();
+        let mut badge = orbital_core_base::ir::OirObject::new();
         badge.insert("type".to_string(), OirValue::String("badge".to_string()));
         badge.insert(
             "label".to_string(),
@@ -316,7 +316,7 @@ mod tests {
                 OirValue::Object(badge),
             ]),
         ]);
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("children".to_string(), map_tuple);
         let jsx = backend.generate_pattern_from_registry("stack", &config, Some("Item"), None);
         assert!(
@@ -332,7 +332,7 @@ mod tests {
 
         // Construct a tiny trait whose render-ui pattern children reference
         // `@trait.ItemSearch` so the import collector picks it up.
-        let mut stack_config = orbital_core::ir::OirObject::new();
+        let mut stack_config = orbital_core_base::ir::OirObject::new();
         stack_config.insert(
             "children".to_string(),
             OirValue::Array(vec![OirValue::String("@trait.ItemSearch".to_string())]),
@@ -371,7 +371,7 @@ mod tests {
         // ONE generated element in `<>…</>` broke it with "Invalid prop
         // 'ref' supplied to React.Fragment".
         let backend = TypeScriptBackend::default();
-        let mut trigger = orbital_core::ir::OirObject::new();
+        let mut trigger = orbital_core_base::ir::OirObject::new();
         trigger.insert("type".to_string(), OirValue::String("button".to_string()));
         trigger.insert("label".to_string(), OirValue::String("".to_string()));
         trigger.insert(
@@ -382,7 +382,7 @@ mod tests {
             "variant".to_string(),
             OirValue::String("ghost".to_string()),
         );
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("trigger".to_string(), OirValue::Object(trigger));
         config.insert("items".to_string(), OirValue::Array(vec![]));
         let jsx = backend.generate_pattern_from_registry("menu", &config, None, None);
@@ -418,7 +418,7 @@ mod tests {
         // complete expression — so the `.map(...)` callback must return it
         // bare, not `<>…</>`-wrapped.
         let backend = TypeScriptBackend::default();
-        let mut badge = orbital_core::ir::OirObject::new();
+        let mut badge = orbital_core_base::ir::OirObject::new();
         badge.insert("type".to_string(), OirValue::String("badge".to_string()));
         badge.insert(
             "label".to_string(),
@@ -433,7 +433,7 @@ mod tests {
                 OirValue::Object(badge),
             ]),
         ]);
-        let mut config = orbital_core::ir::OirObject::new();
+        let mut config = orbital_core_base::ir::OirObject::new();
         config.insert("children".to_string(), map_tuple);
         let jsx = backend.generate_pattern_from_registry("stack", &config, Some("Item"), None);
         assert!(

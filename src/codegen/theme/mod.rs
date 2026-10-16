@@ -22,7 +22,7 @@ pub use config::{
 };
 pub use css::{generate_theme_css, theme_font_imports};
 
-use orbital_core::schema::{ThemeDefinition, ThemeRef};
+use orbital_core_base::schema::{ThemeDefinition, ThemeRef};
 
 /// Extract theme from ThemeRef if inline, or return None if reference
 pub fn extract_inline_theme(theme_ref: &ThemeRef) -> Option<&ThemeDefinition> {
@@ -36,7 +36,7 @@ pub fn extract_inline_theme(theme_ref: &ThemeRef) -> Option<&ThemeDefinition> {
 mod tests {
     use super::tokens::emit_skin_axes;
     use super::*;
-    use orbital_core::schema::{
+    use orbital_core_base::schema::{
         DensityTokens, ElevationTokens, GeometryTokens, IconFamily, IconographyTokens,
         MotionDurationKey, MotionDurationPalette, MotionEasingKey, MotionIntent, MotionIntentMap,
         MotionTokens, SpacingScale, ThemeDefinition, ThemeTokens, ThemeVariant, TypeIntent,
@@ -46,14 +46,14 @@ mod tests {
     use std::collections::HashMap;
 
     fn create_test_theme() -> ThemeDefinition {
-        let mut colors = orbital_core::schema::ThemeMap::new();
+        let mut colors = orbital_core_base::schema::ThemeMap::new();
         colors.insert("primary".to_string(), "#0ea5e9".to_string());
         colors.insert("background".to_string(), "#ffffff".to_string());
 
-        let mut radii = orbital_core::schema::ThemeMap::new();
+        let mut radii = orbital_core_base::schema::ThemeMap::new();
         radii.insert("md".to_string(), "8px".to_string());
 
-        let mut dark_colors = orbital_core::schema::ThemeMap::new();
+        let mut dark_colors = orbital_core_base::schema::ThemeMap::new();
         dark_colors.insert("background".to_string(), "#0c4a6e".to_string());
 
         let mut variants = HashMap::new();

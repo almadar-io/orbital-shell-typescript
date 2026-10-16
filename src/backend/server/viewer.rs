@@ -98,7 +98,7 @@ pub(crate) fn render_viewer_module(entities: &[OirEntity], framework: ServerFram
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orbital_core::ir::OirField;
+    use orbital_core_base::ir::OirField;
 
     fn entity(
         name: &str,

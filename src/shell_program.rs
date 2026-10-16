@@ -4,8 +4,8 @@ use crate::{
     express_shell, hono_shell, ExtraComponentMapping, HostMode, ServerFramework, TypeScriptBackend, KERNEL_CLIENT_DEPENDENCIES,
     KERNEL_SERVER_DEPENDENCIES,
 };
-use orbital_core::project::{copy_public, resolve_public_dir, write_project};
-use orbital_core::shell_protocol::{
+use orbital_core_base::project::{copy_public, resolve_public_dir, write_project};
+use orbital_core_base::shell_protocol::{
     GenerateRequest, GenerateResponse, IrVersions, ShellDescription, ShellFailure, ShellOption, ShellProgram,
     CODE_BAD_REQUEST, CODE_GENERATE_FAILED, IR_VERSION,
 };
@@ -51,7 +51,7 @@ pub fn component_mappings(patterns: &Value) -> Option<HashMap<String, ExtraCompo
                 .get("component")
                 .and_then(Value::as_str)
                 .map(str::to_string)
-                .unwrap_or_else(|| orbital_core::str_utils::kebab_to_pascal(name));
+                .unwrap_or_else(|| orbital_core_base::str_utils::kebab_to_pascal(name));
             let category = def.get("category").and_then(Value::as_str).unwrap_or("display").to_string();
             (name.clone(), ExtraComponentMapping { component, category })
         })
@@ -154,7 +154,7 @@ impl ShellProgram for TypeScriptProgram {
     }
 
     fn generate(&self, request: &GenerateRequest, output: &Path) -> Result<GenerateResponse, ShellFailure> {
-        language_ready(orbital_core::language_data::preflight)?;
+        language_ready(orbital_core_eval::language_loader::preflight)?;
         let backend = backend(request)?;
         let shell = match backend.server_framework {
             ServerFramework::Express => express_shell(),
@@ -191,9 +191,9 @@ impl ShellProgram for TypeScriptProgram {
         })
     }
 
-    fn emit(&self, request: &GenerateRequest) -> Result<orbital_core::generate::GeneratedOutput, ShellFailure> {
-        use orbital_core::generate::Backend as _;
-        language_ready(orbital_core::language_data::preflight)?;
+    fn emit(&self, request: &GenerateRequest) -> Result<orbital_core_base::generate::GeneratedOutput, ShellFailure> {
+        use orbital_core_base::generate::Backend as _;
+        language_ready(orbital_core_eval::language_loader::preflight)?;
         Ok(backend(request)?.generate(&request.module))
     }
 }
@@ -201,7 +201,7 @@ impl ShellProgram for TypeScriptProgram {
 /// The installed core and std must load for this shell before it generates: an incompatible
 /// install (a std naming operators this shell predates) is a structured failure, never a panic.
 fn language_ready(
-    preflight: impl FnOnce() -> Result<(), orbital_core::language_data::LanguageDataError>,
+    preflight: impl FnOnce() -> Result<(), orbital_core_base::language_data::LanguageDataError>,
 ) -> Result<(), ShellFailure> {
     preflight().map_err(|e| ShellFailure::new(e.code(), e.to_string()))
 }
@@ -268,7 +268,7 @@ mod tests {
     fn request_with(options: &[(&str, &str)]) -> GenerateRequest {
         GenerateRequest {
             ir_version: IR_VERSION,
-            module: orbital_core::ir::OirModule::new("App", "1.0.0"),
+            module: orbital_core_base::ir::OirModule::new("App", "1.0.0"),
             resolved: None,
             source_path: None,
             write: Default::default(),
@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn an_incompatible_language_install_is_a_structured_failure() {
         let failure = language_ready(|| {
-            Err(orbital_core::language_data::LanguageDataError::Invalid {
+            Err(orbital_core_base::language_data::LanguageDataError::Invalid {
                 path: std::path::PathBuf::from("std"),
                 reason: "declares csv/parse".to_string(),
             })
@@ -329,7 +329,7 @@ mod tests {
     fn edge_a_bad_framework_is_refused() {
         let request = GenerateRequest {
             ir_version: IR_VERSION,
-            module: orbital_core::ir::OirModule::new("App", "1.0.0"),
+            module: orbital_core_base::ir::OirModule::new("App", "1.0.0"),
             resolved: None,
             source_path: None,
             write: Default::default(),

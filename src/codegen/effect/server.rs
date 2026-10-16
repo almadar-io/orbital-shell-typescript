@@ -1511,7 +1511,7 @@ impl TypeScriptBackend {
 impl TypeScriptBackend {
     /// One OAuth effect: the runtime's payload function (the same owner the interpreter calls) in a try block;
     /// a routed failure carries the closed `code` and `reason` beside the fixed safe `error`.
-    fn push_oauth_effect(&self, code: &mut String, name: &str, call: &str, emit: &Option<orbital_core::ir::OirEmitConfig>, keyed: bool) {
+    fn push_oauth_effect(&self, code: &mut String, name: &str, call: &str, emit: &Option<orbital_core_base::ir::OirEmitConfig>, keyed: bool) {
         code.push_str(&format!("      // {name}\n"));
         code.push_str("      try {\n");
         code.push_str(&format!("        const hostResult = {call};\n"));

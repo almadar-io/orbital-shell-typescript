@@ -30,7 +30,7 @@ impl TypeScriptBackend {
     /// The events whose leg goes to the browser store: the core set (`OirTrait::browser_leg_events`) plus every live
     /// transition or client tick that sends a `browser/beacon`.
     pub(crate) fn trait_browser_leg_events(trait_def: &OirTrait, module: &OirModule) -> BTreeSet<String> {
-        let residence = orbital_core::effects::Residence::of_module(module);
+        let residence = orbital_core_base::runs_on::Residence::of_module(module);
         let mut events = trait_def.browser_leg_events(&residence);
         events.extend(
             trait_def
@@ -45,7 +45,7 @@ impl TypeScriptBackend {
                 .ticks
                 .iter()
                 .filter(|t| !t.background && t.effects.iter().any(runs_beacon))
-                .map(|t| orbital_core::effects::tick_event_key(&t.name)),
+                .map(|t| orbital_core_base::bus_event::tick_event_key(&t.name)),
         );
         events
     }
@@ -92,8 +92,8 @@ impl TypeScriptBackend {
             }
             if let OirExpr::Effect { effect } = expr {
                 if matches!(effect.as_ref(), OirEffect::Http { .. })
-                    && orbital_core::effects::ir_effect_site(effect, &orbital_core::effects::Residence::none())
-                        == orbital_core::effects::RunsOn::Client
+                    && orbital_core_base::runs_on::ir_effect_site(effect, &orbital_core_base::runs_on::Residence::none())
+                        == orbital_core_base::runs_on::RunsOn::Client
                 {
                     return true;
                 }
@@ -159,7 +159,7 @@ impl TypeScriptBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirEffect, OirEntity, OirExpr, OirField, OirModule, OirPersistence, OirState, OirTrait,
         OirTransition, OirType,
     };
@@ -204,7 +204,7 @@ mod tests {
     }
 
     fn backend_with_schema() -> TypeScriptBackend {
-        let schema: orbital_core::OrbitalSchema = serde_json::from_value(serde_json::json!({
+        let schema: orbital_core_base::schema::types::OrbitalSchema = serde_json::from_value(serde_json::json!({
             "name": "Books",
             "orbitals": [
                 { "name": "Books", "entity": { "name": "Invoice", "persistence": "persistent", "collection": "invoices", "local": true, "fields": [{ "name": "id", "type": "string" }] }, "traits": [], "pages": [] },
@@ -250,7 +250,7 @@ mod tests {
 
     #[test]
     fn the_bundled_schema_keeps_only_the_traits_that_own_a_browser_leg() {
-        let schema: orbital_core::OrbitalSchema = serde_json::from_value(serde_json::json!({
+        let schema: orbital_core_base::schema::types::OrbitalSchema = serde_json::from_value(serde_json::json!({
             "name": "Books",
             "orbitals": [{
                 "name": "Books",
@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn a_backend_without_the_resolved_schema_cannot_store_rows_in_the_browser() {
-        use orbital_core::generate::Backend;
+        use orbital_core_base::generate::Backend;
         assert!(!TypeScriptBackend::default().supports_browser_stored_entities());
         assert!(backend_with_schema().supports_browser_stored_entities());
     }
@@ -409,12 +409,12 @@ mod tests {
     }
 
     fn http_module(auth: bool) -> OirModule {
-        let mut fields = orbital_core::ir::OirFields::new();
+        let mut fields = orbital_core_base::ir::OirFields::new();
         if auth {
-            fields.insert("auth".to_string(), OirExpr::object(orbital_core::ir::OirFields::new()));
+            fields.insert("auth".to_string(), OirExpr::object(orbital_core_base::ir::OirFields::new()));
         }
         let mut effect = OirEffect::http(
-            orbital_core::runtime::http_request::HttpMethod::Get,
+            orbital_core_base::http_wire::HttpMethod::Get,
             OirExpr::string("https://api.example.com"),
             OirExpr::string("/x"),
         );
@@ -438,7 +438,7 @@ mod tests {
         let mut module = http_module(false);
         module.traits[0].transitions[0].effects = vec![OirExpr::effect(OirEffect::BrowserBeacon {
             url: OirExpr::string("https://api.example.com/e"),
-            request: OirExpr::object(orbital_core::ir::OirFields::new()),
+            request: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: None,
             emit: None,
         })];

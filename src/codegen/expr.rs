@@ -34,7 +34,7 @@
 //!
 //! Extracted from `backend.rs` as Phase 3e.4 of the DRY refactor.
 
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirBinaryOp, OirBinding, OirBindingRoot, OirEffect, OirExpr, OirPattern, OirValue,
 };
 
@@ -899,8 +899,8 @@ impl TypeScriptBackend {
             OirExpr::UnaryOp { op, operand } => {
                 let o = recur(operand);
                 match op {
-                    orbital_core::ir::OirUnaryOp::Not => format!("!{}", o),
-                    orbital_core::ir::OirUnaryOp::Neg => format!("-{}", o),
+                    orbital_core_base::ir::OirUnaryOp::Not => format!("!{}", o),
+                    orbital_core_base::ir::OirUnaryOp::Neg => format!("-{}", o),
                 }
             }
             OirExpr::Conditional {
@@ -2167,7 +2167,7 @@ fn substitute_oir_param(body: &OirExpr, param: &str, item: &OirExpr, index: usiz
                 .collect(),
         },
         OirExpr::Object { fields } => {
-            let mut out = orbital_core::ir::OirFields::with_capacity(fields.len());
+            let mut out = orbital_core_base::ir::OirFields::with_capacity(fields.len());
             for (k, v) in fields {
                 out.insert(k.clone(), substitute_oir_param(v, param, item, index));
             }
@@ -2266,7 +2266,7 @@ mod static_unroll_tests {
     }
 
     fn obj(pairs: &[(&str, OirExpr)]) -> OirExpr {
-        let mut fields = orbital_core::ir::OirFields::new();
+        let mut fields = orbital_core_base::ir::OirFields::new();
         for (k, v) in pairs {
             fields.insert((*k).to_string(), v.clone());
         }
@@ -2309,7 +2309,7 @@ mod static_unroll_tests {
         assert!(ts.contains("$: \"line-end\" as const"), "{ts}");
         assert!(ts.contains("h: \"left\" as const"), "{ts}");
         assert!(ts.contains("\"0\": \"line-start\" as const"), "{ts}");
-        let mut vals = orbital_core::ir::OirObject::new();
+        let mut vals = orbital_core_base::ir::OirObject::new();
         vals.insert(
             "}".to_string(),
             OirValue::String("paragraph-forward".to_string()),
@@ -2329,7 +2329,7 @@ mod static_unroll_tests {
     #[test]
     fn server_render_compiles_a_captured_knob_against_an_absent_payload() {
         let b = TypeScriptBackend::new();
-        let mut knobs = orbital_core::ir::OirObject::new();
+        let mut knobs = orbital_core_base::ir::OirObject::new();
         knobs.insert(
             "value".to_string(),
             OirValue::Array(vec![
@@ -2913,7 +2913,7 @@ mod flavor_tests {
 
         let entries = OirExpr::call(
             "object/entries",
-            vec![OirExpr::object(orbital_core::ir::OirFields::from([(
+            vec![OirExpr::object(orbital_core_base::ir::OirFields::from([(
                 "a".to_string(),
                 OirExpr::number(1.0),
             )]))],
@@ -2928,7 +2928,7 @@ mod flavor_tests {
             "i18n/t",
             vec![
                 OirExpr::string("home:count"),
-                OirExpr::object(orbital_core::ir::OirFields::from([(
+                OirExpr::object(orbital_core_base::ir::OirFields::from([(
                     "n".to_string(),
                     OirExpr::number(1.0),
                 )])),
@@ -3049,7 +3049,7 @@ mod flavor_tests {
 #[cfg(test)]
 mod guard_lambda_tests {
     use super::*;
-    use orbital_core::ir::{OirBinding, OirBindingRoot};
+    use orbital_core_base::ir::{OirBinding, OirBindingRoot};
 
     fn payload(path: &str) -> OirExpr {
         OirExpr::binding(OirBinding {

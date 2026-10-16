@@ -4,9 +4,9 @@
 //! flow through trait event handlers with guard enforcement.
 
 use crate::backend::to_lowercase_nosep;
-use orbital_core::generate::GeneratedFile;
-use orbital_core::ir::{OirEntity, OirModule, OirPage, OirTrait};
-use orbital_core::str_utils::{to_camel_case, to_kebab_case};
+use orbital_core_base::generate::GeneratedFile;
+use orbital_core_base::ir::{OirEntity, OirModule, OirPage, OirTrait};
+use orbital_core_base::str_utils::{to_camel_case, to_kebab_case};
 
 /// Generate all tests for a module
 pub fn generate_tests(module: &OirModule) -> Vec<GeneratedFile> {
@@ -175,8 +175,8 @@ pub fn generate_entity_tests(entity: &OirEntity) -> GeneratedFile {
 }
 
 /// Get a default test value for a field type
-fn get_default_test_value(field_type: &orbital_core::ir::OirType) -> &'static str {
-    use orbital_core::ir::OirType;
+fn get_default_test_value(field_type: &orbital_core_base::ir::OirType) -> &'static str {
+    use orbital_core_base::ir::OirType;
     match field_type {
         OirType::String => "'test-value'",
         OirType::Number | OirType::Integer => "42",
@@ -211,8 +211,8 @@ fn get_default_test_value(field_type: &orbital_core::ir::OirType) -> &'static st
 }
 
 /// Get a default test value for a field, with enum values support
-fn get_field_test_value(field: &orbital_core::ir::OirField) -> String {
-    use orbital_core::ir::OirType;
+fn get_field_test_value(field: &orbital_core_base::ir::OirField) -> String {
+    use orbital_core_base::ir::OirType;
     match &field.field_type {
         OirType::Enum { .. } => {
             // Use the first enum value if available
@@ -547,7 +547,7 @@ pub fn generate_server_handler_tests(trait_def: &OirTrait) -> GeneratedFile {
                 code.push_str(&format!(
                     "    it('should enforce guard on {} -> {} via {}', async () => {{\n",
                     match &trans.from {
-                        orbital_core::ir::OirTransitionFrom::Single(s) => s.clone(),
+                        orbital_core_base::ir::OirTransitionFrom::Single(s) => s.clone(),
                         _ => "*".to_string(),
                     },
                     trans.to,
@@ -559,7 +559,7 @@ pub fn generate_server_handler_tests(trait_def: &OirTrait) -> GeneratedFile {
                     "        body: {{ event: '{}', currentState: '{}' }},\n",
                     trans.event,
                     match &trans.from {
-                        orbital_core::ir::OirTransitionFrom::Single(s) => s.clone(),
+                        orbital_core_base::ir::OirTransitionFrom::Single(s) => s.clone(),
                         _ => initial_state.to_string(),
                     }
                 ));

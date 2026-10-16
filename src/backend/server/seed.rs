@@ -380,7 +380,7 @@ fn seed_field_ts(shape: &serde_json::Value) -> String {
 #[cfg(test)]
 mod intrinsic_field_seed_tests {
     use super::*;
-    use orbital_core::ir::OirField;
+    use orbital_core_base::ir::OirField;
 
     fn entity_with_intrinsic_field() -> OirEntity {
         let mut draft_field = OirField::new("draft", OirType::String);
@@ -445,7 +445,7 @@ mod relation_entity_id_seed_tests {
     //! `EntityId`; the seed literal must brand it (`asEntityId`, prefix-checked)
     //! or the generated server fails `tsc` (std-hr-portal OrgNode.managerId).
     use super::*;
-    use orbital_core::ir::OirField;
+    use orbital_core_base::ir::OirField;
 
     fn org_node(entity_id: Option<&str>) -> OirEntity {
         let mut manager = OirField::new("managerId", OirType::String);

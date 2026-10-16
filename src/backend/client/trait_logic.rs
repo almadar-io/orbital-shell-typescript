@@ -1,5 +1,5 @@
 use crate::backend::*;
-use orbital_core::ir::OirConfigFieldType;
+use orbital_core_base::ir::OirConfigFieldType;
 
 /// A config default is an UNRESOLVED S-expression call form — `(if …)`,
 /// `(array/map …)`, `(and …)`, … — rather than a literal value when its
@@ -36,7 +36,7 @@ use orbital_core::ir::OirConfigFieldType;
 /// render-scope bindings) — see `sexpr_default_keys` for where a TRUE
 /// positive is evaluated instead.
 fn is_sexpr_call_default(schema_field: Option<&OirConfigFieldType>, v: &OirValue) -> bool {
-    if orbital_core::schema::quote::quoted_oir_value(v).is_some() {
+    if orbital_core_base::schema::quote::quoted_oir_value(v).is_some() {
         return false;
     }
     let Some(OirValue::Array(a)) = Some(v) else {
@@ -441,7 +441,7 @@ impl TypeScriptBackend {
         });
         let dispatch_mode = trait_def.dispatch_mode(
             entity_def,
-            &orbital_core::effects::Residence::of_module(module),
+            &orbital_core_base::runs_on::Residence::of_module(module),
         );
         let entity_is_runtime = matches!(dispatch_mode, OirDispatchMode::RuntimeOptimistic);
         // A client-only trait still sends the legs of its browser-leg events
@@ -2154,16 +2154,16 @@ impl TypeScriptBackend {
 mod sexpr_config_default_tests {
     use super::{binding_root_is_hook_scoped, is_sexpr_call_default, nested_binding_roots};
     use crate::backend::TypeScriptBackend;
-    use orbital_core::ir::{OirConfigFieldType, OirTrait, OirType, OirValue};
+    use orbital_core_base::ir::{OirConfigFieldType, OirTrait, OirType, OirValue};
 
     /// G-CROSS-041: a quoted default is static data, emitted like any literal.
     #[test]
     fn a_quoted_default_is_not_a_call_default() {
-        let sexpr: orbital_core::schema::SExpression =
+        let sexpr: orbital_core_base::schema::SExpression =
             serde_json::from_str(r#"[">", "@payload.amount", 0]"#).unwrap();
         let quoted = OirValue::Array(vec![
             OirValue::String("quote".into()),
-            OirValue::String(orbital_core::schema::quote::encode_quote_body(&sexpr)),
+            OirValue::String(orbital_core_base::schema::quote::encode_quote_body(&sexpr)),
         ]);
         assert!(!is_sexpr_call_default(None, &quoted));
         let call = OirValue::Array(vec![
@@ -2307,8 +2307,8 @@ mod sexpr_config_default_tests {
     fn a_language_keyword_head_is_always_a_call_even_on_an_array_typed_field() {
         let sexpr = if_sexpr(
             OirValue::String("@user.role".into()),
-            OirValue::Array(vec![OirValue::Object(orbital_core::ir::OirObject::new())]),
-            OirValue::Array(vec![OirValue::Object(orbital_core::ir::OirObject::new())]),
+            OirValue::Array(vec![OirValue::Object(orbital_core_base::ir::OirObject::new())]),
+            OirValue::Array(vec![OirValue::Object(orbital_core_base::ir::OirObject::new())]),
         );
         assert!(is_sexpr_call_default(Some(&array_field()), &sexpr));
         assert!(is_sexpr_call_default(None, &sexpr));
@@ -2357,7 +2357,7 @@ mod sexpr_config_default_tests {
 
     fn trait_with_one_bool_config_default(default: OirValue) -> OirTrait {
         let mut tr = OirTrait::new("Widget");
-        let mut schema = orbital_core::ir::OirConfigSchema::new();
+        let mut schema = orbital_core_base::ir::OirConfigSchema::new();
         schema.insert(
             "disabled".to_string(),
             OirConfigFieldType {
@@ -2366,7 +2366,7 @@ mod sexpr_config_default_tests {
             },
         );
         tr.declared_config_schema = Some(schema);
-        let mut defaults = orbital_core::ir::OirObject::new();
+        let mut defaults = orbital_core_base::ir::OirObject::new();
         defaults.insert("disabled".to_string(), default);
         tr.declared_config_defaults = Some(defaults);
         tr
@@ -2447,7 +2447,7 @@ mod sexpr_config_default_tests {
 #[cfg(test)]
 mod tick_reducer_tests {
     use crate::backend::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirEntity, OirField, OirModule, OirPersistence, OirState, OirTrait, OirType,
     };
 
@@ -2506,7 +2506,7 @@ mod tick_reducer_tests {
 #[cfg(test)]
 mod optimistic_dispatch_tests {
     use crate::backend::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirEntity, OirExpr, OirField, OirModule, OirPersistence, OirState,
         OirTrait, OirTransition, OirType,
     };
@@ -2762,7 +2762,7 @@ mod optimistic_dispatch_tests {
 #[cfg(test)]
 mod persisted_shared_entity_tests {
     use crate::backend::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirEntity, OirExpr, OirField, OirModule, OirPersistOp,
         OirPersistence, OirState, OirTrait, OirTransition, OirType,
     };
@@ -3073,7 +3073,7 @@ mod persisted_shared_entity_tests {
     /// that dropped `ChatComposer.CHANNEL_SELECTED` on the compiled path.
     #[test]
     fn hybrid_trait_with_no_server_effect_relays_emit_to_listens_remap_sibling() {
-        use orbital_core::ir::OirListener;
+        use orbital_core_base::ir::OirListener;
 
         let backend = TypeScriptBackend::new();
         let mut module = module_with_shared_persisted_entity();
@@ -3205,12 +3205,12 @@ mod shared_frame_commit_tests {
 #[cfg(test)]
 mod message_hook_tests {
     use crate::backend::TypeScriptBackend;
-    use orbital_core::ir::{OirConfigFieldType, OirModule, OirState, OirTrait, OirType, OirValue};
+    use orbital_core_base::ir::{OirConfigFieldType, OirModule, OirState, OirTrait, OirType, OirValue};
 
     fn trait_with_string_default(default: OirValue) -> OirTrait {
         let mut tr = OirTrait::new("Footer");
         tr.states.push(OirState::initial("idle"));
-        let mut schema = orbital_core::ir::OirConfigSchema::new();
+        let mut schema = orbital_core_base::ir::OirConfigSchema::new();
         schema.insert(
             "tagline".to_string(),
             OirConfigFieldType {
@@ -3219,7 +3219,7 @@ mod message_hook_tests {
             },
         );
         tr.declared_config_schema = Some(schema);
-        tr.declared_config_defaults = Some(orbital_core::ir::OirObject::from([(
+        tr.declared_config_defaults = Some(orbital_core_base::ir::OirObject::from([(
             "tagline".to_string(),
             default,
         )]));
@@ -3261,10 +3261,10 @@ mod message_hook_tests {
 }
 
 fn collect_entity_refs(
-    oir_type: &orbital_core::ir::OirType,
+    oir_type: &orbital_core_base::ir::OirType,
     out: &mut std::collections::BTreeSet<String>,
 ) {
-    use orbital_core::ir::OirType;
+    use orbital_core_base::ir::OirType;
     match oir_type {
         OirType::Reference { entity } | OirType::Row { entity } => {
             out.insert(entity.clone());
@@ -3288,7 +3288,7 @@ fn collect_entity_refs(
 #[cfg(test)]
 mod referenced_entity_import_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirEntity, OirField, OirModule, OirState, OirTrait, OirTransition, OirType,
     };
 
@@ -3340,7 +3340,7 @@ mod referenced_entity_import_tests {
 #[cfg(test)]
 mod aliased_entity_type_position_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirEntity, OirModule, OirState, OirTrait, OirTransition};
+    use orbital_core_base::ir::{OirEntity, OirModule, OirState, OirTrait, OirTransition};
 
     /// An entity imported under its `<Name>Entity` alias (a global like `Response`, or a
     /// `<Trait>View`-suffixed name) must be named by that alias in every type position —
@@ -3379,7 +3379,7 @@ impl TypeScriptBackend {
     /// The trait's declared `(from, event)` arms as a TS literal — `'*'` for an any-state arm —
     /// so a dispatch that took no arm reports `guard-rejected` vs `no-matching-transition`.
     fn declared_arms_literal(trait_def: &OirTrait) -> String {
-        use orbital_core::ir::OirTransitionFrom;
+        use orbital_core_base::ir::OirTransitionFrom;
         let quote = |s: &str| serde_json::to_string(s).expect("a name serializes");
         let arms: Vec<String> = trait_def
             .transitions
@@ -3410,7 +3410,7 @@ impl TypeScriptBackend {
 #[cfg(test)]
 mod guard_holds_client_tests {
     use crate::backend::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirEvent, OirExpr, OirModule, OirState, OirTrait, OirTransition,
     };
 

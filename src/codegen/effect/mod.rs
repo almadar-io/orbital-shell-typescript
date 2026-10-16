@@ -8,7 +8,7 @@
 //!
 //! Extracted from `backend.rs` as Phase 3e.5 of the DRY refactor.
 
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirBinding, OirBindingRoot, OirEffect, OirEmitConfig, OirEntity, OirExpr, OirInterval,
     OirLogLevel, OirModule, OirPersistOp, OirTrait, OirTransitionFrom, OirType,
 };
@@ -53,7 +53,7 @@ pub(crate) use persist::PersistDataValidation;
 #[cfg(test)]
 mod tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirEntity, OirExpr, OirField, OirModule,
         OirPersistOp, OirPersistence, OirType,
     };
@@ -88,7 +88,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = test_module_with_entity("Patient", "patients");
 
-        let emit_cfg = orbital_core::ir::OirEmitConfig {
+        let emit_cfg = orbital_core_base::ir::OirEmitConfig {
             success: Some("PATIENT_LOADED".to_string()),
             failure: None,
             on_change: None,
@@ -133,7 +133,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = OirModule::new("TestApp", "0.1.0");
 
-        let emit_cfg = orbital_core::ir::OirEmitConfig {
+        let emit_cfg = orbital_core_base::ir::OirEmitConfig {
             success: None,
             failure: None,
             on_change: None,
@@ -180,7 +180,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = test_module_with_entity("Patient", "patients");
 
-        let emit_cfg = orbital_core::ir::OirEmitConfig {
+        let emit_cfg = orbital_core_base::ir::OirEmitConfig {
             success: Some("PATIENT_SAVED".to_string()),
             failure: None,
             on_change: None,
@@ -207,7 +207,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = test_module_with_entity("Patient", "patients");
 
-        let emit_cfg = orbital_core::ir::OirEmitConfig {
+        let emit_cfg = orbital_core_base::ir::OirEmitConfig {
             success: None,
             failure: None,
             on_change: Some("PATIENT_UPDATED".to_string()),
@@ -246,7 +246,7 @@ mod tests {
         let effect = OirEffect::CallService {
             service: "llm".to_string(),
             method: "call-tools".to_string(),
-            args: OirExpr::object(orbital_core::ir::OirFields::new()),
+            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: None,
             emit: None,
         };
@@ -267,9 +267,9 @@ mod tests {
         let effect = OirEffect::CallService {
             service: "llm".to_string(),
             method: "call-tools".to_string(),
-            args: OirExpr::object(orbital_core::ir::OirFields::new()),
+            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: None,
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("ANSWERED".to_string()),
                 failure: None,
                 on_change: None,
@@ -291,9 +291,9 @@ mod tests {
         let effect = OirEffect::CallService {
             service: "llm".to_string(),
             method: "call-tools".to_string(),
-            args: OirExpr::object(orbital_core::ir::OirFields::new()),
+            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: None,
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("ANSWERED".to_string()),
                 failure: None,
                 on_change: None,
@@ -310,9 +310,9 @@ mod tests {
         OirEffect::CallService {
             service: "llm".to_string(),
             method: "classifyMany".to_string(),
-            args: OirExpr::object(orbital_core::ir::OirFields::new()),
+            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: Some(OirExpr::string("batch-1")),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("CLASSIFIED".to_string()),
                 failure: Some("CLASSIFY_FAILED".to_string()),
                 cancelled: cancelled.map(str::to_string),
@@ -409,7 +409,7 @@ mod tests {
         let effect = OirEffect::call_service(
             "llm",
             "generate",
-            OirExpr::object(orbital_core::ir::OirFields::new()),
+            OirExpr::object(orbital_core_base::ir::OirFields::new()),
         );
         let js = backend.generate_server_effect_code(&effect, &module, None);
         assert!(
@@ -432,7 +432,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = OirModule::new("TestApp", "0.1.0");
 
-        let emit_cfg = orbital_core::ir::OirEmitConfig {
+        let emit_cfg = orbital_core_base::ir::OirEmitConfig {
             success: Some("EMAIL_SENT".to_string()),
             failure: Some("EMAIL_FAILED".to_string()),
             on_change: None,
@@ -442,7 +442,7 @@ mod tests {
         let effect = OirEffect::CallService {
             service: "mailer".to_string(),
             method: "sendEmail".to_string(),
-            args: OirExpr::object(orbital_core::ir::OirFields::new()),
+            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: None,
             emit: Some(emit_cfg),
         };
@@ -482,7 +482,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = test_module_with_entity("Patient", "patients");
 
-        let emit_cfg = orbital_core::ir::OirEmitConfig {
+        let emit_cfg = orbital_core_base::ir::OirEmitConfig {
             success: Some("PATIENT_CREATED".to_string()),
             failure: None,
             on_change: None,
@@ -511,7 +511,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = test_module_with_entity("Patient", "patients");
 
-        let emit_cfg = orbital_core::ir::OirEmitConfig {
+        let emit_cfg = orbital_core_base::ir::OirEmitConfig {
             success: Some("PATIENT_SAVED".to_string()),
             failure: None,
             on_change: None,
@@ -538,7 +538,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = test_module_with_entity("Patient", "patients");
 
-        let emit_cfg = orbital_core::ir::OirEmitConfig {
+        let emit_cfg = orbital_core_base::ir::OirEmitConfig {
             success: Some("PATIENT_DELETED".to_string()),
             failure: None,
             on_change: None,
@@ -569,7 +569,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = test_module_with_entity("Patient", "patients");
 
-        let fetch_emit = orbital_core::ir::OirEmitConfig {
+        let fetch_emit = orbital_core_base::ir::OirEmitConfig {
             success: Some("PATIENT_LOADED".to_string()),
             failure: None,
             on_change: None,
@@ -593,7 +593,7 @@ mod tests {
             fetch_js
         );
 
-        let call_service_emit = orbital_core::ir::OirEmitConfig {
+        let call_service_emit = orbital_core_base::ir::OirEmitConfig {
             success: Some("EMAIL_SENT".to_string()),
             failure: None,
             on_change: None,
@@ -603,7 +603,7 @@ mod tests {
         let call_service = OirEffect::CallService {
             service: "mailer".to_string(),
             method: "sendEmail".to_string(),
-            args: OirExpr::object(orbital_core::ir::OirFields::new()),
+            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: None,
             emit: Some(call_service_emit),
         };
@@ -625,9 +625,9 @@ mod tests {
         let call_service = OirEffect::CallService {
             service: "email".to_string(),
             method: "send".to_string(),
-            args: OirExpr::object(orbital_core::ir::OirFields::new()),
+            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
             key: None,
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("SENT".to_string()),
                 failure: Some("SEND_FAILED".to_string()),
                 on_change: None,
@@ -657,7 +657,7 @@ mod tests {
         let backend = TypeScriptBackend::new();
         let module = test_module_with_entity("Patient", "patients");
 
-        let emit_cfg = orbital_core::ir::OirEmitConfig {
+        let emit_cfg = orbital_core_base::ir::OirEmitConfig {
             success: Some("PATIENT_SAVED".to_string()),
             failure: None,
             on_change: None,

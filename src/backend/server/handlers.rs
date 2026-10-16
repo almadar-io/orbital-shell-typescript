@@ -1438,8 +1438,8 @@ impl TypeScriptBackend {
                                             let own = expr.collect_bindings().iter().all(|b| {
                                                 matches!(
                                                     b.root,
-                                                    orbital_core::ir::OirBindingRoot::User
-                                                        | orbital_core::ir::OirBindingRoot::Config
+                                                    orbital_core_base::ir::OirBindingRoot::User
+                                                        | orbital_core_base::ir::OirBindingRoot::Config
                                                 )
                                             });
                                             if own {
@@ -1493,7 +1493,7 @@ impl TypeScriptBackend {
                             mutated.extend(entities.iter().cloned());
                         }
                         OirEffect::Set { target, .. } => {
-                            if target.root == orbital_core::ir::OirBindingRoot::Entity {
+                            if target.root == orbital_core_base::ir::OirBindingRoot::Entity {
                                 if let Some(linked) = &trait_def.linked_entity {
                                     mutated.insert(linked.clone());
                                 }
@@ -1618,11 +1618,11 @@ fn guards_complementary(a: Option<&OirExpr>, b: Option<&OirExpr>) -> bool {
     let (Some(a), Some(b)) = (a, b) else {
         return false;
     };
-    let negates = |x: &OirExpr, y: &OirExpr| matches!(y, OirExpr::UnaryOp { op: orbital_core::ir::OirUnaryOp::Not, operand } if operand.as_ref() == x);
+    let negates = |x: &OirExpr, y: &OirExpr| matches!(y, OirExpr::UnaryOp { op: orbital_core_base::ir::OirUnaryOp::Not, operand } if operand.as_ref() == x);
     if negates(a, b) || negates(b, a) {
         return true;
     }
-    use orbital_core::ir::OirBinaryOp::{Eq, Ne};
+    use orbital_core_base::ir::OirBinaryOp::{Eq, Ne};
     match (a, b) {
         (
             OirExpr::BinaryOp {
@@ -1645,7 +1645,7 @@ fn guards_complementary(a: Option<&OirExpr>, b: Option<&OirExpr>) -> bool {
 #[cfg(test)]
 mod guard_complement_tests {
     use super::guards_complementary;
-    use orbital_core::ir::{OirBinaryOp, OirExpr, OirUnaryOp};
+    use orbital_core_base::ir::{OirBinaryOp, OirExpr, OirUnaryOp};
 
     fn cmp(op: OirBinaryOp, l: OirExpr, r: OirExpr) -> OirExpr {
         OirExpr::BinaryOp {
@@ -1692,7 +1692,7 @@ mod guard_complement_tests {
 #[cfg(test)]
 mod create_entity_seed_tests {
     use super::*;
-    use orbital_core::ir::{OirBinding, OirField, OirState};
+    use orbital_core_base::ir::{OirBinding, OirField, OirState};
 
     fn module_with_task() -> OirModule {
         let mut m = OirModule::new("TestApp", "0.1.0");
@@ -1727,7 +1727,7 @@ mod create_entity_seed_tests {
     fn module_with_task_required_field() -> OirModule {
         let mut m = OirModule::new("TestApp", "0.1.0");
         let mut priority_field = OirField::new("priority", OirType::String);
-        priority_field.default = Some(orbital_core::ir::OirValue::String("normal".to_string()));
+        priority_field.default = Some(orbital_core_base::ir::OirValue::String("normal".to_string()));
         let mut working_copy_field = OirField::new("workingCopy", OirType::String);
         working_copy_field.intrinsic = true;
         m.entities.push(OirEntity {
@@ -2518,7 +2518,7 @@ mod create_entity_seed_tests {
             operation: OirPersistOp::Update,
             entity_type: "Task".to_string(),
             data: OirExpr::binding(OirBinding::entity(vec![])),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("TASK_UPDATED".to_string()),
                 failure: Some("TASK_UPDATE_FAILED".to_string()),
                 on_change: None,
@@ -2581,7 +2581,7 @@ mod create_entity_seed_tests {
             operation: OirPersistOp::Delete,
             entity_type: "Task".to_string(),
             data: OirExpr::binding(OirBinding::entity(vec![])),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("TASK_DELETED".to_string()),
                 failure: Some("TASK_DELETE_FAILED".to_string()),
                 on_change: None,
@@ -2639,7 +2639,7 @@ mod create_entity_seed_tests {
             operation: OirPersistOp::Update,
             entity_type: "Task".to_string(),
             data: OirExpr::binding(OirBinding::entity(vec![])),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("TASK_UPDATED".to_string()),
                 failure: Some("TASK_UPDATE_FAILED".to_string()),
                 on_change: None,
@@ -2685,7 +2685,7 @@ mod create_entity_seed_tests {
             operation: OirPersistOp::Update,
             entity_type: "Task".to_string(),
             data: OirExpr::binding(OirBinding::entity(vec![])),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("TASK_UPDATED".to_string()),
                 failure: Some("TASK_UPDATE_FAILED".to_string()),
                 on_change: None,
@@ -2734,7 +2734,7 @@ mod create_entity_seed_tests {
             operation: OirPersistOp::Update,
             entity_type: "Task".to_string(),
             data: OirExpr::binding(OirBinding::entity(vec![])),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("TASK_UPDATED".to_string()),
                 failure: Some("TASK_UPDATE_FAILED".to_string()),
                 on_change: None,
@@ -2791,7 +2791,7 @@ mod create_entity_seed_tests {
             operation: OirPersistOp::Create,
             entity_type: "Task".to_string(),
             data: OirExpr::binding(OirBinding::entity(vec![])),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("TASK_CREATED".to_string()),
                 failure: Some("TASK_CREATE_FAILED".to_string()),
                 on_change: None,
@@ -2850,7 +2850,7 @@ mod create_entity_seed_tests {
             operation: OirPersistOp::Create,
             entity_type: "Task".to_string(),
             data: OirExpr::binding(OirBinding::entity(vec![])),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("TASK_CREATED".to_string()),
                 failure: Some("TASK_CREATE_FAILED".to_string()),
                 on_change: None,
@@ -2927,7 +2927,7 @@ mod create_entity_seed_tests {
             operation: OirPersistOp::Create,
             entity_type: "Task".to_string(),
             data: OirExpr::binding(OirBinding::entity(vec![])),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("TASK_CREATED".to_string()),
                 failure: Some("TASK_CREATE_FAILED".to_string()),
                 on_change: None,
@@ -2974,7 +2974,7 @@ mod create_entity_seed_tests {
             operation: OirPersistOp::Create,
             entity_type: "Task".to_string(),
             data: OirExpr::binding(OirBinding::entity(vec![])),
-            emit: Some(orbital_core::ir::OirEmitConfig {
+            emit: Some(orbital_core_base::ir::OirEmitConfig {
                 success: Some("TASK_CREATED".to_string()),
                 failure: Some("TASK_CREATE_FAILED".to_string()),
                 on_change: None,
@@ -3018,7 +3018,7 @@ mod create_entity_seed_tests {
 #[cfg(test)]
 mod guard_rejection_is_a_noop_tests {
     use super::*;
-    use orbital_core::ir::{OirBinding, OirField};
+    use orbital_core_base::ir::{OirBinding, OirField};
 
     fn module_with_chat_message() -> OirModule {
         let mut m = OirModule::new("TestApp", "0.1.0");
@@ -3086,7 +3086,7 @@ mod guard_rejection_is_a_noop_tests {
         trait_def.linked_entity = Some("ChatMessage".to_string());
         trait_def
             .states
-            .push(orbital_core::ir::OirState::initial("ready"));
+            .push(orbital_core_base::ir::OirState::initial("ready"));
         let mut guarded = OirTransition::new("ready", "sent", "SEND");
         guarded.guard = Some(OirExpr::binding(OirBinding::entity(vec![
             "activeChannel".to_string()
@@ -3193,18 +3193,18 @@ mod guard_rejection_is_a_noop_tests {
         let mut trait_def = OirTrait::new("Child");
         trait_def.orbital_name = "Orb".to_string();
         let mut trans = OirTransition::new("idle", "idle", "INIT");
-        let pattern = orbital_core::ir::OirPattern::new("stat-display")
+        let pattern = orbital_core_base::ir::OirPattern::new("stat-display")
             .with_config(
                 "value",
-                orbital_core::ir::OirValue::String("@config.value".to_string()),
+                orbital_core_base::ir::OirValue::String("@config.value".to_string()),
             )
             .with_config(
                 "max",
-                orbital_core::ir::OirValue::String("@config.max".to_string()),
+                orbital_core_base::ir::OirValue::String("@config.max".to_string()),
             )
             .with_config(
                 "label",
-                orbital_core::ir::OirValue::String("@config.label".to_string()),
+                orbital_core_base::ir::OirValue::String("@config.label".to_string()),
             );
         trans.effects.push(OirExpr::effect(OirEffect::RenderUi {
             slot: "main".to_string(),
@@ -3213,16 +3213,16 @@ mod guard_rejection_is_a_noop_tests {
         trait_def.transitions.push(trans);
         let event_def = OirEvent::new("INIT");
         trait_def.events.push(event_def.clone());
-        let mut knobs = orbital_core::ir::OirObject::new();
+        let mut knobs = orbital_core_base::ir::OirObject::new();
         knobs.insert(
             "value".to_string(),
-            orbital_core::ir::OirValue::String("@callsitePayload.row.memberCount".to_string()),
+            orbital_core_base::ir::OirValue::String("@callsitePayload.row.memberCount".to_string()),
         );
         knobs.insert(
             "max".to_string(),
-            orbital_core::ir::OirValue::Array(vec![
-                orbital_core::ir::OirValue::String("array/len".to_string()),
-                orbital_core::ir::OirValue::String("@callsitePayload.data".to_string()),
+            orbital_core_base::ir::OirValue::Array(vec![
+                orbital_core_base::ir::OirValue::String("array/len".to_string()),
+                orbital_core_base::ir::OirValue::String("@callsitePayload.data".to_string()),
             ]),
         );
         backend
@@ -3263,7 +3263,7 @@ mod guard_rejection_is_a_noop_tests {
     /// contextually typed by the source's element cast (an `EntityRow` param is TS2345).
     #[test]
     fn a_server_render_map_over_a_struct_list_leaves_the_callback_unannotated() {
-        use orbital_core::ir::{OirEntity, OirField, OirType, OirValue};
+        use orbital_core_base::ir::{OirEntity, OirField, OirType, OirValue};
         let backend = TypeScriptBackend::new();
         let mut module = OirModule::new("TestApp", "0.1.0");
         let mut view = OirEntity::new("DeployView");
@@ -3292,7 +3292,7 @@ mod guard_rejection_is_a_noop_tests {
         ]);
         trans.effects.push(OirExpr::effect(OirEffect::RenderUi {
             slot: "main".to_string(),
-            pattern: orbital_core::ir::OirPattern::new("timeline").with_config("items", items),
+            pattern: orbital_core_base::ir::OirPattern::new("timeline").with_config("items", items),
         }));
         trait_def.transitions.push(trans);
         let event_def = OirEvent::new("SHOW");
@@ -3312,12 +3312,12 @@ mod guard_rejection_is_a_noop_tests {
         let mut trait_def = OirTrait::new("TaskLifecycle");
 
         let mut trans = OirTransition::new("idle", "idle", "SHOW");
-        let pattern = orbital_core::ir::OirPattern::new("box")
+        let pattern = orbital_core_base::ir::OirPattern::new("box")
             .with_config(
                 "title",
-                orbital_core::ir::OirValue::String("@payload.title".to_string()),
+                orbital_core_base::ir::OirValue::String("@payload.title".to_string()),
             )
-            .with_config("count", orbital_core::ir::OirValue::Number(3.0));
+            .with_config("count", orbital_core_base::ir::OirValue::Number(3.0));
         trans.effects.push(OirExpr::effect(OirEffect::RenderUi {
             slot: "main".to_string(),
             pattern,
@@ -3415,7 +3415,7 @@ mod guard_rejection_is_a_noop_tests {
 #[cfg(test)]
 mod run_event_core_tests {
     use super::*;
-    use orbital_core::ir::OirState;
+    use orbital_core_base::ir::OirState;
 
     fn persistor() -> OirTrait {
         let mut t = OirTrait::new("TaskPersistor");

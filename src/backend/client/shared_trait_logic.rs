@@ -52,7 +52,7 @@ impl TypeScriptBackend {
         module: &OirModule,
     ) -> bool {
         !trait_def.transitions.is_empty()
-            && trait_def.dispatch_mode(entity, &orbital_core::effects::Residence::of_module(module))
+            && trait_def.dispatch_mode(entity, &orbital_core_base::runs_on::Residence::of_module(module))
                 != OirDispatchMode::HybridClientOnly
     }
 
@@ -952,7 +952,7 @@ fn with_cascade_import(code: String) -> String {
 #[cfg(test)]
 mod dispatch_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{
+    use orbital_core_base::ir::{
         OirBinding, OirEffect, OirEntity, OirExpr, OirField, OirModule, OirPersistence, OirState,
         OirTick, OirTrait, OirTransition, OirType,
     };
@@ -990,7 +990,7 @@ mod dispatch_tests {
     #[test]
     fn a_dispatching_writer_seeds_the_declared_defaults_before_it_commits() {
         let mut module = module_with_guarded_writer_transition();
-        module.entities[0].fields[1].default = Some(orbital_core::ir::OirValue::String("none".to_string()));
+        module.entities[0].fields[1].default = Some(orbital_core_base::ir::OirValue::String("none".to_string()));
         let writer = module.traits[0].clone();
         let entity = module.entities[0].clone();
         let ts = TypeScriptBackend::new()
@@ -1022,7 +1022,7 @@ mod dispatch_tests {
         writer.linked_entity = Some("SharedState".to_string());
         writer.states.push(OirState::initial("s"));
         writer.transitions.push(transition);
-        writer.events.push(orbital_core::ir::OirEvent::new("MOVE"));
+        writer.events.push(orbital_core_base::ir::OirEvent::new("MOVE"));
         // Re-scoped to `local` (C2): these fixtures pin the client-only
         // dispatch shape. See `non_local_trait_with_only_set_and_emit_still_gets_server_leg`
         // for the same trait shape WITHOUT `local`.
@@ -1069,7 +1069,7 @@ mod dispatch_tests {
                 OirEffect::emit_with_payload("SAVE_CREDENTIAL", OirExpr::string("x")),
             )]),
         );
-        panel.events.push(orbital_core::ir::OirEvent::new("SUBMIT"));
+        panel.events.push(orbital_core_base::ir::OirEvent::new("SUBMIT"));
         // Re-scoped to `local` (C2): pins the client-only shape (no server
         // leg, so this trait's own emit needs the local self-relay).
         panel.local = true;
@@ -1179,7 +1179,7 @@ mod dispatch_tests {
     /// the emit's own position, from the frame being computed.
     #[test]
     fn a_shared_writer_ticks_emit_fires_after_the_frame_commits() {
-        let mut tick = OirTick::new("step", orbital_core::ir::OirInterval::Frame);
+        let mut tick = OirTick::new("step", orbital_core_base::ir::OirInterval::Frame);
         tick.effects.push(OirExpr::call(
             "do",
             vec![
@@ -1191,7 +1191,7 @@ mod dispatch_tests {
                     OirExpr::eq(bind("@entity.result"), OirExpr::string("won")),
                     OirExpr::effect(OirEffect::emit_with_payload(
                         "GAME_END",
-                        OirExpr::object(orbital_core::ir::OirFields::from([(
+                        OirExpr::object(orbital_core_base::ir::OirFields::from([(
                             "result".to_string(),
                             bind("@entity.result"),
                         )])),
@@ -1218,11 +1218,11 @@ mod dispatch_tests {
                 OirTransition::new("s", "s", "INIT").with_effects(vec![OirExpr::effect(
                     OirEffect::RenderUi {
                         slot: "main".to_string(),
-                        pattern: orbital_core::ir::OirPattern::new("typography"),
+                        pattern: orbital_core_base::ir::OirPattern::new("typography"),
                     },
                 )]),
             );
-        view.events.push(orbital_core::ir::OirEvent::new("INIT"));
+        view.events.push(orbital_core_base::ir::OirEvent::new("INIT"));
         view.local = true;
         module.traits.push(view.clone());
 
@@ -1271,7 +1271,7 @@ mod dispatch_tests {
     /// it hosts now emits — the hook must still declare the bus the emit uses.
     #[test]
     fn a_tick_only_render_trait_hosting_an_emitting_writer_declares_the_bus() {
-        let mut writer_tick = OirTick::new("step", orbital_core::ir::OirInterval::Frame);
+        let mut writer_tick = OirTick::new("step", orbital_core_base::ir::OirInterval::Frame);
         writer_tick.effects.push(OirExpr::effect(OirEffect::set(
             OirBinding::parse("@entity.result").unwrap(),
             OirExpr::string("won"),
@@ -1284,12 +1284,12 @@ mod dispatch_tests {
         writer.linked_entity = Some("SharedState".to_string());
         writer.states.push(OirState::initial("s"));
         writer.ticks.push(writer_tick);
-        let mut render_tick = OirTick::new("paint", orbital_core::ir::OirInterval::Frame);
+        let mut render_tick = OirTick::new("paint", orbital_core_base::ir::OirInterval::Frame);
         render_tick
             .effects
             .push(OirExpr::effect(OirEffect::RenderUi {
                 slot: "main".to_string(),
-                pattern: orbital_core::ir::OirPattern::new("typography"),
+                pattern: orbital_core_base::ir::OirPattern::new("typography"),
             }));
         let mut view = OirTrait::new("View");
         view.orbital_name = "Orb".to_string();
@@ -1324,7 +1324,7 @@ mod dispatch_tests {
         // access of its own, no dispatch machinery, the original no-op stub.
         let mut tick = OirTick::new(
             "step",
-            orbital_core::ir::OirInterval::Milliseconds { value: 16 },
+            orbital_core_base::ir::OirInterval::Milliseconds { value: 16 },
         );
         tick.effects.push(OirExpr::effect(OirEffect::set(
             OirBinding::parse("@entity.result").unwrap(),
@@ -1412,7 +1412,7 @@ mod dispatch_tests {
         caller.transitions.push(transition);
         caller
             .events
-            .push(orbital_core::ir::OirEvent::new("TRIGGER"));
+            .push(orbital_core_base::ir::OirEvent::new("TRIGGER"));
 
         let mut module = OirModule::new("Orb", "1.0.0");
         module.entities.push(OirEntity {

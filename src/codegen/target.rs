@@ -28,7 +28,7 @@ pub trait ComponentRenderer: Send + Sync {
         &self,
         backend: &TypeScriptBackend,
         pattern_type: &str,
-        config: &orbital_core::ir::OirObject,
+        config: &orbital_core_base::ir::OirObject,
         linked_entity: Option<&str>,
         entity_field_types: Option<&HashMap<String, EntityFieldInfo>>,
     ) -> String;
@@ -120,7 +120,7 @@ impl ComponentRenderer for WebComponentRenderer {
         &self,
         backend: &TypeScriptBackend,
         pattern_type: &str,
-        config: &orbital_core::ir::OirObject,
+        config: &orbital_core_base::ir::OirObject,
         linked_entity: Option<&str>,
         entity_field_types: Option<&HashMap<String, EntityFieldInfo>>,
     ) -> String {

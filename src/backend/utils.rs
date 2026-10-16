@@ -6,7 +6,7 @@ use crate::backend::*;
 
 // Canonical string helpers live in `orbital_core::str_utils`; re-exported
 // here so the `backend::*` glob keeps resolving them.
-pub(crate) use orbital_core::str_utils::{
+pub(crate) use orbital_core_base::str_utils::{
     capitalize_first, escape_js_string, to_camel_case, to_identifier_pascal, to_kebab_case,
     to_snake_case, to_title_case,
 };
@@ -40,7 +40,7 @@ pub(crate) fn to_screaming_snake_case(s: &str) -> String {
 /// nested shape. `@`-binding strings derive to `string` (their runtime read
 /// type at this boundary). Heterogeneous arrays produce a union element type.
 pub(crate) fn oir_value_to_ts_type(v: &OirValue) -> String {
-    if let Some(data) = orbital_core::schema::quote::quoted_oir_value(v) {
+    if let Some(data) = orbital_core_base::schema::quote::quoted_oir_value(v) {
         return oir_value_to_ts_type(&data);
     }
     match v {
@@ -90,7 +90,7 @@ pub(crate) fn oir_value_to_ts_type(v: &OirValue) -> String {
 // Exempt from `orbital_core::ir::literal`'s `render_default` walker: call
 // sites here have no target `OirType` (mock data / config-default literals).
 pub(crate) fn oir_value_to_ts_literal(v: &OirValue) -> String {
-    if let Some(data) = orbital_core::schema::quote::quoted_oir_value(v) {
+    if let Some(data) = orbital_core_base::schema::quote::quoted_oir_value(v) {
         return oir_value_to_ts_literal(&data);
     }
     match v {
@@ -180,7 +180,7 @@ pub(crate) fn rewrite_non_local_entity_refs(
         OirType::Struct { fields } => OirType::Struct {
             fields: fields
                 .iter()
-                .map(|f| orbital_core::ir::OirField {
+                .map(|f| orbital_core_base::ir::OirField {
                     declared: None,
                     field_type: rewrite_non_local_entity_refs(&f.field_type, local),
                     ..f.clone()
@@ -231,13 +231,13 @@ pub(crate) fn jsx_text_to_expression(jsx: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use orbital_core::ir::OirValue;
+    use orbital_core_base::ir::OirValue;
 
     fn quoted(json: &str) -> OirValue {
-        let sexpr: orbital_core::schema::SExpression = serde_json::from_str(json).unwrap();
+        let sexpr: orbital_core_base::schema::SExpression = serde_json::from_str(json).unwrap();
         OirValue::Array(vec![
             OirValue::String("quote".into()),
-            OirValue::String(orbital_core::schema::quote::encode_quote_body(&sexpr)),
+            OirValue::String(orbital_core_base::schema::quote::encode_quote_body(&sexpr)),
         ])
     }
 
@@ -269,7 +269,7 @@ mod tests {
     fn object_keys_quote_when_not_identifier_safe() {
         // render-tree props like data-theme reach config defaults verbatim;
         // a bare hyphenated key is a syntax error in type AND object literals
-        let mut obj: orbital_core::ir::OirObject = orbital_core::ir::OirObject::new();
+        let mut obj: orbital_core_base::ir::OirObject = orbital_core_base::ir::OirObject::new();
         obj.insert(
             "data-theme".to_string(),
             OirValue::String("@currentTheme".to_string()),
@@ -300,7 +300,7 @@ mod tests {
 
     #[test]
     fn literal_emitter_objects_are_sorted_and_unquoted_keys() {
-        let mut obj = orbital_core::ir::OirObject::new();
+        let mut obj = orbital_core_base::ir::OirObject::new();
         obj.insert("b".to_string(), OirValue::Number(2.0));
         obj.insert("a".to_string(), OirValue::Number(1.0));
         // Deterministic: keys sorted, unquoted, `: ` separator.
@@ -324,7 +324,7 @@ mod tests {
         // `row : Note` expands to a Struct; a non-local reference on one of
         // its members (a lolo struct alias like BlockSpec) must still be
         // widened, or the handler prints an identifier nothing declares.
-        let field = |name: &str, ty: OirType| orbital_core::ir::OirField {
+        let field = |name: &str, ty: OirType| orbital_core_base::ir::OirField {
             declared: None,
             merged_from: None,
             name: name.to_string(),

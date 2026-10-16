@@ -43,7 +43,7 @@ impl TypeScriptBackend {
 #[cfg(test)]
 mod repro_tests {
     use crate::TypeScriptBackend;
-    use orbital_core::ir::{OirState, OirTrait};
+    use orbital_core_base::ir::{OirState, OirTrait};
 
     #[test]
     fn time_bound_state_emits_scheduled_timeout() {

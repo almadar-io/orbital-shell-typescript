@@ -1,6 +1,6 @@
 use super::defaults::get_default_tokens;
 use super::tokens::{generate_tokens_css, generate_tokens_css_dark};
-use orbital_core::schema::ThemeDefinition;
+use orbital_core_base::schema::ThemeDefinition;
 
 /// Generate CSS custom properties from a theme definition
 ///

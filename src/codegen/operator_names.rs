@@ -2,7 +2,7 @@
 //! the OirExpr emitter and the render-prop walker depend on it, independent of
 //! the legacy SExpression emission tree.
 
-use orbital_core::language::canonical_operators::is_canonical_operator;
+use orbital_core_base::language::canonical_operators::is_canonical_operator;
 
 /// Check if a string looks like an S-expression operator name.
 /// Uses the canonical operator registry as the primary source of truth,
@@ -105,5 +105,5 @@ pub fn is_operator_name(s: &str) -> bool {
 /// `orbital_core::ir::is_substrate_operator` — the single source of truth
 /// shared with the compiler and the Python shell (C-EMIT-SUBSTRATE-OPS-MARKER).
 pub fn is_substrate_operator(name: &str) -> bool {
-    orbital_core::ir::is_substrate_operator(name)
+    orbital_core_base::ir::is_substrate_operator(name)
 }

@@ -2,8 +2,8 @@
 //! any tick of a server-awaited trait, runs here — once per row, mount-scoped unless `[background]`.
 
 use crate::backend::*;
-use orbital_core::ir::{OirInterval, OirTick};
-use orbital_core::str_utils::to_pascal_case;
+use orbital_core_base::ir::{OirInterval, OirTick};
+use orbital_core_base::str_utils::to_pascal_case;
 
 /// Interval a tick fires at on the server; `frame` has no display to follow, so it runs every 16 ms
 /// pass like the interpreter's non-rAF fallback (`TickScheduler`).
@@ -32,7 +32,7 @@ pub(crate) fn tick_runs_on_client(trait_def: &OirTrait, tick: &OirTick, module: 
     trait_def.tick_runs_on_client(
         tick,
         entity,
-        &orbital_core::effects::Residence::of_module(module),
+        &orbital_core_base::runs_on::Residence::of_module(module),
     )
 }
 

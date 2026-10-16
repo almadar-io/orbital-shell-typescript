@@ -59,6 +59,6 @@ pub(crate) fn ts_symbol_name(name: &str) -> String {
     if is_valid_identifier(name) {
         name.to_string()
     } else {
-        orbital_core::str_utils::to_identifier_pascal(name)
+        orbital_core_base::str_utils::to_identifier_pascal(name)
     }
 }

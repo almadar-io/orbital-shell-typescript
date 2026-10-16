@@ -14,7 +14,7 @@
 //! insertion order: everything seeded after it can resolve the viewer against
 //! real rows, whereas in declaration order the viewer would not exist yet.
 
-use orbital_core::ir::{OirCardinality, OirEntity, OirField, OirPersistence, OirRelation, OirType};
+use orbital_core_base::ir::{OirCardinality, OirEntity, OirField, OirPersistence, OirRelation, OirType};
 use orbital_shell_typescript::TypeScriptBackend;
 
 fn relation_field(name: &str, target: &str, cardinality: OirCardinality) -> OirField {

@@ -2,9 +2,9 @@
 //! op, first-failure stop, summary payload on success, `{ error }` on failure.
 
 use crate::TypeScriptBackend;
-use orbital_core::lower::lower_sexpr;
-use orbital_core::ir::{OirEffect, OirEntity, OirExpr, OirField, OirModule, OirType};
-use orbital_core::schema::SExpression;
+use orbital_core_eval::lower::lower_sexpr;
+use orbital_core_base::ir::{OirEffect, OirEntity, OirExpr, OirField, OirModule, OirType};
+use orbital_core_base::schema::SExpression;
 use serde_json::json;
 
 fn module() -> OirModule {
@@ -184,8 +184,8 @@ fn a_non_array_or_empty_ops_value_fails_the_batch_at_run_time() {
 
 #[test]
 fn a_batch_is_server_work_unless_every_entity_is_browser_stored() {
-    use orbital_core::effects::Residence;
-    use orbital_core::ir::OirEffect as E;
+    use orbital_core_base::runs_on::Residence;
+    use orbital_core_base::ir::OirEffect as E;
     let residence = Residence::of_module(&module());
     let server = effect(json!(["persist", "batch", [["create", "Row", { "title": "a" }]]]));
     let local = effect(json!(["persist", "batch", [["create", "Draft", {}]]]));
@@ -195,16 +195,16 @@ fn a_batch_is_server_work_unless_every_entity_is_browser_stored() {
         [["create", "Draft", {}], ["create", "Row", {}]]
     ]));
     assert_eq!(
-        orbital_core::effects::ir_effect_site(&server, &residence),
-        orbital_core::effects::RunsOn::Server
+        orbital_core_base::runs_on::ir_effect_site(&server, &residence),
+        orbital_core_base::runs_on::RunsOn::Server
     );
     assert_eq!(
-        orbital_core::effects::ir_effect_site(&local, &residence),
-        orbital_core::effects::RunsOn::Client
+        orbital_core_base::runs_on::ir_effect_site(&local, &residence),
+        orbital_core_base::runs_on::RunsOn::Client
     );
     assert_eq!(
-        orbital_core::effects::ir_effect_site(&mixed, &residence),
-        orbital_core::effects::RunsOn::Server
+        orbital_core_base::runs_on::ir_effect_site(&mixed, &residence),
+        orbital_core_base::runs_on::RunsOn::Server
     );
     let _: Option<&E> = None;
 }

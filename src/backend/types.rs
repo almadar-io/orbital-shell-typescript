@@ -1,5 +1,5 @@
 use crate::backend::*;
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     classify_type, render_type, OirEntity, OirField, OirType, TargetTypeRenderer, TypeMappingClass,
 };
 use std::collections::HashMap;
@@ -807,7 +807,7 @@ mod row_type_tests {
 
     #[test]
     fn row_classification_follows_the_rendering() {
-        use orbital_core::ir::classify_type;
+        use orbital_core_base::ir::classify_type;
         let cat = catalog(&["Note"]);
         let r = TsRenderer {
             mode: TsTypeMode::Declared,

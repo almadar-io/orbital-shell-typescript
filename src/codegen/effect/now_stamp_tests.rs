@@ -1,6 +1,6 @@
 // Compiled path of the one-`now`-per-dispatch contract: every `@now`/time read compiles to the dispatch's `now`.
 use crate::backend::*;
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirBinding, OirField, OirInterval, OirPattern, OirState, OirTick, OirValue,
 };
 

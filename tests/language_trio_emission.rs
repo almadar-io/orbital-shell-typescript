@@ -3,13 +3,13 @@
 //! entry the interpreter's executor calls), and the pure `quasiquote` /
 //! `behavior/apply` forms compile to the shared `@almadar/core` helpers.
 
-use orbital_core::ir::{
+use orbital_core_base::ir::{
     OirEffect, OirEmitConfig, OirEvent, OirExpr, OirModule, OirState, OirTrait, OirTransition,
 };
 use orbital_shell_typescript::TypeScriptBackend;
 
 fn custom(name: &str, args: Vec<OirExpr>, emit: Option<OirEmitConfig>) -> OirExpr {
-    let args: orbital_core::ir::OirFields = args
+    let args: orbital_core_base::ir::OirFields = args
         .into_iter()
         .enumerate()
         .map(|(i, e)| (i.to_string(), e))

@@ -1,6 +1,6 @@
 // Compiled server ticks (Runtime Spec Clause 8.3): mount-scoped unless `[background]`, on Express and Hono.
 use crate::backend::*;
-use orbital_core::ir::{OirBinding, OirField, OirInterval, OirState, OirTick};
+use orbital_core_base::ir::{OirBinding, OirField, OirInterval, OirState, OirTick};
 
 fn entity(name: &str, persistence: OirPersistence) -> OirEntity {
     OirEntity {

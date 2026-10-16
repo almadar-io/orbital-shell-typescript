@@ -1,6 +1,6 @@
-use orbital_core::ir::{OirBinding, OirBindingRoot, OirExpr};
-use orbital_core::lower::lower_sexpr;
-use orbital_core::schema::SExpression;
+use orbital_core_base::ir::{OirBinding, OirBindingRoot, OirExpr};
+use orbital_core_eval::lower::lower_sexpr;
+use orbital_core_base::schema::SExpression;
 use orbital_shell_typescript::TypeScriptBackend;
 use serde::Deserialize;
 use serde_json::{json, Value};
