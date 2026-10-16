@@ -187,6 +187,7 @@ fn get_default_test_value(field_type: &orbital_core::ir::OirType) -> &'static st
         OirType::Phone => "'+1-555-0100'",
         OirType::Uuid => "'00000000-0000-4000-8000-000000000001'",
         OirType::Money => "42",
+        OirType::Bytes => "'AAAA'",
         OirType::File => "{ name: 'test.pdf', url: 'https://example.com/test.pdf', mimeType: 'application/pdf', sizeBytes: 1024 }",
         OirType::Array { .. } | OirType::Tuple { .. } => "[]",
         OirType::Map { .. } => "{}",

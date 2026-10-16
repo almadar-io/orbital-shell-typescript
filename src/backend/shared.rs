@@ -1201,6 +1201,7 @@ export type { UserContext } from '@almadar/core';
                 "z.string()".to_string()
             }
             OirType::Money => "z.number()".to_string(),
+            OirType::Bytes => "z.string()".to_string(),
             OirType::File => "z.object({ name: z.string(), url: z.string(), mimeType: z.string(), sizeBytes: z.number() })".to_string(),
             // The zod twin of the declared TS type
             // (`Record<string, FieldValue | undefined>`, `types.rs::json`).
@@ -1382,6 +1383,7 @@ pub(crate) fn oir_type_to_form_type(t: &OirType) -> &'static str {
         OirType::Uuid => "string",
         OirType::Money => "money",
         OirType::File => "file",
+        OirType::Bytes => "string",
         OirType::Json => "object",
         OirType::Node => "object",
         OirType::Array { .. } | OirType::Tuple { .. } => "array",

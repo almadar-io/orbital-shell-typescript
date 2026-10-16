@@ -173,6 +173,13 @@ impl TypeScriptBackend {
             OirEffect::CancelCall { key } => {
                 format!("{{ type: 'cancel-call', key: {} }}", self.expr_to_ts(key))
             }
+            OirEffect::Os { op, args, .. } => {
+                format!(
+                    "{{ type: '{}', args: [{}] }}",
+                    op.name(),
+                    args.iter().map(|a| self.expr_to_ts(a)).collect::<Vec<_>>().join(", ")
+                )
+            }
             OirEffect::RandomBytes { bytes, .. } => {
                 format!("{{ type: 'random-bytes', bytes: {} }}", self.expr_to_ts(bytes))
             }

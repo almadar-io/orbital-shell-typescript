@@ -466,6 +466,7 @@ impl TypeScriptBackend {
             OirType::Image => "image",
             OirType::Money => "number",
             OirType::File => "object",
+            OirType::Bytes => "string",
             OirType::Json => "string",
             OirType::Node => "string",
             OirType::Array { inner: _ } | OirType::Tuple { .. } => "array",

@@ -1,5 +1,6 @@
 use crate::TypeScriptBackend;
 use orbital_core::ir::{OirEffect, OirEmitConfig, OirExpr, OirModule};
+use orbital_core::runtime::os::OsOp;
 
 fn server_js(effect: &OirEffect) -> String {
     TypeScriptBackend::new().generate_server_effect_code(effect, &OirModule::new("TestApp", "0.1.0"), None)
@@ -21,6 +22,17 @@ fn random_bytes_calls_the_one_host_function_and_emits_its_payload() {
     let catch_block = &js[js.find("} catch (err) {").expect("a catch block")..];
     assert!(catch_block.contains("emittedEvents.push({ event: 'DRAW_FAILED'"), "{js}");
     assert!(!catch_block.contains("throw err;"), "a routed failure is handled: {js}");
+}
+
+#[test]
+fn a_keyed_random_bytes_passes_its_key_to_the_host_and_echoes_it_on_failure_and_an_unkeyed_one_does_not() {
+    let keyed = server_js(&OirEffect::RandomBytes { bytes: OirExpr::number(32.0), key: Some(OirExpr::string("k")), emit: routed() });
+    assert!(keyed.contains("const __randKey = \"k\";"), "{keyed}");
+    assert!(keyed.contains("const hostResult = hostRandomBytes(32, __randKey);"), "{keyed}");
+    let catch_block = &keyed[keyed.find("} catch (err) {").expect("a catch block")..];
+    assert!(catch_block.contains("key: __randKey"), "{keyed}");
+    let plain = server_js(&OirEffect::random_bytes(OirExpr::number(32.0), routed()));
+    assert!(!plain.contains("__randKey"), "{plain}");
 }
 
 #[test]
@@ -102,3 +114,13 @@ fn a_keyed_oauth_authorize_evaluates_the_key_once_passes_it_and_echoes_it_on_fai
     assert!(catch_block.contains("key: __authKey"), "{js}");
 }
 
+
+#[test]
+fn os_read_file_calls_the_host_os_surface_with_the_op_args_and_key() {
+    let js = server_js(&OirEffect::os(OsOp::ReadFile, vec![OirExpr::string("/data/a")], None, routed()));
+    assert!(js.contains("// os/read-file"), "{js}");
+    assert!(js.contains("const hostResult = await hostOs('os/read-file', [\"/data/a\"], null, user?.id);"), "{js}");
+    assert!(js.contains("getServerEventBus().emit('DRAWN'"), "{js}");
+    let keyed = server_js(&OirEffect::os(OsOp::ReadFile, vec![OirExpr::string("/data/a")], Some(OirExpr::string("k")), None));
+    assert!(keyed.contains("hostOs('os/read-file', [\"/data/a\"], \"k\", user?.id)"), "{keyed}");
+}

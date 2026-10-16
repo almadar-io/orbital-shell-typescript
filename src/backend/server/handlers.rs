@@ -218,6 +218,10 @@ impl TypeScriptBackend {
                         stack.extend(request);
                         stack.extend(key);
                     }
+                    OirEffect::Os { args, key, .. } => {
+                        stack.extend(args);
+                        stack.extend(key);
+                    }
                     OirEffect::CancelCall { key } => stack.push(key),
                     OirEffect::RandomBytes { bytes: expr, .. }
                     | OirEffect::CredentialStatus {

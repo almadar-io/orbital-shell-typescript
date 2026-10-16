@@ -388,6 +388,10 @@ fn is_random_bytes(effect: &OirEffect) -> bool {
     matches!(effect, OirEffect::RandomBytes { .. })
 }
 
+fn is_os(effect: &OirEffect) -> bool {
+    matches!(effect, OirEffect::Os { .. })
+}
+
 fn is_credential_status(effect: &OirEffect) -> bool {
     matches!(effect, OirEffect::CredentialStatus { .. })
 }
@@ -412,6 +416,7 @@ pub fn trait_has_http_effects(trait_def: &OirTrait) -> bool {
 /// Whether any transition runs `random-bytes`, `credential-status` or `credential-forget`.
 pub fn trait_has_host_effects(trait_def: &OirTrait) -> bool {
     trait_has_effect(trait_def, is_random_bytes)
+        || trait_has_effect(trait_def, is_os)
         || trait_has_effect(trait_def, is_credential_status)
         || trait_has_effect(trait_def, is_credential_forget)
         || trait_has_effect(trait_def, is_oauth_authorize)
@@ -435,6 +440,9 @@ pub fn http_call_import(trait_def: &OirTrait, module_path: &str) -> Option<Strin
     }
     if trait_has_effect(trait_def, is_random_bytes) {
         symbols.push("hostRandomBytes");
+    }
+    if trait_has_effect(trait_def, is_os) {
+        symbols.push("hostOs");
     }
     if trait_has_effect(trait_def, is_credential_status) {
         symbols.push("hostCredentialStatus");
@@ -533,6 +541,7 @@ pub fn transitions_have_emit_effects<'a>(
                     OirEffect::CallService { emit, .. } => emit.is_some(),
                     OirEffect::Http { emit, .. } => emit.is_some(),
                     OirEffect::RandomBytes { emit, .. }
+                    | OirEffect::Os { emit, .. }
                     | OirEffect::CredentialStatus { emit, .. }
                     | OirEffect::CredentialForget { emit, .. }
                     | OirEffect::OAuthAuthorize { emit, .. }
@@ -1049,6 +1058,22 @@ mod http_detection_tests {
             key,
             emit,
         }
+    }
+
+    #[test]
+    fn an_os_effect_needs_the_host_os_import() {
+        let t = trait_with(OirEffect::os(
+            orbital_core::runtime::os::OsOp::ReadFile,
+            vec![OirExpr::string("/data/a")],
+            None,
+            None,
+        ));
+        assert!(trait_has_host_effects(&t));
+        assert_eq!(
+            http_call_import(&t, "../clients.js").expect("import"),
+            "import { hostOs } from '../clients.js';\n"
+        );
+        assert!(http_call_import(&trait_with(http(None, None)), "../clients.js").expect("import").contains("httpCall"));
     }
 
     #[test]

@@ -272,6 +272,7 @@ impl TypeScriptBackend {
             | OirEffect::Http { .. }
             | OirEffect::CancelCall { .. }
             | OirEffect::RandomBytes { .. }
+            | OirEffect::Os { .. }
             | OirEffect::CredentialStatus { .. }
             | OirEffect::CredentialForget { .. }
             | OirEffect::OAuthAuthorize { .. }

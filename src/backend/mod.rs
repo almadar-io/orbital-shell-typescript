@@ -1380,6 +1380,8 @@ mod tests {
         // strings or epoch-ms numbers; a relation field stores the row's id.
         assert_eq!(d(&OirType::Date), "string | number");
         assert_eq!(d(&OirType::DateTime), "string | number");
+        assert_eq!(d(&OirType::Bytes), "string");
+        assert_eq!(d(&OirType::String), "string");
         assert_eq!(d(&OirType::Json), "Record<string, FieldValue | undefined>");
         assert_eq!(d(&OirType::Trait), "TraitFieldRef");
         assert_eq!(d(&OirType::SExpr), "SExpr");
@@ -1632,6 +1634,10 @@ mod tests {
         );
         assert_eq!(
             backend.map_type_to_zod_with_refs(&OirType::Date, None, m),
+            "z.string()"
+        );
+        assert_eq!(
+            backend.map_type_to_zod_with_refs(&OirType::Bytes, None, m),
             "z.string()"
         );
         assert_eq!(

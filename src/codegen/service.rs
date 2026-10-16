@@ -182,8 +182,8 @@ fn generate_http_call(egress: &[String]) -> String {
     ts.push_str("  return outcome.ok;\n");
     ts.push_str("}\n\n");
     ts.push_str("/** `random-bytes`: `{ value }` from the host CSPRNG. */\n");
-    ts.push_str("export function hostRandomBytes(bytes: RuntimeValue): { value: string } {\n");
-    ts.push_str("  return randomBytesPayload(httpPorts, bytes);\n");
+    ts.push_str("export function hostRandomBytes(bytes: RuntimeValue, key?: RuntimeValue): { value: string; key?: string } {\n");
+    ts.push_str("  return randomBytesPayload(httpPorts, bytes, key);\n");
     ts.push_str("}\n\n");
     ts.push_str("/** `credential-status`: `{ connected }` for the signed-in viewer. */\n");
     ts.push_str("export function hostCredentialStatus(credential: RuntimeValue, principal: string | undefined): Promise<{ connected: boolean }> {\n");
@@ -399,7 +399,7 @@ mod tests {
         assert!(ts.contains("export class HttpCallError extends Error"), "{ts}");
         assert!(ts.contains("  'https://api.iconify.design',\n  'https://api.example.com:8443',\n];"), "{ts}");
         assert!(ts.contains("import { createHttpPorts, createOAuthPort, credentialForgetPayload, credentialStatusPayload, oauthAuthorizePayload, oauthConnectionPayload, OAuthEffectFailure, randomBytesPayload, runHttpCall, type HttpCall, type HttpRunOptions } from '@almadar/runtime/kernel';"), "{ts}");
-        assert!(ts.contains("export function hostRandomBytes(bytes: RuntimeValue): { value: string }"), "{ts}");
+        assert!(ts.contains("export function hostRandomBytes(bytes: RuntimeValue, key?: RuntimeValue): { value: string; key?: string }"), "{ts}");
         assert!(ts.contains("export function hostCredentialStatus("), "{ts}");
         assert!(ts.contains("export function hostCredentialForget("), "{ts}");
         assert!(ts.contains("await runHttpCall(httpPorts, call, options)"), "{ts}");

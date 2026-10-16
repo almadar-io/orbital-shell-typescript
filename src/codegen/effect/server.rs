@@ -755,34 +755,50 @@ impl TypeScriptBackend {
                 }
             }
 
-            OirEffect::RandomBytes { bytes: arg, emit }
-            | OirEffect::CredentialStatus {
-                credential: arg,
-                emit,
-            }
-            | OirEffect::CredentialForget {
-                credential: arg,
-                emit,
-            } => {
-                let (name, call) = match effect {
-                    OirEffect::RandomBytes { .. } => (
-                        "random-bytes",
-                        format!("hostRandomBytes({})", self.expr_to_ts_server(arg)),
-                    ),
-                    OirEffect::CredentialStatus { .. } => (
-                        "credential-status",
+            OirEffect::RandomBytes { .. }
+            | OirEffect::Os { .. }
+            | OirEffect::CredentialStatus { .. }
+            | OirEffect::CredentialForget { .. } => {
+                let random_key = match effect {
+                    OirEffect::RandomBytes { key: Some(key), .. } => Some(self.expr_to_ts_server(key)),
+                    _ => None,
+                };
+                if let Some(key_ts) = &random_key {
+                    code.push_str(&format!("      {{\n      const __randKey = {key_ts};\n"));
+                }
+                let (name, call, emit) = match effect {
+                    OirEffect::RandomBytes { bytes: arg, emit, .. } => (
+                        "random-bytes".to_string(),
                         format!(
-                            "await hostCredentialStatus({}, user?.id)",
-                            self.expr_to_ts_server(arg)
+                            "hostRandomBytes({}{})",
+                            self.expr_to_ts_server(arg),
+                            if random_key.is_some() { ", __randKey" } else { "" }
                         ),
+                        emit,
                     ),
-                    _ => (
-                        "credential-forget",
-                        format!(
-                            "await hostCredentialForget({}, user?.id)",
-                            self.expr_to_ts_server(arg)
-                        ),
+                    OirEffect::Os { op, args, key, emit } => {
+                        let args_ts: Vec<String> = args.iter().map(|a| self.expr_to_ts_server(a)).collect();
+                        let key_ts = key
+                            .as_ref()
+                            .map(|k| self.expr_to_ts_server(k))
+                            .unwrap_or_else(|| "null".to_string());
+                        (
+                            op.name().to_string(),
+                            format!("await hostOs('{}', [{}], {}, user?.id)", op.name(), args_ts.join(", "), key_ts),
+                            emit,
+                        )
+                    }
+                    OirEffect::CredentialStatus { credential: arg, emit } => (
+                        "credential-status".to_string(),
+                        format!("await hostCredentialStatus({}, user?.id)", self.expr_to_ts_server(arg)),
+                        emit,
                     ),
+                    OirEffect::CredentialForget { credential: arg, emit } => (
+                        "credential-forget".to_string(),
+                        format!("await hostCredentialForget({}, user?.id)", self.expr_to_ts_server(arg)),
+                        emit,
+                    ),
+                    _ => return code,
                 };
                 code.push_str(&format!("      // {name}\n"));
                 code.push_str("      try {\n");
@@ -794,13 +810,16 @@ impl TypeScriptBackend {
                     code.push_str(&self.emit_failure_js_impl(
                         emit,
                         "err instanceof Error ? err.message : String(err)",
-                        "",
+                        if random_key.is_some() { ", key: __randKey" } else { "" },
                         "        ",
                     ));
                 } else {
                     code.push_str("        throw err;\n");
                 }
                 code.push_str("      }\n\n");
+                if random_key.is_some() {
+                    code.push_str("      }\n");
+                }
             }
 
             OirEffect::OAuthAuthorize { client, options, key, emit } => {
