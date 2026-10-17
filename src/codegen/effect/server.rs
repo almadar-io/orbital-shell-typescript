@@ -23,8 +23,13 @@ impl TypeScriptBackend {
                 offset,
                 limit,
                 include,
+                nearest,
                 emit,
             } => {
+                if nearest.is_some() {
+                    code.push_str("      throw new Error('fetch nearest runs on the kernel host only; this generated handler does not implement it');\n");
+                    return code;
+                }
                 // Resolve @entity to the trait's linked entity + collection.
                 let (resolved_entity, collection, entity_node) = Self::resolve_entity_collection(
                     entity_type,

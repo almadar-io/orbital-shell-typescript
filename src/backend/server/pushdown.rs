@@ -50,6 +50,7 @@ mod tests {
             offset: None,
             limit,
             include: None,
+            nearest: None,
             emit: None,
         }
     }

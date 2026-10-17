@@ -31,6 +31,7 @@ fn fetch_with_success_emit_trait() -> OirTrait {
             offset: None,
             limit: None,
             include: None,
+            nearest: None,
             emit: Some(OirEmitConfig {
                 success: Some("AppLayoutStateLoaded".to_string()),
                 failure: None,

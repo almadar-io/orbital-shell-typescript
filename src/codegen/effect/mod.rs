@@ -103,6 +103,7 @@ mod tests {
             offset: None,
             limit: None,
             include: None,
+            nearest: None,
             emit: Some(emit_cfg),
         };
 
@@ -112,6 +113,20 @@ mod tests {
             "fetch emit.success should produce event bus call, got:\n{}",
             js
         );
+    }
+
+    #[test]
+    fn a_generated_handler_refuses_fetch_nearest_loudly_and_a_plain_fetch_is_untouched() {
+        let backend = TypeScriptBackend::new();
+        let module = test_module_with_entity("Patient", "patients");
+        let mut nearest = OirEffect::fetch("Patient");
+        if let OirEffect::Fetch { nearest: slot, .. } = &mut nearest {
+            *slot = Some(OirExpr::number(1.0));
+        }
+        let js = backend.generate_server_effect_code(&nearest, &module, None);
+        assert!(js.contains("throw new Error('fetch nearest runs on the kernel host only"), "{js}");
+        let plain = backend.generate_server_effect_code(&OirEffect::fetch("Patient"), &module, None);
+        assert!(!plain.contains("fetch nearest"), "{plain}");
     }
 
     #[test]
@@ -599,6 +614,7 @@ mod tests {
             offset: None,
             limit: None,
             include: None,
+            nearest: None,
             emit: Some(fetch_emit),
         };
         let fetch_js = backend.generate_server_effect_code(&fetch, &module, None);
@@ -720,6 +736,7 @@ mod tests {
             offset: None,
             limit: None,
             include: None,
+            nearest: None,
             emit: None,
         };
 
@@ -764,6 +781,7 @@ mod tests {
             offset: None,
             limit: None,
             include: None,
+            nearest: None,
             emit: None,
         };
 

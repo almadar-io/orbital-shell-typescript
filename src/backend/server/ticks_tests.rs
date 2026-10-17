@@ -352,6 +352,7 @@ fn both_backends_import_only_local_entity_types_aliasing_collisions() {
             limit: None,
             offset: None,
             include: None,
+            nearest: None,
             emit: None,
         }));
     }

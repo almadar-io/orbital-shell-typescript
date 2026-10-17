@@ -861,6 +861,7 @@ mod persist_success_emit_tests {
             offset: None,
             limit: None,
             include: None,
+            nearest: None,
             emit: Some(OirEmitConfig {
                 success: Some("PATIENT_LOADED".to_string()),
                 failure: None,
