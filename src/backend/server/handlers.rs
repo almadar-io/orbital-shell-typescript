@@ -218,6 +218,19 @@ impl TypeScriptBackend {
                         stack.extend(request);
                         stack.extend(key);
                     }
+                    OirEffect::Postgres { origin, sql, params, options, key, .. } => {
+                        stack.push(origin);
+                        stack.push(sql);
+                        stack.push(params);
+                        stack.extend(options);
+                        stack.extend(key);
+                    }
+                    OirEffect::Redis { origin, command, options, key, .. } => {
+                        stack.push(origin);
+                        stack.push(command);
+                        stack.extend(options);
+                        stack.extend(key);
+                    }
                     OirEffect::Os { args, key, .. } => {
                         stack.extend(args);
                         stack.extend(key);
@@ -230,6 +243,7 @@ impl TypeScriptBackend {
                     | OirEffect::CredentialForget {
                         credential: expr, ..
                     }
+                    | OirEffect::CredentialAdmin { request: expr, .. }
                     | OirEffect::OAuthConnectionStatus { provider: expr, .. }
                     | OirEffect::OAuthConnectionForget { provider: expr, .. } => stack.push(expr),
                     OirEffect::OAuthAuthorize { client, options, key, .. } => {
@@ -2166,6 +2180,29 @@ mod create_entity_seed_tests {
     /// frame fields stripped — `entity` carries the client-supplied frame
     /// layered on by `resolveEntityView`, which is untrusted view-state, not
     /// something a policy should authorize on or a store should persist.
+    #[test]
+    fn create_from_payload_data_asserts_the_row_it_strips() {
+        let backend = TypeScriptBackend::new();
+        let module = module_with_task_frame_field();
+        let mut trait_def = OirTrait::new("TaskLifecycle");
+        trait_def.linked_entity = Some("Task".to_string());
+        let mut trans = OirTransition::new("backlog", "backlog", "SAVE_TASK");
+        trans.effects.push(OirExpr::effect(OirEffect::Persist {
+            operation: OirPersistOp::Create,
+            entity_type: "Task".to_string(),
+            data: OirExpr::binding(OirBinding::payload(vec!["data".to_string()])),
+            emit: None,
+        }));
+        trait_def.transitions.push(trans);
+        let event_def = OirEvent::new("SAVE_TASK");
+        trait_def.events.push(event_def.clone());
+        let js = backend.generate_event_handler_function(&trait_def, &event_def, &module, "handleSaveTask");
+        assert!(
+            js.contains("omitFrameFields(((payload as EventPayload | undefined)?.data) as EntityRow, ['draft'])"),
+            "a payload value is no EntityRow until asserted (TS2345), got:\n{js}"
+        );
+    }
+
     #[test]
     fn create_from_bare_entity_strips_frame_before_policy_check_and_store_write() {
         let backend = TypeScriptBackend::new();

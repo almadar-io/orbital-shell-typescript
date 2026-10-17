@@ -1867,10 +1867,10 @@ impl TypeScriptBackend {
                                         .iter()
                                         .enumerate()
                                         .zip(&emitted_params)
-                                        .map(|((i, p), emitted)| {
+                                        .map(|((i, _), emitted)| {
                                             if i == 0 && !entity_is_lambda_param_binding {
                                                 format!("{}: {}", emitted, row_type)
-                                            } else if p == "index" {
+                                            } else if i == 1 {
                                                 // The component calls renderItem
                                                 // with (item, index: number).
                                                 format!("{}: number", emitted)

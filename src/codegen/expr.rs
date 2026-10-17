@@ -305,9 +305,12 @@ impl TypeScriptBackend {
                     .iter()
                     .enumerate()
                     .map(|(index, emitted)| {
-                        if index == 0 {
-                            if let Some(ty) = first_param_type {
-                                return format!("{emitted}: {ty}");
+                        if let Some(ty) = first_param_type {
+                            // Untyped by context: the item, then its index.
+                            match index {
+                                0 => return format!("{emitted}: {ty}"),
+                                1 => return format!("{emitted}: number"),
+                                _ => {}
                             }
                         }
                         if index >= params.len() {
@@ -2751,6 +2754,30 @@ mod flavor_tests {
     /// source. A lambda that reads fields off its parameter needs object elements (`u?.id`
     /// on `EventPayloadValue` is TS2339); one using the parameter whole keeps the unknown
     /// element type.
+    /// std-board's server render tree stores `renderItem: (fn (col colIndex) …)` in an object
+    /// literal, where nothing types the lambda: the index param was implicit-any (TS7006).
+    #[test]
+    fn a_stored_lambda_types_its_index_param_too() {
+        let b = TypeScriptBackend::new();
+        let label = OirExpr::Binding {
+            binding: OirBinding {
+                root: OirBindingRoot::Local("col".to_string()),
+                path: vec!["label".to_string()],
+            },
+        };
+        let two = OirExpr::object(orbital_core_base::ir::OirFields::from([(
+            "renderItem".to_string(),
+            OirExpr::lambda(vec!["col".to_string(), "colIndex".to_string()], label.clone()),
+        )]));
+        let ts = b.expr_to_client_ts(&two);
+        assert!(ts.contains("(col: EntityRow, colIndex: number) =>"), "{ts}");
+        let one = OirExpr::object(orbital_core_base::ir::OirFields::from([(
+            "renderItem".to_string(),
+            OirExpr::lambda(vec!["col".to_string()], label),
+        )]));
+        assert!(b.expr_to_client_ts(&one).contains("(col: EntityRow) =>"), "control: one param stays one");
+    }
+
     #[test]
     fn a_lambda_reading_param_fields_gets_object_elements() {
         let b = TypeScriptBackend::new();

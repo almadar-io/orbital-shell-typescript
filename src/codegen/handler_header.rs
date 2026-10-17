@@ -563,6 +563,7 @@ pub fn transitions_have_emit_effects<'a>(
                     | OirEffect::Os { emit, .. }
                     | OirEffect::CredentialStatus { emit, .. }
                     | OirEffect::CredentialForget { emit, .. }
+                    | OirEffect::CredentialAdmin { emit, .. }
                     | OirEffect::OAuthAuthorize { emit, .. }
                     | OirEffect::OAuthConnectionStatus { emit, .. }
                     | OirEffect::OAuthConnectionForget { emit, .. } => emit.is_some(),
@@ -924,8 +925,8 @@ mod runtime_entity_binding_tests {
 
     #[test]
     fn the_client_frame_is_folded_over_the_held_row() {
-        let js = runtime_entity_binding("std-service-redis", "ServiceRedisRedis", "ServiceRedis");
-        assert!(js.contains("const entity = getRuntimeEntity('std-service-redis', 'ServiceRedisRedis', entityId) as ServiceRedis;"), "{js}");
+        let js = runtime_entity_binding("std-service-test", "ServiceTestTest", "ServiceTest");
+        assert!(js.contains("const entity = getRuntimeEntity('std-service-test', 'ServiceTestTest', entityId) as ServiceTest;"), "{js}");
         assert!(
             js.contains("if (entityFrame) Object.assign(entity, entityFrame);"),
             "{js}"

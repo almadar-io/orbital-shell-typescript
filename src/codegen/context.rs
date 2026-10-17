@@ -32,6 +32,8 @@ pub struct CodegenContext {
     /// The narrowed payload schema for the current event/transition (field
     /// name → OirType). Used to resolve `@payload.<field>` source types.
     pub current_payload_schema: Option<orbital_core_base::ir::OirTypeMap>,
+    /// The trait's declared config knob types, so `@config.<knob>` sources infer like payloads.
+    pub current_config_schema: Option<orbital_core_base::ir::OirTypeMap>,
     /// All entities keyed by name. Used to resolve `@<EntityName>`,
     /// `Reference { entity }`, and the linked entity's field types when
     /// inferring lambda element types.

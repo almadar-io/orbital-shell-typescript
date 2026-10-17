@@ -499,6 +499,7 @@ impl TypeScriptBackend {
             | OirEffect::BrowserBeacon { .. }
             | OirEffect::BrowserPrompt { .. }
             | OirEffect::BrowserEmbed { .. }
+            | OirEffect::BrowserTab { .. }
             | OirEffect::BrowserPushSubscribe { .. } => {
                 // Client host device APIs — transpiled on the client (Phase 4).
                 // No server-side code needed.
@@ -757,6 +758,21 @@ impl TypeScriptBackend {
                 }
             }
 
+            OirEffect::Redis { .. } => {
+                code.push_str("      throw new Error('redis is run by the kernel, which a generated handler does not reach');\n\n");
+            }
+
+            OirEffect::Postgres { .. } => {
+                code.push_str("      throw new Error('postgres is run by the kernel, which a generated handler does not reach');\n\n");
+            }
+
+            OirEffect::CredentialAdmin { op, .. } => {
+                code.push_str(&format!(
+                    "      throw new Error('{} is run by the kernel, which a generated handler does not reach');\n\n",
+                    op.name()
+                ));
+            }
+
             OirEffect::RandomBytes { .. }
             | OirEffect::Os { .. }
             | OirEffect::CredentialStatus { .. }
@@ -848,9 +864,9 @@ impl TypeScriptBackend {
             }
 
             OirEffect::CancelCall { key } => {
-                code.push_str("      // Cancel the keyed call-service started with this key\n");
+                code.push_str("      // Cancel the keyed call-service started with this key, or each key of a list\n");
                 code.push_str(&format!(
-                    "      cancelKeyedCall(String({}));\n\n",
+                    "      {{\n        const __keys = {};\n        for (const __key of Array.isArray(__keys) ? __keys : [__keys]) cancelKeyedCall(String(__key));\n      }}\n\n",
                     self.expr_to_ts_server(key)
                 ));
             }

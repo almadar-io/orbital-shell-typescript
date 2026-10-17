@@ -180,6 +180,20 @@ const PATH_ASTAR_TS: &str = r##"((s0: EventPayloadValue | undefined, g0: EventPa
 /// `array/sort` total order: twin of orbital-core `sort_order` / almadar-evaluator `compareSortValues`.
 const SORT_COMPARE_TS: &str = "const r = (v: EventPayloadValue | undefined): number => v === null || v === undefined ? 0 : typeof v === 'boolean' ? 1 : typeof v === 'number' ? 2 : typeof v === 'string' ? 3 : Array.isArray(v) ? 4 : 5; const cmp = (x: EventPayloadValue | undefined, y: EventPayloadValue | undefined): number => { const rx = r(x), ry = r(y); if (rx !== ry) return rx - ry; if (rx === 1) return Number(x) - Number(y); if (rx === 2) { const nx = Number.isNaN(x as number), ny = Number.isNaN(y as number); if (nx || ny) return Number(nx) - Number(ny); } if (rx === 3) { const sx = x as string, sy = y as string; let i = 0, j = 0; while (i < sx.length && j < sy.length) { const ca = sx.codePointAt(i) ?? 0, cb = sy.codePointAt(j) ?? 0; if (ca !== cb) return ca < cb ? -1 : 1; i += ca > 0xffff ? 2 : 1; j += cb > 0xffff ? 2 : 1; } return i < sx.length ? 1 : j < sy.length ? -1 : 0; } if (rx === 2) { if ((x as number) < (y as number)) return -1; if ((x as number) > (y as number)) return 1; } return 0; };";
 
+/// `validate/email|url|phone|uuid` as a test of the pattern the installed operator table declares for it, the one
+/// definition the kernel evaluates; a table that lacks it makes the emitted expression throw.
+fn semantic_validator(operator: &str, subject: &str) -> String {
+    match orbital_core_base::language::registry::operators().get(operator).and_then(|meta| meta.pattern.as_deref()) {
+        Some(pattern) => {
+            let literal = serde_json::to_string(pattern).unwrap_or_default();
+            format!("((__v: EventPayloadValue | undefined) => typeof __v === 'string' && new RegExp({literal}).test(__v))({subject})")
+        }
+        None => format!(
+            "((): boolean => {{ throw new Error('{operator}: the installed operator table declares no pattern'); }})()"
+        ),
+    }
+}
+
 /// `path/reachable` — twin of orbital-core `operators/path.rs`: BFS within `steps`, start included, sorted row-major (y, then x).
 const PATH_REACHABLE_TS: &str = r##"((s0: EventPayloadValue | undefined, st: EventPayloadValue | undefined, bl: EventPayloadValue | undefined, w0: EventPayloadValue | undefined, h0: EventPayloadValue | undefined, d0: EventPayloadValue | undefined): Array<{ x: number; y: number }> => { const cell = (v: EventPayloadValue | undefined): { x: number; y: number } => { const o = v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date) ? (v as { readonly [k: string]: EventPayloadValue }) : {}; return { x: Math.trunc(typeof o.x === 'number' ? o.x : 0), y: Math.trunc(typeof o.y === 'number' ? o.y : 0) }; }; const key = (c: { x: number; y: number }): string => `${c.x},${c.y}`; const blocked = new Set(Array.isArray(bl) ? bl.map((b) => key(cell(b))) : []); const start = cell(s0); const steps = Math.trunc(Number(st)); const w = Math.trunc(Number(w0)); const h = Math.trunc(Number(h0)); const offs: Array<[number, number]> = [[0, -1], [1, 0], [0, 1], [-1, 0]]; if (d0 === true) offs.push([1, -1], [1, 1], [-1, 1], [-1, -1]); const visited = new Set([key(start)]); const result = [start]; const frontier: Array<[{ x: number; y: number }, number]> = [[start, 0]]; for (let i = 0; i < frontier.length; i++) { const [c, dist] = frontier[i]; if (dist >= steps) continue; for (const [dx, dy] of offs) { const nb = { x: c.x + dx, y: c.y + dy }; if (nb.x < 0 || nb.x >= w || nb.y < 0 || nb.y >= h) continue; const nk = key(nb); if (blocked.has(nk) || visited.has(nk)) continue; visited.add(nk); result.push(nb); frontier.push([nb, dist + 1]); } } return result.sort((p, q) => p.y - q.y || p.x - q.x); })"##;
 /// `src ?? []` for an array operand. A source that is the literal `undefined` (a residual
@@ -727,6 +741,12 @@ impl TypeScriptBackend {
                 )
             }),
 
+            // --- explicit cast --- (the kernel contract: a CallKey is a non-empty string, the value unchanged)
+            "as" => format!(
+                "((__v: EventPayloadValue | undefined): string => {{ if (typeof __v !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (__v == null ? 'null' : Array.isArray(__v) ? 'array' : typeof __v)); if (__v === '') throw new Error('as: a CallKey cannot be empty'); return __v; }})({})",
+                a(0)
+            ),
+
             // --- std-json --- (the kernel contract: parse never throws, stringify always a string)
             "json/valid" => format!(
                 "((__v: EventPayloadValue | undefined): boolean => {{ if (typeof __v !== 'string') throw new TypeError('Type mismatch: expected string, got ' + (__v == null ? 'null' : Array.isArray(__v) ? 'array' : typeof __v)); try {{ JSON.parse(__v); return true; }} catch {{ return false; }} }})({})",
@@ -1155,12 +1175,8 @@ impl TypeScriptBackend {
             "time/weekday" => format!("new Date({}).getDay()", dt(0)),
 
             // --- std-validate ---
-            "validate/required" => format!("({0} != null && {0} !== '')", a(0)),
-            "validate/email" => format!("/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test({})", a(0)),
-            // Mirrors `evalValidateUrl`: a non-string is not a URL.
-            "validate/url" => format!("((__v: EventPayloadValue | undefined) => {{ if (typeof __v !== 'string') return false; try {{ new URL(__v); return true; }} catch {{ return false; }} }})({})", a(0)),
-            "validate/phone" => format!("/^\\+?[\\d\\s()-]{{7,}}$/.test({})", a(0)),
-            "validate/uuid" => format!("/^[0-9a-f]{{8}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{4}}-[0-9a-f]{{12}}$/i.test({})", a(0)),
+            "validate/required" => format!("((__v: EventPayloadValue | undefined) => __v != null && __v !== '')({})", a(0)),
+            "validate/email" | "validate/url" | "validate/phone" | "validate/uuid" => semantic_validator(function, &a(0)),
             "validate/pattern" => format!("new RegExp({}).test({})", a(1), a(0)),
             "validate/min" => format!("({} >= {})", a(0), a(1)),
             "validate/max" => format!("({} <= {})", a(0), a(1)),
@@ -1775,6 +1791,27 @@ mod twin_survivor_tests {
             assert_eq!(String::from_utf8(out.stdout).unwrap(), expected, "{xs}");
         }
     }
+    /// `as` keeps the kernel's contract (orbital-core `operators/cast.rs`): a `CallKey` is the
+    /// string itself; an empty string or a non-string throws.
+    #[test]
+    fn as_call_key_follows_the_kernel_contract() {
+        let b = TypeScriptBackend::new();
+        let run = |x: &str| {
+            let script = format!("type EventPayloadValue = string | number | boolean | null | Date | readonly EventPayloadValue[] | {{ readonly [k: string]: EventPayloadValue }}; const x: EventPayloadValue | undefined = {x}; try {{ process.stdout.write(JSON.stringify({})); }} catch (e) {{ process.stdout.write('THROWS'); }}", b.call_to_ts_typed("as", &["x".into(), "\"CallKey\"".into()], &[opaque(), opaque()], None));
+            let out = std::process::Command::new("node")
+                .args(["--input-type=module-typescript", "-e", &script])
+                .output()
+                .expect("node must be on PATH");
+            assert!(out.status.success(), "{script}\n{}", String::from_utf8_lossy(&out.stderr));
+            String::from_utf8(out.stdout).unwrap()
+        };
+        let call = b.call_to_ts_typed("as", &["x".into(), "\"CallKey\"".into()], &[opaque(), opaque()], None);
+        assert!(!call.contains("UNSUPPORTED"), "{call}");
+        assert_eq!(run("'search'"), "\"search\"");
+        assert_eq!(run("''"), "THROWS", "control: empty");
+        assert_eq!(run("7"), "THROWS", "control: non-string");
+    }
+
     /// `json/parse` / `json/stringify` keep the kernel's contract (orbital-core
     /// `operators/json.rs`): parse never throws (invalid JSON or a non-string → null),
     /// stringify gives a JSON string for any value (`null` where JSON has no form).
@@ -3041,13 +3078,23 @@ mod runtime_parity_format_tests {
     }
 
     #[test]
-    fn validate_url_rejects_a_non_string_like_the_runtime() {
+    fn the_semantic_validators_test_the_operator_tables_pattern_and_reject_a_non_string() {
         let ts = op("validate/url", &["fields?.draft"]);
-        assert!(
-            ts.contains("if (typeof __v !== 'string') return false; try { new URL(__v);"),
-            "{ts}"
-        );
+        assert!(ts.contains("typeof __v === 'string' && new RegExp(\"^https?://[^\\\\s]+$\").test(__v)"), "{ts}");
         assert!(ts.ends_with("(fields?.draft)"), "{ts}");
+        let email = op("validate/email", &["fields?.mail"]);
+        assert!(email.contains("[^\\\\s@]+@[^\\\\s@.]+"), "{email}");
+        assert!(!op("validate/required", &["x"]).contains("RegExp"), "control: another validator is not a pattern test");
+    }
+
+    #[test]
+    fn validate_required_on_a_folded_literal_compares_a_widened_value() {
+        let ts = op("validate/required", &["\"Maya Hart\""]);
+        assert_eq!(
+            ts,
+            "((__v: EventPayloadValue | undefined) => __v != null && __v !== '')(\"Maya Hart\")",
+            "a literal compared to '' directly is TS2367"
+        );
     }
 }
 

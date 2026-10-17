@@ -149,11 +149,25 @@ impl TypeScriptBackend {
         let list = |set: &std::collections::BTreeSet<String>| {
             set.iter().map(|e| format!("'{e}'")).collect::<Vec<_>>().join(", ")
         };
+        let arm_line = if arm_split.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "  if (arm !== undefined && [{}].includes(event)) return `${{event}}#${{arm}}`;\n",
+                list(&arm_split)
+            )
+        };
+        let state_line = if split.is_empty() {
+            "  return event;\n".to_string()
+        } else {
+            format!(
+                "  return [{}].includes(event) ? `${{event}}>${{newState}}` : event;\n",
+                list(&split)
+            )
+        };
         Some(format!(
-            "function {name}RenderWriter(event: string, newState: string | undefined, arm?: number): string {{\n  if (arm !== undefined && [{arms}].includes(event)) return `${{event}}#${{arm}}`;\n  return [{events}].includes(event) ? `${{event}}>${{newState}}` : event;\n}}\n\n",
+            "function {name}RenderWriter(event: string, newState: string | undefined, arm?: number): string {{\n{arm_line}{state_line}}}\n\n",
             name = trait_def.name,
-            arms = list(&arm_split),
-            events = list(&split)
         ))
     }
 
@@ -1456,6 +1470,7 @@ mod wrapper_pattern_tracks_active_branch_tests {
             writer.contains("(event: string, newState: string | undefined, arm?: number)"),
             "the writer takes a dispatch result's newState as returned: {writer}"
         );
+        assert!(!writer.contains("[].includes"), "an empty literal is never[] in TS (TS2345): {writer}");
         let module = OirModule::new("App", "1.0.0");
         let handler = TypeScriptBackend::new().generate_transpiled_effect_handler_impl(&tr, &module, true, true);
         assert!(handler.contains("_arm = 0;") && handler.contains("_arm = 1;"), "{handler}");

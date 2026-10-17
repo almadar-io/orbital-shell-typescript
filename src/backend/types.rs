@@ -467,6 +467,7 @@ impl TypeScriptBackend {
             OirType::Money => "number",
             OirType::File => "object",
             OirType::Bytes => "string",
+            OirType::CallKey => "string",
             OirType::Json => "string",
             OirType::Node => "string",
             OirType::Array { inner: _ } | OirType::Tuple { .. } => "array",

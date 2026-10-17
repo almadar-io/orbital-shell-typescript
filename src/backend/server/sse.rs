@@ -87,7 +87,11 @@ impl TypeScriptBackend {
                 code.push_str("import type { AppEnv } from '@almadar/server-hono';\n");
             }
         }
-        code.push_str("import type { BusBroadcastItem } from '@app/shared';\n");
+        if self.host == HostMode::Kernel {
+            code.push_str("import type { BusBroadcastItem, DispatchPushItem } from '@app/shared';\n");
+        } else {
+            code.push_str("import type { BusBroadcastItem } from '@app/shared';\n");
+        }
         if server_ticks {
             code.push_str("import { releaseClient } from './mounts.js';\n");
         }
@@ -196,9 +200,11 @@ impl TypeScriptBackend {
 
         code.push_str("/** Write `item` only to the requesting tab's connections: a running\n");
         code.push_str(" * call's live message (`emit.onMessage`), delivered while it runs. */\n");
-        code.push_str(
-            "export function pushToOrigin(originClientId: string | undefined, item: BusBroadcastItem): void {\n",
-        );
+        code.push_str(if self.host == HostMode::Kernel {
+            "export function pushToOrigin(originClientId: string | undefined, item: BusBroadcastItem | DispatchPushItem): void {\n"
+        } else {
+            "export function pushToOrigin(originClientId: string | undefined, item: BusBroadcastItem): void {\n"
+        });
         code.push_str("  if (originClientId === undefined) return;\n");
         match framework {
             ServerFramework::Express => {

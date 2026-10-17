@@ -424,7 +424,22 @@ mod tests {
         let module = OirModule::new("TestApp", "0.1.0");
         let effect = OirEffect::cancel_call(OirExpr::string("batch-1"));
         let js = backend.generate_server_effect_code(&effect, &module, None);
-        assert!(js.contains("cancelKeyedCall(String(\"batch-1\"));"), "{js}");
+        assert!(js.contains("cancelKeyedCall(String(__key))"), "{js}");
+        assert!(js.contains("\"batch-1\""), "{js}");
+    }
+
+    #[test]
+    fn cancel_call_on_a_list_cancels_each_key_in_turn() {
+        let backend = TypeScriptBackend::new();
+        let module = OirModule::new("TestApp", "0.1.0");
+        let effect = OirEffect::cancel_call(OirExpr::Array {
+            items: vec![OirExpr::string("a"), OirExpr::string("b")],
+        });
+        let js = backend.generate_server_effect_code(&effect, &module, None);
+        assert!(
+            js.contains("Array.isArray(__keys) ? __keys : [__keys]") && js.contains("cancelKeyedCall(String(__key))"),
+            "{js}"
+        );
     }
 
     #[test]

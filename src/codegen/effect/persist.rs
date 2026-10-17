@@ -125,8 +125,13 @@ impl TypeScriptBackend {
                 .map(|field| format!("'{}'", orbital_core_base::str_utils::escape_js_string(field)))
                 .collect::<Vec<_>>()
                 .join(", ");
-            // A literal row of wide reads (`id: FieldValue`) is no `EntityRow` until asserted.
-            let row = if matches!(data, OirExpr::Object { .. }) {
+            // A literal row of wide reads (`id: FieldValue`), or a payload value, is no
+            // `EntityRow` until asserted.
+            let row = if matches!(data, OirExpr::Object { .. })
+                || matches!(
+                    data,
+                    OirExpr::Binding { binding: OirBinding { root: OirBindingRoot::Payload, .. } }
+                ) {
                 format!("({}) as EntityRow", data_expr)
             } else {
                 data_expr.clone()

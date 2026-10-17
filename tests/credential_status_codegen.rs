@@ -59,6 +59,7 @@ fn sources(selection: Selection, routed: bool) -> (String, String) {
         &[],
         &BTreeSet::new(),
         module_has_http_effects(&module).then_some(module.egress.as_slice()),
+        &module.program_credentials,
     );
     (handler, clients)
 }
@@ -89,7 +90,7 @@ const dependencies = new Map([
     configureFromEnv() {{}}
     getCallServiceHandler() {{ return unused; }}
   }} }}],
-  ['@almadar/integrations', {{ CredentialStore: class {{}} }}],
+  ['@almadar/integrations', {{ CredentialStore: class {{}}, installProgramCredentials: () => {{}} }}],
   ['node:module', {{ createRequire: unused }}],
   ['node:path', {{ dirname: unused, join: unused }}],
   ['@almadar/runtime/kernelNode', {{ loadHttpKernel: unused }}],
@@ -105,7 +106,12 @@ const dependencies = new Map([
       if (Object.hasOwn(activeCase, 'failure')) throw new Error(activeCase.failure);
       return activeCase.reply;
     }},
+    createHttpSecrets: () => ({{}}),
+    createOAuthPort: () => ({{}}),
     credentialForgetPayload: unused,
+    oauthAuthorizePayload: unused,
+    oauthConnectionPayload: unused,
+    OAuthEffectFailure: class {{}},
     randomBytesPayload: unused,
     runHttpCall: unused,
   }}],
@@ -330,4 +336,37 @@ fn an_unrouted_canonical_status_failure_propagates_unchanged() {
     assert_eq!(result["error"], "credential store unavailable", "{result}");
     assert_eq!(result["response"], Value::Null, "{result}");
     assert_eq!(result["emitted"], json!([]), "{result}");
+}
+
+#[test]
+fn the_clients_module_installs_the_credentials_the_program_declares() {
+    let declared = vec![
+        orbital_core_base::secrets::ProgramCredential {
+            group: "GithubOrbital".into(),
+            env_var: "GITHUB_TOKEN".into(),
+            description: "Name of the credential holding the \"GitHub\" token.".into(),
+        },
+        orbital_core_base::secrets::ProgramCredential {
+            group: "Other".into(),
+            env_var: "OTHER_KEY".into(),
+            description: String::new(),
+        },
+    ];
+    for egress in [None, Some(&[][..])] {
+        let ts = generate_service_clients(&[], &BTreeSet::new(), egress, &declared);
+        assert!(
+            ts.contains("import { CredentialStore, installProgramCredentials, type CredentialPersistence } from '@almadar/integrations';"),
+            "{ts}"
+        );
+        assert!(
+            ts.contains("manager.configureFromEnv();\ninstallProgramCredentials([\n  { group: \"GithubOrbital\", envVar: \"GITHUB_TOKEN\", description: \"Name of the credential holding the \\\"GitHub\\\" token.\" },\n  { group: \"Other\", envVar: \"OTHER_KEY\", description: \"\" },\n]);\n"),
+            "{ts}"
+        );
+    }
+}
+
+#[test]
+fn control_a_program_declaring_no_credentials_installs_none() {
+    let ts = generate_service_clients(&[], &BTreeSet::new(), None, &[]);
+    assert!(!ts.contains("installProgramCredentials(["), "{ts}");
 }

@@ -384,6 +384,8 @@ pub struct TypeScriptBackend {
     /// per-event handler codegen block so `@payload.<F>` source
     /// inference resolves to real types.
     pub current_payload_schema: CodegenCell<Option<orbital_core_base::ir::OirTypeMap>>,
+    /// The current trait's declared config knob types (see `CodegenContext::current_config_schema`).
+    pub current_config_schema: CodegenCell<Option<orbital_core_base::ir::OirTypeMap>>,
     /// Extra JSX attributes for the NEXT pattern root emitted by
     /// `generate_pattern_from_registry` (taken on entry, so nested children
     /// never see them). Set for a compiled self-overlay modal branch so its
@@ -531,6 +533,7 @@ impl Default for TypeScriptBackend {
             current_entity_ref_ids: CodegenCell::new(None),
             current_trait_embed_names: CodegenCell::new(None),
             current_payload_schema: CodegenCell::new(None),
+            current_config_schema: CodegenCell::new(None),
             pending_root_props: CodegenCell::new(None),
             client_effect_emitter: CodegenCell::new(Box::new(
                 crate::codegen::target::WebClientEffectEmitter,
@@ -1026,6 +1029,7 @@ impl TypeScriptBackend {
                     &module.services,
                     &invoked_services,
                     crate::codegen::handler_header::module_has_http_effects(module).then_some(module.egress.as_slice()),
+                    &module.program_credentials,
                 ),
                 GeneratedFileType::Config,
             ));
@@ -1262,6 +1266,7 @@ impl Backend for TypeScriptBackend {
             current_entity_ref_ids: CodegenCell::new(None),
             current_trait_embed_names: CodegenCell::new(None),
             current_payload_schema: CodegenCell::new(None),
+            current_config_schema: CodegenCell::new(None),
             pending_root_props: CodegenCell::new(None),
             client_effect_emitter: CodegenCell::new(Box::new(
                 crate::codegen::target::WebClientEffectEmitter,

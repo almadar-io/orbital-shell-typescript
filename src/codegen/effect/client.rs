@@ -270,11 +270,14 @@ impl TypeScriptBackend {
             | OirEffect::Fetch { .. }
             | OirEffect::CallService { .. }
             | OirEffect::Http { .. }
+            | OirEffect::Redis { .. }
+            | OirEffect::Postgres { .. }
             | OirEffect::CancelCall { .. }
             | OirEffect::RandomBytes { .. }
             | OirEffect::Os { .. }
             | OirEffect::CredentialStatus { .. }
             | OirEffect::CredentialForget { .. }
+            | OirEffect::CredentialAdmin { .. }
             | OirEffect::OAuthAuthorize { .. }
             | OirEffect::OAuthConnectionStatus { .. }
             | OirEffect::OAuthConnectionForget { .. }
@@ -456,7 +459,10 @@ impl TypeScriptBackend {
 
             // Delivered by the browser store's one http driver: a transition that sends a beacon is a browser leg
             // (`trait_browser_leg_events`), so the client holds no delivery code of its own.
-            OirEffect::BrowserBeacon { .. } | OirEffect::BrowserPrompt { .. } | OirEffect::BrowserEmbed { .. } => None,
+            OirEffect::BrowserBeacon { .. }
+            | OirEffect::BrowserPrompt { .. }
+            | OirEffect::BrowserEmbed { .. }
+            | OirEffect::BrowserTab { .. } => None,
 
             // Custom effects — emit as comments for manual wiring
             OirEffect::Custom { name, args, .. } => {
@@ -873,6 +879,9 @@ impl TypeScriptBackend {
             OirEffect::BrowserEmbed { texts, key, .. } => {
                 check_expr(texts) || key.as_ref().is_some_and(&check_expr)
             }
+            OirEffect::BrowserTab { request, key, .. } => {
+                check_expr(request) || key.as_ref().is_some_and(&check_expr)
+            }
             _ => false,
         }
     }
@@ -929,6 +938,21 @@ impl TypeScriptBackend {
     /// server's `emittedEvents` echo (bridge.rs), exactly as the server-gated
     /// path does today, so listeners never see an emit twice.
     pub(crate) fn generate_transpiled_effect_handler_impl(
+        &self,
+        trait_def: &OirTrait,
+        module: &OirModule,
+        resolve_new_state: bool,
+        emit_fanout: bool,
+    ) -> String {
+        self.current_config_schema.set(trait_def.declared_config_schema.as_ref().map(|schema| {
+            schema.iter().map(|(name, decl)| (name.clone(), decl.field_type.clone())).collect()
+        }));
+        let code = self.transpiled_effect_handler_body(trait_def, module, resolve_new_state, emit_fanout);
+        self.current_config_schema.set(None);
+        code
+    }
+
+    fn transpiled_effect_handler_body(
         &self,
         trait_def: &OirTrait,
         module: &OirModule,
@@ -2106,6 +2130,34 @@ mod resolve_new_state_tests {
     /// consider a transition even when it has zero transpilable client
     /// effects — there is no server to resolve `newState` for that case, so
     /// a bare `A -> B on EVENT` with no `set`/`emit` still needs a branch.
+    #[test]
+    fn a_config_list_mapped_by_a_callback_keeps_its_declared_element_type() {
+        let mut tr = OirTrait::new("RecordDetail");
+        tr.linked_entity = Some("Thing".to_string());
+        tr.states.push(OirState::initial("idle"));
+        let mut schema = orbital_core_base::ir::OirConfigSchema::new();
+        schema.insert(
+            "titleFields".to_string(),
+            orbital_core_base::ir::OirConfigFieldType { field_type: orbital_core_base::ir::OirType::array(orbital_core_base::ir::OirType::String), values: None },
+        );
+        tr.declared_config_schema = Some(schema);
+        let names = OirExpr::call(
+            "array/map",
+            vec![
+                OirExpr::binding(OirBinding::parse("@config.titleFields").unwrap()),
+                OirExpr::lambda(vec!["f".to_string()], OirExpr::binding(OirBinding::parse("@payload.data").unwrap())),
+            ],
+        );
+        tr.transitions.push(OirTransition::new("idle", "idle", "LOADED").with_effects(vec![OirExpr::effect(OirEffect::Set {
+            target: OirBinding::parse("@entity.names").unwrap(),
+            value: names,
+            emit: None,
+        })]));
+        let ts = TypeScriptBackend::new().generate_transpiled_effect_handler_impl(&tr, &OirModule::new("App", "1.0.0"), true, true);
+        assert!(!ts.contains("as readonly EntityRow[]"), "a [string] knob is no row list (TS2352): {ts}");
+        assert!(ts.contains("as readonly string[]"), "{ts}");
+    }
+
     #[test]
     fn resolve_new_state_covers_effect_less_transitions_too() {
         let mut tr = OirTrait::new("BareTransition");

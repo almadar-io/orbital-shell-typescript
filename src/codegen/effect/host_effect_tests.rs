@@ -86,7 +86,7 @@ fn an_unrouted_oauth_failure_is_thrown_and_never_reported_as_an_http_result() {
 
 #[test]
 fn the_generated_service_clients_wire_the_oauth_port_and_the_two_host_functions() {
-    let ts = crate::generate_service_clients(&[], &std::collections::BTreeSet::new(), Some(&[]));
+    let ts = crate::generate_service_clients(&[], &std::collections::BTreeSet::new(), Some(&[]), &[]);
     for needle in [
         "const httpSecrets = createHttpSecrets();",
         "secrets: httpSecrets,",
@@ -125,4 +125,15 @@ fn os_read_file_calls_the_host_os_surface_with_the_op_args_and_key() {
     assert!(js.contains("getServerEventBus().emit('DRAWN'"), "{js}");
     let keyed = server_js(&OirEffect::os(OsOp::ReadFile, vec![OirExpr::string("/data/a")], Some(OirExpr::string("k")), None));
     assert!(keyed.contains("hostOs('os/read-file', [\"/data/a\"], \"k\", user?.id)"), "{keyed}");
+}
+
+#[test]
+fn a_redis_call_in_a_generated_handler_throws_because_only_the_kernel_runs_it() {
+    let js = server_js(&OirEffect::redis(OirExpr::string("redis://cache.internal"), OirExpr::Array { items: vec![OirExpr::string("PING")] }));
+    assert!(js.contains("throw new Error('redis is run by the kernel"), "{js}");
+    assert!(!js.contains("hostResult"), "no host function exists for it: {js}");
+    let control = server_js(&OirEffect::random_bytes(OirExpr::number(8.0), None));
+    assert!(!control.contains("throw new Error('redis"), "{control}");
+    let pg = server_js(&OirEffect::postgres(OirExpr::string("postgres://db.internal"), OirExpr::string("SELECT 1"), OirExpr::Array { items: vec![] }));
+    assert!(pg.contains("throw new Error('postgres is run by the kernel"), "{pg}");
 }

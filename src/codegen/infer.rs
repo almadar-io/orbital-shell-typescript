@@ -181,6 +181,11 @@ pub fn infer_oirexpr_element_type_ts(
                 let rest: Vec<&str> = binding.path[1..].iter().map(|s| s.as_str()).collect();
                 walk_oirtype_path_array_inner(head_ty, &rest, ctx)
             }
+            OirBindingRoot::Config => {
+                let head_ty = ctx.current_config_schema.as_ref()?.get(binding.path.first()?)?;
+                let rest: Vec<&str> = binding.path[1..].iter().map(|s| s.as_str()).collect();
+                walk_oirtype_path_array_inner(head_ty, &rest, ctx)
+            }
             OirBindingRoot::Local(name) => {
                 if name.chars().next().is_some_and(|c| c.is_uppercase())
                     && ctx.entity_catalog.contains_key(name)

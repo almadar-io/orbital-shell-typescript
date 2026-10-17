@@ -65,8 +65,8 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         })
 }
 
-/// The digest of today's default output for `module()` and `schema()`, recorded when the hook intake became the generated `inbound.ts` (the only change: it replaced `hooks-providers.ts`).
-const DEFAULT_OUTPUT_DIGEST: u64 = 11_709_800_650_238_144_593;
+/// The digest of today's default output for `module()` and `schema()`, recorded when the hook intake became the generated `inbound.ts` (the only change: it replaced `hooks-providers.ts`), then when `clients.ts` began importing `installProgramCredentials`.
+const DEFAULT_OUTPUT_DIGEST: u64 = 14_455_443_486_400_716_924;
 
 #[test]
 fn control_the_default_output_is_byte_identical_to_the_recorded_one() {
@@ -220,4 +220,46 @@ fn edge_without_a_resolved_schema_nothing_is_embedded_and_the_output_says_so() {
         "{:?}",
         output.warnings
     );
+}
+
+#[test]
+fn the_server_host_wires_http_os_clock_and_the_dispatch_sink() {
+    let files = files_of(&kernel_backend());
+    let host = file(&files, "packages/server/src/kernel-host.ts");
+    for needle in [
+        "import { createCredentialAdminPort, createHttpSecrets, createOAuthPort } from '@almadar/runtime/kernel';",
+        "import { createNodeOsHost } from '@almadar/runtime/kernelOsNode';",
+        "import { loadHttpKernel, loadKernelModule } from '@almadar/runtime/kernelNode';",
+        "http: { kernel: async () => httpKernel, secrets, credentials: createCredentialAdminPort(), oauth: createOAuthPort({ secrets, now: clock }) },",
+        "osHost: createNodeOsHost,",
+        "clock,",
+        "runtime.setHostDispatchSink((item: HostDispatchItem) => {",
+        "pushToOrigin(item.originClientId, { type: 'dispatch'",
+    ] {
+        assert!(host.contains(needle), "missing {needle}\n{host}");
+    }
+    let sse = file(&files, "packages/server/src/sse.ts");
+    assert!(
+        sse.contains("item: BusBroadcastItem | DispatchPushItem"),
+        "{sse}"
+    );
+    assert!(
+        file(&files, "packages/shared/src/dispatch.ts").contains("type: 'dispatch'"),
+        "dispatch frame type"
+    );
+    assert!(
+        file(&files, "packages/shared/src/index.ts").contains("./dispatch.js"),
+        "barrel"
+    );
+}
+
+#[test]
+fn control_a_program_with_no_http_or_os_effects_leaves_the_default_sse_untouched() {
+    let files = files_of(&TypeScriptBackend {
+        browser_schema: Some(schema()),
+        ..TypeScriptBackend::default()
+    });
+    assert!(!files
+        .iter()
+        .any(|(_, c)| c.contains("DispatchPushItem") || c.contains("createNodeOsHost")));
 }

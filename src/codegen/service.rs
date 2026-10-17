@@ -6,6 +6,7 @@
 
 use orbital_core_base::ir::OirModule;
 use orbital_core_base::schema::{ServiceDefinition, ServiceRef};
+use orbital_core_base::secrets::ProgramCredential;
 use std::collections::BTreeSet;
 
 /// Generate a TypeScript service client module that delegates to @almadar/integrations.
@@ -16,10 +17,14 @@ use std::collections::BTreeSet;
 /// `http_egress` is `Some(origins)` when the program runs an `http` effect: the module then also
 /// exports `httpCall`, the one function every generated `http` site calls, with the program's
 /// egress list. `None` emits no http support (and imports nothing from `@almadar/kernel`).
+///
+/// `program_credentials` are the credentials the program declares; they are installed beside the manager so the
+/// `credentials` service lists and accepts them exactly as it does a registry-declared one.
 pub fn generate_service_clients(
     services: &[ServiceRef],
     invoked: &BTreeSet<String>,
     http_egress: Option<&[String]>,
+    program_credentials: &[ProgramCredential],
 ) -> String {
     let mut ts = String::new();
 
@@ -32,18 +37,32 @@ pub fn generate_service_clients(
 
     ts.push_str("import { RuntimeIntegrationManager } from '@almadar/integrations/runtime';\n");
     if http_egress.is_some() {
-        ts.push_str("import { CredentialStore, type CredentialPersistence } from '@almadar/integrations';\n");
+        ts.push_str("import { CredentialStore, installProgramCredentials, type CredentialPersistence } from '@almadar/integrations';\n");
         ts.push_str("import { createRequire } from 'node:module';\n");
         ts.push_str("import { dirname, join } from 'node:path';\n");
         ts.push_str("import type { HttpFailurePayload, JsonValue, OAuthAuthorizePayload, OAuthConnectionPayload, RuntimeValue } from '@almadar/core';\n");
         ts.push_str("import { createHttpPorts, createHttpSecrets, createOAuthPort, credentialForgetPayload, credentialStatusPayload, oauthAuthorizePayload, oauthConnectionPayload, OAuthEffectFailure, randomBytesPayload, runHttpCall, type HttpCall, type HttpRunOptions } from '@almadar/runtime/kernel';\n");
         ts.push_str("import { loadHttpKernel } from '@almadar/runtime/kernelNode';\n\n");
     } else {
-        ts.push_str("import { CredentialStore, type CredentialPersistence } from '@almadar/integrations';\n\n");
+        ts.push_str("import { CredentialStore, installProgramCredentials, type CredentialPersistence } from '@almadar/integrations';\n\n");
     }
 
     ts.push_str("const manager = new RuntimeIntegrationManager();\n");
-    ts.push_str("manager.configureFromEnv();\n\n");
+    ts.push_str("manager.configureFromEnv();\n");
+    if !program_credentials.is_empty() {
+        ts.push_str("installProgramCredentials([\n");
+        for credential in program_credentials {
+            let field = |value: &str| serde_json::to_string(value).expect("a string serializes");
+            ts.push_str(&format!(
+                "  {{ group: {}, envVar: {}, description: {} }},\n",
+                field(&credential.group),
+                field(&credential.env_var),
+                field(&credential.description)
+            ));
+        }
+        ts.push_str("]);\n");
+    }
+    ts.push('\n');
 
     ts.push_str("/**\n");
     ts.push_str(" * W4 tenant credential store: layer stored credentials over the env\n");
@@ -328,7 +347,7 @@ mod tests {
     #[test]
     fn test_generate_service_clients_uses_integration_manager() {
         let services = vec![ServiceRef::Inline(create_test_rest_service())];
-        let ts = generate_service_clients(&services, &BTreeSet::new(), None);
+        let ts = generate_service_clients(&services, &BTreeSet::new(), None, &[]);
 
         assert!(ts.contains("RuntimeIntegrationManager"));
         assert!(ts.contains("@almadar/integrations/runtime"));
@@ -339,7 +358,7 @@ mod tests {
 
     #[test]
     fn http_support_is_absent_unless_the_program_runs_http() {
-        let ts = generate_service_clients(&[], &BTreeSet::new(), None);
+        let ts = generate_service_clients(&[], &BTreeSet::new(), None, &[]);
         assert!(!ts.contains("httpCall"), "{ts}");
         assert!(!ts.contains("@almadar/runtime/kernel"), "{ts}");
     }
@@ -347,7 +366,7 @@ mod tests {
     #[test]
     fn http_call_is_exported_with_the_schema_egress_and_delegates_to_the_kernel() {
         let egress = vec!["https://api.iconify.design".to_string(), "https://api.example.com:8443".to_string()];
-        let ts = generate_service_clients(&[], &BTreeSet::new(), Some(&egress));
+        let ts = generate_service_clients(&[], &BTreeSet::new(), Some(&egress), &[]);
         assert!(ts.contains("export async function httpCall("), "{ts}");
         assert!(ts.contains("export class HttpCallError extends Error"), "{ts}");
         assert!(ts.contains("  'https://api.iconify.design',\n  'https://api.example.com:8443',\n];"), "{ts}");
@@ -363,14 +382,14 @@ mod tests {
 
     #[test]
     fn edge_empty_egress_still_exports_an_empty_allow_list() {
-        let ts = generate_service_clients(&[], &BTreeSet::new(), Some(&[]));
+        let ts = generate_service_clients(&[], &BTreeSet::new(), Some(&[]), &[]);
         assert!(ts.contains("export const httpEgress: readonly string[] = [\n];"), "{ts}");
     }
 
     #[test]
     fn test_declared_services_lists_all_services() {
         let services = vec![ServiceRef::Inline(create_test_rest_service())];
-        let ts = generate_service_clients(&services, &BTreeSet::new(), None);
+        let ts = generate_service_clients(&services, &BTreeSet::new(), None, &[]);
 
         assert!(ts.contains("declaredServices"));
         assert!(ts.contains("'openweather'"));
@@ -381,7 +400,7 @@ mod tests {
         let invoked: BTreeSet<String> = ["email".to_string(), "twilio".to_string()]
             .into_iter()
             .collect();
-        let ts = generate_service_clients(&[], &invoked, None);
+        let ts = generate_service_clients(&[], &invoked, None, &[]);
 
         assert!(ts.contains("invokedServices"));
         assert!(ts.contains("  'email',\n  'twilio',\n"));

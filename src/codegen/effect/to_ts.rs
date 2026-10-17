@@ -170,6 +170,21 @@ impl TypeScriptBackend {
                         .unwrap_or_else(|| "{}".to_string())
                 )
             }
+            OirEffect::Redis { origin, command, .. } => {
+                format!(
+                    "{{ type: 'redis', origin: {}, command: {} }}",
+                    self.expr_to_ts(origin),
+                    self.expr_to_ts(command)
+                )
+            }
+            OirEffect::Postgres { origin, sql, params, .. } => {
+                format!(
+                    "{{ type: 'postgres', origin: {}, sql: {}, params: {} }}",
+                    self.expr_to_ts(origin),
+                    self.expr_to_ts(sql),
+                    self.expr_to_ts(params)
+                )
+            }
             OirEffect::CancelCall { key } => {
                 format!("{{ type: 'cancel-call', key: {} }}", self.expr_to_ts(key))
             }
@@ -188,6 +203,9 @@ impl TypeScriptBackend {
             }
             OirEffect::CredentialForget { credential, .. } => {
                 format!("{{ type: 'credential-forget', credential: {} }}", self.expr_to_ts(credential))
+            }
+            OirEffect::CredentialAdmin { op, request, .. } => {
+                format!("{{ type: '{}', request: {} }}", op.name(), self.expr_to_ts(request))
             }
             OirEffect::OAuthAuthorize { client, options, .. } => {
                 format!(
@@ -382,6 +400,9 @@ impl TypeScriptBackend {
             OirEffect::BrowserEmbed { texts, .. } => {
                 format!("{{ type: 'browser/embed', texts: {} }}", self.expr_to_ts(texts))
             }
+            OirEffect::BrowserTab { op, request, .. } => {
+                format!("{{ type: '{}', request: {} }}", op.name(), self.expr_to_ts(request))
+            }
         }
     }
 
@@ -399,6 +420,7 @@ impl TypeScriptBackend {
         let catalog = self.entity_catalog.snapshot();
         let linked = self.current_linked_entity.snapshot();
         let payload_schema = self.current_payload_schema.snapshot();
+        let config_schema = self.current_config_schema.snapshot();
         CodegenContext {
             entity_var: entity_var.map(|s| s.to_string()),
             payload_var: payload_var.map(|s| s.to_string()),
@@ -406,6 +428,7 @@ impl TypeScriptBackend {
             entity_catalog: catalog,
             linked_entity_name: linked,
             current_payload_schema: payload_schema,
+            current_config_schema: config_schema,
             ..Default::default()
         }
     }
