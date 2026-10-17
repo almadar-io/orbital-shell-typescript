@@ -497,12 +497,31 @@ pub fn trait_has_cancel_call(trait_def: &OirTrait) -> bool {
         .any(|t| t.effects.iter().any(visit))
 }
 
+/// Whether any transition runs an agent-port effect (`program/inputs`, `program/dispatch`,
+/// `persist/read-named`), at any depth: they run over the host ports `servicePorts` lends.
+pub fn trait_has_agent_port_effects(trait_def: &OirTrait) -> bool {
+    fn visit(e: &OirExpr) -> bool {
+        if let OirExpr::Effect { effect } = e {
+            if let OirEffect::Custom { name, .. } = effect.as_ref() {
+                if orbital_core_base::agent_ports::is_agent_port_operator(name) {
+                    return true;
+                }
+            }
+        }
+        e.child_exprs().into_iter().any(visit)
+    }
+    trait_def
+        .transitions
+        .iter()
+        .any(|t| t.effects.iter().any(visit))
+}
+
 /// The `services/host` import line a trait's handlers need: `servicePorts`
 /// for `call-service`, the registry's begin/end for a keyed one, and
 /// `cancelKeyedCall` for `cancel-call`. `None` when the trait needs none.
 pub fn service_host_import(trait_def: &OirTrait, module_path: &str) -> Option<String> {
     let mut symbols: Vec<&str> = Vec::new();
-    if has_call_service_effects(trait_def) {
+    if has_call_service_effects(trait_def) || trait_has_agent_port_effects(trait_def) {
         symbols.push("servicePorts");
     }
     if trait_has_keyed_call_service(trait_def) {
@@ -905,8 +924,8 @@ mod runtime_entity_binding_tests {
 
     #[test]
     fn the_client_frame_is_folded_over_the_held_row() {
-        let js = runtime_entity_binding("std-service-arxiv", "ServiceArxivArxiv", "ServiceArxiv");
-        assert!(js.contains("const entity = getRuntimeEntity('std-service-arxiv', 'ServiceArxivArxiv', entityId) as ServiceArxiv;"), "{js}");
+        let js = runtime_entity_binding("std-service-redis", "ServiceRedisRedis", "ServiceRedis");
+        assert!(js.contains("const entity = getRuntimeEntity('std-service-redis', 'ServiceRedisRedis', entityId) as ServiceRedis;"), "{js}");
         assert!(
             js.contains("if (entityFrame) Object.assign(entity, entityFrame);"),
             "{js}"

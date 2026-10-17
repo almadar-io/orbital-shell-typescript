@@ -26,6 +26,22 @@ fn runs_beacon(expr: &OirExpr) -> bool {
     }
 }
 
+/// Whether `expr` holds a `browser/prompt` or `browser/embed` at any depth: the on-device model is a host port of
+/// the browser store, so the transition is a browser leg like a beacon.
+fn runs_on_device_model(expr: &OirExpr) -> bool {
+    match expr {
+        OirExpr::Effect { effect }
+            if matches!(effect.as_ref(), OirEffect::BrowserPrompt { .. } | OirEffect::BrowserEmbed { .. }) =>
+        {
+            true
+        }
+        OirExpr::Conditional { condition, then_branch, else_branch } => {
+            (!condition.is_statically_false() && runs_on_device_model(then_branch)) || runs_on_device_model(else_branch)
+        }
+        _ => expr.child_exprs().into_iter().any(runs_on_device_model),
+    }
+}
+
 impl TypeScriptBackend {
     /// The events whose leg goes to the browser store: the core set (`OirTrait::browser_leg_events`) plus every live
     /// transition or client tick that sends a `browser/beacon`.
@@ -37,14 +53,14 @@ impl TypeScriptBackend {
                 .transitions
                 .iter()
                 .filter(|t| !t.guard.as_ref().is_some_and(|g| g.is_statically_false()))
-                .filter(|t| t.effects.iter().any(runs_beacon))
+                .filter(|t| t.effects.iter().any(|e| runs_beacon(e) || runs_on_device_model(e)))
                 .map(|t| t.event.clone()),
         );
         events.extend(
             trait_def
                 .ticks
                 .iter()
-                .filter(|t| !t.background && t.effects.iter().any(runs_beacon))
+                .filter(|t| !t.background && t.effects.iter().any(|e| runs_beacon(e) || runs_on_device_model(e)))
                 .map(|t| orbital_core_base::bus_event::tick_event_key(&t.name)),
         );
         events
@@ -447,6 +463,27 @@ mod tests {
             vec![browser_leg_key("Loader", "LOAD")]
         );
         assert!(TypeScriptBackend::generate_browser_http_file(&module).is_some());
+    }
+
+    #[test]
+    fn an_on_device_model_effect_is_a_browser_leg_and_needs_no_request_driver() {
+        for effect in [
+            OirEffect::BrowserPrompt {
+                text: OirExpr::string("t"),
+                schema: OirExpr::string("{}"),
+                key: Some(OirExpr::string("k")),
+                emit: None,
+            },
+            OirEffect::BrowserEmbed { texts: OirExpr::array(Vec::new()), key: None, emit: None },
+        ] {
+            let mut module = http_module(false);
+            module.traits[0].transitions[0].effects = vec![OirExpr::effect(effect)];
+            assert_eq!(
+                TypeScriptBackend::compute_browser_legs(&module).into_iter().collect::<Vec<_>>(),
+                vec![browser_leg_key("Loader", "LOAD")]
+            );
+            assert!(!TypeScriptBackend::module_runs_client_http(&module));
+        }
     }
 
     #[test]

@@ -88,7 +88,9 @@ fn an_unrouted_oauth_failure_is_thrown_and_never_reported_as_an_http_result() {
 fn the_generated_service_clients_wire_the_oauth_port_and_the_two_host_functions() {
     let ts = crate::generate_service_clients(&[], &std::collections::BTreeSet::new(), Some(&[]));
     for needle in [
-        "oauth: createOAuthPort({ pending: pendingGrantStore, connections: installedOAuthConnectionStore }),",
+        "const httpSecrets = createHttpSecrets();",
+        "secrets: httpSecrets,",
+        "oauth: createOAuthPort({ secrets: httpSecrets }),",
         "export function hostOAuthAuthorize(",
         "return oauthAuthorizePayload(httpPorts, client, options, principal, key);",
         "export function hostOAuthConnection(",

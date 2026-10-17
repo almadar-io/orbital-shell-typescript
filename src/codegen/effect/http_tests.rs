@@ -179,6 +179,25 @@ fn facts_effect(key: Option<OirExpr>) -> OirEffect {
 }
 
 #[test]
+fn on_device_model_effects_have_no_client_body_and_no_server_body_and_name_themselves_in_the_effect_tuple() {
+    let backend = TypeScriptBackend::new();
+    let prompt = OirEffect::BrowserPrompt {
+        text: OirExpr::string("t"),
+        schema: OirExpr::string("{}"),
+        key: Some(OirExpr::string("k")),
+        emit: Some(full_emit()),
+    };
+    let embed = OirEffect::BrowserEmbed { texts: OirExpr::array(vec![OirExpr::string("a")]), key: None, emit: None };
+    for effect in [&prompt, &embed] {
+        assert!(backend.transpile_client_effect(effect, "", Some("Probe"), None).is_none());
+        let server = server_js(effect);
+        assert!(!server.contains("fetch("), "{server}");
+    }
+    assert!(backend.effect_to_ts(&prompt).starts_with("{ type: 'browser/prompt', text: "), "{}", backend.effect_to_ts(&prompt));
+    assert!(backend.effect_to_ts(&embed).starts_with("{ type: 'browser/embed', texts: "), "{}", backend.effect_to_ts(&embed));
+}
+
+#[test]
 fn a_keyed_page_facts_echoes_its_key_on_success_and_failure_and_an_unkeyed_one_carries_none() {
     let keyed = client_js(&facts_effect(Some(OirExpr::string("k1"))));
     assert!(keyed.contains("{ ...__facts, key: __key }"), "{keyed}");
@@ -187,4 +206,22 @@ fn a_keyed_page_facts_echoes_its_key_on_success_and_failure_and_an_unkeyed_one_c
     let unkeyed = client_js(&facts_effect(None));
     assert!(!unkeyed.contains("__key"), "{unkeyed}");
     assert!(unkeyed.contains("{ ...__result }"), "{unkeyed}");
+}
+
+#[test]
+fn delay_ms_rides_in_the_request_object_the_one_helper_receives() {
+    let mut request = OirFields::new();
+    request.insert("delayMs".to_string(), OirExpr::number(750.0));
+    let delayed = OirEffect::Http {
+        method: HttpMethod::Get,
+        origin: OirExpr::string("https://api.example.com"),
+        path: OirExpr::string("/x"),
+        request: Some(OirExpr::object(request)),
+        key: Some(OirExpr::string("k")),
+        emit: None,
+    };
+    let js = server_js(&delayed);
+    assert!(js.contains("delayMs"), "{js}");
+    // Control: a request without the option generates none.
+    assert!(!server_js(&http(HttpMethod::Get, None, None)).contains("delayMs"));
 }

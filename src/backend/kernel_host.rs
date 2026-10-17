@@ -31,6 +31,7 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { RequestHandler, Router } from 'express';
+import type { InboundAnswer, InboundDelivery } from '@almadar/core';
 import { OrbitalServerRuntime } from '@almadar/runtime/OrbitalServerRuntime';
 import { loadKernelModule } from '@almadar/runtime/kernelNode';
 import { createPersistence, persistenceSpecFromEnv } from '@almadar/db/backend';
@@ -43,7 +44,12 @@ const kernelDir = join(dirname(createRequire(import.meta.url).resolve('@almadar/
 const spec = persistenceSpecFromEnv(process.env);
 const mock = spec.backend === 'mock';
 
-async function open(): Promise<Router> {
+interface OpenedHost {
+  runtime: OrbitalServerRuntime;
+  router: Router;
+}
+
+async function open(): Promise<OpenedHost> {
   const kernel = await loadKernelModule(kernelDir, { languageFrom: here });
   const runtime = new OrbitalServerRuntime({
     engine: 'kernel',
@@ -65,15 +71,21 @@ async function open(): Promise<Router> {
   });
   await runtime.register(program);
   logger.info(`Kernel host ready (${program.name})`);
-  return runtime.router();
+  return { runtime, router: runtime.router() };
 }
 
-let opened: Promise<Router> | undefined;
+let opened: Promise<OpenedHost> | undefined;
 
 /** Opens the kernel once; every caller shares the one program instance. */
-export function kernelHost(): Promise<Router> {
+export async function kernelHost(): Promise<Router> {
   opened ??= open();
-  return opened;
+  return (await opened).router;
+}
+
+/** An inbound delivery (`POST /api/hooks/:name`), answered by the kernel once it is open (EXEC-INBOUND-1). */
+export async function deliverInbound(name: string, delivery: InboundDelivery): Promise<InboundAnswer> {
+  opened ??= open();
+  return (await opened).runtime.deliverInbound(name, delivery);
 }
 
 /** Starts the kernel at boot so the first request does not pay for it; a failure is logged and every request then fails with it. */

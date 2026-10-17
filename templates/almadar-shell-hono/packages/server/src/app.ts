@@ -17,8 +17,7 @@ import {
   createHooksRouter,
   type AppEnv,
 } from '@almadar/server-hono';
-import { hookProviders } from './hooks-providers.js';
-import { broadcastBusEvent } from './sse.js';
+import { deliverInbound } from './inbound.js';
 import { registerRoutes } from './routes.js';
 import { identityRoster } from './viewer.js';
 
@@ -40,28 +39,11 @@ app.route('/api/debug', debugEventsRouter());
 app.route('/api/push', pushRouter);
 app.get(PUSH_SERVICE_WORKER_PATH, pushServiceWorkerHandler);
 
-// Inbound webhook ingress (I-19 decision): mounted BEFORE the authenticated
-// /api routes — hook senders (Google Calendar watch channels, e-sign status,
-// banking callbacks) cannot present a Firebase token, so each provider
-// VERIFIES its own signature/channel token and unverified requests get 400.
-// Dispatch = SSE bus broadcast to every connected client, so client circuits'
-// `listens` fire; the cron pull cycle stays the no-client backstop.
-app.route(
-  '/api/hooks',
-  createHooksRouter({
-    // Derived from this app's invoked services (generated hooks-providers.ts, I-26).
-    providers: hookProviders(),
-    dispatch: (event, payload) => {
-      broadcastBusEvent(undefined, {
-        type: 'bus',
-        event,
-        payload,
-        source: { orbital: 'webhook', trait: 'ingress' },
-        timestamp: Date.now(),
-      });
-    },
-  }),
-);
+// Inbound webhook ingress: mounted BEFORE the authenticated /api routes — hook senders (Google
+// Calendar watch channels, e-sign status, banking callbacks) cannot present a Firebase token. The
+// route knows no provider: it carries `{ name, headers, rawBody }` to the generated `inbound.ts`
+// and writes back the answer; the handler trait's own transitions verify the sender (EXEC-INBOUND-1).
+app.route('/api/hooks', createHooksRouter({ deliver: deliverInbound }));
 
 // Register generated routes
 // Dev personas: the [identity] rows as Auth-emulator users (mounted only while

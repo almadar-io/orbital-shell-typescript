@@ -497,6 +497,8 @@ impl TypeScriptBackend {
             | OirEffect::BrowserGeolocationCurrent { .. }
             | OirEffect::BrowserPageFacts { .. }
             | OirEffect::BrowserBeacon { .. }
+            | OirEffect::BrowserPrompt { .. }
+            | OirEffect::BrowserEmbed { .. }
             | OirEffect::BrowserPushSubscribe { .. } => {
                 // Client host device APIs — transpiled on the client (Phase 4).
                 // No server-side code needed.
@@ -1227,16 +1229,6 @@ impl TypeScriptBackend {
                 code.push_str("      }\n\n");
             }
 
-            OirEffect::OsDebounce { ms, event_type } => {
-                let ms_ts = self.expr_to_ts(ms);
-                let evt_ts = self.expr_to_ts(event_type);
-                code.push_str("      // os/debounce — configure debounce for event type\n");
-                code.push_str(&format!(
-                    "      console.log('[os/debounce] Configured', {}, 'ms debounce for', {});\n\n",
-                    ms_ts, evt_ts
-                ));
-            }
-
             OirEffect::FetchStream {
                 entity_type,
                 id,
@@ -1352,6 +1344,50 @@ impl TypeScriptBackend {
                             a(0)
                         ));
                         code.push_str("      effectResults.push({ effect: 'substrate', name: 'session/write-spec', success: true });\n\n");
+                    }
+                    op if Self::substrate_op_is_agent_port(op) => {
+                        // `program/inputs`, `program/dispatch` and `persist/read-named` run over the host ports
+                        // the route lends this call: the app as the signed-in viewer. `{ result, text }` on success,
+                        // `{ error, errors? }` on failure; no emit config at all: a failure throws.
+                        let args_arr: Vec<String> = (0..arg_exprs.len())
+                            .map(|i| format!("({}) as JsonValue", a(i)))
+                            .collect();
+                        code.push_str(&format!("      // agent port effect: {}\n", op));
+                        code.push_str("      {\n");
+                        code.push_str("        const __ports = servicePorts(__ORBITAL_SOURCE, user);\n");
+                        code.push_str(&format!(
+                            "        const __out: AgentPortOutcome = __ports ? await runAgentPort('{}', [{}], __ports) : {{ ok: false, error: 'no host ports configured for {}' }};\n",
+                            op,
+                            args_arr.join(", "),
+                            op
+                        ));
+                        code.push_str("        if (__out.ok) {\n");
+                        code.push_str(&format!(
+                            "          effectResults.push({{ effect: 'substrate', name: '{}', success: true, data: agentPortPayload(__out.result).result }});\n",
+                            op
+                        ));
+                        if let Some(success_event) = emit.as_ref().and_then(|c| c.success.as_ref()) {
+                            code.push_str(&format!(
+                                "          {{ const __evP: EventPayload = agentPortPayload(__out.result); emittedEvents.push({{ event: '{success_event}', payload: __evP, source: __ORBITAL_SOURCE }}); getServerEventBus().emit('{success_event}', __evP, __ORBITAL_SOURCE); }}\n"
+                            ));
+                        }
+                        code.push_str("        } else {\n");
+                        code.push_str(&format!(
+                            "          effectResults.push({{ effect: 'substrate', name: '{}', success: false, error: __out.error }});\n",
+                            op
+                        ));
+                        match emit.as_ref() {
+                            None => code.push_str("          throw new Error(__out.error);\n"),
+                            Some(cfg) => {
+                                if let Some(failure_event) = &cfg.failure {
+                                    code.push_str(&format!(
+                                        "          {{ const __evF: EventPayload = {{ error: __out.error, ...(__out.errors ? {{ errors: __out.errors.map((__issue) => ({{ code: __issue.code, message: __issue.message }})) }} : {{}}) }}; emittedEvents.push({{ event: '{failure_event}', payload: __evF, source: __ORBITAL_SOURCE }}); getServerEventBus().emit('{failure_event}', __evF, __ORBITAL_SOURCE); }}\n"
+                                    ));
+                                }
+                            }
+                        }
+                        code.push_str("        }\n");
+                        code.push_str("      }\n\n");
                     }
                     op if Self::substrate_op_is_program_effect(op) => {
                         // Same contract as the interpreter's executor arm: the

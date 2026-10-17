@@ -467,7 +467,7 @@ fn codec_codegen_rejects_nonexact_arity_without_reading_operands() {
         calls.iter().map(|call| format!("() => ({call})")).collect::<Vec<_>>().join(", ")
     ));
     assert_eq!(output["reads"], json!(0));
-    assert_eq!(output["results"].as_array().unwrap().len(), 13);
+    assert_eq!(output["results"].as_array().unwrap().len(), calls.len());
     for (result, expected) in output["results"]
         .as_array()
         .unwrap()
@@ -1131,7 +1131,7 @@ fn codec_codegen_authored_error_parameter_preserves_arity_error_construction() {
             .collect::<Vec<_>>()
             .join(", ")
     ));
-    assert_eq!(output.as_array().unwrap().len(), 10);
+    assert_eq!(output.as_array().unwrap().len(), 2 * OPERATORS.len());
     for (actual, (label, _, error)) in output.as_array().unwrap().iter().zip(cases) {
         assert_eq!(actual["name"], "Error", "{label}: {actual}");
         assert_eq!(actual["error"], json!(error), "{label}: {actual}");

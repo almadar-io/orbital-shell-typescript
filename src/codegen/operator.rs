@@ -1272,7 +1272,7 @@ impl TypeScriptBackend {
 
             // OS triggers are server-side; on the client they're inert.
             "os/watch-files" | "os/watch-process" | "os/watch-port" | "os/watch-http"
-            | "os/watch-cron" | "os/watch-signal" | "os/watch-env" | "os/debounce" => {
+            | "os/watch-cron" | "os/watch-signal" | "os/watch-env" => {
                 format!("/* server-side: {} ({}) */", function, args.join(", "))
             }
 

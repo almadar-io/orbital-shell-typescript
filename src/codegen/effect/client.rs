@@ -287,8 +287,7 @@ impl TypeScriptBackend {
             | OirEffect::OsWatchHttp { .. }
             | OirEffect::OsWatchCron { .. }
             | OirEffect::OsWatchSignal { .. }
-            | OirEffect::OsWatchEnv { .. }
-            | OirEffect::OsDebounce { .. } => None,
+            | OirEffect::OsWatchEnv { .. } => None,
 
             // render-ui is handled declaratively via state-based JSX
             OirEffect::RenderUi { .. } => None,
@@ -457,7 +456,7 @@ impl TypeScriptBackend {
 
             // Delivered by the browser store's one http driver: a transition that sends a beacon is a browser leg
             // (`trait_browser_leg_events`), so the client holds no delivery code of its own.
-            OirEffect::BrowserBeacon { .. } => None,
+            OirEffect::BrowserBeacon { .. } | OirEffect::BrowserPrompt { .. } | OirEffect::BrowserEmbed { .. } => None,
 
             // Custom effects — emit as comments for manual wiring
             OirEffect::Custom { name, args, .. } => {
@@ -867,6 +866,12 @@ impl TypeScriptBackend {
             OirEffect::BrowserPageFacts { .. } => false,
             OirEffect::BrowserBeacon { url, request, key, .. } => {
                 check_expr(url) || check_expr(request) || key.as_ref().is_some_and(&check_expr)
+            }
+            OirEffect::BrowserPrompt { text, schema, key, .. } => {
+                check_expr(text) || check_expr(schema) || key.as_ref().is_some_and(&check_expr)
+            }
+            OirEffect::BrowserEmbed { texts, key, .. } => {
+                check_expr(texts) || key.as_ref().is_some_and(&check_expr)
             }
             _ => false,
         }

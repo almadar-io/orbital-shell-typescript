@@ -503,7 +503,12 @@ impl TypeScriptBackend {
                     std::collections::BTreeSet::new();
                 let mut needs_server_substrate = false;
                 let mut needs_program_host = false;
+                let mut needs_agent_ports = false;
                 for op in &substrate_ops {
+                    if Self::substrate_op_is_agent_port(op) {
+                        needs_agent_ports = true;
+                        continue;
+                    }
                     if Self::substrate_op_is_program_effect(op) {
                         needs_program_host = true;
                         continue;
@@ -541,8 +546,12 @@ impl TypeScriptBackend {
                         "import { runProgramEffect } from '@almadar/integrations/program';\n",
                     );
                 }
-                if needs_server_substrate || needs_program_host {
-                    // Both cross payload types into JsonValue at the host boundary.
+                if needs_agent_ports {
+                    code.push_str("import { agentPortPayload, runAgentPort } from '@almadar/core';\n");
+                    code.push_str("import type { AgentPortOutcome } from '@almadar/core';\n");
+                }
+                if needs_server_substrate || needs_program_host || needs_agent_ports {
+                    // Each crosses payload types into JsonValue at the host boundary.
                     code.push_str("import type { JsonValue } from '@almadar/core';\n");
                 }
             }
@@ -716,6 +725,7 @@ impl TypeScriptBackend {
         code.push_str("    res.status(400).json({ success: false, error: 'A mount batch goes to the orbital events route' });\n");
         code.push_str("    return;\n");
         code.push_str("  }\n");
+        code.push_str(&crate::backend::server::inbound::inbound_only_guard(module, trait_name, ServerFramework::Express));
         // The WHOLE viewer (C-USER-ROLE-NEVER-POPULATED): `viewerOf` resolves the verified
         // token against the `[identity]` entity (`@almadar/auth`), shared with the interpreter path.
         // is the one claims->UserContext owner, shared with the interpreter path.

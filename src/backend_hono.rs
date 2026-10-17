@@ -168,6 +168,9 @@ impl TypeScriptBackend {
         let needs_program_host = substrate_ops
             .iter()
             .any(|op| Self::substrate_op_is_program_effect(op));
+        let needs_agent_ports = substrate_ops
+            .iter()
+            .any(|op| Self::substrate_op_is_agent_port(op));
         let needs_server_substrate = substrate_ops.iter().any(|op| {
             op.starts_with("session/") || op.starts_with("workspace/")
         });
@@ -191,8 +194,12 @@ impl TypeScriptBackend {
         if needs_program_host {
             code.push_str("import { runProgramEffect } from '@almadar/integrations/program';\n");
         }
-        if needs_server_substrate || needs_program_host {
-            // Both cross payload types into JsonValue at the host boundary.
+        if needs_agent_ports {
+            code.push_str("import { agentPortPayload, runAgentPort } from '@almadar/core';\n");
+            code.push_str("import type { AgentPortOutcome } from '@almadar/core';\n");
+        }
+        if needs_server_substrate || needs_program_host || needs_agent_ports {
+            // Each crosses payload types into JsonValue at the host boundary.
             code.push_str("import type { JsonValue } from '@almadar/core';\n");
         }
 
@@ -447,7 +454,9 @@ impl TypeScriptBackend {
         code.push_str("  const body = await c.req.json<EventRequest>();\n");
         code.push_str("  if (body.mount !== undefined) {\n");
         code.push_str("    return c.json({ success: false, error: 'A mount batch goes to the orbital events route' }, 400);\n");
-        code.push_str("  }\n\n");
+        code.push_str("  }\n");
+        code.push_str(&crate::backend::server::inbound::inbound_only_guard(module, trait_name, ServerFramework::Hono));
+        code.push('\n');
 
         // Validate payload with per-event schema
         code.push_str("  // Validate payload against per-event schema\n");

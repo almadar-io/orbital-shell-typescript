@@ -174,3 +174,54 @@ fn behavior_resolve_routes_through_the_shared_host_like_behavior_source() {
     );
     assert!(!ts.contains("getSubstrateService"), "{ts}");
 }
+
+#[test]
+fn an_agent_port_effect_runs_over_the_host_ports_the_route_lends() {
+    let ts = handlers(vec![custom(
+        "program/dispatch",
+        vec![OirExpr::string("a"), OirExpr::string("{}")],
+        emit_cfg("DISPATCHED", Some("DISPATCH_FAILED")),
+    )]);
+    assert!(ts.contains("import { agentPortPayload, runAgentPort } from '@almadar/core';"), "{ts}");
+    assert!(ts.contains("import type { AgentPortOutcome } from '@almadar/core';"), "{ts}");
+    assert!(ts.contains("servicePorts"), "the route's host ports are imported:\n{ts}");
+    assert!(
+        ts.contains("const __ports = servicePorts(__ORBITAL_SOURCE, user);"),
+        "{ts}"
+    );
+    assert!(
+        ts.contains("await runAgentPort('program/dispatch', [(\"a\") as JsonValue, (\"{}\") as JsonValue], __ports)"),
+        "{ts}"
+    );
+    assert!(ts.contains("emittedEvents.push({ event: 'DISPATCHED'"), "{ts}");
+    assert!(
+        ts.contains("const __evP: EventPayload = agentPortPayload(__out.result);"),
+        "the success payload carries the result as JSON text:\n{ts}"
+    );
+    assert!(ts.contains("emittedEvents.push({ event: 'DISPATCH_FAILED'"), "{ts}");
+    assert!(
+        !ts.contains("runProgramEffect"),
+        "an agent port is not the program host:\n{ts}"
+    );
+}
+
+#[test]
+fn without_an_emit_config_a_failed_agent_port_effect_throws() {
+    let ts = handlers(vec![custom(
+        "persist/read-named",
+        vec![OirExpr::string("Note")],
+        None,
+    )]);
+    assert!(ts.contains("throw new Error(__out.error);"), "{ts}");
+    assert!(ts.contains("await runAgentPort('persist/read-named', ["), "{ts}");
+}
+
+#[test]
+fn control_a_program_effect_next_to_an_agent_port_keeps_its_own_host() {
+    let ts = handlers(vec![
+        custom("program/read", vec![OirExpr::string("orbital A {}")], None),
+        custom("program/inputs", vec![], None),
+    ]);
+    assert!(ts.contains("await runProgramEffect('program/read', ["), "{ts}");
+    assert!(ts.contains("await runAgentPort('program/inputs', []"), "{ts}");
+}

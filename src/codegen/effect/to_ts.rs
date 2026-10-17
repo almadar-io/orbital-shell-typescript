@@ -273,13 +273,6 @@ impl TypeScriptBackend {
                     self.expr_to_ts(variable)
                 )
             }
-            OirEffect::OsDebounce { ms, event_type } => {
-                format!(
-                    "{{ type: 'os/debounce', ms: {}, eventType: {} }}",
-                    self.expr_to_ts(ms),
-                    self.expr_to_ts(event_type)
-                )
-            }
             OirEffect::Ref { entity_type, .. } => {
                 format!(
                     "{{ type: 'ref', entityType: '{}' }}",
@@ -379,6 +372,16 @@ impl TypeScriptBackend {
                     self.expr_to_ts(request)
                 )
             }
+            OirEffect::BrowserPrompt { text, schema, .. } => {
+                format!(
+                    "{{ type: 'browser/prompt', text: {}, schema: {} }}",
+                    self.expr_to_ts(text),
+                    self.expr_to_ts(schema)
+                )
+            }
+            OirEffect::BrowserEmbed { texts, .. } => {
+                format!("{{ type: 'browser/embed', texts: {} }}", self.expr_to_ts(texts))
+            }
         }
     }
 
@@ -424,6 +427,13 @@ impl TypeScriptBackend {
     /// the handler-file import and the effect emission read.
     pub(crate) fn substrate_op_is_program_effect(name: &str) -> bool {
         orbital_core_base::language::registry::is_program_host_effect(name)
+            && !Self::substrate_op_is_agent_port(name)
+    }
+
+    /// `program/inputs`, `program/dispatch` and `persist/read-named`: compiled to `runAgentPort`
+    /// (`@almadar/core`) over the host ports `servicePorts` lends, not to the program host.
+    pub(crate) fn substrate_op_is_agent_port(name: &str) -> bool {
+        orbital_core_base::agent_ports::is_agent_port_operator(name)
     }
 
     /// Compile a substrate operator used in VALUE position (inside `set`,
