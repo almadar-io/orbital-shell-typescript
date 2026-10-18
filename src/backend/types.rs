@@ -4,36 +4,9 @@ use orbital_core_base::ir::{
 };
 use std::collections::HashMap;
 
-/// Whether an `OirType` is rendered for a DECLARED position (entity/schema
-/// interfaces, trait config) or an INFERRED one (lambda-param / array-element
-/// types in expression codegen). The only axis on which the otherwise-shared
-/// `OirType → TS` walk varies — mirrors the crate's `BindingFlavor` /
-/// mode-enum idiom (one walk, `match mode` at the few divergent
-/// arms) rather than two hand-maintained copies.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TsTypeMode {
-    /// Entity fields / schema interfaces / trait `config{}` — the type must
-    /// match what the runtime stores/serializes.
-    Declared,
-    /// Inferred lambda-param / array-element types — the type must accept a
-    /// live value at that point (e.g. an in-memory `Date`, not just its wire
-    /// string), and an unknown reference widens to `EntityRow`.
-    Inferred,
-}
-
 /// A `'a' | 'b' | 'c'` string-literal union from a non-empty enum value list,
 /// or `None` when there are no values. The one place enum values become a TS
 /// union, shared by the `String`/`Enum`/struct-field arms of `map_type_ts`.
-/// An element type ready for `[]`: `[]` binds tighter than `|`, so `A | B[]` is an array of B
-/// alone. Parentheses are always valid, so any element spelling a union gets them.
-pub(crate) fn array_element_ts(element: &str) -> String {
-    // `readonly` applies to the whole array/tuple type that follows it.
-    if element.contains('|') || element.starts_with("readonly ") {
-        format!("({element})")
-    } else {
-        element.to_string()
-    }
-}
 
 /// Whether an `OirType` reaches the `SExpr` brand anywhere (its emitted TS needs the `SExpr` type).
 pub(crate) fn oir_type_uses_sexpr(oir_type: &OirType) -> bool {
@@ -87,14 +60,12 @@ pub(crate) fn struct_fields_ts(
 /// ([`render_type`]). Every former `OirType → TS` entry point is a config of
 /// this one struct — the recursion now lives once in `orbital-core`, so a new
 /// `OirType` variant forces an explicit decision here (and in every other
-/// backend) at compile time. The three axes that used to be separate copies:
-/// `mode` (Declared entity/schema vs Inferred lambda/element), `catalog`
-/// (Inferred `Reference` known-vs-`EntityRow`), and `payload` (bus-payload dates as `Date | string`, optionals
+/// backend) at compile time. The two axes: `catalog` (a `Row` of an entity the
+/// catalog lacks widens to `EntityRow`) and `payload` (bus-payload dates as `Date | string`, optionals
 /// unwrapped, struct fields un-enumed). Enum values ride the `enum_values`
 /// sidecar (a lolo `format:` union lowers to `String` + `enum_values`, so they
 /// can't live on `OirType::Enum`).
 pub(crate) struct TsRenderer<'a> {
-    mode: TsTypeMode,
     catalog: Option<&'a HashMap<String, OirEntity>>,
     payload: bool,
 }
@@ -116,7 +87,7 @@ impl TargetTypeRenderer for TsRenderer<'_> {
     }
     fn date(&self) -> String {
         // A bus payload date legitimately arrives as the serialized string OR an
-        // in-memory `Date`; an Inferred position must accept the live value too.
+        // in-memory `Date`.
         // `number` is in every union because BOTH paths store `time/now` as
         // epoch milliseconds (`Date.now()`) — a date-typed field's at-rest
         // value domain is honestly `string | number` (ISO seed or ms write),
@@ -125,21 +96,12 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         if self.payload {
             return "Date | string | number".to_string();
         }
-        match self.mode {
-            TsTypeMode::Declared => "string | number".to_string(),
-            TsTypeMode::Inferred => "Date | string | number".to_string(),
-        }
+        "string | number".to_string()
     }
     fn json(&self) -> String {
-        // Declared: a Json entity field must stay assignable to the surrounding
-        // `EntityRow` index signature (`Record<string, FieldValue | undefined>`)
-        // — `Record<string, unknown>` breaks TS2411. Inferred: an array-element
-        // Json widens to `EntityRow` so `row.<field>` reads return `FieldValue
-        // | undefined`.
-        match self.mode {
-            TsTypeMode::Declared => "Record<string, FieldValue | undefined>".to_string(),
-            TsTypeMode::Inferred => "EntityRow".to_string(),
-        }
+        // A Json entity field must stay assignable to the surrounding `EntityRow` index
+        // signature (`Record<string, FieldValue | undefined>`); `Record<string, unknown>` breaks TS2411.
+        "Record<string, FieldValue | undefined>".to_string()
     }
     fn union_ty(&self, variants: &[OirField]) -> String {
         // A real TS discriminated union. Each variant already renders as an
@@ -159,35 +121,21 @@ impl TargetTypeRenderer for TsRenderer<'_> {
     }
     fn reference(&self, entity: &str) -> String {
         // A PAYLOAD field referencing an entity carries the ROW, not an id.
-        // The `Declared => "string"` rule below is right for entity relation
+        // The `"string"` rule below is right for entity relation
         // fields (which really do store an id at rest) but wrong here, and the
         // two share this renderer: an event declaring `{ row : BoardView }`
         // rendered `row: string` in `events.ts` while a row object arrived on
         // the bus — and it typechecked, so nothing caught it. Payload positions
-        // get the row interface, matching `Inferred`, where the value really IS the row.
+        // get the row interface.
         if self.payload {
             return match self.catalog {
                 Some(c) if c.contains_key(entity) => entity.to_string(),
                 _ => "EntityRow".to_string(),
             };
         }
-        match self.mode {
-            // A relation FIELD stores the referenced row's id — a string —
-            // on both paths; typing the member as the referenced entity's
-            // interface lied about the at-rest value and made every
-            // `@user.id` write a TS2352 non-overlap cast
-            // (C-COMPILED-PATH-RED §25, string→Person). Inferred positions
-            // (collection reads) keep the full row interface — there the
-            // value really IS the row.
-            TsTypeMode::Declared => "string".to_string(),
-            TsTypeMode::Inferred => {
-                if self.catalog.is_some_and(|c| c.contains_key(entity)) {
-                    entity.to_string()
-                } else {
-                    "EntityRow".to_string()
-                }
-            }
-        }
+        // A relation FIELD stores the referenced row's id, a string, on both paths; typing the
+        // member as the referenced entity's interface made every `@user.id` write a TS2352 cast.
+        "string".to_string()
     }
     fn row(&self, entity: &str) -> String {
         match self.catalog {
@@ -200,25 +148,14 @@ impl TargetTypeRenderer for TsRenderer<'_> {
     }
     fn orbital_value(&self) -> String {
         // The inlined storage shape where it is declared; an expression result reads as a stored field value.
-        match self.mode {
-            TsTypeMode::Declared => "OrbitalFieldRef".to_string(),
-            TsTypeMode::Inferred => "FieldValue".to_string(),
-        }
+        "OrbitalFieldRef".to_string()
     }
     fn behavior_value(&self) -> String {
-        match self.mode {
-            TsTypeMode::Declared => "BehaviorFieldRef".to_string(),
-            TsTypeMode::Inferred => "FieldValue".to_string(),
-        }
+        "BehaviorFieldRef".to_string()
     }
     fn trait_ref(&self) -> String {
-        // A `trait`-typed config field is the branded `TraitFieldRef` in a
-        // declared position; in an inferred expression position it reads as a
-        // plain string (the deep-scan substitutes `@trait.X` at codegen time).
-        match self.mode {
-            TsTypeMode::Declared => "TraitFieldRef".to_string(),
-            TsTypeMode::Inferred => "string".to_string(),
-        }
+        // A `trait`-typed config field is the branded `TraitFieldRef`.
+        "TraitFieldRef".to_string()
     }
     fn sexpr(&self) -> String {
         "SExpr".to_string()
@@ -234,7 +171,7 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         // Renderable content: string leaf, pattern node, or arrays of either.
         // `PatternValue` is assignable under `EntityRow`'s index signature
         // (`FieldValue` carries a `readonly FieldValue[]` member for exactly
-        // this), so Declared and Inferred agree.
+        // this).
         "PatternValue".to_string()
     }
     fn array(&self, inner_ty: &OirType, inner: String) -> String {
@@ -244,30 +181,21 @@ impl TargetTypeRenderer for TsRenderer<'_> {
             OirType::Optional { .. } => format!("({})", inner),
             _ => inner,
         };
-        match self.mode {
-            TsTypeMode::Declared => format!("{}[]", element),
-            TsTypeMode::Inferred => format!("readonly {}[]", element),
-        }
+        format!("{}[]", element)
     }
     fn tuple(&self, _items_ty: &[OirType], items: Vec<String>) -> String {
-        match self.mode {
-            TsTypeMode::Declared => format!("[{}]", items.join(", ")),
-            TsTypeMode::Inferred => format!("readonly [{}]", items.join(", ")),
-        }
+        format!("[{}]", items.join(", "))
     }
     fn map(&self, _key_ty: &OirType, key: String, _value_ty: &OirType, value: String) -> String {
         format!("Record<{}, {}>", key, value)
     }
     fn optional(&self, _inner_ty: &OirType, inner: String) -> String {
         // A payload struct unwraps optionality (the `?:` marker carries it);
-        // declared/inferred positions spell it as a union suffix.
+        // every other position spells it as a union suffix.
         if self.payload {
             return inner;
         }
-        match self.mode {
-            TsTypeMode::Declared => format!("{} | null", inner),
-            TsTypeMode::Inferred => format!("{} | undefined", inner),
-        }
+        format!("{} | null", inner)
     }
     fn struct_ty(&self, fields: &[OirField]) -> String {
         struct_fields_ts(fields, |f, effective| {
@@ -291,10 +219,8 @@ impl TargetTypeRenderer for TsRenderer<'_> {
     // arms TS spells natively — scalar's closed union, PatternValue, the
     // hoisted TypeRef name, the discriminated union — override their
     // json-default classification exactly as the rendering overrides the
-    // json-default rendering. Inferred-mode deltas: a known reference/TraitRef
-    // is the row interface / `TraitFieldRef` (Faithful), an unknown one is
-    // `EntityRow` (Widening — the widest record); payload positions carry the
-    // row, not the id (Faithful).
+    // json-default rendering. Payload positions carry the row, not the
+    // id (Faithful).
     fn classify_string(&self, _enum_values: Option<&[String]>) -> TypeMappingClass {
         TypeMappingClass::Faithful
     }
@@ -316,21 +242,11 @@ impl TargetTypeRenderer for TsRenderer<'_> {
     fn classify_node(&self) -> TypeMappingClass {
         TypeMappingClass::Faithful
     }
-    fn classify_reference(&self, entity: &str) -> TypeMappingClass {
+    fn classify_reference(&self, _entity: &str) -> TypeMappingClass {
         if self.payload {
             return TypeMappingClass::Faithful;
         }
-        match self.mode {
-            TsTypeMode::Declared => TypeMappingClass::Widening,
-            TsTypeMode::Inferred => {
-                if self.catalog.is_some_and(|c| c.contains_key(entity)) {
-                    TypeMappingClass::Faithful
-                } else {
-                    // `EntityRow` — the widest record, not the entity's shape.
-                    TypeMappingClass::Widening
-                }
-            }
-        }
+        TypeMappingClass::Widening
     }
     fn classify_row(&self, entity: &str) -> TypeMappingClass {
         if self.catalog.is_none_or(|c| c.contains_key(entity)) {
@@ -343,10 +259,7 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         TypeMappingClass::Faithful
     }
     fn classify_trait_ref(&self) -> TypeMappingClass {
-        match self.mode {
-            TsTypeMode::Declared => TypeMappingClass::Faithful,
-            TsTypeMode::Inferred => TypeMappingClass::Widening,
-        }
+        TypeMappingClass::Faithful
     }
     fn classify_sexpr(&self) -> TypeMappingClass {
         TypeMappingClass::Faithful
@@ -384,7 +297,6 @@ impl TargetTypeRenderer for TsRenderer<'_> {
 pub fn classify_oir_type(ty: &OirType, enum_values: Option<&[String]>) -> TypeMappingClass {
     classify_type(
         &TsRenderer {
-            mode: TsTypeMode::Declared,
             catalog: None,
             payload: false,
         },
@@ -393,24 +305,16 @@ pub fn classify_oir_type(ty: &OirType, enum_values: Option<&[String]>) -> TypeMa
     )
 }
 
-/// The single canonical `OirType → TypeScript type string` mapper. Both
-/// `TypeScriptBackend::map_type_with_enum` (DECLARED) and
-/// `CodegenContext::oirtype_to_ts` (INFERRED) are thin wrappers over this —
-/// consolidating two formerly-divergent copies whose Inferred side collapsed
-/// `Enum → string` and `Struct → EntityRow`, discarding the shape downstream
-/// code needs (the dominant TS-codegen root cause, CG-SWEEP-1 Category 3).
-/// Delegates to the shared `orbital_core` walker via [`TsRenderer`];
-/// `entity_catalog` is consulted only in Inferred mode, to decide whether a
-/// `Reference` names a known entity or widens to `EntityRow`.
+/// The single canonical `OirType → TypeScript type string` mapper, over the shared
+/// `orbital_core` walker via [`TsRenderer`]; `entity_catalog` decides whether a `Row`
+/// names a known entity or widens to `EntityRow`.
 pub(crate) fn map_type_ts(
     ty: &OirType,
     enum_values: Option<&Vec<String>>,
     entity_catalog: Option<&HashMap<String, OirEntity>>,
-    mode: TsTypeMode,
 ) -> String {
     render_type(
         &TsRenderer {
-            mode,
             catalog: entity_catalog,
             payload: false,
         },
@@ -437,8 +341,7 @@ impl TypeScriptBackend {
     pub(crate) fn payload_struct_ts(&self, oir_type: &OirType) -> String {
         render_type(
             &TsRenderer {
-                mode: TsTypeMode::Declared,
-                catalog: None,
+                    catalog: None,
                 payload: true,
             },
             oir_type,
@@ -570,7 +473,7 @@ impl TypeScriptBackend {
         oir_type: &OirType,
         enum_values: Option<&Vec<String>>,
     ) -> String {
-        map_type_ts(oir_type, enum_values, None, TsTypeMode::Declared)
+        map_type_ts(oir_type, enum_values, None)
     }
 }
 
@@ -595,15 +498,10 @@ mod array_of_union_tests {
                 variants: vec![tagged("A"), tagged("B")],
             }),
         };
-        let declared = map_type_ts(&ty, None, None, TsTypeMode::Declared);
+        let declared = map_type_ts(&ty, None, None);
         assert!(
             declared.starts_with('(') && declared.ends_with(")[]"),
             "{declared}"
-        );
-        let inferred = map_type_ts(&ty, None, None, TsTypeMode::Inferred);
-        assert!(
-            inferred.starts_with("readonly (") && inferred.ends_with(")[]"),
-            "{inferred}"
         );
     }
 
@@ -614,7 +512,7 @@ mod array_of_union_tests {
             inner: Box::new(OirType::String),
         };
         assert_eq!(
-            map_type_ts(&ty, None, None, TsTypeMode::Declared),
+            map_type_ts(&ty, None, None),
             "string[]"
         );
     }
@@ -632,12 +530,8 @@ mod tuple_type_tests {
             items: vec![OirType::Number, OirType::Number, OirType::Number],
         };
         assert_eq!(
-            map_type_ts(&ty, None, None, TsTypeMode::Declared),
+            map_type_ts(&ty, None, None),
             "[number, number, number]"
-        );
-        assert_eq!(
-            map_type_ts(&ty, None, None, TsTypeMode::Inferred),
-            "readonly [number, number, number]"
         );
     }
 }
@@ -655,28 +549,22 @@ mod row_type_tests {
 
     #[test]
     fn a_row_renders_the_entity_interface_where_a_reference_renders_an_id() {
-        for mode in [TsTypeMode::Declared, TsTypeMode::Inferred] {
-            assert_eq!(
-                map_type_ts(&OirType::row("NoteRevision"), None, None, mode),
-                "NoteRevision"
-            );
-        }
+        assert_eq!(
+            map_type_ts(&OirType::row("NoteRevision"), None, None),
+            "NoteRevision"
+        );
         assert_eq!(
             map_type_ts(
                 &OirType::array(OirType::reference("NoteRevision")),
                 None,
-                None,
-                TsTypeMode::Declared
-            ),
+                None),
             "string[]"
         );
         assert_eq!(
             map_type_ts(
                 &OirType::array(OirType::row("NoteRevision")),
                 None,
-                None,
-                TsTypeMode::Declared
-            ),
+                None),
             "NoteRevision[]"
         );
     }
@@ -688,18 +576,14 @@ mod row_type_tests {
             map_type_ts(
                 &OirType::row("Note"),
                 None,
-                Some(&cat),
-                TsTypeMode::Declared
-            ),
+                Some(&cat)),
             "Note"
         );
         assert_eq!(
             map_type_ts(
                 &OirType::row("Elsewhere"),
                 None,
-                Some(&cat),
-                TsTypeMode::Declared
-            ),
+                Some(&cat)),
             "EntityRow"
         );
     }
@@ -709,7 +593,6 @@ mod row_type_tests {
         use orbital_core_base::ir::classify_type;
         let cat = catalog(&["Note"]);
         let r = TsRenderer {
-            mode: TsTypeMode::Declared,
             catalog: Some(&cat),
             payload: false,
         };
@@ -721,25 +604,5 @@ mod row_type_tests {
             classify_type(&r, &OirType::row("Elsewhere"), None),
             TypeMappingClass::Widening
         );
-    }
-}
-
-#[cfg(test)]
-mod array_element_ts_tests {
-    use super::array_element_ts;
-
-    /// G-ORB-242: a `[[number]]` element is `readonly number[]`; wrapped as `readonly {elt}[]` it
-    /// must read `readonly (readonly number[])[]`, never `readonly readonly number[][]` (TS1354).
-    #[test]
-    fn a_readonly_array_element_is_parenthesized() {
-        assert_eq!(array_element_ts("readonly number[]"), "(readonly number[])");
-        assert_eq!(array_element_ts("readonly [number, number]"), "(readonly [number, number])");
-    }
-
-    #[test]
-    fn control_a_plain_element_is_left_bare_and_a_union_is_parenthesized() {
-        assert_eq!(array_element_ts("CatalogRow"), "CatalogRow");
-        assert_eq!(array_element_ts("{ items: readonly string[] }"), "{ items: readonly string[] }");
-        assert_eq!(array_element_ts("string | number"), "(string | number)");
     }
 }

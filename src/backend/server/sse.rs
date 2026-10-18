@@ -110,7 +110,9 @@ impl TypeScriptBackend {
                     .into_iter()
                     .collect(),
             ));
-            code.push_str("import { applyRowAccess } from '@almadar/evaluator/entityAccess';\n");
+            code.push_str(&crate::codegen::handler_header::core_value_imports_clause(
+                &["applyRowAccess"].into_iter().collect(),
+            ));
             let policy_names: Vec<&str> = read_policied.iter().map(|(_, c)| c.as_str()).collect();
             code.push_str(&format!(
                 "import {{ {} }} from './access-policies.js';\n",

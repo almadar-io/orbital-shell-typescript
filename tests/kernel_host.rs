@@ -35,6 +35,7 @@ fn module() -> OirModule {
 fn schema() -> orbital_core_base::schema::types::OrbitalSchema {
     serde_json::from_value(serde_json::json!({
         "name": "Books",
+        "_metadata": { "version": 1, "source": "kernel-host-test" },
         "orbitals": [
             { "name": "Books", "entity": { "name": "Invoice", "persistence": "persistent", "collection": "invoices", "fields": [{ "name": "id", "type": "string" }] }, "traits": [], "pages": [] }
         ]
@@ -65,8 +66,8 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         })
 }
 
-/// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the embedded program began serializing with sorted keys: the kernel output of the generated-host removal plus the client program files.
-const KERNEL_OUTPUT_DIGEST: u64 = 1_231_987_085_778_960_686;
+/// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the embedded program began serializing with sorted keys: the kernel output of the generated-host removal plus the client program files, now a fetched static asset (`public/program.client.json`).
+const KERNEL_OUTPUT_DIGEST: u64 = 15_863_638_751_871_176_900;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -105,7 +106,7 @@ fn file<'a>(files: &'a [(String, String)], path: &str) -> &'a str {
 fn the_server_hosts_the_kernel_through_the_runtime() {
     let files = files_of(&kernel_backend());
     let host = file(&files, "packages/server/src/kernel-host.ts");
-    assert!(host.contains("engine: 'kernel'"), "{host}");
+    assert!(!host.contains("engine:"), "the runtime has only the kernel, so the host names no engine: {host}");
     assert!(host.contains("loadKernelModule"), "{host}");
     assert!(
         host.contains("@almadar/runtime/OrbitalServerRuntime"),
@@ -125,7 +126,16 @@ fn the_client_hosts_the_kernel_through_the_ui_engine_provider() {
     );
     assert!(app.contains("OrbPreview"), "{app}");
     let loader = file(&files, "packages/client/src/kernel-host.ts");
-    assert!(loader.contains("@almadar/kernel"), "{loader}");
+    assert!(loader.contains("@almadar/kernel/client"), "{loader}");
+}
+
+#[test]
+fn the_client_loader_hands_the_renderer_the_whole_kernel_module_its_evaluator_reads() {
+    let files = files_of(&kernel_backend());
+    let loader = file(&files, "packages/client/src/kernel-host.ts");
+    assert!(loader.contains("import init, * as kernel from '@almadar/kernel/client';"), "{loader}");
+    assert!(loader.contains("return kernel;"), "the renderer's evaluator calls evaluateMany and its siblings on the module: {loader}");
+    assert!(!loader.contains("return { Kernel };"), "only the Kernel class leaves the evaluator exports out: {loader}");
 }
 
 #[test]
@@ -278,7 +288,7 @@ fn hono_kernel_backend() -> TypeScriptBackend {
 fn the_hono_server_opens_the_same_kernel_without_the_express_router() {
     let files = files_of(&hono_kernel_backend());
     let host = file(&files, "packages/server/src/kernel-host.ts");
-    assert!(host.contains("engine: 'kernel'"), "{host}");
+    assert!(!host.contains("engine:"), "the runtime has only the kernel, so the host names no engine: {host}");
     assert!(host.contains("loadKernelModule"), "{host}");
     assert!(
         host.contains("export async function kernelRuntime()"),
@@ -344,7 +354,7 @@ fn control_the_express_kernel_server_has_no_hono_routes_and_the_hono_one_emits_n
 }
 
 #[test]
-fn the_production_client_build_ships_no_source_maps_and_a_development_build_keeps_them() {
+fn the_production_client_build_ships_no_source_maps_and_splits_the_kernel_and_react_into_chunks() {
     for (name, config) in [
         (
             "almadar-shell",
@@ -355,11 +365,21 @@ fn the_production_client_build_ships_no_source_maps_and_a_development_build_keep
             include_str!("../templates/almadar-shell-hono/packages/client/vite.config.ts"),
         ),
     ] {
+        assert!(config.contains("sourcemap: mode === 'development',"), "{name}: {config}");
+        assert!(!config.contains("sourcemap: true"), "{name}: production ships no source maps: {config}");
         assert!(
-            config.contains("sourcemap: mode === 'development',"),
+            config.contains("manualChunks: manualChunk"),
             "{name}: {config}"
         );
-        assert!(!config.contains("sourcemap: true"), "{name}: {config}");
+        for chunk in ["'kernel'", "'react'"] {
+            assert!(config.contains(chunk), "{name} has no {chunk} chunk: {config}");
+        }
+        for pinned in ["'three'", "'ui'"] {
+            assert!(
+                !config.contains(pinned),
+                "{name}: pinning {pinned} makes a circular chunk (TDZ at boot) and drags ui's lazy chunks into the first load: {config}"
+            );
+        }
     }
 }
 
@@ -369,7 +389,7 @@ fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_on
     let full: serde_json::Value =
         serde_json::from_str(file(&files, "packages/shared/src/program.json")).unwrap();
     let client: serde_json::Value =
-        serde_json::from_str(file(&files, "packages/client/src/program.client.json")).unwrap();
+        serde_json::from_str(file(&files, "packages/client/public/program.client.json")).unwrap();
     for key in ["_metadata", "ledger"] {
         assert!(client.get(key).is_none(), "{key}");
     }
@@ -387,9 +407,35 @@ fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_on
     }
     let app = file(&files, "packages/client/src/App.tsx");
     assert!(app.contains("from './client-program'"), "{app}");
+    assert!(!app.contains("program.client.json") && !app.contains("program.json"), "{app}");
     assert!(!app.contains("from '@app/shared'"), "{app}");
     let module = file(&files, "packages/client/src/client-program.ts");
-    assert!(module.contains("./program.client.json"), "{module}");
+    assert!(module.contains("fetch(`${import.meta.env.BASE_URL}program.client.json`)"), "{module}");
+    assert!(!module.contains("import programJson"), "{module}");
+}
+
+#[test]
+fn the_client_asset_omits_what_the_client_never_reads_while_the_server_copy_keeps_it() {
+    let files = files_of(&kernel_backend());
+    let asset: serde_json::Value =
+        serde_json::from_str(file(&files, "packages/client/public/program.client.json")).unwrap();
+    let server: serde_json::Value =
+        serde_json::from_str(file(&files, "packages/shared/src/program.json")).unwrap();
+    assert!(asset.get("_metadata").is_none() && asset.get("ledger").is_none());
+    assert_eq!(server["_metadata"]["version"], 1, "control: {server}");
+}
+
+#[test]
+fn control_the_client_entry_fetches_the_program_and_no_client_source_imports_it() {
+    let files = files_of(&kernel_backend());
+    for (path, content) in &files {
+        if path.starts_with("packages/client/src/") && (path.ends_with(".ts") || path.ends_with(".tsx")) {
+            assert!(!content.contains("program.client.json'"), "{path} imports the program");
+            assert!(!content.contains("program.json'"), "{path} imports the program");
+        }
+    }
+    let module = file(&files, "packages/client/src/client-program.ts");
+    assert!(module.contains("export function loadProgram"), "{module}");
 }
 
 #[test]

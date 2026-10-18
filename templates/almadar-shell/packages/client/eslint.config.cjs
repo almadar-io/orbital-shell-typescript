@@ -40,7 +40,7 @@ module.exports = [
       // codegen-template fix in orbital-rust (see docs/Almadar_Compiler_Gaps.md):
       // - no-as-any:           catches `as any` casts.
       // - no-unknown-type:     catches `: unknown` annotations.
-      //                        Service results are typed via the integrations
+      //                        Service results are typed via the service
       //                        contract; every other "unknown" is a typed
       //                        shape the codegen knows.
       // - no-record-string-unknown: catches `as Record<string, unknown>` casts

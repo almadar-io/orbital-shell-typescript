@@ -28,7 +28,6 @@ fn emit_named_type_declarations(
                         effective,
                         field.enum_values.as_ref(),
                         None,
-                        TsTypeMode::Declared,
                     );
                     let optional = if is_optional { "?" } else { "" };
                     code.push_str(&format!("  {}{}: {};\n", field.name, optional, ts_type));
@@ -40,7 +39,7 @@ fn emit_named_type_declarations(
             // a union, so emit a type alias through the same `union_ty`
             // rendering inline unions use.
             OirType::Union { .. } => {
-                let ts_type = map_type_ts(ty, None, None, TsTypeMode::Declared);
+                let ts_type = map_type_ts(ty, None, None);
                 code.push_str(&format!("export type {} = {};\n\n", name, ts_type));
             }
             _ => {}
@@ -1946,30 +1945,4 @@ mod nested_named_type_import_tests {
         assert!(!ts.contains(" SExpr"), "{ts}");
         assert!(!ts.contains("'./entities.js'"), "{ts}");
     }
-
-    #[test]
-    fn hooks_import_the_named_types_and_sexpr_their_casts_reach() {
-        let m = module();
-        let ts = TypeScriptBackend::new()
-            .generate_trait_logic_hook(&m.traits[0], &m)
-            .content;
-        assert!(
-            ts.lines().any(|l| l.starts_with("import type {")
-                && l.contains("KnobField")
-                && l.contains("'@app/shared'")),
-            "{ts}"
-        );
-        assert!(
-            ts.lines().any(|l| l.starts_with("import type {")
-                && l.contains(" SExpr")
-                && l.contains("'@almadar/core'")),
-            "{ts}"
-        );
-        assert_eq!(
-            ts.matches("KnobField,").count() + ts.matches("KnobField }").count(),
-            1,
-            "imported once: {ts}"
-        );
-    }
-
 }

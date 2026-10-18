@@ -7,31 +7,9 @@ use crate::backend::*;
 // Canonical string helpers live in `orbital_core::str_utils`; re-exported
 // here so the `backend::*` glob keeps resolving them.
 pub(crate) use orbital_core_base::str_utils::{
-    capitalize_first, escape_js_string, to_camel_case, to_kebab_case, to_title_case,
+    capitalize_first, escape_js_string, to_camel_case,
 };
 
-/// PascalCase / camelCase → SCREAMING_SNAKE_CASE. Used to derive
-/// `DEFAULT_<TRAIT>_CONFIG` constant names from a trait's PascalCase name.
-pub(crate) fn to_screaming_snake_case(s: &str) -> String {
-    let mut out = String::new();
-    let chars: Vec<char> = s.chars().collect();
-    for (i, &c) in chars.iter().enumerate() {
-        if c.is_uppercase() && i > 0 {
-            let prev_lower = chars[i - 1].is_lowercase();
-            let next_lower = i + 1 < chars.len() && chars[i + 1].is_lowercase();
-            if prev_lower || next_lower {
-                out.push('_');
-            }
-        }
-        out.push(c.to_ascii_uppercase());
-    }
-    out
-}
-
-/// Render an `OirValue` as a TypeScript literal for embedding into the
-/// generated `DEFAULT_<TRAIT>_CONFIG` constant. Strings are JSON-encoded so
-/// special characters and quotes are escaped correctly; arrays/objects map
-/// element-wise. `Null` falls through to the literal `null`.
 /// Derive a TS type from a default config value's *shape*, so a
 /// `DEFAULT_CONFIG = {…} as {name}Config` cast (and `config.bodyContent.columns`
 /// reads) typecheck. Used only for object / object-array config fields, whose
@@ -85,40 +63,6 @@ pub(crate) fn oir_value_to_ts_type(v: &OirValue) -> String {
         }
     }
 }
-
-// Exempt from `orbital_core::ir::literal`'s `render_default` walker: call
-// sites here have no target `OirType` (mock data / config-default literals).
-pub(crate) fn oir_value_to_ts_literal(v: &OirValue) -> String {
-    if let Some(data) = orbital_core_base::schema::quote::quoted_oir_value(v) {
-        return oir_value_to_ts_literal(&data);
-    }
-    match v {
-        OirValue::Null => "null".to_string(),
-        OirValue::Bool(b) => b.to_string(),
-        OirValue::Number(n) => n.to_string(),
-        OirValue::String(s) => serde_json::to_string(s).unwrap_or_else(|_| format!("\"{}\"", s)),
-        OirValue::Array(arr) => {
-            let items: Vec<String> = arr.iter().map(oir_value_to_ts_literal).collect();
-            format!("[{}]", items.join(", "))
-        }
-        OirValue::Object(obj) => {
-            let mut keys: Vec<&String> = obj.keys().collect();
-            keys.sort();
-            let entries: Vec<String> = keys
-                .iter()
-                .map(|k| {
-                    format!(
-                        "{}: {}",
-                        crate::codegen::ts_ident::ts_member_name(k),
-                        oir_value_to_ts_literal(&obj[*k])
-                    )
-                })
-                .collect();
-            format!("{{ {} }}", entries.join(", "))
-        }
-    }
-}
-
 
 /// Walk an `OirType` and add every referenced entity name to `acc`. Used
 /// while emitting event-payload interfaces so that `data : [CartItem]`
@@ -189,27 +133,6 @@ pub(crate) fn rewrite_non_local_entity_refs(
 }
 
 
-/// For callers that embed an already-`{}`-wrapped JSX text fragment in a
-/// JS-EXPRESSION position (inside `(...)` or `condition && (...)`). In that
-/// context a JSX EXPRESSION CONTAINER — any JSX-text string starting with `{`
-/// (a ternary selector like `{slotWriter['x'] === 'X' ? (<A/>) : (<B/>)}`, or
-/// `{null}`) — is not a valid bare expression there (`{...}`
-/// parses as a JS block/object, not a value): TS1005 for the general case,
-/// a silent block-statement for `{null}` specifically. Fragment-wrap the
-/// general case (`<>{…}</>` IS a valid expression); keep the `{null}` →
-/// `null` special case since `<>{null}</>` is needlessly verbose. Real JSX
-/// components / fragments (no leading `{`) pass through unchanged.
-pub(crate) fn jsx_text_to_expression(jsx: String) -> String {
-    let trimmed = jsx.trim();
-    if trimmed == "{null}" {
-        "null".to_string()
-    } else if trimmed.starts_with('{') {
-        format!("<>{}</>", jsx)
-    } else {
-        jsx
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -228,10 +151,6 @@ mod tests {
     fn a_quoted_default_emits_its_data_and_type() {
         let v = quoted(r#"{"event":"PAY","guard":[">","@payload.amount",0]}"#);
         assert_eq!(
-            oir_value_to_ts_literal(&v),
-            r#"{ event: "PAY", guard: [">", "@payload.amount", 0] }"#
-        );
-        assert_eq!(
             oir_value_to_ts_type(&v),
             "{ event: string; guard: Array<number | string> }"
         );
@@ -243,7 +162,6 @@ mod tests {
             OirValue::String("quotes".into()),
             OirValue::String("{}".into()),
         ]);
-        assert_eq!(oir_value_to_ts_literal(&v), r#"["quotes", "{}"]"#);
         assert_eq!(oir_value_to_ts_type(&v), "string[]");
     }
 
@@ -257,48 +175,9 @@ mod tests {
             OirValue::String("@currentTheme".to_string()),
         );
         assert_eq!(
-            oir_value_to_ts_type(&OirValue::Object(obj.clone())),
+            oir_value_to_ts_type(&OirValue::Object(obj)),
             "{ \"data-theme\": string }"
         );
-        assert_eq!(
-            oir_value_to_ts_literal(&OirValue::Object(obj)),
-            "{ \"data-theme\": \"@currentTheme\" }"
-        );
-    }
-
-    #[test]
-    fn literal_emitter_handles_scalars_and_escapes() {
-        assert_eq!(oir_value_to_ts_literal(&OirValue::Null), "null");
-        assert_eq!(oir_value_to_ts_literal(&OirValue::Bool(true)), "true");
-        // Integer-valued f64 renders without a decimal point.
-        assert_eq!(oir_value_to_ts_literal(&OirValue::Number(5.0)), "5");
-        assert_eq!(oir_value_to_ts_literal(&OirValue::Number(5.5)), "5.5");
-        // Strings JSON-escape backslash + quote.
-        assert_eq!(
-            oir_value_to_ts_literal(&OirValue::String("a\"b\\c".to_string())),
-            "\"a\\\"b\\\\c\""
-        );
-    }
-
-    #[test]
-    fn literal_emitter_objects_are_sorted_and_unquoted_keys() {
-        let mut obj = orbital_core_base::ir::OirObject::new();
-        obj.insert("b".to_string(), OirValue::Number(2.0));
-        obj.insert("a".to_string(), OirValue::Number(1.0));
-        // Deterministic: keys sorted, unquoted, `: ` separator.
-        assert_eq!(
-            oir_value_to_ts_literal(&OirValue::Object(obj)),
-            "{ a: 1, b: 2 }"
-        );
-    }
-
-    #[test]
-    fn literal_emitter_nested_arrays() {
-        let arr = OirValue::Array(vec![
-            OirValue::Number(1.0),
-            OirValue::String("x".to_string()),
-        ]);
-        assert_eq!(oir_value_to_ts_literal(&arr), "[1, \"x\"]");
     }
 
     #[test]
@@ -374,28 +253,5 @@ mod tests {
         );
     }
 
-    #[test]
-    fn jsx_text_to_expression_fragment_wraps_an_expression_container() {
-        // A `lastEvent` ternary selector (backend/client/trait_component.rs)
-        // starts with `{` — a bare JSX expression container is not a valid
-        // JS expression inside `state === 'X' && (...)` (TS1005).
-        let selector = "{lastEvent === 'A' ? (<X/>) : (<Y/>)}".to_string();
-        assert_eq!(
-            jsx_text_to_expression(selector.clone()),
-            format!("<>{}</>", selector)
-        );
-    }
 
-    #[test]
-    fn jsx_text_to_expression_keeps_the_null_special_case() {
-        assert_eq!(jsx_text_to_expression("{null}".to_string()), "null");
-    }
-
-    #[test]
-    fn jsx_text_to_expression_passes_through_real_jsx_unchanged() {
-        assert_eq!(
-            jsx_text_to_expression("<X/>".to_string()),
-            "<X/>".to_string()
-        );
-    }
 }

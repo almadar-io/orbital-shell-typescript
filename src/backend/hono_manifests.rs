@@ -16,8 +16,6 @@ impl TypeScriptBackend {
         ("@almadar/auth", "^0.1.0"),
         ("@almadar/core", "^10.97.0"),
         ("@almadar/db", "^0.1.0"),
-        ("@almadar/evaluator", "^2.61.0"),
-        ("@almadar/integrations", "^2.36.0"),
         ("@almadar/logger", "^1.12.0"),
         ("@almadar/runtime", "^6.83.0"),
         ("@almadar/server-hono", "^0.4.13"),
@@ -27,8 +25,8 @@ impl TypeScriptBackend {
     ///
     /// The template's static copy declares a FIXED `@almadar/*` dependency
     /// set that drifts from what the generated handlers/routes/services/SSE
-    /// module actually import — `@almadar/evaluator/entityAccess`
-    /// (`handlers.rs`/`sse.rs`'s `entityAccess` imports), e.g., was missing
+    /// module actually import — the access-policy imports
+    /// (`handlers.rs`/`sse.rs`), e.g., were missing
     /// entirely, and under bun's isolated linker a missing `dependencies`
     /// entry is a BOOT failure (the package is never linked into
     /// `packages/server/node_modules/@almadar/`), not just an unused-dep
