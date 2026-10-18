@@ -1,7 +1,7 @@
 //! `orb-shell-typescript`: the TypeScript shell as a program (`orbital_core::shell_protocol`).
 
 use crate::{
-    express_shell, hono_shell, ExtraComponentMapping, HostMode, ServerFramework, TypeScriptBackend, KERNEL_CLIENT_DEPENDENCIES,
+    express_shell, hono_shell, ExtraComponentMapping, ServerFramework, TypeScriptBackend, KERNEL_CLIENT_DEPENDENCIES,
     KERNEL_SERVER_DEPENDENCIES,
 };
 use orbital_core_base::project::{copy_public, resolve_public_dir, write_project};
@@ -103,12 +103,6 @@ pub fn write_backend_url(output: &Path, url: &str) -> std::io::Result<()> {
     std::fs::write(path, content)
 }
 
-/// What a generated server needs to run an `http` effect: the kernel and the runtime's shared transport.
-const HTTP_SERVER_DEPENDENCIES: &[(&str, &str)] = &[("@almadar/kernel", "^18.0.0"), ("@almadar/runtime", "^6.112.0")];
-
-/// What a generated client needs to send a keyless `http` from the browser store.
-const HTTP_CLIENT_DEPENDENCIES: &[(&str, &str)] = &[("@almadar/kernel", "^18.0.0"), ("@almadar/runtime", "^6.112.0")];
-
 /// Add `dependencies` to a template `package.json`'s `"dependencies"` block, keeping every other
 /// line; a package already listed is left as the template pins it.
 pub fn add_dependencies(path: &Path, dependencies: &[(&str, &str)]) -> std::io::Result<()> {
@@ -145,9 +139,9 @@ impl ShellProgram for TypeScriptProgram {
                 option(PROJECT_PATTERNS, "The project's patterns.json (component mappings)", None, None),
                 option(
                     HOST,
-                    "Who runs the app's execution steps: the generated handlers and hooks, or the embedded @almadar/kernel (Express only)",
-                    Some(&["generated", "kernel"]),
-                    Some("generated"),
+                    "Who runs the app's execution steps: the embedded @almadar/kernel",
+                    Some(&["kernel"]),
+                    Some("kernel"),
                 ),
             ],
         }
@@ -169,16 +163,8 @@ impl ShellProgram for TypeScriptProgram {
                 copy_public(&from, &output.join("packages/client/public")).map_err(|e| failed("copy public folder", e))?;
             }
         }
-        if backend.host == HostMode::Kernel {
-            add_dependencies(&output.join("packages/server/package.json"), KERNEL_SERVER_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the server", e))?;
-            add_dependencies(&output.join("packages/client/package.json"), KERNEL_CLIENT_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the client", e))?;
-        }
-        if backend.host == HostMode::Generated && crate::codegen::handler_header::module_has_http_effects(&request.module) {
-            add_dependencies(&output.join("packages/server/package.json"), HTTP_SERVER_DEPENDENCIES).map_err(|e| failed("add the http effect's packages to the server", e))?;
-        }
-        if backend.host == HostMode::Generated && TypeScriptBackend::module_runs_client_http(&request.module) {
-            add_dependencies(&output.join("packages/client/package.json"), HTTP_CLIENT_DEPENDENCIES).map_err(|e| failed("add the http effect's packages to the client", e))?;
-        }
+        add_dependencies(&output.join("packages/server/package.json"), KERNEL_SERVER_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the server", e))?;
+        add_dependencies(&output.join("packages/client/package.json"), KERNEL_CLIENT_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the client", e))?;
         let mut next_steps = Vec::new();
         if let Some(url) = string_option(request, BACKEND_URL)? {
             write_backend_url(output, url).map_err(|e| failed("write .env", e))?;
@@ -218,16 +204,11 @@ fn backend(request: &GenerateRequest) -> Result<TypeScriptBackend, ShellFailure>
         "false" => false,
         other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("devLogs must be true or false, got {other}"))),
     };
-    let host = match string_option(request, HOST)?.unwrap_or("generated") {
-        "generated" => HostMode::Generated,
-        "kernel" => HostMode::Kernel,
-        other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("host must be generated or kernel, got {other}"))),
-    };
-    if host == HostMode::Kernel && framework != ServerFramework::Express {
-        return Err(ShellFailure::new(CODE_BAD_REQUEST, "host kernel needs framework express: the runtime's router is Express"));
+    match string_option(request, HOST)?.unwrap_or("kernel") {
+        "kernel" => {}
+        other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("host must be kernel, got {other}: the generated handlers and hooks are retired"))),
     }
     Ok(TypeScriptBackend {
-        host,
         extra_mappings: request.options.get(PROJECT_PATTERNS).and_then(component_mappings),
         schema_language: string_option(request, SCHEMA_LANGUAGE)?.unwrap_or("en").to_string(),
         dev_logs,
@@ -277,26 +258,19 @@ mod tests {
     }
 
     #[test]
-    fn the_host_option_is_declared_with_generated_as_its_default() {
+    fn the_host_option_is_declared_with_the_kernel_as_its_only_value() {
         let host = TypeScriptProgram.describe().options.into_iter().find(|o| o.name == HOST).expect("host option");
-        assert_eq!(host.default.as_deref(), Some("generated"));
-        assert_eq!(host.values, Some(vec!["generated".to_string(), "kernel".to_string()]));
+        assert_eq!(host.default.as_deref(), Some("kernel"));
+        assert_eq!(host.values, Some(vec!["kernel".to_string()]));
     }
 
     #[test]
-    fn the_host_option_selects_the_kernel_and_defaults_to_the_generated_handlers() {
-        let host = |options: &[(&str, &str)]| backend(&request_with(options)).ok().map(|b| b.host);
-        assert_eq!(host(&[(HOST, "kernel")]), Some(HostMode::Kernel));
-        assert_eq!(host(&[(HOST, "generated")]), Some(HostMode::Generated));
-        assert_eq!(host(&[]), Some(HostMode::Generated));
-    }
-
-    #[test]
-    fn edge_a_bad_host_and_a_hono_kernel_are_refused() {
+    fn the_retired_generated_host_and_an_unknown_one_are_refused_and_a_hono_kernel_is_served() {
         let code = |options: &[(&str, &str)]| backend(&request_with(options)).err().map(|e| e.code);
+        assert_eq!(code(&[(HOST, "generated")]), Some(CODE_BAD_REQUEST.to_string()));
         assert_eq!(code(&[(HOST, "wasm")]), Some(CODE_BAD_REQUEST.to_string()));
-        assert_eq!(code(&[(HOST, "kernel"), (FRAMEWORK, "hono")]), Some(CODE_BAD_REQUEST.to_string()));
-        assert!(backend(&request_with(&[(HOST, "generated"), (FRAMEWORK, "hono")])).is_ok());
+        assert!(backend(&request_with(&[(HOST, "kernel"), (FRAMEWORK, "hono")])).is_ok());
+        assert!(backend(&request_with(&[])).is_ok());
     }
 
     #[test]

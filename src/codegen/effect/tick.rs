@@ -254,7 +254,7 @@ impl TypeScriptBackend {
     fn runs_client_tick_loop(&self, trait_def: &OirTrait, module: &OirModule) -> bool {
         self.shared_linked_entity(trait_def, module).is_none()
             && trait_def.ticks.iter().any(|t| {
-                crate::backend::server::ticks::tick_runs_on_client(trait_def, t, module)
+                crate::backend::client::ticks::tick_runs_on_client(trait_def, t, module)
             })
     }
 
@@ -264,7 +264,7 @@ impl TypeScriptBackend {
         self.runs_client_tick_loop(trait_def, module)
             && trait_def.ticks.iter().any(|t| {
                 t.while_visible
-                    && crate::backend::server::ticks::tick_runs_on_client(trait_def, t, module)
+                    && crate::backend::client::ticks::tick_runs_on_client(trait_def, t, module)
             })
     }
 
@@ -317,7 +317,7 @@ impl TypeScriptBackend {
         }
 
         for tick in &trait_def.ticks {
-            if !crate::backend::server::ticks::tick_runs_on_client(trait_def, tick, module) {
+            if !crate::backend::client::ticks::tick_runs_on_client(trait_def, tick, module) {
                 continue;
             }
             // Transpile guard condition with ref replacements (`fields?.`

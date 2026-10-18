@@ -12,8 +12,8 @@
 
 pub(crate) use orbital_core_base::generate::{Backend, GeneratedFile, GeneratedOutput};
 pub(crate) use orbital_core_base::ir::{
-    OirBindingRoot, OirCardinality, OirConstraint, OirDispatchMode, OirEffect, OirEntity, OirEvent,
-    OirExpr, OirModule, OirPage, OirPattern, OirPersistOp, OirPersistence, OirTrait, OirTransition,
+    OirBindingRoot, OirCardinality, OirConstraint, OirDispatchMode, OirEffect, OirEntity,
+    OirExpr, OirModule, OirPattern, OirPersistence, OirTrait,
     OirTransitionFrom, OirType, OirValue,
 };
 pub(crate) use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
@@ -24,7 +24,6 @@ pub(crate) use crate::codegen::{
 };
 pub(crate) use orbital_core_base::schema::SExpression;
 
-pub(crate) use crate::pattern_registry::get_component_mapping;
 
 /// One relayable `listens` edge (G-ORB-055): its listener, the trigger it
 /// fires, its initial state (an unmounted listener holds no state of its own),
@@ -290,16 +289,6 @@ pub enum ServerFramework {
     Hono,
 }
 
-/// Who runs the generated app's execution steps.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum HostMode {
-    /// The generated per-event handlers and hooks (default).
-    #[default]
-    Generated,
-    /// `@almadar/kernel` runs every step; only the host glue is generated.
-    Kernel,
-}
-
 /// TypeScript code generation backend
 pub struct TypeScriptBackend {
     /// Use strict TypeScript mode
@@ -316,8 +305,6 @@ pub struct TypeScriptBackend {
     pub dev_logs: bool,
     /// Server framework for backend code generation (Express or Hono)
     pub server_framework: ServerFramework,
-    /// Whether the generated handlers and hooks, or the embedded kernel, run the app.
-    pub host: HostMode,
     /// The resolved schema, bundled into the client for its browser-store legs.
     pub browser_schema: Option<orbital_core_base::schema::types::OrbitalSchema>,
     /// Gap #13 — current `Orbital.Trait` scope used to qualify event-string
@@ -477,39 +464,6 @@ pub(crate) fn nested_callsite_payload_fields(v: &OirValue, out: &mut Vec<String>
     }
 }
 
-/// Whether ANY transition's or tick's effect body inside `trait_def`
-/// contains an `@callsitePayload.<path>` reference. Effect/tick bodies
-/// compile through the typed `OirExpr`/`OirBinding` tree — by resolve time
-/// an `@callsitePayload.X` there is already lowered to
-/// `OirBinding { root: OirBindingRoot::Local("callsitePayload"), path }`,
-/// not the raw `OirValue::String` `nested_callsite_payload_fields` walks —
-/// so this walks the serialized JSON instead (mirrors `config_read_keys`'s
-/// established technique, `backend/shared.rs`): the externally-tagged serde
-/// shape for a newtype enum variant renders `OirBindingRoot::Local(name)` as
-/// `{"local": name}`, uniform across every effect/expr node kind without a
-/// typed visitor per `OirExpr` variant.
-fn trait_effects_reference_callsite_payload(trait_def: &OirTrait) -> bool {
-    fn walk(v: &serde_json::Value) -> bool {
-        match v {
-            serde_json::Value::String(s) => {
-                orbital_core_base::schema::callsite_payload_path(s).is_some()
-            }
-            serde_json::Value::Object(map) => {
-                let is_local_callsite = map
-                    .get("root")
-                    .and_then(|r| r.as_object())
-                    .and_then(|r| r.get("local"))
-                    .and_then(|l| l.as_str())
-                    == Some("callsitePayload");
-                is_local_callsite || map.values().any(walk)
-            }
-            serde_json::Value::Array(items) => items.iter().any(walk),
-            _ => false,
-        }
-    }
-    serde_json::to_value(&trait_def.transitions).is_ok_and(|v| walk(&v))
-        || serde_json::to_value(&trait_def.ticks).is_ok_and(|v| walk(&v))
-}
 
 impl Default for TypeScriptBackend {
     fn default() -> Self {
@@ -521,7 +475,6 @@ impl Default for TypeScriptBackend {
             schema_language: "en".to_string(),
             dev_logs: false,
             server_framework: ServerFramework::default(),
-            host: HostMode::default(),
             browser_schema: None,
             current_trait_scope: CodegenCell::new(None),
             current_transition: CodegenCell::new(None),
@@ -658,24 +611,16 @@ impl TypeScriptBackend {
         self.generate_shared_event_types(module).content
     }
 
-    /// Generate all TypeScript code from an OIR module (internal)
+    /// Generate the kernel-hosted TypeScript app from an OIR module (internal): the host glue around
+    /// `@almadar/kernel`, the shared types and the resolved program.
     fn generate_internal(&self, module: &OirModule) -> Vec<InternalFile> {
         let mut files = Vec::new();
 
-        // Dedup entities by name. `[runtime]` entities are now allowed to
-        // share a name across orbitals (they're per-orbital singletons with
-        // no persistence collection — see `orbital-core/src/ir/validation.rs`
-        // for the runtime-exemption rationale). Codegen emits one declaration
-        // per distinct entity name, so collapse duplicates here once instead
-        // of in every per-entity generator.
+        // Dedup entities by name: `[runtime]` entities may share a name across orbitals (they are
+        // per-orbital singletons with no persistence collection), and codegen emits one declaration
+        // per distinct name.
         let entities_dedup: Vec<OirEntity> = module.distinct_entities();
         let entities = &entities_dedup[..];
-
-        // Phase E plumbing — populate the backend's entity catalog so
-        // every CodegenContext built later in this run can hand it to
-        // `infer_array_element_type_ts` for `@<EntityName>` source
-        // resolution and `Reference { entity }` dereferencing. Replaced
-        // (not merged) so each module's run starts clean.
         {
             let mut catalog = HashMap::new();
             for e in entities {
@@ -684,291 +629,35 @@ impl TypeScriptBackend {
             self.entity_catalog.set(catalog);
         }
 
-        // Call-site payload capture map — child-trait name → [(knob, field)].
-        // A trait config-field default of `@callsitePayload.<field>` means the
-        // knob's value is captured from the COMPOSING effect's event payload;
-        // the `<XView />` emit site injects `config={{ knob: lastPayload?.field }}`.
-        {
-            let mut captures: HashMap<String, Vec<(String, String, String)>> = HashMap::new();
-            for t in &module.traits {
-                let mut pairs: Vec<(String, String, String)> = Vec::new();
-                // The capture lands on the folded declared-config default
-                // (the knob's value); a call-site-only knob lands on `config`.
-                // Scan both, preferring the declared default.
-                for source in [t.declared_config_defaults.as_ref(), t.config.as_ref()] {
-                    let Some(cfg) = source else { continue };
-                    for (knob, value) in cfg {
-                        if pairs.iter().any(|(k, _, _)| k == knob) {
-                            continue;
-                        }
-                        if let OirValue::String(s) = value {
-                            if let Some(field) = orbital_core_base::schema::callsite_payload_path(s) {
-                                let ts_type = t
-                                    .declared_config_schema
-                                    .as_ref()
-                                    .and_then(|schema| schema.get(knob))
-                                    .map(|f| {
-                                        self.map_type_with_enum(&f.field_type, f.values.as_ref())
-                                    })
-                                    .unwrap_or_else(|| "EventPayloadValue".to_string());
-                                pairs.push((knob.clone(), field.to_string(), ts_type));
-                            }
-                        }
-                    }
-                }
-                if !pairs.is_empty() {
-                    pairs.sort();
-                    captures.insert(t.name.clone(), pairs);
-                }
-            }
-
-            // Nested-reference flag (see the field doc on
-            // `trait_callsite_payload_flagged`): a trait needs the whole
-            // composing payload forwarded when some `@callsitePayload.<path>`
-            // reference exists that the pairs above — top-level WHOLE-value
-            // matches only — don't cover. Effect/tick bodies never produce a
-            // pair at all (pairs only ever come from a config default/value),
-            // so any occurrence there flags unconditionally.
-            let mut flagged: HashSet<String> = HashSet::new();
-            for t in &module.traits {
-                if trait_effects_reference_callsite_payload(t) {
-                    flagged.insert(t.name.clone());
-                    continue;
-                }
-                let mut needed: Vec<String> = Vec::new();
-                for source in [t.declared_config_defaults.as_ref(), t.config.as_ref()] {
-                    let Some(cfg) = source else { continue };
-                    for v in cfg.values() {
-                        nested_callsite_payload_fields(v, &mut needed);
-                    }
-                }
-                let pairs = captures.get(&t.name);
-                let uncovered = needed
-                    .iter()
-                    .any(|f| !pairs.is_some_and(|p| p.iter().any(|(_, pf, _)| pf == f)));
-                if uncovered {
-                    flagged.insert(t.name.clone());
-                }
-            }
-            self.trait_callsite_payload_flagged.set(flagged);
-
-            let mut knob_values: HashMap<String, orbital_core_base::ir::OirObject> = HashMap::new();
-            for t in &module.traits {
-                // The call-site value wins over the declared default.
-                for source in [t.declared_config_defaults.as_ref(), t.config.as_ref()] {
-                    let Some(cfg) = source else { continue };
-                    for (knob, v) in cfg {
-                        let mut paths = Vec::new();
-                        nested_callsite_payload_fields(v, &mut paths);
-                        if !paths.is_empty() {
-                            knob_values
-                                .entry(t.name.clone())
-                                .or_default()
-                                .insert(knob.clone(), v.clone());
-                        }
-                    }
-                }
-            }
-            self.trait_callsite_knob_values.set(knob_values);
-
-            self.trait_callsite_captures.set(captures);
-        }
-
-        // §60 — mount-racy `listens` edges. An edge (source S, event E,
-        // target T) is racy when T is embedded in a render tree S produces
-        // ON E: the emit that should feed T is the same emit that mounts it,
-        // and T's subscription is emitted inside T's own component, so it
-        // cannot exist yet. The runtime path is immune because it subscribes
-        // every page-bound trait once at page level; the compiled path holds
-        // the one delivery in the bridge until T mounts.
-        self.racy_listens.set(self.compute_racy_listens(module));
-        self.dispatch_scope
-            .set(crate::codegen::effect::shared::module_reads_dispatch_scope(
-                module,
-            ));
-        self.off_page_listens
-            .set(self.compute_off_page_listens(module));
-        self.app_has_server_leg
-            .set(self.compute_app_has_server_leg(module));
-        self.browser_legs.set(Self::compute_browser_legs(module));
-        self.browser_services
-            .set(!module.browser_services.is_empty());
-        self.browser_http.set(Self::module_runs_client_http(module));
-        self.browser_locales.set(module.locales.clone());
-
-        // 1. Generate shared package - entity types + event response types + package.json
         files.push(self.generate_shared_entities(entities, &module.named_types));
         files.push(self.generate_shared_schemas(entities, &module.named_types));
-        // Event protocol types — generated for both backends. Express has always
-        // emitted these; Hono used to inline EventRequest/EventResponse/EmittedEvent
-        // into useOrbitalBridge.tsx and skip the shared file, but the per-trait
-        // server handlers still need `import type { EmittedEvent } from '@app/shared'`
-        // when cascade emit effects run, so Hono now also emits the shared file.
-        // The inlined client-side definitions stay (harmless duplication; the
-        // useOrbitalBridge hook is self-contained).
         files.push(self.generate_shared_event_types(module));
-        // Per-trait Config interfaces derived from each atom's `config {}`
-        // block. Emitted for both backends so client code can consume them.
         files.push(self.generate_shared_trait_configs(module));
-        // Shared index: Hono version omits events.ts re-export
-        match (self.host, self.server_framework) {
-            (HostMode::Kernel, _) => {
-                files.push(self.generate_shared_index_kernel());
-                files.extend(self.generate_kernel_program());
-            }
-            (HostMode::Generated, ServerFramework::Hono) => files.push(self.generate_shared_index_hono()),
-            (HostMode::Generated, ServerFramework::Express) => files.push(self.generate_shared_index()),
-        }
+        files.push(self.generate_shared_index_kernel());
+        files.extend(self.generate_kernel_program());
         match self.server_framework {
             ServerFramework::Hono => files.push(self.generate_shared_package_json_hono()),
             ServerFramework::Express => files.push(self.generate_shared_package_json()),
         }
 
-        // Build the module's embedded-trait set ONCE — flat set of trait
-        // names that are referenced via `@trait.X` by some sibling
-        // layout's render-ui anywhere in this module. Used by:
-        //   - `generate_trait_component` to skip the standalone
-        //     `<UISlotComponent>` wrap (iframe semantics: the inlined
-        //     view at the `@trait.X` site owns the rendering).
-        //   - `generate_page_feature` to skip emitting a standalone
-        //     `<{Name}View />` on the page when the layout's view
-        //     already inlines that view internally — without the
-        //     skip the page double-renders the atom.
-        // Mirrors `collectEmbeddedTraits` in
-        // `packages/almadar-ui/runtime/embedded-traits.ts`.
-        let embedded_traits = orbital_core_base::ir::build_embedded_trait_set(module);
+        if self.target == "client" || self.target == "full" {
+            files.extend(self.generate_kernel_client(module));
+        }
 
-        // 2. Generate client trait hooks (logic) + components (presentation)
-        if self.host == HostMode::Kernel {
-            if self.target == "client" || self.target == "full" {
-                files.extend(self.generate_kernel_client(module));
+        if self.target == "server" || self.target == "full" {
+            files.extend(self.generate_kernel_server());
+            if let Some(f) = self.generate_access_policies(entities) {
+                files.push(f);
             }
-        } else if self.target == "client" || self.target == "full" {
-            for trait_def in &module.traits {
-                // Logic hook + Presentation component (idiomatic React)
-                files.push(self.generate_trait_logic_hook(trait_def, module));
-                files.push(self.generate_trait_component(trait_def, module, &embedded_traits));
-                // Re-export bridge: use{Trait}.tsx → use{Trait}Logic.tsx
-                // Overwrites legacy monolithic hooks that may exist from older compiler versions
-                let bridge_code = format!(
-                    "/**\n * Re-export bridge from logic hook.\n * @generated from schema\n */\nexport * from './use{}Logic';\n",
-                    trait_def.name
-                );
-                files.push(InternalFile::new(
-                    format!("packages/client/src/hooks/traits/use{}.tsx", trait_def.name),
-                    bridge_code,
-                    GeneratedFileType::Hook,
-                ));
-            }
-            files.push(self.generate_traits_index(&module.traits));
-            files.push(self.generate_components_index(&module.traits));
-            // Generate orbital bridge hook (Phase 5: replaces server bridge)
             match self.server_framework {
-                ServerFramework::Hono => files.push(self.generate_orbital_bridge_hook_hono()),
-                ServerFramework::Express => files.push(self.generate_orbital_bridge_hook()),
+                ServerFramework::Express => files.push(self.generate_sse_module(entities, false)),
+                ServerFramework::Hono => files.push(self.generate_sse_module_hono(entities, false)),
             }
-            if self.dispatch_scope.snapshot() {
-                files.push(self.generate_dispatch_context());
-            }
-            files.extend(self.generate_browser_schema_file(module));
-            files.extend(Self::generate_browser_services_file(module));
-            files.extend(Self::generate_browser_http_file(module));
+            files.push(self.generate_viewer_module(entities, self.server_framework));
         }
 
-        // 3. Generate client pages/features
-        if self.host == HostMode::Generated && (self.target == "client" || self.target == "full") {
-            for page in &module.pages {
-                files.extend(self.generate_page_feature(page, module, &embedded_traits));
-            }
-            // Generate App.tsx with routes
-            files.push(self.generate_app_tsx(module));
-        }
-
-        // 4. Generate server event handlers (NOT CRUD routes)
-        // All data operations go through trait event handlers with guard enforcement
-        if self.host == HostMode::Kernel {
-            if self.target == "server" || self.target == "full" {
-                files.extend(self.generate_kernel_server());
-                if let Some(f) = self.generate_access_policies(entities) {
-                    files.push(f);
-                }
-                files.push(self.generate_sse_module(entities, false));
-                files.push(self.generate_viewer_module(entities, ServerFramework::Express));
-            }
-        } else if self.target == "server" || self.target == "full" {
-            let server_ticks = server::ticks::module_has_server_ticks(module);
-            match self.server_framework {
-                ServerFramework::Hono => {
-                    for trait_def in &module.traits {
-                        files.extend(self.generate_trait_event_handlers_hono(trait_def, module));
-                    }
-                    files.push(self.generate_orbital_events_route_hono(module));
-                    files.push(
-                        self.generate_event_routes_registration_hono(&module.traits, server_ticks),
-                    );
-                    files.push(self.generate_server_event_listeners_hono(&module.traits));
-                    files.push(self.generate_seed_mock_data_hono(entities));
-                    if let Some(f) = self.generate_access_policies(entities) {
-                        files.push(f);
-                    }
-                    files.push(self.generate_sse_module_hono(entities, server_ticks));
-                    files.push(self.generate_viewer_module(entities, ServerFramework::Hono));
-                    files.extend(self.generate_server_i18n_module(&module.locales));
-                    files.extend(self.generate_server_ticks_modules(module));
-                }
-                ServerFramework::Express => {
-                    for trait_def in &module.traits {
-                        files.extend(self.generate_trait_event_handlers(trait_def, module));
-                    }
-                    files.push(self.generate_orbital_events_route(module));
-                    files.push(
-                        self.generate_event_routes_registration(&module.traits, server_ticks),
-                    );
-                    // Phase 7: Generate server-side event listener registrations
-                    files.push(self.generate_server_event_listeners(&module.traits));
-                    // Generate mock data seeding based on schema entities
-                    files.push(self.generate_seed_mock_data(entities));
-                    if let Some(f) = self.generate_access_policies(entities) {
-                        files.push(f);
-                    }
-                    files.push(self.generate_sse_module(entities, server_ticks));
-                    files.push(self.generate_viewer_module(entities, ServerFramework::Express));
-                    files.extend(self.generate_server_i18n_module(&module.locales));
-                    files.extend(self.generate_server_ticks_modules(module));
-                }
-            }
-        }
-
-        // 5. Generate tests for generated code (mode-aware)
-        let test_files = if self.host == HostMode::Kernel {
-            Vec::new()
-        } else {
-            crate::generators::generate_tests(module)
-        };
-        for test_file in test_files {
-            // Filter tests based on target mode
-            let is_client_test = test_file.path.contains("packages/client/")
-                || test_file.path.contains("packages/shared/");
-            let is_server_test = test_file.path.contains("packages/server/");
-
-            let should_include = match self.target.as_str() {
-                "client" => is_client_test,
-                "server" => is_server_test,
-                _ => true, // "full" includes all
-            };
-
-            if should_include {
-                files.push(InternalFile::new(
-                    test_file.path,
-                    test_file.content,
-                    GeneratedFileType::Test,
-                ));
-            }
-        }
-
-        // 6. Generate theme CSS and config (client-side)
+        // Theme CSS and config (client-side)
         if (self.target == "client" || self.target == "full") && !module.themes.is_empty() {
-            // Generate CSS file for each theme (in src/themes/ to match shell structure)
             for theme in &module.themes {
                 let css = generate_theme_css(theme);
                 files.push(InternalFile::new(
@@ -977,8 +666,6 @@ impl TypeScriptBackend {
                     GeneratedFileType::Config,
                 ));
             }
-
-            // Generate consolidated theme config
             let config =
                 generate_all_themes_config_ts(&module.themes, module.default_theme.as_deref());
             files.push(InternalFile::new(
@@ -986,8 +673,6 @@ impl TypeScriptBackend {
                 config,
                 GeneratedFileType::Config,
             ));
-
-            // Generate CSS imports file for easy inclusion
             let mut imports_css = String::new();
             imports_css.push_str("/* Generated theme imports - add to index.css */\n\n");
             for url in theme_font_imports(&module.themes) {
@@ -1001,16 +686,12 @@ impl TypeScriptBackend {
                 imports_css,
                 GeneratedFileType::Config,
             ));
-
-            // Generate main.tsx with theme provider wired up
             let default_theme = &module.themes[0].name;
             files.push(InternalFile::new(
                 "packages/client/src/main.tsx",
                 self.generate_main_tsx_with_theme(default_theme),
                 GeneratedFileType::Config,
             ));
-
-            // Generate index.css with theme imports
             files.push(InternalFile::new(
                 "packages/client/src/index.css",
                 self.generate_index_css_with_themes(&module.themes),
@@ -1018,10 +699,8 @@ impl TypeScriptBackend {
             ));
         }
 
-        // 7. Generate service clients (server-side, as services run on server).
-        // Always emitted so the template server can unconditionally import
-        // `invokedServices` for the boot-time credential check.
         if self.target == "server" || self.target == "full" {
+            // Service clients: the template server imports `invokedServices` for its boot-time credential check.
             let invoked_services = crate::codegen::collect_invoked_services(module);
             files.push(InternalFile::new(
                 "packages/server/src/services/clients.ts",
@@ -1033,30 +712,13 @@ impl TypeScriptBackend {
                 ),
                 GeneratedFileType::Config,
             ));
-            // Where the orbital-events route lends the running app to service
-            // calls, as the caller (`llm call-tools`).
-            if self.host == HostMode::Generated {
-                files.push(InternalFile::new(
-                    "packages/server/src/services/host.ts",
-                    crate::codegen::generate_service_host(),
-                    GeneratedFileType::Config,
-                ));
-            }
-
-            // Inbound deliveries (`/api/hooks/<name>`, EXEC-INBOUND-1) — always
-            // emitted so the template server imports it unconditionally.
-            files.push(if self.host == HostMode::Kernel {
-                InternalFile::new(
-                    "packages/server/src/inbound.ts",
-                    "/**\n * Inbound deliveries: answered by the kernel host (EXEC-INBOUND-1).\n *\n * @generated by Orbital Compiler (kernel host)\n */\n\nexport { deliverInbound } from './kernel-host.js';\n",
-                    GeneratedFileType::Route,
-                )
-            } else {
-                self.generate_inbound_module(module)
-            });
-
-            // Credential manifest for the services this schema invokes:
-            // a server-scoped .env.example plus the SECRETS.md deploy manifest.
+            // Inbound deliveries (`/api/hooks/<name>`, EXEC-INBOUND-1) are answered by the kernel host.
+            files.push(InternalFile::new(
+                "packages/server/src/inbound.ts",
+                "/**\n * Inbound deliveries: answered by the kernel host (EXEC-INBOUND-1).\n *\n * @generated by Orbital Compiler (kernel host)\n */\n\nexport { deliverInbound } from './kernel-host.js';\n",
+                GeneratedFileType::Route,
+            ));
+            // Credential manifest for the services this schema invokes.
             if let Some((env_example, secrets_md)) = generate_env_manifest(module) {
                 files.push(InternalFile::new(
                     "packages/server/.env.example",
@@ -1069,61 +731,8 @@ impl TypeScriptBackend {
                     GeneratedFileType::Config,
                 ));
             }
-
-            // 8. Generate substrate-config.ts when llm/ operators are used.
-            // getSubstrateService() is owned by @almadar/server (re-exported
-            // by @almadar/server-hono) — not generated here. Only getLLMClient()
-            // is self-contained (imports LLMClient from @almadar/llm).
-            let has_llm_ops = module.traits.iter().any(|t| {
-                t.transitions.iter().any(|tr| {
-                    tr.effects.iter().any(|e| {
-                        if let OirExpr::Effect { effect } = e {
-                            if let OirEffect::Custom { name, .. } = effect.as_ref() {
-                                name.starts_with("llm/")
-                            } else {
-                                false
-                            }
-                        } else {
-                            false
-                        }
-                    })
-                })
-            });
-            if has_llm_ops {
-                files.push(InternalFile::new(
-                    "packages/server/src/substrate-config.ts".to_string(),
-                    r#"/**
- * Substrate Configuration
- * Generated by Orbital Compiler — present when llm/ operators are used.
- * Pure TypeScript, no Orb runtime.
- *
- * getSubstrateService() is NOT here — it lives in @almadar/server
- * (re-exported by @almadar/server-hono). The host app must call
- * setSubstrateService() at startup.
- */
-
-import { LLMClient } from '@almadar/llm';
-
-let llmClient: LLMClient | null = null;
-export function getLLMClient(): LLMClient {
-  if (!llmClient) {
-    llmClient = new LLMClient({
-      provider: (process.env.LLM_PROVIDER ?? 'deepseek') as 'anthropic' | 'deepseek' | 'openrouter',
-      model: process.env.LLM_MODEL ?? 'deepseek-chat',
-    });
-  }
-  return llmClient;
-}
-export function setLLMClient(client: LLMClient): void { llmClient = client; }
-"#
-                    .to_string(),
-                    GeneratedFileType::Config,
-                ));
-            }
-
-            // packages/server/package.json (Hono only — the Express
-            // template's static copy already declares every `@almadar/*`
-            // package its handlers import). Last, so the scan sees every
+            // packages/server/package.json (Hono only: the Express template's static copy declares
+            // every `@almadar/*` package the kernel host imports). Last, so the scan sees every
             // `packages/server/` file this compile emitted.
             if self.server_framework == ServerFramework::Hono {
                 let server_package_json = self.generate_server_package_json_hono(&files);
@@ -1254,7 +863,6 @@ impl Backend for TypeScriptBackend {
             schema_language: self.schema_language.clone(),
             dev_logs: self.dev_logs,
             server_framework: self.server_framework,
-            host: self.host,
             browser_schema: self.browser_schema.clone(),
             current_trait_scope: CodegenCell::new(None),
             current_transition: CodegenCell::new(None),
@@ -1306,20 +914,19 @@ impl Backend for TypeScriptBackend {
 // keeps resolving. Inherent methods live in these submodules' `impl
 // TypeScriptBackend` blocks and resolve via the type regardless of module.
 // ============================================================================
-mod client;
+pub(crate) mod client;
+mod hono_manifests;
 pub mod kernel_host;
-mod pages;
 pub(crate) mod server;
 mod shared;
 mod types;
-pub(crate) use types::{array_element_ts, map_type_ts, oir_type_uses_sexpr, TsTypeMode};
+pub(crate) use types::{array_element_ts, map_type_ts, TsTypeMode};
 mod utils;
 
 // Free helpers / case converters used across submodules.
 pub(crate) use utils::*;
 // Shared entity/schema helpers used by client codegen + the pattern registry.
 pub use shared::EntityFieldInfo;
-pub(crate) use shared::{oir_cardinality_to_relation_str, oir_type_to_form_type, ZodRefMode};
 pub use types::classify_oir_type;
 
 #[cfg(test)]
@@ -1896,8 +1503,17 @@ mod tests {
                 "browser-guarded EventSource subscribe leg"
             );
             assert!(
-                body.contains("new EventSource(`${API_BASE}/api/events?clientId=${_clientId}`)"),
-                "subscribes with the same clientId used to stamp dispatches"
+                body.contains("new EventSource(`${API_BASE}/api/events?clientId=${_clientId}&ticket=${encodeURIComponent(minted.ticket)}`)"),
+                "subscribes with the same clientId used to stamp dispatches, and a ticket"
+            );
+            assert!(
+                body.contains("fetch(`${API_BASE}/api/events/ticket`, { method: 'POST', headers: await authHeaders() })"),
+                "the ticket is minted with the bearer"
+            );
+            assert!(!body.contains("access_token"), "no token ever goes in the stream URL");
+            assert!(
+                body.contains("if (_sseSubscribers > 0) setTimeout(_openSseOnce, 1000);"),
+                "a stream the server ended is reopened with a fresh ticket"
             );
             assert!(
                 body.contains(".type !== 'bus' || _sseBus === null) return;"),
@@ -1948,7 +1564,16 @@ mod tests {
         assert!(express
             .content
             .contains("export function registerSseRoute(app: Express): void {"));
-        assert!(express.content.contains("app.get('/api/events'"));
+        assert!(express
+            .content
+            .contains("app.post('/api/events/ticket', mintStreamTicket(streamTickets));"));
+        assert!(express.content.contains(
+            "app.get('/api/events', requireStreamTicket(streamTickets), async (req: Request, res: Response) => {"
+        ));
+        assert!(express
+            .content
+            .contains("import { mintStreamTicket, requireStreamTicket } from '@almadar/server';"));
+        assert!(!express.content.contains("access_token"));
         assert!(express.content.contains(
             "export function broadcastBusEvent(originClientId: string | undefined, item: BusBroadcastItem): void {"
         ));
@@ -1974,7 +1599,16 @@ mod tests {
         assert!(hono
             .content
             .contains("export function registerSseRoute(app: Hono<AppEnv>): void {"));
-        assert!(hono.content.contains("app.get('/api/events'"));
+        assert!(hono
+            .content
+            .contains("app.post('/api/events/ticket', mintStreamTicket(streamTickets));"));
+        assert!(hono
+            .content
+            .contains("app.get('/api/events', requireStreamTicket(streamTickets), async (c) => {"));
+        assert!(hono
+            .content
+            .contains("import { mintStreamTicket, requireStreamTicket } from '@almadar/server-hono';"));
+        assert!(!hono.content.contains("access_token"));
         assert!(hono.content.contains(
             "export function broadcastBusEvent(originClientId: string | undefined, item: BusBroadcastItem): void {"
         ));

@@ -78,6 +78,7 @@ impl TypeScriptBackend {
         match framework {
             ServerFramework::Express => {
                 code.push_str("import type { Express, Request, Response } from 'express';\n");
+                code.push_str("import { mintStreamTicket, requireStreamTicket } from '@almadar/server';\n");
             }
             ServerFramework::Hono => {
                 code.push_str("import type { Hono } from 'hono';\n");
@@ -85,13 +86,11 @@ impl TypeScriptBackend {
                     "import { streamSSE, type SSEStreamingApi } from 'hono/streaming';\n",
                 );
                 code.push_str("import type { AppEnv } from '@almadar/server-hono';\n");
+                code.push_str("import { mintStreamTicket, requireStreamTicket } from '@almadar/server-hono';\n");
             }
         }
-        if self.host == HostMode::Kernel {
-            code.push_str("import type { BusBroadcastItem, DispatchPushItem } from '@app/shared';\n");
-        } else {
-            code.push_str("import type { BusBroadcastItem } from '@app/shared';\n");
-        }
+        code.push_str("import { StreamTicketStore } from '@almadar/auth/server';\n");
+        code.push_str("import type { BusBroadcastItem, DispatchPushItem } from '@app/shared';\n");
         if server_ticks {
             code.push_str("import { releaseClient } from './mounts.js';\n");
         }
@@ -144,6 +143,8 @@ impl TypeScriptBackend {
         code.push_str("}\n\n");
 
         code.push_str("const connections = new Set<SseConnection>();\n\n");
+        code.push_str("/** Single-use tickets that open the stream: an `EventSource` sends no header, and a token in the URL leaks into logs. */\n");
+        code.push_str("const streamTickets = new StreamTicketStore();\n\n");
 
         code.push_str("/** Write `item` to every connected client except the one whose\n");
         code.push_str(" * `clientId` equals `originClientId` — that client already received\n");
@@ -200,11 +201,9 @@ impl TypeScriptBackend {
 
         code.push_str("/** Write `item` only to the requesting tab's connections: a running\n");
         code.push_str(" * call's live message (`emit.onMessage`), delivered while it runs. */\n");
-        code.push_str(if self.host == HostMode::Kernel {
-            "export function pushToOrigin(originClientId: string | undefined, item: BusBroadcastItem | DispatchPushItem): void {\n"
-        } else {
-            "export function pushToOrigin(originClientId: string | undefined, item: BusBroadcastItem): void {\n"
-        });
+        code.push_str(
+            "export function pushToOrigin(originClientId: string | undefined, item: BusBroadcastItem | DispatchPushItem): void {\n",
+        );
         code.push_str("  if (originClientId === undefined) return;\n");
         match framework {
             ServerFramework::Express => {
@@ -224,8 +223,9 @@ impl TypeScriptBackend {
         match framework {
             ServerFramework::Express => {
                 code.push_str("export function registerSseRoute(app: Express): void {\n");
+                code.push_str("  app.post('/api/events/ticket', mintStreamTicket(streamTickets));\n");
                 code.push_str(
-                    "  app.get('/api/events', async (req: Request, res: Response) => {\n",
+                    "  app.get('/api/events', requireStreamTicket(streamTickets), async (req: Request, res: Response) => {\n",
                 );
                 code.push_str(
                     "    const clientId = typeof req.query.clientId === 'string' ? req.query.clientId : undefined;\n",
@@ -250,7 +250,8 @@ impl TypeScriptBackend {
             }
             ServerFramework::Hono => {
                 code.push_str("export function registerSseRoute(app: Hono<AppEnv>): void {\n");
-                code.push_str("  app.get('/api/events', async (c) => {\n");
+                code.push_str("  app.post('/api/events/ticket', mintStreamTicket(streamTickets));\n");
+                code.push_str("  app.get('/api/events', requireStreamTicket(streamTickets), async (c) => {\n");
                 code.push_str("    const clientId = c.req.query('clientId');\n");
                 code.push_str("    const user: UserContext = await viewerOf(c.get('authUser'));\n");
                 code.push_str("    return streamSSE(c, async (stream) => {\n");

@@ -1,11 +1,9 @@
-//! Client-side TypeScript generation (React hooks, components, pages bridge).
-//! Module-split of the former monolithic backend.rs client section.
+//! Client-side TypeScript generation kept for `orbital-shell-mobile`: the per-trait logic hook and the pattern renderers.
 
-mod bridge;
 mod browser_legs;
 mod entity_refs;
-mod index;
 mod pattern;
 mod shared_trait_logic;
-mod trait_component;
+mod slots;
+pub(crate) mod ticks;
 mod trait_logic;

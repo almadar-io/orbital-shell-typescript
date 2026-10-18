@@ -50,23 +50,6 @@ pub(crate) fn module_has_access_policies(entities: &[OirEntity]) -> bool {
         .any(|e| OPS.iter().any(|(_, get)| get(e).is_some()))
 }
 
-/// Every `(entity name, op)` pair the module declares a policy for, in a
-/// deterministic order — the emitter and the import builder must agree.
-pub(crate) fn declared_policies(entities: &[OirEntity]) -> Vec<(String, &'static str)> {
-    // `entities` can list the same [shared] entity more than once when it's
-    // referenced from multiple orbitals in one multi-orbital app file — dedupe
-    // by (name, op) so a shared entity's policy const is never imported twice.
-    let mut seen = std::collections::HashSet::new();
-    let mut out = Vec::new();
-    for entity in entities {
-        for (op, get) in OPS.iter() {
-            if get(entity).is_some() && seen.insert((entity.name.clone(), *op)) {
-                out.push((entity.name.clone(), *op));
-            }
-        }
-    }
-    out
-}
 
 impl TypeScriptBackend {
     /// The `access-policies.ts` body, or `None` when the module declares no

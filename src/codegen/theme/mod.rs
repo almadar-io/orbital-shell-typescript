@@ -18,19 +18,11 @@ mod emitters;
 mod tokens;
 
 pub use config::{
-    generate_all_themes_config_ts, generate_theme_config_ts, generate_theme_manifest_ts,
+    generate_all_themes_config_ts,
 };
 pub use css::{generate_theme_css, theme_font_imports};
 
-use orbital_core_base::schema::{ThemeDefinition, ThemeRef};
 
-/// Extract theme from ThemeRef if inline, or return None if reference
-pub fn extract_inline_theme(theme_ref: &ThemeRef) -> Option<&ThemeDefinition> {
-    match theme_ref {
-        ThemeRef::Inline(theme) => Some(theme),
-        ThemeRef::Reference(_) => None,
-    }
-}
 
 #[cfg(test)]
 mod tests {

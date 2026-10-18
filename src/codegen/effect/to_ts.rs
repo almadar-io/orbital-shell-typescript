@@ -433,31 +433,8 @@ impl TypeScriptBackend {
         }
     }
 
-    /// The substrate ops whose emission below calls `getLLMClient()` rather
-    /// than the generic `getSubstrateService().invoke(...)` fallback. The
-    /// handlers-file import detection MUST derive from this same truth — a
-    /// prefix-based guess there imported `getLLMClient` for `llm/embed` while
-    /// the emitted call was `getSubstrateService` (TS2304).
-    pub(crate) fn substrate_op_uses_llm_client(name: &str) -> bool {
-        matches!(
-            name,
-            "llm/generate" | "llm/call-tools" | "llm/token-count" | "llm/compact"
-        )
-    }
 
-    /// The language trio's server effects, compiled to the shared program host
-    /// (`@almadar/integrations/program` `runProgramEffect`) — the one truth both
-    /// the handler-file import and the effect emission read.
-    pub(crate) fn substrate_op_is_program_effect(name: &str) -> bool {
-        orbital_core_base::language::registry::is_program_host_effect(name)
-            && !Self::substrate_op_is_agent_port(name)
-    }
 
-    /// `program/inputs`, `program/dispatch` and `persist/read-named`: compiled to `runAgentPort`
-    /// (`@almadar/core`) over the host ports `servicePorts` lends, not to the program host.
-    pub(crate) fn substrate_op_is_agent_port(name: &str) -> bool {
-        orbital_core_base::agent_ports::is_agent_port_operator(name)
-    }
 
     /// Compile a substrate operator used in VALUE position (inside `set`,
     /// `when`, etc.) to an inline TS expression. Returns `None` for

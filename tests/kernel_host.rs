@@ -1,4 +1,4 @@
-//! The kernel-hosted output (`HostMode::Kernel`): the generated app hands every execution step to
+//! The kernel-hosted output: the generated app hands every execution step to
 //! `@almadar/kernel` and emits no per-event logic; the default output is unchanged.
 
 use orbital_core_base::generate::Backend;
@@ -6,7 +6,7 @@ use orbital_core_base::ir::{
     OirEffect, OirEntity, OirExpr, OirField, OirModule, OirPersistence, OirState, OirTrait,
     OirTransition, OirType,
 };
-use orbital_shell_typescript::{HostMode, TypeScriptBackend};
+use orbital_shell_typescript::TypeScriptBackend;
 
 fn module() -> OirModule {
     let mut list = OirTrait::new("InvoiceList");
@@ -65,21 +65,20 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         })
 }
 
-/// The digest of today's default output for `module()` and `schema()`, recorded when the hook intake became the generated `inbound.ts` (the only change: it replaced `hooks-providers.ts`), then when `clients.ts` began importing `installProgramCredentials`.
-const DEFAULT_OUTPUT_DIGEST: u64 = 14_455_443_486_400_716_924;
+/// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the generated host was retired: the files the kernel host emitted before, unchanged.
+const KERNEL_OUTPUT_DIGEST: u64 = 9_027_411_895_961_707_616;
 
 #[test]
-fn control_the_default_output_is_byte_identical_to_the_recorded_one() {
+fn control_the_default_output_is_the_recorded_kernel_output() {
     let backend = TypeScriptBackend {
         browser_schema: Some(schema()),
         ..TypeScriptBackend::default()
     };
-    assert_eq!(digest(&backend), DEFAULT_OUTPUT_DIGEST);
+    assert_eq!(digest(&backend), KERNEL_OUTPUT_DIGEST);
 }
 
 fn kernel_backend() -> TypeScriptBackend {
     TypeScriptBackend {
-        host: HostMode::Kernel,
         browser_schema: Some(schema()),
         ..TypeScriptBackend::default()
     }
@@ -162,21 +161,6 @@ fn no_per_event_logic_is_emitted() {
 }
 
 #[test]
-fn control_the_default_output_still_emits_the_per_event_logic() {
-    let files = files_of(&TypeScriptBackend {
-        browser_schema: Some(schema()),
-        ..TypeScriptBackend::default()
-    });
-    assert!(files
-        .iter()
-        .any(|(p, _)| p.contains("routes/features/invoice-list/handlers.ts")));
-    assert!(files.iter().any(|(p, _)| p.contains("hooks/traits/")));
-    assert!(!files
-        .iter()
-        .any(|(p, _)| p.ends_with("kernel-host.ts") || p.ends_with("program.json")));
-}
-
-#[test]
 fn a_client_only_compile_emits_no_server_files_and_a_server_only_one_no_client_files() {
     let module = module();
     let client =
@@ -204,7 +188,6 @@ fn a_client_only_compile_emits_no_server_files_and_a_server_only_one_no_client_f
 #[test]
 fn edge_without_a_resolved_schema_nothing_is_embedded_and_the_output_says_so() {
     let output = TypeScriptBackend {
-        host: HostMode::Kernel,
         ..TypeScriptBackend::default()
     }
     .generate(&module());
@@ -254,12 +237,93 @@ fn the_server_host_wires_http_os_clock_and_the_dispatch_sink() {
 }
 
 #[test]
-fn control_a_program_with_no_http_or_os_effects_leaves_the_default_sse_untouched() {
-    let files = files_of(&TypeScriptBackend {
-        browser_schema: Some(schema()),
-        ..TypeScriptBackend::default()
-    });
-    assert!(!files
-        .iter()
-        .any(|(_, c)| c.contains("DispatchPushItem") || c.contains("createNodeOsHost")));
+fn the_client_never_registers_the_program_the_server_booted_with() {
+    let files = files_of(&kernel_backend());
+    let app = file(&files, "packages/client/src/App.tsx");
+    assert!(app.contains("register: async () =>"), "{app}");
+    assert!(app.contains("unregister: async () =>"), "{app}");
+    assert!(app.contains("deriveCarriesCircuitState('stateless')"), "{app}");
+}
+
+#[test]
+fn control_the_client_still_sends_events_over_the_http_transport() {
+    let files = files_of(&kernel_backend());
+    let app = file(&files, "packages/client/src/App.tsx");
+    assert!(app.contains("createHttpTransport({ serverUrl: `${API_BASE}/api/orbitals`"), "{app}");
+    assert!(app.contains("...http"), "{app}");
+}
+
+#[test]
+fn the_shared_package_is_a_module_so_the_server_can_import_the_program_under_tsx() {
+    let files = files_of(&kernel_backend());
+    let manifest: serde_json::Value =
+        serde_json::from_str(file(&files, "packages/shared/package.json")).unwrap();
+    assert_eq!(manifest["type"], "module");
+}
+
+fn hono_kernel_backend() -> TypeScriptBackend {
+    TypeScriptBackend {
+        server_framework: orbital_shell_typescript::ServerFramework::Hono,
+        ..kernel_backend()
+    }
+}
+
+#[test]
+fn the_hono_server_opens_the_same_kernel_without_the_express_router() {
+    let files = files_of(&hono_kernel_backend());
+    let host = file(&files, "packages/server/src/kernel-host.ts");
+    assert!(host.contains("engine: 'kernel'"), "{host}");
+    assert!(host.contains("loadKernelModule"), "{host}");
+    assert!(host.contains("export async function kernelRuntime()"), "{host}");
+    assert!(host.contains("@almadar/server-hono"), "{host}");
+    assert!(!host.contains("express"), "{host}");
+    assert!(!host.contains("runtime.router()"), "{host}");
+    let express = files_of(&kernel_backend());
+    let express_host = file(&express, "packages/server/src/kernel-host.ts");
+    assert!(express_host.contains("runtime.router()"), "{express_host}");
+}
+
+#[test]
+fn the_hono_routes_answer_every_route_the_express_router_serves_from_the_same_runtime_methods() {
+    let files = files_of(&hono_kernel_backend());
+    let routes = file(&files, "packages/server/src/kernel-routes.ts");
+    for call in [
+        "kernelRoutes.get('/', ",
+        "kernelRoutes.get('/inputs', ",
+        "kernelRoutes.post('/resolve-rows', ",
+        "kernelRoutes.post('/:orbital/inputs', ",
+        "kernelRoutes.get('/:orbital/entities/:entityType', ",
+        "kernelRoutes.get('/:orbital', ",
+        "kernelRoutes.post('/:orbital/events', ",
+        "listOrbitalSummaries()",
+        "describeOrbital(",
+        "entityRows(",
+        "refuseInboundOnly(",
+        "processOrbitalEvent(",
+        "dispatchExternalInput(",
+        "streamSSE(",
+    ] {
+        assert!(routes.contains(call), "{call} missing from {routes}");
+    }
+    let mount = file(&files, "packages/server/src/routes.ts");
+    assert!(mount.contains("identifyBearer"), "{mount}");
+    assert!(mount.contains("app.route('/api/orbitals', kernelRoutes)"), "{mount}");
+    let sse = file(&files, "packages/server/src/sse.ts");
+    assert!(sse.contains("hono/streaming"), "{sse}");
+    assert!(sse.contains("mintStreamTicket"), "{sse}");
+}
+
+#[test]
+fn control_the_express_kernel_server_has_no_hono_routes_and_the_hono_one_emits_no_handlers() {
+    let express = files_of(&kernel_backend());
+    assert!(express.iter().all(|(p, _)| p != "packages/server/src/kernel-routes.ts"));
+    let hono = files_of(&hono_kernel_backend());
+    assert!(
+        hono.iter().all(|(p, _)| !p.contains("/routes/features/") && !p.ends_with("handlers.ts")),
+        "{:?}",
+        hono.iter().map(|(p, _)| p.as_str()).collect::<Vec<_>>()
+    );
+    let manifest: serde_json::Value =
+        serde_json::from_str(file(&hono, "packages/shared/package.json")).unwrap();
+    assert_eq!(manifest["type"], "module");
 }

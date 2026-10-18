@@ -575,6 +575,8 @@ export * from './schemas/entities.js';
   }
 }
 "#;
+        // The kernel host's server imports a value (`program`) through `export *`, which Node only links for a module package.
+        let code = code.replace("  \"private\": true,\n", "  \"private\": true,\n  \"type\": \"module\",\n");
 
         InternalFile::new(
             "packages/shared/package.json",
@@ -1357,58 +1359,7 @@ pub struct EntityFieldInfo {
     pub element_ts_type: Option<String>,
 }
 
-/// Map an `OirRelation.cardinality` to the `@almadar/ui` `RelationConfig`
-/// vocabulary. OIR is camelCase 4-way (`oneToOne`/`oneToMany`/`manyToOne`/
-/// `manyToMany`); the TS `RelationConfig.cardinality` union is `"one"` /
-/// `"many"` — only "one id or many" matters to the consumer, so the "to"
-/// side collapses: `*ToOne` → `"one"`, `*ToMany` → `"many"`.
-pub(crate) fn oir_cardinality_to_relation_str(c: OirCardinality) -> &'static str {
-    match c {
-        OirCardinality::OneToOne | OirCardinality::ManyToOne => "one",
-        OirCardinality::OneToMany | OirCardinality::ManyToMany => "many",
-    }
-}
 
-/// Convert an OirType to a form-compatible type string
-pub(crate) fn oir_type_to_form_type(t: &OirType) -> &'static str {
-    match t {
-        OirType::String => "string",
-        OirType::Number => "number",
-        OirType::Integer => "integer",
-        OirType::Boolean => "boolean",
-        OirType::Date => "date",
-        OirType::DateTime => "datetime",
-        OirType::Email => "email",
-        OirType::Url | OirType::Image => "url",
-        OirType::Phone => "tel",
-        OirType::Uuid => "string",
-        OirType::Money => "money",
-        OirType::File => "file",
-        OirType::Bytes => "string",
-        OirType::CallKey => "string",
-        OirType::Json => "object",
-        OirType::Node => "object",
-        OirType::Array { .. } | OirType::Tuple { .. } => "array",
-        OirType::Map { .. } => "object",
-        OirType::Optional { inner } => oir_type_to_form_type(inner),
-        OirType::Reference { .. } => "relation",
-        OirType::Row { .. } => "object",
-        OirType::Enum { .. } => "enum",
-        OirType::Union { .. } => "object",
-        OirType::Struct { .. } => "object",
-        // `trait`-typed values surface as branded strings; the trait-ref
-        // semantic is handled at codegen / runtime substitution time, not
-        // by form-input rendering.
-        OirType::Trait => "string",
-        OirType::Orbital => "object",
-        OirType::Behavior => "object",
-        // An s-expression config value renders as a structured object.
-        OirType::SExpr => "object",
-        // A named struct reference is an object control, same as an inline
-        // struct — no dedicated "recursive" form control exists.
-        OirType::TypeRef { .. } => "object",
-    }
-}
 
 #[cfg(test)]
 mod cardinality_tests {

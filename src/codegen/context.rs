@@ -41,41 +41,10 @@ pub struct CodegenContext {
 }
 
 impl CodegenContext {
-    pub fn new() -> Self {
-        Self::default()
-    }
 
-    /// Create a child context with a new local binding
-    pub fn with_local(&self, name: &str, ts_name: &str) -> Self {
-        let mut ctx = self.clone();
-        ctx.locals.insert(name.to_string(), ts_name.to_string());
-        ctx
-    }
 
-    /// Create a child context with the expected element type set for the
-    /// next lambda. Consumed by `compile_lambda_or_expr`.
-    pub fn with_element_type(&self, ts_type: impl Into<String>) -> Self {
-        let mut ctx = self.clone();
-        ctx.expected_element_type = Some(ts_type.into());
-        ctx
-    }
 
-    /// Create a child context with the element type cleared.
-    pub fn without_element_type(&self) -> Self {
-        let mut ctx = self.clone();
-        ctx.expected_element_type = None;
-        ctx
-    }
 
-    /// Create a child context whose `@payload` binding resolves to `name` —
-    /// the emission scope's payload identifier (`payloadObj` in transition
-    /// handlers, `_payload` in hook field builders, `lastPayload` in render-ui).
-    /// Single owner of the per-scope payload name; resolvers read `payload_var`.
-    pub fn with_payload_binding(&self, name: impl Into<String>) -> Self {
-        let mut ctx = self.clone();
-        ctx.payload_var = Some(name.into());
-        ctx
-    }
 
     /// Render an `OirType` to its emitted TypeScript form (INFERRED position:
     /// lambda-param / array-element types). Thin wrapper over the canonical

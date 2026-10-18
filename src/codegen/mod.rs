@@ -17,10 +17,8 @@ mod theme;
 pub mod ts_ident;
 
 pub use context::CodegenContext;
-pub use infer::infer_oirexpr_element_type_ts;
 
 pub use operator_names::is_operator_name;
-pub use operator_names::is_substrate_operator;
 pub use service::*;
 pub use theme::*;
 pub(crate) use ts_ident::ts_member_name;

@@ -56,15 +56,6 @@ impl TypeScriptBackend {
                 != OirDispatchMode::HybridClientOnly
     }
 
-    pub(crate) fn compute_app_has_server_leg(&self, module: &OirModule) -> bool {
-        module.traits.iter().any(|t| {
-            let entity = t
-                .linked_entity
-                .as_ref()
-                .and_then(|name| module.resolve_entity_ref(t.linked_entity_id.as_deref(), name));
-            Self::trait_has_server_leg(t, entity, module)
-        })
-    }
 
     /// Generate `packages/client/src/hooks/traits/use{TraitName}Logic.tsx`
     /// for a trait linked to a `[shared]` entity. See the module doc for the

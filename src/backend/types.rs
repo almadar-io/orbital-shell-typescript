@@ -443,55 +443,7 @@ pub(crate) fn map_type_ts(
 }
 
 impl TypeScriptBackend {
-    /// Convert OirValue to a TypeScript literal string. Delegates to the one
-    /// canonical literal emitter (`backend::oir_value_to_ts_literal`) — sorted
-    /// keys (deterministic) + robust JSON string escaping.
-    pub(crate) fn oir_value_to_ts(&self, value: &OirValue) -> String {
-        crate::backend::oir_value_to_ts_literal(value)
-    }
 
-    /// Map OIR type to mock field type
-    pub(crate) fn oir_type_to_mock_type(&self, oir_type: &OirType) -> &'static str {
-        match oir_type {
-            OirType::String => "string",
-            OirType::Number => "number",
-            OirType::Integer => "number",
-            OirType::Boolean => "boolean",
-            OirType::Date => "date",
-            OirType::DateTime => "date",
-            OirType::Email => "email",
-            OirType::Url => "url",
-            OirType::Phone => "phone",
-            OirType::Uuid => "uuid",
-            OirType::Image => "image",
-            OirType::Money => "number",
-            OirType::File => "object",
-            OirType::Bytes => "string",
-            OirType::CallKey => "string",
-            OirType::Json => "string",
-            OirType::Node => "string",
-            OirType::Array { inner: _ } | OirType::Tuple { .. } => "array",
-            OirType::Map { .. } => "object",
-            OirType::Optional { inner } => self.oir_type_to_mock_type(inner),
-            OirType::Enum { .. } => "enum",
-            OirType::Reference { .. } => "relation",
-            OirType::Row { .. } => "object",
-            OirType::Union { .. } => "object",
-            OirType::Struct { .. } => "object",
-            // Trait references mock as strings — the deep-scan substitution
-            // happens at the codegen / runtime layer, not at mock-data time.
-            OirType::Trait => "string",
-            OirType::Orbital => "orbital",
-            OirType::Behavior => "behavior",
-            // Mock-data CATEGORY tag (vocab: string/number/object/array/…), not
-            // a TS type — an s-expression is a structured value, so "object".
-            // (Config-only; never reached as an entity field in practice.)
-            OirType::SExpr => "object",
-            // A named struct reference is an object at rest, same category as
-            // `Union`/`Struct` above.
-            OirType::TypeRef { .. } => "object",
-        }
-    }
 
     /// Map OIR type to TypeScript type
     pub fn map_type(&self, oir_type: &OirType) -> String {

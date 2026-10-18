@@ -7,8 +7,7 @@ use crate::backend::*;
 // Canonical string helpers live in `orbital_core::str_utils`; re-exported
 // here so the `backend::*` glob keeps resolving them.
 pub(crate) use orbital_core_base::str_utils::{
-    capitalize_first, escape_js_string, to_camel_case, to_identifier_pascal, to_kebab_case,
-    to_snake_case, to_title_case,
+    capitalize_first, escape_js_string, to_camel_case, to_kebab_case, to_title_case,
 };
 
 /// PascalCase / camelCase → SCREAMING_SNAKE_CASE. Used to derive
@@ -120,12 +119,6 @@ pub(crate) fn oir_value_to_ts_literal(v: &OirValue) -> String {
     }
 }
 
-pub(crate) fn to_lowercase_nosep(s: &str) -> String {
-    s.chars()
-        .filter(|c| c.is_alphanumeric())
-        .map(|c| c.to_ascii_lowercase())
-        .collect()
-}
 
 /// Walk an `OirType` and add every referenced entity name to `acc`. Used
 /// while emitting event-payload interfaces so that `data : [CartItem]`
@@ -195,17 +188,6 @@ pub(crate) fn rewrite_non_local_entity_refs(
     }
 }
 
-pub(crate) fn operation_to_string(op: &OirPersistOp) -> &'static str {
-    match op {
-        OirPersistOp::Create => "create",
-        OirPersistOp::Upsert => "upsert",
-        OirPersistOp::Read => "read",
-        OirPersistOp::Update => "update",
-        OirPersistOp::Delete => "delete",
-        OirPersistOp::List => "list",
-        OirPersistOp::Query => "query",
-    }
-}
 
 /// For callers that embed an already-`{}`-wrapped JSX text fragment in a
 /// JS-EXPRESSION position (inside `(...)` or `condition && (...)`). In that

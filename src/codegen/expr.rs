@@ -35,7 +35,7 @@
 //! Extracted from `backend.rs` as Phase 3e.4 of the DRY refactor.
 
 use orbital_core_base::ir::{
-    OirBinaryOp, OirBinding, OirBindingRoot, OirEffect, OirExpr, OirPattern, OirValue,
+    OirBinaryOp, OirBinding, OirBindingRoot, OirExpr, OirValue,
 };
 
 use crate::backend::{escape_js_string, TypeScriptBackend};
@@ -613,13 +613,6 @@ impl TypeScriptBackend {
         self.expr_to_ts_flavored(expr, BindingFlavor::General)
     }
 
-    /// Server-side expression-to-TypeScript conversion.
-    ///
-    /// Identical to `expr_to_ts` except `@entity.field` compiles to `entity?.field`
-    /// (single object from getById) instead of `entity?.[0]?.field` (client array).
-    pub(crate) fn expr_to_ts_server(&self, expr: &OirExpr) -> String {
-        self.expr_to_ts_flavored(expr, BindingFlavor::Server)
-    }
 
     /// Shared expression compiler. The `flavor` selects binding resolution
     /// (`binding_to_ts` / `_server` / `_client`), the fn-lambda recursion, the
@@ -1383,17 +1376,6 @@ impl TypeScriptBackend {
         }
     }
 
-    /// Server-side binding-to-TypeScript conversion.
-    ///
-    /// On the server, `entity` is a single object from `getById()`, not an array.
-    /// This avoids the `entity?.[0]` indexing that `binding_to_ts` uses for
-    /// client-side array-backed entity stores.
-    /// Compile a guard expression to TS — a thin alias for the shared
-    /// expression core with the guard binding/effect flavour. (Was the
-    /// standalone `compile_guard_to_ts` emitter in the deleted `guard.rs`.)
-    pub(crate) fn compile_guard_to_ts(&self, expr: &OirExpr) -> String {
-        self.expr_to_ts_flavored(expr, BindingFlavor::Guard)
-    }
 
     /// Binding resolver for the guard/transition-handler scope: `@entity`→
     /// `entity`, `@payload.x`→`(payload as EventPayload | undefined)?.x`,
@@ -1794,86 +1776,7 @@ impl TypeScriptBackend {
         }
     }
 
-    /// §A7: flatten an `OirPattern` (`pattern_type` + `config`) into the
-    /// `{ type: '<pattern_type>', ...config }` object literal the wire
-    /// tuple's `PatternConfig` expects — the raw OIR effect representation
-    /// already carries `type` as a sibling of the other config keys; the
-    /// Rust struct just splits it out, so this re-flattens it.
-    fn render_ui_pattern_config_ts_server(&self, pattern: &OirPattern) -> String {
-        let mut keys: Vec<&String> = pattern.config.keys().collect();
-        keys.sort();
-        let mut entries = vec![format!(
-            "type: \"{}\"",
-            escape_js_string(&pattern.pattern_type)
-        )];
-        for k in keys {
-            entries.push(format!(
-                "{}: {}",
-                ts_member_name(k),
-                self.pattern_value_to_ts_server(&pattern.config[k])
-            ));
-        }
-        format!("{{ {} }}", entries.join(", "))
-    }
 
-    /// §A7: one `ClientEffectTuple` (`@almadar/core`) for a render-ui /
-    /// navigate / navigate-back effect — the compiled server's twin of the
-    /// kernel's `resolve_effect_bindings`. `None` for every other effect
-    /// kind; the caller (`generate_transition_body_impl`) filters a
-    /// transition's declared effects through this and drops the `None`s.
-    /// `(render-ui <slot> null)` lowers to the `pattern_type == "clear"`
-    /// sentinel (`resolve_render_ui_effect`) — reproduced here as the
-    /// arity-3 `null`-config tuple, never the flattened `{ type: "clear" }`
-    /// object. `navigate`'s optional `crumb` is NOT threaded onto the wire
-    /// tuple (out of §A7's stated scope — the arity-4 crumb form stays
-    /// interpreter-only for now).
-    pub(crate) fn client_effect_tuple_ts(&self, effect: &OirEffect) -> Option<String> {
-        match effect {
-            OirEffect::RenderUi { slot, pattern } => {
-                let slot_ts = format!("'{}'", escape_js_string(slot));
-                if pattern.pattern_type == "clear" {
-                    Some(format!("['render-ui', {}, null]", slot_ts))
-                } else {
-                    Some(format!(
-                        "['render-ui', {}, {}]",
-                        slot_ts,
-                        self.render_ui_pattern_config_ts_server(pattern)
-                    ))
-                }
-            }
-            OirEffect::Navigate { path, params, .. } => {
-                // `ClientNavigateTuple`'s 2nd slot is a plain `string` (never
-                // optional) and its optional 3rd slot is `Record<string,
-                // string> | undefined` — both narrower than a live
-                // `@`-binding's `EventPayloadValue`-typed accessor.
-                // `String(x ?? '')` (the same coercion
-                // `narrow_wide_accessor_to_prop_type`'s `has_string` arm
-                // uses) guarantees a real `string` for the path even when
-                // it's already one (e.g. a `.join('')` concat — idempotent).
-                // The params object literal's per-key values are the same
-                // `EventPayloadValue` shape, so the whole literal is cast to
-                // the tuple's own declared record type in one assertion. A
-                // literal path string is already a real `string` — `?? ''`
-                // on a provably-non-nullish operand is TS2869, so the
-                // coercion applies only to a non-literal (binding/concat)
-                // path expression.
-                let path_ts = crate::codegen::infer::string_coerce_for(
-                    path,
-                    &self.expr_to_ts_flavored(path, BindingFlavor::ServerRenderUi),
-                );
-                match params {
-                    Some(p) => Some(format!(
-                        "['navigate', {}, ({}) as Record<string, string> | undefined]",
-                        path_ts,
-                        self.expr_to_ts_flavored(p, BindingFlavor::ServerRenderUi)
-                    )),
-                    None => Some(format!("['navigate', {}]", path_ts)),
-                }
-            }
-            OirEffect::NavigateBack => Some("['navigate-back']".to_string()),
-            _ => None,
-        }
-    }
 
     // ========================================================================
     // Phase 4: Client-Side S-Expression Transpilation
