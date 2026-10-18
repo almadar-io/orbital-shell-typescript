@@ -67,7 +67,7 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
 }
 
 /// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the embedded program began serializing with sorted keys: the kernel output of the generated-host removal plus the client program files, now a fetched static asset (`public/program.client.json`).
-const KERNEL_OUTPUT_DIGEST: u64 = 15_863_638_751_871_176_900;
+const KERNEL_OUTPUT_DIGEST: u64 = 15_897_420_188_299_299_588;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -121,9 +121,10 @@ fn the_client_hosts_the_kernel_through_the_ui_engine_provider() {
     let files = files_of(&kernel_backend());
     let app = file(&files, "packages/client/src/App.tsx");
     assert!(
-        app.contains("<KernelEngineProvider engine=\"kernel\""),
+        app.contains("<KernelEngineProvider loader={loadKernel}>"),
         "{app}"
     );
+    assert!(!app.contains("engine="), "the kernel is the only engine: {app}");
     assert!(app.contains("OrbPreview"), "{app}");
     let loader = file(&files, "packages/client/src/kernel-host.ts");
     assert!(loader.contains("@almadar/kernel/client"), "{loader}");
