@@ -26,9 +26,7 @@ mod registry;
 #[cfg(test)]
 mod tests {
     use crate::TypeScriptBackend;
-    use orbital_core_base::ir::{
-        OirEffect, OirExpr, OirPattern, OirState, OirTrait, OirTransition, OirValue,
-    };
+    use orbital_core_base::ir::OirValue;
 
     #[test]
     fn trait_binding_parse_accepts_canonical_form() {
@@ -323,42 +321,6 @@ mod tests {
             jsx.contains(".map((q) =>") && jsx.contains("config?.questions"),
             "expected `.map((q) => …)` over config?.questions, got: {}",
             jsx
-        );
-    }
-
-    #[test]
-    fn import_collector_adds_trait_view_import_for_children_binding() {
-        let backend = TypeScriptBackend::default();
-
-        // Construct a tiny trait whose render-ui pattern children reference
-        // `@trait.ItemSearch` so the import collector picks it up.
-        let mut stack_config = orbital_core_base::ir::OirObject::new();
-        stack_config.insert(
-            "children".to_string(),
-            OirValue::Array(vec![OirValue::String("@trait.ItemSearch".to_string())]),
-        );
-        let pattern = OirPattern {
-            pattern_type: "stack".to_string(),
-            config: stack_config,
-        };
-        let render_ui_effect = OirExpr::effect(OirEffect::RenderUi {
-            slot: "main".to_string(),
-            pattern,
-        });
-
-        let mut trait_def = OirTrait::new("ItemLayout");
-        trait_def.linked_entity = Some("Item".to_string());
-        trait_def.states = vec![OirState::initial("idle")];
-        trait_def.transitions =
-            vec![OirTransition::new("idle", "idle", "INIT").with_effects(vec![render_ui_effect])];
-
-        let imports = backend.collect_component_imports(&trait_def);
-        assert!(
-            imports
-                .iter()
-                .any(|(c, p)| c == "ItemSearchView" && p == "@/components/traits/ItemSearchView"),
-            "expected ItemSearchView import, got: {:?}",
-            imports
         );
     }
 

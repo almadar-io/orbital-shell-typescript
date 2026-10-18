@@ -9,22 +9,6 @@ use std::collections::HashMap;
 /// Context for code generation
 #[derive(Debug, Clone, Default)]
 pub struct CodegenContext {
-    /// Variable name to use for entity bindings
-    pub entity_var: Option<String>,
-    /// Variable name to use for payload bindings
-    pub payload_var: Option<String>,
-    /// Variable name to use for user bindings
-    pub user_var: Option<String>,
-    /// Track local variable names introduced by let bindings
-    pub locals: HashMap<String, String>,
-    /// Indentation level for generated code
-    pub indent_level: usize,
-    /// The expected TS type of the next lambda's element parameter. Set by
-    /// array operators (`array/map`, `array/filter`, ...) when descending
-    /// into their lambda arg, then read by `compile_lambda_or_expr` /
-    /// `compile_lambda` to emit `(item: <T>)` instead of `(item: any)`.
-    /// Cleared on the way down — only the immediate child lambda sees it.
-    pub expected_element_type: Option<String>,
     /// The trait's linked entity name (e.g. `"Article"`) — used to resolve
     /// `@entity` and `@entity.<field>` source types when inferring lambda
     /// element types.

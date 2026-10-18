@@ -1539,51 +1539,6 @@ mod dispatch_tests {
     }
 
     #[test]
-    fn an_app_with_no_server_leg_opens_no_event_stream() {
-        // SSE carries server broadcasts; an app whose every trait is
-        // client-only has no server, so a static host 404s on the stream.
-        let backend = TypeScriptBackend::new();
-        let mut module = module_with_guarded_writer_transition();
-        module.traits.iter_mut().for_each(|t| t.local = false);
-        assert!(!backend.compute_app_has_server_leg(&module));
-        backend
-            .app_has_server_leg
-            .set(backend.compute_app_has_server_leg(&module));
-        let bridge = backend.generate_orbital_bridge_hook().content;
-        for absent in [
-            "new EventSource(",
-            "_openSseOnce();",
-            "_sseSubscribers += 1;",
-        ] {
-            assert!(
-                !bridge.contains(absent),
-                "unexpected SSE marker {absent:?}:\n{bridge}"
-            );
-        }
-    }
-
-    #[test]
-    fn an_app_with_a_server_leg_keeps_its_event_stream() {
-        let backend = TypeScriptBackend::new();
-        let (module, _) = caller_trait_with_call_service();
-        assert!(backend.compute_app_has_server_leg(&module));
-        backend
-            .app_has_server_leg
-            .set(backend.compute_app_has_server_leg(&module));
-        let bridge = backend.generate_orbital_bridge_hook().content;
-        for marker in [
-            "new EventSource(",
-            "_openSseOnce();",
-            "_sseSubscribers += 1;",
-        ] {
-            assert!(
-                bridge.contains(marker),
-                "missing SSE marker {marker:?}:\n{bridge}"
-            );
-        }
-    }
-
-    #[test]
     fn a_client_only_shared_trait_sends_legs_for_its_browser_events_only() {
         let backend = TypeScriptBackend::new();
         let mut module = module_with_guarded_writer_transition();

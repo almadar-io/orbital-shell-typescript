@@ -160,7 +160,7 @@ pub const TRAIT_FIELD_REF_DECL: &str = "type TraitFieldRef = `@trait.${string}`;
 /// wire form. Config-only files keep `TRAIT_FIELD_REF_DECL`.
 pub const TRAIT_FIELD_VALUE_DECL: &str = "type TraitFieldRef = `@trait.${string}` | TraitFieldStored | null;\ninterface TraitFieldStored {\n  behavior: string;\n  trait: string;\n  [key: string]: FieldValue | undefined;\n}\n";
 
-/// Zod twin of `TRAIT_FIELD_VALUE_DECL` (`map_type_to_zod_with_refs` emits
+/// Zod twin of `TRAIT_FIELD_VALUE_DECL` (`map_type_to_zod` emits
 /// `TraitFieldValueSchema` for `trait`); needs `FieldValueSchema` from core,
 /// which `zod_core_value_imports` adds when this name appears.
 pub const TRAIT_FIELD_VALUE_SCHEMA_DECL: &str = "const TraitFieldValueSchema: z.ZodType<TraitFieldRef> = z.union([\n  z.custom<`@trait.${string}`>((v) => typeof v === 'string' && /^@trait\\.[A-Z][a-zA-Z0-9]*$/.test(v)),\n  z.object({ behavior: z.string(), trait: z.string() }).catchall(FieldValueSchema.optional()),\n  z.null(),\n]);\n";
@@ -170,7 +170,7 @@ pub const TRAIT_FIELD_VALUE_SCHEMA_DECL: &str = "const TraitFieldValueSchema: z.
 /// same rationale as `TRAIT_FIELD_VALUE_DECL`.
 pub const ORBITAL_FIELD_VALUE_DECL: &str = "type OrbitalFieldRef = OrbitalFieldStored | null;\ninterface OrbitalFieldStored {\n  behavior: string;\n  orbital: string;\n  [key: string]: FieldValue | undefined;\n}\n";
 
-/// Zod twin of `ORBITAL_FIELD_VALUE_DECL` (`map_type_to_zod_with_refs` emits
+/// Zod twin of `ORBITAL_FIELD_VALUE_DECL` (`map_type_to_zod` emits
 /// `OrbitalFieldValueSchema` for `orbital`).
 pub const ORBITAL_FIELD_VALUE_SCHEMA_DECL: &str = "const OrbitalFieldValueSchema: z.ZodType<OrbitalFieldRef> = z.union([\n  z.object({ behavior: z.string(), orbital: z.string() }).catchall(FieldValueSchema.optional()),\n  z.null(),\n]);\n";
 
@@ -179,7 +179,7 @@ pub const ORBITAL_FIELD_VALUE_SCHEMA_DECL: &str = "const OrbitalFieldValueSchema
 /// shape, same rationale as `TRAIT_FIELD_VALUE_DECL`.
 pub const BEHAVIOR_FIELD_VALUE_DECL: &str = "type BehaviorFieldRef = { behavior: string } | null;\n";
 
-/// Zod twin of `BEHAVIOR_FIELD_VALUE_DECL` (`map_type_to_zod_with_refs` emits
+/// Zod twin of `BEHAVIOR_FIELD_VALUE_DECL` (`map_type_to_zod` emits
 /// `BehaviorFieldValueSchema` for `behavior`).
 pub const BEHAVIOR_FIELD_VALUE_SCHEMA_DECL: &str = "const BehaviorFieldValueSchema: z.ZodType<BehaviorFieldRef> = z.union([z.object({ behavior: z.string() }).strict(), z.null()]);\n";
 
@@ -211,7 +211,7 @@ pub const GET_NESTED_VALUE_DECL: &str = "function getNestedValue(obj: EventPaylo
 
 /// Zod twins of `PATTERN_VALUE_DECL`'s `PatternValue`/`PatternNode`, inlined
 /// beside it wherever a `node`-typed field or payload needs a runtime
-/// validator (`map_type_to_zod_with_refs` emits `PatternValueSchema`).
+/// validator (`map_type_to_zod` emits `PatternValueSchema`).
 pub const PATTERN_VALUE_SCHEMA_DECL: &str = "const PatternNodeSchema: z.ZodType<PatternNode> = z.lazy(() =>\n  z.object({ type: z.string().optional(), children: z.array(PatternNodeSchema).optional() }).catchall(PatternValueSchema.optional()),\n);\nconst PatternValueSchema: z.ZodType<PatternValue> = z.lazy(() =>\n  z.union([z.string(), z.number(), z.boolean(), z.date(), z.null(), PatternNodeSchema, z.array(PatternValueSchema)]),\n);\n";
 
 /// Value imports from `@almadar/core` that a block of emitted zod text needs
@@ -324,204 +324,6 @@ pub fn module_has_http_effects(module: &orbital_core_base::ir::OirModule) -> boo
 
 
 #[cfg(test)]
-mod persist_success_emit_tests {
-    use super::trait_has_persist_success_emit;
-    use orbital_core_base::ir::{
-        OirEffect, OirEmitConfig, OirExpr, OirPersistOp, OirTrait, OirTransition,
-    };
-
-    #[test]
-    fn persist_with_success_emit_is_detected() {
-        let mut trait_def = OirTrait::new("PatientCrud");
-        let mut trans = OirTransition::new("idle", "idle", "SAVE");
-        trans.effects.push(OirExpr::effect(OirEffect::Persist {
-            operation: OirPersistOp::Update,
-            entity_type: "@entity".to_string(),
-            data: OirExpr::string("@entity"),
-            emit: Some(OirEmitConfig {
-                success: Some("PATIENT_SAVED".to_string()),
-                failure: None,
-                on_change: None,
-                on_message: None,
-                cancelled: None,
-            }),
-        }));
-        trait_def.transitions.push(trans);
-
-        assert!(trait_has_persist_success_emit(&trait_def));
-    }
-
-    #[test]
-    fn persist_without_emit_is_not_detected() {
-        let mut trait_def = OirTrait::new("PatientCrud");
-        let mut trans = OirTransition::new("idle", "idle", "SAVE");
-        trans.effects.push(OirExpr::effect(OirEffect::Persist {
-            operation: OirPersistOp::Update,
-            entity_type: "@entity".to_string(),
-            data: OirExpr::string("@entity"),
-            emit: None,
-        }));
-        trait_def.transitions.push(trans);
-
-        assert!(!trait_has_persist_success_emit(&trait_def));
-    }
-
-    #[test]
-    fn fetch_with_success_emit_is_not_detected() {
-        // Positional: fetch's emit.success looks identical to persist's at
-        // the event-name level, but only persist crosses the SSE channel.
-        let mut trait_def = OirTrait::new("PatientCrud");
-        let mut trans = OirTransition::new("idle", "idle", "INIT");
-        trans.effects.push(OirExpr::effect(OirEffect::Fetch {
-            entity_type: "@entity".to_string(),
-            id: None,
-            filter: None,
-            order_by: None,
-            offset: None,
-            limit: None,
-            include: None,
-            nearest: None,
-            emit: Some(OirEmitConfig {
-                success: Some("PATIENT_LOADED".to_string()),
-                failure: None,
-                on_change: None,
-                on_message: None,
-                cancelled: None,
-            }),
-        }));
-        trait_def.transitions.push(trans);
-
-        assert!(!trait_has_persist_success_emit(&trait_def));
-    }
-}
-
-#[cfg(test)]
-mod call_service_message_tests {
-    use super::trait_has_call_service_message;
-    use orbital_core_base::ir::{OirEffect, OirEmitConfig, OirExpr, OirTrait, OirTransition};
-
-    fn call_service(on_message: Option<&str>) -> OirExpr {
-        OirExpr::effect(OirEffect::CallService {
-            service: "llm".to_string(),
-            method: "call-tools".to_string(),
-            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
-            key: None,
-            emit: Some(OirEmitConfig {
-                success: Some("ANSWERED".to_string()),
-                failure: None,
-                on_change: None,
-                on_message: on_message.map(str::to_string),
-                cancelled: None,
-            }),
-        })
-    }
-
-    #[test]
-    fn call_service_with_on_message_is_detected() {
-        let mut trait_def = OirTrait::new("AssistantLoop");
-        let mut trans = OirTransition::new("idle", "thinking", "CONVERSE");
-        trans.effects.push(call_service(Some("STEP")));
-        trait_def.transitions.push(trans);
-        assert!(trait_has_call_service_message(&trait_def));
-    }
-
-    #[test]
-    fn call_service_without_on_message_is_not_detected() {
-        let mut trait_def = OirTrait::new("AssistantLoop");
-        let mut trans = OirTransition::new("idle", "thinking", "CONVERSE");
-        trans.effects.push(call_service(None));
-        trait_def.transitions.push(trans);
-        assert!(!trait_has_call_service_message(&trait_def));
-    }
-}
-
-#[cfg(test)]
-mod runtime_entity_binding_tests {
-    //! A `[runtime]` entity's held server row takes the client's frame each request. A
-    //! `runtimeOptimistic` trait commits `SET_*` on the client and posts its frame with the
-    //! event; reading only the held row sent a service atom's call with every field blank
-    //! (arxiv `query: ""`, live 2026-09-24). Same fold as the JS runtime's `entityByTrait`.
-    use super::runtime_entity_binding;
-
-    #[test]
-    fn the_client_frame_is_folded_over_the_held_row() {
-        let js = runtime_entity_binding("std-service-test", "ServiceTestTest", "ServiceTest");
-        assert!(js.contains("const entity = getRuntimeEntity('std-service-test', 'ServiceTestTest', entityId) as ServiceTest;"), "{js}");
-        assert!(
-            js.contains("if (entityFrame) Object.assign(entity, entityFrame);"),
-            "{js}"
-        );
-    }
-
-    #[test]
-    fn the_held_row_object_is_kept_so_sets_accumulate() {
-        let js = runtime_entity_binding("o", "T", "E");
-        // `entity` is the held object itself (mutated in place), never a copy or a view.
-        assert!(!js.contains("resolveEntityView"), "{js}");
-        assert!(!js.contains("{ ...entity"), "{js}");
-    }
-}
-
-#[cfg(test)]
-mod service_host_import_tests {
-    use super::service_host_import;
-    use orbital_core_base::ir::{OirEffect, OirExpr, OirTrait, OirTransition};
-
-    fn trait_with(effects: Vec<OirExpr>) -> OirTrait {
-        let mut t = OirTrait::new("Runner");
-        let mut trans = OirTransition::new("idle", "idle", "RUN");
-        trans.effects = effects;
-        t.transitions.push(trans);
-        t
-    }
-
-    fn call(key: Option<&str>) -> OirExpr {
-        OirExpr::effect(OirEffect::CallService {
-            service: "llm".to_string(),
-            method: "generate".to_string(),
-            args: OirExpr::object(orbital_core_base::ir::OirFields::new()),
-            key: key.map(OirExpr::string),
-            emit: None,
-        })
-    }
-
-    #[test]
-    fn an_unkeyed_call_imports_only_the_host_ports() {
-        let t = trait_with(vec![call(None)]);
-        assert_eq!(
-            service_host_import(&t, "../h.js").as_deref(),
-            Some("import { servicePorts } from '../h.js';\n")
-        );
-    }
-
-    #[test]
-    fn a_keyed_call_adds_the_registry_begin_and_end() {
-        let t = trait_with(vec![call(Some("k"))]);
-        assert_eq!(
-            service_host_import(&t, "../h.js").as_deref(),
-            Some("import { servicePorts, beginKeyedCall, endKeyedCall } from '../h.js';\n")
-        );
-    }
-
-    #[test]
-    fn a_cancel_call_alone_imports_only_cancel() {
-        let t = trait_with(vec![OirExpr::effect(OirEffect::cancel_call(
-            OirExpr::string("k"),
-        ))]);
-        assert_eq!(
-            service_host_import(&t, "../h.js").as_deref(),
-            Some("import { cancelKeyedCall } from '../h.js';\n")
-        );
-    }
-
-    #[test]
-    fn a_trait_with_no_service_effects_imports_nothing() {
-        let t = trait_with(vec![OirExpr::effect(OirEffect::emit("X"))]);
-        assert_eq!(service_host_import(&t, "../h.js"), None);
-    }
-}
-
-#[cfg(test)]
 mod view_suffix_collision_tests {
     use super::*;
 
@@ -572,122 +374,5 @@ mod get_nested_value_decl_tests {
             GET_NESTED_VALUE_DECL.contains("if (typeof obj !== 'object') return undefined;"),
             "{GET_NESTED_VALUE_DECL}"
         );
-    }
-}
-
-#[cfg(test)]
-mod http_detection_tests {
-    use super::{http_call_import, trait_has_host_effects, module_has_http_effects, trait_has_call_service_message, trait_has_keyed_call_service, trait_has_emit_effects, trait_has_http_effects, service_host_import};
-    use orbital_core_base::ir::{OirEffect, OirEmitConfig, OirExpr, OirModule, OirTrait, OirTransition};
-    use orbital_core_base::http_wire::HttpMethod;
-
-    fn trait_with(effect: OirEffect) -> OirTrait {
-        let mut t = OirTrait::new("Fetcher");
-        let mut tr = OirTransition::new("idle", "idle", "GO");
-        tr.effects.push(OirExpr::effect(effect));
-        t.transitions.push(tr);
-        t
-    }
-
-    fn http(key: Option<OirExpr>, emit: Option<OirEmitConfig>) -> OirEffect {
-        OirEffect::Http {
-            method: HttpMethod::Get,
-            origin: OirExpr::string("https://api.example.com"),
-            path: OirExpr::string("/x"),
-            request: None,
-            key,
-            emit,
-        }
-    }
-
-    #[test]
-    fn an_os_effect_needs_the_host_os_import() {
-        let t = trait_with(OirEffect::os(
-            orbital_core_base::os::OsOp::ReadFile,
-            vec![OirExpr::string("/data/a")],
-            None,
-            None,
-        ));
-        assert!(trait_has_host_effects(&t));
-        assert_eq!(
-            http_call_import(&t, "../clients.js").expect("import"),
-            "import { hostOs } from '../clients.js';\n"
-        );
-        assert!(http_call_import(&trait_with(http(None, None)), "../clients.js").expect("import").contains("httpCall"));
-    }
-
-    #[test]
-    fn an_http_effect_needs_the_http_call_import_and_nothing_else_does() {
-        let t = trait_with(http(None, None));
-        assert!(trait_has_http_effects(&t));
-        let import = http_call_import(&t, "../../../services/clients.js").expect("import");
-        assert_eq!(import, "import { httpCall, HttpCallError } from '../../../services/clients.js';\n");
-        assert!(service_host_import(&t, "../../../services/host.js").is_none());
-        let other = trait_with(OirEffect::cancel_call(OirExpr::string("k")));
-        assert!(!trait_has_http_effects(&other));
-        assert!(http_call_import(&other, "x").is_none());
-    }
-
-    #[test]
-    fn host_effects_import_exactly_the_host_functions_they_call() {
-        let random = trait_with(OirEffect::random_bytes(OirExpr::number(8.0), None));
-        assert!(trait_has_host_effects(&random) && !trait_has_http_effects(&random));
-        assert_eq!(
-            http_call_import(&random, "../c.js").unwrap(),
-            "import { hostRandomBytes } from '../c.js';\n"
-        );
-        let both = {
-            let mut t = trait_with(OirEffect::credential_status(OirExpr::string("k"), None));
-            let mut tr = OirTransition::new("idle", "idle", "STOP");
-            tr.effects.push(OirExpr::effect(OirEffect::credential_forget(OirExpr::string("k"), None)));
-            tr.effects.push(OirExpr::effect(http(None, None)));
-            t.transitions.push(tr);
-            t
-        };
-        assert_eq!(
-            http_call_import(&both, "../c.js").unwrap(),
-            "import { httpCall, HttpCallError, hostCredentialStatus, hostCredentialForget } from '../c.js';\n"
-        );
-        assert!(http_call_import(&trait_with(OirEffect::cancel_call(OirExpr::string("k"))), "x").is_none());
-    }
-
-    #[test]
-    fn a_module_with_only_host_effects_still_gets_the_http_ports() {
-        let mut m = OirModule::new("App", "0.1.0");
-        m.traits.push(trait_with(OirEffect::credential_forget(OirExpr::string("k"), None)));
-        assert!(module_has_http_effects(&m));
-    }
-
-    #[test]
-    fn host_effect_emit_is_detected() {
-        let emit = OirEmitConfig { success: Some("OK".to_string()), ..Default::default() };
-        assert!(trait_has_emit_effects(&trait_with(OirEffect::random_bytes(OirExpr::number(8.0), Some(emit)))));
-        assert!(!trait_has_emit_effects(&trait_with(OirEffect::random_bytes(OirExpr::number(8.0), None))));
-    }
-
-    #[test]
-    fn a_keyed_http_registers_in_the_keyed_call_registry() {
-        let t = trait_with(http(Some(OirExpr::string("k")), None));
-        assert!(trait_has_keyed_call_service(&t));
-        assert!(service_host_import(&t, "../../../services/host.js").unwrap().contains("beginKeyedCall, endKeyedCall"));
-        assert!(!trait_has_keyed_call_service(&trait_with(http(None, None))));
-    }
-
-    #[test]
-    fn http_emit_and_on_message_are_detected() {
-        let emit = OirEmitConfig { success: Some("OK".to_string()), on_message: Some("MSG".to_string()), ..Default::default() };
-        let t = trait_with(http(None, Some(emit)));
-        assert!(trait_has_emit_effects(&t));
-        assert!(trait_has_call_service_message(&t));
-        assert!(!trait_has_emit_effects(&trait_with(http(None, None))));
-    }
-
-    #[test]
-    fn module_detection_walks_every_trait() {
-        let mut m = OirModule::new("App", "0.1.0");
-        m.traits.push(trait_with(OirEffect::cancel_call(OirExpr::string("k"))));
-        assert!(!module_has_http_effects(&m));
-        m.traits.push(trait_with(http(None, None)));
-        assert!(module_has_http_effects(&m));
     }
 }

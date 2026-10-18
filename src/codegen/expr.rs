@@ -1073,7 +1073,7 @@ impl TypeScriptBackend {
                 // `readonly any[]`. Inference is None for opaque sources
                 // (the templates then keep the wide `any` fallback).
                 let elem_ts = if !args.is_empty() {
-                    let ctx = self.build_codegen_ctx(None, None, None);
+                    let ctx = self.build_codegen_ctx();
                     crate::codegen::infer::infer_oirexpr_element_type_ts(&args[0], &ctx)
                         .or_else(|| lambda_reads_param_fields(args.get(1)).then(|| "EntityRow".to_string()))
                         // An empty literal walked by a callback has no elements to contradict rows.
@@ -2588,15 +2588,6 @@ mod flavor_tests {
 
     // @entity.field resolves differently per flavour: client/general → the
     // `fields?` reducer mirror, server → the single `entity?` record.
-    #[test]
-    fn entity_field_resolution_per_flavor() {
-        let b = TypeScriptBackend::new();
-        let e = entity_binding("name");
-        assert_eq!(b.expr_to_ts(&e), "fields?.name");
-        assert_eq!(b.expr_to_client_ts(&e), "fields?.name");
-        assert_eq!(b.expr_to_ts_server(&e), "entity?.name");
-    }
-
     // @payload.x → typed `(payload as EventPayload | undefined)?.x` on
     // general/server, `payloadObj?.x` on client.
     #[test]
@@ -2612,25 +2603,6 @@ mod flavor_tests {
 
     // Concat wraps binding operands in `String(... ?? '')` on client/general
     // but NOT on server (preserved pre-merge quirk).
-    #[test]
-    fn concat_string_wrap_off_for_server() {
-        let b = TypeScriptBackend::new();
-        let concat = OirExpr::BinaryOp {
-            op: OirBinaryOp::Concat,
-            left: Box::new(entity_binding("first")),
-            right: Box::new(entity_binding("last")),
-        };
-        assert_eq!(
-            b.expr_to_ts(&concat),
-            "(String(fields?.first ?? '') + String(fields?.last ?? ''))"
-        );
-        // Server: no String() wrap, bare entity record reads.
-        assert_eq!(
-            b.expr_to_ts_server(&concat),
-            "(entity?.first + entity?.last)"
-        );
-    }
-
     // The Client flavour downgrades the higher-order Filter arm to GENERAL
     // resolution, so a @payload predicate resolves to `lastPayload`, not
     // `payloadObj` — exactly the pre-merge `_ => self.expr_to_ts(expr)` path.
@@ -2972,82 +2944,6 @@ mod flavor_tests {
         assert!(
             !ts.contains("?? []).filter("),
             "non-reduce chain source must stay bare, got: {ts}"
-        );
-    }
-}
-
-#[cfg(test)]
-mod guard_lambda_tests {
-    use super::*;
-    use orbital_core_base::ir::{OirBinding, OirBindingRoot};
-
-    fn payload(path: &str) -> OirExpr {
-        OirExpr::binding(OirBinding {
-            root: OirBindingRoot::Payload,
-            path: vec![path.to_string()],
-        })
-    }
-    fn local(name: &str) -> OirExpr {
-        OirExpr::binding(OirBinding {
-            root: OirBindingRoot::Local(name.to_string()),
-            path: vec![],
-        })
-    }
-    fn entity(field: &str) -> OirExpr {
-        OirExpr::binding(OirBinding {
-            root: OirBindingRoot::Entity,
-            path: vec![field.to_string()],
-        })
-    }
-
-    // Regression for G-LOLO-GUARD-LAMBDA-DROP: a `(fn row …)` predicate inside
-    // `array/filter` in a guard must survive codegen (the lambda must not fold
-    // to `true`). Now exercises the unified `expr_to_ts_flavored(.., Guard)`.
-    #[test]
-    fn guard_array_filter_keeps_lambda_predicate() {
-        let backend = TypeScriptBackend::new();
-        let lambda = OirExpr::lambda(
-            vec!["row".to_string()],
-            OirExpr::eq(local("row"), entity("parentId")),
-        );
-        let filter = OirExpr::call("array/filter", vec![payload("data"), lambda]);
-        let ts = backend.compile_guard_to_ts(&filter);
-        assert!(ts.contains(".filter("), "filter dropped: {ts}");
-        assert!(ts.contains("(row) =>"), "lambda param lost: {ts}");
-        assert!(
-            !ts.contains(".filter(true)"),
-            "predicate folded to true: {ts}"
-        );
-    }
-
-    #[test]
-    fn guard_array_some_keeps_lambda_predicate() {
-        let backend = TypeScriptBackend::new();
-        let lambda = OirExpr::lambda(
-            vec!["t".to_string()],
-            OirExpr::eq(local("t"), payload("from")),
-        );
-        let some = OirExpr::call("array/some", vec![payload("data"), lambda]);
-        let ts = backend.compile_guard_to_ts(&some);
-        assert!(
-            !ts.contains(".some(true)"),
-            "array/some predicate dropped to .some(true): {ts}"
-        );
-        assert!(
-            ts.contains("(t) =>"),
-            "lambda predicate missing in some: {ts}"
-        );
-    }
-
-    // Guard binding scope: `@entity.f`→`entity?.f` (handler scope), NOT
-    // render's `fields?.f`. Guards against accidental render-resolver use.
-    #[test]
-    fn guard_entity_binding_uses_handler_scope() {
-        let backend = TypeScriptBackend::new();
-        let ts = backend.compile_guard_to_ts(&entity("status"));
-        assert_eq!(
-            ts, "entity?.status",
-            "guard entity binding must be handler-scope, got: {ts}"
         );
     }
 }

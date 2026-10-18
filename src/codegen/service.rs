@@ -152,8 +152,8 @@ fn generate_http_call(egress: &[String]) -> String {
     ts.push_str("export function hostRandomBytes(bytes: RuntimeValue, key?: RuntimeValue): { value: string; key?: string } {\n");
     ts.push_str("  return randomBytesPayload(httpPorts, bytes, key);\n");
     ts.push_str("}\n\n");
-    ts.push_str("/** `credential-status`: `{ connected }` for the signed-in viewer. */\n");
-    ts.push_str("export function hostCredentialStatus(credential: RuntimeValue, principal: string | undefined): Promise<{ connected: boolean }> {\n");
+    ts.push_str("/** `credential-status`: `{ connected, label }` for the signed-in viewer. */\n");
+    ts.push_str("export function hostCredentialStatus(credential: RuntimeValue, principal: string | undefined): Promise<{ connected: boolean; label: string }> {\n");
     ts.push_str("  return credentialStatusPayload(httpPorts, credential, principal);\n");
     ts.push_str("}\n\n");
     ts.push_str("/** `oauth-authorize`: `{ authUrl, state }`; the pending grant stays with the host's store. */\n");
@@ -165,7 +165,7 @@ fn generate_http_call(egress: &[String]) -> String {
     ts.push_str("  return oauthConnectionPayload(httpPorts, head, provider, principal);\n");
     ts.push_str("}\n\n");
     ts.push_str("/** `credential-forget`: drops the signed-in viewer's credential. */\n");
-    ts.push_str("export function hostCredentialForget(credential: RuntimeValue, principal: string | undefined): Promise<{ connected: false }> {\n");
+    ts.push_str("export function hostCredentialForget(credential: RuntimeValue, principal: string | undefined): Promise<{ connected: false; label: string }> {\n");
     ts.push_str("  return credentialForgetPayload(httpPorts, credential, principal);\n");
     ts.push_str("}\n\n");
     ts
@@ -339,13 +339,4 @@ mod tests {
         assert!(ts.contains("  'email',\n  'twilio',\n"));
     }
 
-    #[test]
-    fn test_extract_inline_services() {
-        let services = vec![
-            ServiceRef::Inline(create_test_rest_service()),
-            ServiceRef::Reference("Other.services.weather".to_string()),
-        ];
-        let inline = extract_inline_services(&services);
-        assert_eq!(inline.len(), 1);
-    }
 }

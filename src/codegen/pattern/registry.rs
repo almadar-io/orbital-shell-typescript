@@ -413,7 +413,7 @@ impl TypeScriptBackend {
                 .and_then(|oir| {
                     crate::codegen::infer::infer_oirexpr_element_type_ts(
                         &oir,
-                        &self.build_codegen_ctx(None, None, None),
+                        &self.build_codegen_ctx(),
                     )
                 })
         } else {
@@ -724,7 +724,7 @@ impl TypeScriptBackend {
     /// when COMBINING more than one independently-generated JSX string into
     /// one expression (see the `stats` branch's own `len() == 1` guard for
     /// the pattern to copy).
-    pub fn generate_pattern_from_registry(
+    pub(crate) fn generate_pattern_from_registry(
         &self,
         pattern_type: &str,
         config: &orbital_core_base::ir::OirObject,

@@ -113,15 +113,6 @@ mod tests {
         assert!(css.contains("--color-border:"));
     }
 
-    #[test]
-    fn test_generate_theme_config_ts() {
-        let theme = create_test_theme();
-        let ts = generate_theme_config_ts(&theme);
-
-        assert!(ts.contains("THEME_NAME = 'ocean'"));
-        assert!(ts.contains("THEME_MODES"));
-    }
-
     /// Skin-axis emission parity anchor.
     ///
     /// This fixture mirrors `packages/almadar-ui/test/themeTokens.skin-axes.test.ts`

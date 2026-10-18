@@ -10,8 +10,6 @@ use crate::codegen::handler_header::entity_type_ref;
 
 mod client;
 #[cfg(test)]
-mod dispatch_roots_tests;
-#[cfg(test)]
 mod now_stamp_tests;
 #[cfg(test)]
 mod visible_tick_tests;

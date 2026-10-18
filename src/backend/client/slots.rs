@@ -1,43 +1,21 @@
 //! The slots a trait's transitions render into, as the per-trait logic hook reads them.
 
 use crate::backend::*;
-use crate::codegen::expr::BindingFlavor;
 
-
-/// A render-ui effect extracted from a transition, preserving any `(if …)`
-/// nesting the `.lolo` source used to pick between variants (e.g.
-/// `config.boardLook`/`config.browseLook` switches). Flattening a
-/// `Conditional` down to a single arbitrarily-chosen branch — or dropping it
-/// because it isn't a bare top-level `render-ui` — silently swaps a
-/// config-driven organism's real body for whatever unrelated transition
-/// happens to also land in the same state (the shipped bug: std-board's
-/// `viewing_board` fell back to `CANCEL_ADD`'s "Cancelling…" loading frame,
-/// and every std-browse `browseLook` collapsed onto its `master-detail`
-/// guard). `If` reconstructs the branch as a real runtime ternary instead.
-#[derive(Clone, Debug)]
-pub(crate) enum RenderUiNode<'a> {
-    Leaf(&'a OirPattern),
-    If {
-        condition_ts: String,
-        then_node: Option<Box<RenderUiNode<'a>>>,
-        else_node: Option<Box<RenderUiNode<'a>>>,
-    },
-}
 
 /// One transition's touch on one slot: which state(s) it fires from, the
-/// triggering event, the (possibly config-conditional) render tree, and
+/// triggering event, and
 /// whether this is an unconditional `(render-ui <slot> null)` clear. Single
 /// source of truth shared by the View's slot-writer ternary (groups by
 /// slot, ignores `from_states`) and every hook variant's per-`(fromState,
 /// event)` slot write/clear lookup (groups by `from_states`) — §98's fix:
 /// slot visibility is gated on WHICH TRANSITION last wrote the slot, never
 /// on the trait's current state.
-pub(crate) struct TransitionSlotRender<'a> {
+pub(crate) struct TransitionSlotRender {
     pub(crate) from_states: Vec<String>,
     pub(crate) event: String,
     pub(crate) to_state: String,
     pub(crate) slot: String,
-    pub(crate) node: RenderUiNode<'a>,
     pub(crate) is_clear: bool,
     /// The transition's index in the trait: which arm wrote the slot.
     pub(crate) arm: usize,
@@ -46,10 +24,10 @@ pub(crate) struct TransitionSlotRender<'a> {
 impl TypeScriptBackend {
     /// Every render-ui touch across `trait_def`'s transitions, one entry per
     /// `(transition, slot)` pair. See [`TransitionSlotRender`].
-    pub(crate) fn collect_transition_slot_renders<'a>(
+    pub(crate) fn collect_transition_slot_renders(
         &self,
-        trait_def: &'a OirTrait,
-    ) -> Vec<TransitionSlotRender<'a>> {
+        trait_def: &OirTrait,
+    ) -> Vec<TransitionSlotRender> {
         let mut out = Vec::new();
         for (arm, trans) in trait_def.transitions.iter().enumerate() {
             let from_states: Vec<String> = match &trans.from {
@@ -58,15 +36,12 @@ impl TypeScriptBackend {
                 OirTransitionFrom::Any => trait_def.states.iter().map(|s| s.name.clone()).collect(),
             };
             for effect in &trans.effects {
-                for (slot, node) in self.extract_render_ui_by_slot(effect) {
-                    let is_clear =
-                        matches!(&node, RenderUiNode::Leaf(p) if p.pattern_type == "clear");
+                for (slot, is_clear) in self.extract_render_ui_by_slot(effect) {
                     out.push(TransitionSlotRender {
                         from_states: from_states.clone(),
                         event: trans.event.clone(),
                         to_state: trans.to.clone(),
                         slot,
-                        node,
                         is_clear,
                         arm,
                     });
@@ -180,60 +155,28 @@ impl TypeScriptBackend {
         }
     }
 
-    /// Recursively pulls every `render-ui` out of one transition effect,
-    /// grouped by slot, walking into `OirExpr::Conditional` branches the
-    /// prior top-level-only scan skipped entirely. The condition is compiled
-    /// with the RENDER binding flavor (not Guard, which maps `@config` to
-    /// `undefined`) so `@config.boardLook` becomes the real `config?.boardLook`
-    /// prop read available in the generated View component's scope.
-    pub(crate) fn extract_render_ui_by_slot<'a>(
-        &self,
-        expr: &'a OirExpr,
-    ) -> Vec<(String, RenderUiNode<'a>)> {
+    /// Every `render-ui` slot one transition effect writes, with whether it is an
+    /// unconditional clear, walking into `OirExpr::Conditional` branches. A slot
+    /// written under a condition is never a clear.
+    pub(crate) fn extract_render_ui_by_slot(&self, expr: &OirExpr) -> Vec<(String, bool)> {
         match expr {
             OirExpr::Effect { effect } => {
                 if let OirEffect::RenderUi { slot, pattern } = effect.as_ref() {
-                    vec![(slot.clone(), RenderUiNode::Leaf(pattern))]
+                    vec![(slot.clone(), pattern.pattern_type == "clear")]
                 } else {
                     Vec::new()
                 }
             }
             OirExpr::Conditional {
-                condition,
                 then_branch,
                 else_branch,
+                ..
             } => {
-                let then_by_slot: HashMap<String, RenderUiNode<'a>> = self
-                    .extract_render_ui_by_slot(then_branch)
-                    .into_iter()
-                    .collect();
-                let else_by_slot: HashMap<String, RenderUiNode<'a>> = self
-                    .extract_render_ui_by_slot(else_branch)
-                    .into_iter()
-                    .collect();
-                if then_by_slot.is_empty() && else_by_slot.is_empty() {
-                    return Vec::new();
-                }
-                let condition_ts = self.expr_to_ts_flavored(condition, BindingFlavor::Render);
                 let mut slots: std::collections::BTreeSet<String> =
                     std::collections::BTreeSet::new();
-                slots.extend(then_by_slot.keys().cloned());
-                slots.extend(else_by_slot.keys().cloned());
-                slots
-                    .into_iter()
-                    .map(|slot| {
-                        let then_node = then_by_slot.get(&slot).cloned().map(Box::new);
-                        let else_node = else_by_slot.get(&slot).cloned().map(Box::new);
-                        (
-                            slot,
-                            RenderUiNode::If {
-                                condition_ts: condition_ts.clone(),
-                                then_node,
-                                else_node,
-                            },
-                        )
-                    })
-                    .collect()
+                slots.extend(self.extract_render_ui_by_slot(then_branch).into_iter().map(|(s, _)| s));
+                slots.extend(self.extract_render_ui_by_slot(else_branch).into_iter().map(|(s, _)| s));
+                slots.into_iter().map(|slot| (slot, false)).collect()
             }
             _ => Vec::new(),
         }

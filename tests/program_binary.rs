@@ -15,7 +15,7 @@ fn request(ir_version: u32) -> GenerateRequest {
         module: OirModule::new("App", "1.0.0"),
         resolved: None,
         source_path: None,
-        write: WriteOptions::default(),
+        write: WriteOptions { copy_template: true, ..WriteOptions::default() },
         options: BTreeMap::new(),
     }
 }

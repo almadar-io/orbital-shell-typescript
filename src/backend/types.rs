@@ -8,7 +8,7 @@ use std::collections::HashMap;
 /// interfaces, trait config) or an INFERRED one (lambda-param / array-element
 /// types in expression codegen). The only axis on which the otherwise-shared
 /// `OirType → TS` walk varies — mirrors the crate's `BindingFlavor` /
-/// `ZodRefMode` mode-enum idiom (one walk, `match mode` at the few divergent
+/// mode-enum idiom (one walk, `match mode` at the few divergent
 /// arms) rather than two hand-maintained copies.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TsTypeMode {
@@ -62,7 +62,7 @@ pub(crate) fn nonempty_enum_union(values: Option<&[String]>) -> Option<String> {
 }
 
 /// One inline-struct-literal walker shared by every `OirType::Struct` emitter
-/// (`map_type_ts`, `map_type_aliased_with_enum`, `payload_struct_ts`). Owns the
+/// (`map_type_ts`, `payload_struct_ts`). Owns the
 /// common skeleton: unwrap a non-required field's `Optional` wrapper (so
 /// `?: T | null` never double-marks optionality), then `{name}{?}: {inner}`
 /// joined with `; ` inside `{ }`. The per-field `inner` type — including each
@@ -83,29 +83,19 @@ pub(crate) fn struct_fields_ts(
     format!("{{ {} }}", parts.join("; "))
 }
 
-/// Reference-rendering axis: bare entity name vs the collision-safe
-/// `<Name>Entity` alias (handler/view files that import entities aliased).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TsRefMode {
-    Bare,
-    Aliased,
-}
-
 /// The TypeScript leaf-renderer behind the shared `orbital_core` walker
 /// ([`render_type`]). Every former `OirType → TS` entry point is a config of
 /// this one struct — the recursion now lives once in `orbital-core`, so a new
 /// `OirType` variant forces an explicit decision here (and in every other
-/// backend) at compile time. The four axes that used to be separate copies:
+/// backend) at compile time. The three axes that used to be separate copies:
 /// `mode` (Declared entity/schema vs Inferred lambda/element), `catalog`
-/// (Inferred `Reference` known-vs-`EntityRow`), `reference_mode` (bare vs
-/// aliased), and `payload` (bus-payload dates as `Date | string`, optionals
+/// (Inferred `Reference` known-vs-`EntityRow`), and `payload` (bus-payload dates as `Date | string`, optionals
 /// unwrapped, struct fields un-enumed). Enum values ride the `enum_values`
 /// sidecar (a lolo `format:` union lowers to `String` + `enum_values`, so they
 /// can't live on `OirType::Enum`).
 pub(crate) struct TsRenderer<'a> {
     mode: TsTypeMode,
     catalog: Option<&'a HashMap<String, OirEntity>>,
-    reference_mode: TsRefMode,
     payload: bool,
 }
 
@@ -168,19 +158,13 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         }
     }
     fn reference(&self, entity: &str) -> String {
-        if self.reference_mode == TsRefMode::Aliased {
-            return crate::codegen::handler_header::entity_type_ref(entity);
-        }
         // A PAYLOAD field referencing an entity carries the ROW, not an id.
         // The `Declared => "string"` rule below is right for entity relation
         // fields (which really do store an id at rest) but wrong here, and the
         // two share this renderer: an event declaring `{ row : BoardView }`
         // rendered `row: string` in `events.ts` while a row object arrived on
-        // the bus — and it typechecked, so nothing caught it. Worse, the same
-        // `OirType::Reference` renders as the entity type in `handlers.ts`
-        // (via `TsRefMode::Aliased` above), so the two generated files
-        // contradicted each other. Payload positions get the row interface,
-        // matching `Inferred`, where the value really IS the row.
+        // the bus — and it typechecked, so nothing caught it. Payload positions
+        // get the row interface, matching `Inferred`, where the value really IS the row.
         if self.payload {
             return match self.catalog {
                 Some(c) if c.contains_key(entity) => entity.to_string(),
@@ -206,9 +190,6 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         }
     }
     fn row(&self, entity: &str) -> String {
-        if self.reference_mode == TsRefMode::Aliased {
-            return crate::codegen::handler_header::entity_type_ref(entity);
-        }
         match self.catalog {
             Some(c) if !c.contains_key(entity) => "EntityRow".to_string(),
             _ => entity.to_string(),
@@ -352,9 +333,7 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         }
     }
     fn classify_row(&self, entity: &str) -> TypeMappingClass {
-        if self.reference_mode == TsRefMode::Aliased
-            || self.catalog.is_none_or(|c| c.contains_key(entity))
-        {
+        if self.catalog.is_none_or(|c| c.contains_key(entity)) {
             TypeMappingClass::Faithful
         } else {
             TypeMappingClass::Widening
@@ -407,7 +386,6 @@ pub fn classify_oir_type(ty: &OirType, enum_values: Option<&[String]>) -> TypeMa
         &TsRenderer {
             mode: TsTypeMode::Declared,
             catalog: None,
-            reference_mode: TsRefMode::Bare,
             payload: false,
         },
         ty,
@@ -434,7 +412,6 @@ pub(crate) fn map_type_ts(
         &TsRenderer {
             mode,
             catalog: entity_catalog,
-            reference_mode: TsRefMode::Bare,
             payload: false,
         },
         ty,
@@ -457,12 +434,11 @@ impl TypeScriptBackend {
     /// a component callback hands back (e.g. `CalendarEvent.startTime:
     /// string | Date`). Recurses through structs/arrays/optionals; used only
     /// for anonymous struct payload fields.
-    pub fn payload_struct_ts(&self, oir_type: &OirType) -> String {
+    pub(crate) fn payload_struct_ts(&self, oir_type: &OirType) -> String {
         render_type(
             &TsRenderer {
                 mode: TsTypeMode::Declared,
                 catalog: None,
-                reference_mode: TsRefMode::Bare,
                 payload: true,
             },
             oir_type,
@@ -473,7 +449,7 @@ impl TypeScriptBackend {
     /// Recursively check whether an `OirType` contains a `Trait` reference
     /// anywhere — used by the entities.ts emitter to decide whether the
     /// inlined `TraitFieldRef` type alias is needed.
-    pub fn field_type_uses_trait(&self, oir_type: &OirType) -> bool {
+    pub(crate) fn field_type_uses_trait(&self, oir_type: &OirType) -> bool {
         match oir_type {
             OirType::Trait => true,
             OirType::Array { inner } => self.field_type_uses_trait(inner),
@@ -490,7 +466,7 @@ impl TypeScriptBackend {
 
     /// Recursively check whether an `OirType` contains an `Orbital` value —
     /// gates the inlined `OrbitalFieldRef` storage shape.
-    pub fn field_type_uses_orbital(&self, oir_type: &OirType) -> bool {
+    pub(crate) fn field_type_uses_orbital(&self, oir_type: &OirType) -> bool {
         match oir_type {
             OirType::Orbital => true,
             OirType::Array { inner } | OirType::Optional { inner } => {
@@ -508,7 +484,7 @@ impl TypeScriptBackend {
 
     /// Recursively check whether an `OirType` contains a `Behavior` value —
     /// gates the inlined `BehaviorFieldRef` storage shape.
-    pub fn field_type_uses_behavior(&self, oir_type: &OirType) -> bool {
+    pub(crate) fn field_type_uses_behavior(&self, oir_type: &OirType) -> bool {
         match oir_type {
             OirType::Behavior => true,
             OirType::Array { inner } | OirType::Optional { inner } => {
@@ -527,7 +503,7 @@ impl TypeScriptBackend {
     /// Recursively check whether an `OirType` contains renderable `Node`
     /// content anywhere — gates the inlined `PatternValue`/`PatternNode`
     /// declaration in the generated file (mirrors `field_type_uses_trait`).
-    pub fn field_type_uses_node(&self, oir_type: &OirType) -> bool {
+    pub(crate) fn field_type_uses_node(&self, oir_type: &OirType) -> bool {
         match oir_type {
             OirType::Node => true,
             OirType::Array { inner } => self.field_type_uses_node(inner),
@@ -545,7 +521,7 @@ impl TypeScriptBackend {
     /// Recursively check whether an `OirType` contains an `SExpr` brand
     /// anywhere — used by the emitters to decide whether the inlined recursive
     /// `SExpr` type alias is needed (mirrors `field_type_uses_trait`).
-    pub fn field_type_uses_sexpr(&self, oir_type: &OirType) -> bool {
+    pub(crate) fn field_type_uses_sexpr(&self, oir_type: &OirType) -> bool {
         oir_type_uses_sexpr(oir_type)
     }
 
@@ -558,7 +534,7 @@ impl TypeScriptBackend {
     /// interface) and `generate_shared_trait_configs` (imports only the
     /// struct names a `config {}` block actually reads through) build their
     /// import line from — mirrors `field_type_uses_node`/`_sexpr` above.
-    pub fn collect_named_type_refs(
+    pub(crate) fn collect_named_type_refs(
         oir_type: &OirType,
         out: &mut std::collections::BTreeSet<String>,
     ) {
@@ -587,39 +563,9 @@ impl TypeScriptBackend {
         }
     }
 
-    /// Map OIR type to TypeScript with collision-aware aliasing.
-    ///
-    /// Same as `map_type` except every `OirType::Reference { entity }` whose
-    /// entity name appears in the global-collision list (Response, Request,
-    /// Event, URL, ...) is emitted as `<Name>Entity`. Use ONLY in files that
-    /// also import the matching entity under its alias from `@app/shared`
-    /// (handler files, view files). DO NOT use in files that DEFINE the
-    /// entity (e.g. shared/types/events.ts, entities.ts) — there the bare
-    /// name is the source of truth and the alias would be undefined.
-    pub fn map_type_aliased(&self, oir_type: &OirType) -> String {
-        self.map_type_aliased_with_enum(oir_type, None)
-    }
-
-    pub fn map_type_aliased_with_enum(
-        &self,
-        oir_type: &OirType,
-        enum_values: Option<&Vec<String>>,
-    ) -> String {
-        render_type(
-            &TsRenderer {
-                mode: TsTypeMode::Declared,
-                catalog: None,
-                reference_mode: TsRefMode::Aliased,
-                payload: false,
-            },
-            oir_type,
-            enum_values.map(Vec::as_slice),
-        )
-    }
-
     /// Map OIR type to TypeScript type with enum values (DECLARED position).
     /// Thin wrapper over the canonical `map_type_ts`.
-    pub fn map_type_with_enum(
+    pub(crate) fn map_type_with_enum(
         &self,
         oir_type: &OirType,
         enum_values: Option<&Vec<String>>,
@@ -765,7 +711,6 @@ mod row_type_tests {
         let r = TsRenderer {
             mode: TsTypeMode::Declared,
             catalog: Some(&cat),
-            reference_mode: TsRefMode::Bare,
             payload: false,
         };
         assert_eq!(

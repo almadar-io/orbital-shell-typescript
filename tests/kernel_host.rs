@@ -65,8 +65,8 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         })
 }
 
-/// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the generated host was retired: the files the kernel host emitted before, unchanged.
-const KERNEL_OUTPUT_DIGEST: u64 = 9_027_411_895_961_707_616;
+/// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the embedded program began serializing with sorted keys: the kernel output of the generated-host removal plus the client program files.
+const KERNEL_OUTPUT_DIGEST: u64 = 1_231_987_085_778_960_686;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -163,8 +163,8 @@ fn no_per_event_logic_is_emitted() {
 #[test]
 fn a_client_only_compile_emits_no_server_files_and_a_server_only_one_no_client_files() {
     let module = module();
-    let client =
-        kernel_backend().generate_with_mode(&module, orbital_core_base::generate::ShellMode::Client);
+    let client = kernel_backend()
+        .generate_with_mode(&module, orbital_core_base::generate::ShellMode::Client);
     assert!(client
         .files
         .iter()
@@ -173,8 +173,8 @@ fn a_client_only_compile_emits_no_server_files_and_a_server_only_one_no_client_f
         .files
         .iter()
         .any(|f| f.path.starts_with("packages/server/")));
-    let server =
-        kernel_backend().generate_with_mode(&module, orbital_core_base::generate::ShellMode::Server);
+    let server = kernel_backend()
+        .generate_with_mode(&module, orbital_core_base::generate::ShellMode::Server);
     assert!(server
         .files
         .iter()
@@ -242,14 +242,20 @@ fn the_client_never_registers_the_program_the_server_booted_with() {
     let app = file(&files, "packages/client/src/App.tsx");
     assert!(app.contains("register: async () =>"), "{app}");
     assert!(app.contains("unregister: async () =>"), "{app}");
-    assert!(app.contains("deriveCarriesCircuitState('stateless')"), "{app}");
+    assert!(
+        app.contains("deriveCarriesCircuitState('stateless')"),
+        "{app}"
+    );
 }
 
 #[test]
 fn control_the_client_still_sends_events_over_the_http_transport() {
     let files = files_of(&kernel_backend());
     let app = file(&files, "packages/client/src/App.tsx");
-    assert!(app.contains("createHttpTransport({ serverUrl: `${API_BASE}/api/orbitals`"), "{app}");
+    assert!(
+        app.contains("createHttpTransport({ serverUrl: `${API_BASE}/api/orbitals`"),
+        "{app}"
+    );
     assert!(app.contains("...http"), "{app}");
 }
 
@@ -274,7 +280,10 @@ fn the_hono_server_opens_the_same_kernel_without_the_express_router() {
     let host = file(&files, "packages/server/src/kernel-host.ts");
     assert!(host.contains("engine: 'kernel'"), "{host}");
     assert!(host.contains("loadKernelModule"), "{host}");
-    assert!(host.contains("export async function kernelRuntime()"), "{host}");
+    assert!(
+        host.contains("export async function kernelRuntime()"),
+        "{host}"
+    );
     assert!(host.contains("@almadar/server-hono"), "{host}");
     assert!(!host.contains("express"), "{host}");
     assert!(!host.contains("runtime.router()"), "{host}");
@@ -307,7 +316,10 @@ fn the_hono_routes_answer_every_route_the_express_router_serves_from_the_same_ru
     }
     let mount = file(&files, "packages/server/src/routes.ts");
     assert!(mount.contains("identifyBearer"), "{mount}");
-    assert!(mount.contains("app.route('/api/orbitals', kernelRoutes)"), "{mount}");
+    assert!(
+        mount.contains("app.route('/api/orbitals', kernelRoutes)"),
+        "{mount}"
+    );
     let sse = file(&files, "packages/server/src/sse.ts");
     assert!(sse.contains("hono/streaming"), "{sse}");
     assert!(sse.contains("mintStreamTicket"), "{sse}");
@@ -316,14 +328,76 @@ fn the_hono_routes_answer_every_route_the_express_router_serves_from_the_same_ru
 #[test]
 fn control_the_express_kernel_server_has_no_hono_routes_and_the_hono_one_emits_no_handlers() {
     let express = files_of(&kernel_backend());
-    assert!(express.iter().all(|(p, _)| p != "packages/server/src/kernel-routes.ts"));
+    assert!(express
+        .iter()
+        .all(|(p, _)| p != "packages/server/src/kernel-routes.ts"));
     let hono = files_of(&hono_kernel_backend());
     assert!(
-        hono.iter().all(|(p, _)| !p.contains("/routes/features/") && !p.ends_with("handlers.ts")),
+        hono.iter()
+            .all(|(p, _)| !p.contains("/routes/features/") && !p.ends_with("handlers.ts")),
         "{:?}",
         hono.iter().map(|(p, _)| p.as_str()).collect::<Vec<_>>()
     );
     let manifest: serde_json::Value =
         serde_json::from_str(file(&hono, "packages/shared/package.json")).unwrap();
     assert_eq!(manifest["type"], "module");
+}
+
+#[test]
+fn the_production_client_build_ships_no_source_maps_and_a_development_build_keeps_them() {
+    for (name, config) in [
+        (
+            "almadar-shell",
+            include_str!("../templates/almadar-shell/packages/client/vite.config.ts"),
+        ),
+        (
+            "almadar-shell-hono",
+            include_str!("../templates/almadar-shell-hono/packages/client/vite.config.ts"),
+        ),
+    ] {
+        assert!(
+            config.contains("sourcemap: mode === 'development',"),
+            "{name}: {config}"
+        );
+        assert!(!config.contains("sourcemap: true"), "{name}: {config}");
+    }
+}
+
+#[test]
+fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_one() {
+    let files = files_of(&kernel_backend());
+    let full: serde_json::Value =
+        serde_json::from_str(file(&files, "packages/shared/src/program.json")).unwrap();
+    let client: serde_json::Value =
+        serde_json::from_str(file(&files, "packages/client/src/program.client.json")).unwrap();
+    for key in ["_metadata", "ledger"] {
+        assert!(client.get(key).is_none(), "{key}");
+    }
+    assert_eq!(
+        client["orbitals"].as_array().map(Vec::len),
+        full["orbitals"].as_array().map(Vec::len)
+    );
+    assert_eq!(client["name"], full["name"]);
+    for orbital in client["orbitals"].as_array().unwrap() {
+        for trait_def in orbital["traits"].as_array().into_iter().flatten() {
+            for key in ["effectRow", "sourceEntityDefinition"] {
+                assert!(trait_def.get(key).is_none(), "{key}");
+            }
+        }
+    }
+    let app = file(&files, "packages/client/src/App.tsx");
+    assert!(app.contains("from './client-program'"), "{app}");
+    assert!(!app.contains("from '@app/shared'"), "{app}");
+    let module = file(&files, "packages/client/src/client-program.ts");
+    assert!(module.contains("./program.client.json"), "{module}");
+}
+
+#[test]
+fn control_a_server_only_compile_ships_no_client_projection() {
+    let server = kernel_backend()
+        .generate_with_mode(&module(), orbital_core_base::generate::ShellMode::Server);
+    assert!(!server
+        .files
+        .iter()
+        .any(|f| f.path.contains("program.client.json")));
 }

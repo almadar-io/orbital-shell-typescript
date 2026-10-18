@@ -16,5 +16,6 @@ pub use backend::{classify_oir_type, EntityFieldInfo, ExtraComponentMapping, Ser
 pub use codegen::target::{
     ClientEffectEmitter, ComponentRenderer, WebClientEffectEmitter, WebComponentRenderer,
 };
+pub use codegen::handler_header::core_value_imports_clause;
 pub use codegen::{generate_theme_css, theme_font_imports};
 pub use shell::{express_shell, hono_shell};

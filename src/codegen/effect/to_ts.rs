@@ -410,21 +410,13 @@ impl TypeScriptBackend {
     /// payload / catalog cells. Centralises the Phase E plumbing so
     /// every `compile_sexpr*` entry point picks up the same source-type
     /// inference inputs.
-    pub(crate) fn build_codegen_ctx(
-        &self,
-        entity_var: Option<&str>,
-        payload_var: Option<&str>,
-        user_var: Option<&str>,
-    ) -> crate::codegen::CodegenContext {
+    pub(crate) fn build_codegen_ctx(&self) -> crate::codegen::CodegenContext {
         use crate::codegen::CodegenContext;
         let catalog = self.entity_catalog.snapshot();
         let linked = self.current_linked_entity.snapshot();
         let payload_schema = self.current_payload_schema.snapshot();
         let config_schema = self.current_config_schema.snapshot();
         CodegenContext {
-            entity_var: entity_var.map(|s| s.to_string()),
-            payload_var: payload_var.map(|s| s.to_string()),
-            user_var: user_var.map(|s| s.to_string()),
             entity_catalog: catalog,
             linked_entity_name: linked,
             current_payload_schema: payload_schema,

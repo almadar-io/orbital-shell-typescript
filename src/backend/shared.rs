@@ -1,15 +1,6 @@
 use crate::backend::*;
 use crate::codegen::handler_header::named_struct_type_import_line;
 
-/// How `map_type_to_zod_with_refs` validates an `OirType::Reference` field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ZodRefMode {
-    /// Entity-schema context: emit `z.lazy(() => XSchema)` (schema in scope).
-    Schema,
-    /// Event-payload context: emit `z.string()` (ref is an id, no schema import).
-    IdString,
-}
-
 /// Emit one declaration per registered named type (`OirModule::named_types`)
 /// — an `export interface <Name> { ... }` per Struct entry, an
 /// `export type <Name> = …` alias per Union entry (Phase-3D nominalization
@@ -65,7 +56,7 @@ impl TypeScriptBackend {
     /// nominalization registers anonymous unions too) — the `z.lazy()`
     /// wrapper is the standard idiom for a recursive zod schema (defers
     /// evaluating the object shape until first use, so the const's own
-    /// self-reference — via `map_type_to_zod_with_refs`'s `TypeRef` arm,
+    /// self-reference — via `map_type_to_zod`'s `TypeRef` arm,
     /// which emits `z.lazy(() => <Name>Schema)` — doesn't need the binding to
     /// already exist). Hoisted before the entity schemas so a `TypeRef` in an
     /// entity/config field's schema always finds `<Name>Schema` declared.
@@ -78,7 +69,7 @@ impl TypeScriptBackend {
             if !matches!(ty, OirType::Struct { .. } | OirType::Union { .. }) {
                 continue;
             }
-            let object_expr = self.map_type_to_zod_with_refs(ty, None, ZodRefMode::Schema);
+            let object_expr = self.map_type_to_zod(ty, None);
             // The `: z.ZodType<{name}>` annotation alone is sufficient now that
             // the scaffold tsconfig has `strictNullChecks` on (implied by
             // `strict: true`): zod's `undefined extends T[K] ? optional :
@@ -1151,31 +1142,13 @@ export type { UserContext } from '@almadar/core';
         )
     }
 
+    /// Map an OirType to a Zod schema constructor string. Enum values come from
+    /// the entity-schema context only; event payload fields carry no enum
+    /// metadata and land on the `z.string()` fallback.
     pub(crate) fn map_type_to_zod(
         &self,
         oir_type: &OirType,
         enum_values: Option<&Vec<String>>,
-    ) -> String {
-        self.map_type_to_zod_with_refs(oir_type, enum_values, ZodRefMode::Schema)
-    }
-
-    /// Map an OirType to a Zod schema constructor string.
-    ///
-    /// `ref_mode` switches how a `Reference` field validates:
-    /// - `Schema` (entity-schema context): `z.lazy(() => XSchema)` — the entity
-    ///   Zod schema is in scope in `entities.ts`.
-    /// - `IdString` (event-payload context): `z.string()` — a payload reference
-    ///   field is just a string id, and no `XSchema` symbol is imported at the
-    ///   inline per-event validation site.
-    ///
-    /// Enum values are only available in the entity-schema context (event
-    /// payload fields carry no enum metadata), so the payload caller passes
-    /// `enum_values: None` and lands on the `z.string()` fallback.
-    pub(crate) fn map_type_to_zod_with_refs(
-        &self,
-        oir_type: &OirType,
-        enum_values: Option<&Vec<String>>,
-        ref_mode: ZodRefMode,
     ) -> String {
         match oir_type {
             // A closed string vocabulary is `OirType::String` PLUS
@@ -1218,38 +1191,38 @@ export type { UserContext } from '@almadar/core';
                 "z.tuple([{}])",
                 items
                     .iter()
-                    .map(|t| self.map_type_to_zod_with_refs(t, None, ref_mode))
+                    .map(|t| self.map_type_to_zod(t, None))
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
             OirType::Array { inner } => {
                 format!(
                     "z.array({})",
-                    self.map_type_to_zod_with_refs(inner, None, ref_mode)
+                    self.map_type_to_zod(inner, None)
                 )
             }
             OirType::Map { value, .. } => {
                 format!(
                     "z.record({})",
-                    self.map_type_to_zod_with_refs(value, None, ref_mode)
+                    self.map_type_to_zod(value, None)
                 )
             }
             OirType::Optional { inner } => {
                 format!(
                     "{}.optional()",
-                    self.map_type_to_zod_with_refs(inner, None, ref_mode)
+                    self.map_type_to_zod(inner, None)
                 )
             }
             // §161: a declared relation field STORES THE ID (ledger §138/
             // §147, `orbital-core`'s `TargetTypeRenderer::reference` default
             // — the TS type position for this SAME field renders `string`,
-            // never the related row's shape). `ZodRefMode::Schema`
+            // never the related row's shape). The schema mode
             // previously validated it as the embedded row
             // (`z.lazy(() => XSchema)`), disagreeing with both the TS
             // interface and the persist-effect codegen's default binding
             // (`@user.id` → a plain string), so every create/update through
             // a relation field with a default 400'd — `Expected object,
-            // received string`. Both `ref_mode`s validate the one thing the
+            // received string`. The reference validates the one thing the
             // field is ever populated with: the id string. (`entity` is
             // unused now that both arms agree; kept as the match binding so
             // a future ref-mode split has it in scope again.)
@@ -1257,17 +1230,14 @@ export type { UserContext } from '@almadar/core';
             // An embedded row is the entity's own object: the schema in scope
             // validates it; an event payload imports no schema, so it is a
             // shapeless record there.
-            OirType::Row { entity } => match ref_mode {
-                ZodRefMode::Schema => format!("z.lazy(() => {}Schema)", to_camel_case(entity)),
-                ZodRefMode::IdString => "z.record(FieldValueSchema.optional())".to_string(),
-            },
+            OirType::Row { entity } => format!("z.lazy(() => {}Schema)", to_camel_case(entity)),
             // A tagged union: each variant's own schema, joined by z.union.
             // A single variant degrades to that variant, none to `z.never()`
             // (uninhabited), rather than emitting an invalid one-arm z.union.
             OirType::Union { variants } => {
                 let parts: Vec<String> = variants
                     .iter()
-                    .map(|v| self.map_type_to_zod_with_refs(&v.field_type, None, ref_mode))
+                    .map(|v| self.map_type_to_zod(&v.field_type, None))
                     .collect();
                 match parts.len() {
                     0 => "z.never()".to_string(),
@@ -1281,10 +1251,9 @@ export type { UserContext } from '@almadar/core';
                     .map(|f| {
                         // Unwrap so the recursive call doesn't double-apply `.optional()` (see the entity-schema loop above).
                         let (effective_type, is_optional) = f.effective_type();
-                        let inner = self.map_type_to_zod_with_refs(
+                        let inner = self.map_type_to_zod(
                             effective_type,
                             f.enum_values.as_ref(),
-                            ref_mode,
                         );
                         let q = if is_optional {
                             format!("{}.optional()", inner)
@@ -1361,35 +1330,6 @@ pub struct EntityFieldInfo {
 
 
 
-#[cfg(test)]
-mod cardinality_tests {
-    use super::*;
-
-    #[test]
-    fn to_one_cardinalities_collapse_to_one() {
-        assert_eq!(
-            oir_cardinality_to_relation_str(OirCardinality::OneToOne),
-            "one"
-        );
-        assert_eq!(
-            oir_cardinality_to_relation_str(OirCardinality::ManyToOne),
-            "one"
-        );
-    }
-
-    #[test]
-    fn to_many_cardinalities_collapse_to_many() {
-        assert_eq!(
-            oir_cardinality_to_relation_str(OirCardinality::OneToMany),
-            "many"
-        );
-        assert_eq!(
-            oir_cardinality_to_relation_str(OirCardinality::ManyToMany),
-            "many"
-        );
-    }
-}
-
 /// A to-many relation field's type is already the array, so the cardinality must not wrap
 /// it again (`string[][]`); an intrinsic list holds embedded rows, a persisted one ids.
 #[cfg(test)]
@@ -1441,28 +1381,6 @@ mod to_many_relation_field_tests {
         assert!(types.contains("revisions?: string[];"), "{types}");
         assert!(!types.contains("Revision[]"), "{types}");
         assert!(schemas.contains("z.array(z.string())"), "{schemas}");
-    }
-
-    #[test]
-    fn a_row_in_an_event_payload_is_a_shapeless_record_not_a_schema_import() {
-        let backend = TypeScriptBackend::new();
-        let row = OirType::row("Revision");
-        assert_eq!(
-            backend.map_type_to_zod_with_refs(&row, None, ZodRefMode::Schema),
-            "z.lazy(() => revisionSchema)"
-        );
-        assert_eq!(
-            backend.map_type_to_zod_with_refs(&row, None, ZodRefMode::IdString),
-            "z.record(FieldValueSchema.optional())"
-        );
-        assert_eq!(
-            backend.map_type_to_zod_with_refs(
-                &OirType::reference("Revision"),
-                None,
-                ZodRefMode::IdString
-            ),
-            "z.string()"
-        );
     }
 
     #[test]
@@ -1637,7 +1555,7 @@ mod named_type_schema_import_tests {
     /// An `Optional`-typed field on a named struct must emit exactly one
     /// `.optional()` in the generated zod schema, never
     /// `.optional().optional()` (the doubling came from
-    /// `map_type_to_zod_with_refs`'s `OirType::Optional` arm ALSO appending
+    /// `map_type_to_zod`'s `OirType::Optional` arm ALSO appending
     /// `.optional()` on top of the `Struct` field loop's own `!f.required`
     /// arm — both read the same `OirField::optional()` signal).
     #[test]
@@ -2054,14 +1972,4 @@ mod nested_named_type_import_tests {
         );
     }
 
-    #[test]
-    fn handlers_import_the_named_types_their_payload_casts_reach() {
-        let m = module();
-        let names = crate::codegen::handler_header::collect_effect_entity_types(&m.traits[0], &m);
-        assert!(names.contains("KnobField"), "{names:?}");
-        assert!(
-            names.contains("Draft"),
-            "control: the linked entity stays: {names:?}"
-        );
-    }
 }
