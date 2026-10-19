@@ -292,6 +292,15 @@ export async function loadKernel(): Promise<typeof kernel> {
 }
 "#;
 
+const CLIENT_LANGUAGE_LOADER: &str = r#"
+/** The language bundle the kernel a browser opens over its browser-stored rows installs, fetched when that kernel opens. */
+export async function loadLanguage(): Promise<string> {
+  const response = await fetch(`${import.meta.env.BASE_URL}language.json`);
+  if (!response.ok) throw new Error(`language.json: ${response.status} ${response.statusText}`);
+  return response.text();
+}
+"#;
+
 const CLIENT_APP: &str = r#"/**
  * App (kernel host)
  *
@@ -313,7 +322,7 @@ import { loadProgram } from './client-program';
 import localeMessages from '../../../locales/__LOCALE_FILE__';
 import { AuthProvider, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
-import { loadKernel } from './kernel-host';
+import { __KERNEL_HOST_IMPORTS__ } from './kernel-host';
 import { ThemeProvider } from '@almadar/ui/context';
 __THEME_IMPORT__
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -365,7 +374,7 @@ export function App(): React.ReactElement {
   return (
     <I18nProvider value={i18nValue} documentRoot>
       <ThemeProvider__THEME_PROPS__>
-        <KernelEngineProvider loader={loadKernel}>
+        <KernelEngineProvider loader={loadKernel}__LANGUAGE_PROP__>
           <AuthProvider>
             <BrowserRouter>
               <Routes>
@@ -555,7 +564,15 @@ impl TypeScriptBackend {
                 " themes={THEMES} defaultTheme={DEFAULT_THEME} defaultMode={DEFAULT_MODE}",
             )
         };
+        let language = if module.entities.iter().any(|entity| entity.local) {
+            Some(orbital_core_base::language_data::language_bundle_json())
+        } else {
+            None
+        };
+        let ships_language = matches!(language, Some(Ok(_)));
         let app = CLIENT_APP
+            .replace("__KERNEL_HOST_IMPORTS__", if ships_language { "loadKernel, loadLanguage" } else { "loadKernel" })
+            .replace("__LANGUAGE_PROP__", if ships_language { " languageLoader={loadLanguage}" } else { "" })
             .replace("__LOCALE_FILE__", locale_file)
             .replace("__LOCALE__", locale)
             .replace("__DIRECTION__", direction)
@@ -564,7 +581,7 @@ impl TypeScriptBackend {
         let mut files = vec![
             InternalFile::new(
                 "packages/client/src/kernel-host.ts",
-                CLIENT_LOADER,
+                if ships_language { format!("{CLIENT_LOADER}{CLIENT_LANGUAGE_LOADER}") } else { CLIENT_LOADER.to_string() },
                 GeneratedFileType::Config,
             ),
             InternalFile::new(
@@ -573,6 +590,9 @@ impl TypeScriptBackend {
                 GeneratedFileType::Config,
             ),
         ];
+        if let Some(Ok(bundle)) = language {
+            files.push(InternalFile::new("packages/client/public/language.json", bundle, GeneratedFileType::Config));
+        }
         files.extend(client_program_files);
         files
     }
@@ -638,15 +658,17 @@ impl TypeScriptBackend {
     }
 
     /// What a kernel-hosted compile could not do, reported with the output.
-    pub(crate) fn kernel_host_warnings(&self) -> Vec<String> {
+    pub(crate) fn kernel_host_warnings(&self, module: &OirModule) -> Vec<String> {
+        let mut warnings = Vec::new();
         if self.browser_schema.is_none() {
-            vec![
-                "kernel host: no resolved schema was supplied, so the program is not embedded"
-                    .to_string(),
-            ]
-        } else {
-            Vec::new()
+            warnings.push("kernel host: no resolved schema was supplied, so the program is not embedded".to_string());
         }
+        if self.target != "server" && module.entities.iter().any(|entity| entity.local) {
+            if let Err(e) = orbital_core_base::language_data::language_bundle_json() {
+                warnings.push(format!("kernel host: the program stores rows in the browser, but the installed language could not be read for its browser kernel ({}: {e})", e.code()));
+            }
+        }
+        warnings
     }
 }
 

@@ -130,6 +130,44 @@ fn the_client_hosts_the_kernel_through_the_ui_engine_provider() {
     assert!(loader.contains("@almadar/kernel/client"), "{loader}");
 }
 
+fn browser_stored_module() -> OirModule {
+    let mut module = module();
+    module.entities[0].local = true;
+    module
+}
+
+#[test]
+fn a_program_storing_rows_in_the_browser_ships_the_language_its_browser_kernel_installs() {
+    let files: Vec<(String, String)> = kernel_backend()
+        .generate(&browser_stored_module())
+        .files
+        .into_iter()
+        .map(|f| (f.path, f.content))
+        .collect();
+    let bundle: serde_json::Value =
+        serde_json::from_str(file(&files, "packages/client/public/language.json")).expect("the bundle is JSON");
+    assert_eq!(
+        serde_json::from_value::<serde_json::Value>(bundle.clone()).ok(),
+        serde_json::from_str::<serde_json::Value>(&orbital_core_base::language_data::language_bundle_json().unwrap()).ok(),
+        "the installed language, as the kernel's install takes it"
+    );
+    let app = file(&files, "packages/client/src/App.tsx");
+    assert!(app.contains("<KernelEngineProvider loader={loadKernel} languageLoader={loadLanguage}>"), "{app}");
+    assert!(app.contains("import { loadKernel, loadLanguage } from './kernel-host';"), "{app}");
+    let loader = file(&files, "packages/client/src/kernel-host.ts");
+    assert!(loader.contains("export async function loadLanguage(): Promise<string>"), "{loader}");
+    assert!(loader.contains("fetch(`${import.meta.env.BASE_URL}language.json`)"), "{loader}");
+}
+
+#[test]
+fn control_a_program_with_no_browser_stored_rows_ships_no_language() {
+    let files = files_of(&kernel_backend());
+    assert!(files.iter().all(|(p, _)| p != "packages/client/public/language.json"));
+    let app = file(&files, "packages/client/src/App.tsx");
+    assert!(!app.contains("languageLoader"), "{app}");
+    assert!(!file(&files, "packages/client/src/kernel-host.ts").contains("loadLanguage"));
+}
+
 #[test]
 fn the_client_loader_hands_the_renderer_the_whole_kernel_module_its_evaluator_reads() {
     let files = files_of(&kernel_backend());
