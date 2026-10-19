@@ -300,6 +300,24 @@ mod tests {
     }
 
     #[test]
+    fn the_templates_depend_on_no_retired_package() {
+        use orbital_core_base::shell::Shell;
+        const RETIRED: &[&str] = &["@almadar/patterns", "@almadar/evaluator"];
+        for shell in [express_shell(), hono_shell()] {
+            for part in ["client", "server"] {
+                let path = shell.template_path().join("packages").join(part).join("package.json");
+                let manifest: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+                for kind in ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] {
+                    for name in RETIRED {
+                        assert!(manifest[kind].get(name).is_none(), "{} {kind} still names {name}", path.display());
+                    }
+                }
+                assert!(manifest["dependencies"].get("@almadar/core").is_some(), "control: {} keeps @almadar/core", path.display());
+            }
+        }
+    }
+
+    #[test]
     fn edge_a_bad_framework_is_refused() {
         let request = GenerateRequest {
             ir_version: IR_VERSION,
