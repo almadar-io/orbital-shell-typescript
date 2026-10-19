@@ -291,18 +291,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             css.push_str(&format!("@import url(\"{}\");\n", url));
         }
 
-        // The runtime playground's theme entry: base, every built-in preset, and the foundation
-        // rules. A sub-frame's `data-theme` (a tour's `demoTheme`) then resolves as it does there.
-        css.push_str("@import '@almadar/ui/themes/index.css';\n\n");
-
-        // Include orbital-generated themes
-        if !themes.is_empty() {
-            css.push_str("/* Custom themes from orbital schema */\n");
-            for theme in themes {
-                css.push_str(&format!("@import './themes/{}.css';\n", theme.name));
-            }
-            css.push('\n');
+        // Only the themes the program declares ship (G-UI-106): the shared fonts and base, each declared theme
+        // (its app/orbital `theme` and the `themes` it switches to), then the foundation rules.
+        css.push_str("@import '@almadar/ui/themes/_head.css';\n");
+        for theme in themes {
+            css.push_str(&format!("@import './themes/{}.css';\n", theme.name));
         }
+        css.push_str("@import '@almadar/ui/themes/_foundation.css';\n\n");
 
         css.push_str("@tailwind base;\n");
         css.push_str("@tailwind components;\n");
@@ -792,36 +787,51 @@ mod tests {
     // ========================================================================
 }
 
-/// The compiled client loads the same theme stylesheet entry as the runtime playground
-/// (`@almadar/ui/themes/index.css`: base, every preset, foundation), so a sub-frame's
-/// `data-theme` (a tour's `demoTheme`) resolves on both paths.
+/// The compiled client ships only the themes its program declares (G-UI-106): the shared layer
+/// (`@almadar/ui/themes/_head.css`: fonts, base), the program's themes, then the foundation rules,
+/// never the every-preset `index.css`. A program declaring no theme gets the template's stylesheet:
+/// the same layers around the runtime default preset.
 #[cfg(test)]
 mod index_css_theme_parity_tests {
     use super::TypeScriptBackend;
 
-    #[test]
-    fn the_client_imports_every_built_in_theme() {
-        let css = TypeScriptBackend::new().generate_index_css_with_themes(&[]);
-        assert!(
-            css.contains("@import '@almadar/ui/themes/index.css';"),
-            "{css}"
-        );
-        assert!(
-            !css.contains("_foundation.css"),
-            "the entry already includes the foundation: {css}"
-        );
+    fn theme(name: &str) -> orbital_core_base::schema::types::ThemeDefinition {
+        serde_json::from_value(serde_json::json!({ "name": name, "tokens": {} })).expect("theme")
     }
 
     #[test]
-    fn control_the_program_s_own_themes_still_follow_the_built_ins() {
-        let theme: orbital_core_base::schema::types::ThemeDefinition =
-            serde_json::from_value(serde_json::json!({ "name": "sunset", "tokens": {} }))
-                .expect("theme");
-        let css = TypeScriptBackend::new().generate_index_css_with_themes(&[theme]);
-        let built_ins = css
-            .find("@import '@almadar/ui/themes/index.css';")
-            .expect(&css);
-        let own = css.find("@import './themes/sunset.css';").expect(&css);
-        assert!(built_ins < own, "{css}");
+    fn the_client_imports_the_shared_layer_its_themes_and_the_foundation_in_order() {
+        let css = TypeScriptBackend::new().generate_index_css_with_themes(&[theme("clay"), theme("sunset")]);
+        let head = css.find("@import '@almadar/ui/themes/_head.css';").expect(&css);
+        let clay = css.find("@import './themes/clay.css';").expect(&css);
+        let sunset = css.find("@import './themes/sunset.css';").expect(&css);
+        let foundation = css.find("@import '@almadar/ui/themes/_foundation.css';").expect(&css);
+        assert!(head < clay && clay < sunset && sunset < foundation, "{css}");
+    }
+
+    #[test]
+    fn control_the_every_preset_entry_is_never_imported() {
+        let css = TypeScriptBackend::new().generate_index_css_with_themes(&[theme("clay")]);
+        assert!(!css.contains("themes/index.css"), "{css}");
+    }
+
+    #[test]
+    fn edge_a_program_with_no_theme_ships_the_runtime_default_preset_only() {
+        for variant in ["almadar-shell", "almadar-shell-hono"] {
+            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("templates")
+                .join(variant)
+                .join("packages/client/src/index.css");
+            let css = std::fs::read_to_string(&path).expect("template index.css");
+            assert!(!css.contains("themes/index.css"), "{}: {css}", path.display());
+            let default = format!(
+                "@import '@almadar/ui/themes/{}.css';",
+                orbital_core_base::theme::DEFAULT_THEME_BASE
+            );
+            let head = css.find("@import '@almadar/ui/themes/_head.css';").expect(&css);
+            let preset = css.find(&default).expect(&css);
+            let foundation = css.find("@import '@almadar/ui/themes/_foundation.css';").expect(&css);
+            assert!(head < preset && preset < foundation, "{}: {css}", path.display());
+        }
     }
 }

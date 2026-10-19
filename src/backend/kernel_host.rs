@@ -564,7 +564,7 @@ impl TypeScriptBackend {
                 " themes={THEMES} defaultTheme={DEFAULT_THEME} defaultMode={DEFAULT_MODE}",
             )
         };
-        let language = if module.entities.iter().any(|entity| entity.local) {
+        let language = if self.client_needs_language(module) {
             Some(orbital_core_base::language_data::language_bundle_json())
         } else {
             None
@@ -658,14 +658,25 @@ impl TypeScriptBackend {
     }
 
     /// What a kernel-hosted compile could not do, reported with the output.
+    /// The client may open a kernel over browser-stored rows: the program stores some, or it has lazy pages, whose
+    /// behaviors load after compile and may store their own.
+    fn client_needs_language(&self, module: &OirModule) -> bool {
+        let has_lazy_pages = self
+            .browser_schema
+            .as_ref()
+            .and_then(|schema| schema.lazy_pages.as_ref())
+            .is_some_and(|pages| !pages.is_empty());
+        has_lazy_pages || module.entities.iter().any(|entity| entity.local)
+    }
+
     pub(crate) fn kernel_host_warnings(&self, module: &OirModule) -> Vec<String> {
         let mut warnings = Vec::new();
         if self.browser_schema.is_none() {
             warnings.push("kernel host: no resolved schema was supplied, so the program is not embedded".to_string());
         }
-        if self.target != "server" && module.entities.iter().any(|entity| entity.local) {
+        if self.target != "server" && self.client_needs_language(module) {
             if let Err(e) = orbital_core_base::language_data::language_bundle_json() {
-                warnings.push(format!("kernel host: the program stores rows in the browser, but the installed language could not be read for its browser kernel ({}: {e})", e.code()));
+                warnings.push(format!("kernel host: the program stores rows in the browser (or has lazy pages that may), but the installed language could not be read for its browser kernel ({}: {e})", e.code()));
             }
         }
         warnings

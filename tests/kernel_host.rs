@@ -159,6 +159,30 @@ fn a_program_storing_rows_in_the_browser_ships_the_language_its_browser_kernel_i
     assert!(loader.contains("fetch(`${import.meta.env.BASE_URL}language.json`)"), "{loader}");
 }
 
+/// A lazy page's behavior is loaded after compile and may bring its own browser-stored entity, so a program with
+/// lazy pages ships the language its local kernel would need (G-ORBITAL-SHELL-TYPESCRIPT-028, owner 2026-10-19).
+#[test]
+fn a_program_with_lazy_pages_ships_the_language() {
+    let mut schema = schema();
+    schema.lazy_pages = Some(vec![serde_json::from_value(serde_json::json!({
+        "path": "/notes", "orbital": "Notes", "orbRef": "./notes.orb"
+    }))
+    .expect("lazy page")]);
+    let backend = TypeScriptBackend { browser_schema: Some(schema), ..kernel_backend() };
+    let files = files_of(&backend);
+    assert!(files.iter().any(|(p, _)| p == "packages/client/public/language.json"));
+    let app = file(&files, "packages/client/src/App.tsx");
+    assert!(app.contains("languageLoader={loadLanguage}"), "{app}");
+}
+
+#[test]
+fn edge_an_empty_lazy_page_list_ships_no_language() {
+    let mut schema = schema();
+    schema.lazy_pages = Some(Vec::new());
+    let backend = TypeScriptBackend { browser_schema: Some(schema), ..kernel_backend() };
+    assert!(files_of(&backend).iter().all(|(p, _)| p != "packages/client/public/language.json"));
+}
+
 #[test]
 fn control_a_program_with_no_browser_stored_rows_ships_no_language() {
     let files = files_of(&kernel_backend());
