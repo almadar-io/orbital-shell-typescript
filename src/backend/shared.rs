@@ -674,7 +674,7 @@ export type EventRequest = OrbitalEventRequest;
  * canonical `OrbitalEventResponse`, a straight alias (no hand-restated
  * subset, §156): `success`, `transitioned`, `states` (whole-orbital
  * snapshot keyed by trait name, replacing the retired single `newState`),
- * `emittedEvents` (ALWAYS present, `[]` when none — both Express and Hono),
+ * `emittedEvents` (ALWAYS present, `[]` when none),
  * `data`, `entityByTrait` (post-effect `@entity` frame per trait, replacing
  * the retired single `fields`), `clientEffects`, `clientEffectsByTrait`,
  * `effectResults`, `guardFailed` (`"<Trait>.<event>"` on every

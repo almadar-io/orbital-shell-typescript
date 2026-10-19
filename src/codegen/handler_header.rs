@@ -6,13 +6,8 @@
 //! from fetch/persist effects, and agent row-type aliases. The handler's
 //! return type is the shared `EventResponse` (`@app/shared`, aliasing
 //! `@almadar/core`'s `OrbitalEventResponse`, §156) — no per-trait response
-//! interface. Only the framework-specific bits (express vs hono imports,
-//! Zod schemas, handler entry point) diverge.
-//!
-//! Extracted from `backend.rs::generate_trait_event_handler_file` and
-//! `backend_hono.rs::generate_trait_event_handler_file_hono` as Phase
-//! 3e.7 of the DRY refactor. Call sites retain their framework-specific
-//! imports + wiring; this module owns only the shared middle.
+//! interface. Call sites keep their own imports and wiring; this module owns
+//! only the shared middle.
 //!
 //! All helpers push to a `&mut String` so the caller can interleave them
 //! with framework-specific output without an intermediate allocation.

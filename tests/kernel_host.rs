@@ -66,8 +66,11 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         })
 }
 
-/// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the embedded program began serializing with sorted keys: the kernel output of the generated-host removal plus the client program files, now a fetched static asset (`public/program.client.json`).
-const KERNEL_OUTPUT_DIGEST: u64 = 15_897_420_188_299_299_588;
+/// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the Hono server retired
+/// (2026-10-19; the one change is the shared `EventResponse` comment no longer naming Hono). The client source is the
+/// template's, and the compile emits only the program's runtime files (`public/client.json`, `public/themes.css`,
+/// `public/program.client.json`).
+const KERNEL_OUTPUT_DIGEST: u64 = 4_409_593_759_031_280_763;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -94,6 +97,12 @@ fn files_of(backend: &TypeScriptBackend) -> Vec<(String, String)> {
         .collect()
 }
 
+/// A file of the TypeScript template (the program-independent client source lives there, not in the compile's output).
+fn template(path: &str) -> String {
+    let full = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("templates/almadar-shell").join(path);
+    std::fs::read_to_string(&full).unwrap_or_else(|e| panic!("{}: {e}", full.display()))
+}
+
 fn file<'a>(files: &'a [(String, String)], path: &str) -> &'a str {
     files
         .iter()
@@ -118,15 +127,14 @@ fn the_server_hosts_the_kernel_through_the_runtime() {
 
 #[test]
 fn the_client_hosts_the_kernel_through_the_ui_engine_provider() {
-    let files = files_of(&kernel_backend());
-    let app = file(&files, "packages/client/src/App.tsx");
+    let app = &template("packages/client/src/App.tsx");
     assert!(
-        app.contains("<KernelEngineProvider loader={loadKernel}>"),
+        app.contains("<KernelEngineProvider loader={loadKernel} {...(manifest.language ? { languageLoader: loadLanguage } : {})}>"),
         "{app}"
     );
     assert!(!app.contains("engine="), "the kernel is the only engine: {app}");
     assert!(app.contains("OrbPreview"), "{app}");
-    let loader = file(&files, "packages/client/src/kernel-host.ts");
+    let loader = &template("packages/client/src/kernel-host.ts");
     assert!(loader.contains("@almadar/kernel/client"), "{loader}");
 }
 
@@ -151,10 +159,9 @@ fn a_program_storing_rows_in_the_browser_ships_the_language_its_browser_kernel_i
         serde_json::from_str::<serde_json::Value>(&orbital_core_base::language_data::language_bundle_json().unwrap()).ok(),
         "the installed language, as the kernel's install takes it"
     );
-    let app = file(&files, "packages/client/src/App.tsx");
-    assert!(app.contains("<KernelEngineProvider loader={loadKernel} languageLoader={loadLanguage}>"), "{app}");
-    assert!(app.contains("import { loadKernel, loadLanguage } from './kernel-host';"), "{app}");
-    let loader = file(&files, "packages/client/src/kernel-host.ts");
+    let manifest: serde_json::Value = serde_json::from_str(file(&files, "packages/client/public/client.json")).expect("client.json");
+    assert_eq!(manifest["language"], true, "{manifest}");
+    let loader = &template("packages/client/src/kernel-host.ts");
     assert!(loader.contains("export async function loadLanguage(): Promise<string>"), "{loader}");
     assert!(loader.contains("fetch(`${import.meta.env.BASE_URL}language.json`)"), "{loader}");
 }
@@ -171,8 +178,8 @@ fn a_program_with_lazy_pages_ships_the_language() {
     let backend = TypeScriptBackend { browser_schema: Some(schema), ..kernel_backend() };
     let files = files_of(&backend);
     assert!(files.iter().any(|(p, _)| p == "packages/client/public/language.json"));
-    let app = file(&files, "packages/client/src/App.tsx");
-    assert!(app.contains("languageLoader={loadLanguage}"), "{app}");
+    let manifest: serde_json::Value = serde_json::from_str(file(&files, "packages/client/public/client.json")).expect("client.json");
+    assert_eq!(manifest["language"], true, "{manifest}");
 }
 
 #[test]
@@ -187,15 +194,49 @@ fn edge_an_empty_lazy_page_list_ships_no_language() {
 fn control_a_program_with_no_browser_stored_rows_ships_no_language() {
     let files = files_of(&kernel_backend());
     assert!(files.iter().all(|(p, _)| p != "packages/client/public/language.json"));
-    let app = file(&files, "packages/client/src/App.tsx");
-    assert!(!app.contains("languageLoader"), "{app}");
-    assert!(!file(&files, "packages/client/src/kernel-host.ts").contains("loadLanguage"));
+    let manifest: serde_json::Value = serde_json::from_str(file(&files, "packages/client/public/client.json")).expect("client.json");
+    assert_eq!(manifest["language"], false, "{manifest}");
+}
+
+/// The web client is program-independent: two different programs compile to byte-identical client source, and
+/// differ only in the runtime files the client reads at startup.
+#[test]
+fn two_programs_compile_to_the_same_client_source_and_differ_only_in_their_runtime_files() {
+    let books = files_of(&kernel_backend());
+    let mut other_module = browser_stored_module();
+    other_module.name = "Other".to_string();
+    other_module.themes = vec![serde_json::from_value(serde_json::json!({ "name": "clay", "displayName": "Clay", "tokens": { "colors": { "primary": "#c96" } }, "variants": { "dark": { "colors": { "primary": "#963" } } } })).unwrap()];
+    other_module.default_theme = Some("clay-dark".to_string());
+    let backend = TypeScriptBackend { schema_language: "ar".to_string(), ..kernel_backend() };
+    let other: Vec<(String, String)> = backend.generate(&other_module).files.into_iter().map(|f| (f.path, f.content)).collect();
+    for files in [&books, &other] {
+        for (path, _) in files.iter() {
+            assert!(!(path.starts_with("packages/client/src/") && (path.ends_with(".ts") || path.ends_with(".tsx"))), "{path}: the client source is the template's, never per program");
+        }
+    }
+    let manifest: serde_json::Value = serde_json::from_str(file(&other, "packages/client/public/client.json")).unwrap();
+    assert_eq!(
+        manifest,
+        serde_json::json!({ "locale": "ar", "direction": "rtl", "themes": [{ "name": "clay", "displayName": "Clay", "hasLightMode": true, "hasDarkMode": true }], "defaultTheme": "clay", "defaultMode": "dark", "language": true })
+    );
+    let css = file(&other, "packages/client/public/themes.css");
+    assert!(css.contains("[data-theme=\"clay-light\"]") && css.contains("[data-theme=\"clay-dark\"]"), "{css}");
+    assert!(!css.contains("minimalist"), "only the declared theme ships: {css}");
+}
+
+#[test]
+fn control_a_program_declaring_no_theme_ships_the_runtime_default_preset_and_no_default_theme() {
+    let files = files_of(&kernel_backend());
+    let manifest: serde_json::Value = serde_json::from_str(file(&files, "packages/client/public/client.json")).unwrap();
+    assert_eq!((manifest["themes"].clone(), manifest["defaultTheme"].clone()), (serde_json::json!([]), serde_json::Value::Null));
+    let css = file(&files, "packages/client/public/themes.css");
+    let default = format!("[data-theme=\"{}-light\"]", orbital_core_base::theme::DEFAULT_THEME_BASE);
+    assert!(css.contains(&default), "{css}");
 }
 
 #[test]
 fn the_client_loader_hands_the_renderer_the_whole_kernel_module_its_evaluator_reads() {
-    let files = files_of(&kernel_backend());
-    let loader = file(&files, "packages/client/src/kernel-host.ts");
+    let loader = &template("packages/client/src/kernel-host.ts");
     assert!(loader.contains("import init, * as kernel from '@almadar/kernel/client';"), "{loader}");
     assert!(loader.contains("return kernel;"), "the renderer's evaluator calls evaluateMany and its siblings on the module: {loader}");
     assert!(!loader.contains("return { Kernel };"), "only the Kernel class leaves the evaluator exports out: {loader}");
@@ -241,7 +282,7 @@ fn a_client_only_compile_emits_no_server_files_and_a_server_only_one_no_client_f
     assert!(client
         .files
         .iter()
-        .any(|f| f.path == "packages/client/src/App.tsx"));
+        .any(|f| f.path == "packages/client/public/client.json"));
     assert!(!client
         .files
         .iter()
@@ -311,8 +352,7 @@ fn the_server_host_wires_http_os_clock_and_the_dispatch_sink() {
 
 #[test]
 fn the_client_never_registers_the_program_the_server_booted_with() {
-    let files = files_of(&kernel_backend());
-    let app = file(&files, "packages/client/src/App.tsx");
+    let app = &template("packages/client/src/App.tsx");
     assert!(app.contains("register: async () =>"), "{app}");
     assert!(app.contains("unregister: async () =>"), "{app}");
     assert!(
@@ -323,8 +363,7 @@ fn the_client_never_registers_the_program_the_server_booted_with() {
 
 #[test]
 fn control_the_client_still_sends_events_over_the_http_transport() {
-    let files = files_of(&kernel_backend());
-    let app = file(&files, "packages/client/src/App.tsx");
+    let app = &template("packages/client/src/App.tsx");
     assert!(
         app.contains("createHttpTransport({ serverUrl: `${API_BASE}/api/orbitals`"),
         "{app}"
@@ -340,92 +379,12 @@ fn the_shared_package_is_a_module_so_the_server_can_import_the_program_under_tsx
     assert_eq!(manifest["type"], "module");
 }
 
-fn hono_kernel_backend() -> TypeScriptBackend {
-    TypeScriptBackend {
-        server_framework: orbital_shell_typescript::ServerFramework::Hono,
-        ..kernel_backend()
-    }
-}
-
-#[test]
-fn the_hono_server_opens_the_same_kernel_without_the_express_router() {
-    let files = files_of(&hono_kernel_backend());
-    let host = file(&files, "packages/server/src/kernel-host.ts");
-    assert!(!host.contains("engine:"), "the runtime has only the kernel, so the host names no engine: {host}");
-    assert!(host.contains("loadKernelModule"), "{host}");
-    assert!(
-        host.contains("export async function kernelRuntime()"),
-        "{host}"
-    );
-    assert!(host.contains("@almadar/server-hono"), "{host}");
-    assert!(!host.contains("express"), "{host}");
-    assert!(!host.contains("runtime.router()"), "{host}");
-    let express = files_of(&kernel_backend());
-    let express_host = file(&express, "packages/server/src/kernel-host.ts");
-    assert!(express_host.contains("runtime.router()"), "{express_host}");
-}
-
-#[test]
-fn the_hono_routes_answer_every_route_the_express_router_serves_from_the_same_runtime_methods() {
-    let files = files_of(&hono_kernel_backend());
-    let routes = file(&files, "packages/server/src/kernel-routes.ts");
-    for call in [
-        "kernelRoutes.get('/', ",
-        "kernelRoutes.get('/inputs', ",
-        "kernelRoutes.post('/resolve-rows', ",
-        "kernelRoutes.post('/:orbital/inputs', ",
-        "kernelRoutes.get('/:orbital/entities/:entityType', ",
-        "kernelRoutes.get('/:orbital', ",
-        "kernelRoutes.post('/:orbital/events', ",
-        "listOrbitalSummaries()",
-        "describeOrbital(",
-        "entityRows(",
-        "refuseInboundOnly(",
-        "processOrbitalEvent(",
-        "dispatchExternalInput(",
-        "streamSSE(",
-    ] {
-        assert!(routes.contains(call), "{call} missing from {routes}");
-    }
-    let mount = file(&files, "packages/server/src/routes.ts");
-    assert!(mount.contains("identifyBearer"), "{mount}");
-    assert!(
-        mount.contains("app.route('/api/orbitals', kernelRoutes)"),
-        "{mount}"
-    );
-    let sse = file(&files, "packages/server/src/sse.ts");
-    assert!(sse.contains("hono/streaming"), "{sse}");
-    assert!(sse.contains("mintStreamTicket"), "{sse}");
-}
-
-#[test]
-fn control_the_express_kernel_server_has_no_hono_routes_and_the_hono_one_emits_no_handlers() {
-    let express = files_of(&kernel_backend());
-    assert!(express
-        .iter()
-        .all(|(p, _)| p != "packages/server/src/kernel-routes.ts"));
-    let hono = files_of(&hono_kernel_backend());
-    assert!(
-        hono.iter()
-            .all(|(p, _)| !p.contains("/routes/features/") && !p.ends_with("handlers.ts")),
-        "{:?}",
-        hono.iter().map(|(p, _)| p.as_str()).collect::<Vec<_>>()
-    );
-    let manifest: serde_json::Value =
-        serde_json::from_str(file(&hono, "packages/shared/package.json")).unwrap();
-    assert_eq!(manifest["type"], "module");
-}
-
 #[test]
 fn the_production_client_build_ships_no_source_maps_and_splits_the_kernel_and_react_into_chunks() {
     for (name, config) in [
         (
             "almadar-shell",
             include_str!("../templates/almadar-shell/packages/client/vite.config.ts"),
-        ),
-        (
-            "almadar-shell-hono",
-            include_str!("../templates/almadar-shell-hono/packages/client/vite.config.ts"),
         ),
     ] {
         assert!(config.contains("sourcemap: mode === 'development',"), "{name}: {config}");
@@ -468,11 +427,11 @@ fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_on
             }
         }
     }
-    let app = file(&files, "packages/client/src/App.tsx");
+    let app = &template("packages/client/src/App.tsx");
     assert!(app.contains("from './client-program'"), "{app}");
     assert!(!app.contains("program.client.json") && !app.contains("program.json"), "{app}");
     assert!(!app.contains("from '@app/shared'"), "{app}");
-    let module = file(&files, "packages/client/src/client-program.ts");
+    let module = &template("packages/client/src/client-program.ts");
     assert!(module.contains("fetch(`${import.meta.env.BASE_URL}program.client.json`)"), "{module}");
     assert!(!module.contains("import programJson"), "{module}");
 }
@@ -497,7 +456,7 @@ fn control_the_client_entry_fetches_the_program_and_no_client_source_imports_it(
             assert!(!content.contains("program.json'"), "{path} imports the program");
         }
     }
-    let module = file(&files, "packages/client/src/client-program.ts");
+    let module = &template("packages/client/src/client-program.ts");
     assert!(module.contains("export function loadProgram"), "{module}");
 }
 

@@ -1,6 +1,6 @@
 //! TypeScript Backend Implementation
 //!
-//! Generates the kernel-hosted TypeScript app from Orbital IR: client (React) and server (Express or Hono) host glue.
+//! Generates the kernel-hosted TypeScript app from Orbital IR: client (React) and server (Express) host glue.
 //!
 //! Output structure matches KFlow shell convention:
 //! - packages/shared/src/types/entities.ts - Entity interfaces
@@ -16,8 +16,7 @@ pub(crate) use orbital_core_base::ir::{
 pub(crate) use std::collections::HashMap;
 
 pub(crate) use crate::codegen::{
-    generate_all_themes_config_ts, generate_env_manifest, generate_service_clients,
-    generate_theme_css, theme_font_imports, ts_member_name,
+    generate_env_manifest, generate_service_clients, ts_member_name,
 };
 
 /// A project-specific component mapping loaded from patterns.json
@@ -27,16 +26,6 @@ pub struct ExtraComponentMapping {
     pub component: String,
     /// Pattern category (e.g., "form", "display")
     pub category: String,
-}
-
-/// Server framework choice for backend code generation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ServerFramework {
-    /// Generate Express.js server code (default, backward-compatible)
-    #[default]
-    Express,
-    /// Generate Hono server code
-    Hono,
 }
 
 /// TypeScript code generation backend
@@ -53,8 +42,6 @@ pub struct TypeScriptBackend {
     pub schema_language: String,
     /// When true, inject structured logging into generated host files
     pub dev_logs: bool,
-    /// Server framework for backend code generation (Express or Hono)
-    pub server_framework: ServerFramework,
     /// The resolved schema, bundled into the client for its browser-store legs.
     pub browser_schema: Option<orbital_core_base::schema::types::OrbitalSchema>,
 }
@@ -68,7 +55,6 @@ impl Default for TypeScriptBackend {
             extra_mappings: None,
             schema_language: "en".to_string(),
             dev_logs: false,
-            server_framework: ServerFramework::default(),
             browser_schema: None,
         }
     }
@@ -137,10 +123,7 @@ impl TypeScriptBackend {
         files.push(self.generate_shared_trait_configs(module));
         files.push(self.generate_shared_index_kernel());
         files.extend(self.generate_kernel_program());
-        match self.server_framework {
-            ServerFramework::Hono => files.push(self.generate_shared_package_json_hono()),
-            ServerFramework::Express => files.push(self.generate_shared_package_json()),
-        }
+        files.push(self.generate_shared_package_json());
 
         if self.target == "client" || self.target == "full" {
             files.extend(self.generate_kernel_client(module));
@@ -151,54 +134,8 @@ impl TypeScriptBackend {
             if let Some(f) = self.generate_access_policies(entities) {
                 files.push(f);
             }
-            match self.server_framework {
-                ServerFramework::Express => files.push(self.generate_sse_module(entities, false)),
-                ServerFramework::Hono => files.push(self.generate_sse_module_hono(entities, false)),
-            }
-            files.push(self.generate_viewer_module(entities, self.server_framework));
-        }
-
-        // Theme CSS and config (client-side)
-        if (self.target == "client" || self.target == "full") && !module.themes.is_empty() {
-            for theme in &module.themes {
-                let css = generate_theme_css(theme);
-                files.push(InternalFile::new(
-                    format!("packages/client/src/themes/{}.css", theme.name),
-                    css,
-                    GeneratedFileType::Config,
-                ));
-            }
-            let config =
-                generate_all_themes_config_ts(&module.themes, module.default_theme.as_deref());
-            files.push(InternalFile::new(
-                "packages/client/src/generated/theme-config.ts",
-                config,
-                GeneratedFileType::Config,
-            ));
-            let mut imports_css = String::new();
-            imports_css.push_str("/* Generated theme imports - add to index.css */\n\n");
-            for url in theme_font_imports(&module.themes) {
-                imports_css.push_str(&format!("@import url(\"{}\");\n", url));
-            }
-            for theme in &module.themes {
-                imports_css.push_str(&format!("@import '../themes/{}.css';\n", theme.name));
-            }
-            files.push(InternalFile::new(
-                "packages/client/src/generated/theme-imports.css",
-                imports_css,
-                GeneratedFileType::Config,
-            ));
-            let default_theme = &module.themes[0].name;
-            files.push(InternalFile::new(
-                "packages/client/src/main.tsx",
-                self.generate_main_tsx_with_theme(default_theme),
-                GeneratedFileType::Config,
-            ));
-            files.push(InternalFile::new(
-                "packages/client/src/index.css",
-                self.generate_index_css_with_themes(&module.themes),
-                GeneratedFileType::Config,
-            ));
+            files.push(self.generate_sse_module(entities, false));
+            files.push(self.generate_viewer_module(entities));
         }
 
         if self.target == "server" || self.target == "full" {
@@ -228,95 +165,9 @@ impl TypeScriptBackend {
                     GeneratedFileType::Config,
                 ));
             }
-            // packages/server/package.json (Hono only: the Express template's static copy declares
-            // every `@almadar/*` package the kernel host imports). Last, so the scan sees every
-            // `packages/server/` file this compile emitted.
-            if self.server_framework == ServerFramework::Hono {
-                let server_package_json = self.generate_server_package_json_hono(&files);
-                files.push(server_package_json);
-            }
         }
 
         files
-    }
-
-    /// Generate main.tsx with unified ThemeProvider wired up to the orbital's theme
-    fn generate_main_tsx_with_theme(&self, default_theme: &str) -> String {
-        format!(
-            r#"/**
- * Application Entry Point
- * Generated by Orbital Compiler
- *
- * Theme '{}' is configured from the orbital schema.
- * Uses unified ThemeProvider with data-theme="name-light/dark" attribute.
- */
-
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import {{ OrbitalProvider }} from '@almadar/ui/providers';
-import {{ THEMES, DEFAULT_THEME, DEFAULT_MODE }} from './generated/theme-config';
-import {{ App }} from './App';
-import './index.css';
-
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <OrbitalProvider themes={{THEMES}} defaultTheme={{DEFAULT_THEME}} defaultMode={{DEFAULT_MODE}}>
-      <App />
-    </OrbitalProvider>
-  </React.StrictMode>
-);
-"#,
-            default_theme
-        )
-    }
-
-    /// Generate index.css with theme imports included
-    ///
-    /// Uses the unified theme system where each theme defines complete variables
-    /// for both light and dark modes via `[data-theme="name-light"]` and `[data-theme="name-dark"]`.
-    /// No :root fallback needed - ThemeProvider always sets data-theme.
-    fn generate_index_css_with_themes(&self, themes: &[orbital_core_base::schema::types::ThemeDefinition]) -> String {
-        let mut css = String::new();
-
-        css.push_str("/**\n");
-        css.push_str(" * Application Styles\n");
-        css.push_str(" * Generated by Orbital Compiler\n");
-        css.push_str(" *\n");
-        css.push_str(" * Themes use unified data-theme attribute:\n");
-        css.push_str(" *   data-theme=\"themename-light\" or data-theme=\"themename-dark\"\n");
-        css.push_str(" */\n\n");
-
-        // Web fonts the themes declare — `@import` must lead the stylesheet.
-        for url in theme_font_imports(themes) {
-            css.push_str(&format!("@import url(\"{}\");\n", url));
-        }
-
-        // Only the themes the program declares ship (G-UI-106): the shared fonts and base, each declared theme
-        // (its app/orbital `theme` and the `themes` it switches to), then the foundation rules.
-        css.push_str("@import '@almadar/ui/themes/_head.css';\n");
-        for theme in themes {
-            css.push_str(&format!("@import './themes/{}.css';\n", theme.name));
-        }
-        css.push_str("@import '@almadar/ui/themes/_foundation.css';\n\n");
-
-        css.push_str("@tailwind base;\n");
-        css.push_str("@tailwind components;\n");
-        css.push_str("@tailwind utilities;\n");
-
-        // Body styles: apply theme variables to the page
-        css.push_str("\n/* Apply theme to body */\n");
-        css.push_str("body {\n");
-        css.push_str("  margin: 0;\n");
-        css.push_str("  min-height: 100vh;\n");
-        css.push_str("  background-color: var(--color-background);\n");
-        css.push_str("  color: var(--color-foreground);\n");
-        css.push_str("  font-family: var(--font-family, system-ui, -apple-system, sans-serif);\n");
-        css.push_str("}\n\n");
-        css.push_str("#root {\n");
-        css.push_str("  min-height: 100vh;\n");
-        css.push_str("}\n");
-
-        css
     }
 }
 
@@ -354,7 +205,6 @@ impl Backend for TypeScriptBackend {
             extra_mappings: self.extra_mappings.clone(),
             schema_language: self.schema_language.clone(),
             dev_logs: self.dev_logs,
-            server_framework: self.server_framework,
             browser_schema: self.browser_schema.clone(),
         };
 
@@ -374,12 +224,11 @@ impl Backend for TypeScriptBackend {
 
 // ============================================================================
 // Submodules (module-split of the former monolithic backend.rs).
-// Public API is preserved: TypeScriptBackend, ExtraComponentMapping,
-// ServerFramework are re-exported below so `pub use backend::{...}` in lib.rs
+// Public API is preserved: TypeScriptBackend and ExtraComponentMapping
+// are re-exported below so `pub use backend::{...}` in lib.rs
 // keeps resolving. Inherent methods live in these submodules' `impl
 // TypeScriptBackend` blocks and resolve via the type regardless of module.
 // ============================================================================
-mod hono_manifests;
 pub mod kernel_host;
 pub(crate) mod server;
 mod shared;
@@ -787,51 +636,3 @@ mod tests {
     // ========================================================================
 }
 
-/// The compiled client ships only the themes its program declares (G-UI-106): the shared layer
-/// (`@almadar/ui/themes/_head.css`: fonts, base), the program's themes, then the foundation rules,
-/// never the every-preset `index.css`. A program declaring no theme gets the template's stylesheet:
-/// the same layers around the runtime default preset.
-#[cfg(test)]
-mod index_css_theme_parity_tests {
-    use super::TypeScriptBackend;
-
-    fn theme(name: &str) -> orbital_core_base::schema::types::ThemeDefinition {
-        serde_json::from_value(serde_json::json!({ "name": name, "tokens": {} })).expect("theme")
-    }
-
-    #[test]
-    fn the_client_imports_the_shared_layer_its_themes_and_the_foundation_in_order() {
-        let css = TypeScriptBackend::new().generate_index_css_with_themes(&[theme("clay"), theme("sunset")]);
-        let head = css.find("@import '@almadar/ui/themes/_head.css';").expect(&css);
-        let clay = css.find("@import './themes/clay.css';").expect(&css);
-        let sunset = css.find("@import './themes/sunset.css';").expect(&css);
-        let foundation = css.find("@import '@almadar/ui/themes/_foundation.css';").expect(&css);
-        assert!(head < clay && clay < sunset && sunset < foundation, "{css}");
-    }
-
-    #[test]
-    fn control_the_every_preset_entry_is_never_imported() {
-        let css = TypeScriptBackend::new().generate_index_css_with_themes(&[theme("clay")]);
-        assert!(!css.contains("themes/index.css"), "{css}");
-    }
-
-    #[test]
-    fn edge_a_program_with_no_theme_ships_the_runtime_default_preset_only() {
-        for variant in ["almadar-shell", "almadar-shell-hono"] {
-            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("templates")
-                .join(variant)
-                .join("packages/client/src/index.css");
-            let css = std::fs::read_to_string(&path).expect("template index.css");
-            assert!(!css.contains("themes/index.css"), "{}: {css}", path.display());
-            let default = format!(
-                "@import '@almadar/ui/themes/{}.css';",
-                orbital_core_base::theme::DEFAULT_THEME_BASE
-            );
-            let head = css.find("@import '@almadar/ui/themes/_head.css';").expect(&css);
-            let preset = css.find(&default).expect(&css);
-            let foundation = css.find("@import '@almadar/ui/themes/_foundation.css';").expect(&css);
-            assert!(head < preset && preset < foundation, "{}: {css}", path.display());
-        }
-    }
-}

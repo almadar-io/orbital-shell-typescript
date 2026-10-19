@@ -38,18 +38,12 @@ importers:
       '@almadar/core':
         specifier: ^10.128.0
         version: 10.128.0
-      '@almadar/evaluator':
-        specifier: ^2.61.0
-        version: 2.61.0
-      '@almadar/integrations':
-        specifier: ^2.58.0
-        version: 2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(ws@8.21.0)
+      '@almadar/kernel':
+        specifier: ^18.0.0
+        version: 18.0.0
       '@almadar/logger':
         specifier: ^1.18.0
         version: 1.18.0
-      '@almadar/patterns':
-        specifier: ^2.101.0
-        version: 2.101.0
       '@almadar/runtime':
         specifier: ^6.112.0
         version: 6.112.0(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(ws@8.21.0)
@@ -189,21 +183,18 @@ importers:
       '@almadar/core':
         specifier: ^10.128.0
         version: 10.128.0
-      '@almadar/evaluator':
-        specifier: ^2.61.0
-        version: 2.61.0
-      '@almadar/integrations':
-        specifier: ^2.58.0
-        version: 2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(ws@8.21.0)
+      '@almadar/db':
+        specifier: ^0.1.5
+        version: 0.1.5
       '@almadar/logger':
         specifier: ^1.18.0
         version: 1.18.0
       '@almadar/runtime':
         specifier: ^6.112.0
-        version: 6.112.0(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(ws@8.21.0)
+        version: 6.112.0(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react@19.2.7)(ws@8.21.0)
       '@almadar/server':
         specifier: ^2.58.0
-        version: 2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react@19.2.7)
       cors:
         specifier: ^2.8.5
         version: 2.8.6
@@ -315,6 +306,10 @@ packages:
       '@almadar/std':
         optional: true
 
+  '@almadar/kernel@18.0.0':
+    resolution: {integrity: sha512-N6VPyRFbsfWfkK7C2y/H9fAUUWVfK0So048HllHns8PlZrY209CT7vL9ZYoPvfC8Q5OPlaMZfT+Y9UbY4kMfYg==}
+    engines: {node: '>=22'}
+
   '@almadar/llm@2.64.0':
     resolution: {integrity: sha512-XYr7hRbHtyENXNgPAtIUAio5mma2bm2WLANoi99EmRZysNIBuRSpb13A7Yc/GLEXbKs5v5kz2bcuFOB8MuVBTg==}
     engines: {node: '>=22'}
@@ -324,9 +319,6 @@ packages:
   '@almadar/logger@1.18.0':
     resolution: {integrity: sha512-9DkdCx3R4x0NGx6REkK6LD2H598pziE0MENeQctuuMf3SzNxAtEljIhv09HTHx7lySiVdbPm/4Qy+PnAq/Qc+w==}
     engines: {node: '>=22'}
-
-  '@almadar/patterns@2.101.0':
-    resolution: {integrity: sha512-bT0fui3pkxlNkK/E+JLT6xGt3XFYt80Swkzsp6afHRiU06TCXwHA4yX5ePY+AG+LSlVEpOwVQl5VJCQQPch8jg==}
 
   '@almadar/runtime@6.112.0':
     resolution: {integrity: sha512-4gMO4hePM5TaYI85sNSV3RTgdVlZ2Xd0JqdPMxQrKZ2OVcraTzh8TnRkPXKSV24Q6inJ8Q1R/3C2eClBiL6B5Q==}
@@ -5609,6 +5601,8 @@ snapshots:
       - supports-color
       - ws
 
+  '@almadar/kernel@18.0.0': {}
+
   '@almadar/llm@2.64.0(@almadar/core@10.128.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(ws@8.21.0)':
     dependencies:
       '@almadar/core': 10.128.0
@@ -5631,10 +5625,6 @@ snapshots:
       - ws
 
   '@almadar/logger@1.18.0':
-    dependencies:
-      '@almadar/core': 10.128.0
-
-  '@almadar/patterns@2.101.0':
     dependencies:
       '@almadar/core': 10.128.0
 
@@ -5671,6 +5661,39 @@ snapshots:
       - utf-8-validate
       - ws
 
+  '@almadar/runtime@6.112.0(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react@19.2.7)(ws@8.21.0)':
+    dependencies:
+      '@almadar/auth': 0.1.3(react@19.2.7)
+      '@almadar/core': 10.128.0
+      '@almadar/db': 0.1.5
+      '@almadar/evaluator': 2.61.0
+      '@almadar/integrations': 2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(ws@8.21.0)
+      '@almadar/logger': 1.18.0
+      '@almadar/server': 2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react@19.2.7)
+      '@almadar/std': 16.255.0
+    optionalDependencies:
+      express: 4.22.2
+    transitivePeerDependencies:
+      - '@aws-sdk/credential-provider-node'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - '@react-native-async-storage/async-storage'
+      - '@smithy/hash-node'
+      - '@smithy/signature-v4'
+      - bare-abort-controller
+      - bare-buffer
+      - bufferutil
+      - debug
+      - encoding
+      - pg-native
+      - react
+      - react-dom
+      - react-native-b4a
+      - supports-color
+      - utf-8-validate
+      - ws
+
   '@almadar/server@2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@almadar/auth': 0.1.3(react@19.2.7)
@@ -5679,6 +5702,45 @@ snapshots:
       '@almadar/integrations': 2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(ws@8.21.0)
       '@almadar/logger': 1.18.0
       '@almadar/runtime': 6.112.0(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(ws@8.21.0)
+      compression: 1.8.2
+      cors: 2.8.6
+      dotenv: 16.6.1
+      exceljs: 4.4.0
+      express: 4.22.2
+      firebase-admin: 14.2.0
+      helmet: 8.2.0
+      pdfkit: 0.15.2
+      ws: 8.21.0
+      zod: 3.25.76
+    transitivePeerDependencies:
+      - '@almadar/std'
+      - '@aws-sdk/credential-provider-node'
+      - '@opentelemetry/api'
+      - '@opentelemetry/exporter-trace-otlp-proto'
+      - '@opentelemetry/sdk-trace-base'
+      - '@react-native-async-storage/async-storage'
+      - '@smithy/hash-node'
+      - '@smithy/signature-v4'
+      - bare-abort-controller
+      - bare-buffer
+      - bufferutil
+      - debug
+      - encoding
+      - pg-native
+      - react
+      - react-dom
+      - react-native-b4a
+      - supports-color
+      - utf-8-validate
+
+  '@almadar/server@2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react@19.2.7)':
+    dependencies:
+      '@almadar/auth': 0.1.3(react@19.2.7)
+      '@almadar/core': 10.128.0
+      '@almadar/db': 0.1.5
+      '@almadar/integrations': 2.58.0(@almadar/std@16.255.0)(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(ws@8.21.0)
+      '@almadar/logger': 1.18.0
+      '@almadar/runtime': 6.112.0(@aws-sdk/credential-provider-node@3.972.81)(@opentelemetry/api@1.9.1)(@smithy/signature-v4@5.7.3)(express@4.22.2)(react@19.2.7)(ws@8.21.0)
       compression: 1.8.2
       cors: 2.8.6
       dotenv: 16.6.1

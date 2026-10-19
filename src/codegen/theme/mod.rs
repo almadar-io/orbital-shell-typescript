@@ -17,9 +17,7 @@ mod defaults;
 mod emitters;
 mod tokens;
 
-pub use config::{
-    generate_all_themes_config_ts,
-};
+pub use config::client_themes;
 pub use css::{generate_theme_css, theme_font_imports};
 
 
@@ -496,32 +494,29 @@ mod tests {
     }
 
     #[test]
-    fn config_default_theme_key_sets_base_and_mode() {
+    fn a_default_theme_key_sets_the_default_and_its_mode() {
         let mut theme = create_test_theme();
         theme.display_name = Some("Ocean's \"Deep\"".to_string());
-        let ts = generate_all_themes_config_ts(std::slice::from_ref(&theme), Some("ocean-dark"));
-        assert!(ts.contains("export const DEFAULT_THEME = 'ocean';"));
-        assert!(ts.contains("export const DEFAULT_MODE = 'dark' as const;"));
-        assert!(ts.contains(r#"displayName: "Ocean's \"Deep\"""#), "{ts}");
+        let (themes, default, mode) = client_themes(std::slice::from_ref(&theme), Some("ocean-dark"));
+        assert_eq!(default.as_deref(), Some("ocean"));
+        assert_eq!(mode, "dark");
+        assert_eq!(themes[0].display_name, "Ocean's \"Deep\"");
     }
 
     #[test]
-    fn config_without_default_key_uses_first_theme_light() {
-        let ts = generate_all_themes_config_ts(&[create_test_theme()], None);
-        assert!(ts.contains("export const DEFAULT_THEME = 'ocean';"));
-        assert!(ts.contains("export const DEFAULT_MODE = 'light' as const;"));
-        assert!(ts.contains("displayName: \"Ocean\""));
+    fn without_a_default_key_the_first_theme_is_the_default_in_light_mode() {
+        let (themes, default, mode) = client_themes(&[create_test_theme()], None);
+        assert_eq!((default.as_deref(), mode), (Some("ocean"), "light"));
+        assert_eq!(themes[0].display_name, "Ocean");
     }
 
     #[test]
-    fn config_dark_only_preset_reports_no_light_mode() {
+    fn a_dark_only_preset_reports_no_light_mode_and_no_themes_mean_no_default() {
         let mut theme = create_test_theme();
         theme.tokens = serde_json::from_value(serde_json::json!({})).unwrap();
-        let ts = generate_all_themes_config_ts(&[theme], Some("ocean-dark"));
-        assert!(
-            ts.contains("hasLightMode: false, hasDarkMode: true"),
-            "{ts}"
-        );
+        let (themes, _, _) = client_themes(&[theme], Some("ocean-dark"));
+        assert!(!themes[0].has_light_mode && themes[0].has_dark_mode);
+        assert_eq!(client_themes(&[], None).1, None);
     }
 
     /// Twin of the `motion shapes` case in `themeTokens.range-axes.test.ts`.

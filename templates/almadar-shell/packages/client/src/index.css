@@ -1,7 +1,6 @@
-/* Import Almadar theme - @import must precede @tailwind directives */
-/* A program declaring no theme: the shared fonts and base, the runtime default preset, the foundation rules. */
+/* The shared fonts and base, then the foundation rules. The program's themes (its declared ones, or the runtime
+ * default preset) are `themes.css`, linked by main.tsx at startup. @import must precede @tailwind directives. */
 @import '@almadar/ui/themes/_head.css';
-@import '@almadar/ui/themes/minimalist.css';
 @import '@almadar/ui/themes/_foundation.css';
 
 @tailwind base;

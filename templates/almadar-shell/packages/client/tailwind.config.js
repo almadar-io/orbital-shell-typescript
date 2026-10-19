@@ -19,9 +19,13 @@ export default {
   // @almadar/ui's published preset. Don't fork a local copy — it goes
   // stale silently and breaks look variants without any build error.
   presets: [require('@almadar/ui/tailwind-preset')],
+  // `tailwind-content.txt` is every className token of the installed behaviors, written by
+  // `almadar-sync renderer-css` (tools/almadar-pattern-sync): the program's classes arrive at runtime,
+  // so the utilities they use must already be in the stylesheet.
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
+    "./tailwind-content.txt",
     uiDist,
   ],
   theme: {

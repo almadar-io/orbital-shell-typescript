@@ -11,17 +11,16 @@ impl TypeScriptBackend {
     pub(crate) fn generate_viewer_module(
         &self,
         entities: &[OirEntity],
-        framework: ServerFramework,
     ) -> InternalFile {
         InternalFile::new(
             "packages/server/src/viewer.ts",
-            render_viewer_module(entities, framework),
+            render_viewer_module(entities),
             GeneratedFileType::Config,
         )
     }
 }
 
-pub(crate) fn render_viewer_module(entities: &[OirEntity], _framework: ServerFramework) -> String {
+pub(crate) fn render_viewer_module(entities: &[OirEntity]) -> String {
     let identity = entities.iter().find(|e| e.identity);
     let mut code = String::new();
     code.push_str("/**\n * The request viewer: a verified token resolved to `@user` against the app's `[identity]` entity.\n *\n");
@@ -116,29 +115,27 @@ mod tests {
             entity("Task", "tasks", false, OirPersistence::Persistent),
             entity("Member", "members", true, OirPersistence::Persistent),
         ];
-        for framework in [ServerFramework::Express, ServerFramework::Hono] {
-            let ts = render_viewer_module(&entities, framework);
-            assert!(
-                ts.contains("(await kernelRuntime()).viewerOf(verified)"),
-                "{ts}"
-            );
-            assert!(
-                ts.contains("(await kernelRuntime()).getIdentityRoster()"),
-                "{ts}"
-            );
-            assert!(
-                ts.contains("import { kernelRuntime } from './kernel-host.js';"),
-                "{ts}"
-            );
-            assert!(!ts.contains("resolveViewer"), "{ts}");
-            assert!(!ts.contains("getDataService"), "{ts}");
-        }
+        let ts = render_viewer_module(&entities);
+        assert!(
+            ts.contains("(await kernelRuntime()).viewerOf(verified)"),
+            "{ts}"
+        );
+        assert!(
+            ts.contains("(await kernelRuntime()).getIdentityRoster()"),
+            "{ts}"
+        );
+        assert!(
+            ts.contains("import { kernelRuntime } from './kernel-host.js';"),
+            "{ts}"
+        );
+        assert!(!ts.contains("resolveViewer"), "{ts}");
+        assert!(!ts.contains("getDataService"), "{ts}");
     }
 
     #[test]
     fn a_runtime_identity_entity_reads_its_declared_fields_from_claims() {
         let entities = vec![entity("Viewer", "viewers", true, OirPersistence::Runtime)];
-        let ts = render_viewer_module(&entities, ServerFramework::Express);
+        let ts = render_viewer_module(&entities);
         assert!(
             ts.contains(
                 "const IDENTITY: IdentitySource = { kind: 'claims', fields: ['id', 'role'] };"
@@ -152,7 +149,7 @@ mod tests {
     #[test]
     fn control_no_identity_entity_reads_the_token_and_has_no_roster() {
         let entities = vec![entity("Task", "tasks", false, OirPersistence::Persistent)];
-        let ts = render_viewer_module(&entities, ServerFramework::Express);
+        let ts = render_viewer_module(&entities);
         assert!(
             ts.contains("const IDENTITY: IdentitySource = { kind: 'none' };"),
             "{ts}"

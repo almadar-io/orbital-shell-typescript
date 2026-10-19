@@ -14,4 +14,5 @@ jobs:
       kind: shell
       shell: typescript
       cargo-args: --bin orb-shell-typescript
+      prepare: scripts/build-web-client.mjs
     secrets: inherit

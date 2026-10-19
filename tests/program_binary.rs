@@ -56,6 +56,6 @@ fn edge_a_bad_option_is_refused_not_ignored() {
     let mut bad = request(IR_VERSION);
     bad.options.insert("framework".to_string(), serde_json::Value::from("koa"));
     let err = invoke_emit(Path::new(BINARY), &bad).unwrap_err();
-    assert!(err.message.contains("framework must be express or hono"), "{}", err.message);
+    assert!(err.message.contains("framework must be express"), "{}", err.message);
 }
 

@@ -1,8 +1,7 @@
 //! `orb-shell-typescript`: the TypeScript shell as a program (`orbital_core::shell_protocol`).
 
 use crate::{
-    express_shell, hono_shell, ExtraComponentMapping, ServerFramework, TypeScriptBackend, KERNEL_CLIENT_DEPENDENCIES,
-    KERNEL_SERVER_DEPENDENCIES,
+    express_shell, ExtraComponentMapping, TypeScriptBackend, KERNEL_SERVER_DEPENDENCIES,
 };
 use orbital_core_base::project::{copy_public, resolve_public_dir, write_project};
 use orbital_core_base::shell_protocol::{
@@ -132,7 +131,7 @@ impl ShellProgram for TypeScriptProgram {
             ir_versions: IrVersions { min: IR_VERSION, max: IR_VERSION },
             needs_resolved: true,
             options: vec![
-                option(FRAMEWORK, "Server framework", Some(&["express", "hono"]), Some("express")),
+                option(FRAMEWORK, "Server framework", Some(&["express"]), Some("express")),
                 option(SCHEMA_LANGUAGE, "Language the program is written in", None, Some("en")),
                 option(DEV_LOGS, "Emit development logging", Some(&["true", "false"]), Some("false")),
                 option(BACKEND_URL, "Backend URL written to .env as VITE_API_URL", None, None),
@@ -144,17 +143,14 @@ impl ShellProgram for TypeScriptProgram {
                     Some("kernel"),
                 ),
             ],
+            web_client: crate::shell::web_client(),
         }
     }
 
     fn generate(&self, request: &GenerateRequest, output: &Path) -> Result<GenerateResponse, ShellFailure> {
         language_ready(orbital_core_eval::language_loader::preflight)?;
         let backend = backend(request)?;
-        let shell = match backend.server_framework {
-            ServerFramework::Express => express_shell(),
-            ServerFramework::Hono => hono_shell(),
-        };
-        let generated = write_project(&request.module, output, &shell, &backend, &request.write)?;
+        let generated = write_project(&request.module, output, &express_shell(), &backend, &request.write)?;
         let failed = |what: &str, e: std::io::Error| ShellFailure::new(CODE_GENERATE_FAILED, format!("{what}: {e}"));
         if let Some(source) = &request.source_path {
             copy_locales(source, output).map_err(|e| failed("copy locales", e))?;
@@ -164,7 +160,6 @@ impl ShellProgram for TypeScriptProgram {
             }
         }
         add_dependencies(&output.join("packages/server/package.json"), KERNEL_SERVER_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the server", e))?;
-        add_dependencies(&output.join("packages/client/package.json"), KERNEL_CLIENT_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the client", e))?;
         let mut next_steps = Vec::new();
         if let Some(url) = string_option(request, BACKEND_URL)? {
             write_backend_url(output, url).map_err(|e| failed("write .env", e))?;
@@ -194,11 +189,10 @@ fn language_ready(
 
 /// The backend `request`'s options describe.
 fn backend(request: &GenerateRequest) -> Result<TypeScriptBackend, ShellFailure> {
-    let framework = match string_option(request, FRAMEWORK)?.unwrap_or("express") {
-        "express" => ServerFramework::Express,
-        "hono" => ServerFramework::Hono,
-        other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("framework must be express or hono, got {other}"))),
-    };
+    match string_option(request, FRAMEWORK)?.unwrap_or("express") {
+        "express" => {}
+        other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("framework must be express, got {other}: the Hono server is retired"))),
+    }
     let dev_logs = match string_option(request, DEV_LOGS)?.unwrap_or("false") {
         "true" => true,
         "false" => false,
@@ -212,7 +206,6 @@ fn backend(request: &GenerateRequest) -> Result<TypeScriptBackend, ShellFailure>
         extra_mappings: request.options.get(PROJECT_PATTERNS).and_then(component_mappings),
         schema_language: string_option(request, SCHEMA_LANGUAGE)?.unwrap_or("en").to_string(),
         dev_logs,
-        server_framework: framework,
         browser_schema: request.resolved.clone(),
         ..TypeScriptBackend::default()
     })
@@ -265,12 +258,21 @@ mod tests {
     }
 
     #[test]
-    fn the_retired_generated_host_and_an_unknown_one_are_refused_and_a_hono_kernel_is_served() {
+    fn the_retired_generated_host_and_an_unknown_one_are_refused_and_a_kernel_is_served() {
         let code = |options: &[(&str, &str)]| backend(&request_with(options)).err().map(|e| e.code);
         assert_eq!(code(&[(HOST, "generated")]), Some(CODE_BAD_REQUEST.to_string()));
         assert_eq!(code(&[(HOST, "wasm")]), Some(CODE_BAD_REQUEST.to_string()));
-        assert!(backend(&request_with(&[(HOST, "kernel"), (FRAMEWORK, "hono")])).is_ok());
+        assert!(backend(&request_with(&[(HOST, "kernel"), (FRAMEWORK, "express")])).is_ok());
         assert!(backend(&request_with(&[])).is_ok());
+    }
+
+    #[test]
+    fn the_retired_hono_server_is_refused_by_code_and_express_is_the_only_framework() {
+        let refused = backend(&request_with(&[(FRAMEWORK, "hono")])).err().expect("hono is retired");
+        assert_eq!(refused.code, CODE_BAD_REQUEST);
+        assert!(refused.message.contains("Hono server is retired"), "{}", refused.message);
+        let framework = TypeScriptProgram.describe().options.into_iter().find(|o| o.name == FRAMEWORK).expect("framework option");
+        assert_eq!(framework.values, Some(vec!["express".to_string()]));
     }
 
     #[test]
@@ -303,7 +305,7 @@ mod tests {
     fn the_templates_depend_on_no_retired_package() {
         use orbital_core_base::shell::Shell;
         const RETIRED: &[&str] = &["@almadar/patterns", "@almadar/evaluator"];
-        for shell in [express_shell(), hono_shell()] {
+        for shell in [express_shell()] {
             for part in ["client", "server"] {
                 let path = shell.template_path().join("packages").join(part).join("package.json");
                 let manifest: Value = serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
