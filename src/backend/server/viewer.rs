@@ -6,12 +6,9 @@ impl TypeScriptBackend {
     /// The identity source is fixed here from the program's `[identity]` entity, the same entity
     /// the seeder orders first: `[persistent, identity]` reads the row keyed by the verified uid
     /// through the kernel host's runtime (its own store, the one the mock seeder fills), `[runtime, identity]` reads its declared fields from the token's
-    /// claims, and no identity entity reads the token itself. `identityRoster()` lists the rows
-    /// the dev persona sign-in (`personasRouter`) offers.
-    pub(crate) fn generate_viewer_module(
-        &self,
-        entities: &[OirEntity],
-    ) -> InternalFile {
+    /// claims, and no identity entity reads the token itself. The dev personas are the program's own
+    /// `std-dev-personas` hooks, served at `/api/hooks/*` like any inbound hook.
+    pub(crate) fn generate_viewer_module(&self, entities: &[OirEntity]) -> InternalFile {
         InternalFile::new(
             "packages/server/src/viewer.ts",
             render_viewer_module(entities),
@@ -32,9 +29,6 @@ pub(crate) fn render_viewer_module(entities: &[OirEntity]) -> String {
             code.push_str("import { kernelRuntime } from './kernel-host.js';\n\n");
             code.push_str("export async function viewerOf(verified: VerifiedUser | undefined): Promise<UserContext> {\n");
             code.push_str("  return (await kernelRuntime()).viewerOf(verified);\n");
-            code.push_str("}\n\n");
-            code.push_str("export async function identityRoster(): Promise<UserContext[]> {\n");
-            code.push_str("  return (await kernelRuntime()).getIdentityRoster();\n");
             code.push_str("}\n");
         }
         Some(entity) => {
@@ -51,10 +45,6 @@ pub(crate) fn render_viewer_module(entities: &[OirEntity]) -> String {
             ));
             code.push_str("export function viewerOf(verified: VerifiedUser | undefined): Promise<UserContext> {\n");
             code.push_str("  return resolveViewer(verified ?? null, IDENTITY);\n");
-            code.push_str("}\n\n");
-            code.push_str("/** A `[runtime, identity]` viewer comes from the provider; there are no rows to sign in as. */\n");
-            code.push_str("export async function identityRoster(): Promise<UserContext[]> {\n");
-            code.push_str("  return [];\n");
             code.push_str("}\n");
         }
         None => {
@@ -63,10 +53,6 @@ pub(crate) fn render_viewer_module(entities: &[OirEntity]) -> String {
             code.push_str("const IDENTITY: IdentitySource = { kind: 'none' };\n\n");
             code.push_str("export function viewerOf(verified: VerifiedUser | undefined): Promise<UserContext> {\n");
             code.push_str("  return resolveViewer(verified ?? null, IDENTITY);\n");
-            code.push_str("}\n\n");
-            code.push_str("/** The app declares no `[identity]` entity, so there are no personas to sign in as. */\n");
-            code.push_str("export async function identityRoster(): Promise<UserContext[]> {\n");
-            code.push_str("  return [];\n");
             code.push_str("}\n");
         }
     }
@@ -121,8 +107,8 @@ mod tests {
             "{ts}"
         );
         assert!(
-            ts.contains("(await kernelRuntime()).getIdentityRoster()"),
-            "{ts}"
+            !ts.contains("identityRoster"),
+            "the dev personas are the program's hooks: {ts}"
         );
         assert!(
             ts.contains("import { kernelRuntime } from './kernel-host.js';"),
@@ -147,14 +133,14 @@ mod tests {
     }
 
     #[test]
-    fn control_no_identity_entity_reads_the_token_and_has_no_roster() {
+    fn control_no_identity_entity_reads_the_token_and_exports_no_roster() {
         let entities = vec![entity("Task", "tasks", false, OirPersistence::Persistent)];
         let ts = render_viewer_module(&entities);
         assert!(
             ts.contains("const IDENTITY: IdentitySource = { kind: 'none' };"),
             "{ts}"
         );
-        assert!(ts.contains("return [];"), "{ts}");
+        assert!(!ts.contains("identityRoster"), "{ts}");
         assert!(!ts.contains("getDataService"), "{ts}");
     }
 }

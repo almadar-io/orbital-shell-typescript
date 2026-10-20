@@ -15,8 +15,3 @@ const IDENTITY: IdentitySource = { kind: 'none' };
 export function viewerOf(verified: VerifiedUser | undefined): Promise<UserContext> {
   return resolveViewer(verified ?? null, IDENTITY);
 }
-
-/** The app declares no `[identity]` entity, so there are no personas to sign in as. */
-export async function identityRoster(): Promise<UserContext[]> {
-  return [];
-}

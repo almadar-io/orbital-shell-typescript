@@ -12,7 +12,6 @@ import {
   errorHandler,
   notFoundHandler,
   debugEventsRouter,
-  personasRouter,
   pushRouter,
   pushServiceWorkerHandler,
   PUSH_SERVICE_WORKER_PATH,
@@ -23,7 +22,6 @@ import {
 } from '@almadar/server';
 import { deliverInbound } from './inbound.js';
 import { registerRoutes } from './routes.js';
-import { identityRoster } from './viewer.js';
 
 export const app: Express = express();
 
@@ -59,11 +57,8 @@ app.get(PUSH_SERVICE_WORKER_PATH, pushServiceWorkerHandler);
 // Calendar watch channels, e-sign status, banking callbacks) cannot present a Firebase token. The
 // route knows no provider: it carries `{ name, headers, rawBody }` to the generated `inbound.ts`
 // and writes back the answer; the handler trait's own transitions verify the sender (EXEC-INBOUND-1).
+// The dev personas are hooks too (`personas`, `persona-sign-in`, from std-dev-personas).
 app.use('/api/hooks', createHooksRouter({ deliver: deliverInbound }));
-
-// Dev personas: the [identity] rows as Auth-emulator users (mounted only while
-// FIREBASE_AUTH_EMULATOR_HOST is set). Signing in as one yields a real ID token.
-app.use('/api', personasRouter(identityRoster));
 
 // Register generated routes
 registerRoutes(app);
