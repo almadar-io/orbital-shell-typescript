@@ -137,4 +137,3 @@ pub fn zod_core_value_imports(zod_text: &str) -> String {
     }
 }
 
-pub const TO_ENTITY_ROW_DECL: &str = "const __toEntityRow = (value: EventPayloadValue | undefined): EntityRow | undefined =>\n  value !== null && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)\n    ? (value as EntityRow)\n    : undefined;\n";

@@ -1,7 +1,7 @@
 //! `orb-shell-typescript`: the TypeScript shell as a program (`orbital_core::shell_protocol`).
 
 use crate::{
-    express_shell, ExtraComponentMapping, TypeScriptBackend, KERNEL_SERVER_DEPENDENCIES,
+    express_shell, ExtraComponentMapping, TypeScriptBackend,
 };
 use orbital_core_base::project::{copy_public, resolve_public_dir, write_project};
 use orbital_core_base::shell_protocol::{
@@ -102,26 +102,8 @@ pub fn write_backend_url(output: &Path, url: &str) -> std::io::Result<()> {
     std::fs::write(path, content)
 }
 
-/// Add `dependencies` to a template `package.json`'s `"dependencies"` block, keeping every other
-/// line; a package already listed is left as the template pins it.
-pub fn add_dependencies(path: &Path, dependencies: &[(&str, &str)]) -> std::io::Result<()> {
-    let existing = std::fs::read_to_string(path)?;
-    let updated = with_dependencies(&existing, dependencies).ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::InvalidData, format!("{} has no \"dependencies\" block", path.display()))
-    })?;
-    std::fs::write(path, updated)
-}
-
-fn with_dependencies(package_json: &str, dependencies: &[(&str, &str)]) -> Option<String> {
-    const ANCHOR: &str = "\"dependencies\": {\n";
-    let at = package_json.find(ANCHOR)? + ANCHOR.len();
-    let added: String = dependencies
-        .iter()
-        .filter(|(name, _)| !package_json.contains(&format!("\"{name}\":")))
-        .map(|(name, version)| format!("    \"{name}\": \"{version}\",\n"))
-        .collect();
-    Some(format!("{}{}{}", &package_json[..at], added, &package_json[at..]))
-}
+/// The native kernel add-on the server loads, shipped beside this program and copied into the project's `kernel/`.
+const KERNEL_ADD_ON: &str = "kernel.node";
 
 impl ShellProgram for TypeScriptProgram {
     fn describe(&self) -> ShellDescription {
@@ -159,7 +141,8 @@ impl ShellProgram for TypeScriptProgram {
                 copy_public(&from, &output.join("packages/client/public")).map_err(|e| failed("copy public folder", e))?;
             }
         }
-        add_dependencies(&output.join("packages/server/package.json"), KERNEL_SERVER_DEPENDENCIES).map_err(|e| failed("add kernel dependencies to the server", e))?;
+        let mut warnings = generated.warnings;
+        warnings.extend(orbital_core_base::shell_protocol::ship_kernel_beside_program(KERNEL_ADD_ON, output)?);
         let mut next_steps = Vec::new();
         if let Some(url) = string_option(request, BACKEND_URL)? {
             write_backend_url(output, url).map_err(|e| failed("write .env", e))?;
@@ -167,7 +150,7 @@ impl ShellProgram for TypeScriptProgram {
         }
         Ok(GenerateResponse {
             files: generated.files.iter().map(|f| f.path.clone()).collect(),
-            warnings: generated.warnings,
+            warnings,
             next_steps,
         })
     }
@@ -290,18 +273,6 @@ mod tests {
     }
 
     #[test]
-    fn dependencies_are_added_once_and_the_template_keeps_the_rest() {
-        let template = "{\n  \"dependencies\": {\n    \"@almadar/core\": \"^10.0.0\",\n    \"zod\": \"^3.22.0\"\n  }\n}\n";
-        let once = with_dependencies(template, &[("@almadar/kernel", "^18.0.0"), ("zod", "^4.0.0")]).unwrap();
-        assert!(once.contains("\"@almadar/kernel\": \"^18.0.0\","));
-        assert!(once.contains("\"zod\": \"^3.22.0\""), "a listed package keeps the template's pin:\n{once}");
-        assert!(!once.contains("^4.0.0"));
-        let twice = with_dependencies(&once, &[("@almadar/kernel", "^18.0.0")]).unwrap();
-        assert_eq!(once, twice);
-        assert!(with_dependencies("{}", &[("a", "1")]).is_none());
-    }
-
-    #[test]
     fn the_templates_depend_on_no_retired_package() {
         use orbital_core_base::shell::Shell;
         const RETIRED: &[&str] = &["@almadar/patterns", "@almadar/evaluator"];
@@ -314,9 +285,25 @@ mod tests {
                         assert!(manifest[kind].get(name).is_none(), "{} {kind} still names {name}", path.display());
                     }
                 }
-                assert!(manifest["dependencies"].get("@almadar/core").is_some(), "control: {} keeps @almadar/core", path.display());
+                if part == "client" {
+                    assert!(manifest["dependencies"].get("@almadar/core").is_some(), "control: {} keeps @almadar/core", path.display());
+                }
             }
         }
+    }
+
+    #[test]
+    fn the_server_template_runs_on_the_native_kernel_and_depends_on_no_almadar_runtime_package() {
+        use orbital_core_base::shell::Shell;
+        let root = express_shell().template_path().join("packages/server");
+        let manifest: Value = serde_json::from_str(&std::fs::read_to_string(root.join("package.json")).unwrap()).unwrap();
+        let named: Vec<&String> = manifest["dependencies"].as_object().unwrap().keys().filter(|name| name.starts_with("@almadar")).collect();
+        assert!(named.is_empty(), "the server's runtime dependencies name {named:?}");
+        let kernel = std::fs::read_to_string(root.join("src/kernel.ts")).unwrap();
+        assert!(kernel.contains("kernel.NativeServer.open(") && kernel.contains("'kernel.node'"), "the host runs orbital-server natively");
+        let app = std::fs::read_to_string(root.join("src/app.ts")).unwrap();
+        assert!(app.contains("server.handle(req.method, req.originalUrl,"), "every API request goes through orbital-server's router");
+        assert!(app.contains("app.get('/api/events'"), "the host holds the live stream's connections");
     }
 
     #[test]

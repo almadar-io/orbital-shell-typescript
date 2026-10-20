@@ -51,12 +51,17 @@ fn fnv1a(bytes: &[u8], mut hash: u64) -> u64 {
     hash
 }
 
+/// The installed language the server ships (`packages/server/generated/language.json`) is the installed package's bytes, not this
+/// shell's output, so it is left out of the digest.
+const INSTALLED_LANGUAGE: &str = "packages/server/generated/language.json";
+
 fn digest(backend: &TypeScriptBackend) -> u64 {
     let mut files: Vec<_> = backend
         .generate(&module())
         .files
         .into_iter()
         .map(|f| (f.path, f.content))
+        .filter(|(path, _)| path != INSTALLED_LANGUAGE)
         .collect();
     files.sort();
     files
@@ -66,11 +71,10 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         })
 }
 
-/// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the Hono server retired
-/// (2026-10-19; the one change is the shared `EventResponse` comment no longer naming Hono). The client source is the
-/// template's, and the compile emits only the program's runtime files (`public/client.json`, `public/themes.css`,
-/// `public/program.client.json`).
-const KERNEL_OUTPUT_DIGEST: u64 = 4_409_593_759_031_280_763;
+/// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the server became the
+/// template's native host (2026-10-20: no server TypeScript is generated). The client source is the template's, and the
+/// compile emits only the program's runtime files (`public/client.json`, `public/themes.css`, `public/program.client.json`).
+const KERNEL_OUTPUT_DIGEST: u64 = 16_515_912_613_707_617_332;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -112,17 +116,13 @@ fn file<'a>(files: &'a [(String, String)], path: &str) -> &'a str {
 }
 
 #[test]
-fn the_server_hosts_the_kernel_through_the_runtime() {
+fn the_server_is_the_templates_native_host_and_the_compile_ships_only_its_language() {
     let files = files_of(&kernel_backend());
-    let host = file(&files, "packages/server/src/kernel-host.ts");
-    assert!(!host.contains("engine:"), "the runtime has only the kernel, so the host names no engine: {host}");
-    assert!(host.contains("loadKernelModule"), "{host}");
-    assert!(
-        host.contains("@almadar/runtime/OrbitalServerRuntime"),
-        "{host}"
-    );
-    let routes = file(&files, "packages/server/src/routes.ts");
-    assert!(routes.contains("/api/orbitals"), "{routes}");
+    let server: Vec<&str> = files.iter().map(|(p, _)| p.as_str()).filter(|p| p.starts_with("packages/server/")).collect();
+    assert_eq!(server, [INSTALLED_LANGUAGE], "no TypeScript server logic is generated");
+    assert!(file(&files, INSTALLED_LANGUAGE).starts_with('{'), "the language bundle is JSON");
+    let kernel = template("packages/server/src/kernel.ts");
+    assert!(kernel.contains("kernel.installLanguage(") && kernel.contains("kernel.NativeServer.open("), "{kernel}");
 }
 
 #[test]
@@ -292,7 +292,7 @@ fn a_client_only_compile_emits_no_server_files_and_a_server_only_one_no_client_f
     assert!(server
         .files
         .iter()
-        .any(|f| f.path == "packages/server/src/kernel-host.ts"));
+        .any(|f| f.path == INSTALLED_LANGUAGE));
     assert!(!server
         .files
         .iter()
@@ -320,34 +320,10 @@ fn edge_without_a_resolved_schema_nothing_is_embedded_and_the_output_says_so() {
 }
 
 #[test]
-fn the_server_host_wires_http_os_clock_and_the_dispatch_sink() {
+fn the_shared_package_carries_the_dispatch_frame_type_the_client_reads() {
     let files = files_of(&kernel_backend());
-    let host = file(&files, "packages/server/src/kernel-host.ts");
-    for needle in [
-        "import { createCredentialAdminPort, createHttpSecrets, createOAuthPort } from '@almadar/runtime/kernel';",
-        "import { createNodeOsHost } from '@almadar/runtime/kernelOsNode';",
-        "import { loadHttpKernel, loadKernelModule } from '@almadar/runtime/kernelNode';",
-        "http: { kernel: async () => httpKernel, secrets, credentials: createCredentialAdminPort(), oauth: createOAuthPort({ secrets, now: clock }) },",
-        "osHost: createNodeOsHost,",
-        "clock,",
-        "runtime.setHostDispatchSink((item: HostDispatchItem) => {",
-        "pushToOrigin(item.originClientId, { type: 'dispatch'",
-    ] {
-        assert!(host.contains(needle), "missing {needle}\n{host}");
-    }
-    let sse = file(&files, "packages/server/src/sse.ts");
-    assert!(
-        sse.contains("item: BusBroadcastItem | DispatchPushItem"),
-        "{sse}"
-    );
-    assert!(
-        file(&files, "packages/shared/src/dispatch.ts").contains("type: 'dispatch'"),
-        "dispatch frame type"
-    );
-    assert!(
-        file(&files, "packages/shared/src/index.ts").contains("./dispatch.js"),
-        "barrel"
-    );
+    assert!(file(&files, "packages/shared/src/dispatch.ts").contains("type: 'dispatch'"), "dispatch frame type");
+    assert!(file(&files, "packages/shared/src/index.ts").contains("./dispatch.js"), "barrel");
 }
 
 #[test]
