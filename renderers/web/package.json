@@ -1,7 +1,7 @@
 {
   "name": "@almadar/shell-web",
   "version": "0.1.0",
-  "description": "Almadar TS shell web runtime pack: the browser host ports of the kernel (transports, stores, client kernel, http/oauth/os ports) that the generated web app and the TS host program import.",
+  "description": "Almadar TS shell web renderer pack: the browser host ports of the kernel (transports, stores, client kernel, http/oauth/os ports) and the React render substrate (components, hooks, providers, preview runtime, themes, Tailwind preset) the generated web app and the TS host program import.",
   "license": "BUSL-1.1",
   "type": "module",
   "main": "./dist/index.js",
@@ -10,39 +10,199 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./test-support": {
       "types": "./dist/test-support.d.ts",
-      "import": "./dist/test-support.js"
-    }
+      "import": "./dist/test-support.js",
+      "default": "./dist/test-support.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js",
+      "default": "./dist/core.js"
+    },
+    "./core/locales/en.json": "./src/core/locales/en.json",
+    "./core/locales/ar.json": "./src/core/locales/ar.json",
+    "./core/locales/sl.json": "./src/core/locales/sl.json",
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.js",
+      "default": "./dist/components/index.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.js",
+      "default": "./dist/hooks/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers/index.d.ts",
+      "import": "./dist/providers/index.js",
+      "default": "./dist/providers/index.js"
+    },
+    "./context": {
+      "types": "./dist/context/index.d.ts",
+      "import": "./dist/context/index.js",
+      "default": "./dist/context/index.js"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/index.d.ts",
+      "import": "./dist/renderer/index.js",
+      "default": "./dist/renderer/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js",
+      "default": "./dist/runtime/index.js"
+    },
+    "./lib": {
+      "types": "./dist/lib/index.d.ts",
+      "import": "./dist/lib/index.js",
+      "default": "./dist/lib/index.js"
+    },
+    "./three": {
+      "types": "./dist/three/index.d.ts",
+      "import": "./dist/three/index.js",
+      "default": "./dist/three/index.js"
+    },
+    "./avl": {
+      "types": "./dist/avl/index.d.ts",
+      "import": "./dist/avl/index.js",
+      "default": "./dist/avl/index.js"
+    },
+    "./illustrations": {
+      "types": "./dist/avl/index.d.ts",
+      "import": "./dist/avl/index.js",
+      "default": "./dist/avl/index.js"
+    },
+    "./ssr": {
+      "types": "./dist/ssr/index.d.ts",
+      "import": "./dist/ssr/index.js",
+      "require": "./dist/ssr/index.cjs"
+    },
+    "./design-classes": {
+      "types": "./dist/design-classes/index.d.ts",
+      "import": "./dist/design-classes/index.js",
+      "require": "./dist/design-classes/index.cjs"
+    },
+    "./themes/*.css": "./themes/*.css",
+    "./index.css": "./index.css",
+    "./tailwind-preset": "./tailwind-preset.cjs",
+    "./tailwind-compile": "./tailwind-compile.cjs",
+    "./bundling": {
+      "types": "./bundling.d.mts",
+      "import": "./bundling.mjs"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "src/core/locales",
+    "src/core/tokens/native-tokens.json",
+    "themes",
+    "index.css",
+    "tailwind-preset.cjs",
+    "tailwind-compile.cjs",
+    "bundling.mjs",
+    "bundling.d.mts"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "**/*.css"
+  ],
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
     "access": "public"
   },
   "scripts": {
     "prebuild": "rm -rf dist",
-    "build": "tsup",
+    "build": "NODE_OPTIONS=--max-old-space-size=8192 tsup",
+    "build:dev": "NODE_OPTIONS=--max-old-space-size=8192 SHELL_WEB_SKIP_DTS=1 tsup",
     "typecheck": "tsc --noEmit",
-    "test": "vitest --run"
+    "test": "vitest --run",
+    "lint": "eslint --no-warn-ignored --max-warnings 0 src",
+    "verify:themes": "node scripts/theme-contrast-audit.mjs && node scripts/theme-distinctness-audit.mjs",
+    "verify:safelist": "tsx scripts/audit-tailwind-safelist.ts",
+    "verify:dist-esm": "node scripts/verify-dist-esm.mjs"
   },
   "dependencies": {
     "@almadar/core": "^10.128.0",
+    "@almadar/db": "^0.1.5",
     "@almadar/kernel": "^18.0.0",
-    "@almadar/logger": "^1.18.0"
+    "@almadar/logger": "^1.18.0",
+    "@almadar/std": "^16.255.0",
+    "@almadar/syntax": "^1.21.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@phosphor-icons/react": "^2.1.10",
+    "@tabler/icons-react": "^3.44.0",
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@tailwindcss/typography": "^0.5.20",
+    "@xyflow/react": "12.10.1",
+    "clsx": "^2.1.0",
+    "d3-force": "^3.0.0",
+    "elkjs": "0.11.1",
+    "emojilib": "^2.4.0",
+    "hastscript": "^9.0.0",
+    "leaflet": "1.9.4",
+    "lucide-react": "^0.570.0",
+    "mermaid": "^11.17.2",
+    "parse-entities": "^4.0.0",
+    "react-icons": "^5.6.0",
+    "react-leaflet": "^4.2.1",
+    "react-markdown": "^9.0.0",
+    "react-syntax-highlighter": "^16.1.0",
+    "refractor": "^5.0.0",
+    "rehype-katex": "^7.0.0",
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
+    "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
-    "@almadar/db": "^0.1.5",
+    "@almadar/eslint-plugin": "^2.22.0",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.0",
+    "@react-three/postprocessing": "3.0.4",
+    "@tanstack/react-query": "^5.0.0",
+    "@testing-library/jest-dom": "^6.4.0",
+    "@testing-library/react": "^14.2.0",
+    "@testing-library/user-event": "^14.5.0",
+    "@types/d3-force": "^3.0.10",
+    "@types/leaflet": "1.9.21",
     "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/react-syntax-highlighter": "^15.5.0",
+    "@types/three": "^0.160.0",
+    "@typescript-eslint/parser": "8.65.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "@vitejs/plugin-react": "^4.2.0",
+    "@vitest/ui": "^3.2.6",
+    "autoprefixer": "^10.4.0",
+    "axe-core": "4.13.0",
+    "babel-plugin-react-compiler": "19.0.0-beta-af1b7da-20250417",
+    "eslint": "10.0.0",
+    "eslint-plugin-react-compiler": "19.1.0-rc.2",
     "fake-indexeddb": "6.2.5",
+    "jsdom": "^24.0.0",
+    "katex": "^0.16.0",
+    "postcss": "^8.4.35",
+    "postprocessing": "6.39.0",
+    "react": "^19.0.0",
+    "react-compiler-runtime": "19.0.0-beta-af1b7da-20250417",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.13.0",
+    "tailwindcss": "^3.4.0",
+    "three": "^0.160.1",
+    "three-stdlib": "^2.35.6",
     "tsup": "^8.0.0",
+    "tsx": "^4.7.0",
+    "turbo": "^2.8.17",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^2.1.0"
+    "vite": "^5.2.0",
+    "vitest": "^3.2.6",
+    "vitest-axe": "^0.1.0"
   },
   "repository": {
     "type": "git",
@@ -51,5 +211,45 @@
   },
   "engines": {
     "node": ">=22.19.0"
-  }
+  },
+  "peerDependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.0.0",
+    "@react-three/postprocessing": "^3.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "postcss": "^8.4.35",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "react-router-dom": "^7.0.0",
+    "tailwindcss": "^3.4.0",
+    "three": "^0.160.0"
+  },
+  "peerDependenciesMeta": {
+    "@react-three/drei": {
+      "optional": true
+    },
+    "@react-three/fiber": {
+      "optional": true
+    },
+    "@react-three/postprocessing": {
+      "optional": true
+    },
+    "three": {
+      "optional": true
+    },
+    "postcss": {
+      "optional": true
+    },
+    "tailwindcss": {
+      "optional": true
+    }
+  },
+  "keywords": [
+    "almadar",
+    "ui",
+    "react",
+    "components",
+    "hooks",
+    "shell"
+  ]
 }

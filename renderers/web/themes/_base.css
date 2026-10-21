@@ -1,0 +1,451 @@
+/**
+ * _base.css — Shared Typography + Density base
+ *
+ * Lifted from `atelier.css` so the editorial type rhythm and generous
+ * 10pt spacing scale are the default across every theme that doesn't
+ * deliberately opt out. Themes can still override any token by declaring
+ * it in their own [data-theme="..."] block — that selector is more
+ * specific than :root and wins via the CSS cascade.
+ *
+ * Personality themes that DO opt out today (keep their own typography
+ * and/or density): terminal (monospace), wireframe (chunky), neon (tight
+ * glow), kiosk (oversized), gazette (serif), minimalist (compact),
+ * trait-wars (gamer). All others inherit from this file.
+ *
+ * Loaded FIRST in themes/index.css so individual theme blocks override
+ * cleanly. The contract reference is `themes/_contract.md`.
+ */
+:root {
+    /* ----------------------------------------------------------------
+     * Typography
+     * ----------------------------------------------------------------
+     * Inter for body + UI, JetBrains Mono for code, optional display
+     * family for hero numerics. Mid-weight 500 reads as confident but
+     * not heavy; tight letter-spacing + 1.625 line-height give the
+     * editorial feel.
+     */
+    --font-family:
+        "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-family-display:
+        "Söhne", "Inter Display", -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-family-body:
+        "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-family-mono:
+        "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-bold: 700;
+    --letter-spacing: -0.02em;
+    --line-height: 1.625;
+
+    /* Type scale */
+    --text-xs: 12px;
+    --leading-xs: 18px;
+    --text-sm: 14px;
+    --leading-sm: 22px;
+    --text-base: 16px;
+    --leading-base: 26px;
+    --text-lg: 20px;
+    --leading-lg: 30px;
+    --text-xl: 24px;
+    --leading-xl: 32px;
+    --text-2xl: 32px;
+    --leading-2xl: 38px;
+    --text-3xl: 40px;
+    --leading-3xl: 44px;
+    --text-4xl: 52px;
+    --leading-4xl: 56px;
+    --text-display-1: 64px;
+    --leading-display-1: 68px;
+    --text-display-2: 80px;
+    --leading-display-2: 84px;
+
+    /* Intent mapping — what component variants resolve to. */
+    --intent-heading-major-size: var(--text-3xl);
+    --intent-heading-major-weight: var(--font-weight-bold);
+    --intent-heading-major-leading: var(--leading-3xl);
+    --intent-heading-minor-size: var(--text-xl);
+    --intent-heading-minor-weight: var(--font-weight-bold);
+    --intent-heading-minor-leading: var(--leading-xl);
+    --intent-body-emphasis-size: var(--text-base);
+    --intent-body-emphasis-weight: var(--font-weight-medium);
+    --intent-body-emphasis-leading: var(--leading-base);
+    --intent-body-default-size: var(--text-base);
+    --intent-body-default-weight: var(--font-weight-normal);
+    --intent-body-default-leading: var(--leading-base);
+    --intent-body-quiet-size: var(--text-sm);
+    --intent-body-quiet-weight: var(--font-weight-normal);
+    --intent-body-quiet-leading: var(--leading-sm);
+    --intent-caption-size: var(--text-xs);
+    --intent-caption-weight: var(--font-weight-medium);
+    --intent-caption-leading: var(--leading-xs);
+    --intent-numeric-size: var(--text-4xl);
+    --intent-numeric-weight: var(--font-weight-bold);
+    --intent-numeric-leading: var(--leading-4xl);
+    --intent-numeric-family: var(--font-family-display);
+
+    /* ----------------------------------------------------------------
+     * Density — generous 10pt rhythm
+     * ----------------------------------------------------------------
+     * Slightly larger than Tailwind defaults so cards / dialogs / rows
+     * read as airy without feeling sparse. Per-element heights tuned to
+     * comfortable click targets (44px md is also the iOS HIG minimum).
+     */
+    --space-0: 0px;
+    --space-1: 4px;
+    --space-2: 6px;
+    --space-3: 10px;
+    --space-4: 14px;
+    --space-5: 20px;
+    --space-6: 28px;
+    --space-7: 36px;
+    --space-8: 44px;
+    --space-9: 52px;
+    --space-10: 60px;
+    --space-11: 68px;
+    --space-12: 80px;
+
+    --button-height-sm: 36px;
+    --button-height-md: 44px;
+    --button-height-lg: 56px;
+    --input-height-sm: 36px;
+    --input-height-md: 44px;
+    --input-height-lg: 56px;
+    --row-height-compact: 48px;
+    --row-height-normal: 64px;
+    --row-height-spacious: 80px;
+
+    --card-padding-sm: 20px;
+    --card-padding-md: 28px;
+    --card-padding-lg: 40px;
+    --dialog-padding: 40px;
+    --section-gap: 64px;
+
+    /* ----------------------------------------------------------------
+     * Motion — duration & easing axis
+     * ----------------------------------------------------------------
+     * Base values for the motion axis. Per-theme blocks override these to
+     * restyle timing without touching keyframes. The legacy --transition-*
+     * aliases are kept as fallbacks for themes that haven't migrated.
+     * ---------------------------------------------------------------- */
+    --duration-instant: 0ms;
+    --duration-fast: var(--transition-fast, 150ms);
+    --duration-normal: var(--transition-normal, 250ms);
+    --duration-slow: var(--transition-slow, 400ms);
+    --duration-dramatic: 600ms;
+    --easing-linear: linear;
+    --easing-standard: var(--transition-timing, cubic-bezier(0.4, 0, 0.2, 1));
+    --easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+    --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* Master on/off. Set `off` to collapse EVERY motion to instant without
+     * relying on prefers-reduced-motion (programmatic opt-out for themes). */
+    --motion-enable: on;
+
+    /* ----------------------------------------------------------------
+     * Motion — keyframe endpoints
+     * ----------------------------------------------------------------
+     * The "shape" of every built-in transition. Duration/easing come from
+     * --duration-* / --easing-*. Override any of these in a theme block to
+     * restyle the motion — e.g. a minimal theme sets
+     * --motion-modal-enter-from-transform: none for a pure fade. Each surface
+     * has enter + exit endpoints so <Presence> can animate both directions.
+     * ---------------------------------------------------------------- */
+    --motion-overlay-from-opacity: 0;
+    --motion-overlay-enter-from-opacity: var(--motion-overlay-from-opacity);
+    --motion-overlay-exit-to-opacity: var(--motion-overlay-from-opacity);
+
+    --motion-modal-enter-from-opacity: 0;
+    --motion-modal-enter-from-transform: scale(0.96) translateY(8px);
+    --motion-modal-enter-to-opacity: 1;
+    --motion-modal-enter-to-transform: translateZ(0);
+    --motion-modal-exit-from-opacity: 1;
+    --motion-modal-exit-from-transform: translateZ(0);
+    --motion-modal-exit-to-opacity: 0;
+    --motion-modal-exit-to-transform: scale(0.92) translateY(16px);
+
+    --motion-slide-up-from-opacity: 0;
+    --motion-slide-up-from-transform: translateY(16px);
+
+    /* Drawer / SidePanel — horizontal slide. transform sign is flipped per
+     * side by the component via a CSS var override (--motion-drawer-sign). */
+    --motion-drawer-sign: 1;
+    --motion-drawer-enter-from-opacity: 0;
+    --motion-drawer-enter-from-transform: translateX(calc(100% * var(--motion-drawer-sign)));
+    --motion-drawer-enter-to-opacity: 1;
+    --motion-drawer-enter-to-transform: translateZ(0);
+    --motion-drawer-exit-from-opacity: 1;
+    --motion-drawer-exit-from-transform: translateZ(0);
+    --motion-drawer-exit-to-opacity: 0;
+    --motion-drawer-exit-to-transform: translateX(calc(100% * var(--motion-drawer-sign)));
+
+    /* Popover — small scale + fade from the trigger origin. */
+    --motion-popover-enter-from-opacity: 0;
+    --motion-popover-enter-from-transform: scale(0.95);
+    --motion-popover-enter-to-opacity: 1;
+    --motion-popover-enter-to-transform: scale(1);
+    --motion-popover-exit-from-opacity: 1;
+    --motion-popover-exit-from-transform: scale(1);
+    --motion-popover-exit-to-opacity: 0;
+    --motion-popover-exit-to-transform: scale(0.95);
+
+    /* Toast — slide up + fade (bottom-origin notification). */
+    --motion-toast-enter-from-opacity: 0;
+    --motion-toast-enter-from-transform: translateY(16px);
+    --motion-toast-enter-to-opacity: 1;
+    --motion-toast-enter-to-transform: translateZ(0);
+    --motion-toast-exit-from-opacity: 1;
+    --motion-toast-exit-from-transform: translateZ(0);
+    --motion-toast-exit-to-opacity: 0;
+    --motion-toast-exit-to-transform: translateY(16px);
+
+    /* Generic fade — default for arbitrary component enter/leave (<Presence>). */
+    --motion-fade-enter-from-opacity: 0;
+    --motion-fade-enter-to-opacity: 1;
+    --motion-fade-exit-from-opacity: 1;
+    --motion-fade-exit-to-opacity: 0;
+
+    /* Page / route transition — the routed subtree animates on navigation. */
+    --motion-page-enter-from-opacity: 0;
+    --motion-page-enter-from-transform: translateY(8px);
+    --motion-page-enter-to-opacity: 1;
+    --motion-page-enter-to-transform: translateZ(0);
+    --motion-page-exit-from-opacity: 1;
+    --motion-page-exit-from-transform: translateZ(0);
+    --motion-page-exit-to-opacity: 0;
+    --motion-page-exit-to-transform: translateY(-8px);
+
+    /* ----------------------------------------------------------------
+     * Element entry — how a rendered element animates in when it mounts.
+     * --motion-enter-default is the keyframe every slot's content plays when
+     * it changes (`none` = off); a render-ui node's own `enter` overrides it.
+     * The shape tokens restyle what each named entry looks like; timing is
+     * the `enter` intent (--duration-normal / --easing-emphasized).
+     * ---------------------------------------------------------------- */
+    --motion-enter-default: almadar-enter-fade;
+    /* A busy control shows its spinner only once its action outlasts this
+     * (under it the action reads as instant — no flash on fast actions). */
+    --motion-busy-delay: 300ms;
+    /* An empty slot awaiting its server render shows the compiler-predicted
+     * skeleton (`block`) or nothing (`none`), fading in after the busy delay. */
+    --awaiting-skeleton-display: none;
+    --motion-enter-stagger: 40ms;
+    --motion-enter-rise-from-transform: translateY(12px);
+    --motion-enter-scale-from-transform: scale(0.96);
+    --motion-enter-slide-sign: 1;
+    --motion-enter-slide-from-transform: translateX(calc(16px * var(--motion-enter-slide-sign)));
+
+    /* ----------------------------------------------------------------
+     * Skeleton shimmer — the loading-placeholder sweep. A theme may set
+     * --skeleton-base / --skeleton-highlight to restyle the tone; unset, the
+     * shimmer paints the active theme's --color-muted / --color-surface
+     * (resolved at `.almadar-shimmer`, not here — a :root alias would freeze
+     * the root theme's colors for every [data-theme] subtree).
+     * ---------------------------------------------------------------- */
+    --duration-shimmer: 1.5s;
+}
+
+[dir="rtl"] {
+    --motion-enter-slide-sign: -1;
+}
+
+@keyframes almadar-enter-fade {
+    from { opacity: 0; }
+}
+@keyframes almadar-enter-rise {
+    from { opacity: 0; transform: var(--motion-enter-rise-from-transform); }
+}
+@keyframes almadar-enter-scale {
+    from { opacity: 0; transform: var(--motion-enter-scale-from-transform); }
+}
+@keyframes almadar-enter-slide {
+    from { opacity: 0; transform: var(--motion-enter-slide-from-transform); }
+}
+
+/* Busy control: the label gives way to the spinner only after --motion-busy-delay. */
+@keyframes almadar-busy-hide {
+    to { visibility: hidden; }
+}
+@keyframes almadar-busy-show {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.almadar-busy-content {
+    animation: almadar-busy-hide 0s linear var(--motion-busy-delay, 300ms) forwards;
+}
+.almadar-busy-indicator {
+    opacity: 0;
+    animation: almadar-busy-show var(--duration-fast, 150ms) var(--easing-standard, ease) var(--motion-busy-delay, 300ms) forwards;
+}
+
+/* A row whose own action is in flight: dims after --motion-busy-delay, never re-clickable. */
+@keyframes almadar-row-pending {
+    to { opacity: 0.55; }
+}
+[data-row-pending="true"] {
+    pointer-events: none;
+    animation: almadar-row-pending var(--duration-fast, 150ms) var(--easing-standard, ease) var(--motion-busy-delay, 300ms) forwards;
+}
+
+/* Awaiting-server skeleton: theme-switched, appears only once the round trip outlasts --motion-busy-delay. */
+.almadar-awaiting-skeleton {
+    display: var(--awaiting-skeleton-display, none);
+    opacity: 0;
+    animation: almadar-busy-show var(--duration-fast, 150ms) var(--easing-standard, ease) var(--motion-busy-delay, 300ms) forwards;
+}
+
+/* Slot content: plays the theme's default entry (restarted when the content changes). */
+.almadar-enter-slot {
+    animation-name: var(--motion-enter-default, none);
+}
+.almadar-enter-slot,
+.almadar-enter-fade,
+.almadar-enter-rise,
+.almadar-enter-scale,
+.almadar-enter-slide {
+    animation-duration: var(--duration-normal, 250ms);
+    animation-timing-function: var(--easing-emphasized, cubic-bezier(0.2, 0, 0, 1));
+    animation-fill-mode: both;
+    animation-delay: calc(var(--enter-index, 0) * var(--motion-enter-stagger, 40ms));
+}
+.almadar-enter-fade { animation-name: almadar-enter-fade; }
+.almadar-enter-rise { animation-name: almadar-enter-rise; }
+.almadar-enter-scale { animation-name: almadar-enter-scale; }
+.almadar-enter-slide { animation-name: almadar-enter-slide; }
+.almadar-enter-delay-1 { --enter-index: 1; }
+.almadar-enter-delay-2 { --enter-index: 2; }
+.almadar-enter-delay-3 { --enter-index: 3; }
+.almadar-enter-delay-4 { --enter-index: 4; }
+.almadar-enter-delay-5 { --enter-index: 5; }
+.almadar-enter-delay-6 { --enter-index: 6; }
+.almadar-enter-delay-7 { --enter-index: 7; }
+.almadar-enter-delay-8 { --enter-index: 8; }
+
+/* SVG atom motion (`lib/svgMotion.ts`). One dash period of the `8 6` dash per loop. */
+@keyframes almadar-svg-flow-dash {
+    from { stroke-dashoffset: 14; }
+    to { stroke-dashoffset: 0; }
+}
+.almadar-svg-flow-dash {
+    animation: almadar-svg-flow-dash 1s linear infinite;
+}
+@keyframes almadar-svg-pulse-ring {
+    from { transform: scale(0.6); opacity: 0.3; }
+    to { transform: scale(1); opacity: 0; }
+}
+.almadar-svg-pulse-ring {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: almadar-svg-pulse-ring 2s ease-out infinite;
+}
+@keyframes almadar-svg-pulse-expand {
+    from { transform: scale(0.3); opacity: 0.4; }
+    to { transform: scale(1); opacity: 0; }
+}
+.almadar-svg-pulse-expand {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: almadar-svg-pulse-expand 2s ease-out infinite;
+}
+
+/* The shimmer gradient background. Pair with the `animate-shimmer` utility
+ * (defined in tailwind-preset) which sweeps background-position. */
+.almadar-shimmer {
+    background-image: linear-gradient(
+        90deg,
+        var(--skeleton-base, var(--color-muted)) 0%,
+        var(--skeleton-highlight, var(--color-surface)) 50%,
+        var(--skeleton-base, var(--color-muted)) 100%
+    );
+    background-size: 200% 100%;
+    background-repeat: no-repeat;
+}
+
+/* ----------------------------------------------------------------
+ * Reduced motion — the canonical accessibility kill-switch.
+ * Collapses EVERY animation/transition to ~instant regardless of which
+ * surface or theme is active. Themes/apps must NOT re-raise durations
+ * under this media query. (Supersedes per-app overrides like kflow.css.)
+ * ---------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --motion-enable: off;
+    }
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* The `dock` slot (a right panel that pushes the page) sets this inset while open. */
+body {
+    padding-inline-end: var(--almadar-dock-inset, 0px);
+}
+
+/* A `dock` inside a contained preview pushes that preview, not the page. */
+.ui-slot-renderer {
+    padding-inline-end: var(--almadar-dock-contained-inset, 0px);
+}
+
+/* --------------------------------------------------------------------
+ * Drawing surfaces — canvas, chart, diagram, game board, 3D scene.
+ * Defaults derived from each theme's own tokens, so a theme that sets no
+ * `diagram`/`scene` axis still draws in its own palette, border weight,
+ * faces and corners. Declared on every theme scope (not only :root): a
+ * var() alias resolves where it is declared, so a :root-only default would
+ * freeze the root theme's colors inside a [data-theme] subtree.
+ * -------------------------------------------------------------------- */
+:root,
+[data-theme],
+[data-orbital-theme] {
+    --surface-diagram: var(--color-card);
+
+    --color-diagram-ink: var(--color-foreground);
+    --color-diagram-label: var(--color-muted-foreground);
+    --color-diagram-guide: var(--color-muted-foreground);
+    --color-diagram-axis: var(--color-foreground);
+    --color-diagram-grid: var(--color-border);
+    --color-diagram-highlight: var(--color-primary);
+    --color-diagram-fill: var(--color-muted);
+
+    /* A categorical palette carries no status meaning: the theme's primary
+     * turned around the hue wheel at its own lightness and chroma. */
+    --color-series-1: var(--color-primary);
+    --color-series-2: oklch(from var(--color-primary) clamp(0.45, l, 0.72) max(c, 0.12) calc(h + 45));
+    --color-series-3: oklch(from var(--color-primary) clamp(0.45, l, 0.72) max(c, 0.12) calc(h + 90));
+    --color-series-4: oklch(from var(--color-primary) clamp(0.45, l, 0.72) max(c, 0.12) calc(h + 135));
+    --color-series-5: oklch(from var(--color-primary) clamp(0.45, l, 0.72) max(c, 0.12) calc(h + 180));
+    --color-series-6: oklch(from var(--color-primary) clamp(0.45, l, 0.72) max(c, 0.12) calc(h + 225));
+    --color-series-7: oklch(from var(--color-primary) clamp(0.45, l, 0.72) max(c, 0.12) calc(h + 270));
+    --color-series-8: oklch(from var(--color-primary) clamp(0.45, l, 0.72) max(c, 0.12) calc(h + 315));
+
+    --diagram-stroke-thin: var(--border-hairline, var(--border-width-thin, 1px));
+    --diagram-stroke-normal: calc(var(--border-standard, var(--border-width, 1px)) * 1.5);
+    --diagram-stroke-bold: calc(var(--border-heavy, var(--border-width-thick, 2px)) * 1.5);
+    --diagram-line-cap: round;
+    --diagram-line-join: round;
+    --diagram-dash: 6 4;
+    --diagram-dot: 1 4;
+    --diagram-fill-style: tint;
+    --diagram-fill-opacity: 0.18;
+    --diagram-roughness: 0;
+    --diagram-glow: 0;
+    --diagram-shadow: none;
+    --diagram-marker: triangle;
+    --diagram-label-font: body;
+    --diagram-label-size: sm;
+    --diagram-label-weight: var(--font-weight-medium, 500);
+    --diagram-label-case: none;
+    --diagram-corner: var(--radius-sm, 4px);
+
+    --material-roughness: 0.6;
+    --material-metalness: 0;
+    --material-flat: 0;
+    --material-outline: 0;
+    --light-ambient: 0.55;
+    --light-key: 1;
+    --light-key-color: #ffffff;
+    --scene-fog: 0;
+}

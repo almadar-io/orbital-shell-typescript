@@ -1,0 +1,67 @@
+/**
+ * GENERATED — do not edit by hand.
+ * Source: packages/almadar-core/themes/*.json
+ * Regenerate: node tools/almadar-pattern-sync/dist/index.js themes (or `almadar-sync themes`)
+ */
+
+@import "./almadar.css";
+@import "./almadar-heritage.css";
+@import "./almadar-website.css";
+@import "./aqua.css";
+@import "./arabesque.css";
+@import "./art-deco.css";
+@import "./art-nouveau.css";
+@import "./atelier.css";
+@import "./bauhaus.css";
+@import "./bloomberg-dense.css";
+@import "./blueprint.css";
+@import "./clay.css";
+@import "./comic.css";
+@import "./constructivist.css";
+@import "./corporate.css";
+@import "./cyberpunk.css";
+@import "./frutiger-aero.css";
+@import "./game-adventure.css";
+@import "./game-rpg.css";
+@import "./game-sci-fi.css";
+@import "./game-ui-pack.css";
+@import "./gazette.css";
+@import "./glass.css";
+@import "./gothic.css";
+@import "./ink-wash.css";
+@import "./kawaii.css";
+@import "./kflow.css";
+@import "./kiosk.css";
+@import "./linear-clean.css";
+@import "./luxury.css";
+@import "./mac-classic.css";
+@import "./material.css";
+@import "./memphis.css";
+@import "./mid-century.css";
+@import "./minimalist.css";
+@import "./mudcloth.css";
+@import "./nata.css";
+@import "./neon.css";
+@import "./neumorphic.css";
+@import "./newsprint.css";
+@import "./notion-editorial.css";
+@import "./orb.css";
+@import "./pixel.css";
+@import "./prism.css";
+@import "./rawi.css";
+@import "./retro.css";
+@import "./risograph.css";
+@import "./scandi.css";
+@import "./sketch.css";
+@import "./solarpunk.css";
+@import "./steampunk.css";
+@import "./swiss.css";
+@import "./terminal.css";
+@import "./trait-wars.css";
+@import "./ukiyo-e.css";
+@import "./vaporwave.css";
+@import "./victorian.css";
+@import "./wabi-sabi.css";
+@import "./win95.css";
+@import "./wireframe.css";
+@import "./zine.css";

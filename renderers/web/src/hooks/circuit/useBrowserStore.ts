@@ -1,0 +1,49 @@
+/**
+ * Opens and seeds the browser store for a program's `[persistent: x, local]`
+ * entities, one database per app and viewer locale. `none` when the program declares none; a failure to open is a state
+ * the host shows, never a silent fallback to another store.
+ */
+import { useEffect, useMemo, useState } from 'react';
+import type { OrbitalDefinition } from '@almadar/core';
+import { orbitalInlineEntities, storesRowsInBrowser } from '@almadar/core';
+import { browserStoreName, openBrowserStore } from '../../runtime';
+import type { IndexedDbPersistence } from '@almadar/db/browser';
+import type { PersistenceAdapter } from '@almadar/core';
+
+export type BrowserStoreState =
+  | { status: 'none' }
+  | { status: 'opening' }
+  | { status: 'ready'; store: PersistenceAdapter }
+  | { status: 'failed'; error: Error };
+
+export function useBrowserStore(appName: string, orbitals: readonly OrbitalDefinition[], locale?: string): BrowserStoreState {
+  const entities = useMemo(() => orbitals.flatMap(orbitalInlineEntities).filter(storesRowsInBrowser), [orbitals]);
+  const [state, setState] = useState<BrowserStoreState>(() => (entities.length === 0 ? { status: 'none' } : { status: 'opening' }));
+
+  useEffect(() => {
+    if (entities.length === 0) {
+      setState({ status: 'none' });
+      return;
+    }
+    let cancelled = false;
+    let opened: IndexedDbPersistence | undefined;
+    setState({ status: 'opening' });
+    const open = async (): Promise<void> => {
+      try {
+        const store = await openBrowserStore(browserStoreName(appName, locale), orbitals, undefined, locale);
+        if (store === null) return;
+        opened = store;
+        if (!cancelled) setState({ status: 'ready', store });
+      } catch (err: unknown) {
+        if (!cancelled) setState({ status: 'failed', error: err instanceof Error ? err : new Error(String(err)) });
+      }
+    };
+    void open();
+    return () => {
+      cancelled = true;
+      opened?.close();
+    };
+  }, [appName, locale, entities, orbitals]);
+
+  return state;
+}

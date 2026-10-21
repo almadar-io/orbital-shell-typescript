@@ -1,0 +1,105 @@
+/**
+ * _foundation.css — the base rules that CONSUME theme tokens: element reset,
+ * border style + corner shape, currentColor anchor, heading voice. Imported by
+ * `index.css` (all presets) and by compiled apps (orbital-shell-typescript's
+ * generated index.css), which load only the presets they reference.
+ */
+
+/**
+ * Minimal element reset for @almadar/ui components.
+ *
+ * Host apps that skip @tailwind base (e.g. Docusaurus, apps/builder) keep
+ * browser-default borders/backgrounds on raw HTML elements. This scoped
+ * reset normalizes them inside themed containers and the portal root.
+ */
+:where([data-theme]) button,
+:where(#ui-slot-portal-root) button {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+:where([data-theme]) *,
+:where([data-theme]) *::before,
+:where([data-theme]) *::after,
+:where(#ui-slot-portal-root) *,
+:where(#ui-slot-portal-root) *::before,
+:where(#ui-slot-portal-root) *::after {
+    box-sizing: border-box;
+    border-width: 0;
+    border-style: var(--border-style, solid);
+    border-color: var(--color-border, #e5e7eb);
+    corner-shape: var(--corner-shape, round);
+}
+
+/* Pills and circles (avatars, badges, toggles) take their own corner shape so a
+ * bevel/notch theme can keep them round. */
+:where([data-theme]) .rounded-full,
+:where([data-theme]) .rounded-pill,
+:where(#ui-slot-portal-root) .rounded-full,
+:where(#ui-slot-portal-root) .rounded-pill {
+    corner-shape: var(--corner-shape-pill, round);
+}
+
+/**
+ * currentColor anchor. A nested [data-theme] container re-scopes every
+ * var-based color utility, but the raw `color` property inherits straight
+ * through from the outer theme — `text-current` icons painted the outer
+ * theme's foreground on the inner theme's surface (white-on-white when a
+ * behavior pins a light theme inside a dark shell). Re-anchor `color` to
+ * the innermost theme's foreground so currentColor always matches. The body
+ * font is anchored the same way, so text that sets no family of its own reads
+ * the innermost theme's `--font-family` instead of the host page's.
+ */
+[data-theme] {
+    color: var(--color-foreground, inherit);
+    font-family: var(--font-family, inherit);
+}
+
+/* A card surface re-scopes the page foreground to its own, so a theme can pair
+ * light cards with a dark page (Win95 silver on teal, parchment panels): every
+ * `text-foreground` inside the card resolves to `--color-card-foreground`. */
+:where([data-theme]) .bg-card,
+:where(#ui-slot-portal-root) .bg-card {
+    --color-foreground: var(--color-card-foreground);
+    color: var(--color-card-foreground);
+}
+
+/**
+ * Heading voice. Host apps (Docusaurus, builder) often set their own heading
+ * font-family; headings inside themed containers use the theme's display
+ * family and heading-voice tokens instead (same as the `.heading-voice` utility).
+ */
+[data-theme] h1,
+[data-theme] h2,
+[data-theme] h3,
+[data-theme] h4,
+[data-theme] h5,
+[data-theme] h6,
+#ui-slot-portal-root h1,
+#ui-slot-portal-root h2,
+#ui-slot-portal-root h3,
+#ui-slot-portal-root h4,
+#ui-slot-portal-root h5,
+#ui-slot-portal-root h6 {
+    font-family: var(--font-family-display, var(--font-family, inherit));
+    font-weight: var(--heading-weight, var(--font-weight-bold, 700));
+    text-transform: var(--heading-transform, none);
+    letter-spacing: var(--heading-tracking, var(--letter-spacing, normal));
+    font-style: var(--heading-style, normal);
+    text-shadow: var(--heading-shadow, none);
+}
+
+/* Presentation motion: a subtree whose changes are there to be watched (a live demo,
+ * `Box animateChanges`) plays them over the theme's dramatic duration with its standard
+ * ease-in-out instead of the snappy emphasized timing. Lives here because every app
+ * (runtime and compiled) loads the foundation; doubled attribute so it wins over a
+ * `[data-theme]` block on the same element. */
+[data-motion="presentation"][data-motion] {
+    --duration-normal: var(--duration-dramatic, 600ms);
+    --duration-slow: var(--duration-dramatic, 600ms);
+    --easing-emphasized: var(--easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
+}

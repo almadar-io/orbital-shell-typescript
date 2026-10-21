@@ -6,7 +6,8 @@
  */
 import { LIFECYCLE_EVENTS, normalizeEventKey } from '@almadar/core';
 import type { EventId } from '@almadar/core';
-import type { RollbackCause, TraitDefinition, TraitState, TransitionObserver } from './trait-types.js';
+import type { TraitDefinition } from '@almadar/core';
+import type { RollbackCause, TraitState, TransitionObserver } from './trait-types.js';
 
 
 /** The state a trait starts in: the one marked initial, else the first declared. */

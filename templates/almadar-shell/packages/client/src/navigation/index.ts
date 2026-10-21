@@ -46,10 +46,10 @@ export {
   findPageByName,
   getDefaultPage,
   getAllPages,
-} from '@almadar/ui/renderer';
+} from '@almadar/shell-web/renderer';
 
 export type {
   NavigationState,
   NavigationContextValue,
   NavigationProviderProps,
-} from '@almadar/ui/renderer';
+} from '@almadar/shell-web/renderer';

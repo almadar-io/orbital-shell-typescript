@@ -138,10 +138,11 @@ function withProjectFile<T>(cwd: string, name: string, content: string, use: (pa
   return use(path).finally(() => rmSync(path, { force: true }));
 }
 
-/** `behavior/catalog`: installed behaviors under registry folders. */
-export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions): Promise<CatalogEntry[]> {
+/** `behavior/catalog`: installed behaviors under registry folders; `vectors: false` omits the vectors (`--no-vectors`). */
+export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions, options: { readonly vectors?: boolean } = {}): Promise<CatalogEntry[]> {
   const exposure = (scope.exposure ?? []).flatMap((e) => ['--exposure', e]);
-  const run = await runOrb(['behaviors', 'catalog', '--json', ...scope.paths, ...exposure], opts);
+  const noVectors = options.vectors === false ? ['--no-vectors'] : [];
+  const run = await runOrb(['behaviors', 'catalog', '--json', ...noVectors, ...scope.paths, ...exposure], opts);
   return parseJson(CatalogEntrySchema.array(), run, 'behavior/catalog');
 }
 
@@ -151,16 +152,31 @@ export function behaviorCatalogSync(scope: CatalogScope, opts: ProgramHostOption
   return parseJson(CatalogEntrySchema.array(), runOrbSync(['behaviors', 'catalog', '--json', ...scope.paths, ...exposure], opts), 'behavior/catalog');
 }
 
-/** `behavior/describe`: a trait value's knobs and events; an orbital value's or a whole behavior's orbitals. */
-export async function behaviorDescribe(value: TraitValue, opts: ProgramHostOptions): Promise<TraitDescription>;
-export async function behaviorDescribe(value: DescribeTarget, opts: ProgramHostOptions): Promise<TraitDescription | BehaviorDescription>;
-export async function behaviorDescribe(value: DescribeTarget, opts: ProgramHostOptions): Promise<TraitDescription | BehaviorDescription> {
+/** `behavior/describe`: a trait value's knobs and events; an orbital value's or a whole behavior's orbitals.
+ * `knobVectors: true` attaches a trait's knob vectors (`--knob-vectors`). */
+export async function behaviorDescribe(value: TraitValue, opts: ProgramHostOptions, options?: { readonly knobVectors?: boolean }): Promise<TraitDescription>;
+export async function behaviorDescribe(value: DescribeTarget, opts: ProgramHostOptions, options?: { readonly knobVectors?: boolean }): Promise<TraitDescription | BehaviorDescription>;
+export async function behaviorDescribe(value: DescribeTarget, opts: ProgramHostOptions, options: { readonly knobVectors?: boolean } = {}): Promise<TraitDescription | BehaviorDescription> {
+  const knobVectors = options.knobVectors === true ? ['--knob-vectors'] : [];
   if ('trait' in value) {
-    const run = await runOrb(['behaviors', 'describe', '--json', formatTraitValueLiteral(value)], opts);
+    const run = await runOrb(['behaviors', 'describe', '--json', ...knobVectors, formatTraitValueLiteral(value)], opts);
     return parseJson(TraitDescriptionSchema, run, 'behavior/describe');
   }
   const spec = 'orbital' in value ? `${value.behavior}.orbitals.${value.orbital}` : value.behavior;
-  return parseJson(BehaviorDescriptionSchema, await runOrb(['behaviors', 'describe', '--json', spec], opts), 'behavior/describe');
+  return parseJson(BehaviorDescriptionSchema, await runOrb(['behaviors', 'describe', '--json', ...knobVectors, spec], opts), 'behavior/describe');
+}
+
+/** The one boolean option an op takes, from its options argument; any other key, or a non-boolean, is refused. */
+function booleanOption(op: string, raw: JsonValue | undefined, key: string): { readonly value?: boolean } | string {
+  const options = raw ?? {};
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) return `${op}: options must be an object`;
+  let value: boolean | undefined;
+  for (const [k, v] of Object.entries(options)) {
+    if (k !== key) return `${op}: unsupported option "${k}"`;
+    if (typeof v !== 'boolean') return `${op}: ${key} must be a boolean`;
+    value = v;
+  }
+  return value === undefined ? {} : { value };
 }
 
 /** `behavior/source`: the behavior a value belongs to, as a program (`.orb` IR). */
@@ -566,10 +582,14 @@ const StepRequestSchema: z.ZodType<StepRequest> = z.object({
   from: z.string(),
   event: z.string(),
   payload: EventPayloadSchema,
+  entity: EventPayloadSchema.optional(),
+  now: z.number().optional(),
 });
 
 const StepOutcomeSchema = z.object({
+  orbital: z.string(),
   trait: z.string(),
+  event: z.string(),
   executed: z.boolean(),
   previousState: z.string(),
   newState: z.string(),
@@ -590,15 +610,20 @@ const StepReportSchema = z.union([
  * effect of the fired arm and the events it emitted. Each request comes back played: as asked, with its `result`.
  */
 
+function emittedOf(emits: z.infer<typeof StepOutcomeSchema>['emits'], step: number): PlayedStep['result']['emitted'] {
+  return emits.map((e) => ({ type: e.event, ...(e.payload !== null ? { payload: e.payload } : {}), timestamp: step }));
+}
+
 export async function programStep(program: OrbitalSchema, requests: readonly StepRequest[], opts: ProgramHostOptions): Promise<PlayedStep[] | { error: string }> {
-  const steps = requests.map((r) => ({ trait: r.trait, event: r.event, payload: r.payload, from: r.from }));
+  const steps = requests.map((r) => ({ trait: r.trait, event: r.event, payload: r.payload, from: r.from, ...(r.entity !== undefined ? { entity: r.entity } : {}), ...(r.now !== undefined ? { now: r.now } : {}) }));
   return withTempFile('program.orb', JSON.stringify(program), async (path) => {
     const run = await runOrb(['execute', path, '--steps', JSON.stringify(steps)], opts);
     const report = parseJson(StepReportSchema, run, 'program/step');
     if (!report.success) return { error: report.error };
     const results: PlayedStep[] = [];
     for (const [i, request] of requests.entries()) {
-      const outcome = report.steps[i]?.outcomes.find((o) => o.trait === request.trait);
+      const moved = report.steps[i]?.outcomes ?? [];
+      const outcome = moved.find((o) => o.trait === request.trait);
       if (outcome === undefined) return { error: `trait "${request.trait}" did not run` };
       const firedGuarded = outcome.firedArm !== null && outcome.guards.some((g) => g.arm === outcome.firedArm);
       results.push({ ...request, result: {
@@ -609,8 +634,9 @@ export async function programStep(program: OrbitalSchema, requests: readonly Ste
         ...(outcome.firedArm !== null ? { firedArm: outcome.firedArm } : {}),
         state: { before: outcome.previousState, after: outcome.newState },
         effects: outcome.effects.map((e) => ({ type: e.type, args: e.args, status: e.status, ...(e.error !== undefined ? { error: e.error } : {}) })),
-        emitted: outcome.emits.map((e) => ({ type: e.event, ...(e.payload !== null ? { payload: e.payload } : {}), timestamp: i })),
+        emitted: emittedOf(outcome.emits, i),
         guards: outcome.guards.map((g) => ({ arm: g.arm, guard: g.guard, passed: g.passed, trace: [], ...(g.error !== undefined ? { error: g.error } : {}) })),
+        outcomes: moved.map((o) => ({ orbital: o.orbital, trait: o.trait, event: o.event, from: o.previousState, to: o.newState, arm: o.firedArm, fired: o.executed, emitted: emittedOf(o.emits, i) })),
       } });
     }
     return results;
@@ -644,14 +670,19 @@ export async function runProgramEffect(op: ProgramEffectName, args: readonly Eff
     switch (op) {
       case 'behavior/catalog': {
         const scope = CatalogScopeSchema.safeParse(args[0]);
-        return scope.success ? { ok: true, result: await behaviorCatalog(scope.data, opts) } : fail(`behavior/catalog: ${issuesOf(scope.error)}`);
+        if (!scope.success) return fail(`behavior/catalog: ${issuesOf(scope.error)}`);
+        const vectors = booleanOption(op, args[1], 'vectors');
+        if (typeof vectors === 'string') return fail(vectors);
+        return { ok: true, result: await behaviorCatalog(scope.data, opts, vectors.value === undefined ? {} : { vectors: vectors.value }) };
       }
       case 'behavior/describe': {
         const value = DescribeTargetSchema.safeParse(args[0]);
         if (!value.success) return fail(`${op}: ${issuesOf(value.error)}`);
+        const knobVectors = booleanOption(op, args[1], 'knobVectors');
+        if (typeof knobVectors === 'string') return fail(knobVectors);
         const denied = workspaceAccessError(value.data.behavior, opts, context);
         if (denied !== undefined) return fail(`${op}: ${denied}`);
-        return { ok: true, result: await behaviorDescribe(value.data, opts) };
+        return { ok: true, result: await behaviorDescribe(value.data, opts, knobVectors.value === undefined ? {} : { knobVectors: knobVectors.value }) };
       }
       case 'behavior/source': {
         const value = DescribeTargetSchema.safeParse(args[0]);

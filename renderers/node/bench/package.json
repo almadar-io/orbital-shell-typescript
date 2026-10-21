@@ -1,0 +1,29 @@
+{
+  "name": "@almadar-io/kernel-bench-tool",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Benchmark rows of the embedded kernel on the TS shell hosts: wasm in Node and Chromium, the native add-on, the runtime host, orb host over a socket",
+  "type": "module",
+  "scripts": {
+    "bench": "tsx src/cli.ts",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@almadar/core": "^10.128.0",
+    "@almadar/db": "^0.1.5",
+    "@almadar/runtime": "^6.112.0",
+    "@almadar/shell-node": "^0.1.0",
+    "@almadar/shell-web": "^0.1.0",
+    "execa": "^8.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "vitest": "^1.2.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

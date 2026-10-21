@@ -1,0 +1,22 @@
+/**
+ * The shared theme layer every theme stylesheet starts with: the shared web fonts and the base.
+ * A compiled client imports it, then only the presets its program declares, then `_foundation.css`;
+ * `index.css` imports it, then every preset.
+ *
+ * IMPORTANT: @import must precede all other statements (Vite requirement).
+ */
+
+/* Layer 1 skin axes — font families consumed by prism / gazette / terminal / atelier / kiosk,
+ * plus VT323 for retro's pixel display type.
+ * Combined into a single Google Fonts request for fewer round-trips. font-display: swap
+ * means body text renders immediately with the fallback chain while the web fonts load. */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;700;900&family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700;800&family=VT323&display=swap");
+
+/* Kenney game font faces — consumed by the game themes and GameShell's fontFamily knob. */
+@import "./_fonts-kenney.css";
+
+/* Shared base layer — atelier's typography + density at :root, inherited
+ * by every theme that doesn't override. MUST come before per-theme
+ * imports so [data-theme="..."] selectors win the cascade on the few
+ * personality themes that intentionally opt out. */
+@import "./_base.css";

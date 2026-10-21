@@ -31,7 +31,7 @@ const WORKSPACE_PACKAGES = {
   '@almadar/logger': 'packages/almadar-logger',
   '@almadar/runtime': 'packages/almadar-runtime',
   '@almadar/syntax': 'packages/almadar-syntax',
-  '@almadar/ui': 'packages/almadar-ui',
+  '@almadar/shell-web': 'orbital-rust/crates/orbital-shell-typescript/renderers/web',
 };
 
 const run = (cmd, argv, cwd, env = {}) => execFileSync(cmd, argv, { cwd, stdio: 'inherit', env: { ...process.env, ...env } });

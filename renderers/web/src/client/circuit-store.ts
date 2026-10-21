@@ -14,7 +14,8 @@
 import { AwaitingRegistry } from './awaiting.js';
 import { StateBook } from './state-book.js';
 import type { EntityRow, EventPayload } from '@almadar/core';
-import type { RollbackCause, TraitDefinition, TransitionObserver } from './trait-types.js';
+import type { TraitDefinition } from '@almadar/core';
+import type { RollbackCause, TransitionObserver } from './trait-types.js';
 
 /**
  * A trait instance's state + entity frame at a point in time — the twin of

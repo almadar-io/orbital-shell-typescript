@@ -36,3 +36,4 @@ export * from './client/client-kernel.js';
 export * from './client/local-fold.js';
 export * from './client/EventTransport.js';
 export * from './client/channel-transport.js';
+export * from './runtime/index.js';

@@ -1,0 +1,1182 @@
+{
+ "fallback": {
+  "sfSymbol": "questionmark.circle",
+  "materialSymbol": "help"
+ },
+ "map": {
+  "home": {
+   "sfSymbol": "house",
+   "materialSymbol": "home"
+  },
+  "menu": {
+   "sfSymbol": "line.3.horizontal",
+   "materialSymbol": "menu"
+  },
+  "more-horizontal": {
+   "sfSymbol": "ellipsis",
+   "materialSymbol": "more_horiz"
+  },
+  "more-vertical": {
+   "sfSymbol": "ellipsis",
+   "materialSymbol": "more_vert"
+  },
+  "chevron-right": {
+   "sfSymbol": "chevron.right",
+   "materialSymbol": "chevron_right"
+  },
+  "chevron-left": {
+   "sfSymbol": "chevron.left",
+   "materialSymbol": "chevron_left"
+  },
+  "chevron-up": {
+   "sfSymbol": "chevron.up",
+   "materialSymbol": "keyboard_arrow_up"
+  },
+  "chevron-down": {
+   "sfSymbol": "chevron.down",
+   "materialSymbol": "keyboard_arrow_down"
+  },
+  "chevrons-left": {
+   "sfSymbol": "chevron.left.2",
+   "materialSymbol": "keyboard_double_arrow_left"
+  },
+  "chevrons-right": {
+   "sfSymbol": "chevron.right.2",
+   "materialSymbol": "keyboard_double_arrow_right"
+  },
+  "chevrons-up-down": {
+   "sfSymbol": "chevron.up.chevron.down",
+   "materialSymbol": "unfold_more"
+  },
+  "arrow-left": {
+   "sfSymbol": "arrow.left",
+   "materialSymbol": "arrow_back"
+  },
+  "arrow-right": {
+   "sfSymbol": "arrow.right",
+   "materialSymbol": "arrow_forward"
+  },
+  "arrow-up": {
+   "sfSymbol": "arrow.up",
+   "materialSymbol": "arrow_upward"
+  },
+  "arrow-down": {
+   "sfSymbol": "arrow.down",
+   "materialSymbol": "arrow_downward"
+  },
+  "arrow-up-right": {
+   "sfSymbol": "arrow.up.right",
+   "materialSymbol": "north_east"
+  },
+  "arrow-down-left": {
+   "sfSymbol": "arrow.down.left",
+   "materialSymbol": "south_west"
+  },
+  "corner-up-left": {
+   "sfSymbol": "arrow.turn.up.left",
+   "materialSymbol": "subdirectory_arrow_left"
+  },
+  "corner-down-right": {
+   "sfSymbol": "arrow.turn.down.right",
+   "materialSymbol": "subdirectory_arrow_right"
+  },
+  "external-link": {
+   "sfSymbol": "arrow.up.forward.square",
+   "materialSymbol": "open_in_new"
+  },
+  "log-out": {
+   "sfSymbol": "rectangle.portrait.and.arrow.right",
+   "materialSymbol": "logout"
+  },
+  "log-in": {
+   "sfSymbol": "arrow.right.square",
+   "materialSymbol": "login"
+  },
+  "panel-left": {
+   "sfSymbol": "sidebar.left",
+   "materialSymbol": "first_page"
+  },
+  "panel-right": {
+   "sfSymbol": "sidebar.right",
+   "materialSymbol": "last_page"
+  },
+  "sidebar": {
+   "sfSymbol": "sidebar.left",
+   "materialSymbol": "view_sidebar"
+  },
+  "layout-grid": {
+   "sfSymbol": "square.grid.2x2",
+   "materialSymbol": "grid_view"
+  },
+  "layout-list": {
+   "sfSymbol": "list.bullet",
+   "materialSymbol": "view_list"
+  },
+  "grid": {
+   "sfSymbol": "square.grid.2x2",
+   "materialSymbol": "grid_view"
+  },
+  "list": {
+   "sfSymbol": "list.bullet",
+   "materialSymbol": "list"
+  },
+  "plus": {
+   "sfSymbol": "plus",
+   "materialSymbol": "add"
+  },
+  "plus-circle": {
+   "sfSymbol": "plus.circle",
+   "materialSymbol": "add_circle"
+  },
+  "minus": {
+   "sfSymbol": "minus",
+   "materialSymbol": "remove"
+  },
+  "minus-circle": {
+   "sfSymbol": "minus.circle",
+   "materialSymbol": "remove_circle"
+  },
+  "x": {
+   "sfSymbol": "xmark",
+   "materialSymbol": "close"
+  },
+  "close": {
+   "sfSymbol": "xmark",
+   "materialSymbol": "close"
+  },
+  "check": {
+   "sfSymbol": "checkmark",
+   "materialSymbol": "check"
+  },
+  "check-circle": {
+   "sfSymbol": "checkmark.circle",
+   "materialSymbol": "check_circle"
+  },
+  "circle-check": {
+   "sfSymbol": "checkmark.circle",
+   "materialSymbol": "check_circle"
+  },
+  "check-square": {
+   "sfSymbol": "checkmark.square",
+   "materialSymbol": "check_box"
+  },
+  "x-circle": {
+   "sfSymbol": "xmark.circle",
+   "materialSymbol": "cancel"
+  },
+  "trash": {
+   "sfSymbol": "trash",
+   "materialSymbol": "delete"
+  },
+  "trash-2": {
+   "sfSymbol": "trash",
+   "materialSymbol": "delete"
+  },
+  "edit": {
+   "sfSymbol": "pencil",
+   "materialSymbol": "edit"
+  },
+  "edit-2": {
+   "sfSymbol": "pencil",
+   "materialSymbol": "edit"
+  },
+  "edit-3": {
+   "sfSymbol": "pencil",
+   "materialSymbol": "edit"
+  },
+  "pencil": {
+   "sfSymbol": "pencil",
+   "materialSymbol": "edit"
+  },
+  "copy": {
+   "sfSymbol": "doc.on.doc",
+   "materialSymbol": "content_copy"
+  },
+  "clipboard": {
+   "sfSymbol": "clipboard",
+   "materialSymbol": "content_paste"
+  },
+  "save": {
+   "sfSymbol": "square.and.arrow.down",
+   "materialSymbol": "save"
+  },
+  "download": {
+   "sfSymbol": "arrow.down.circle",
+   "materialSymbol": "download"
+  },
+  "upload": {
+   "sfSymbol": "arrow.up.circle",
+   "materialSymbol": "upload"
+  },
+  "share": {
+   "sfSymbol": "square.and.arrow.up",
+   "materialSymbol": "share"
+  },
+  "share-2": {
+   "sfSymbol": "square.and.arrow.up",
+   "materialSymbol": "share"
+  },
+  "refresh-cw": {
+   "sfSymbol": "arrow.clockwise",
+   "materialSymbol": "refresh"
+  },
+  "refresh": {
+   "sfSymbol": "arrow.clockwise",
+   "materialSymbol": "refresh"
+  },
+  "rotate-cw": {
+   "sfSymbol": "arrow.clockwise",
+   "materialSymbol": "rotate_right"
+  },
+  "rotate-ccw": {
+   "sfSymbol": "arrow.counterclockwise",
+   "materialSymbol": "rotate_left"
+  },
+  "undo": {
+   "sfSymbol": "arrow.uturn.backward",
+   "materialSymbol": "undo"
+  },
+  "redo": {
+   "sfSymbol": "arrow.uturn.forward",
+   "materialSymbol": "redo"
+  },
+  "filter": {
+   "sfSymbol": "line.3.horizontal.decrease.circle",
+   "materialSymbol": "filter_list"
+  },
+  "sliders": {
+   "sfSymbol": "slider.horizontal.3",
+   "materialSymbol": "tune"
+  },
+  "search": {
+   "sfSymbol": "magnifyingglass",
+   "materialSymbol": "search"
+  },
+  "zoom-in": {
+   "sfSymbol": "plus.magnifyingglass",
+   "materialSymbol": "zoom_in"
+  },
+  "zoom-out": {
+   "sfSymbol": "minus.magnifyingglass",
+   "materialSymbol": "zoom_out"
+  },
+  "settings": {
+   "sfSymbol": "gearshape",
+   "materialSymbol": "settings"
+  },
+  "lock": {
+   "sfSymbol": "lock",
+   "materialSymbol": "lock"
+  },
+  "unlock": {
+   "sfSymbol": "lock.open",
+   "materialSymbol": "lock_open"
+  },
+  "eye": {
+   "sfSymbol": "eye",
+   "materialSymbol": "visibility"
+  },
+  "eye-off": {
+   "sfSymbol": "eye.slash",
+   "materialSymbol": "visibility_off"
+  },
+  "link": {
+   "sfSymbol": "link",
+   "materialSymbol": "link"
+  },
+  "link-2": {
+   "sfSymbol": "link",
+   "materialSymbol": "link"
+  },
+  "send": {
+   "sfSymbol": "paperplane",
+   "materialSymbol": "send"
+  },
+  "power": {
+   "sfSymbol": "power",
+   "materialSymbol": "power_settings_new"
+  },
+  "scissors": {
+   "sfSymbol": "scissors",
+   "materialSymbol": "content_cut"
+  },
+  "eraser": {
+   "sfSymbol": "eraser",
+   "materialSymbol": "backspace"
+  },
+  "stop": {
+   "sfSymbol": "stop.fill",
+   "materialSymbol": "stop"
+  },
+  "sort-asc": {
+   "sfSymbol": "arrow.up",
+   "materialSymbol": "arrow_upward"
+  },
+  "sort-desc": {
+   "sfSymbol": "arrow.down",
+   "materialSymbol": "arrow_downward"
+  },
+  "file": {
+   "sfSymbol": "doc",
+   "materialSymbol": "description"
+  },
+  "file-text": {
+   "sfSymbol": "doc.text",
+   "materialSymbol": "description"
+  },
+  "file-plus": {
+   "sfSymbol": "doc.badge.plus",
+   "materialSymbol": "note_add"
+  },
+  "file-minus": {
+   "sfSymbol": "doc.badge.minus",
+   "materialSymbol": "note"
+  },
+  "file-code": {
+   "sfSymbol": "chevron.left.forwardslash.chevron.right",
+   "materialSymbol": "code"
+  },
+  "file-json": {
+   "sfSymbol": "curlybraces",
+   "materialSymbol": "data_object"
+  },
+  "file-warning": {
+   "sfSymbol": "exclamationmark.triangle",
+   "materialSymbol": "warning"
+  },
+  "folder": {
+   "sfSymbol": "folder",
+   "materialSymbol": "folder"
+  },
+  "folder-open": {
+   "sfSymbol": "folder",
+   "materialSymbol": "folder_open"
+  },
+  "paperclip": {
+   "sfSymbol": "paperclip",
+   "materialSymbol": "attach_file"
+  },
+  "terminal": {
+   "sfSymbol": "terminal",
+   "materialSymbol": "terminal"
+  },
+  "code": {
+   "sfSymbol": "chevron.left.forwardslash.chevron.right",
+   "materialSymbol": "code"
+  },
+  "cpu": {
+   "sfSymbol": "cpu",
+   "materialSymbol": "memory"
+  },
+  "gauge": {
+   "sfSymbol": "gauge.with.dots.needle.33percent",
+   "materialSymbol": "speed"
+  },
+  "github": {
+   "sfSymbol": "chevron.left.forwardslash.chevron.right",
+   "materialSymbol": "code"
+  },
+  "graduation-cap": {
+   "sfSymbol": "graduationcap",
+   "materialSymbol": "school"
+  },
+  "hammer": {
+   "sfSymbol": "hammer",
+   "materialSymbol": "hardware"
+  },
+  "key": {
+   "sfSymbol": "key",
+   "materialSymbol": "key"
+  },
+  "layout": {
+   "sfSymbol": "rectangle.3.group",
+   "materialSymbol": "view_quilt"
+  },
+  "monitor": {
+   "sfSymbol": "display",
+   "materialSymbol": "monitor"
+  },
+  "pen-tool": {
+   "sfSymbol": "pencil.tip",
+   "materialSymbol": "draw"
+  },
+  "rocket": {
+   "sfSymbol": "airplane.departure",
+   "materialSymbol": "rocket_launch"
+  },
+  "sliders-horizontal": {
+   "sfSymbol": "slider.horizontal.3",
+   "materialSymbol": "tune"
+  },
+  "smartphone": {
+   "sfSymbol": "iphone",
+   "materialSymbol": "smartphone"
+  },
+  "trophy": {
+   "sfSymbol": "trophy",
+   "materialSymbol": "emoji_events"
+  },
+  "upload-cloud": {
+   "sfSymbol": "icloud.and.arrow.up",
+   "materialSymbol": "cloud_upload"
+  },
+  "wrench": {
+   "sfSymbol": "wrench.adjustable",
+   "materialSymbol": "build"
+  },
+  "git-branch": {
+   "sfSymbol": "arrow.triangle.branch",
+   "materialSymbol": "call_split"
+  },
+  "pause-circle": {
+   "sfSymbol": "pause.circle",
+   "materialSymbol": "pause_circle"
+  },
+  "heading-1": {
+   "sfSymbol": "textformat.size.larger",
+   "materialSymbol": "looks_one"
+  },
+  "heading-2": {
+   "sfSymbol": "textformat.size",
+   "materialSymbol": "looks_two"
+  },
+  "heading-3": {
+   "sfSymbol": "textformat.size.smaller",
+   "materialSymbol": "looks_3"
+  },
+  "list-ordered": {
+   "sfSymbol": "list.number",
+   "materialSymbol": "format_list_numbered"
+  },
+  "quote": {
+   "sfSymbol": "text.quote",
+   "materialSymbol": "format_quote"
+  },
+  "strikethrough": {
+   "sfSymbol": "strikethrough",
+   "materialSymbol": "format_strikethrough"
+  },
+  "image": {
+   "sfSymbol": "photo",
+   "materialSymbol": "image"
+  },
+  "archive": {
+   "sfSymbol": "archivebox",
+   "materialSymbol": "archive"
+  },
+  "printer": {
+   "sfSymbol": "printer",
+   "materialSymbol": "print"
+  },
+  "book": {
+   "sfSymbol": "book",
+   "materialSymbol": "menu_book"
+  },
+  "bookmark": {
+   "sfSymbol": "bookmark",
+   "materialSymbol": "bookmark"
+  },
+  "mail": {
+   "sfSymbol": "envelope",
+   "materialSymbol": "mail"
+  },
+  "inbox": {
+   "sfSymbol": "tray",
+   "materialSymbol": "inbox"
+  },
+  "message-circle": {
+   "sfSymbol": "bubble.left",
+   "materialSymbol": "chat_bubble"
+  },
+  "message-square": {
+   "sfSymbol": "bubble.left",
+   "materialSymbol": "forum"
+  },
+  "phone": {
+   "sfSymbol": "phone",
+   "materialSymbol": "call"
+  },
+  "bell": {
+   "sfSymbol": "bell",
+   "materialSymbol": "notifications"
+  },
+  "bell-off": {
+   "sfSymbol": "bell.slash",
+   "materialSymbol": "notifications_off"
+  },
+  "user": {
+   "sfSymbol": "person",
+   "materialSymbol": "person"
+  },
+  "users": {
+   "sfSymbol": "person.2",
+   "materialSymbol": "group"
+  },
+  "user-plus": {
+   "sfSymbol": "person.badge.plus",
+   "materialSymbol": "person_add"
+  },
+  "user-circle": {
+   "sfSymbol": "person.crop.circle",
+   "materialSymbol": "account_circle"
+  },
+  "info": {
+   "sfSymbol": "info.circle",
+   "materialSymbol": "info"
+  },
+  "alert-circle": {
+   "sfSymbol": "exclamationmark.circle",
+   "materialSymbol": "error"
+  },
+  "alert-triangle": {
+   "sfSymbol": "exclamationmark.triangle",
+   "materialSymbol": "warning"
+  },
+  "help-circle": {
+   "sfSymbol": "questionmark.circle",
+   "materialSymbol": "help"
+  },
+  "star": {
+   "sfSymbol": "star",
+   "materialSymbol": "star"
+  },
+  "star-half": {
+   "sfSymbol": "star.leadinghalf.filled",
+   "materialSymbol": "star_half"
+  },
+  "heart": {
+   "sfSymbol": "heart",
+   "materialSymbol": "favorite"
+  },
+  "flag": {
+   "sfSymbol": "flag",
+   "materialSymbol": "flag"
+  },
+  "tag": {
+   "sfSymbol": "tag",
+   "materialSymbol": "label"
+  },
+  "clock": {
+   "sfSymbol": "clock",
+   "materialSymbol": "schedule"
+  },
+  "calendar": {
+   "sfSymbol": "calendar",
+   "materialSymbol": "calendar_month"
+  },
+  "loader": {
+   "sfSymbol": "arrow.triangle.2.circlepath",
+   "materialSymbol": "autorenew"
+  },
+  "loader-2": {
+   "sfSymbol": "arrow.triangle.2.circlepath",
+   "materialSymbol": "autorenew"
+  },
+  "activity": {
+   "sfSymbol": "waveform.path.ecg",
+   "materialSymbol": "monitor_heart"
+  },
+  "smile": {
+   "sfSymbol": "face.smiling",
+   "materialSymbol": "sentiment_satisfied"
+  },
+  "play": {
+   "sfSymbol": "play.fill",
+   "materialSymbol": "play_arrow"
+  },
+  "pause": {
+   "sfSymbol": "pause.fill",
+   "materialSymbol": "pause"
+  },
+  "skip-forward": {
+   "sfSymbol": "forward.fill",
+   "materialSymbol": "skip_next"
+  },
+  "skip-back": {
+   "sfSymbol": "backward.fill",
+   "materialSymbol": "skip_previous"
+  },
+  "volume-2": {
+   "sfSymbol": "speaker.wave.2",
+   "materialSymbol": "volume_up"
+  },
+  "volume": {
+   "sfSymbol": "speaker.wave.2",
+   "materialSymbol": "volume_up"
+  },
+  "volume-x": {
+   "sfSymbol": "speaker.slash",
+   "materialSymbol": "volume_off"
+  },
+  "volume-off": {
+   "sfSymbol": "speaker.slash",
+   "materialSymbol": "volume_off"
+  },
+  "camera": {
+   "sfSymbol": "camera",
+   "materialSymbol": "photo_camera"
+  },
+  "mic": {
+   "sfSymbol": "mic",
+   "materialSymbol": "mic"
+  },
+  "video": {
+   "sfSymbol": "video",
+   "materialSymbol": "videocam"
+  },
+  "type": {
+   "sfSymbol": "textformat",
+   "materialSymbol": "text_fields"
+  },
+  "bold": {
+   "sfSymbol": "bold",
+   "materialSymbol": "format_bold"
+  },
+  "italic": {
+   "sfSymbol": "italic",
+   "materialSymbol": "format_italic"
+  },
+  "underline": {
+   "sfSymbol": "underline",
+   "materialSymbol": "format_underlined"
+  },
+  "align-left": {
+   "sfSymbol": "text.alignleft",
+   "materialSymbol": "format_align_left"
+  },
+  "wrap-text": {
+   "sfSymbol": "text.append",
+   "materialSymbol": "wrap_text"
+  },
+  "columns": {
+   "sfSymbol": "rectangle.split.2x1",
+   "materialSymbol": "view_column"
+  },
+  "git-commit": {
+   "sfSymbol": "circle.and.line.horizontal",
+   "materialSymbol": "commit"
+  },
+  "diamond": {
+   "sfSymbol": "diamond",
+   "materialSymbol": "diamond"
+  },
+  "align-center": {
+   "sfSymbol": "text.aligncenter",
+   "materialSymbol": "format_align_center"
+  },
+  "align-right": {
+   "sfSymbol": "text.alignright",
+   "materialSymbol": "format_align_right"
+  },
+  "indent": {
+   "sfSymbol": "increase.indent",
+   "materialSymbol": "format_indent_increase"
+  },
+  "shopping-cart": {
+   "sfSymbol": "cart",
+   "materialSymbol": "shopping_cart"
+  },
+  "credit-card": {
+   "sfSymbol": "creditcard",
+   "materialSymbol": "credit_card"
+  },
+  "map-pin": {
+   "sfSymbol": "mappin",
+   "materialSymbol": "location_on"
+  },
+  "globe": {
+   "sfSymbol": "globe",
+   "materialSymbol": "public"
+  },
+  "wifi": {
+   "sfSymbol": "wifi",
+   "materialSymbol": "wifi"
+  },
+  "battery": {
+   "sfSymbol": "battery.100",
+   "materialSymbol": "battery_full"
+  },
+  "moon": {
+   "sfSymbol": "moon",
+   "materialSymbol": "dark_mode"
+  },
+  "sun": {
+   "sfSymbol": "sun.max",
+   "materialSymbol": "light_mode"
+  },
+  "square": {
+   "sfSymbol": "square",
+   "materialSymbol": "crop_square"
+  },
+  "circle": {
+   "sfSymbol": "circle",
+   "materialSymbol": "circle"
+  },
+  "book-open": {
+   "sfSymbol": "book",
+   "materialSymbol": "menu_book"
+  },
+  "calendar-clock": {
+   "sfSymbol": "calendar.badge.clock",
+   "materialSymbol": "event_note"
+  },
+  "circle-dot": {
+   "sfSymbol": "circle.inset.filled",
+   "materialSymbol": "radio_button_checked"
+  },
+  "dollar-sign": {
+   "sfSymbol": "dollarsign",
+   "materialSymbol": "attach_money"
+  },
+  "history": {
+   "sfSymbol": "clock.arrow.circlepath",
+   "materialSymbol": "history"
+  },
+  "image-plus": {
+   "sfSymbol": "photo.badge.plus",
+   "materialSymbol": "add_photo_alternate"
+  },
+  "layers": {
+   "sfSymbol": "square.3.layers.3d",
+   "materialSymbol": "layers"
+  },
+  "layout-dashboard": {
+   "sfSymbol": "rectangle.3.group",
+   "materialSymbol": "dashboard"
+  },
+  "message-square-plus": {
+   "sfSymbol": "plus.bubble",
+   "materialSymbol": "add_comment"
+  },
+  "messages-square": {
+   "sfSymbol": "bubble.left.and.bubble.right",
+   "materialSymbol": "forum"
+  },
+  "mouse-pointer-click": {
+   "sfSymbol": "cursorarrow.click",
+   "materialSymbol": "touch_app"
+  },
+  "package": {
+   "sfSymbol": "shippingbox",
+   "materialSymbol": "inventory_2"
+  },
+  "search-x": {
+   "sfSymbol": "magnifyingglass",
+   "materialSymbol": "search_off"
+  },
+  "shield": {
+   "sfSymbol": "shield",
+   "materialSymbol": "shield"
+  },
+  "sparkles": {
+   "sfSymbol": "sparkles",
+   "materialSymbol": "auto_awesome"
+  },
+  "step-forward": {
+   "sfSymbol": "forward.end.fill",
+   "materialSymbol": "skip_next"
+  },
+  "thumbs-up": {
+   "sfSymbol": "hand.thumbsup",
+   "materialSymbol": "thumb_up"
+  },
+  "trending-down": {
+   "sfSymbol": "chart.line.downtrend.xyaxis",
+   "materialSymbol": "trending_down"
+  },
+  "trending-up": {
+   "sfSymbol": "chart.line.uptrend.xyaxis",
+   "materialSymbol": "trending_up"
+  },
+  "user-check": {
+   "sfSymbol": "person.crop.circle.badge.checkmark",
+   "materialSymbol": "how_to_reg"
+  },
+  "arrow-right-circle": {
+   "sfSymbol": "arrow.right.circle",
+   "materialSymbol": "arrow_circle_right"
+  },
+  "atom": {
+   "sfSymbol": "atom",
+   "materialSymbol": "science"
+  },
+  "ban": {
+   "sfSymbol": "nosign",
+   "materialSymbol": "block"
+  },
+  "bookmark-plus": {
+   "sfSymbol": "bookmark",
+   "materialSymbol": "bookmark_add"
+  },
+  "briefcase": {
+   "sfSymbol": "briefcase",
+   "materialSymbol": "work"
+  },
+  "building-2": {
+   "sfSymbol": "building.2",
+   "materialSymbol": "business"
+  },
+  "clipboard-check": {
+   "sfSymbol": "checklist",
+   "materialSymbol": "assignment_turned_in"
+  },
+  "dices": {
+   "sfSymbol": "dice",
+   "materialSymbol": "casino"
+  },
+  "dna": {
+   "sfSymbol": "cross.vial",
+   "materialSymbol": "biotech"
+  },
+  "door-open": {
+   "sfSymbol": "door.left.hand.open",
+   "materialSymbol": "meeting_room"
+  },
+  "feather": {
+   "sfSymbol": "pencil.line",
+   "materialSymbol": "draw"
+  },
+  "file-signature": {
+   "sfSymbol": "signature",
+   "materialSymbol": "history_edu"
+  },
+  "file-up": {
+   "sfSymbol": "arrow.up.doc",
+   "materialSymbol": "upload_file"
+  },
+  "flame": {
+   "sfSymbol": "flame",
+   "materialSymbol": "local_fire_department"
+  },
+  "flask-conical": {
+   "sfSymbol": "flask",
+   "materialSymbol": "science"
+  },
+  "gift": {
+   "sfSymbol": "gift",
+   "materialSymbol": "card_giftcard"
+  },
+  "handshake": {
+   "sfSymbol": "person.2",
+   "materialSymbol": "handshake"
+  },
+  "key-round": {
+   "sfSymbol": "key",
+   "materialSymbol": "vpn_key"
+  },
+  "languages": {
+   "sfSymbol": "globe",
+   "materialSymbol": "translate"
+  },
+  "leaf": {
+   "sfSymbol": "leaf",
+   "materialSymbol": "eco"
+  },
+  "lightbulb": {
+   "sfSymbol": "lightbulb",
+   "materialSymbol": "lightbulb"
+  },
+  "mail-plus": {
+   "sfSymbol": "envelope.badge",
+   "materialSymbol": "forward_to_inbox"
+  },
+  "maximize-2": {
+   "sfSymbol": "arrow.up.left.and.arrow.down.right",
+   "materialSymbol": "open_in_full"
+  },
+  "network": {
+   "sfSymbol": "network",
+   "materialSymbol": "hub"
+  },
+  "presentation": {
+   "sfSymbol": "play.rectangle",
+   "materialSymbol": "slideshow"
+  },
+  "repeat": {
+   "sfSymbol": "repeat",
+   "materialSymbol": "repeat"
+  },
+  "route": {
+   "sfSymbol": "point.topleft.down.to.point.bottomright.curvepath",
+   "materialSymbol": "route"
+  },
+  "ruler": {
+   "sfSymbol": "ruler",
+   "materialSymbol": "straighten"
+  },
+  "scale": {
+   "sfSymbol": "scalemass",
+   "materialSymbol": "balance"
+  },
+  "scroll": {
+   "sfSymbol": "scroll",
+   "materialSymbol": "receipt_long"
+  },
+  "shield-check": {
+   "sfSymbol": "checkmark.shield",
+   "materialSymbol": "verified_user"
+  },
+  "sigma": {
+   "sfSymbol": "sum",
+   "materialSymbol": "functions"
+  },
+  "sticky-note": {
+   "sfSymbol": "note.text",
+   "materialSymbol": "sticky_note_2"
+  },
+  "store": {
+   "sfSymbol": "storefront",
+   "materialSymbol": "store"
+  },
+  "target": {
+   "sfSymbol": "scope",
+   "materialSymbol": "gps_fixed"
+  },
+  "unlink": {
+   "sfSymbol": "link",
+   "materialSymbol": "link_off"
+  }
+ },
+ "categories": {
+  "home": "navigation & chrome",
+  "menu": "navigation & chrome",
+  "more-horizontal": "navigation & chrome",
+  "more-vertical": "navigation & chrome",
+  "chevron-right": "navigation & chrome",
+  "chevron-left": "navigation & chrome",
+  "chevron-up": "navigation & chrome",
+  "chevron-down": "navigation & chrome",
+  "chevrons-left": "navigation & chrome",
+  "chevrons-right": "navigation & chrome",
+  "chevrons-up-down": "navigation & chrome",
+  "arrow-left": "navigation & chrome",
+  "arrow-right": "navigation & chrome",
+  "arrow-up": "navigation & chrome",
+  "arrow-down": "navigation & chrome",
+  "arrow-up-right": "navigation & chrome",
+  "arrow-down-left": "navigation & chrome",
+  "corner-up-left": "navigation & chrome",
+  "corner-down-right": "navigation & chrome",
+  "external-link": "navigation & chrome",
+  "log-out": "navigation & chrome",
+  "log-in": "navigation & chrome",
+  "panel-left": "navigation & chrome",
+  "panel-right": "navigation & chrome",
+  "sidebar": "navigation & chrome",
+  "layout-grid": "navigation & chrome",
+  "layout-list": "navigation & chrome",
+  "grid": "navigation & chrome",
+  "list": "navigation & chrome",
+  "plus": "actions",
+  "plus-circle": "actions",
+  "minus": "actions",
+  "minus-circle": "actions",
+  "x": "actions",
+  "close": "actions",
+  "check": "actions",
+  "check-circle": "actions",
+  "circle-check": "actions",
+  "check-square": "actions",
+  "x-circle": "actions",
+  "trash": "actions",
+  "trash-2": "actions",
+  "edit": "actions",
+  "edit-2": "actions",
+  "edit-3": "actions",
+  "pencil": "actions",
+  "copy": "actions",
+  "clipboard": "actions",
+  "save": "actions",
+  "download": "actions",
+  "upload": "actions",
+  "share": "actions",
+  "share-2": "actions",
+  "refresh-cw": "actions",
+  "refresh": "actions",
+  "rotate-cw": "actions",
+  "rotate-ccw": "actions",
+  "undo": "actions",
+  "redo": "actions",
+  "filter": "actions",
+  "sliders": "actions",
+  "search": "actions",
+  "zoom-in": "actions",
+  "zoom-out": "actions",
+  "settings": "actions",
+  "lock": "actions",
+  "unlock": "actions",
+  "eye": "actions",
+  "eye-off": "actions",
+  "link": "actions",
+  "link-2": "actions",
+  "send": "actions",
+  "power": "actions",
+  "scissors": "actions",
+  "eraser": "actions",
+  "stop": "actions",
+  "sort-asc": "actions",
+  "sort-desc": "actions",
+  "file": "files",
+  "file-text": "files",
+  "file-plus": "files",
+  "file-minus": "files",
+  "file-code": "files",
+  "file-json": "files",
+  "file-warning": "files",
+  "folder": "files",
+  "folder-open": "files",
+  "paperclip": "files",
+  "terminal": "files",
+  "code": "files",
+  "cpu": "files",
+  "gauge": "files",
+  "github": "files",
+  "graduation-cap": "files",
+  "hammer": "files",
+  "key": "files",
+  "layout": "files",
+  "monitor": "files",
+  "pen-tool": "files",
+  "rocket": "files",
+  "sliders-horizontal": "files",
+  "smartphone": "files",
+  "trophy": "files",
+  "upload-cloud": "files",
+  "wrench": "files",
+  "git-branch": "files",
+  "pause-circle": "files",
+  "heading-1": "files",
+  "heading-2": "files",
+  "heading-3": "files",
+  "list-ordered": "files",
+  "quote": "files",
+  "strikethrough": "files",
+  "image": "files",
+  "archive": "files",
+  "printer": "files",
+  "book": "files",
+  "bookmark": "files",
+  "mail": "communication",
+  "inbox": "communication",
+  "message-circle": "communication",
+  "message-square": "communication",
+  "phone": "communication",
+  "bell": "communication",
+  "bell-off": "communication",
+  "user": "communication",
+  "users": "communication",
+  "user-plus": "communication",
+  "user-circle": "communication",
+  "info": "status",
+  "alert-circle": "status",
+  "alert-triangle": "status",
+  "help-circle": "status",
+  "star": "status",
+  "star-half": "status",
+  "heart": "status",
+  "flag": "status",
+  "tag": "status",
+  "clock": "status",
+  "calendar": "status",
+  "loader": "status",
+  "loader-2": "status",
+  "activity": "status",
+  "smile": "status",
+  "play": "media",
+  "pause": "media",
+  "skip-forward": "media",
+  "skip-back": "media",
+  "volume-2": "media",
+  "volume": "media",
+  "volume-x": "media",
+  "volume-off": "media",
+  "camera": "media",
+  "mic": "media",
+  "video": "media",
+  "type": "editing / typography",
+  "bold": "editing / typography",
+  "italic": "editing / typography",
+  "underline": "editing / typography",
+  "align-left": "editing / typography",
+  "wrap-text": "editing / typography",
+  "columns": "editing / typography",
+  "git-commit": "editing / typography",
+  "diamond": "editing / typography",
+  "align-center": "editing / typography",
+  "align-right": "editing / typography",
+  "indent": "editing / typography",
+  "shopping-cart": "misc",
+  "credit-card": "misc",
+  "map-pin": "misc",
+  "globe": "misc",
+  "wifi": "misc",
+  "battery": "misc",
+  "moon": "misc",
+  "sun": "misc",
+  "square": "misc",
+  "circle": "misc",
+  "book-open": "behavior-registry vocabulary",
+  "calendar-clock": "behavior-registry vocabulary",
+  "circle-dot": "behavior-registry vocabulary",
+  "dollar-sign": "behavior-registry vocabulary",
+  "history": "behavior-registry vocabulary",
+  "image-plus": "behavior-registry vocabulary",
+  "layers": "behavior-registry vocabulary",
+  "layout-dashboard": "behavior-registry vocabulary",
+  "message-square-plus": "behavior-registry vocabulary",
+  "messages-square": "behavior-registry vocabulary",
+  "mouse-pointer-click": "behavior-registry vocabulary",
+  "package": "behavior-registry vocabulary",
+  "search-x": "behavior-registry vocabulary",
+  "shield": "behavior-registry vocabulary",
+  "sparkles": "behavior-registry vocabulary",
+  "step-forward": "behavior-registry vocabulary",
+  "thumbs-up": "behavior-registry vocabulary",
+  "trending-down": "behavior-registry vocabulary",
+  "trending-up": "behavior-registry vocabulary",
+  "user-check": "behavior-registry vocabulary",
+  "arrow-right-circle": "behavior-registry vocabulary",
+  "atom": "behavior-registry vocabulary",
+  "ban": "behavior-registry vocabulary",
+  "bookmark-plus": "behavior-registry vocabulary",
+  "briefcase": "behavior-registry vocabulary",
+  "building-2": "behavior-registry vocabulary",
+  "clipboard-check": "behavior-registry vocabulary",
+  "dices": "behavior-registry vocabulary",
+  "dna": "behavior-registry vocabulary",
+  "door-open": "behavior-registry vocabulary",
+  "feather": "behavior-registry vocabulary",
+  "file-signature": "behavior-registry vocabulary",
+  "file-up": "behavior-registry vocabulary",
+  "flame": "behavior-registry vocabulary",
+  "flask-conical": "behavior-registry vocabulary",
+  "gift": "behavior-registry vocabulary",
+  "handshake": "behavior-registry vocabulary",
+  "key-round": "behavior-registry vocabulary",
+  "languages": "behavior-registry vocabulary",
+  "leaf": "behavior-registry vocabulary",
+  "lightbulb": "behavior-registry vocabulary",
+  "mail-plus": "behavior-registry vocabulary",
+  "maximize-2": "behavior-registry vocabulary",
+  "network": "behavior-registry vocabulary",
+  "presentation": "behavior-registry vocabulary",
+  "repeat": "behavior-registry vocabulary",
+  "route": "behavior-registry vocabulary",
+  "ruler": "behavior-registry vocabulary",
+  "scale": "behavior-registry vocabulary",
+  "scroll": "behavior-registry vocabulary",
+  "shield-check": "behavior-registry vocabulary",
+  "sigma": "behavior-registry vocabulary",
+  "sticky-note": "behavior-registry vocabulary",
+  "store": "behavior-registry vocabulary",
+  "target": "behavior-registry vocabulary",
+  "unlink": "behavior-registry vocabulary"
+ },
+ "notes": {
+  "panel-left": "`left_panel_open`/`right_panel_open` (Material Symbols) have no\n`Icons.Filled.*` member in androidx `material-icons-extended` (a newer\nMaterial-Symbols-only pair) — `first_page`/`last_page` are the closest\ndirectional stand-ins that actually compile (verified wave C5).",
+  "eraser": "`ink_eraser` has no `Icons.Filled.*` member in androidx\n`material-icons-extended` (newer Material-Symbols-only) — `backspace`\nis the closest \"erase\" glyph that actually compiles (verified wave C5).",
+  "loader": "`progress_activity` has no `Icons.Filled.*` member in androidx\n`material-icons-extended` (newer Material-Symbols-only) — `autorenew`\nis the closest spinner/loading glyph that actually compiles (verified\nwave C5).",
+  "search-x": "SF Symbols has no search-with-x glyph; `magnifyingglass` is the nearest.",
+  "arrow-right-circle": "SF Symbols has no unlink glyph; `link` is the nearest (Material has `link_off`)."
+ }
+}

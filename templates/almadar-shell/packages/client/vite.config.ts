@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => {
       },
       // One copy of each package that carries React context or a global registry, also when @almadar/* are linked
       // from a workspace (scripts/build-web-client.mjs --workspace) and resolve their own.
-      dedupe: ['react', 'react-dom', 'react-router-dom', 'firebase', '@tanstack/react-query', 'zustand', '@almadar/ui'],
+      dedupe: ['react', 'react-dom', 'react-router-dom', 'firebase', '@tanstack/react-query', 'zustand', '@almadar/shell-web/components'],
     },
 
     server: {

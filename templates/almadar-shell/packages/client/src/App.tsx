@@ -12,16 +12,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { normalizeUserContext, type OrbitalSchema } from '@almadar/core';
-import { createHttpTransport, deriveCarriesCircuitState } from '@almadar/runtime';
-import { I18nProvider, createTranslate } from '@almadar/ui/hooks';
-import { KernelEngineProvider } from '@almadar/ui/providers';
-import { OrbPreview } from '@almadar/ui/runtime';
+import { createHttpTransport, deriveCarriesCircuitState } from '@almadar/shell-web';
+import { I18nProvider, createTranslate } from '@almadar/shell-web/core';
+import { KernelEngineProvider } from '@almadar/shell-web/providers';
+import { OrbPreview } from '@almadar/shell-web/runtime';
 import type { ClientManifest } from '@almadar/core';
 import { loadProgram } from './client-program';
 import { AuthProvider, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
 import { loadKernel, loadLanguage } from './kernel-host';
-import { ThemeProvider } from '@almadar/ui/context';
+import { ThemeProvider } from '@almadar/shell-web/core';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 

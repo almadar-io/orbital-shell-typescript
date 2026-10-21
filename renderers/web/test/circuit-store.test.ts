@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { createMemoryCircuitStore, StateBook } from '../src/index.js';
-import type { TraitDefinition } from '../src/index.js';
+import type { TraitDefinition } from '@almadar/core';
 
 function trait(name: string): TraitDefinition {
   return {

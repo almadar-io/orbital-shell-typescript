@@ -444,11 +444,13 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
       { orbital: 'Editor', trait: 'Modes', from: 'NORMAL', event: 'KEY', payload: { key: 'i' }, result:
         { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 0, state: { before: 'NORMAL', after: 'INSERT' },
           effects: [{ type: 'set', args: ['@entity.mode', 'insert'], status: 'executed' }], emitted: [],
-          guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: true, trace: [] }] } },
+          guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: true, trace: [] }],
+          outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'INSERT', arm: 0, fired: true, emitted: [] }] } },
       { orbital: 'Editor', trait: 'Modes', from: 'NORMAL', event: 'KEY', payload: { key: 'v' }, result:
         { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 1, state: { before: 'NORMAL', after: 'VISUAL' },
           effects: [], emitted: [],
-          guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: false, trace: [] }, { arm: 1, guard: ['=', '@payload.key', 'v'], passed: true, trace: [] }] } },
+          guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: false, trace: [] }, { arm: 1, guard: ['=', '@payload.key', 'v'], passed: true, trace: [] }],
+          outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'VISUAL', arm: 1, fired: true, emitted: [] }] } },
     ] });
   });
 
@@ -461,6 +463,86 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
   it('edge: a request for a trait the program does not have is a failure as data', async () => {
     const out = await runProgramEffect('program/step', [arg(MODES), [{ orbital: 'Editor', trait: 'Nope', from: 'NORMAL', event: 'KEY', payload: {} }]], { cwd: project(), orbBin: ORB });
     expect(out).toMatchObject({ ok: false });
+  });
+
+  const GATE = {
+    name: 'GateApp',
+    orbitals: [{
+      name: 'Gating',
+      entity: { name: 'Gate', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'owner', type: 'string', default: '' }] },
+      pages: [],
+      traits: [{
+        name: 'G',
+        linkedEntity: 'Gate',
+        stateMachine: {
+          states: [{ name: 'ready', isInitial: true }, { name: 'open' }],
+          transitions: [
+            { from: 'ready', to: 'open', event: 'OPEN', guard: ['=', '@entity.owner', 'ann'] },
+            { from: 'ready', to: 'open', event: 'LATE', guard: ['>', '@now', 1000] },
+          ],
+        },
+      }],
+    }],
+  };
+  const gate = (extra: object) => ({ orbital: 'Gating', trait: 'G', from: 'ready', payload: {}, ...extra });
+
+  it('program/step seeds the entity and pins @now for that request only', async () => {
+    const out = await runProgramEffect('program/step', [arg(GATE), arg([
+      gate({ event: 'OPEN', entity: { owner: 'ann' } }),
+      gate({ event: 'OPEN', entity: { owner: 'bob' } }),
+      gate({ event: 'LATE', now: 0 }),
+      gate({ event: 'LATE' }),
+    ])], { cwd: project(), orbBin: ORB });
+    expect(out).toMatchObject({ ok: true, result: [
+      { entity: { owner: 'ann' }, result: { guard: 'pass' } },
+      { result: { guard: 'fail' } },
+      { now: 0, result: { guard: 'fail' } },
+      { result: { guard: 'pass' } },
+    ] });
+  });
+
+  it('control: a request entity that is not an object or a now that is not a number is refused', async () => {
+    for (const bad of [{ entity: 'ann' }, { now: 'noon' }]) {
+      expect(await runProgramEffect('program/step', [arg(GATE), arg([gate({ event: 'OPEN', ...bad })])], { cwd: project(), orbBin: ORB })).toMatchObject({ ok: false });
+    }
+  });
+
+  const RELAY = {
+    name: 'RelayApp',
+    orbitals: [{
+      name: 'Auth',
+      entity: { name: 'Key', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+      pages: [],
+      traits: [
+        { name: 'ApiKeys', linkedEntity: 'Key', stateMachine: {
+          states: [{ name: 'idle', isInitial: true }],
+          transitions: [{ from: 'idle', to: 'idle', event: 'ISSUE', effects: [['emit', 'ISSUED', {}]] }],
+        } },
+        { name: 'ServerBearer', linkedEntity: 'Key',
+          listens: [{ event: 'ISSUED', triggers: 'ARM', source: { kind: 'trait', trait: 'ApiKeys' } }],
+          stateMachine: {
+            states: [{ name: 'idle', isInitial: true }, { name: 'armed' }],
+            transitions: [{ from: 'idle', to: 'armed', event: 'ARM' }],
+          } },
+      ],
+    }],
+  };
+
+  it('program/step lists every trait the dispatch cascade moved, in dispatch order', async () => {
+    const out = await runProgramEffect('program/step', [arg(RELAY), [{ orbital: 'Auth', trait: 'ApiKeys', from: 'idle', event: 'ISSUE', payload: {} }]], { cwd: project(), orbBin: ORB });
+    expect(out).toMatchObject({ ok: true, result: [{ result: { trait: 'ApiKeys', outcomes: [
+      { orbital: 'Auth', trait: 'ApiKeys', event: 'ISSUE', from: 'idle', to: 'idle', arm: 0, fired: true, emitted: [{ type: 'ISSUED' }] },
+      { orbital: 'Auth', trait: 'ServerBearer', event: 'ARM', from: 'idle', to: 'armed', arm: 0, fired: true, emitted: [] },
+    ] } }] });
+  });
+
+  it('control: a single-trait step has one outcome equal to its top-level fields', async () => {
+    const out = await runProgramEffect('program/step', [arg(MODES), [{ orbital: 'Editor', trait: 'Modes', from: 'NORMAL', event: 'KEY', payload: { key: 'i' } }]], { cwd: project(), orbBin: ORB });
+    if (!out.ok || !Array.isArray(out.result)) throw new Error(`expected played steps, got ${JSON.stringify(out)}`);
+    const [played] = out.result;
+    if (played === undefined || !('result' in played)) throw new Error('expected one played step');
+    const { result } = played;
+    expect(result.outcomes).toEqual([{ orbital: 'Editor', trait: result.trait, event: result.event, from: result.state.before, to: result.state.after, arm: result.firedArm, fired: result.transitionFired, emitted: result.emitted }]);
   });
 
   it('control: program/step without requests is refused', async () => {
@@ -594,6 +676,31 @@ describe('runProgramEffect — argument validation (no orb needed)', () => {
     expect(await runProgramEffect('program/eval', [arg(program), { publish: true }], opts)).toEqual({ ok: false, error: 'program/eval: unsupported option "publish"' });
     expect(await runProgramEffect('program/eval', [arg(program), []], opts)).toEqual({ ok: false, error: 'program/eval: options must be an object' });
     expect(await runProgramEffect('program/eval', [arg(program), { final: 'yes' }], opts)).toEqual({ ok: false, error: 'program/eval: final must be a boolean' });
+  });
+
+  it('forwards knobVectors: true as --knob-vectors and vectors: false as --no-vectors, nothing otherwise', async () => {
+    const dir = project();
+    const argvFile = join(dir, 'argv');
+    const stub = join(dir, 'orb');
+    writeFileSync(stub, `#!/bin/sh\nprintf '%s\\n' "$@" > '${argvFile}'\nexit 1\n`, { mode: 0o755 });
+    const stubbed = { cwd: dir, orbBin: stub };
+    const argv = (): string[] => readFileSync(argvFile, 'utf8').trim().split('\n');
+    const trait = { behavior: 'almadar-std/std-retry', trait: 'Retry' };
+
+    expect((await runProgramEffect('behavior/describe', [trait, { knobVectors: true }], stubbed)).ok).toBe(false);
+    expect(argv()).toContain('--knob-vectors');
+    await runProgramEffect('behavior/describe', [trait], stubbed);
+    expect(argv()).not.toContain('--knob-vectors');
+    await runProgramEffect('behavior/describe', [trait, { knobVectors: false }], stubbed);
+    expect(argv()).not.toContain('--knob-vectors');
+
+    await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { vectors: false }], stubbed);
+    expect(argv()).toEqual(['behaviors', 'catalog', '--json', '--no-vectors', 'almadar-std/ml']);
+    await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }], stubbed);
+    expect(argv()).toEqual(['behaviors', 'catalog', '--json', 'almadar-std/ml']);
+
+    expect(await runProgramEffect('behavior/describe', [trait, { knobVectors: 'yes' }], stubbed)).toEqual({ ok: false, error: 'behavior/describe: knobVectors must be a boolean' });
+    expect(await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { vector: false }], stubbed)).toEqual({ ok: false, error: 'behavior/catalog: unsupported option "vector"' });
   });
 
   it('a host failure (no orb) comes back as data', async () => {

@@ -45,10 +45,28 @@ export interface StepRequest {
   from: string;
   event: string;
   payload: EventPayload;
+  /** Fields merged into the trait's entity row before the event. */
+  entity?: EventPayload;
+  /** The ms-epoch `@now` the step's dispatch reads, in place of the wall clock. */
+  now?: number;
 }
 
-/** A played request: the request as asked, and the circuit it ran. */
-export type PlayedStep = StepRequest & { result: CircuitStepResult };
+/** One trait the step's dispatch cascade moved, in dispatch order. */
+export interface CascadeOutcome {
+  orbital: string;
+  trait: string;
+  /** The event this trait handled (a listener's own triggered event). */
+  event: string;
+  from: string;
+  to: string;
+  /** The arm that fired; null when none did. */
+  arm: number | null;
+  fired: boolean;
+  emitted: CircuitStepResult['emitted'];
+}
+
+/** A played request: the request as asked, and the circuit it ran, with every trait its cascade moved. */
+export type PlayedStep = StepRequest & { result: CircuitStepResult & { outcomes: CascadeOutcome[] } };
 
 /** The outcome of one program effect: the value for `{ result }`, or the failure (`errors` for eval's validator issues). */
 export type ProgramEffectOutcome =

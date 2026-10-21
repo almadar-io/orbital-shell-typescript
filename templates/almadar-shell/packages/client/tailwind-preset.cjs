@@ -7,10 +7,10 @@
  *
  * Note: @almadar/ui dist content scanning is handled by tailwind.config.js
  * in the shell template, not here. The config resolves the dist path via
- * require.resolve('@almadar/ui') which works regardless of hoisting.
+ * require.resolve('@almadar/shell-web/components') which works regardless of hoisting.
  *
  * Usage in tailwind.config.js:
- *   presets: [require('@almadar/ui/tailwind-preset')]
+ *   presets: [require('@almadar/shell-web/tailwind-preset')]
  */
 
 /** @type {import('tailwindcss').Config} */

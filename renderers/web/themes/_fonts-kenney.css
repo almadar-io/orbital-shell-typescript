@@ -1,0 +1,11 @@
+/**
+ * Kenney game fonts — @font-face declarations for the game display faces named
+ * by the game themes (--font-family / --font-family-display) and by GameShell's
+ * fontFamily knob. Loaded once here, at the theme layer, so every consumer of a
+ * game theme gets the faces (previously they were injected privately by GameShell).
+ */
+@font-face { font-family: 'Kenney Future'; src: url('https://almadar-kflow-assets.web.app/shared/_shared/kenney-fonts/fonts/Kenney%20Future.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Kenney Future Narrow'; src: url('https://almadar-kflow-assets.web.app/shared/_shared/kenney-fonts/fonts/Kenney%20Future%20Narrow.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Kenney Pixel'; src: url('https://almadar-kflow-assets.web.app/shared/_shared/kenney-fonts/fonts/Kenney%20Pixel.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Kenney Blocks'; src: url('https://almadar-kflow-assets.web.app/shared/_shared/kenney-fonts/fonts/Kenney%20Blocks.ttf') format('truetype'); font-display: swap; }
+@font-face { font-family: 'Kenney Mini'; src: url('https://almadar-kflow-assets.web.app/shared/_shared/kenney-fonts/fonts/Kenney%20Mini.ttf') format('truetype'); font-display: swap; }
