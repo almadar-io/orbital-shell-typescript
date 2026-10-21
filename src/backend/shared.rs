@@ -1291,6 +1291,8 @@ export type { UserContext } from '@almadar/core';
             // idiom: referencing it here, rather than inlining, is what lets
             // the schema actually terminate.
             OirType::TypeRef { name } => format!("z.lazy(() => {}Schema)", name),
+            // An unbound variable renders as `json` (`TargetTypeRenderer::type_var`); its schema matches.
+            OirType::Var { .. } => "z.record(FieldValueSchema.optional())".to_string(),
         }
     }
 }
