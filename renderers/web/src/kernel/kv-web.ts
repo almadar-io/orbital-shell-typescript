@@ -196,7 +196,7 @@ export class KvWebPort implements KvHostPort {
         const tx = db.transaction(store, 'readwrite');
         tx.objectStore(store).put(value, key);
         await done(tx);
-        return { key };
+        return { storedKey: key };
       }
       case 'kv/delete': {
         const key = keyName(args[1]);

@@ -4,12 +4,12 @@
   "locale": "en",
   "steps": [
     { "op": "kv/get", "args": ["rows", "order/1"], "expect": { "found": false } },
-    { "op": "kv/put", "args": ["rows", "order/1", { "id": "1", "total": 10 }], "expect": { "key": "order/1" } },
+    { "op": "kv/put", "args": ["rows", "order/1", { "id": "1", "total": 10 }], "expect": { "storedKey": "order/1" } },
     { "op": "kv/get", "args": ["rows", "order/1"], "expect": { "found": true, "value": { "id": "1", "total": 10 } } },
-    { "op": "kv/put", "args": ["rows", "order/1", { "id": "1", "total": 12 }], "expect": { "key": "order/1" } },
+    { "op": "kv/put", "args": ["rows", "order/1", { "id": "1", "total": 12 }], "expect": { "storedKey": "order/1" } },
     { "op": "kv/get", "args": ["rows", "order/1"], "expect": { "found": true, "value": { "id": "1", "total": 12 } } },
-    { "op": "kv/put", "args": ["rows", "order/2", [1, null, "x"]], "expect": { "key": "order/2" } },
-    { "op": "kv/put", "args": ["rows", "order-line/1", false], "expect": { "key": "order-line/1" } },
+    { "op": "kv/put", "args": ["rows", "order/2", [1, null, "x"]], "expect": { "storedKey": "order/2" } },
+    { "op": "kv/put", "args": ["rows", "order-line/1", false], "expect": { "storedKey": "order-line/1" } },
     { "op": "kv/scan", "args": ["rows", "order/"], "expect": { "entries": [
       { "key": "order/1", "value": { "id": "1", "total": 12 } },
       { "key": "order/2", "value": [1, null, "x"] }

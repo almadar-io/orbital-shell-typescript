@@ -47,9 +47,9 @@ describe.each(backends)('kv on %s', (_name, make) => {
   it('get hit and miss; put then get', async () => {
     const kv = await host();
     expect(data(await kv.get(ns, 'a'))).toEqual({ found: false });
-    expect(data(await kv.put(ns, 'a', { n: 1, s: ['x', null, true] }))).toEqual({ key: 'a' });
+    expect(data(await kv.put(ns, 'a', { n: 1, s: ['x', null, true] }))).toEqual({ storedKey: 'a' });
     expect(data(await kv.get(ns, 'a'))).toEqual({ found: true, value: { n: 1, s: ['x', null, true] } });
-    expect(data(await kv.put(ns, 'a', null))).toEqual({ key: 'a' });
+    expect(data(await kv.put(ns, 'a', null))).toEqual({ storedKey: 'a' });
     expect(data(await kv.get(ns, 'a'))).toEqual({ found: true, value: null });
   });
 

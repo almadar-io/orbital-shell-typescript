@@ -28,9 +28,9 @@ describe('kv-web', () => {
   it('get misses as data, then hits after put', async () => {
     const port = open();
     expect(await ok(port, 'kv/get', ['rows', 'order/1'])).toEqual({ found: false });
-    expect(await ok(port, 'kv/put', ['rows', 'order/1', { id: '1', n: [1, null] }])).toEqual({ key: 'order/1' });
+    expect(await ok(port, 'kv/put', ['rows', 'order/1', { id: '1', n: [1, null] }])).toEqual({ storedKey: 'order/1' });
     expect(await ok(port, 'kv/get', ['rows', 'order/1'])).toEqual({ found: true, value: { id: '1', n: [1, null] } });
-    expect(await ok(port, 'kv/put', ['rows', 'null', null])).toEqual({ key: 'null' });
+    expect(await ok(port, 'kv/put', ['rows', 'null', null])).toEqual({ storedKey: 'null' });
     expect(await ok(port, 'kv/get', ['rows', 'null'])).toEqual({ found: true, value: null });
   });
 

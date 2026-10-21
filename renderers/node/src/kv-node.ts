@@ -164,7 +164,7 @@ export function directoryKvBackend(stateDir: string): KvBackend {
 
 export interface KvHost {
   get(ns: KvNamespace, key: string): Promise<KvResult<{ found: boolean; value?: JsonValue }>>;
-  put(ns: KvNamespace, key: string, value: JsonValue): Promise<KvResult<{ key: string }>>;
+  put(ns: KvNamespace, key: string, value: JsonValue): Promise<KvResult<{ storedKey: string }>>;
   delete(ns: KvNamespace, key: string): Promise<KvResult<{ existed: boolean }>>;
   scan(ns: KvNamespace, prefix: string, limit?: number): Promise<KvResult<{ entries: KvScanEntry[] }>>;
   batch(ns: KvNamespace, ops: readonly KvBatchOp[]): Promise<KvResult<{ applied: number }>>;
@@ -202,7 +202,7 @@ export function createKvHost(backend: KvBackend): KvHost {
         const table = await backend.load(ns);
         table.set(key, checked);
         await backend.commit(ns, table);
-        return { key };
+        return { storedKey: key };
       });
     }),
     delete: (ns, key) => guard(() => {
