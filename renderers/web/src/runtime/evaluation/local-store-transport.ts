@@ -78,7 +78,8 @@ export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
 export interface LocalStoreTransportOptions {
   /** The kernel the requests run on (`openLocalKernel`), or its promise while the kernel module loads. */
   kernelEngine: KernelEngine | Promise<KernelEngine>;
-  user?: UserContext;
+  /** The viewer every request runs as, or its promise while the host resolves it (a mock store's seeded persona). */
+  user?: UserContext | Promise<UserContext | undefined>;
   /** Releases the host's request queue while a `call-service` awaits its provider. */
   outsideEventQueue?: <T>(work: () => Promise<T>) => Promise<T>;
 }
@@ -92,7 +93,7 @@ export function createLocalStoreTransport(options: LocalStoreTransportOptions): 
         ...(options.outsideEventQueue !== undefined ? { outsideEventQueue: options.outsideEventQueue } : {}),
       },
       request,
-      options.user,
+      await options.user,
       request.locale,
     ),
     { carriesCircuitState: false },

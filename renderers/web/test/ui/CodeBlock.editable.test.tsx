@@ -38,7 +38,7 @@ function extractDefaultLiteral(source: string, propName: string): string[] {
 
 describe('CodeBlock motions/operators prop defaults (item 1: single-source vocabulary)', () => {
   const source = fs.readFileSync(
-    path.resolve(__dirname, '../components/core/molecules/markdown/CodeBlock.tsx'),
+    path.resolve(__dirname, '../../src/components/core/molecules/markdown/CodeBlock.tsx'),
     'utf8',
   );
 

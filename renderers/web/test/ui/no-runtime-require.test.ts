@@ -9,8 +9,8 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ROOT = join(__dirname, '..');
-const DIRS = ['components', 'hooks', 'lib', 'providers', 'runtime', 'context', 'renderer'];
+const ROOT = join(__dirname, '..', '..', 'src');
+const DIRS = ['components', 'core', 'hooks', 'lib', 'providers', 'preview', 'runtime', 'context', 'renderer'];
 
 function sources(dir: string): string[] {
   const out: string[] = [];

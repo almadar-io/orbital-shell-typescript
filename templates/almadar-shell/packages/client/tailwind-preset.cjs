@@ -1,13 +1,13 @@
 /**
- * @almadar/ui Tailwind Preset
+ * @almadar/shell-web Tailwind Preset
  *
  * Provides the complete Almadar design token system as a Tailwind preset.
  * Includes a safelist for CSS-variable-based arbitrary classes that use
  * bracket notation (Tailwind can't extract these from source scanning).
  *
- * Note: @almadar/ui dist content scanning is handled by tailwind.config.js
+ * Note: @almadar/shell-web dist content scanning is handled by tailwind.config.js
  * in the shell template, not here. The config resolves the dist path via
- * require.resolve('@almadar/shell-web/components') which works regardless of hoisting.
+ * require.resolve('@almadar/shell-web/package.json') which works regardless of hoisting.
  *
  * Usage in tailwind.config.js:
  *   presets: [require('@almadar/shell-web/tailwind-preset')]
@@ -28,7 +28,7 @@ module.exports = {
   'grid-cols-1', 'grid-cols-2', 'grid-cols-3', 'grid-cols-4',
   'sm:grid-cols-2', 'md:grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-3', 'lg:grid-cols-4',
   'text-center', 'text-left', 'text-right',
-  // CSS variable-based classes from @almadar/ui components
+  // CSS variable-based classes from @almadar/shell-web components
   'accent-[var(--color-foreground)]',
   'accent-[var(--color-primary)]',
   'active:bg-[var(--color-muted)]',

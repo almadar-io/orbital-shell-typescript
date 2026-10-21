@@ -1,7 +1,7 @@
 /**
  * Navigation Module for Compiled Shells
  *
- * Re-exports schema-driven navigation from @almadar/ui/renderer.
+ * Re-exports schema-driven navigation from @almadar/shell-web/renderer.
  * This module provides unified navigation that:
  * - Finds pages by path pattern (supports :id params)
  * - Switches active page via NavigationContext
@@ -27,7 +27,7 @@
  * @packageDocumentation
  */
 
-// Re-export all navigation utilities from @almadar/ui/renderer
+// Re-export all navigation utilities from @almadar/shell-web/renderer
 export {
   // Context and Provider
   NavigationProvider,

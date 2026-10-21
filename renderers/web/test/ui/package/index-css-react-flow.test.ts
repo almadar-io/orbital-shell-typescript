@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const css = readFileSync(join(import.meta.dirname, '..', 'index.css'), 'utf8');
+const css = readFileSync(join(import.meta.dirname, '..', '..', '..', 'index.css'), 'utf8');
 const xyflow = "@import '@xyflow/react/dist/style.css';";
 
 describe('@almadar/ui/index.css and React Flow', () => {

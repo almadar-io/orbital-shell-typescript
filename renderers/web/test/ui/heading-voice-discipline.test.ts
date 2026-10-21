@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-const ROOT = join(__dirname, '..');
+const ROOT = join(__dirname, '..', '..', 'src');
 const HEADING_TAG = /<Typography\b[^>]*?\bvariant=["'](h[1-6])["'][^>]*>/gs;
 const WEIGHT_OVERRIDE = /\bweight=|\bfont-(thin|extralight|light|normal|medium|semibold|bold|extrabold|black)\b/;
 

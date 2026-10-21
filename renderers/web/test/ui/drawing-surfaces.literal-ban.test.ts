@@ -9,8 +9,8 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const ROOT = path.resolve(__dirname, '..');
-const SCAN_DIRS = ['components', 'lib', 'hooks'];
+const ROOT = path.resolve(__dirname, '../../src');
+const SCAN_DIRS = ['components', 'core', 'lib', 'hooks'];
 const DRAWS = /getContext\(|\buseFrame\b|meshStandardMaterial|\bTHREE\.|paintDrawable\(|createWebPainter\(/;
 const HEX = /['"`]#[0-9a-fA-F]{3,8}\b/;
 
@@ -74,7 +74,7 @@ describe('drawing surfaces carry no hardcoded colors', () => {
 
 describe('patterns drawn natively by the Rust renderer stay theme-tone only (owner 2026-10-10)', () => {
   const COLOR_LITERAL = /['"`]#[0-9a-fA-F]{3,8}\b|['"](?:white|black)['"]|rgba?\(/;
-  const svgDir = path.join(ROOT, 'components/core/atoms/svg');
+  const svgDir = path.join(ROOT, 'core/atoms/svg');
   const files = [
     ...fs.readdirSync(svgDir).filter((f) => f.endsWith('.tsx')).map((f) => path.join(svgDir, f)),
     path.join(ROOT, 'components/core/molecules/OrbitalVisualization.tsx'),

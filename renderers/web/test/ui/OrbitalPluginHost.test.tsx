@@ -547,3 +547,119 @@ describe('OrbitalPluginHost — slot cleanup by SOURCE (U-PLUGIN-SLOT-RESTORE-ON
     expect(screen.getByText('other')).toBeInTheDocument();
   });
 });
+
+/** A plugin whose `Clock` trait declares `ticks {}` emitting `BEAT`; `withTicks: false` is the same trait without them. */
+function clockPlugin(withTicks: boolean): PluginHostPlugin {
+  return {
+    id: `clock-${withTicks ? 'ticking' : 'still'}`,
+    schema: {
+      name: 'clock-plugin',
+      orbitals: [{
+        name: 'ClockOrbital',
+        entity: { name: 'ClockData', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+        pages: [],
+        traits: [{
+          name: 'Clock',
+          scope: 'instance',
+          linkedEntity: 'ClockData',
+          stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },
+          emits: [{ event: 'BEAT', scope: 'external' }],
+          ...(withTicks ? { ticks: [{ name: 'beat', interval: 30, effects: [['emit', 'BEAT', {}]] }] } : {}),
+        }],
+      }],
+    },
+    inbound: [],
+  };
+}
+
+describe('OrbitalPluginHost — ticks run on the browser tick driver', () => {
+  it('a mounted plugin declaring ticks {} ticks: its BEAT reaches the host bus, sourced from its orbital', async () => {
+    const { bus } = renderHost({ plugins: [clockPlugin(true)] });
+    const beat = vi.fn();
+    bus.on('UI:BEAT', beat);
+    await waitFor(() => expect(beat.mock.calls.length).toBeGreaterThan(1), { timeout: 5_000 });
+    expect(beat.mock.calls[0][0].source?.orbital).toBe('ClockOrbital');
+  });
+
+  it('control: the same plugin without ticks {} never beats', async () => {
+    const { bus, host } = renderHost({ plugins: [clockPlugin(false)] });
+    const beat = vi.fn();
+    bus.on('UI:BEAT', beat);
+    await waitFor(() => expect(host().getState('clock-still', 'ClockOrbital', 'Clock')?.currentState).toBe('idle'));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(beat).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * "Only mine" over the plugin's mock store: `LOAD` fetches every `Note`, and `MINE` reports how many are owned by
+ * `owner` (`@user.id` for the dev viewer the seed stamped, or a literal id nobody holds for the control).
+ */
+function onlyMinePlugin(owner: string): PluginHostPlugin {
+  return {
+    id: `only-mine-${owner}`,
+    schema: {
+      name: 'only-mine-plugin',
+      orbitals: [
+        {
+          name: 'People',
+          entity: {
+            name: 'Person', persistence: 'persistent', collection: 'people', identity: true,
+            fields: [{ name: 'id', type: 'string', required: true }, { name: 'name', type: 'string' }, { name: 'role', type: 'string' }],
+          },
+          pages: [],
+          traits: [],
+        },
+        {
+          name: 'Notes',
+          entity: {
+            name: 'Note', persistence: 'persistent', collection: 'notes',
+            fields: [{ name: 'id', type: 'string', required: true }, { name: 'title', type: 'string' }, { name: 'owner', type: 'relation', relation: { entity: 'Person' } }],
+          },
+          pages: [],
+          traits: [{
+            name: 'MyNotes',
+            scope: 'collection',
+            linkedEntity: 'Note',
+            stateMachine: {
+              states: [{ name: 'idle', isInitial: true }],
+              events: [{ key: 'LOAD', name: 'LOAD' }, { key: 'LOADED', name: 'LOADED', payloadSchema: [{ name: 'data', type: 'array' }] }],
+              transitions: [
+                { from: 'idle', to: 'idle', event: 'LOAD', effects: [['fetch', 'Note', { emit: { success: 'LOADED' } }]] },
+                {
+                  from: 'idle',
+                  to: 'idle',
+                  event: 'LOADED',
+                  effects: [['emit', 'MINE', { count: ['array/len', ['array/filter', '@payload.data', ['fn', 'r', ['==', '@r.owner', owner]]]] }]],
+                },
+              ],
+            },
+            emits: [{ event: 'MINE', scope: 'external' }],
+            listens: [{ event: 'LOAD', triggers: 'LOAD' }],
+          }],
+        },
+      ],
+    },
+    inbound: [{ busEvent: 'LOAD', orbital: 'Notes', trait: 'MyNotes', trigger: 'LOAD' }],
+  };
+}
+
+describe('OrbitalPluginHost — the mock store is seeded for the dev viewer (seedMockStore)', () => {
+  it('an "only mine" list of the dev viewer is not empty', async () => {
+    const { bus } = renderHost({ plugins: [onlyMinePlugin('@user.id')] });
+    const mine = vi.fn();
+    bus.on('UI:MINE', mine);
+    bus.emit('UI:LOAD', {});
+    await waitFor(() => expect(mine).toHaveBeenCalledTimes(1), { timeout: 5_000 });
+    expect(mine.mock.calls[0][0].payload?.count).toBeGreaterThan(0);
+  });
+
+  it('control: the same list for a viewer the roster does not hold is empty', async () => {
+    const { bus } = renderHost({ plugins: [onlyMinePlugin('not-a-persona')] });
+    const mine = vi.fn();
+    bus.on('UI:MINE', mine);
+    bus.emit('UI:LOAD', {});
+    await waitFor(() => expect(mine).toHaveBeenCalledTimes(1), { timeout: 5_000 });
+    expect(mine.mock.calls[0][0].payload?.count).toBe(0);
+  });
+});

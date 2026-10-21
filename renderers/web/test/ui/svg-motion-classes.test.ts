@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { SVG_MOTION_CLASSES } from '../../src/core';
 
-const ROOT = path.resolve(__dirname, '..');
+const ROOT = path.resolve(__dirname, '../..');
+const SRC = path.join(ROOT, 'src');
 const BASE_CSS = fs.readFileSync(path.join(ROOT, 'themes/_base.css'), 'utf8');
 
 function escape(name: string): string {
@@ -52,9 +53,9 @@ describe('svg motion classes', () => {
   });
 
   it('no component spells an svg motion class outside lib/svgMotion.ts', () => {
-    const owner = path.join(ROOT, 'lib/svgMotion.ts');
-    const offenders = ['components', 'lib', 'hooks']
-      .flatMap((d) => walk(path.join(ROOT, d)))
+    const owner = path.join(SRC, 'core/lib/svgMotion.ts');
+    const offenders = ['components', 'core', 'lib', 'hooks']
+      .flatMap((d) => walk(path.join(SRC, d)))
       .filter((f) => f !== owner && /almadar-svg-[a-z]/.test(fs.readFileSync(f, 'utf8')))
       .map((f) => path.relative(ROOT, f));
     expect(offenders).toEqual([]);

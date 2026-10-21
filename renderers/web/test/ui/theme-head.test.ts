@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const THEMES = join(__dirname, '..', 'themes');
+const THEMES = join(__dirname, '..', '..', 'themes');
 const imports = (file: string): string[] =>
   [...readFileSync(join(THEMES, file), 'utf8').matchAll(/@import\s+(?:url\()?["']([^"']+)["']/g)].map((m) => m[1] ?? '');
 const presetFiles = readdirSync(THEMES).filter((f) => f.endsWith('.css') && !f.startsWith('_') && f !== 'index.css');

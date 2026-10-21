@@ -1,7 +1,7 @@
 /**
  * App (kernel host)
  *
- * The resolved program renders through `@almadar/ui`'s renderer on the WebAssembly kernel;
+ * The resolved program renders through `@almadar/shell-web`'s renderer on the WebAssembly kernel;
  * events travel to the server's kernel over `/api/orbitals`. Nothing here is the program's own:
  * its locale, direction, themes and language data come from the `ClientManifest` and locale
  * messages `main.tsx` reads at startup, so one build of this client serves every program.

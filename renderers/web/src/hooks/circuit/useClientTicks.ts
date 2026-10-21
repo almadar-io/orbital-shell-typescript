@@ -14,7 +14,7 @@ import type { FrameScheduler } from '../../lib/kernel-frames';
 
 export interface UseClientTicksOptions {
   /** The kernel client whose tick clock runs. */
-  kernelClient: KernelClient;
+  kernelClient: Pick<KernelClient, 'startFrames'>;
   /** Paints one kernel frame's outcomes. */
   onKernelFrame: (outcomes: ClientKernelOutcome[]) => void;
   scheduleFrame?: FrameScheduler;

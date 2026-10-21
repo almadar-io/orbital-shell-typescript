@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Button } from '../../../../core';
 
-const { compileTailwindClasses } = createRequire(import.meta.url)('../../../../tailwind-compile.cjs') as {
+const { compileTailwindClasses } = createRequire(import.meta.url)('../../../../../tailwind-compile.cjs') as {
   compileTailwindClasses: (classes: string[]) => Promise<string>;
 };
 

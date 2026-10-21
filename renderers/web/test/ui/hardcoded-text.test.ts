@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-const ROOT = join(__dirname, '..');
-const DIRS = ['components', 'lib', 'runtime', 'providers', 'renderer'];
+const ROOT = join(__dirname, '..', '..', 'src');
+const DIRS = ['components', 'core', 'lib', 'preview', 'providers', 'renderer'];
 const JSX_TEXT = />\s*([^<>{}\n]*[A-Za-z]{2,}[^<>{}\n]*?)\s*<\//g;
 const TEXT_ATTR = /\b(placeholder|aria-label|title|alt|label)="([^"]*[A-Za-z]{2,}[^"]*)"/g;
 

@@ -5,10 +5,12 @@
  *
  * A "plugin" is not a new kind of artifact: it is a `.lolo` behavior a host
  * chooses to run on a kernel of its own, wired to the SAME bus and slots every
- * other UI component uses. `mode: 'mock'` opens one local kernel per plugin
- * (`openLocalKernel` over an in-memory store seeded with the preview's mock
- * rows, as an offline `OrbPreview`); `mode: 'server'` dispatches through the
- * host's transport. Default policy denies nothing — a plugin has the full
+ * other UI component uses. `mode: 'mock'` runs each plugin as an offline
+ * `OrbPreview` circuit does: a client-role kernel (which also runs the plugin's
+ * `ticks {}` on the one browser tick driver) over a local kernel whose mock
+ * store is seeded by `seedMockStore` (persona roster, owner columns stamped for
+ * the dev viewer, the `@create` owner gate); `mode: 'server'` dispatches
+ * through the host's transport. Default policy denies nothing — a plugin has the full
  * behavior power a preview has (in-memory persist, default services); `deny`
  * is an opt-in host policy, never a default sandbox.
  *
@@ -41,9 +43,8 @@ import React, {
   type ReactNode,
 } from 'react';
 import type { EffectHandlers } from '../runtime';
-import { createLocalStoreTransport, openLocalKernel } from '../runtime';
-import { prepareSchemaForPreview } from '../runtime';
-import type { KernelEngine, TraitState } from '../index';
+import { buildTraitIndex, createLocalStoreTransport, openLocalKernel, seedMockStore } from '../runtime';
+import { createMemoryCircuitStore, type ClientKernelOutcome, type KernelEngine, type TraitState } from '../index';
 import type {
   BusEventSource,
   ClientEffectTuple,
@@ -55,8 +56,15 @@ import type {
   Trait,
   TraitConfigValue,
   UISlot,
+  UserContext,
 } from '@almadar/core';
-import { InMemoryPersistence } from '@almadar/db/mock';
+import { MockPersistenceAdapter } from '@almadar/db/mock';
+import { createLazyKernelClient } from '../lib/kernel-client-lazy';
+import type { KernelClient } from '../lib/kernel-client';
+import type { KernelInstance } from '../lib/kernel-wire';
+import { kernelOrbitals } from '../lib/kernel-schema';
+import { getTabClientId } from '../hooks/circuit/useCircuitKernel';
+import { useClientTicks } from '../hooks/circuit/useClientTicks';
 import { UI_SLOTS } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { useEventBus, useRootEventBus } from '../core';
@@ -295,36 +303,77 @@ function writeDeniedStore(pluginId: string, store: PersistenceAdapter): Persiste
   };
 }
 
-/** One plugin's local kernel: its schema over in-memory mock rows, the denied verbs answered by the host's ports. */
+/** One plugin's mock circuit: the local kernel over its seeded mock store, and the client kernel dispatching to it. */
+interface PluginLocalKernel {
+  /** The local kernel answering the client's posted legs. */
+  kernelEngine: Promise<KernelEngine>;
+  /** The client-role kernel every inbound dispatch and every tick frame runs on. */
+  client: KernelClient;
+  instance: Promise<KernelInstance>;
+  transport: EventTransport;
+}
+
+/**
+ * One plugin's local kernel: its schema over a mock store seeded for the dev viewer (`seedMockStore`), the denied
+ * verbs answered by the host's ports, and a client-role kernel over it, as an offline `OrbPreview` circuit runs.
+ */
 function openPluginKernel(
   plugin: PluginHostPlugin,
   engine: KernelEngineValue | null,
   denySet: ReadonlySet<PluginHostDenyVerb>,
-): { kernelEngine: Promise<KernelEngine>; transport: EventTransport } {
+): PluginLocalKernel {
   if (engine === null) throw new KernelLoaderMissingError();
   const language = engine.loadLanguage !== undefined ? engine.loadLanguage() : Promise.reject(new LanguageLoaderMissingError());
-  const { schema, mockData } = prepareSchemaForPreview(plugin.schema);
-  const rows = new InMemoryPersistence();
-  rows.seed(mockData);
-  const persistence = denySet.has('persist') ? writeDeniedStore(plugin.id, rows) : rows;
-  const kernelEngine = Promise.all([engine.loadModule(), language]).then(([kernel, bundle]) => openLocalKernel({
-    kernel,
-    language: bundle,
-    schema,
-    persistence,
-    ...(denySet.has('call-service')
-      ? {
-          callService: async (service: string, action: string) => {
-            log.warn('call-service:denied', { pluginId: plugin.id, service, action });
-            return null;
-          },
-        }
-      : {}),
-  }));
+  const schema = plugin.schema;
+  const opened = Promise.all([engine.loadModule(), language]).then(async ([kernel, bundle]) => {
+    const rows = new MockPersistenceAdapter({ defaultSeedCount: 6 });
+    const persistence = denySet.has('persist') ? writeDeniedStore(plugin.id, rows) : rows;
+    const server = openLocalKernel({
+      kernel,
+      language: bundle,
+      schema,
+      persistence,
+      ...(denySet.has('call-service')
+        ? {
+            callService: async (service: string, action: string) => {
+              log.warn('call-service:denied', { pluginId: plugin.id, service, action });
+              return null;
+            },
+          }
+        : {}),
+    });
+    // The owner gates evaluate on the kernel, so the store seeds once its language is installed.
+    let viewer: UserContext | undefined;
+    viewer = await seedMockStore(rows, schema, { namedByHost: false, current: () => viewer, seedIdentity: true });
+    server.seedRuntimeMock(viewer?.id);
+    return { kernel, server, viewer };
+  });
   // The failure reaches the first dispatch through the transport (and the registration below).
+  opened.catch(() => undefined);
+  const kernelEngine = opened.then((o) => o.server);
   kernelEngine.catch(() => undefined);
-  return { kernelEngine, transport: createLocalStoreTransport({ kernelEngine }) };
+  const transport = createLocalStoreTransport({ kernelEngine, user: opened.then((o) => o.viewer) });
+  const instance = opened.then(({ kernel, viewer }) => {
+    const k = new kernel.Kernel(JSON.stringify({ name: schema.name, orbitals: kernelOrbitals(schema.orbitals) }), getTabClientId());
+    // The local kernel runs the whole worklist of every leg it is posted, listeners of a dispatched emit included.
+    k.setHostFansOut(true);
+    if (viewer !== undefined) k.setCurrentUser(JSON.stringify(viewer));
+    return k;
+  });
+  instance.catch(() => undefined);
+  const traitIndex = buildTraitIndex(schema.orbitals);
+  const client = createLazyKernelClient({
+    instance,
+    store: createMemoryCircuitStore(Array.from(traitIndex.byName.values(), (entry) => entry.traitDef)),
+    traitIndex,
+    transport,
+    topology: Promise.resolve({ carriesCircuitState: false }),
+  });
+  return { kernelEngine, client, instance, transport };
 }
+
+/** A server-mode plugin's ticks run on its host: this view runs none. */
+const HOST_TICKS: Pick<KernelClient, 'startFrames'> = { startFrames: () => () => undefined };
 
 interface PluginRuntimeMountProps {
   plugin: PluginHostPlugin;
@@ -397,12 +446,12 @@ function PluginRuntimeMount({
     [mode, plugin.id, plugin.schema, kernelEngineValue],
   );
   const activeTransport = local?.transport ?? (mode === 'server' ? transport : undefined);
-  const engineRef = useRef<KernelEngine | undefined>(undefined);
+  const engineRef = useRef<KernelInstance | undefined>(undefined);
 
   const registrationReady = useMemo(async () => {
     if (activeTransport === undefined) return;
     await activeTransport.register(plugin.schema);
-    if (local !== undefined) engineRef.current = await local.kernelEngine;
+    if (local !== undefined) engineRef.current = await local.instance;
   }, [activeTransport, local, plugin.schema]);
 
   useEffect(() => {
@@ -426,11 +475,10 @@ function PluginRuntimeMount({
         if (teardownRef.current?.timer === timer) teardownRef.current = null;
         if (activeTransport !== undefined) void activeTransport.unregister();
         void local?.kernelEngine.then((engine) => engine.dispose(), () => undefined);
-        if (local !== undefined && engineRef.current !== undefined) {
-          void local.kernelEngine.then((engine) => {
-            if (engineRef.current === engine) engineRef.current = undefined;
-          }, () => undefined);
-        }
+        void local?.instance.then((instance) => {
+          if (engineRef.current === instance) engineRef.current = undefined;
+          instance.free();
+        }, () => undefined);
         // Restore whatever stock/fallback content the host had for every
         // slot this plugin rendered into — a disabled plugin must not leave
         // its content stranded in the slot forever.
@@ -464,7 +512,7 @@ function PluginRuntimeMount({
     if (engine === undefined) return states;
     for (const orbital of plugin.schema.orbitals) {
       for (const traitName of traitNamesOf(orbital)) {
-        const current = engine.stateOf(traitName);
+        const current = engine.getState(traitName);
         if (current !== '') states.push([orbital.name, traitName, toTraitState(traitName, current, lastEvent)]);
       }
     }
@@ -488,19 +536,17 @@ function PluginRuntimeMount({
     };
   }, [registrationReady, plugin.id, onDispatched, onError, snapshotAllStates]);
 
-  const dispatch = useCallback(
-    async (row: PluginHostInbound, payload: EventPayload | undefined) => {
-      await registrationReady;
-      if (activeTransport === undefined) return;
-      const response: OrbitalEventResponse = await activeTransport.send(row.orbital, {
-        event: row.trigger,
-        payload,
-        targetTrait: row.trait,
-        locale,
-      });
+  const orbitalOfTrait = useMemo(
+    () => new Map(plugin.schema.orbitals.flatMap((orbital) => traitNamesOf(orbital).map((trait) => [trait, orbital.name] as const))),
+    [plugin.schema],
+  );
 
+  // One run's outcome, an inbound dispatch (`trigger`) or a tick frame (`null`): its client effects paint, its emits
+  // reach the host bus, and the traits it moved are reported.
+  const settle = useCallback(
+    (trigger: string | null, response: OrbitalEventResponse, orbital: string | undefined) => {
       if (!response.success) {
-        onError(plugin.id, response.error ?? `${plugin.id}: ${row.trigger} failed`);
+        onError(plugin.id, response.error ?? `${plugin.id}: ${trigger ?? 'tick'} failed`);
       }
       // The kernel answers a dispatch with its client effects; they paint through this plugin's own handlers.
       if (mockHandlers !== undefined) paintClientEffects(plugin.id, response.clientEffects ?? [], mockHandlers);
@@ -517,16 +563,52 @@ function PluginRuntimeMount({
       }
 
       // A cascade moves sibling traits the response does not name: a local kernel reports every trait it holds.
+      const transitions = Object.entries(response.states).flatMap(([traitName, stateName]) => {
+        const owner = orbital ?? orbitalOfTrait.get(traitName);
+        return owner === undefined ? [] : [[owner, traitName, stateName] as const];
+      });
       const states: Array<readonly [string, string, TraitState]> = local !== undefined
-        ? snapshotAllStates(row.trigger)
-        : Object.entries(response.states).map(([traitName, stateName]) => [row.orbital, traitName, toTraitState(traitName, stateName, row.trigger)] as const);
-      for (const [traitName, stateName] of Object.entries(response.states)) {
-        onTransition?.(plugin.id, row.orbital, traitName, stateName);
-      }
-      onDispatched(plugin.id, row.trigger, states);
+        ? snapshotAllStates(trigger)
+        : transitions.map(([owner, traitName, stateName]) => [owner, traitName, toTraitState(traitName, stateName, trigger)] as const);
+      for (const [owner, traitName, stateName] of transitions) onTransition?.(plugin.id, owner, traitName, stateName);
+      onDispatched(plugin.id, trigger, states);
     },
-    [registrationReady, activeTransport, local, mockHandlers, locale, plugin, ownOrbitals, inboundVocabulary, relay, snapshotAllStates, onError, onTransition, onDispatched],
+    [local, mockHandlers, plugin, ownOrbitals, orbitalOfTrait, inboundVocabulary, relay, snapshotAllStates, onError, onTransition, onDispatched],
   );
+
+  const dispatch = useCallback(
+    async (row: PluginHostInbound, payload: EventPayload | undefined) => {
+      await registrationReady;
+      const request = { event: row.trigger, payload, targetTrait: row.trait, locale };
+      if (local !== undefined) {
+        settle(row.trigger, (await local.client.dispatch(request)).response, row.orbital);
+        return;
+      }
+      if (activeTransport === undefined) return;
+      settle(row.trigger, await activeTransport.send(row.orbital, request), row.orbital);
+    },
+    [registrationReady, activeTransport, local, locale, settle],
+  );
+
+  // The plugin's `ticks {}` run on its client kernel's tick clock (the one browser tick driver); a server-mode
+  // plugin's ticks run on its host. Each frame's outcomes settle as a run, and what a tick's post added paints when it lands.
+  const onKernelFrame = useCallback(
+    (outcomes: ClientKernelOutcome[]) => {
+      for (const outcome of outcomes) {
+        settle(null, outcome.response, undefined);
+        void outcome.tickSettled?.then((added) => {
+          if (added !== undefined && mockHandlers !== undefined) paintClientEffects(plugin.id, added.clientEffects ?? [], mockHandlers);
+        });
+      }
+    },
+    [settle, mockHandlers, plugin.id],
+  );
+  useClientTicks({
+    kernelClient: local?.client ?? HOST_TICKS,
+    onKernelFrame,
+    ...(kernelEngineValue?.scheduleFrame !== undefined ? { scheduleFrame: kernelEngineValue.scheduleFrame } : {}),
+    hostRunsProgram: local === undefined,
+  });
 
   // Inside a trait scope the bus fans a bare `UI:EVENT` out to one qualified
   // `UI:<orbital>.<trait>.EVENT` key per scope on the chain and drops the bare

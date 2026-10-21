@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 import pkg from '../../package.json' with { type: 'json' };
 
 const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, '..');
+const root = resolve(here, '..', '..');
 
 // The ESM dist file backing each subpath export.
 function distFor(subpath: string): string {
@@ -49,47 +49,47 @@ function distFor(subpath: string): string {
 // `createContext` for the bus, tolerant of esbuild's `/* @__PURE__ */` marker
 // and the numeric suffix tsup appends on collision (`EventBusContext2`).
 const DEFINES_CONTEXT = /EventBusContext\d*\s*=\s*(?:\/\*[^*]*\*\/\s*)?(?:React\.)?createContext/;
-const IMPORTS_SHARED = /@almadar\/ui\/providers/;
 
-// `./providers` is the single home of EventBusContext; every other
-// bus-consuming entry must IMPORT it, never redefine it.
-const HOME = './providers';
-const BUS_CONSUMERS = ['.', './avl', './runtime', './hooks'];
+// Every bus-consuming entry reaches the ONE chunk that defines EventBusContext; none inlines its own.
+const BUS_CONSUMERS = ['./core', './components', './providers', './avl', './runtime', './hooks'];
 
 const RELATIVE_STATIC_IMPORT = /(?:^|[;\n])\s*(?:import|export)\s*(?:[\w{},*\s$]+from\s*)?['"](\.{1,2}\/[^'"]+\.js)['"]/g;
 
 /** The entry's file plus every chunk it statically imports, transitively. */
-function read(subpath: string): string {
+function closure(subpath: string): Map<string, string> {
   const pending = [distFor(subpath)];
-  const seen = new Set<string>();
-  const texts: string[] = [];
+  const files = new Map<string, string>();
   while (pending.length > 0) {
     const file = pending.pop()!;
-    if (seen.has(file)) continue;
-    seen.add(file);
+    if (files.has(file)) continue;
     if (!existsSync(file)) {
-      throw new Error(`${file} missing — run \`npm run build\` before this test`);
+      throw new Error(`${file} missing — run \`pnpm build\` before this test`);
     }
     const text = readFileSync(file, 'utf8');
-    texts.push(text);
+    files.set(file, text);
     for (const m of text.matchAll(RELATIVE_STATIC_IMPORT)) pending.push(resolve(dirname(file), m[1]));
   }
-  return texts.join('\n');
+  return files;
+}
+
+function definingFiles(subpath: string): string[] {
+  return [...closure(subpath)].filter(([, text]) => DEFINES_CONTEXT.test(text)).map(([file]) => file);
 }
 
 describe('EventBusContext is a cross-chunk singleton', () => {
-  it('is defined exactly once, in the ./providers chunk', () => {
-    expect(read(HOME)).toMatch(DEFINES_CONTEXT);
+  it('every bus-consuming entry reaches exactly one defining chunk, the same one', () => {
+    const homes = new Set<string>();
     for (const sub of BUS_CONSUMERS) {
-      expect(read(sub), `${sub} must not inline its own EventBusContext`).not.toMatch(DEFINES_CONTEXT);
+      const defining = definingFiles(sub);
+      expect(defining, `${sub} must reach exactly one EventBusContext`).toHaveLength(1);
+      homes.add(defining[0]);
     }
+    expect([...homes]).toHaveLength(1);
   });
 
   it('control: the check reads the chunks an entry imports, not just its own file', () => {
-    expect(read('.').length).toBeGreaterThan(readFileSync(distFor('.'), 'utf8').length);
-  });
-
-  it.each(BUS_CONSUMERS)('%s imports the shared @almadar/ui/providers chunk', (sub) => {
-    expect(read(sub), `${sub} must import the shared EventBusContext, not redefine it`).toMatch(IMPORTS_SHARED);
+    const own = readFileSync(distFor('./components'), 'utf8');
+    expect(closure('./components').size).toBeGreaterThan(1);
+    expect(DEFINES_CONTEXT.test(own)).toBe(false);
   });
 });

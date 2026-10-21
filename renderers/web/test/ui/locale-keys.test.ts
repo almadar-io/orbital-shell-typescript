@@ -5,10 +5,10 @@ import en from '../../src/core/locales/en.json';
 import ar from '../../src/core/locales/ar.json';
 import sl from '../../src/core/locales/sl.json';
 
-const ROOT = join(__dirname, '..');
-const SOURCE_DIRS = ['components', 'hooks', 'providers', 'runtime', 'renderer', 'lib', 'context', 'avl'];
+const ROOT = join(__dirname, '..', '..', 'src');
+const SOURCE_DIRS = ['components', 'core', 'hooks', 'providers', 'preview', 'renderer', 'lib', 'context', 'avl'];
 const KEY_CALL = /\bt\(\s*['"]([A-Za-z0-9_.]+)['"]/g;
-const DOC_EXAMPLE_FILES = new Set(['hooks/useTranslate.ts']);
+const DOC_EXAMPLE_FILES = new Set(['core/hooks/useTranslate.ts']);
 
 function sourceFiles(dir: string): string[] {
   let out: string[] = [];

@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-const ROOT = join(__dirname, '..');
+const ROOT = join(__dirname, '..', '..', 'src');
 const DIRS = ['atoms', 'molecules', 'organisms'].map((d) => join(ROOT, 'components/core', d));
 
 export function handRolledSurfaces(source: string): string[] {

@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ROOT = join(__dirname, '..', 'components');
+const ROOT = join(__dirname, '..', '..', '..', 'src', 'components');
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

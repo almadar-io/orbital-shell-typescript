@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const base = fs.readFileSync(path.resolve(__dirname, '../themes/_base.css'), 'utf-8');
+const base = fs.readFileSync(path.resolve(__dirname, '../../themes/_base.css'), 'utf-8');
 
 function rootBlocks(css: string): string[] {
   return [...css.matchAll(/(^|\n):root\s*\{([\s\S]*?)\n\}/g)].map((m) => m[2]);

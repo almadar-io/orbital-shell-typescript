@@ -50,6 +50,7 @@ export { parseOrbitalTraits, type ParsedOrbitalTraits } from './traits/OrbitalTr
 export { resolveRowSetFromStore, resolveRowSetFromRows, type RowSetStore } from './effects/row-set-resolve.js';
 
 export { seedBrowserStore } from './entities/seedBrowserStore.js';
+export { bindDeclaredCollections, installPolicyOwnerGates, prepareMockSeeding, registerMockEntity, seedEntityInstances, seedMockIdentity, seedMockOrbital, seedMockStore, type MockSeedViewer } from './entities/mockStoreSeed.js';
 export { createLocalStoreTransport, localStorePersistence, openLocalKernel, type LocalKernelOptions } from './evaluation/local-store-transport.js';
 export type { LocalStoreTransportOptions } from './evaluation/local-store-transport.js';
 export { createResidenceTransport } from './evaluation/residence-transport.js';
