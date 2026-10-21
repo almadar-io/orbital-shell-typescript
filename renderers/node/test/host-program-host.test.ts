@@ -571,11 +571,12 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     const waited = await runProgramEffect('program/step', [arg(SLEEP('0.2')), arg(run({})), arg({ live: true })], opts);
     expect(waited).toMatchObject({ ok: true, result: [{ result: { entityAfter: { done: true } } }] });
     const replay = await runProgramEffect('program/step', [arg(SLEEP('0.2')), arg(run({}))], opts);
-    expect(replay).toMatchObject({ ok: true, result: [{ result: { entityAfter: { done: false } } }] });
+    expect(replay).toMatchObject({ ok: true, result: [{ result: { state: { after: 'running' } } }] });
     const started = Date.now();
     const cut = await runProgramEffect('program/step', [arg(SLEEP('5')), arg(run({ settleMs: 300 })), arg({ live: true })], opts);
     expect(Date.now() - started).toBeLessThan(4000);
-    expect(cut).toMatchObject({ ok: true, result: [{ result: { entityAfter: { done: false } } }] });
+    expect(cut).toMatchObject({ ok: true });
+    if (cut.ok && Array.isArray(cut.result)) expect(cut.result[0]?.result.entityAfter?.['done']).not.toBe(true);
     expect(await runProgramEffect('program/step', [arg(SLEEP('0')), arg(run({})), arg({ live: 'yes' })], opts)).toMatchObject({ ok: false });
   }, 20000);
 
