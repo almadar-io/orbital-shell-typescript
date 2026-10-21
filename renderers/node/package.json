@@ -1,0 +1,53 @@
+{
+  "name": "@almadar/shell-node",
+  "version": "0.1.0",
+  "description": "Almadar TS shell node runtime pack: the Node os/* and program/* host of the kernel (os families, KernelProgram, workspace, program host).",
+  "license": "BUSL-1.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "@almadar/core": "^10.128.0",
+    "@almadar/db": "^0.1.5",
+    "@almadar/kernel": "^18.0.0",
+    "@almadar/logger": "^1.18.0",
+    "@almadar/shell-web": "^0.1.0",
+    "undici": "^6.27.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^2.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/almadar-io/orbital-shell-typescript.git",
+    "directory": "renderers/node"
+  },
+  "engines": {
+    "node": ">=22.19.0"
+  }
+}
