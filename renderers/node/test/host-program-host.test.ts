@@ -473,9 +473,11 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
       pages: [],
       traits: [{
         name: 'G',
+        scope: 'instance',
         linkedEntity: 'Gate',
         stateMachine: {
           states: [{ name: 'ready', isInitial: true }, { name: 'open' }],
+          events: [{ key: 'OPEN', name: 'Open' }, { key: 'LATE', name: 'Late' }],
           transitions: [
             { from: 'ready', to: 'open', event: 'OPEN', guard: ['=', '@entity.owner', 'ann'] },
             { from: 'ready', to: 'open', event: 'LATE', guard: ['>', '@now', 1000] },
@@ -501,8 +503,113 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     ] });
   });
 
+  const KNOB = {
+    name: 'KnobApp',
+    orbitals: [{
+      name: 'Knob',
+      entity: { name: 'K', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+      pages: [],
+      traits: [{
+        name: 'T',
+        scope: 'instance',
+        linkedEntity: 'K',
+        config: { mode: { type: 'string', default: 'off' } },
+        stateMachine: {
+          states: [{ name: 'idle', isInitial: true }, { name: 'on' }],
+          events: [{ key: 'GO', name: 'Go' }],
+          transitions: [{ from: 'idle', to: 'on', event: 'GO', guard: ['=', '@config.mode', 'on'] }],
+        },
+      }],
+    }],
+  };
+
+  it('program/step overrides a config knob for the call', async () => {
+    const go = { orbital: 'Knob', trait: 'T', from: 'idle', event: 'GO', payload: {} };
+    const opts = { cwd: project(), orbBin: ORB };
+    const out = await runProgramEffect('program/step', [arg(KNOB), arg([{ ...go, config: { mode: 'on' } }])], opts);
+    expect(out).toMatchObject({ ok: true, result: [{ config: { mode: 'on' }, result: { guard: 'pass' } }] });
+    expect(await runProgramEffect('program/step', [arg(KNOB), arg([go])], opts)).toMatchObject({ ok: true, result: [{ result: { guard: 'fail' } }] });
+    expect(await runProgramEffect('program/step', [arg(KNOB), arg([{ ...go, config: { mode: 'on' } }, { ...go, config: { mode: 'off' } }])], opts)).toMatchObject({ ok: false });
+  });
+
+  it('program/step leaves a keyed os ask pending: reported, neither run nor failed', async () => {
+    const OS = { name: 'OsApp', osGrants: { env: ['HOME'] }, orbitals: [{ name: 'Os',
+      entity: { name: 'O', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+      pages: [],
+      traits: [{ name: 'T', scope: 'instance', linkedEntity: 'O', stateMachine: {
+        states: [{ name: 'idle', isInitial: true }, { name: 'asking' }],
+        events: [{ key: 'ASK', name: 'Ask' }, { key: 'GOT', name: 'Got' }, { key: 'NOGO', name: 'Nogo' }],
+        transitions: [
+          { from: 'idle', to: 'asking', event: 'ASK', effects: [['os/getenv', 'HOME', { key: 'home', emit: { success: 'GOT', failure: 'NOGO' } }]] },
+          { from: 'asking', to: 'idle', event: 'GOT' },
+          { from: 'asking', to: 'idle', event: 'NOGO' },
+        ] } }] }] };
+    const out = await runProgramEffect('program/step', [arg(OS), [{ orbital: 'Os', trait: 'T', from: 'idle', event: 'ASK', payload: {} }]], { cwd: project(), orbBin: ORB });
+    if (!out.ok || !Array.isArray(out.result)) throw new Error(`expected played steps, got ${JSON.stringify(out)}`);
+    const [played] = out.result;
+    if (played === undefined || !('result' in played)) throw new Error('expected one played step');
+    expect(played.result.effects.find((e) => e.type === 'os/getenv')?.status).not.toBe('failed');
+    expect(played.result.state.after).toBe('asking');
+    expect(played.result.outcomes).toHaveLength(1);
+  });
+
+  it('program/step runs an os ask only when the call is live, and settleMs cuts a live wait off', async () => {
+    const SLEEP = (seconds: string) => ({ name: 'SleepApp', osGrants: { fs: [], exec: ['sleep'], net: [], env: [], stdio: [], sys: [], desktop: [] }, orbitals: [{ name: 'Sleep',
+      entity: { name: 'S', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'done', type: 'boolean', default: false }] },
+      pages: [],
+      traits: [{ name: 'T', scope: 'instance', linkedEntity: 'S', stateMachine: {
+        states: [{ name: 'idle', isInitial: true }, { name: 'running' }, { name: 'done' }],
+        events: [{ key: 'RUN', name: 'Run' }, { key: 'SPAWNED', name: 'Spawned' }, { key: 'WAITED', name: 'Waited' }, { key: 'FAILED', name: 'Failed' }],
+        transitions: [
+          { from: 'idle', to: 'running', event: 'RUN', effects: [['os/spawn', 'sleep', [seconds], { cwd: null, env: null, stdin: 'null', stdout: 'null', stderr: 'null', detached: false }, { key: 'spawn', emit: { success: 'SPAWNED', failure: 'FAILED' } }]] },
+          { from: 'running', to: 'running', event: 'SPAWNED', effects: [['os/wait', '@payload.pid', { key: 'wait', emit: { success: 'WAITED', failure: 'FAILED' } }]] },
+          { from: 'running', to: 'done', event: 'WAITED', effects: [['set', '@entity.done', true]] },
+          { from: 'running', to: 'idle', event: 'FAILED' },
+        ] } }] }] });
+    const run = (extra: object) => [{ orbital: 'Sleep', trait: 'T', from: 'idle', event: 'RUN', payload: {}, ...extra }];
+    const opts = { cwd: project(), orbBin: ORB };
+    const waited = await runProgramEffect('program/step', [arg(SLEEP('0.2')), arg(run({})), arg({ live: true })], opts);
+    expect(waited).toMatchObject({ ok: true, result: [{ result: { entityAfter: { done: true } } }] });
+    const replay = await runProgramEffect('program/step', [arg(SLEEP('0.2')), arg(run({}))], opts);
+    expect(replay).toMatchObject({ ok: true, result: [{ result: { entityAfter: { done: false } } }] });
+    const started = Date.now();
+    const cut = await runProgramEffect('program/step', [arg(SLEEP('5')), arg(run({ settleMs: 300 })), arg({ live: true })], opts);
+    expect(Date.now() - started).toBeLessThan(4000);
+    expect(cut).toMatchObject({ ok: true, result: [{ result: { entityAfter: { done: false } } }] });
+    expect(await runProgramEffect('program/step', [arg(SLEEP('0')), arg(run({})), arg({ live: 'yes' })], opts)).toMatchObject({ ok: false });
+  }, 20000);
+
+  it('program/step dispatches as the request viewer', async () => {
+    const SEE = { name: 'SeeApp', orbitals: [{ name: 'See',
+      entity: { name: 'V', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+      pages: [],
+      traits: [{ name: 'T', scope: 'instance', linkedEntity: 'V', stateMachine: {
+        states: [{ name: 'idle', isInitial: true }],
+        events: [{ key: 'MINE', name: 'Mine' }],
+        transitions: [{ from: 'idle', to: 'idle', event: 'MINE', guard: ['=', '@user.id', 'u1'] }] } }] }] };
+    const mine = { orbital: 'See', trait: 'T', from: 'idle', event: 'MINE', payload: {} };
+    const out = await runProgramEffect('program/step', [arg(SEE), arg([{ ...mine, viewer: { id: 'u1' } }, mine])], { cwd: project(), orbBin: ORB });
+    expect(out).toMatchObject({ ok: true, result: [{ result: { guard: 'pass' } }, { result: { guard: 'fail' } }] });
+  });
+
+  it('program/step reports the row the requested trait holds after it', async () => {
+    const ROW = { name: 'RowApp', orbitals: [{ name: 'Row',
+      entity: { name: 'R', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'n', type: 'number', default: 0 }] },
+      pages: [],
+      traits: [{ name: 'T', scope: 'instance', linkedEntity: 'R', stateMachine: {
+        states: [{ name: 'idle', isInitial: true }],
+        events: [{ key: 'BUMP', name: 'Bump' }, { key: 'NOPE', name: 'Nope' }],
+        transitions: [
+          { from: 'idle', to: 'idle', event: 'BUMP', effects: [['set', '@entity.n', ['+', '@entity.n', 5]]] },
+          { from: 'idle', to: 'idle', event: 'NOPE', guard: ['=', 1, 2], effects: [['set', '@entity.n', 99]] },
+        ] } }] }] };
+    const req = (event: string) => ({ orbital: 'Row', trait: 'T', from: 'idle', event, payload: {}, entity: { n: 1 } });
+    const out = await runProgramEffect('program/step', [arg(ROW), arg([req('BUMP'), req('NOPE')])], { cwd: project(), orbBin: ORB });
+    expect(out).toMatchObject({ ok: true, result: [{ result: { entityAfter: { n: 6 } } }, { result: { entityAfter: { n: 1 } } }] });
+  });
+
   it('control: a request entity that is not an object or a now that is not a number is refused', async () => {
-    for (const bad of [{ entity: 'ann' }, { now: 'noon' }]) {
+    for (const bad of [{ entity: 'ann' }, { now: 'noon' }, { config: 'on' }]) {
       expect(await runProgramEffect('program/step', [arg(GATE), arg([gate({ event: 'OPEN', ...bad })])], { cwd: project(), orbBin: ORB })).toMatchObject({ ok: false });
     }
   });
@@ -514,14 +621,16 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
       entity: { name: 'Key', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       pages: [],
       traits: [
-        { name: 'ApiKeys', linkedEntity: 'Key', stateMachine: {
+        { name: 'ApiKeys', scope: 'instance', linkedEntity: 'Key', stateMachine: {
           states: [{ name: 'idle', isInitial: true }],
+          events: [{ key: 'ISSUE', name: 'Issue' }],
           transitions: [{ from: 'idle', to: 'idle', event: 'ISSUE', effects: [['emit', 'ISSUED', {}]] }],
         } },
-        { name: 'ServerBearer', linkedEntity: 'Key',
+        { name: 'ServerBearer', scope: 'instance', linkedEntity: 'Key',
           listens: [{ event: 'ISSUED', triggers: 'ARM', source: { kind: 'trait', trait: 'ApiKeys' } }],
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }, { name: 'armed' }],
+            events: [{ key: 'ARM', name: 'Arm' }],
             transitions: [{ from: 'idle', to: 'armed', event: 'ARM' }],
           } },
       ],

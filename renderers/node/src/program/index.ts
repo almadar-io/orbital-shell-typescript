@@ -583,7 +583,10 @@ const StepRequestSchema: z.ZodType<StepRequest> = z.object({
   event: z.string(),
   payload: EventPayloadSchema,
   entity: EventPayloadSchema.optional(),
+  config: EventPayloadSchema.optional(),
   now: z.number().optional(),
+  settleMs: z.number().optional(),
+  viewer: EventPayloadSchema.nullable().optional(),
 });
 
 const StepOutcomeSchema = z.object({
@@ -599,7 +602,7 @@ const StepOutcomeSchema = z.object({
   effects: z.array(z.object({ type: z.string(), args: z.array(SExprSchema), status: z.enum(['executed', 'failed', 'skipped']), error: z.string().optional() })),
 });
 const StepReportSchema = z.union([
-  z.object({ success: z.literal(true), steps: z.array(z.object({ outcomes: z.array(StepOutcomeSchema) })) }),
+  z.object({ success: z.literal(true), steps: z.array(z.object({ outcomes: z.array(StepOutcomeSchema), entityAfter: EventPayloadSchema.nullable() })) }),
   z.object({ success: z.literal(false), error: z.string() }),
 ]);
 
@@ -614,10 +617,10 @@ function emittedOf(emits: z.infer<typeof StepOutcomeSchema>['emits'], step: numb
   return emits.map((e) => ({ type: e.event, ...(e.payload !== null ? { payload: e.payload } : {}), timestamp: step }));
 }
 
-export async function programStep(program: OrbitalSchema, requests: readonly StepRequest[], opts: ProgramHostOptions): Promise<PlayedStep[] | { error: string }> {
-  const steps = requests.map((r) => ({ trait: r.trait, event: r.event, payload: r.payload, from: r.from, ...(r.entity !== undefined ? { entity: r.entity } : {}), ...(r.now !== undefined ? { now: r.now } : {}) }));
+export async function programStep(program: OrbitalSchema, requests: readonly StepRequest[], opts: ProgramHostOptions, live = false): Promise<PlayedStep[] | { error: string }> {
+  const steps = requests.map((r) => ({ trait: r.trait, event: r.event, payload: r.payload, from: r.from, ...(r.entity !== undefined ? { entity: r.entity } : {}), ...(r.config !== undefined ? { config: r.config } : {}), ...(r.now !== undefined ? { now: r.now } : {}), ...(r.settleMs !== undefined ? { settleMs: r.settleMs } : {}), ...(r.viewer !== undefined ? { viewer: r.viewer } : {}) }));
   return withTempFile('program.orb', JSON.stringify(program), async (path) => {
-    const run = await runOrb(['execute', path, '--steps', JSON.stringify(steps)], opts);
+    const run = await runOrb(['execute', path, '--steps', JSON.stringify(steps), ...(live ? ['--live'] : [])], opts);
     const report = parseJson(StepReportSchema, run, 'program/step');
     if (!report.success) return { error: report.error };
     const results: PlayedStep[] = [];
@@ -636,6 +639,7 @@ export async function programStep(program: OrbitalSchema, requests: readonly Ste
         effects: outcome.effects.map((e) => ({ type: e.type, args: e.args, status: e.status, ...(e.error !== undefined ? { error: e.error } : {}) })),
         emitted: emittedOf(outcome.emits, i),
         guards: outcome.guards.map((g) => ({ arm: g.arm, guard: g.guard, passed: g.passed, trace: [], ...(g.error !== undefined ? { error: g.error } : {}) })),
+        entityAfter: report.steps[i]?.entityAfter ?? null,
         outcomes: moved.map((o) => ({ orbital: o.orbital, trait: o.trait, event: o.event, from: o.previousState, to: o.newState, arm: o.firedArm, fired: o.executed, emitted: emittedOf(o.emits, i) })),
       } });
     }
@@ -704,7 +708,10 @@ export async function runProgramEffect(op: ProgramEffectName, args: readonly Eff
         if (typeof program === 'string') return fail(program);
         const requests = z.array(StepRequestSchema).safeParse(args[1]);
         if (!requests.success) return fail(`${op}: ${issuesOf(requests.error)}`);
-        const played = await programStep(program, requests.data, opts);
+        const options = args[2];
+        const live = options !== null && typeof options === 'object' && !Array.isArray(options) ? options['live'] : undefined;
+        if (live !== undefined && live !== null && typeof live !== 'boolean') return fail(`${op}: options.live must be a boolean`);
+        const played = await programStep(program, requests.data, opts, live === true);
         return 'error' in played ? fail(`${op}: ${played.error}`) : { ok: true, result: played };
       }
       case 'behavior/dependencies': {
