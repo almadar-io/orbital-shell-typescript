@@ -86,7 +86,7 @@ const NATIVE_PLATFORMS: Record<string, string> = {
  * Where the native kernel add-on is: `ALMADAR_KERNEL_NODE`, else `kernel.node` in the `@almadar/orb-<platform>-<arch>`
  * package this platform installs. Rejects when neither exists, so a host can fall back to the wasm kernel by choice.
  */
-export function resolveNativeAddon(from: string = process.cwd()): string {
+export function resolveNativeAddon(from: string): string {
   const named = process.env.ALMADAR_KERNEL_NODE;
   if (named !== undefined && named !== '') return named;
   const platform = NATIVE_PLATFORMS[`${process.platform}-${process.arch}`];

@@ -11,7 +11,7 @@ const program = fileURLToPath(new URL('./fixtures/late-answer/late-answer.lolo',
 
 describe.skipIf(KERNEL_DIR === undefined)('a hook answered after a keyed completion', () => {
   it('reaches the caller with the answer the completion produced', async () => {
-    const p = await KernelProgram.open(await resolveProgramFile(program, process.cwd()), { kernelDir: KERNEL_DIR ?? '', os: true });
+    const p = await KernelProgram.open(await resolveProgramFile(program, process.cwd()), { kernelDir: KERNEL_DIR ?? '', languageFrom: fileURLToPath(new URL('..', import.meta.url)), os: true });
     try {
       const answer = await p.deliverInbound('cli-echo', { headers: {}, rawBody: '{}' });
       expect(answer).toEqual({ status: 200, body: '{"ok":true}' });

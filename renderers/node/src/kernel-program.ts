@@ -17,7 +17,7 @@ import { loadHttpKernel, loadKernelModule, loadNativeKernelModule, resolveNative
 export interface KernelProgramOptions {
   /** Which kernel runs the program: the WebAssembly module (default; the only one in a browser) or the native add-on. The host's ports are the same for both. */
   engine?: 'wasm' | 'native';
-  /** The native kernel add-on (`kernel.node`); absent, `resolveNativeAddon()`. Used only by `engine: 'native'`. */
+  /** The native kernel add-on (`kernel.node`); absent, `resolveNativeAddon(options.languageFrom)`. Used only by `engine: 'native'`. */
   nativeAddon?: string;
   /**
    * Environment variables selecting the store the native kernel answers its own row asks from (`DATA_BACKEND`,
@@ -27,8 +27,8 @@ export interface KernelProgramOptions {
   store?: Readonly<Record<string, string>>;
   /** The directory of the built `@almadar/kernel` package (the one holding `pkg/`); absent, `resolveKernelDir()`. */
   kernelDir?: string;
-  /** Where the installed `@almadar/core` and `@almadar/std` are found, node-style (default: the working directory). */
-  languageFrom?: string;
+  /** Where the installed `@almadar/core` and `@almadar/std` are found, node-style. */
+  languageFrom: string;
   /** Transport overrides of the `http` effect: pinned fetch, address resolver, secret store. */
   http?: Pick<HttpPortsOptions, 'fetch' | 'resolve' | 'secrets' | 'random'>;
   /** Rows the program's in-memory store starts with, by entity name (a catalog the host already holds). */
@@ -94,11 +94,11 @@ export class KernelProgram {
   ) {}
 
   static async open(schema: OrbitalSchema, options: KernelProgramOptions): Promise<KernelProgram> {
-    const languageFrom = { languageFrom: options.languageFrom ?? process.cwd() };
+    const languageFrom = { languageFrom: options.languageFrom };
     const native = options.engine === 'native';
     if (options.store !== undefined && !native) throw new Error("KernelProgram: `store` needs engine: 'native'");
     if (options.store !== undefined && options.seed !== undefined) throw new Error('KernelProgram: `seed` fills the host store, which `store` replaces');
-    const addon: LoadedKernel | undefined = native ? await loadNativeKernelModule(options.nativeAddon ?? resolveNativeAddon(), languageFrom) : undefined;
+    const addon: LoadedKernel | undefined = native ? await loadNativeKernelModule(options.nativeAddon ?? resolveNativeAddon(options.languageFrom), languageFrom) : undefined;
     const kernelDir = addon === undefined ? (options.kernelDir ?? resolveKernelDir()) : '';
     const kernel: KernelModule = addon ?? (await loadKernelModule(kernelDir, languageFrom));
     installNodeHostPorts();

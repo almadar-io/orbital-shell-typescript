@@ -1,0 +1,133 @@
+{
+  "name": "HelloApp",
+  "orbitals": [
+    {
+      "id": "orb_G57V7SZN06TG3B30WDXQYYPMRP",
+      "name": "Hello",
+      "entity": {
+        "name": "Greeting",
+        "id": "ent_4VB4TFC46H238NNA0JMXX1WEZZ",
+        "persistence": "runtime",
+        "fields": [
+          {
+            "name": "id",
+            "required": true,
+            "type": "string"
+          }
+        ]
+      },
+      "traits": [
+        {
+          "id": "trt_0B4PDFBPX2VEHFFX4XXGM1ZP0Z",
+          "name": "Greet",
+          "category": "interaction",
+          "effectRow": [
+            {
+              "kind": "render-ui",
+              "resource": "main"
+            }
+          ],
+          "scope": "instance",
+          "linkedEntity": "Greeting",
+          "linkedEntityId": "ent_4VB4TFC46H238NNA0JMXX1WEZZ",
+          "entityRefIds": {
+            "Greeting": "ent_4VB4TFC46H238NNA0JMXX1WEZZ"
+          },
+          "stateMachine": {
+            "states": [
+              {
+                "name": "idle",
+                "isInitial": true
+              }
+            ],
+            "events": [
+              {
+                "key": "INIT",
+                "id": "evt_MC6B5TH8QVMBXSNBNS8FPX6FT3",
+                "name": "Initialize"
+              }
+            ],
+            "transitions": [
+              {
+                "from": "idle",
+                "to": "idle",
+                "event": "INIT",
+                "eventId": "evt_MC6B5TH8QVMBXSNBNS8FPX6FT3",
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "content": "hi",
+                      "type": "typography"
+                    }
+                  ]
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "pages": [
+        {
+          "id": "pag_ZT7XNKY7N43TJ587Q5MET7VFY7",
+          "name": "Home",
+          "path": "/",
+          "traits": [
+            {
+              "ref": "Greet",
+              "refId": "trt_0B4PDFBPX2VEHFFX4XXGM1ZP0Z"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 1,
+  "ledger": {
+    "schemaVersion": 1,
+    "entries": {
+      "ent_4VB4TFC46H238NNA0JMXX1WEZZ": {
+        "id": "ent_4VB4TFC46H238NNA0JMXX1WEZZ",
+        "kind": "entity",
+        "bakedName": "Greeting",
+        "curName": "Greeting",
+        "renames": [],
+        "owner": "workspace"
+      },
+      "evt_MC6B5TH8QVMBXSNBNS8FPX6FT3": {
+        "id": "evt_MC6B5TH8QVMBXSNBNS8FPX6FT3",
+        "kind": "event",
+        "bakedName": "INIT",
+        "curName": "INIT",
+        "renames": [],
+        "owner": "workspace",
+        "parent": "trt_0B4PDFBPX2VEHFFX4XXGM1ZP0Z"
+      },
+      "orb_G57V7SZN06TG3B30WDXQYYPMRP": {
+        "id": "orb_G57V7SZN06TG3B30WDXQYYPMRP",
+        "kind": "orbital",
+        "bakedName": "Hello",
+        "curName": "Hello",
+        "renames": [],
+        "owner": "workspace"
+      },
+      "pag_ZT7XNKY7N43TJ587Q5MET7VFY7": {
+        "id": "pag_ZT7XNKY7N43TJ587Q5MET7VFY7",
+        "kind": "page",
+        "bakedName": "Home",
+        "curName": "Home",
+        "renames": [],
+        "owner": "workspace"
+      },
+      "trt_0B4PDFBPX2VEHFFX4XXGM1ZP0Z": {
+        "id": "trt_0B4PDFBPX2VEHFFX4XXGM1ZP0Z",
+        "kind": "trait",
+        "bakedName": "Greet",
+        "curName": "Greet",
+        "renames": [],
+        "owner": "workspace"
+      }
+    }
+  }
+}
