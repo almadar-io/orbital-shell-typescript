@@ -68,6 +68,8 @@ export interface CascadeOutcome {
   /** The arm that fired; null when none did. */
   arm: number | null;
   fired: boolean;
+  /** The effects of the arm this trait fired, as the top-level `effects` report them. */
+  effects: CircuitStepResult['effects'];
   emitted: CircuitStepResult['emitted'];
 }
 

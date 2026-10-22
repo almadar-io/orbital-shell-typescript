@@ -613,6 +613,10 @@ const StepReportSchema = z.union([
  * effect of the fired arm and the events it emitted. Each request comes back played: as asked, with its `result`.
  */
 
+function effectsOf(effects: z.infer<typeof StepOutcomeSchema>['effects']): PlayedStep['result']['effects'] {
+  return effects.map((e) => ({ type: e.type, args: e.args, status: e.status, ...(e.error !== undefined ? { error: e.error } : {}) }));
+}
+
 function emittedOf(emits: z.infer<typeof StepOutcomeSchema>['emits'], step: number): PlayedStep['result']['emitted'] {
   return emits.map((e) => ({ type: e.event, ...(e.payload !== null ? { payload: e.payload } : {}), timestamp: step }));
 }
@@ -636,11 +640,11 @@ export async function programStep(program: OrbitalSchema, requests: readonly Ste
         guard: firedGuarded ? 'pass' : outcome.firedArm === null && outcome.guards.length > 0 ? 'fail' : 'none',
         ...(outcome.firedArm !== null ? { firedArm: outcome.firedArm } : {}),
         state: { before: outcome.previousState, after: outcome.newState },
-        effects: outcome.effects.map((e) => ({ type: e.type, args: e.args, status: e.status, ...(e.error !== undefined ? { error: e.error } : {}) })),
+        effects: effectsOf(outcome.effects),
         emitted: emittedOf(outcome.emits, i),
         guards: outcome.guards.map((g) => ({ arm: g.arm, guard: g.guard, passed: g.passed, trace: [], ...(g.error !== undefined ? { error: g.error } : {}) })),
         entityAfter: report.steps[i]?.entityAfter ?? null,
-        outcomes: moved.map((o) => ({ orbital: o.orbital, trait: o.trait, event: o.event, from: o.previousState, to: o.newState, arm: o.firedArm, fired: o.executed, emitted: emittedOf(o.emits, i) })),
+        outcomes: moved.map((o) => ({ orbital: o.orbital, trait: o.trait, event: o.event, from: o.previousState, to: o.newState, arm: o.firedArm, fired: o.executed, effects: effectsOf(o.effects), emitted: emittedOf(o.emits, i) })),
       } });
     }
     return results;

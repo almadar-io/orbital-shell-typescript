@@ -445,12 +445,12 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
         { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 0, state: { before: 'NORMAL', after: 'INSERT' },
           effects: [{ type: 'set', args: ['@entity.mode', 'insert'], status: 'executed' }], emitted: [],
           guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: true, trace: [] }],
-          outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'INSERT', arm: 0, fired: true, emitted: [] }] } },
+          outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'INSERT', arm: 0, fired: true, effects: [{ type: 'set', args: ['@entity.mode', 'insert'], status: 'executed' }], emitted: [] }] } },
       { orbital: 'Editor', trait: 'Modes', from: 'NORMAL', event: 'KEY', payload: { key: 'v' }, result:
         { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 1, state: { before: 'NORMAL', after: 'VISUAL' },
           effects: [], emitted: [],
           guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: false, trace: [] }, { arm: 1, guard: ['=', '@payload.key', 'v'], passed: true, trace: [] }],
-          outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'VISUAL', arm: 1, fired: true, emitted: [] }] } },
+          outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'VISUAL', arm: 1, fired: true, effects: [], emitted: [] }] } },
     ] });
   });
 
@@ -652,7 +652,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     const [played] = out.result;
     if (played === undefined || !('result' in played)) throw new Error('expected one played step');
     const { result } = played;
-    expect(result.outcomes).toEqual([{ orbital: 'Editor', trait: result.trait, event: result.event, from: result.state.before, to: result.state.after, arm: result.firedArm, fired: result.transitionFired, emitted: result.emitted }]);
+    expect(result.outcomes).toEqual([{ orbital: 'Editor', trait: result.trait, event: result.event, from: result.state.before, to: result.state.after, arm: result.firedArm, fired: result.transitionFired, effects: result.effects, emitted: result.emitted }]);
   });
 
   it('control: program/step without requests is refused', async () => {
