@@ -14,36 +14,43 @@ use crate::codegen::handler_header::named_struct_type_import_line;
 /// name too — the same mechanism, no special-casing.
 fn emit_named_type_declarations(
     named_types: &std::collections::BTreeMap<String, OirType>,
+    projection: TypeProjection,
+) -> String {
+    let module = named_types.keys().any(|name| name.contains('.')).then_some("./entities");
+    emit_named_type_groups(named_types, |_, local_name, ty| {
+        format!("export type {local_name} = {};\n\n", map_type_ts_with_projection(ty, None, None, projection, module))
+    })
+}
+
+fn emit_named_type_groups(
+    named_types: &std::collections::BTreeMap<String, OirType>,
+    declaration: impl Fn(&str, &str, &OirType) -> String,
 ) -> String {
     let mut code = String::new();
+    let mut scope: Vec<&str> = Vec::new();
     for (name, ty) in named_types {
-        match ty {
-            // A type alias, not an interface: an alias gets the implicit index signature an
-            // `EventPayloadValue` slot needs (G-ORB-150); it may still refer to itself.
-            OirType::Struct { fields } => {
-                code.push_str(&format!("export type {} = {{\n", name));
-                for field in fields {
-                    let (effective, is_optional) = field.effective_type();
-                    let ts_type = map_type_ts(
-                        effective,
-                        field.enum_values.as_ref(),
-                        None,
-                    );
-                    let optional = if is_optional { "?" } else { "" };
-                    code.push_str(&format!("  {}{}: {};\n", field.name, optional, ts_type));
-                }
-                code.push_str("};\n\n");
-            }
-            // Phase-3D nominalization registers anonymous unions too; a
-            // `TypeRef` to one must find a declaration. Interfaces can't spell
-            // a union, so emit a type alias through the same `union_ty`
-            // rendering inline unions use.
-            OirType::Union { .. } => {
-                let ts_type = map_type_ts(ty, None, None);
-                code.push_str(&format!("export type {} = {};\n\n", name, ts_type));
-            }
-            _ => {}
+        let parts: Vec<&str> = name.split('.').collect();
+        let parents = &parts[..parts.len() - 1];
+        let local_name = parts[parts.len() - 1];
+        let shared = scope.iter().zip(parents).take_while(|(left, right)| left == right).count();
+        while scope.len() > shared {
+            scope.pop();
+            code.push_str(&format!("{}}}\n\n", "  ".repeat(scope.len())));
         }
+        for parent in &parents[shared..] {
+            code.push_str(&format!("{}export namespace {parent} {{\n", "  ".repeat(scope.len())));
+            scope.push(parent);
+        }
+        for line in declaration(name, local_name, ty).split_inclusive('\n') {
+            if !line.trim().is_empty() {
+                code.push_str(&"  ".repeat(scope.len()));
+            }
+            code.push_str(line);
+        }
+    }
+    while !scope.is_empty() {
+        scope.pop();
+        code.push_str(&format!("{}}}\n\n", "  ".repeat(scope.len())));
     }
     code
 }
@@ -63,28 +70,21 @@ impl TypeScriptBackend {
         &self,
         named_types: &std::collections::BTreeMap<String, OirType>,
     ) -> String {
-        let mut code = String::new();
-        for (name, ty) in named_types {
-            if !matches!(ty, OirType::Struct { .. } | OirType::Union { .. }) {
-                continue;
-            }
-            let object_expr = self.map_type_to_zod(ty, None);
-            // The `: z.ZodType<{name}>` annotation alone is sufficient now that
-            // the scaffold tsconfig has `strictNullChecks` on (implied by
-            // `strict: true`): zod's `undefined extends T[K] ? optional :
-            // required` key computation only collapses every field to optional
-            // when null checks are off, which made the widened zod object fail
-            // assignability against the real (mostly required) interface. With
-            // null checks on, the annotation's assignability check passes
-            // outright, so the extra `as z.ZodType<{name}>` assertion is dead
-            // weight — dropping it also restores real type-checking on the
-            // `z.lazy` body against the interface, instead of silently
-            // overlap-checking past a mismatch.
-            code.push_str(&format!(
-                "export const {name}Schema: z.ZodType<{name}> = z.lazy(() => {object_expr});\n\n"
-            ));
-        }
-        code
+        let qualified = named_types.keys().any(|name| name.contains('.'));
+        emit_named_type_groups(named_types, |name, local_name, ty| {
+            let object_expr = self.map_type_to_zod_with_reference_module(ty, None, qualified.then_some(NAMED_SCHEMA_MODULE_BINDING));
+            let annotation = if name.contains('.') {
+                format!("import('../types/entities').{name}")
+            } else {
+                name.to_string()
+            };
+            let forwarding = if name.contains('.') {
+                format!("export type {local_name} = {annotation};\n")
+            } else {
+                String::new()
+            };
+            format!("{forwarding}export const {local_name}Schema: z.ZodType<{annotation}> = z.lazy(() => {object_expr});\n\n")
+        })
     }
 
     /// Generate packages/shared/src/types/entities.ts
@@ -115,14 +115,17 @@ impl TypeScriptBackend {
             .flat_map(|e| e.fields.iter().map(|f| &f.field_type))
             .chain(named_types.values())
             .any(|t| self.field_type_uses_sexpr(t));
-        let core_syms: std::collections::BTreeSet<&str> = if any_sexpr {
+        let mut core_syms: std::collections::BTreeSet<&str> = if any_sexpr {
             ["EntityRow", "FieldValue", "SExpr"].into_iter().collect()
         } else {
             ["EntityRow", "FieldValue"].into_iter().collect()
         };
-        code.push_str(&crate::codegen::handler_header::core_imports_clause(
-            &core_syms,
-        ));
+        core_syms.retain(|name| !named_types.contains_key(*name));
+        if !core_syms.is_empty() {
+            code.push_str(&crate::codegen::handler_header::core_imports_clause(
+                &core_syms,
+            ));
+        }
         code.push('\n');
 
         // Inline the `TraitFieldRef` template-literal type when any entity
@@ -240,14 +243,8 @@ impl TypeScriptBackend {
                 } else if let Some(ref desc) = field.description {
                     code.push_str(&format!("  /** {} */\n", desc));
                 }
-                // Determine the base type, unwrapping any outer
-                // `OirType::Optional` so we don't double-mark optionality.
-                // `OirField::optional` both sets `required: false` AND wraps
-                // the type in `Optional`; combining `?: T | null` widens the
-                // type with a spurious `null` that consumer pattern props
-                // (typed `T | undefined`) reject. The `?` modifier alone
-                // carries the optionality — emit the inner type.
-                let (effective_field_type, is_optional) = field.effective_type();
+                let effective_field_type = &field.field_type;
+                let is_optional = !field.required;
                 let base_type = if let Some(ref values) = field.enum_values {
                     if !values.is_empty() {
                         format!("{}{}", entity.name, capitalize_first(&field.name))
@@ -308,7 +305,7 @@ impl TypeScriptBackend {
         // and entities must lead the file — the emit sourcemap anchor
         // (first_ts_entity_name) picks the first `export interface` as the
         // file's entity, which must not be a named type.
-        code.push_str(&emit_named_type_declarations(named_types));
+        code.push_str(&emit_named_type_declarations(named_types, self.type_projection));
 
         InternalFile::new(
             "packages/shared/src/types/entities.ts",
@@ -338,9 +335,13 @@ impl TypeScriptBackend {
         // this the interface name is unresolved (TS2304). Entities.ts is the
         // one owner of these interfaces (`generate_shared_entities`).
         let struct_type_names: std::collections::BTreeSet<&str> = named_types
-            .iter()
-            .filter_map(|(name, ty)| matches!(ty, OirType::Struct { .. }).then_some(name.as_str()))
+            .keys()
+            .filter(|name| !name.contains('.'))
+            .map(String::as_str)
             .collect();
+        if named_types.keys().any(|name| name.contains('.')) {
+            code.push_str(&format!("import * as {NAMED_SCHEMA_MODULE_BINDING} from './entities';\n"));
+        }
         code.push_str(&named_struct_type_import_line(
             &struct_type_names,
             "../types/entities",
@@ -414,8 +415,8 @@ impl TypeScriptBackend {
                 if field.name == "id" {
                     continue;
                 }
-                // Unwrap so `apply_constraints_to_zod` chains onto the base type before the single `.optional()` below.
-                let (effective_field_type, is_optional) = field.effective_type();
+                let effective_field_type = &field.field_type;
+                let is_optional = !field.required;
                 let base_zod =
                     self.map_type_to_zod(effective_field_type, field.enum_values.as_ref());
                 // Apply OirConstraint refinements
@@ -491,8 +492,10 @@ impl TypeScriptBackend {
                 &core_types,
             ));
         }
+        let local_schemas = named_types.keys().map(|name| format!("{name}Schema")).collect();
         code.push_str(&crate::codegen::handler_header::zod_core_value_imports(
             &body,
+            &local_schemas,
         ));
         if body.contains("PatternValueSchema") {
             code.push_str(crate::codegen::handler_header::PATTERN_VALUE_DECL);
@@ -521,7 +524,10 @@ impl TypeScriptBackend {
     }
 
     /// Generate packages/shared/src/index.ts
-    pub(crate) fn generate_shared_index(&self) -> InternalFile {
+    pub(crate) fn generate_shared_index(
+        &self,
+        named_types: &std::collections::BTreeMap<String, OirType>,
+    ) -> InternalFile {
         let code = r#"/**
  * Shared Package
  *
@@ -533,6 +539,12 @@ export * from './types/events.js';
 export * from './types/configs.js';
 export * from './schemas/entities.js';
 "#;
+        let mut code = code.to_string();
+        let qualified = named_types.keys().filter(|name| name.contains('.')).map(String::as_str).collect();
+        let roots = crate::codegen::handler_header::named_type_roots(&qualified);
+        if !roots.is_empty() {
+            code.push_str(&format!("export {{ {} }} from './schemas/entities.js';\n", roots.into_iter().collect::<Vec<_>>().join(", ")));
+        }
 
         InternalFile::new(
             "packages/shared/src/index.ts",
@@ -1149,6 +1161,15 @@ export type { UserContext } from '@almadar/core';
         oir_type: &OirType,
         enum_values: Option<&Vec<String>>,
     ) -> String {
+        self.map_type_to_zod_with_reference_module(oir_type, enum_values, None)
+    }
+
+    fn map_type_to_zod_with_reference_module(
+        &self,
+        oir_type: &OirType,
+        enum_values: Option<&Vec<String>>,
+        reference_module: Option<&str>,
+    ) -> String {
         match oir_type {
             // A closed string vocabulary is `OirType::String` PLUS
             // `enum_values` metadata (the same encoding `render_type`'s
@@ -1163,14 +1184,17 @@ export type { UserContext } from '@almadar/core';
             OirType::String => match enum_values {
                 Some(values) if !values.is_empty() => {
                     let quoted: Vec<String> =
-                        values.iter().map(|v| format!("'{}'", v)).collect();
+                        values.iter().map(|v| format!("'{}'", escape_js_string(v))).collect();
                     format!("z.enum([{}])", quoted.join(", "))
                 }
                 _ => "z.string()".to_string(),
             },
             OirType::Number | OirType::Integer => "z.number()".to_string(),
             OirType::Boolean => "z.boolean()".to_string(),
-            OirType::Date | OirType::DateTime => "z.string()".to_string(),
+            OirType::Date | OirType::DateTime => match self.type_projection {
+                TypeProjection::Wire => "z.union([z.string(), z.number()])".to_string(),
+                TypeProjection::HostInput => "z.union([z.date(), z.string(), z.number()])".to_string(),
+            },
             OirType::Email | OirType::Url | OirType::Phone | OirType::Uuid | OirType::Image => {
                 "z.string()".to_string()
             }
@@ -1190,26 +1214,25 @@ export type { UserContext } from '@almadar/core';
                 "z.tuple([{}])",
                 items
                     .iter()
-                    .map(|t| self.map_type_to_zod(t, None))
+                    .map(|t| self.map_type_to_zod_with_reference_module(t, None, reference_module))
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
             OirType::Array { inner } => {
                 format!(
                     "z.array({})",
-                    self.map_type_to_zod(inner, None)
+                    self.map_type_to_zod_with_reference_module(inner, None, reference_module)
                 )
             }
             OirType::Map { value, .. } => {
-                format!(
-                    "z.record({})",
-                    self.map_type_to_zod(value, None)
-                )
+                let value = self.map_type_to_zod_with_reference_module(value, None, reference_module);
+                let value = if self.type_projection == TypeProjection::HostInput { format!("{value}.optional()") } else { value };
+                format!("z.record({value})")
             }
             OirType::Optional { inner } => {
                 format!(
-                    "{}.optional()",
-                    self.map_type_to_zod(inner, None)
+                    "{}.nullable()",
+                    self.map_type_to_zod_with_reference_module(inner, enum_values, reference_module)
                 )
             }
             // §161: a declared relation field STORES THE ID (ledger §138/
@@ -1236,7 +1259,7 @@ export type { UserContext } from '@almadar/core';
             OirType::Union { variants } => {
                 let parts: Vec<String> = variants
                     .iter()
-                    .map(|v| self.map_type_to_zod(&v.field_type, None))
+                    .map(|v| self.map_type_to_zod_with_reference_module(&v.field_type, v.enum_values.as_ref(), reference_module))
                     .collect();
                 match parts.len() {
                     0 => "z.never()".to_string(),
@@ -1244,15 +1267,16 @@ export type { UserContext } from '@almadar/core';
                     _ => format!("z.union([{}])", parts.join(", ")),
                 }
             }
-            OirType::Struct { fields } => {
+            OirType::Struct { fields, additional } => {
                 let parts: Vec<String> = fields
                     .iter()
                     .map(|f| {
-                        // Unwrap so the recursive call doesn't double-apply `.optional()` (see the entity-schema loop above).
-                        let (effective_type, is_optional) = f.effective_type();
-                        let inner = self.map_type_to_zod(
+                        let effective_type = &f.field_type;
+                        let is_optional = !f.required;
+                        let inner = self.map_type_to_zod_with_reference_module(
                             effective_type,
                             f.enum_values.as_ref(),
+                            reference_module,
                         );
                         let q = if is_optional {
                             format!("{}.optional()", inner)
@@ -1262,14 +1286,22 @@ export type { UserContext } from '@almadar/core';
                         format!("{}: {}", f.name, q)
                     })
                     .collect();
-                format!("z.object({{ {} }})", parts.join(", "))
+                let object = format!("z.object({{ {} }})", parts.join(", "));
+                additional.as_deref().map_or_else(|| object.clone(), |value| {
+                    let value = self.map_type_to_zod_with_reference_module(value, None, reference_module);
+                    let value = if self.type_projection == TypeProjection::HostInput { format!("{value}.optional()") } else { value };
+                    format!("{object}.catchall({value})")
+                })
             }
-            OirType::Enum { .. } => {
-                // Generate z.enum() if values are available
-                if let Some(values) = enum_values {
+            OirType::Enum { name } => {
+                let decoded = enum_values
+                    .is_none()
+                    .then(|| orbital_core_base::type_compat::literal_union_members(name))
+                    .flatten();
+                if let Some(values) = enum_values.or(decoded.as_ref()) {
                     if !values.is_empty() {
                         let quoted: Vec<String> =
-                            values.iter().map(|v| format!("'{}'", v)).collect();
+                            values.iter().map(|v| format!("'{}'", escape_js_string(v))).collect();
                         return format!("z.enum([{}])", quoted.join(", "));
                     }
                 }
@@ -1290,7 +1322,10 @@ export type { UserContext } from '@almadar/core';
             // `emit_named_type_declarations`) is the standard recursive-schema
             // idiom: referencing it here, rather than inlining, is what lets
             // the schema actually terminate.
-            OirType::TypeRef { name } => format!("z.lazy(() => {}Schema)", name),
+            OirType::TypeRef { name } => match reference_module {
+                Some(module) => format!("z.lazy(() => {module}.{name}Schema)"),
+                None => format!("z.lazy(() => {name}Schema)"),
+            },
             // An unbound variable renders as `json` (`TargetTypeRenderer::type_var`); its schema matches.
             OirType::Var { .. } => "z.record(FieldValueSchema.optional())".to_string(),
         }
@@ -1404,6 +1439,7 @@ mod named_type_schema_import_tests {
         named_types.insert(
             "NavItem".to_string(),
             OirType::Struct {
+                additional: None,
                 fields: vec![OirField {
                     declared: None,
                     merged_from: None,
@@ -1454,6 +1490,7 @@ mod named_type_schema_import_tests {
         named_types.insert(
             "NavItem".to_string(),
             OirType::Struct {
+                additional: None,
                 fields: vec![
                     OirField {
                         declared: None,
@@ -1496,6 +1533,7 @@ mod named_type_schema_import_tests {
         named_types.insert(
             "MenuItemsItem".to_string(),
             OirType::Struct {
+                additional: None,
                 fields: vec![
                     OirField {
                         declared: None,
@@ -1823,6 +1861,7 @@ mod nested_named_type_import_tests {
 
     fn knob() -> OirType {
         OirType::Struct {
+            additional: None,
             fields: vec![
                 OirField::new("name", OirType::String),
                 OirField::new("default", OirType::SExpr),
@@ -1947,4 +1986,179 @@ mod nested_named_type_import_tests {
         assert!(!ts.contains(" SExpr"), "{ts}");
         assert!(!ts.contains("'./entities.js'"), "{ts}");
     }
+}
+
+
+#[cfg(test)]
+mod native_open_record_tests {
+    use super::*;
+    use orbital_core_base::ir::OirField;
+
+    fn declarations() -> std::collections::BTreeMap<String, OirType> {
+        let mut id = OirField::new("id", OirType::String);
+        id.required = false;
+        std::collections::BTreeMap::from([("OpenRow".to_string(), OirType::Struct {
+            fields: vec![id, OirField::new("maybe", OirType::optional(OirType::String))],
+            additional: Some(Box::new(OirType::optional(OirType::String))),
+        })])
+    }
+
+    #[test]
+    fn native_named_records_keep_presence_nullability_and_typed_catchall_in_typescript() {
+        let output = emit_named_type_declarations(&declarations(), TypeProjection::Wire);
+        assert!(output.contains("id?: string;"), "{output}");
+        assert!(output.contains("maybe: string | null;"), "{output}");
+        assert!(output.contains("[key: string]: string | null | undefined"), "{output}");
+        assert!(!output.contains("maybe?:"), "{output}");
+    }
+
+    #[test]
+    fn native_named_records_keep_presence_nullability_and_typed_catchall_in_zod() {
+        let output = TypeScriptBackend::new().emit_named_type_zod_declarations(&declarations());
+        assert!(output.contains("id: z.string().optional()"), "{output}");
+        assert!(output.contains("maybe: z.string().nullable()"), "{output}");
+        assert!(output.contains(".catchall(z.string().nullable())"), "{output}");
+        assert!(!output.contains("maybe: z.string().nullable().optional()"), "{output}");
+    }
+
+    #[test]
+    fn native_named_nullable_aliases_are_emitted_and_imported() {
+        let types = std::collections::BTreeMap::from([
+            ("Value".to_string(), OirType::optional(OirType::TypeRef { name: "Text".to_string() })),
+            ("Text".to_string(), OirType::String),
+        ]);
+        let declarations = emit_named_type_declarations(&types, TypeProjection::Wire);
+        assert!(declarations.contains("export type Value = Text | null;"), "{declarations}");
+        assert!(declarations.contains("export type Text = string;"), "{declarations}");
+        let schemas = TypeScriptBackend::new().generate_shared_schemas(&[], &types).content;
+        assert!(schemas.contains("z.ZodType<Value>"), "{schemas}");
+        assert!(schemas.contains("TextSchema).nullable()"), "{schemas}");
+        assert!(schemas.contains("import type { Text, Value }"), "{schemas}");
+    }
+
+
+    #[test]
+    fn native_contract_names_do_not_shadow_imported_core_contracts() {
+        let types = std::collections::BTreeMap::from([
+            ("FieldValue".to_string(), OirType::String),
+            ("EntityRow".to_string(), OirType::Struct { fields: vec![], additional: Some(Box::new(OirType::TypeRef { name: "FieldValue".to_string() })) }),
+        ]);
+        let backend = TypeScriptBackend::new();
+        let declarations = backend.generate_shared_entities(&[], &types).content;
+        let schemas = backend.generate_shared_schemas(&[], &types).content;
+        assert!(!declarations.contains("from '@almadar/core'"), "{declarations}");
+        assert!(!schemas.contains("from '@almadar/core'"), "{schemas}");
+        assert!(schemas.contains("export const FieldValueSchema"), "{schemas}");
+    }
+
+
+    fn qualified_declarations() -> std::collections::BTreeMap<String, OirType> {
+        std::collections::BTreeMap::from([
+            ("FieldValue".to_string(), OirType::Number),
+            ("Contract.FieldValue".to_string(), OirType::String),
+            ("Contract.Row".to_string(), OirType::Struct {
+                fields: vec![
+                    OirField::new("value", OirType::TypeRef { name: "Contract.FieldValue".to_string() }),
+                    OirField::new("children", OirType::array(OirType::TypeRef { name: "Contract.Row".to_string() })),
+                    OirField::new("dates", OirType::map(OirType::String, OirType::Date)),
+                ],
+                additional: None,
+            }),
+            ("Second.Contract.FieldValue".to_string(), OirType::Boolean),
+            ("Second.Contract.Row".to_string(), OirType::Struct {
+                fields: vec![
+                    OirField::new("value", OirType::TypeRef { name: "Second.Contract.FieldValue".to_string() }),
+                    OirField::new("peer", OirType::TypeRef { name: "Contract.Row".to_string() }),
+                ],
+                additional: None,
+            }),
+        ])
+    }
+
+    #[test]
+    fn qualified_native_type_exports_preserve_namespaces_and_projection_modes() {
+        for projection in [TypeProjection::Wire, TypeProjection::HostInput] {
+            let backend = TypeScriptBackend { type_projection: projection, ..TypeScriptBackend::new() };
+            let output = backend.generate_shared_entities(&[], &qualified_declarations()).content;
+            assert!(output.contains("export namespace Contract {"), "{output}");
+            assert!(output.contains("export namespace Second {"), "{output}");
+            assert!(output.contains("export type FieldValue = number;"), "{output}");
+            assert!(output.contains("export type FieldValue = string;"), "{output}");
+            assert!(output.contains("export type FieldValue = boolean;"), "{output}");
+            assert!(output.contains("value: import('./entities').Contract.FieldValue"), "{output}");
+            assert!(output.contains("children: import('./entities').Contract.Row[]"), "{output}");
+            assert!(output.contains("value: import('./entities').Second.Contract.FieldValue"), "{output}");
+            assert!(output.contains("peer: import('./entities').Contract.Row"), "{output}");
+            assert!(!output.contains("export type Contract."), "{output}");
+            assert!(!output.contains("export type Second."), "{output}");
+            let dates = match projection {
+                TypeProjection::Wire => "dates: Record<string, string | number>",
+                TypeProjection::HostInput => "dates: Record<string, Date | string | number | undefined>",
+            };
+            assert!(output.contains(dates), "{output}");
+        }
+    }
+
+    #[test]
+    fn qualified_native_schema_exports_preserve_recursive_refs_without_import_collisions() {
+        for projection in [TypeProjection::Wire, TypeProjection::HostInput] {
+            let backend = TypeScriptBackend { type_projection: projection, ..TypeScriptBackend::new() };
+            let output = backend.generate_shared_schemas(&[], &qualified_declarations()).content;
+            assert!(output.contains("export namespace Contract {"), "{output}");
+            assert!(output.contains("export namespace Second {"), "{output}");
+            assert!(output.contains("export const FieldValueSchema"), "{output}");
+            assert!(output.contains("z.ZodType<import('../types/entities').Contract.Row>"), "{output}");
+            assert!(output.contains("z.ZodType<import('../types/entities').Second.Contract.Row>"), "{output}");
+            assert!(output.contains("value: z.lazy(() => __orbitalNamedSchemas.Contract.FieldValueSchema)"), "{output}");
+            assert!(output.contains("children: z.array(z.lazy(() => __orbitalNamedSchemas.Contract.RowSchema))"), "{output}");
+            assert!(output.contains("value: z.lazy(() => __orbitalNamedSchemas.Second.Contract.FieldValueSchema)"), "{output}");
+            assert!(output.contains("peer: z.lazy(() => __orbitalNamedSchemas.Contract.RowSchema)"), "{output}");
+            assert!(!output.contains("export const Contract."), "{output}");
+            assert!(!output.contains("export const Second."), "{output}");
+            assert!(!output.lines().any(|line| line.starts_with("import type {") && (line.contains("Contract") || line.contains("Second"))), "{output}");
+            let dates = match projection {
+                TypeProjection::Wire => "dates: z.record(z.union([z.string(), z.number()]))",
+                TypeProjection::HostInput => "dates: z.record(z.union([z.date(), z.string(), z.number()]).optional())",
+            };
+            assert!(output.contains(dates), "{output}");
+        }
+    }
+
+    #[test]
+    fn qualified_native_barrel_keeps_types_and_schemas_under_the_same_formal_roots() {
+        for projection in [TypeProjection::Wire, TypeProjection::HostInput] {
+            let backend = TypeScriptBackend { type_projection: projection, ..TypeScriptBackend::new() };
+            let types = qualified_declarations();
+            let schemas = backend.generate_shared_schemas(&[], &types).content;
+            let barrel = backend.generate_shared_index_kernel(&types).content;
+            assert!(schemas.contains("export type Row = import('../types/entities').Contract.Row;"), "{schemas}");
+            assert!(schemas.contains("export type Row = import('../types/entities').Second.Contract.Row;"), "{schemas}");
+            assert!(barrel.contains("export * from './types/entities.js';"), "{barrel}");
+            assert!(barrel.contains("export * from './schemas/entities.js';"), "{barrel}");
+            assert!(barrel.contains("export { Contract, Second } from './schemas/entities.js';"), "{barrel}");
+            assert!(barrel.contains("export * from './program.js';"), "{barrel}");
+            assert!(barrel.contains("export * from './dispatch.js';"), "{barrel}");
+        }
+    }
+
+    #[test]
+    fn qualified_native_type_consumers_import_lexical_roots_only() {
+        let names = ["Contract.Row", "Contract.FieldValue", "Second.Contract.Row", "FieldValue"].into_iter().collect();
+        let output = named_struct_type_import_line(&names, "./entities");
+        assert_eq!(output, "import type { Contract, FieldValue, Second } from './entities';\n");
+    }
+
+    #[test]
+    fn encoded_literal_enum_exports_keep_closed_members_and_escape_authored_values() {
+        let values = vec!["atomic".to_string(), "stop".to_string(), "pipe|member".to_string(), "O'Reilly".to_string(), "back\\slash".to_string(), "quote\"member".to_string()];
+        let name = orbital_core_base::type_compat::literal_union_text(&values).unwrap();
+        let ty = OirType::Enum { name };
+        let backend = TypeScriptBackend::new();
+        let expected = values.iter().map(|value| format!("'{}'", escape_js_string(value))).collect::<Vec<_>>();
+        assert_eq!(map_type_ts(&ty, None, None), expected.join(" | "));
+        assert_eq!(backend.map_type_to_zod(&ty, None), format!("z.enum([{}])", expected.join(", ")));
+        assert_eq!(backend.map_type_to_zod(&OirType::String, Some(&values)), format!("z.enum([{}])", expected.join(", ")));
+        assert_eq!(map_type_ts(&OirType::enum_type("Legacy"), None, None), "string");
+    }
+
 }

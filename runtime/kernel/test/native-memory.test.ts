@@ -1,9 +1,8 @@
-import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
-import type { EntityRow, KernelMemoryStoreExports, RowQuery } from '@almadar/core';
+import type { EntityRow, RowQuery } from '@almadar/core';
 import { NativeMemoryPersistenceAdapter } from '../src/persistence/native-memory.js';
 
-const require = createRequire(import.meta.url);
+import { loadRealKernel } from './real-kernel.js';
 const implementations = [
   { name: 'native Node', path: process.env.ORBITAL_KERNEL_NODE },
   { name: 'WASM', path: process.env.ORBITAL_KERNEL_MEMORY_WASM },
@@ -13,7 +12,7 @@ for (const implementation of implementations) {
   describe.skipIf(!implementation.path)(`native memory adapter (${implementation.name})`, () => {
     function adapter(): NativeMemoryPersistenceAdapter {
       if (!implementation.path) throw new Error('a real MemoryStore module path is required');
-      const kernel: KernelMemoryStoreExports = require(implementation.path);
+      const kernel = loadRealKernel(implementation.path);
       return new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
     }
 
@@ -126,6 +125,66 @@ for (const implementation of implementations) {
         expect(await store.list('Task')).toEqual(onFailure === 'atomic' ? [a, middle] : [moved, middle]);
       }
       console.info(`memory:rekey passed (${implementation.name}): native ordering/collisions/timestamps/aliases, guards and atomic/stop outcomes`);
+    });
+    it('raw admission refuses null optional guards before any batch prefix writes', () => {
+      const raw = adapter().store;
+      raw.create('Task', JSON.stringify({ id: 'a', title: 'initial' }));
+      const before = raw.snapshot();
+      const operations = [
+        { kind: 'update', entityType: 'Task', id: 'a', data: { title: 'changed' }, guard: null },
+        { kind: 'delete', entityType: 'Task', id: 'a', guard: null },
+        { kind: 'rekey', entityType: 'Task', id: 'a', newId: 'b', guard: null },
+      ];
+      for (const operation of operations) {
+        expect(() => raw.writeWhere(JSON.stringify(operation))).toThrow();
+        expect(raw.snapshot()).toBe(before);
+        expect(() => raw.writeBatch(JSON.stringify({ onFailure: 'stop', ops: [
+          { kind: 'create', entityType: 'Task', data: { id: 'prefix' } }, operation,
+        ] }))).toThrow();
+        expect(raw.snapshot()).toBe(before);
+      }
+      expect(JSON.parse(raw.writeWhere(JSON.stringify({ kind: 'update', entityType: 'Task', id: 'a', data: { title: 'valid' } })))).toMatchObject({ kind: 'updated' });
+    });
+
+    it('raw admission distinguishes missing required nullable compare values from present null', () => {
+      const raw = adapter().store;
+      raw.create('Task', JSON.stringify({ id: 'a', nullable: null }));
+      const before = raw.snapshot();
+      const missingValue = { kind: 'compare', field: 'nullable', op: '==' };
+      for (const guard of [missingValue, { kind: 'not', of: missingValue }]) {
+        const operation = { kind: 'update', entityType: 'Task', id: 'a', data: { changed: true }, guard };
+        expect(() => raw.writeWhere(JSON.stringify(operation))).toThrow();
+        expect(raw.snapshot()).toBe(before);
+        expect(() => raw.writeBatch(JSON.stringify({ onFailure: 'stop', ops: [
+          { kind: 'create', entityType: 'Task', data: { id: 'prefix' } }, operation,
+        ] }))).toThrow();
+        expect(raw.snapshot()).toBe(before);
+      }
+      expect(JSON.parse(raw.writeWhere(JSON.stringify({ kind: 'update', entityType: 'Task', id: 'a', data: { changed: true }, guard: { ...missingValue, value: null } })))).toEqual({ kind: 'refused' });
+    });
+
+    it('raw admission refuses nonstring fixed ids across create update writeWhere and writeBatch', () => {
+      const raw = adapter().store;
+      raw.create('Task', JSON.stringify({ id: 'a', title: 'initial' }));
+      const before = raw.snapshot();
+      for (const id of [null, 1, false, [1], { bad: true }]) {
+        const data = { id, title: 'invalid' };
+        expect(() => raw.create('Task', JSON.stringify(data))).toThrow();
+        expect(raw.snapshot()).toBe(before);
+        expect(() => raw.update('Task', 'a', JSON.stringify(data))).toThrow();
+        expect(raw.snapshot()).toBe(before);
+        for (const kind of ['create', 'upsert', 'update']) {
+          const operation = { kind, entityType: 'Task', id: 'a', data };
+          expect(() => raw.writeWhere(JSON.stringify(operation))).toThrow();
+          expect(raw.snapshot()).toBe(before);
+          expect(() => raw.writeBatch(JSON.stringify({ onFailure: 'stop', ops: [
+            { kind: 'create', entityType: 'Task', data: { id: 'prefix' } }, operation,
+          ] }))).toThrow();
+          expect(raw.snapshot()).toBe(before);
+        }
+      }
+      expect(JSON.parse(raw.create('Task', JSON.stringify({ title: 'generated' })))).toMatchObject({ title: 'generated' });
+      expect(JSON.parse(raw.update('Task', 'a', JSON.stringify({ title: 'valid' })))).toMatchObject({ kind: 'updated' });
     });
   });
 }

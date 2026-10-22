@@ -18,6 +18,11 @@
         "name": "len",
         "type": "u16",
         "doc": ""
+      },
+      {
+        "name": "scope_end",
+        "type": "Option<(u32, u32)>",
+        "doc": ""
       }
     ]
   },

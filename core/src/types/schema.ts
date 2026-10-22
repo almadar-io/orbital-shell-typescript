@@ -8,8 +8,9 @@
  */
 
 import { z } from "zod";
+import type { EventPayloadField } from "./trait.js";
 import type { Orbital, LazyPage } from "./orbital.js";
-import { OrbitalSchema as OrbitalZodSchema, LazyPageSchema } from "./orbital.js";
+import { OrbitalSchema as OrbitalZodSchema, LazyPageSchema, TypeAliasMembersSchema } from "./orbital.js";
 import type {
   DomainContext,
   DesignPreferences,
@@ -112,6 +113,8 @@ export const SiteMetaSchema = z.object({
 export type MessageCatalogs = Record<string, Record<string, string>>;
 
 export interface OrbitalSchema {
+  types?: Record<string, EventPayloadField[]>;
+  typeContractVersion?: 1;
   /** Application name */
   name: string;
 
@@ -248,6 +251,8 @@ export const SchemaMetadataSchema = z.object({
 });
 
 export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, z.ZodTypeDef, object> = z.object({
+  types: z.record(TypeAliasMembersSchema).optional(),
+  typeContractVersion: z.literal(1).optional(),
   name: z.string().min(1, "Schema name is required"),
   description: z.string().optional(),
   theme: ThemeRefSchema.optional(),

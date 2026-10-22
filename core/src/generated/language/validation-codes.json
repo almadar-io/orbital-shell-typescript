@@ -855,6 +855,11 @@
     "description": "an `http` method is not one of GET POST PUT PATCH DELETE"
   },
   {
+    "code": "ORB_HTTP_PATH_INVALID",
+    "category": "effect",
+    "description": "an `http` path violates the kernel's absolute-path contract"
+  },
+  {
     "code": "ORB_HTTP_OPTION_UNKNOWN",
     "category": "effect",
     "description": "an `http` request/auth/paginate object carries a key outside its closed set"
@@ -1382,7 +1387,7 @@
   {
     "code": "ORB_X_OPERATOR_ARG_UNDETERMINED",
     "category": "effect",
-    "description": "A value handed to an operator's type variable has no determined type — an unresolved expression, an expression value, json, a list whose items share no type — so what the variable stands for, and the type of the call's result, is unknown. There are no generic types: give the value a real type (a declared payload or entity shape, a typed `let`, a named union alias for a list of differently-shaped items)."
+    "description": "A value handed to an operator's type variable has no determined type — an unresolved expression, an expression value, json, a list whose items share no type — so what the variable stands for, and the type of the call's result, is unknown. There are no generic types: give the value a real type (a declared payload or entity shape, a named union alias for a list of differently-shaped items)."
   },
   {
     "code": "ORB_X_ORDERING_OPTIONAL_OPERAND",
