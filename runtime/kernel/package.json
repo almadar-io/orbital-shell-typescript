@@ -1,0 +1,49 @@
+{
+  "name": "@almadar/shell-runtime",
+  "version": "0.1.0",
+  "description": "Renderer-neutral kernel adapters and client orchestration for Almadar TypeScript hosts.",
+  "license": "BUSL-1.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./*": {
+      "types": "./dist/*.d.ts",
+      "import": "./dist/*.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "@almadar/core": "^10.128.0",
+    "@almadar/kernel": "^18.0.0",
+    "@almadar/logger": "^1.18.0",
+    "@almadar/std": "^16.255.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^2.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/almadar-io/orbital-shell-typescript.git",
+    "directory": "runtime/kernel"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  }
+}

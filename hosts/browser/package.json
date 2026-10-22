@@ -1,0 +1,57 @@
+{
+  "name": "@almadar/shell-browser",
+  "version": "0.1.0",
+  "description": "Browser I/O ports for the Almadar TypeScript shell: IndexedDB, page facts and Firebase sign-in SDK.",
+  "license": "BUSL-1.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.js"
+    },
+    "./storage": {
+      "types": "./dist/storage/index.d.ts",
+      "import": "./dist/storage/index.js"
+    },
+    "./kv": {
+      "types": "./dist/kv.d.ts",
+      "import": "./dist/kv.js"
+    },
+    "./page-facts": {
+      "types": "./dist/page-facts.d.ts",
+      "import": "./dist/page-facts.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "@almadar/core": "^10.128.0",
+    "firebase": "^11.1.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "tsup": "^8.0.0",
+    "vitest": "^3.2.6",
+    "fake-indexeddb": "6.2.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/almadar-io/orbital-shell-typescript.git",
+    "directory": "hosts/browser"
+  }
+}

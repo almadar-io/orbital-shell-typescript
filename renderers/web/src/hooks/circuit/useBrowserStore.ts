@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { OrbitalDefinition } from '@almadar/core';
 import { orbitalInlineEntities, storesRowsInBrowser } from '@almadar/core';
 import { browserStoreName, openBrowserStore } from '../../runtime';
-import type { IndexedDbPersistence } from '../../storage/browser/index.js';
+import type { IndexedDbPersistence } from '@almadar/shell-browser/storage';
 import type { PersistenceAdapter } from '@almadar/core';
 
 export type BrowserStoreState =

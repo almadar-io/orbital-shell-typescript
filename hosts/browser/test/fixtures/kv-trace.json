@@ -1,0 +1,47 @@
+{
+  "description": "Twin trace for the kv ops: the Node port and the Rust host replay these steps in order against fresh stores and compare each result. Args exclude the trailing emit options. A step with expectError expects an error of that kind.",
+  "app": "trace-app",
+  "locale": "en",
+  "steps": [
+    { "op": "kv/get", "args": ["rows", "order/1"], "expect": { "found": false } },
+    { "op": "kv/put", "args": ["rows", "order/1", { "id": "1", "total": 10 }], "expect": { "storedKey": "order/1" } },
+    { "op": "kv/get", "args": ["rows", "order/1"], "expect": { "found": true, "value": { "id": "1", "total": 10 } } },
+    { "op": "kv/put", "args": ["rows", "order/1", { "id": "1", "total": 12 }], "expect": { "storedKey": "order/1" } },
+    { "op": "kv/get", "args": ["rows", "order/1"], "expect": { "found": true, "value": { "id": "1", "total": 12 } } },
+    { "op": "kv/put", "args": ["rows", "order/2", [1, null, "x"]], "expect": { "storedKey": "order/2" } },
+    { "op": "kv/put", "args": ["rows", "order-line/1", false], "expect": { "storedKey": "order-line/1" } },
+    { "op": "kv/scan", "args": ["rows", "order/"], "expect": { "entries": [
+      { "key": "order/1", "value": { "id": "1", "total": 12 } },
+      { "key": "order/2", "value": [1, null, "x"] }
+    ] } },
+    { "op": "kv/scan", "args": ["rows", "order/", 1], "expect": { "entries": [
+      { "key": "order/1", "value": { "id": "1", "total": 12 } }
+    ] } },
+    { "op": "kv/scan", "args": ["rows", ""], "expect": { "entries": [
+      { "key": "order-line/1", "value": false },
+      { "key": "order/1", "value": { "id": "1", "total": 12 } },
+      { "key": "order/2", "value": [1, null, "x"] }
+    ] } },
+    { "op": "kv/scan", "args": ["rows", "nothing/"], "expect": { "entries": [] } },
+    { "op": "kv/delete", "args": ["rows", "order/2"], "expect": { "existed": true } },
+    { "op": "kv/delete", "args": ["rows", "order/2"], "expect": { "existed": false } },
+    { "op": "kv/batch", "args": ["rows", [
+      { "kind": "put", "key": "order/3", "value": "three" },
+      { "kind": "delete", "key": "order/1" },
+      { "kind": "put", "key": "order.log/0001", "value": { "op": "create" } }
+    ]], "expect": { "applied": 3 } },
+    { "op": "kv/scan", "args": ["rows", "order"], "expect": { "entries": [
+      { "key": "order-line/1", "value": false },
+      { "key": "order.log/0001", "value": { "op": "create" } },
+      { "key": "order/3", "value": "three" }
+    ] } },
+    { "op": "kv/batch", "args": ["rows", [
+      { "kind": "put", "key": "order/4", "value": 4 },
+      { "kind": "frobnicate", "key": "order/5" }
+    ]], "expectError": "invalid" },
+    { "op": "kv/get", "args": ["rows", "order/4"], "expect": { "found": false } },
+    { "op": "kv/put", "args": ["", "k", 1], "expectError": "invalid" },
+    { "op": "kv/put", "args": ["rows", 7, 1], "expectError": "invalid" },
+    { "op": "kv/scan", "args": ["rows", "order/", -1], "expectError": "invalid" }
+  ]
+}

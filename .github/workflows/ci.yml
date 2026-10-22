@@ -22,5 +22,10 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@1.93.0
 
+      - name: Check standalone package manifests
+        run: |
+          cargo metadata --no-deps --format-version 1 --manifest-path bridges/node/Cargo.toml > /dev/null
+          cargo metadata --no-deps --format-version 1 --manifest-path src/chrome/Cargo.toml > /dev/null
+
       - name: Test
         run: cargo test

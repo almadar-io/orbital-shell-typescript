@@ -176,8 +176,9 @@
     "remark-gfm": "^4.0.0",
     "remark-math": "^6.0.0",
     "tailwind-merge": "^2.2.0",
-    "firebase": "^11.1.0",
-    "zod": "^3.22.0"
+    "zod": "^3.22.0",
+    "@almadar/shell-browser": "^0.1.0",
+    "@almadar/shell-runtime": "^0.1.0"
   },
   "devDependencies": {
     "@almadar/eslint-plugin": "^2.22.0",

@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import { z } from 'zod';
 import { FieldValueSchema, type UserContext, type ViewerAuthority } from '@almadar/core';
-import type { BrowserAuth, SignedInUser } from '../browser/index.js';
+import type { BrowserAuth, SignedInUser } from '@almadar/shell-browser/auth';
 
-export type { BrowserAuth, SignedInUser } from '../browser/index.js';
+export type { BrowserAuth, SignedInUser } from '@almadar/shell-browser/auth';
 
 /** The provider's resolved viewer authority — `@almadar/core`'s {@link ViewerAuthority}. */
 export type AuthAuthority = ViewerAuthority;

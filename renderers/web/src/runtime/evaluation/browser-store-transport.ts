@@ -10,7 +10,7 @@ import type { KernelHostPorts } from '../../kernel/host.js';
 import type { HttpPorts } from '../../kernel/http.js';
 import type { KernelModule } from '../../kernel/wire.js';
 import { dispatchDeclaredInput } from '../../client/declared-input-dispatch.js';
-import { IndexedDbPersistence } from '../../storage/browser/index.js';
+import { IndexedDbPersistence } from '@almadar/shell-browser/storage';
 import { InMemoryPersistence } from '@almadar/db/mock';
 import type { EffectHandlers } from '../types.js';
 import type { DeferredCallOutcome } from '../../kernel/host.js';

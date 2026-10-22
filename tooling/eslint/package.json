@@ -1,0 +1,41 @@
+{
+  "name": "@almadar/eslint-plugin",
+  "version": "2.22.0",
+  "private": false,
+  "description": "Custom ESLint rules for Almadar component architecture",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "rules/",
+    "utils/"
+  ],
+  "peerDependencies": {
+    "eslint": ">=8.0.0"
+  },
+  "devDependencies": {
+    "eslint": "10.0.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "turbo": "^2.8.17"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/almadar-io/orbital-shell-typescript.git",
+    "directory": "tooling/eslint"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "eslint index.js rules/ utils/",
+    "test": "node --test",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "dependencies": {
+    "jsonc-eslint-parser": "3.1.0"
+  },
+  "packageManager": "pnpm@10.30.3"
+}

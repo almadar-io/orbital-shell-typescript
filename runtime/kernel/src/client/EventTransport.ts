@@ -1,0 +1,436 @@
+/**
+ * EventTransport — the client → orbital event transport port (plan P5,
+ * `docs/Almadar_Runtime_Stateless_Stateful_PLAN.md` §4.2).
+ *
+ * Promotes `@almadar/ui`'s `ServerBridgeTransport` interface +
+ * `createHttpTransport` into `@almadar/runtime` so there is ONE owner of
+ * the HTTP request/response leg instead of two (this package's own
+ * `ServerBridge` class and the ui provider). `@almadar/ui`'s provider will
+ * be switched onto this port at the W5b build checkpoint (see the plan);
+ * until then this file has no consumers outside this package.
+ *
+ * The wire shapes are `@almadar/core`'s existing `OrbitalEventRequest` /
+ * `OrbitalEventResponse` — no shadow types.
+ *
+ * @packageDocumentation
+ */
+
+import { createLogger } from '@almadar/logger';
+import {
+  OrbitalRegisterResponseSchema,
+  RowQueryPageSchema,
+  type EmittedEvent,
+  type OrbitalEventRequest,
+  type OrbitalEventResponse,
+  type OrbitalSchema,
+  type RowQueryPage,
+  type RowSetRef,
+  type ServerTopology,
+} from '@almadar/core';
+
+const log = createLogger('almadar:runtime:event-transport');
+
+// ============================================================================
+// Topology → carriesCircuitState
+// ============================================================================
+
+
+/**
+ * `true` = stateless topology: the server holds no circuit state between
+ * requests, so every `send()` request must carry `traits`/`entityByTrait`.
+ * `false` = the server (or an in-process evaluator) holds the state itself.
+ *
+ * Derivation mirrors `@almadar/ui`'s `ServerBridgeProvider` EXACTLY
+ * (`providers/ServerBridge.tsx`, both the initial-state fallback and the
+ * post-register `.then` callback — the same mapping was duplicated at two
+ * call sites there, which is the `stateSource` string-branching this port
+ * retires): `'stateful'` → false, `'stateless'` OR an absent/undeclared
+ * topology (older servers) → true. An absent topology defaulting to
+ * "stateless" is the ui's existing assumption, carried over unchanged, not
+ * a new judgment call made here.
+ */
+export function deriveCarriesCircuitState(topology: ServerTopology | undefined): boolean {
+  return topology !== 'stateful';
+}
+
+export interface EventTransportRegisterResult {
+  success: boolean;
+  /** See `deriveCarriesCircuitState`. Computed once here, not re-derived by callers. */
+  carriesCircuitState: boolean;
+}
+
+// ============================================================================
+// The port
+// ============================================================================
+
+/**
+ * Who a server push was addressed to: `peers` — another client's change
+ * (live push); `origin` — this client's own running request, live (a
+ * call-service's `emit.onMessage`).
+ */
+export type PushTarget = 'peers' | 'origin';
+
+export interface EventTransport {
+  /** Register a schema with the transport's target (server, or an in-process evaluator). */
+  register(schema: OrbitalSchema): Promise<EventTransportRegisterResult>;
+  unregister(): Promise<void>;
+  /** Play one event through the orbital named `orbitalName`. */
+  send(orbitalName: string, request: OrbitalEventRequest): Promise<OrbitalEventResponse>;
+  /**
+   * A row-set reference resolved by the host that holds the rows, for the viewer the transport is signed in as (the
+   * host applies `@read`): the rows that still match, in the reference's order. Absent when the transport has no
+   * such route (an in-process evaluator resolves against its own store).
+   */
+  resolveRows?(reference: RowSetRef): Promise<RowQueryPage>;
+  /**
+   * Subscribe to server-pushed cascade events (e.g. another client's
+   * persist-envelope emits, Almadar_Live_Push.md). Absent when the
+   * transport has no server to push from (in-process). `params` augments
+   * the push channel's query string (e.g. a caller-supplied per-tab
+   * `clientId` for the server's origin-exclusion) — the transport itself
+   * carries no notion of "tab identity", that is a client-role concern
+   * (plan P4).
+   */
+  subscribe?(onPush: (emitted: EmittedEvent, target: PushTarget) => void, params?: Record<string, string>): () => void;
+  /**
+   * The host runs the whole program, browser-stored entities included (an extension's worker): a
+   * view of it keeps no browser store of its own and sends every leg to the host.
+   */
+  readonly hostsBrowserStore?: boolean;
+  /**
+   * Hear the results of dispatches the host ran without any view asking (a declared input, a
+   * follow-on call's outcome), so an open view shows them. The view applies the result; it never
+   * runs the dispatch again. `params` addresses this view on a push channel, as for `subscribe`.
+   */
+  subscribeHostDispatches?(onDispatch: HostDispatchListener, params?: Record<string, string>): () => void;
+}
+
+/** A dispatch the host ran on its own, with its result. */
+export type HostDispatchListener = (orbitalName: string, request: OrbitalEventRequest, response: OrbitalEventResponse) => void;
+
+// ============================================================================
+// HTTP transport
+// ============================================================================
+
+/**
+ * Supplies the bearer token the hosting server authenticates with. Resolved
+ * per request (tokens expire); `undefined` sends the request unauthenticated
+ * (dev servers with an auth bypass, standalone playground). Moved verbatim
+ * from `@almadar/ui`'s `providers/ServerBridge.tsx`.
+ */
+export type AccessTokenProvider = () => Promise<string | undefined>;
+
+async function authHeaders(getAccessToken: AccessTokenProvider | undefined): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const token = getAccessToken ? await getAccessToken() : undefined;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+/**
+ * `/api/events` sits alongside the API root the transport already posts to
+ * (`serverUrl` = `.../orbitals`; the SSE channel is `.../events`, its
+ * sibling) — derive it structurally rather than hardcoding a second base.
+ * Moved verbatim from `@almadar/ui`'s `providers/ServerBridge.tsx`.
+ */
+function deriveEventsUrl(serverUrl: string): string {
+  const trimmed = serverUrl.replace(/\/+$/, '');
+  const apiRoot = trimmed.replace(/\/[^/]*$/, '');
+  return `${apiRoot}/events`;
+}
+
+/** Push message shape on the `/api/events` SSE channel: `bus` entries are cascade events, `dispatch` entries a host-run dispatch's result. */
+interface ServerPushEnvelope {
+  type: string;
+  event?: string;
+  payload?: EmittedEvent['payload'];
+  source?: EmittedEvent['source'];
+  target?: PushTarget;
+  orbitalName?: string;
+  request?: OrbitalEventRequest;
+  response?: OrbitalEventResponse;
+}
+
+function isBusPushEnvelope(value: ServerPushEnvelope): value is ServerPushEnvelope & { type: 'bus'; event: string } {
+  return value.type === 'bus' && typeof value.event === 'string';
+}
+
+function isDispatchPushEnvelope(value: ServerPushEnvelope): value is ServerPushEnvelope & { type: 'dispatch'; orbitalName: string; request: OrbitalEventRequest; response: OrbitalEventResponse } {
+  return value.type === 'dispatch' && typeof value.orbitalName === 'string' && value.request !== undefined && value.response !== undefined;
+}
+
+interface SharedPushChannel {
+  source: EventSource | undefined;
+  subscribers: Set<(envelope: ServerPushEnvelope) => void>;
+  closed: boolean;
+}
+
+/** `EventSource.readyState` of a connection the browser gave up on (a refused stream is not retried by the browser). */
+const EVENT_SOURCE_CLOSED = 2;
+
+/** How long a ticketed channel waits before it mints a new ticket and reopens. */
+const REOPEN_DELAY_MS = 1000;
+
+/**
+ * One shared EventSource per events URL, fanned out to every subscriber.
+ * SSE connections are long-lived HTTP: one per subscriber exhausts
+ * Chromium's ~6-per-host HTTP/1.1 pool on multi-orbital pages and starves
+ * the transport's own dispatch fetches. Moved verbatim from
+ * `@almadar/ui`'s `providers/ServerBridge.tsx` (module-scoped there per
+ * multi-provider page; same rationale applies to multiple transports
+ * pointed at the same server).
+ */
+const pushChannels = new Map<string, SharedPushChannel>();
+
+/** A numbered frame's id: `<server boot>-<n>`, numbered per tab; a frame without one is never resumed. */
+interface FrameNumber { boot: string; n: number }
+
+function parseFrameNumber(id: string): FrameNumber | undefined {
+  const dash = id.lastIndexOf('-');
+  if (dash <= 0) return undefined;
+  const n = Number(id.slice(dash + 1));
+  return Number.isInteger(n) ? { boot: id.slice(0, dash), n } : undefined;
+}
+
+/** The last numbered frame each tab applied, per push endpoint (`<events url>|<clientId>`): a reopened channel resumes after it and drops replays. */
+const lastFrameByClient = new Map<string, FrameNumber>();
+
+/**
+ * The shared channel for `key`, opened on the URL `resolveUrl` gives. The URL carries a single-use stream ticket, so when the server ends the stream a fresh URL is minted and
+ * the channel opens again: the browser will not retry a refused stream.
+ */
+function acquirePushChannel(
+  key: string,
+  resolveUrl: () => Promise<string>,
+  resumeKey: string | undefined,
+  subscriber: (envelope: ServerPushEnvelope) => void,
+): () => void {
+  let channel = pushChannels.get(key);
+  if (channel === undefined) {
+    const created: SharedPushChannel = { source: undefined, subscribers: new Set(), closed: false };
+    const open = async (): Promise<void> => {
+      let url: string;
+      try {
+        url = await resolveUrl();
+      } catch (err) {
+        log.error('push:open-failed', { error: err instanceof Error ? err.message : String(err) });
+        return;
+      }
+      if (created.closed) return;
+      const source = new EventSource(url);
+      created.source = source;
+      source.onmessage = (ev: MessageEvent<string>) => {
+        let parsed: ServerPushEnvelope;
+        try {
+          parsed = JSON.parse(ev.data) as ServerPushEnvelope;
+        } catch (err) {
+          log.warn('push:parse-failed', { error: err instanceof Error ? err.message : String(err) });
+          return;
+        }
+        const number = ev.lastEventId ? parseFrameNumber(ev.lastEventId) : undefined;
+        if (number !== undefined && resumeKey !== undefined) {
+          const seen = lastFrameByClient.get(resumeKey);
+          if (seen !== undefined && seen.boot === number.boot && number.n <= seen.n) return;
+          lastFrameByClient.set(resumeKey, number);
+        }
+        for (const sub of created.subscribers) sub(parsed);
+      };
+      source.onerror = () => {
+        log.warn('push:connection-error', { channel: key });
+        if (source.readyState === EVENT_SOURCE_CLOSED && !created.closed) {
+          created.source = undefined;
+          setTimeout(() => {
+            if (!created.closed) void open();
+          }, REOPEN_DELAY_MS);
+        }
+      };
+    };
+    pushChannels.set(key, created);
+    void open();
+    channel = created;
+  }
+  channel.subscribers.add(subscriber);
+  return () => {
+    channel.subscribers.delete(subscriber);
+    if (channel.subscribers.size === 0) {
+      channel.closed = true;
+      channel.source?.close();
+      pushChannels.delete(key);
+    }
+  };
+}
+
+export interface HttpTransportOptions {
+  serverUrl: string;
+  getAccessToken?: AccessTokenProvider;
+  /** Custom fetch function (for testing or custom auth). */
+  fetch?: typeof fetch;
+  /**
+   * Gzip JSON request bodies of at least `COMPRESSED_BODY_MIN_BYTES` (`Content-Encoding: gzip`).
+   * Browsers never compress request bodies, so a registered schema otherwise goes up raw. Only
+   * for servers that inflate request bodies (Express's JSON parser does).
+   */
+  compressRequests?: boolean;
+}
+
+/** Bodies below this stay plain: compressing them costs more than it saves. */
+export const COMPRESSED_BODY_MIN_BYTES = 32 * 1024;
+
+/** A JSON request body, gzipped (`encoding: 'gzip'`) when `compress` is set and it is large enough to be worth it. */
+export async function encodeJsonBody(value: object, compress: boolean): Promise<{ body: string | Uint8Array<ArrayBuffer>; encoding?: 'gzip' }> {
+  const text = JSON.stringify(value);
+  if (!compress || text.length < COMPRESSED_BODY_MIN_BYTES || typeof CompressionStream === 'undefined') return { body: text };
+  const bytes = new TextEncoder().encode(text);
+  const source = new ReadableStream<BufferSource>({ start(controller) { controller.enqueue(bytes); controller.close(); } });
+  const gzipped = source.pipeThrough(new CompressionStream('gzip'));
+  return { body: new Uint8Array(await new Response(gzipped).arrayBuffer()), encoding: 'gzip' };
+}
+
+async function jsonPost(
+  fetchFn: typeof fetch,
+  url: string,
+  value: object,
+  getAccessToken: AccessTokenProvider | undefined,
+  compress: boolean,
+): Promise<Response> {
+  const headers = await authHeaders(getAccessToken);
+  const { body, encoding } = await encodeJsonBody(value, compress);
+  if (encoding) headers['Content-Encoding'] = encoding;
+  return fetchFn(url, { method: 'POST', headers, body });
+}
+
+/** HTTP transport — POSTs to a server speaking the canonical playground-runtime contract. */
+export function createHttpTransport(options: HttpTransportOptions): EventTransport {
+  const { serverUrl, getAccessToken } = options;
+  const fetchFn = options.fetch ?? fetch.bind(globalThis);
+  const compress = options.compressRequests === true;
+  // The registered schema's name addresses every event to its catalog
+  // behavior — orbital names alone are not unique across a catalog.
+  let behavior: string | undefined;
+
+  /** One subscriber on this server's shared push channel, addressed by `params`. */
+  const openPushChannel = (params: Record<string, string>, subscriber: (envelope: ServerPushEnvelope) => void): (() => void) => {
+    if (typeof EventSource === 'undefined') return () => {};
+    const eventsUrl = deriveEventsUrl(serverUrl);
+    const resumeKey = params['clientId'] !== undefined ? `${eventsUrl}|${params['clientId']}` : undefined;
+    const withResume = (search: URLSearchParams): string => {
+      const seen = resumeKey !== undefined ? lastFrameByClient.get(resumeKey) : undefined;
+      if (seen !== undefined) search.set('since', `${seen.boot}-${seen.n}`);
+      return `${eventsUrl}?${search.toString()}`;
+    };
+    // A browser EventSource cannot send a header and a token in the URL leaks into logs, so the stream opens with a
+    // single-use ticket minted with the bearer; a ticket is spent by its connection, hence a fresh one per reopen.
+    const key = `${eventsUrl}?${new URLSearchParams(params).toString()}`;
+    const resolveUrl = async (): Promise<string> => {
+      const reply = await fetchFn(`${eventsUrl}/ticket`, { method: 'POST', headers: await authHeaders(getAccessToken) });
+      if (!reply.ok) throw new Error(`the server refused a stream ticket: ${reply.status}`);
+      const body: { ticket?: string } = await reply.json();
+      if (typeof body.ticket !== 'string' || body.ticket.length === 0) throw new Error('the server sent no stream ticket');
+      return withResume(new URLSearchParams({ ...params, ticket: body.ticket }));
+    };
+    return acquirePushChannel(key, resolveUrl, resumeKey, subscriber);
+  };
+
+  return {
+    async register(schema) {
+      behavior = schema.name;
+      try {
+        const res = await jsonPost(fetchFn, `${serverUrl}/register`, { schema }, getAccessToken, compress);
+        const parsed = OrbitalRegisterResponseSchema.safeParse(await res.json());
+        if (!parsed.success) {
+          log.error('register:malformed-response', { issues: JSON.stringify(parsed.error.issues) });
+          return { success: false, carriesCircuitState: deriveCarriesCircuitState(undefined) };
+        }
+        return {
+          success: parsed.data.success,
+          carriesCircuitState: deriveCarriesCircuitState(parsed.data.topology),
+        };
+      } catch (err) {
+        // Network-level failure (TypeError from fetch) is expected in
+        // standalone playground mode during reload/registration race —
+        // demote so the verifier's console-error verdict doesn't trip.
+        if (err instanceof TypeError) {
+          log.warn('register:failed', { error: err.message });
+        } else {
+          log.error('register:failed', { error: err instanceof Error ? err : String(err) });
+        }
+        return { success: false, carriesCircuitState: true };
+      }
+    },
+
+    async unregister() {
+      try {
+        await fetchFn(`${serverUrl}/unregister`, { method: 'DELETE', headers: await authHeaders(getAccessToken) });
+      } catch {
+        // Ignore cleanup errors — mirrors the ui transport this replaces.
+      }
+    },
+
+    async send(orbitalName, request) {
+      const res = await jsonPost(
+        fetchFn,
+        `${serverUrl}/${orbitalName}/events`,
+        request.behavior === undefined && behavior !== undefined ? { ...request, behavior } : request,
+        getAccessToken,
+        compress,
+      );
+      return (await res.json()) as OrbitalEventResponse;
+    },
+
+    async resolveRows(reference) {
+      const res = await jsonPost(fetchFn, `${serverUrl}/resolve-rows`, { ref: reference }, getAccessToken, compress);
+      if (!res.ok) throw new Error(`resolve-rows: the server answered ${res.status}`);
+      return RowQueryPageSchema.parse(await res.json());
+    },
+
+    subscribe(onPush, params = {}) {
+      return openPushChannel(params, (envelope) => {
+        if (isBusPushEnvelope(envelope)) onPush({ event: envelope.event, payload: envelope.payload, source: envelope.source }, envelope.target ?? 'peers');
+      });
+    },
+
+    subscribeHostDispatches(onDispatch, params = {}) {
+      return openPushChannel(params, (envelope) => {
+        if (isDispatchPushEnvelope(envelope)) onDispatch(envelope.orbitalName, envelope.request, envelope.response);
+      });
+    },
+  };
+}
+
+// ============================================================================
+// In-process transport
+// ============================================================================
+
+/** Evaluates one event against an orbital with no wire in between — the unified `evaluateOrbitalEvent` (a separate, in-progress unit) is a valid `OrbitalEvaluator`. */
+export type OrbitalEvaluator = (orbitalName: string, request: OrbitalEventRequest) => Promise<OrbitalEventResponse>;
+
+export interface InProcessTransportOptions {
+  onRegister?: (schema: OrbitalSchema) => Promise<void> | void;
+  onUnregister?: () => Promise<void> | void;
+  /**
+   * In-process evaluation never crosses a wire, so nothing about circuit
+   * state is "carried" in the stateless-topology sense — `false` by
+   * default, mirroring `@almadar/ui`'s `BrowserPlayground` today: its
+   * in-process `register` never declares a `topology`, and the provider's
+   * fallback for a custom transport is `'in-process'` (not
+   * `'stateless-http'`).
+   */
+  carriesCircuitState?: boolean;
+}
+
+/** In-process transport — the evaluator is INJECTED (e.g. the unified `evaluateOrbitalEvent`, owned elsewhere). */
+export function createInProcessTransport(evaluate: OrbitalEvaluator, options: InProcessTransportOptions = {}): EventTransport {
+  return {
+    async register(schema) {
+      await options.onRegister?.(schema);
+      return { success: true, carriesCircuitState: options.carriesCircuitState ?? false };
+    },
+    async unregister() {
+      await options.onUnregister?.();
+    },
+    async send(orbitalName, request) {
+      return evaluate(orbitalName, request);
+    },
+    // No `subscribe` — an in-process transport has no server to push from.
+  };
+}
