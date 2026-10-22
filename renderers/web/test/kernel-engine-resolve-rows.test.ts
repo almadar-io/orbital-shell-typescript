@@ -82,6 +82,7 @@ function scripted(log: string[], service = false): KernelModule {
     lastError(): string { return ''; }
     osAllows(): boolean { return false; }
     fork(): KernelServerHandle { throw new Error('unused'); }
+    forkProgram(): KernelServerHandle { throw new Error('unused'); }
     free(): void {}
   }
   return stubKernelModule(Handle);

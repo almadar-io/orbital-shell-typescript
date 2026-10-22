@@ -10,7 +10,7 @@
  *     field names that `tree-sitter-lolo/src/node-types.json` declares.
  *     One unknown name fails the whole query.
  *  2. `[grammars.lolo].rev` in `extension.toml` must name a commit whose
- *     `editors/zed/tree-sitter-lolo` tree equals the working tree. Zed
+ *     `tooling/syntax/editors/zed/tree-sitter-lolo` tree equals the working tree. Zed
  *     compiles the grammar from that commit, never from disk, so a grammar
  *     edit that lands without a re-pin ships a query written for a grammar
  *     Zed never builds (2026-09-04: `expects` — see
@@ -22,7 +22,7 @@
 
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const zedDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'editors', 'zed');
@@ -117,6 +117,7 @@ function checkHighlightsQuery(): string[] {
 }
 
 interface GrammarPin {
+    repository: string;
     rev: string;
     path: string;
 }
@@ -133,9 +134,9 @@ function readGrammarPin(): GrammarPin {
         const m = /^\s*([A-Za-z_]+)\s*=\s*"([^"]*)"/.exec(line);
         if (m) section[m[1]] = m[2];
     }
-    const { rev, path } = section;
-    if (!rev || !path) throw new Error('extension.toml: [grammars.lolo] needs both rev and path');
-    return { rev, path };
+    const { repository, rev, path } = section;
+    if (!repository || !rev || !path) throw new Error('extension.toml: [grammars.lolo] needs repository, rev, and path');
+    return { repository, rev, path };
 }
 
 /** Runs git at the submodule's top level — `[grammars.lolo].path` is repo-relative, as Zed reads it. */
@@ -149,13 +150,21 @@ function git(args: string[], opts: { allowFailure?: boolean } = {}): { ok: boole
 }
 
 function checkGrammarPin(): string[] {
-    const { rev, path } = readGrammarPin();
+    const { repository, rev, path } = readGrammarPin();
+    const packageJson = JSON.parse(readFileSync(join(zedDir, '..', '..', 'package.json'), 'utf-8')) as { repository: { url: string } };
+    const expectedRepository = packageJson.repository.url.replace(/\.git$/, '');
+    const expectedPath = relative(repoRoot, join(zedDir, 'tree-sitter-lolo')).split('\\').join('/');
+    if (repository !== expectedRepository) return [`extension.toml: grammar repository must be ${expectedRepository}`];
+    if (path !== expectedPath) return [`extension.toml: grammar path must be ${expectedPath}`];
     if (!/^[0-9a-f]{40}$/.test(rev)) return [`extension.toml: [grammars.lolo].rev must be a full 40-hex commit sha (got "${rev}")`];
     if (!git(['cat-file', '-e', `${rev}^{commit}`], { allowFailure: true }).ok) {
         // Shallow CI checkouts only carry HEAD — fetch the pin on demand.
         if (!git(['fetch', '--depth=1', 'origin', rev], { allowFailure: true }).ok) {
             return [`extension.toml: pinned rev ${rev} is not a commit on origin — push the grammar commit first, then pin its sha`];
         }
+    }
+    if (!git(['cat-file', '-e', `${rev}:${path}/src/parser.c`], { allowFailure: true }).ok) {
+        return [`extension.toml: pinned rev ${rev} does not contain ${path}/src/parser.c`];
     }
     const head = git(['rev-parse', 'HEAD']).out;
     const drift = git(['diff', '--quiet', rev, '--', path], { allowFailure: true });

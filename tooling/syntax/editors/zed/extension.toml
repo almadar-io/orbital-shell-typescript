@@ -3,7 +3,7 @@ name = "Orb"
 version = "1.2.0"
 description = "Language support for .orb and .lolo files — syntax highlighting, validation, and S-expression support for the Orb/Lolo languages"
 authors = ["Almadar <hello@almadar.io>"]
-repository = "https://github.com/almadar-io/almadar-extensions"
+repository = "https://github.com/almadar-io/orbital-shell-typescript"
 schema_version = 1
 
 [language_servers.orb-lsp]
@@ -11,7 +11,7 @@ name = "Orb LSP"
 languages = ["Orb", "Lolo"]
 
 [grammars.lolo]
-repository = "https://github.com/almadar-io/almadar-extensions"
+repository = "https://github.com/almadar-io/orbital-shell-typescript"
 # Zed's [grammars.*] schema (GrammarManifestEntry in zed-industries/zed
 # crates/extension/src/extension_manifest.rs) requires a real, resolvable
 # `rev` on the `repository` remote — no "build from local working tree"
@@ -25,5 +25,5 @@ repository = "https://github.com/almadar-io/almadar-extensions"
 # `compile_grammar`/`checkout_repo`) and refuses to reuse an existing
 # non-git-clone directory there. The real source lives at
 # `editors/zed/tree-sitter-lolo` specifically to avoid that collision.
-rev = "7f39233dd97d8ccb056758d8580dbd95db0a814c"
-path = "editors/zed/tree-sitter-lolo"
+rev = "b37fec22eb8a10606451fd5414965a3c7e8960e4"
+path = "tooling/syntax/editors/zed/tree-sitter-lolo"

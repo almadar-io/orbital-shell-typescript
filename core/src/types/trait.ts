@@ -1545,6 +1545,7 @@ export type Trait = {
      * card per alias) and L3 drill (alias → that behavior's transitions).
      */
     sourceBehavior?: SourceBehaviorMetadata;
+    sourceDeclaration?: SourceDeclarationMetadata;
     /**
      * Set by the resolve/inline phase alongside `sourceBehavior`. Carries
      * the resolved `Entity` definition of the imported behavior so the
@@ -1576,6 +1577,16 @@ export type SourceBehaviorMetadata = {
      *  call-site `name:` rename. */
     originalName: string;
 };
+
+export type SourceDeclarationMetadata = {
+    traitId: string;
+    fingerprint: string;
+};
+
+export const SourceDeclarationMetadataSchema = z.object({
+    traitId: z.string().min(1),
+    fingerprint: z.string().min(1),
+});
 
 export const SourceBehaviorMetadataSchema = z.object({
     behavior: z.string().min(1),
@@ -1643,6 +1654,7 @@ export const TraitSchema = z.object({
     ui: TraitUIBindingSchema.optional(),
     config: DeclaredTraitConfigSchema.optional(),
     sourceBehavior: SourceBehaviorMetadataSchema.optional(),
+    sourceDeclaration: SourceDeclarationMetadataSchema.optional(),
     sourceEntityDefinition: EntitySchema.optional(),
     typeParams: z.array(TraitTypeParamDefSchema).optional(),
 });

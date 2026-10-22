@@ -10,7 +10,6 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 
 Next code: `G-CORE-032`
 
-- **G-CORE-028** — The `@almadar/core` d.ts build is broken: `src/generated/kernel-wire.ts` is stale against `src/types/program-machine.ts`, so `tsc`/tsup DTS fails and `dist/*.d.ts` cannot be rebuilt. Needs the Rust kernel-wire export (ts-rs) re-run from orbital-rust, then a core build. Do not hand-edit the generated file. `@almadar/core` generated wire [mechanical]. Prevention rung: twin parity (a gate that fails when `generated/kernel-wire.ts` differs from the Rust export), which would have caught the drift at the `program-machine.ts` edit.
 
 ## Open gaps
 

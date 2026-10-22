@@ -20,6 +20,9 @@ jobs:
       - name: Install the Almadar language data
         run: npm install --no-save --no-package-lock @almadar/core@^10 @almadar/std@^16 @almadar/lolo-ar@^1 @almadar/lolo-sl@^1
 
+      - name: Check Zed extension grammar and revision
+        run: npx --yes tsx tooling/syntax/scripts/check-zed-extension.ts
+
       - uses: dtolnay/rust-toolchain@1.93.0
 
       - name: Check standalone package manifests

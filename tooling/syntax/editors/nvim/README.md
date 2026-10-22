@@ -16,7 +16,7 @@ compiler on `$PATH`.
 
 ## Install
 
-The plugin lives in this repository at `editors/nvim`, and resolves the
+The plugin lives in the shell repository at `tooling/syntax/editors/nvim`, and resolves the
 tree-sitter grammar from its sibling `editors/zed/tree-sitter-lolo`. Point your
 plugin manager at that subdirectory.
 
@@ -24,10 +24,10 @@ plugin manager at that subdirectory.
 
 ```lua
 {
-  "almadar-io/almadar-extensions",
-  -- The repo root is not the plugin root: only editors/nvim goes on the rtp.
+  "almadar-io/orbital-shell-typescript",
+  -- The repo root is not the plugin root: only tooling/syntax/editors/nvim goes on the rtp.
   config = function(plugin)
-    vim.opt.runtimepath:append(plugin.dir .. "/editors/nvim")
+    vim.opt.runtimepath:append(plugin.dir .. "/tooling/syntax/editors/nvim")
     require("almadar").setup({})
   end,
   ft = { "lolo", "orb" },
@@ -41,7 +41,7 @@ plugin manager at that subdirectory.
 
 ```lua
 {
-  dir = "~/kflow.ai.builder/packages/almadar-extensions/editors/nvim",
+  dir = "~/kflow.ai.builder/orbital-rust/crates/orbital-shell-typescript/tooling/syntax/editors/nvim",
   name = "almadar",
   opts = {},
 }
@@ -81,10 +81,47 @@ require("almadar").setup({
 | `:OrbSignatures` | the embedded lolo type-signature catalog |
 | `:OrbFormat` | `orb format` the current file in place |
 | `:OrbPreview` | open the orb-lsp live preview in a browser |
+| `:OrbInspect` | inspect the current behavior in a native Neovim diagram split |
+| `:OrbInspectClose` | close the native inspector and its process |
 | `:OrbBuildParser` | force a rebuild of the tree-sitter-lolo parser |
 
 `:checkhealth almadar` reports on the CLI, both parsers, the compiled queries,
 and the language server.
+
+## Native behavior inspector
+
+The inspector runs the io `orb-inspector.lolo` program through `orb run`.
+Generic layout and line transport live in `@almadar/std`; Orb program
+inspection and composition live in `@almadar-io/behaviors`. Neovim measures
+terminal text and renders the native layout, without a browser or Node host.
+
+Configure the native entry point explicitly:
+
+```lua
+require("almadar").setup({
+  inspector = {
+    program = "~/kflow.ai.builder/packages/almadar-behaviors/behaviors/lolo/editor-plugins/atoms/orb-inspector.lolo",
+    width = 72,
+  },
+})
+```
+
+An `inspector.command` array can select a development binary and replaces
+the default `orb run <program>` command. The workspace `nvim/init.lua`
+already configures the entry point and maps `<leader>oi` to `:OrbInspect`.
+
+Open a named `.lolo` buffer and run `:OrbInspect`. Unsaved buffer text is
+sent to the native reader with its original path and document version.
+Choose the trait to inspect. Inside the diagram, `Enter` jumps to a native
+source location, `K` opens the complete element and machine details, `t`
+chooses another trait, `r` refreshes, and `q` closes the inspector. Moving
+the source cursor highlights its corresponding state or transition. Large
+diagrams scroll; labels and source content are retained in full.
+
+Source locations come from the native lowerer and composition provenance.
+Approximate locations are identified explicitly; missing locations are
+reported instead of guessed. The editor refuses stale source navigation
+while a changed document is awaiting a new diagram.
 
 ## How highlighting works
 
@@ -111,10 +148,10 @@ slots) on top of JSON without touching `json` itself.
 
 | File | Generated from |
 | --- | --- |
-| `queries/lolo/highlights.scm` | `src/nvim-grammar.ts` |
-| `queries/orb/highlights.scm` | `src/nvim-grammar.ts` |
-| `syntax/lolo.vim` | `src/nvim-grammar.ts` |
-| `syntax/orb.vim` | `src/nvim-grammar.ts` |
+| `queries/lolo/highlights.scm` | `src/editor/nvim-grammar.ts` |
+| `queries/orb/highlights.scm` | `src/editor/nvim-grammar.ts` |
+| `syntax/lolo.vim` | `src/editor/nvim-grammar.ts` |
+| `syntax/orb.vim` | `src/editor/nvim-grammar.ts` |
 
 Every keyword, operator, effect, pattern, and behavior name in them comes from
 `@almadar/syntax`'s `tokens.json` — the same registry that feeds the VSCode
@@ -122,7 +159,7 @@ TextMate grammar and the Zed query — so they cannot drift from the language.
 Regenerate with:
 
 ```sh
-pnpm run generate-grammar   # from packages/almadar-extensions
+pnpm run generate-grammar   # from orbital-rust/crates/orbital-shell-typescript/tooling/syntax
 ```
 
 `queries/lolo/folds.scm` and `queries/lolo/indents.scm` are hand-authored:

@@ -8,6 +8,12 @@ local M = {}
 ---@field treesitter almadar.TreesitterConfig
 ---@field lsp almadar.LspConfig
 ---@field cmd string|nil Path to the `orb` binary. nil = resolve from $PATH.
+---@field inspector almadar.InspectorConfig
+
+---@class almadar.InspectorConfig
+---@field program string|nil Native Orb inspector .lolo entry point.
+---@field command string[]|nil Override the native inspector command.
+---@field width integer Width of the diagram split.
 
 ---@class almadar.TreesitterConfig
 ---@field enabled boolean Attach tree-sitter highlighting for .lolo/.orb.
@@ -23,6 +29,7 @@ local M = {}
 
 ---@type almadar.Config
 local defaults = {
+    inspector = { program = nil, command = nil, width = 72 },
     treesitter = {
         enabled = true,
         auto_install = true,

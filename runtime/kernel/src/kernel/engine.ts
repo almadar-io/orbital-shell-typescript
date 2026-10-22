@@ -10,6 +10,11 @@ import { answerRequest, declareCapabilities, type KernelAnswerScope, type Kernel
 import type { OsCompletionEvent } from './os-port.js';
 import type { IoReplyWire, KernelModule, KernelServerHandle } from './wire.js';
 
+function declaredEntityTypes(schema: OrbitalSchema): string[] {
+  return schema.orbitals.flatMap((orbital) =>
+    [orbital.entity, ...(orbital.auxiliaryEntities ?? [])].flatMap((entity) => isEntityReferenceAny(entity) ? [] : [entity.name]));
+}
+
 export class KernelEngine {
   private handle: KernelServerHandle;
   private readonly lane = new DispatchLane();
@@ -23,6 +28,8 @@ export class KernelEngine {
     private readonly entityTypes: readonly string[] = [],
     private readonly store?: Readonly<Record<string, string>>,
     forkedFrom?: KernelServerHandle,
+    providedHandle?: KernelServerHandle,
+    private readonly preserveProgramContext = false,
   ) {
     installKernelEvaluator(kernel);
     this.ports = {
@@ -30,7 +37,7 @@ export class KernelEngine {
       substrateMessage: (site, key, value): OsCompletionEvent | null => JSON.parse(kernel.osCompletionEvent(JSON.stringify({ ...site, emit: { success: site.emit.onMessage } }), key, JSON.stringify({ ok: value }))),
       substrateCompletion: (site, key, op, outcome): OsCompletionEvent | null => JSON.parse(kernel.substrateCompletionEvent(JSON.stringify(site), key, op, JSON.stringify(outcome))),
     };
-    this.handle = forkedFrom?.fork() ?? this.openServer();
+    this.handle = providedHandle ?? forkedFrom?.fork() ?? this.openServer();
     this.declare();
   }
 
@@ -40,10 +47,19 @@ export class KernelEngine {
    * fork (EXEC-DIST-5), `ports` answering it.
    */
   fork(ports: KernelHostPorts = this.ports): KernelEngine {
-    const forked = new KernelEngine(this.kernel, this.schemaJson, ports, this.entityTypes, this.store, this.handle);
+    const forked = new KernelEngine(this.kernel, this.schemaJson, ports, this.entityTypes, this.store, this.handle, undefined, this.preserveProgramContext);
     forked.tickMount = this.tickMount;
     forked.messages = this.messages;
     return forked;
+  }
+
+  forkProgram(program: OrbitalSchema, ports: KernelHostPorts = this.ports): KernelEngine {
+    const schemaJson = JSON.stringify(program);
+    const entityTypes = [...new Set([
+      ...this.entityTypes,
+      ...declaredEntityTypes(program),
+    ])];
+    return new KernelEngine(this.kernel, schemaJson, ports, entityTypes, this.store, undefined, this.handle.forkProgram(schemaJson), true);
   }
 
   /** A server over the host's ports, or over the kernel's own store when `store` selects one (native add-on only). */
@@ -61,13 +77,14 @@ export class KernelEngine {
   }
 
   static open(kernel: KernelModule, schema: OrbitalSchema, ports: KernelHostPorts, store?: Readonly<Record<string, string>>): KernelEngine {
-    return new KernelEngine(kernel, JSON.stringify(schema), ports, schema.orbitals.flatMap((orbital) => (isEntityReferenceAny(orbital.entity) ? [] : [orbital.entity.name])), store);
+    return new KernelEngine(kernel, JSON.stringify(schema), ports, declaredEntityTypes(schema), store);
   }
 
   /** A fresh kernel on the same program: every trait back at its initial state. */
   reset(): void {
+    const contextualHandle = this.preserveProgramContext ? this.handle.fork() : undefined;
     this.handle.free();
-    this.handle = this.openServer();
+    this.handle = contextualHandle ?? this.openServer();
     this.declare();
     this.handle.setTickMount(JSON.stringify(this.tickMount));
     this.handle.setMessages(JSON.stringify(this.messages.locales), JSON.stringify(this.messages.catalogs));

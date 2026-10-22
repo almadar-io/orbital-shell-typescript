@@ -105,6 +105,7 @@ export {
   type MutationOp,
   type RowAccessBundle,
 } from './src/kernel-row-access';
+export type { KernelMemoryStoreWire, KernelMemoryStoreExports } from './src/kernel-memory-store';
 
 // ML contract validation — one pure implementation for the runtime path
 // (`@almadar/evaluator` contract/* operators) and the compiled TS shell.

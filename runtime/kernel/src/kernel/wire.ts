@@ -49,6 +49,7 @@ export interface KernelServerHandle {
   lastError(): string;
   /** A server holding this one's registered program and none of its session (a stateless request's kernel). */
   fork(): KernelServerHandle;
+  forkProgram(programJson: string): KernelServerHandle;
   free(): void;
 }
 

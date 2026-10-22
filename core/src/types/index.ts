@@ -1596,3 +1596,5 @@ export {
 } from "./program-machine.js";
 
 export type { TraitDefinition, IndexedTrait, TraitIndex } from "./trait-index.js";
+
+export * from "./program-inspection.js";

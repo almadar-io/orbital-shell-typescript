@@ -57,3 +57,5 @@ export * from './runtime/types.js';
 export * from './service/default-call-service.js';
 export * from './service/service-provider.js';
 export * as composition from './runtime/effects/composition/index.js';
+
+export * from "./persistence/native-memory.js";

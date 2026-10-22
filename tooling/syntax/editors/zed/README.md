@@ -1,31 +1,41 @@
 # Almadar Orbital Extension for Zed
 
-Language support for `.orb` files in the Zed editor.
+Language support for `.lolo` and `.orb` files, maintained in
+`almadar-io/orbital-shell-typescript` under `tooling/syntax/editors/zed`.
 
 ## Features
 
-- **JSON base grammar** with S-expression highlighting
-- **TypeScript LSP validation** via the wrapper trick (`.orb` → virtual `.ts`)
-- **S-expression highlighting**: operators, bindings, events, UI slots
-- **Bracket matching** and comment toggling
+- Tree-sitter highlighting for `.lolo` and JSON-based `.orb` programs
+- Diagnostics, completion, and hover through `@almadar/orb-lsp`
+- Bracket matching and comment toggling
 
-## Installation
+## Install from the local checkout
 
-### Manual (Development)
+Install Rust through rustup, and make `orb` available on Zed's PATH for
+validation. The extension installs `@almadar/orb-lsp` from npm automatically.
 
-```bash
-# Linux
-cp -r editors/zed ~/.config/zed/extensions/almadar-orb
+In Zed, run `zed: install dev extension` from the command palette and select:
 
-# macOS
-cp -r editors/zed ~/Library/Application\ Support/Zed/extensions/almadar-orb
+```text
+/Users/osamaalghanmi/kflow.ai.builder/orbital-rust/crates/orbital-shell-typescript/tooling/syntax/editors/zed
 ```
 
-Restart Zed to activate.
+Zed builds the Rust extension and downloads the grammar from the repository,
+revision, and subdirectory declared in `extension.toml`. It does not compile
+`tree-sitter-lolo` from the local working tree. Zed automatically installs the
+WebAssembly target when Rust is managed by rustup, and downloads wasi-sdk for
+the grammar build. See [Zed's development guide](https://zed.dev/docs/extensions/developing-extensions).
 
-## How It Works
+## Check and update the grammar
 
-1. `.orb` files use JSON grammar as base
-2. `highlights.scm` adds S-expression highlighting via TreeSitter queries
-3. TypeScript LSP provides structural validation, autocomplete, and hover docs
-4. When `@almadar/core` types change, rebuild the package — Zed picks up the updated types automatically
+From `tooling/syntax`:
+
+```sh
+pnpm run check:zed
+```
+
+After changing the grammar, commit and push it to `almadar-io/orbital-shell-typescript`,
+then update `[grammars.lolo].rev` to that full commit SHA. Keep its repository
+and `tooling/syntax/editors/zed/tree-sitter-lolo` path aligned with the shell
+repository. Reinstall the dev extension to rebuild; use `zed: open log` for
+build or language-server errors.

@@ -234,6 +234,29 @@ function M.setup()
         end)
     end, { desc = "Open the orb-lsp live preview in a browser" })
 
+    vim.api.nvim_create_user_command("OrbInspect", function()
+        require("almadar.inspector").open()
+    end, { desc = "Inspect the current behavior in a native state-machine split" })
+
+    vim.api.nvim_create_user_command("OrbInspectClose", function()
+        require("almadar.inspector").close()
+    end, { desc = "Close the native behavior inspector" })
+
+    vim.api.nvim_create_user_command("OrbInspectAttach", function(opts)
+        if #opts.fargs ~= 2 then
+            return vim.notify("Usage: OrbInspectAttach <trace-url> <runtime-instance>", vim.log.levels.ERROR)
+        end
+        require("almadar.inspector").attach(opts.fargs[1], opts.fargs[2])
+    end, { nargs = "+", desc = "Observe an explicitly identified native runtime" })
+
+    vim.api.nvim_create_user_command("OrbInspectDetach", function()
+        require("almadar.inspector").detach()
+    end, { desc = "Detach runtime observation and clear execution overlays" })
+
+    vim.api.nvim_create_user_command("OrbInspectTrace", function()
+        require("almadar.inspector").trace()
+    end, { desc = "Read complete native trace messages and runtime frame identities" })
+
     vim.api.nvim_create_user_command("OrbBuildParser", function()
         local path, err = require("almadar.treesitter").build({ force = true })
         if not path then

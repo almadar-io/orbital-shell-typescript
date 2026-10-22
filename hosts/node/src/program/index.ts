@@ -20,6 +20,7 @@ import { createLogger } from '@almadar/logger';
 import { discoverBehaviorPackages, resolveOrbBinary } from '@almadar/core/behavior-package';
 import {
   CatalogEntrySchema,
+  ProgramInspectionSchema,
   CatalogScopeSchema,
   TraitValueSchema,
   parseProgram,
@@ -207,6 +208,21 @@ async function programReadOutcome(text: string, opts: ProgramHostOptions): Promi
     const issues = [...(report.errors ?? []), ...(report.warnings ?? [])];
     if (issues.length === 0) return fail(`program/read: not a program: ${parsed.error.message}`);
     return { ok: false, error: `program/read: ${issues.length} validation issue(s): ${issues.map((e) => e.message).join('; ')}`, errors: issues };
+  });
+}
+
+async function programInspectOutcome(text: string, raw: JsonValue, opts: ProgramHostOptions): Promise<ProgramEffectOutcome> {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return fail('program/read inspect: options must be an object');
+  if (typeof raw.path !== 'string' || !isAbsolute(raw.path)) return fail('program/read inspect: path must be the original absolute .lolo path');
+  if (raw.version !== undefined && raw.version !== null && (typeof raw.version !== 'number' || !Number.isSafeInteger(raw.version) || raw.version < 0)) return fail('program/read inspect: version must be a nonnegative integer');
+  const originalPath = raw.path;
+  const version = raw.version;
+  return withTempFile('program.lolo', text, async (path) => {
+    const args = ['emit', 'orb', path, '--inspect-source', originalPath];
+    if (typeof version === 'number') args.push('--document-version', String(version));
+    const run = await runOrb(args, opts);
+    if (run.code !== 0) return fail(`program/read inspect: orb exited ${run.code}: ${run.stderr.trim()}`);
+    return { ok: true, result: parseJson(ProgramInspectionSchema, run, 'program/read inspect') };
   });
 }
 
@@ -722,8 +738,12 @@ export async function runProgramEffect(op: ProgramEffectName, args: readonly Eff
         const program = programArg(op, args[0]);
         return typeof program === 'string' ? fail(program) : { ok: true, result: await behaviorDependencies(program, opts) };
       }
-      case 'program/read':
-        return typeof args[0] === 'string' ? await programReadOutcome(args[0], opts) : fail('program/read: expected .lolo text');
+      case 'program/read': {
+        if (typeof args[0] !== 'string') return fail('program/read: expected .lolo text');
+        const options = args[1];
+        if (options !== null && typeof options === 'object' && !Array.isArray(options) && options.inspect === true) return programInspectOutcome(args[0], options, opts);
+        return programReadOutcome(args[0], opts);
+      }
       case 'program/print': {
         const program = programArg(op, args[0]);
         return typeof program === 'string' ? fail(program) : { ok: true, result: await programPrint(program, opts) };

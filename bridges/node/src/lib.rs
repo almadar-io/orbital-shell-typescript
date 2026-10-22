@@ -113,6 +113,19 @@ impl Server {
     }
 
     #[napi]
+    pub fn fork_program(&self, program_json: String) -> napi::Result<Server> {
+        Ok(Server {
+            api: Slot::new(
+                self.api
+                    .get()
+                    .map_err(js)?
+                    .fork_program(&program_json)
+                    .map_err(js)?,
+            ),
+        })
+    }
+
+    #[napi]
     pub fn os_allows(&self, requirement_json: String) -> napi::Result<bool> {
         self.api
             .get()
@@ -485,4 +498,83 @@ pub fn resolve_row_binding(term: String, bindings_json: String) -> napi::Result<
 #[napi]
 pub fn substrate_completion_event(site_json: String, key: String, op: String, outcome_json: String) -> napi::Result<String> {
     api::substrate_completion_event(&site_json, &key, &op, &outcome_json).map_err(js)
+}
+
+use orbital_wasm::MemoryStoreApi;
+
+#[derive(Default)]
+#[napi]
+pub struct MemoryStore {
+    api: MemoryStoreApi,
+}
+
+#[napi]
+impl MemoryStore {
+    #[napi(constructor)]
+    pub fn new() -> Self {
+        Self {
+            api: MemoryStoreApi::new(),
+        }
+    }
+    #[napi]
+    pub fn get_by_id(&self, entity_type: String, id: String) -> Result<String, Error> {
+        self.api.get_by_id(&entity_type, &id).map_err(js)
+    }
+    #[napi]
+    pub fn list(&self, entity_type: String) -> Result<String, Error> {
+        self.api.list(&entity_type).map_err(js)
+    }
+    #[napi]
+    pub fn create(&self, entity_type: String, data_json: String) -> Result<String, Error> {
+        self.api.create(&entity_type, &data_json).map_err(js)
+    }
+    #[napi]
+    pub fn update(
+        &self,
+        entity_type: String,
+        id: String,
+        data_json: String,
+    ) -> Result<String, Error> {
+        self.api.update(&entity_type, &id, &data_json).map_err(js)
+    }
+    #[napi]
+    pub fn delete(&self, entity_type: String, id: String) -> Result<(), Error> {
+        self.api.delete(&entity_type, &id).map_err(js)
+    }
+    #[napi]
+    pub fn query_page(&self, entity_type: String, query_json: String) -> Result<String, Error> {
+        self.api.query_page(&entity_type, &query_json).map_err(js)
+    }
+    #[napi]
+    pub fn query_ids(&self, entity_type: String, query_json: String) -> Result<String, Error> {
+        self.api.query_ids(&entity_type, &query_json).map_err(js)
+    }
+    #[napi]
+    pub fn write_where(&self, op_json: String) -> Result<String, Error> {
+        self.api.write_where(&op_json).map_err(js)
+    }
+    #[napi]
+    pub fn write_batch(&self, batch_json: String) -> Result<String, Error> {
+        self.api.write_batch(&batch_json).map_err(js)
+    }
+    #[napi]
+    pub fn query_capabilities(&self) -> Result<String, Error> {
+        self.api.query_capabilities().map_err(js)
+    }
+    #[napi]
+    pub fn write_capabilities(&self) -> Result<String, Error> {
+        self.api.write_capabilities().map_err(js)
+    }
+    #[napi]
+    pub fn snapshot(&self) -> Result<String, Error> {
+        self.api.snapshot().map_err(js)
+    }
+    #[napi]
+    pub fn bind_collection(&self, entity_type: String, collection: String) {
+        self.api.bind_collection(&entity_type, &collection);
+    }
+    #[napi]
+    pub fn clear(&self) {
+        self.api.clear();
+    }
 }
