@@ -6,7 +6,7 @@
 import 'fake-indexeddb/auto';
 import { describe, it, expect } from 'vitest';
 import type { OrbitalEntity } from '@almadar/core';
-import { IndexedDbPersistence } from '@almadar/db/browser';
+import { IndexedDbPersistence } from '@almadar/shell-web/storage/browser';
 import { InMemoryPersistence } from '@almadar/db/mock';
 import { seedBrowserStore } from '../../src/runtime/entities/seedBrowserStore';
 

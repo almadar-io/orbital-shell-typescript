@@ -1,0 +1,12 @@
+src/
+scripts/
+__tests__/
+.github/
+.githooks/
+vitest.config.*
+tsup.config.*
+tsconfig.json
+eslint.config.*
+.gitignore
+*.tsbuildinfo
+coverage/

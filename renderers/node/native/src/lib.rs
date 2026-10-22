@@ -4,7 +4,6 @@
 
 use napi::bindgen_prelude::Error;
 use napi::bindgen_prelude::Buffer;
-use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use napi::{Env, JsFunction};
 use napi_derive::napi;
 use orbital_wasm::api;
@@ -35,17 +34,14 @@ pub struct HostResponse {
     pub body: Buffer,
 }
 
-/// A program served by `orbital-server` in this process: every request goes through the server's own router, so a
-/// TypeScript host serves the routes `orb serve` serves. The host keeps its listener and the live stream's connections.
+/// The retired embedded HTTP adapter. Native kernel APIs below remain available.
 #[napi]
 pub struct NativeServer {
-    host: orbital_server::embedded::EmbeddedHost,
+    unavailable: std::convert::Infallible,
 }
 
 #[napi]
 impl NativeServer {
-    /// Boot `program_json` with the environment `env_json` (the store, sign-in and credentials it names) and the message
-    /// catalogs `catalogs_json` (`{ locale: { key: message } }`); `on_live(itemJson)` receives each live item.
     #[napi(factory)]
     pub fn open(
         env: Env,
@@ -54,53 +50,26 @@ impl NativeServer {
         catalogs_json: String,
         #[napi(ts_arg_type = "((itemJson: string) => void) | undefined | null")] on_live: Option<JsFunction>,
     ) -> napi::Result<Self> {
-        let vars: std::collections::HashMap<String, String> =
-            serde_json::from_str(&env_json).map_err(|e| js(format!("parse env_json: {e}")))?;
-        let catalogs: orbital_server::Catalogs =
-            serde_json::from_str(&catalogs_json).map_err(|e| js(format!("parse catalogs_json: {e}")))?;
-        let callback: Option<ThreadsafeFunction<String, ErrorStrategy::Fatal>> = match on_live {
-            Some(function) => {
-                let mut tsfn: ThreadsafeFunction<String, ErrorStrategy::Fatal> = function
-                    .create_threadsafe_function(0, |ctx: napi::threadsafe_function::ThreadSafeCallContext<String>| {
-                        ctx.env.create_string(&ctx.value).map(|s| vec![s])
-                    })?;
-                tsfn.unref(&env)?;
-                Some(tsfn)
-            }
-            None => None,
-        };
-        let on_live: Box<dyn Fn(String) + Send + Sync> = Box::new(move |item_json| {
-            if let Some(callback) = callback.as_ref() {
-                callback.call(item_json, ThreadsafeFunctionCallMode::NonBlocking);
-            }
-        });
-        let host = orbital_server::embedded::EmbeddedHost::open(&program_json, &vars, catalogs, on_live).map_err(|e| js(format!("{e:#}")))?;
-        Ok(Self { host })
+        let _ = (env, program_json, env_json, catalogs_json, on_live);
+        Err(js("NATIVE_SERVER_UNAVAILABLE: the embedded HTTP adapter retired with orbital-server; the std server adapter is pending. Native kernel Server APIs remain available.".to_string()))
     }
 
-    /// Run one request (`headers_json`: `[[name, value], ...]`) through the server's router.
     #[napi]
     pub fn handle(&self, method: String, uri: String, headers_json: String, body: Buffer) -> napi::Result<HostResponse> {
-        let headers: Vec<(String, String)> =
-            serde_json::from_str(&headers_json).map_err(|e| js(format!("parse headers_json: {e}")))?;
-        let response = self.host.handle(&method, &uri, &headers, body.to_vec()).map_err(|e| js(format!("{e:#}")))?;
-        Ok(HostResponse {
-            status: u32::from(response.status),
-            headers_json: serde_json::to_string(&response.headers).map_err(|e| js(e.to_string()))?,
-            body: response.body.into(),
-        })
+        let _ = (method, uri, headers_json, body);
+        match self.unavailable {}
     }
 
-    /// The viewer JSON a stream ticket was minted for, once; `null` for a forged, expired or used ticket.
     #[napi]
     pub fn take_ticket(&self, ticket: String) -> Option<String> {
-        self.host.take_ticket(&ticket)
+        let _ = ticket;
+        match self.unavailable {}
     }
 
-    /// The indexes of `connections_json` (`[{ clientId, viewer }]`) that receive the live item `item_json`, as JSON.
     #[napi]
     pub fn live_recipients(&self, item_json: String, connections_json: String) -> napi::Result<String> {
-        self.host.live_recipients(&item_json, &connections_json).map_err(js)
+        let _ = (item_json, connections_json);
+        match self.unavailable {}
     }
 }
 

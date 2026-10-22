@@ -1,5 +1,5 @@
 /**
- * The app's sign-in surface (`@almadar/auth/browser`) and the bearer headers every server call carries.
+ * The app's sign-in surface (`@almadar/shell-web/auth/browser`) and the bearer headers every server call carries.
  *
  * Config comes from the served `/__/firebase/init.json` (Firebase Hosting's, or `orb serve`'s), else the
  * `VITE_APP_FIREBASE_*` vars of a Vite dev server. The local Auth emulator (dev) is that file's `authEmulatorHost`,
@@ -7,7 +7,7 @@
  * With no config at all the app runs signed-out: every request is anonymous.
  */
 import { z } from 'zod';
-import { connectAuth, type BrowserAuth } from '@almadar/auth/browser';
+import { connectAuth, type BrowserAuth } from '@almadar/shell-web/auth/browser';
 
 const FirebaseWebConfigSchema = z.object({
   apiKey: z.string().min(1),

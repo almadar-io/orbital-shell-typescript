@@ -1,5 +1,5 @@
 // The Node add-on over the memory store produces the trace the Rust golden pins (the Python extension pins the same file).
-// Run: ORBITAL_KERNEL_NODE=<path to kernel.node> node --test crates/orbital-node/tests/stored.test.mjs
+// Run: ORBITAL_KERNEL_NODE=<path to kernel.node> node --test crates/orbital-shell-typescript/renderers/node/native/tests/stored.test.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

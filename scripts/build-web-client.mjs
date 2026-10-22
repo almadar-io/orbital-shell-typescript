@@ -30,7 +30,7 @@ const WORKSPACE_PACKAGES = {
   '@almadar/kernel': 'orbital-rust/crates/orbital-wasm/js',
   '@almadar/logger': 'packages/almadar-logger',
   '@almadar/runtime': 'packages/almadar-runtime',
-  '@almadar/syntax': 'packages/almadar-syntax',
+  '@almadar/syntax': 'orbital-rust/crates/orbital-shell-typescript/renderers/syntax',
   '@almadar/shell-web': 'orbital-rust/crates/orbital-shell-typescript/renderers/web',
 };
 

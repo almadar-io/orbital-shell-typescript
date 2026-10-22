@@ -1,4 +1,4 @@
-export type { AuthContextValue as AuthContextType, SignedInUser as AuthViewer } from '@almadar/auth/react';
+export type { AuthContextValue as AuthContextType, SignedInUser as AuthViewer } from '@almadar/shell-web/auth/react';
 
 export interface LoginCredentials {
   email: string;

@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import type { JsonValue } from '@almadar/core';
+import { createNodeOsHost } from '../src/os-node.js';
 import { describe, expect, it, vi } from 'vitest';
 import { createHttpPorts, CredentialStore, getEffectiveCredentialStore, runWithCredentialScope, type CredentialPersistence } from '@almadar/shell-web';
 import { installNodeHostPorts, nodeNetPort, pinnedFetchNode, resolveHostNode } from '../src/index.js';
@@ -63,5 +66,20 @@ describe('node host ports', () => {
     });
     expect(seen).toBe(store);
     expect(getEffectiveCredentialStore()).toBeNull();
+  });
+});
+
+
+describe('raw Node network asks', () => {
+  it('refuses tcp-listen without stream context using the shared canonical host fixture', async () => {
+    const fixture: { steps: Array<{ op?: string; key?: string; args?: JsonValue[]; expect?: JsonValue }> } = JSON.parse(readFileSync(new URL('./fixtures/os-asks.json', import.meta.url), 'utf8'));
+    const step = fixture.steps.find((entry) => entry.op === 'os/tcp-listen' && entry.key === undefined);
+    if (step?.args === undefined || step.expect === undefined) throw new Error('missing unkeyed listener fixture');
+    const host = createNodeOsHost({ allows: () => false, globMatches: () => false, isPublicAddress: () => false });
+    try {
+      expect(await host.answer('os/tcp-listen', step.args)).toEqual(step.expect);
+      expect(await host.answer('os/tcp-connect', ['127.0.0.1', 1])).toMatchObject({ error: { kind: 'denied' } });
+      expect(await host.answer('os/watch-port', [])).toMatchObject({ error: { kind: 'unsupported' } });
+    } finally { host.close(); }
   });
 });

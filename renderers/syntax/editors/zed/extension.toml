@@ -1,0 +1,29 @@
+id = "orb"
+name = "Orb"
+version = "1.2.0"
+description = "Language support for .orb and .lolo files — syntax highlighting, validation, and S-expression support for the Orb/Lolo languages"
+authors = ["Almadar <hello@almadar.io>"]
+repository = "https://github.com/almadar-io/almadar-extensions"
+schema_version = 1
+
+[language_servers.orb-lsp]
+name = "Orb LSP"
+languages = ["Orb", "Lolo"]
+
+[grammars.lolo]
+repository = "https://github.com/almadar-io/almadar-extensions"
+# Zed's [grammars.*] schema (GrammarManifestEntry in zed-industries/zed
+# crates/extension/src/extension_manifest.rs) requires a real, resolvable
+# `rev` on the `repository` remote — no "build from local working tree"
+# option. Verified this repo+path shape against a real same-monorepo
+# example (GaijinEntertainment/daScript's Zed extension: `repository` =
+# the whole project repo, `path` = the grammar's subdirectory within it).
+#
+# `path` must NOT live under `editors/zed/grammars/` — Zed's extension
+# builder always clones `repository`@`rev` into
+# `<extension_dir>/grammars/<grammar_name>` (extension_builder.rs
+# `compile_grammar`/`checkout_repo`) and refuses to reuse an existing
+# non-git-clone directory there. The real source lives at
+# `editors/zed/tree-sitter-lolo` specifically to avoid that collision.
+rev = "7f39233dd97d8ccb056758d8580dbd95db0a814c"
+path = "editors/zed/tree-sitter-lolo"

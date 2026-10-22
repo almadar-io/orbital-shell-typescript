@@ -2,8 +2,8 @@
  * The `net` family on Node `net`, `dgram` and `dns`: TCP, UDP and name resolution. It mirrors `os_host/net.rs`
  * of the native host: every target is checked with the kernel's grants before any syscall, a destination named
  * by a host name must resolve to public addresses only, every socket carries a 5 s read and write timeout, a
- * connect waits 10 s, and `recv` returns at most 64 MiB from one read. Listening and port watching are the
- * native `unsupported`.
+ * connect waits 10 s, and `recv` returns at most 64 MiB from one read. Raw listening asks require a key and
+ * call site; port watching remains unsupported.
  */
 import { lookup } from 'node:dns/promises';
 import { createSocket } from 'node:dgram';
@@ -135,6 +135,8 @@ export class NetOps {
 
   async run(op: OsOp, args: JsonValue[]): Promise<JsonValue> {
     switch (op) {
+      case 'os/tcp-listen':
+        throw invalid(op, 'a stream needs a key and a call site');
       case 'os/tcp-connect':
         return this.tcpConnect(op, args);
       case 'os/send':
