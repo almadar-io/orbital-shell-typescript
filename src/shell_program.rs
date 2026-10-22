@@ -1,7 +1,7 @@
 //! `orb-shell-typescript`: the TypeScript shell as a program (`orbital_core::shell_protocol`).
 
 use crate::{
-    express_shell, ExtraComponentMapping, TypeScriptBackend,
+    express_shell, ExtraComponentMapping, TypeProjection, TypeScriptBackend,
 };
 use orbital_core_base::project::{copy_public, resolve_public_dir, write_project};
 use orbital_core_base::shell_protocol::{
@@ -20,6 +20,7 @@ const DEV_LOGS: &str = "devLogs";
 const BACKEND_URL: &str = "backendUrl";
 const PROJECT_PATTERNS: &str = "projectPatterns";
 const HOST: &str = "host";
+const TYPE_PROJECTION: &str = "typeProjection";
 
 fn option(name: &str, description: &str, values: Option<&[&str]>, default: Option<&str>) -> ShellOption {
     ShellOption {
@@ -115,6 +116,7 @@ impl ShellProgram for TypeScriptProgram {
             options: vec![
                 option(FRAMEWORK, "Server framework", Some(&["express"]), Some("express")),
                 option(SCHEMA_LANGUAGE, "Language the program is written in", None, Some("en")),
+                option(TYPE_PROJECTION, "Declared type projection", Some(&["wire", "hostInput"]), Some("wire")),
                 option(DEV_LOGS, "Emit development logging", Some(&["true", "false"]), Some("false")),
                 option(BACKEND_URL, "Backend URL written to .env as VITE_API_URL", None, None),
                 option(PROJECT_PATTERNS, "The project's patterns.json (component mappings)", None, None),
@@ -185,7 +187,22 @@ fn backend(request: &GenerateRequest) -> Result<TypeScriptBackend, ShellFailure>
         "kernel" => {}
         other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("host must be kernel, got {other}: the generated handlers and hooks are retired"))),
     }
+    let type_projection = match string_option(request, TYPE_PROJECTION)?.unwrap_or("wire") {
+        "wire" => TypeProjection::Wire,
+        "hostInput" => TypeProjection::HostInput,
+        other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("typeProjection must be wire or hostInput, got {other}"))),
+    };
+    let has_qualified_types = request.module.named_types.keys().any(|name| name.contains('.'));
+    for name in request.module.named_types.keys() {
+        if name.contains('.') && name.split('.').any(|part| !crate::codegen::ts_ident::is_valid_declaration_identifier(part)) {
+            return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("named type {name} cannot be represented as TypeScript namespace/type identifiers")));
+        }
+        if has_qualified_types && name.split('.').next() == Some(crate::backend::NAMED_SCHEMA_MODULE_BINDING) {
+            return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("named type {name} conflicts with generated schema module binding {}", crate::backend::NAMED_SCHEMA_MODULE_BINDING)));
+        }
+    }
     Ok(TypeScriptBackend {
+        type_projection,
         extra_mappings: request.options.get(PROJECT_PATTERNS).and_then(component_mappings),
         schema_language: string_option(request, SCHEMA_LANGUAGE)?.unwrap_or("en").to_string(),
         dev_logs,
@@ -319,4 +336,69 @@ mod tests {
         let err = TypeScriptProgram.generate(&request, Path::new("/tmp")).unwrap_err();
         assert_eq!(err.code, CODE_BAD_REQUEST);
     }
+
+    fn projection_outputs(option: Option<&str>) -> (String, String) {
+        use orbital_core_base::ir::OirType;
+        let options = option.map(|value| vec![("typeProjection", value)]).unwrap_or_default();
+        let backend = backend(&request_with(&options)).expect("declared projection option");
+        let types = std::collections::BTreeMap::from([
+            ("Dates".to_string(), OirType::map(OirType::String, OirType::array(OirType::Date))),
+            ("Fixed".to_string(), OirType::String),
+        ]);
+        (backend.generate_shared_entities(&[], &types).content, backend.generate_shared_schemas(&[], &types).content)
+    }
+
+    #[test]
+    fn type_projection_default_and_explicit_wire_keep_dates_and_maps_on_json_values() {
+        let default = projection_outputs(None);
+        let wire = projection_outputs(Some("wire"));
+        assert_eq!(default, wire);
+        assert!(wire.0.contains("Record<string, (string | number)[]>"), "{}", wire.0);
+        assert!(wire.1.contains("z.record(z.array(z.union([z.string(), z.number()])))"), "{}", wire.1);
+        assert!(!wire.1.contains("z.date()"), "{}", wire.1);
+    }
+
+    #[test]
+    fn type_projection_host_input_keeps_dates_and_optional_map_entries_but_required_array_items() {
+        let host = projection_outputs(Some("hostInput"));
+        assert!(host.0.contains("Record<string, (Date | string | number)[] | undefined>"), "{}", host.0);
+        assert!(host.1.contains("z.record(z.array(z.union([z.date(), z.string(), z.number()])).optional())"), "{}", host.1);
+        assert!(host.1.contains("FixedSchema: z.ZodType<Fixed> = z.lazy(() => z.string())"), "{}", host.1);
+        assert!(!host.1.contains("z.array(z.union([z.date(), z.string(), z.number()]).optional())"), "{}", host.1);
+    }
+
+    #[test]
+    fn qualified_native_namespace_identifiers_refuse_invalid_spelling_without_renaming() {
+        for name in ["Bad-Name.Row", "Contract..Row", "class.Row", "Contract.default"] {
+            let mut request = request_with(&[]);
+            request.module.named_types.insert(name.to_string(), orbital_core_base::ir::OirType::String);
+            let error = backend(&request).err().expect("invalid namespace/type identifier refuses");
+            assert_eq!(error.code, CODE_BAD_REQUEST);
+            assert!(error.message.contains(name), "{}", error.message);
+        }
+        for name in ["Contract.Row", "Second.Contract.Row", "FieldValue"] {
+            let mut request = request_with(&[]);
+            request.module.named_types.insert(name.to_string(), orbital_core_base::ir::OirType::String);
+            assert!(backend(&request).is_ok(), "{name}");
+        }
+    }
+
+    #[test]
+    fn qualified_native_namespace_module_binding_collision_refuses_without_renaming() {
+        for name in ["__orbitalNamedSchemas", "__orbitalNamedSchemas.Row"] {
+            let mut request = request_with(&[]);
+            request.module.named_types.insert("Contract.Row".to_string(), orbital_core_base::ir::OirType::String);
+            request.module.named_types.insert(name.to_string(), orbital_core_base::ir::OirType::String);
+            let error = backend(&request).err().expect("generated module binding collision refuses");
+            assert_eq!(error.code, CODE_BAD_REQUEST);
+            assert!(error.message.contains(name), "{}", error.message);
+        }
+    }
+
+    #[test]
+    fn type_projection_rejects_undeclared_option_values() {
+        let error = backend(&request_with(&[("typeProjection", "anything")])).err().expect("invalid projection refuses");
+        assert_eq!(error.code, CODE_BAD_REQUEST);
+    }
+
 }

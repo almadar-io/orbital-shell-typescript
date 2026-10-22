@@ -31,7 +31,7 @@ describe('program types', () => {
     expect(member(result, 'transitionFired')).toEqual({ type: 'boolean', required: true });
     expect(member(result, 'guard')).toEqual({ type: 'enum', values: ['pass', 'fail', 'none'], required: true });
     expect(member(result, 'firedArm')).toEqual({ type: 'number' });
-    expect(member(member(result, 'state'), 'before')).toEqual({ type: 'string', required: true });
+    expect(member(member(result, 'state'), 'before')).toEqual({ type: 'string', nullable: true, required: true });
     const guard = member(result, 'guards').items!;
     expect(member(guard, 'passed')).toEqual({ type: 'boolean', required: true });
     expect(member(guard, 'guard')).toEqual({ type: 'SExpr', required: true });
@@ -41,18 +41,10 @@ describe('program types', () => {
     expect(member(member(result, 'emitted').items!, 'payload')).toEqual({ type: 'SExpr' });
   });
 
-  it('a viewer requires its id and claims, and its claim values are a union told apart by their kind', () => {
-    expect(member(types.Viewer, 'id')).toEqual({ type: 'string', required: true });
-    expect(member(types.Viewer, 'role')).toEqual({ type: 'string' });
-    expect(member(types.Viewer, 'permissions')).toEqual({ type: 'array', items: { type: 'string' } });
+  it('a viewer requires its id and claims, whose values retain the canonical JSON data contract', () => {
     const claim = member(types.Viewer, 'claims').items!;
     expect(member(claim, 'name')).toEqual({ type: 'string', required: true });
-    const value = member(claim, 'value');
-    expect(value.type).toBe('union');
-    expect(value.values).toEqual(['text', 'number', 'flag', 'texts', 'record']);
-    const entry = member(value.properties!.record, 'entries').items!;
-    expect(member(entry, 'path')).toEqual({ type: 'array', items: { type: 'string' }, required: true });
-    expect(member(entry, 'value').values).toEqual(['text', 'number', 'flag', 'texts']);
+    expect(member(claim, 'value')).toEqual({ type: 'SExpr', required: true });
   });
 
   it('an orbital value requires the behavior and orbital it names', () => {
@@ -132,5 +124,16 @@ describe('the projection refuses what the language cannot type', () => {
     type Chain = { next?: Chain };
     const node: z.ZodType<Chain> = z.lazy(() => z.object({ next: node.optional() }));
     expect(() => projectProgramType('X', z.object({ n: node }))).toThrow('recursive');
+  });
+});
+
+
+describe('native metadata projection', () => {
+  it('keeps field presence independent from nullability and retains typed catchalls', () => {
+    const schema = z.object({ id: z.string().optional(), maybe: z.string().nullable(), optionalNullable: z.number().nullable().optional() }).catchall(z.boolean().nullable());
+    expect(projectProgramType('OpenRecord', schema)).toEqual({ type: 'object', properties: {
+      id: { type: 'string' }, maybe: { type: 'string', nullable: true, required: true }, optionalNullable: { type: 'number', nullable: true },
+    }, additionalProperties: { type: 'boolean', nullable: true } });
+    expect(projectProgramType('ClosedControl', z.object({ id: z.string() }))).toEqual({ type: 'object', properties: { id: { type: 'string', required: true } } });
   });
 });

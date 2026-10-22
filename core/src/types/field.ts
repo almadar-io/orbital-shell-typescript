@@ -386,6 +386,8 @@ type EntityFieldBase = {
     name?: string;
     /** Whether the field is required */
     required?: boolean;
+    nullable?: boolean;
+    additionalProperties?: EntityField;
     /** Primary-key marker. Mirrors Rust's `FieldDefinition.primary_key`
      *  (serde `primaryKey`). */
     primaryKey?: boolean;
@@ -558,6 +560,8 @@ export const EntityFieldSchema: z.ZodType<EntityField, z.ZodTypeDef, unknown> = 
     const baseFieldShape = {
         name: z.string().min(1, 'Field name is required').optional(),
         required: z.boolean().optional(),
+        nullable: z.boolean().optional(),
+        additionalProperties: EntityFieldSchema.optional(),
         primaryKey: z.boolean().optional(),
         default: JsonValueSchema.optional(),
         min: z.number().optional(),

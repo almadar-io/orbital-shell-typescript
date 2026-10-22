@@ -21,7 +21,7 @@ import type { AnyPatternConfig } from '../patterns/index.js';
 import type { Expression, SExpr } from './expression.js';
 import { ExpressionSchema, SExprSchema } from './expression.js';
 import { JsonValueSchema } from './json.js';
-import { TypeVariableSchema, type TypeVariable } from './field.js';
+import { EntityFieldSchema, TypeVariableSchema, type EntityField, type TypeVariable } from './field.js';
 
 // ============================================================================
 // Trait Configuration
@@ -331,6 +331,8 @@ export function overrideDeclaredKnobs(
 }
 
 export type ConfigFieldDeclaration = {
+    readonly nullable?: boolean;
+    readonly additionalProperties?: EntityField;
     readonly type: string;
     readonly default?: TraitConfigValue;
     /**
@@ -392,6 +394,8 @@ export type ConfigFieldDeclaration = {
 };
 
 export type ConfigFieldItemsDeclaration = {
+    readonly nullable?: boolean;
+    readonly additionalProperties?: EntityField;
     readonly type?: string;
     /** Absent for arrays of scalars (`items: { type: "string" }`). */
     readonly properties?: Readonly<Record<string, TraitEntityField>>;
@@ -401,8 +405,10 @@ export type ConfigFieldItemsDeclaration = {
     readonly values?: ReadonlyArray<string>;
 };
 
-export const ConfigFieldItemsDeclarationSchema: z.ZodType<ConfigFieldItemsDeclaration> = z.lazy(() =>
+export const ConfigFieldItemsDeclarationSchema: z.ZodType<ConfigFieldItemsDeclaration, z.ZodTypeDef, object> = z.lazy(() =>
     z.object({
+    nullable: z.boolean().optional(),
+    additionalProperties: EntityFieldSchema.optional(),
         type: z.string().optional(),
         properties: z.record(TraitEntityFieldSchema).optional(),
         items: ConfigFieldItemsDeclarationSchema.optional(),
@@ -410,7 +416,9 @@ export const ConfigFieldItemsDeclarationSchema: z.ZodType<ConfigFieldItemsDeclar
     }),
 );
 
-export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration> = z.object({
+export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration, z.ZodTypeDef, object> = z.object({
+    nullable: z.boolean().optional(),
+    additionalProperties: EntityFieldSchema.optional(),
     type: z.string(),
     default: TraitConfigValueSchema.optional(),
     refId: z.string().optional(),
@@ -435,7 +443,7 @@ export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration> = z
  */
 export type DeclaredTraitConfig = Readonly<Record<string, ConfigFieldDeclaration>>;
 
-export const DeclaredTraitConfigSchema: z.ZodType<DeclaredTraitConfig> = z.record(
+export const DeclaredTraitConfigSchema: z.ZodType<DeclaredTraitConfig, z.ZodTypeDef, Record<string, object>> = z.record(
     ConfigFieldDeclarationSchema,
 );
 
@@ -531,6 +539,8 @@ export const TRAIT_FIELD_TYPES = [
  * Simplified field for trait data entities
  */
 export type TraitEntityField = {
+    nullable?: boolean;
+    additionalProperties?: EntityField;
     name: string;
     type: TraitFieldType;
     required?: boolean;
@@ -543,7 +553,9 @@ export type TraitEntityField = {
     properties?: Readonly<Record<string, TraitEntityField>>;
 };
 
-export const TraitEntityFieldSchema: z.ZodType<TraitEntityField> = z.object({
+export const TraitEntityFieldSchema: z.ZodType<TraitEntityField, z.ZodTypeDef, object> = z.object({
+    nullable: z.boolean().optional(),
+    additionalProperties: EntityFieldSchema.optional(),
     name: z.string().min(1),
     type: z.union([z.enum(TRAIT_FIELD_TYPES), TypeVariableSchema]),
     required: z.boolean().optional(),
@@ -698,6 +710,8 @@ export type EventPayloadField = {
     type: string;
     /** Whether field is required in payload */
     required?: boolean;
+    nullable?: boolean;
+    additionalProperties?: EventPayloadField;
     /** Closed value set (`"a" | "b"`) — element-wise for an array type. */
     values?: ReadonlyArray<string>;
     /** Human-readable description */
@@ -719,8 +733,7 @@ export type EventPayloadField = {
     items?: EventPayloadField;
 };
 
-export const EventPayloadFieldSchema: z.ZodType<EventPayloadField> = z.object({
-    name: z.string().min(1),
+const eventPayloadFieldShape = {
     /**
      * Field type. Mirrors the Rust validator's acceptance: any non-empty
      * string. Primitives ('string' | 'number' | 'boolean' | 'object' |
@@ -733,13 +746,25 @@ export const EventPayloadFieldSchema: z.ZodType<EventPayloadField> = z.object({
      */
     type: z.string().min(1),
     required: z.boolean().optional(),
+    nullable: z.boolean().optional(),
+    additionalProperties: z.lazy(() => EventPayloadTypeMemberSchema).optional(),
     values: z.array(z.string()).optional(),
     description: z.string().optional(),
     entity: z.string().optional(),
     properties: z.lazy(() => z.array(EventPayloadFieldSchema)).optional(),
     typeWhen: z.array(PayloadTypeWhenSchema).optional(),
     projectedFrom: FieldProjectionSchema.optional(),
-    items: z.lazy(() => EventPayloadFieldSchema).optional(),
+    items: z.lazy(() => EventPayloadTypeMemberSchema).optional(),
+};
+
+export const EventPayloadTypeMemberSchema: z.ZodType<EventPayloadField> = z.object({
+    name: z.string(),
+    ...eventPayloadFieldShape,
+});
+
+export const EventPayloadFieldSchema: z.ZodType<EventPayloadField> = z.object({
+    name: z.string().min(1),
+    ...eventPayloadFieldShape,
 });
 
 // ============================================================================

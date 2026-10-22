@@ -25,6 +25,8 @@ import { EvalPathSchema, MachineRowSchema, PlayedStepSchema } from './types/prog
 export interface ProgramTypeField {
   type: string;
   required?: true;
+  nullable?: boolean;
+  additionalProperties?: ProgramTypeField;
   values?: string[];
   items?: ProgramTypeField;
   properties?: Record<string, ProgramTypeField>;
@@ -84,6 +86,11 @@ function unwrap(schema: z.ZodTypeAny): z.ZodTypeAny {
 type Getter = () => z.ZodTypeAny;
 
 function project(schema: z.ZodTypeAny, path: string, trail: readonly Getter[]): ProgramTypeField {
+  const field = projectBase(schema, path, trail);
+  return schema.isNullable() && !PROGRAM_DATA.includes(unwrap(schema)) ? { ...field, nullable: true } : field;
+}
+
+function projectBase(schema: z.ZodTypeAny, path: string, trail: readonly Getter[]): ProgramTypeField {
   const here = unwrap(schema);
   if (PROGRAM_DATA.includes(here)) return SEXPR;
   if (here instanceof z.ZodLazy) {
@@ -114,7 +121,8 @@ function project(schema: z.ZodTypeAny, path: string, trail: readonly Getter[]): 
       const field = project(member, `${path}.${key}`, trail);
       properties[key] = member.isOptional() ? field : { ...field, required: true };
     }
-    return { type: 'object', properties };
+    const catchall = here._def.catchall;
+    return { type: 'object', properties, ...(catchall instanceof z.ZodNever ? {} : { additionalProperties: project(catchall, `${path}{additional}`, trail) }) };
   }
   if (here instanceof z.ZodUnion) return projectUnion(here.options as z.ZodTypeAny[], path, trail);
   if (here instanceof z.ZodDiscriminatedUnion) {

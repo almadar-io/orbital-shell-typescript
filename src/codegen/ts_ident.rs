@@ -15,6 +15,17 @@ fn is_valid_identifier(s: &str) -> bool {
     }
 }
 
+pub(crate) fn is_valid_declaration_identifier(name: &str) -> bool {
+    is_valid_identifier(name) && !matches!(name,
+        "break" | "case" | "catch" | "class" | "const" | "continue" | "debugger" |
+        "default" | "delete" | "do" | "else" | "enum" | "export" | "extends" |
+        "false" | "finally" | "for" | "function" | "if" | "import" | "in" |
+        "instanceof" | "new" | "null" | "return" | "super" | "switch" | "this" |
+        "throw" | "true" | "try" | "typeof" | "var" | "void" | "while" | "with" |
+        "implements" | "interface" | "let" | "package" | "private" | "protected" |
+        "public" | "static" | "yield" | "await")
+}
+
 /// A TS object-/interface-member name: bare when it is a valid identifier,
 /// quoted otherwise. The single helper every member-position emission uses
 /// (object literals, payload interfaces, inline `as { … }` type literals) so

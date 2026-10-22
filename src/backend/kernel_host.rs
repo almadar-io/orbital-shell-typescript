@@ -149,8 +149,11 @@ pub(crate) fn client_program(program: &serde_json::Value) -> serde_json::Value {
 
 impl TypeScriptBackend {
     /// The shared barrel of a kernel-hosted app: the default exports plus the embedded program.
-    pub(crate) fn generate_shared_index_kernel(&self) -> InternalFile {
-        let base = self.generate_shared_index();
+    pub(crate) fn generate_shared_index_kernel(
+        &self,
+        named_types: &std::collections::BTreeMap<String, OirType>,
+    ) -> InternalFile {
+        let base = self.generate_shared_index(named_types);
         InternalFile::new(
             base.path,
             format!(

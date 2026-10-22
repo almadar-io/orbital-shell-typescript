@@ -14,7 +14,7 @@ pub(crate) fn oir_type_uses_sexpr(oir_type: &OirType) -> bool {
         OirType::SExpr => true,
         OirType::Array { inner } | OirType::Optional { inner } => oir_type_uses_sexpr(inner),
         OirType::Map { key, value } => oir_type_uses_sexpr(key) || oir_type_uses_sexpr(value),
-        OirType::Struct { fields } => fields.iter().any(|f| oir_type_uses_sexpr(&f.field_type)),
+        OirType::Struct { fields, additional } => fields.iter().any(|f| oir_type_uses_sexpr(&f.field_type)) || additional.as_deref().is_some_and(oir_type_uses_sexpr),
         OirType::Union { variants } => variants.iter().any(|v| oir_type_uses_sexpr(&v.field_type)),
         _ => false,
     }
@@ -28,7 +28,7 @@ pub(crate) fn nonempty_enum_union(values: Option<&[String]>) -> Option<String> {
     Some(
         values
             .iter()
-            .map(|v| format!("'{}'", v))
+            .map(|v| format!("'{}'", escape_js_string(v)))
             .collect::<Vec<_>>()
             .join(" | "),
     )
@@ -36,23 +36,22 @@ pub(crate) fn nonempty_enum_union(values: Option<&[String]>) -> Option<String> {
 
 /// One inline-struct-literal walker shared by every `OirType::Struct` emitter
 /// (`map_type_ts`, `payload_struct_ts`). Owns the
-/// common skeleton: unwrap a non-required field's `Optional` wrapper (so
-/// `?: T | null` never double-marks optionality), then `{name}{?}: {inner}`
-/// joined with `; ` inside `{ }`. The per-field `inner` type — including each
-/// caller's recursive emitter and any enum-union handling — is supplied by
-/// `inner_ts`, called with `(field, effective_unwrapped_type)`.
+/// common skeleton: presence comes from `required`, nullability from the value type.
 pub(crate) fn struct_fields_ts(
     fields: &[OirField],
+    additional: Option<String>,
     inner_ts: impl Fn(&OirField, &OirType) -> String,
 ) -> String {
-    let parts: Vec<String> = fields
+    let mut parts: Vec<String> = fields
         .iter()
         .map(|f| {
-            let (effective, is_optional) = f.effective_type();
-            let optional = if is_optional { "?" } else { "" };
-            format!("{}{}: {}", f.name, optional, inner_ts(f, effective))
+            let optional = if f.required { "" } else { "?" };
+            format!("{}{}: {}", f.name, optional, inner_ts(f, &f.field_type))
         })
         .collect();
+    if let Some(additional) = additional {
+        parts.push(format!("[key: string]: {additional} | undefined"));
+    }
     format!("{{ {} }}", parts.join("; "))
 }
 
@@ -68,6 +67,8 @@ pub(crate) fn struct_fields_ts(
 pub(crate) struct TsRenderer<'a> {
     catalog: Option<&'a HashMap<String, OirEntity>>,
     payload: bool,
+    host_input: bool,
+    named_type_module: Option<&'a str>,
 }
 
 impl TargetTypeRenderer for TsRenderer<'_> {
@@ -111,7 +112,7 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         // variant's fields marked optional.
         let parts: Vec<String> = variants
             .iter()
-            .map(|v| render_type(self, &v.field_type, None))
+            .map(|v| render_type(self, &v.field_type, v.enum_values.as_deref()))
             .collect();
         match parts.len() {
             0 => self.json(),
@@ -161,11 +162,10 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         "SExpr".to_string()
     }
     fn type_ref(&self, name: &str) -> String {
-        // The named (possibly self-referential) interface, hoisted once per
-        // module by `emit_named_type_declarations` — referencing the bare
-        // name here (never inlining) is what makes the type actually
-        // recursive instead of an infinite unroll attempt.
-        name.to_string()
+        match self.named_type_module {
+            Some(module) => format!("import('{module}').{name}"),
+            None => name.to_string(),
+        }
     }
     fn node(&self) -> String {
         // Renderable content: string leaf, pattern node, or arrays of either.
@@ -178,7 +178,7 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         // `[A | B]` is an array of the union; bare `A | B[]` binds `[]` to B.
         let element = match inner_ty {
             OirType::Union { variants } if variants.len() > 1 => format!("({})", inner),
-            OirType::Optional { .. } => format!("({})", inner),
+            OirType::Optional { .. } | OirType::Date | OirType::DateTime => format!("({})", inner),
             _ => inner,
         };
         format!("{}[]", element)
@@ -187,27 +187,18 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         format!("[{}]", items.join(", "))
     }
     fn map(&self, _key_ty: &OirType, key: String, _value_ty: &OirType, value: String) -> String {
-        format!("Record<{}, {}>", key, value)
+        if self.host_input {
+            format!("Record<{}, {} | undefined>", key, value)
+        } else {
+            format!("Record<{}, {}>", key, value)
+        }
     }
     fn optional(&self, _inner_ty: &OirType, inner: String) -> String {
-        // A payload struct unwraps optionality (the `?:` marker carries it);
-        // every other position spells it as a union suffix.
-        if self.payload {
-            return inner;
-        }
         format!("{} | null", inner)
     }
-    fn struct_ty(&self, fields: &[OirField]) -> String {
-        struct_fields_ts(fields, |f, effective| {
-            // Payload structs drop the per-field enum sidecar (the payload path
-            // never emitted literal unions); every other position honors it so
-            // the inline struct emits the strict union, not `string`.
-            if self.payload {
-                render_type(self, effective, None)
-            } else {
-                nonempty_enum_union(f.enum_values.as_deref())
-                    .unwrap_or_else(|| render_type(self, effective, f.enum_values.as_deref()))
-            }
+    fn struct_ty(&self, fields: &[OirField], additional: Option<&OirType>) -> String {
+        struct_fields_ts(fields, additional.map(|value| render_type(self, value, None)), |f, effective| {
+            render_type(self, effective, f.enum_values.as_deref())
         })
     }
 
@@ -285,8 +276,8 @@ impl TargetTypeRenderer for TsRenderer<'_> {
     fn classify_optional(&self, _inner_ty: &OirType, inner: TypeMappingClass) -> TypeMappingClass {
         inner
     }
-    fn classify_struct_ty(&self, _fields: &[OirField]) -> TypeMappingClass {
-        TypeMappingClass::Faithful
+    fn classify_struct_ty(&self, _fields: &[OirField], additional: Option<&OirType>) -> TypeMappingClass {
+        additional.map_or(TypeMappingClass::Faithful, |value| classify_type(self, value, None))
     }
 }
 
@@ -299,6 +290,8 @@ pub fn classify_oir_type(ty: &OirType, enum_values: Option<&[String]>) -> TypeMa
         &TsRenderer {
             catalog: None,
             payload: false,
+            host_input: false,
+            named_type_module: None,
         },
         ty,
         enum_values,
@@ -313,11 +306,19 @@ pub(crate) fn map_type_ts(
     enum_values: Option<&Vec<String>>,
     entity_catalog: Option<&HashMap<String, OirEntity>>,
 ) -> String {
+    map_type_ts_with_projection(ty, enum_values, entity_catalog, TypeProjection::Wire, None)
+}
+
+pub(crate) fn map_type_ts_with_projection(
+    ty: &OirType,
+    enum_values: Option<&Vec<String>>,
+    entity_catalog: Option<&HashMap<String, OirEntity>>,
+    projection: TypeProjection,
+    named_type_module: Option<&str>,
+) -> String {
+    let host_input = projection == TypeProjection::HostInput;
     render_type(
-        &TsRenderer {
-            catalog: entity_catalog,
-            payload: false,
-        },
+        &TsRenderer { catalog: entity_catalog, payload: host_input, host_input, named_type_module },
         ty,
         enum_values.map(Vec::as_slice),
     )
@@ -343,6 +344,8 @@ impl TypeScriptBackend {
             &TsRenderer {
                     catalog: None,
                 payload: true,
+                host_input: false,
+            named_type_module: None,
             },
             oir_type,
             None,
@@ -360,9 +363,10 @@ impl TypeScriptBackend {
                 self.field_type_uses_trait(key) || self.field_type_uses_trait(value)
             }
             OirType::Optional { inner } => self.field_type_uses_trait(inner),
-            OirType::Struct { fields } => fields
+            OirType::Struct { fields, additional } => fields
                 .iter()
-                .any(|f| self.field_type_uses_trait(&f.field_type)),
+                .any(|f| self.field_type_uses_trait(&f.field_type))
+                || additional.as_deref().is_some_and(|value| self.field_type_uses_trait(value)),
             _ => false,
         }
     }
@@ -378,9 +382,10 @@ impl TypeScriptBackend {
             OirType::Map { key, value } => {
                 self.field_type_uses_orbital(key) || self.field_type_uses_orbital(value)
             }
-            OirType::Struct { fields } => fields
+            OirType::Struct { fields, additional } => fields
                 .iter()
-                .any(|f| self.field_type_uses_orbital(&f.field_type)),
+                .any(|f| self.field_type_uses_orbital(&f.field_type))
+                || additional.as_deref().is_some_and(|value| self.field_type_uses_orbital(value)),
             _ => false,
         }
     }
@@ -396,9 +401,10 @@ impl TypeScriptBackend {
             OirType::Map { key, value } => {
                 self.field_type_uses_behavior(key) || self.field_type_uses_behavior(value)
             }
-            OirType::Struct { fields } => fields
+            OirType::Struct { fields, additional } => fields
                 .iter()
-                .any(|f| self.field_type_uses_behavior(&f.field_type)),
+                .any(|f| self.field_type_uses_behavior(&f.field_type))
+                || additional.as_deref().is_some_and(|value| self.field_type_uses_behavior(value)),
             _ => false,
         }
     }
@@ -414,9 +420,10 @@ impl TypeScriptBackend {
                 self.field_type_uses_node(key) || self.field_type_uses_node(value)
             }
             OirType::Optional { inner } => self.field_type_uses_node(inner),
-            OirType::Struct { fields } => fields
+            OirType::Struct { fields, additional } => fields
                 .iter()
-                .any(|f| self.field_type_uses_node(&f.field_type)),
+                .any(|f| self.field_type_uses_node(&f.field_type))
+                || additional.as_deref().is_some_and(|value| self.field_type_uses_node(value)),
             _ => false,
         }
     }
@@ -452,10 +459,11 @@ impl TypeScriptBackend {
                 Self::collect_named_type_refs(key, out);
                 Self::collect_named_type_refs(value, out);
             }
-            OirType::Struct { fields } => {
+            OirType::Struct { fields, additional } => {
                 for f in fields {
                     Self::collect_named_type_refs(&f.field_type, out);
                 }
+                if let Some(value) = additional { Self::collect_named_type_refs(value, out); }
             }
             OirType::Union { variants } => {
                 for v in variants {
@@ -473,7 +481,7 @@ impl TypeScriptBackend {
         oir_type: &OirType,
         enum_values: Option<&Vec<String>>,
     ) -> String {
-        map_type_ts(oir_type, enum_values, None)
+        map_type_ts_with_projection(oir_type, enum_values, None, self.type_projection, None)
     }
 }
 
@@ -485,6 +493,7 @@ mod array_of_union_tests {
         OirField::new(
             tag,
             OirType::Struct {
+                additional: None,
                 fields: vec![OirField::new("type", OirType::String)],
             },
         )
@@ -595,6 +604,8 @@ mod row_type_tests {
         let r = TsRenderer {
             catalog: Some(&cat),
             payload: false,
+            host_input: false,
+            named_type_module: None,
         };
         assert_eq!(
             classify_type(&r, &OirType::row("Note"), None),

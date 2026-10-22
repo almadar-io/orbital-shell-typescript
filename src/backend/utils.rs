@@ -114,7 +114,10 @@ pub(crate) fn rewrite_non_local_entity_refs(
         // struct alias that `@app/shared` never exports, printed a bare
         // `BlockSpec[]` and tripped TS2304. Mirrors the Array/Map/Optional/
         // Struct recursion of `field_type_uses_{trait,node,sexpr}`.
-        OirType::Struct { fields } => OirType::Struct {
+        OirType::Struct { fields, additional } => OirType::Struct {
+            additional: additional
+                .as_ref()
+                .map(|value| Box::new(rewrite_non_local_entity_refs(value, local))),
             fields: fields
                 .iter()
                 .map(|f| orbital_core_base::ir::OirField {
@@ -199,6 +202,7 @@ mod tests {
             intrinsic: false,
         };
         let row = OirType::Struct {
+            additional: None,
             fields: vec![
                 field(
                     "authorId",
@@ -226,7 +230,7 @@ mod tests {
         let local: std::collections::HashSet<String> =
             ["Note", "Author"].iter().map(|s| s.to_string()).collect();
 
-        let OirType::Struct { fields } = rewrite_non_local_entity_refs(&row, &local) else {
+        let OirType::Struct { fields, .. } = rewrite_non_local_entity_refs(&row, &local) else {
             panic!("expected a Struct back");
         };
         // Local entity reference survives — it IS importable from @app/shared.

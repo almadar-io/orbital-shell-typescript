@@ -51,13 +51,17 @@ pub fn core_value_imports_clause(symbols: &BTreeSet<&str>) -> String {
 /// hook's own `{Name}Config`, which entities.ts re-exports through). No
 /// import line (empty string) when `names` is empty, so an unreferenced file
 /// never gets an unused `import type {}` that trips `noUnusedLocals`.
+pub(crate) fn named_type_roots<'a>(names: &BTreeSet<&'a str>) -> BTreeSet<&'a str> {
+    names.iter().filter_map(|name| name.split('.').next()).collect()
+}
+
 pub fn named_struct_type_import_line(names: &BTreeSet<&str>, from: &str) -> String {
     if names.is_empty() {
         return String::new();
     }
     format!(
         "import type {{ {} }} from '{}';\n",
-        names.iter().copied().collect::<Vec<_>>().join(", "),
+        named_type_roots(names).into_iter().collect::<Vec<_>>().join(", "),
         from
     )
 }
@@ -122,12 +126,14 @@ pub const PATTERN_VALUE_SCHEMA_DECL: &str = "const PatternNodeSchema: z.ZodType<
 /// Value imports from `@almadar/core` that a block of emitted zod text needs
 /// (`FieldValueSchema` for `json`, `SExprSchema` for `sexpr`), keyed on the
 /// text itself so the import list can never drift from the schemas.
-pub fn zod_core_value_imports(zod_text: &str) -> String {
+pub fn zod_core_value_imports(zod_text: &str, local_schemas: &BTreeSet<String>) -> String {
     let mut syms: BTreeSet<&str> = ["FieldValueSchema", "SExprSchema"]
         .into_iter()
-        .filter(|s| zod_text.contains(s))
+        .filter(|s| zod_text.contains(s) && !local_schemas.contains(*s))
         .collect();
-    if zod_text.contains("TraitFieldValueSchema") || zod_text.contains("OrbitalFieldValueSchema") {
+    if !local_schemas.contains("FieldValueSchema")
+        && (zod_text.contains("TraitFieldValueSchema") || zod_text.contains("OrbitalFieldValueSchema"))
+    {
         syms.insert("FieldValueSchema");
     }
     if syms.is_empty() {

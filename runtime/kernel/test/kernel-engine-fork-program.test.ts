@@ -1,14 +1,12 @@
-import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { EntityRowSchema, JsonValueSchema, OrbitalSchemaSchema, eventPayloadOf, isJsonObject, orbitalInlineEntities, type EventPayload, type JsonValue, type KernelMemoryStoreExports, type OrbitalSchema, type QueryCapabilities } from '@almadar/core';
+import { EntityRowSchema, JsonValueSchema, OrbitalSchemaSchema, eventPayloadOf, isJsonObject, orbitalInlineEntities, type EventPayload, type JsonValue, type OrbitalSchema, type QueryCapabilities } from '@almadar/core';
 import { KernelEngine } from '../src/kernel/engine.js';
-import type { KernelModule } from '../src/kernel/wire.js';
 import type { KernelHostPorts } from '../src/kernel/host.js';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 import { NativeMemoryPersistenceAdapter } from '../src/persistence/native-memory.js';
 
-const require = createRequire(import.meta.url);
+import { loadRealKernel } from './real-kernel.js';
 
 function program(name: string, entityName: string, command: string): OrbitalSchema {
   return OrbitalSchemaSchema.parse({
@@ -58,9 +56,50 @@ const implementations = [
 
 for (const implementation of implementations) {
   describe.skipIf(!implementation.path)(`KernelEngine.forkProgram (${implementation.name})`, () => {
+    it('keeps the runtime singleton address separate from its seeded domain ID through reads and writes', async () => {
+      if (!implementation.path) throw new Error('a real kernel module path is required');
+      const kernel = loadRealKernel(implementation.path);
+      const schema = OrbitalSchemaSchema.parse({ name: 'AddressedRuntime', orbitals: [{
+        name: 'Main',
+        entity: { name: 'Counter', persistence: 'runtime', fields: [
+          { name: 'id', type: 'string' }, { name: 'count', type: 'number', default: 0 },
+        ] },
+        traits: [{ name: 'CounterTrait', linkedEntity: 'Counter', scope: 'instance', stateMachine: {
+          events: ['READ', 'UPDATE', 'FETCH', 'DELETE'].map((name) => ({ key: name, name })),
+          states: [{ name: 'idle', isInitial: true }],
+          transitions: [
+            { from: 'idle', to: 'idle', event: 'READ', effects: [['emit', 'OBSERVED', { id: '@entity.id', count: '@entity.count' }]] },
+            { from: 'idle', to: 'idle', event: 'UPDATE', effects: [['persist', 'update', 'Counter', '@entity.id', { count: 7 }]] },
+            { from: 'idle', to: 'idle', event: 'FETCH', effects: [['fetch', 'Counter', { emit: { success: 'LOADED' } }]] },
+            { from: 'idle', to: 'idle', event: 'DELETE', effects: [['persist', 'delete', 'Counter', '@entity.id']] },
+          ],
+        } }],
+      }] });
+      const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
+      const app = KernelEngine.open(kernel, schema, ports(persistence));
+      try {
+        app.seedRuntimeMock('viewer');
+        const dispatch = (event: string) => app.evaluate('Main', { event, targetTrait: 'CounterTrait', payload: {} }, { orbital: 'Main' });
+        const observed = await dispatch('READ');
+        expect(observed.emittedEvents.find((event) => event.event === 'OBSERVED')?.payload).toEqual({ id: 'Counter Id 1', count: 0 });
+        await dispatch('UPDATE');
+        const updated = await dispatch('FETCH');
+        const updatedPayload = JsonValueSchema.parse(updated.emittedEvents.find((event) => event.event === 'LOADED')?.payload);
+        if (!isJsonObject(updatedPayload)) throw new Error('runtime fetch must return a payload record');
+        expect(EntityRowSchema.array().parse(updatedPayload.data)).toEqual([expect.objectContaining({ id: 'Counter Id 1', count: 7 })]);
+        await dispatch('DELETE');
+        const deleted = await dispatch('FETCH');
+        const deletedPayload = JsonValueSchema.parse(deleted.emittedEvents.find((event) => event.event === 'LOADED')?.payload);
+        if (!isJsonObject(deletedPayload)) throw new Error('runtime fetch must return a payload record');
+        expect(EntityRowSchema.array().parse(deletedPayload.data)).toEqual([]);
+        expect(await persistence.list('Counter')).toEqual([]);
+      } finally {
+        app.dispose();
+      }
+    });
     it('retains app policy context through child fork/reset and isolates routes and grants', async () => {
       if (!implementation.path) throw new Error('a real kernel module path is required');
-      const kernel: KernelModule & KernelMemoryStoreExports = require(implementation.path);
+      const kernel = loadRealKernel(implementation.path);
       const declared: string[] = [];
       class Persistence extends NativeMemoryPersistenceAdapter {
         override queryCapabilities(entityType: string): QueryCapabilities {
@@ -99,7 +138,7 @@ for (const implementation of implementations) {
     });
     it.skipIf(!process.env.ORBITAL_STD_MOCK_SEED)('runs the real std dataset program with shared policies and locale instances', async () => {
       if (!implementation.path || !process.env.ORBITAL_STD_MOCK_SEED) throw new Error('real kernel and resolved std seed program paths are required');
-      const kernel: KernelModule & KernelMemoryStoreExports = require(implementation.path);
+      const kernel = loadRealKernel(implementation.path);
       const seedProgram = OrbitalSchemaSchema.parse(JSON.parse(readFileSync(process.env.ORBITAL_STD_MOCK_SEED, 'utf8')));
       const appProgram = OrbitalSchemaSchema.parse({ name: 'SeededApp', orbitals: [{
         name: 'Main',
@@ -164,7 +203,7 @@ for (const implementation of implementations) {
               const payload = eventPayloadOf({ program: input, count: 1, seed: 1, nowMs: 0, viewerId: 'viewer', ownerPairs: [{ entity: 'Task', column: 'ownerId' }] });
               const response = await scalarSeed.evaluate('MockSeedOrbital', { event: 'DATASET_INPUT', targetTrait: 'MockSeed', payload }, { orbital: 'MockSeedOrbital', user: { id: 'viewer' } });
               expect(response.success).toBe(true);
-              expect(response.rejections ?? []).toEqual([]);
+              expect(response.rejections ?? [], JSON.stringify({ host: implementation.name, identityCollection, control, events: response.emittedEvents, entity: response.entityByTrait }, null, 2)).toEqual([]);
               if (control.refuses) {
                 expect(response.emittedEvents.filter((event) => event.event === 'DATASET_FAILED').map((event) => event.payload)).toEqual([{ error: 'Type mismatch: expected string | number | boolean | date | datetime, got array' }]);
                 expect(response.emittedEvents.filter((event) => event.event === 'DATASET_DONE')).toEqual([]);
@@ -196,9 +235,39 @@ for (const implementation of implementations) {
 }
 
 for (const implementation of implementations) {
+  it.skipIf(!implementation.path || !process.env.ORBITAL_STD_MOCK_SEED)(`refuses a consumed compound identity in a fresh kernel (${implementation.name})`, async () => {
+    if (!implementation.path || !process.env.ORBITAL_STD_MOCK_SEED) throw new Error('real kernel and resolved std seed program paths are required');
+    const kernel = loadRealKernel(implementation.path);
+    const seedProgram = OrbitalSchemaSchema.parse(JSON.parse(readFileSync(process.env.ORBITAL_STD_MOCK_SEED, 'utf8')));
+    const input: JsonValue = { orbitals: [
+      { entity: { name: 'User', identity: true, collection: 'user', fields: [{ name: 'id', type: 'string', required: true }], instances: [{ id: [1] }] } },
+      { entity: { name: 'Task', collection: 'tasks', fields: [{ name: 'id', type: 'string', required: true }, { name: 'ownerId', type: 'relation', relation: { entity: 'User', cardinality: 'one' } }] } },
+    ] };
+    const appProgram = OrbitalSchemaSchema.parse({ name: 'FreshIdentityContext', orbitals: [{
+      name: 'IdentityRows', entity: { name: 'User', identity: true, collection: 'user', fields: [{ name: 'id', type: 'string', required: true }] },
+      auxiliaryEntities: [{ name: 'Task', collection: 'tasks', fields: [{ name: 'id', type: 'string', required: true }, { name: 'ownerId', type: 'relation', relation: { entity: 'User', cardinality: 'one' } }] }], traits: [],
+    }] });
+    const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
+    const app = KernelEngine.open(kernel, appProgram, ports(persistence));
+    const seed = app.forkProgram(seedProgram);
+    try {
+      const payload = eventPayloadOf({ program: input, count: 1, seed: 1, nowMs: 0, viewerId: 'viewer', ownerPairs: [{ entity: 'Task', column: 'ownerId' }] });
+      const response = await seed.evaluate('MockSeedOrbital', { event: 'DATASET_INPUT', targetTrait: 'MockSeed', payload }, { orbital: 'MockSeedOrbital', user: { id: 'viewer' } });
+      expect(response.rejections ?? [], JSON.stringify({ host: implementation.name, payload, events: response.emittedEvents, entity: response.entityByTrait }, null, 2)).toEqual([]);
+      expect(response.emittedEvents.filter((event) => event.event === 'DATASET_FAILED').map((event) => event.payload)).toEqual([{ error: 'Type mismatch: expected string | number | boolean | date | datetime, got array' }]);
+      expect(response.emittedEvents.filter((event) => event.event === 'DATASET_DONE')).toEqual([]);
+      console.info(`seed:fresh-compound passed (${implementation.name}): no prior scalar input or reset`);
+    } finally {
+      seed.dispose();
+      app.dispose();
+    }
+  });
+}
+
+for (const implementation of implementations) {
   it.skipIf(!implementation.path || !process.env.ORBITAL_STD_DEPLOYMENT_REGISTRY)(`runs the canonical deployment registry against real storage (${implementation.name})`, async () => {
     if (!implementation.path || !process.env.ORBITAL_STD_DEPLOYMENT_REGISTRY) throw new Error('real kernel and resolved std deployment program paths are required');
-    const kernel: KernelModule & KernelMemoryStoreExports = require(implementation.path);
+    const kernel = loadRealKernel(implementation.path);
     const schema = OrbitalSchemaSchema.parse(JSON.parse(readFileSync(process.env.ORBITAL_STD_DEPLOYMENT_REGISTRY, 'utf8')));
     const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
     for (const entity of schema.orbitals.flatMap(orbitalInlineEntities)) {
@@ -256,7 +325,7 @@ for (const implementation of implementations) {
 
   it.skipIf(!implementation.path || !process.env.ORBITAL_DECLARED_FOLD_PROBE)(`runs compiler-resolved guarded recursive fold (${implementation.name})`, async () => {
     if (!implementation.path || !process.env.ORBITAL_DECLARED_FOLD_PROBE) throw new Error('real kernel and resolved compiler fold fixture paths are required');
-    const kernel: KernelModule & KernelMemoryStoreExports = require(implementation.path);
+    const kernel = loadRealKernel(implementation.path);
     const schema = OrbitalSchemaSchema.parse(JSON.parse(readFileSync(process.env.ORBITAL_DECLARED_FOLD_PROBE, 'utf8')));
     const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
     const engine = KernelEngine.open(kernel, schema, ports(persistence));

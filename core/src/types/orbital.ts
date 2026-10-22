@@ -39,6 +39,7 @@ import {
   mergeCallSiteConfigOverrides,
   TraitRefSchema,
   EventPayloadFieldSchema,
+  EventPayloadTypeMemberSchema,
   EventScopeSchema,
   TraitSchema,
   DeclaredTraitConfigSchema,
@@ -1357,16 +1358,9 @@ export type OrbitalDefinition = {
  * (`type Cells = Map string string`) is one unnamed member carrying the type string; a tagged union alias
  * (`type Item = Shape | Text`) is one unnamed member typed `union` whose properties are its variants.
  */
-const TypeAliasMembersSchema = z.union([
+export const TypeAliasMembersSchema = z.union([
   z.array(EventPayloadFieldSchema),
-  z.tuple([
-    z.object({
-      name: z.literal(''),
-      type: z.string().min(1),
-      // A tagged union alias is the unnamed member `union`, its variants the properties.
-      properties: z.array(EventPayloadFieldSchema).optional(),
-    }),
-  ]),
+  z.tuple([EventPayloadTypeMemberSchema.refine((field) => field.name === '', 'An unnamed alias member requires an empty name')]),
 ]);
 
 export const OrbitalDefinitionSchema = z.object({

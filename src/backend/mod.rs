@@ -16,6 +16,8 @@ pub(crate) use orbital_core_base::ir::{
 };
 pub(crate) use std::collections::HashMap;
 
+pub(crate) const NAMED_SCHEMA_MODULE_BINDING: &str = "__orbitalNamedSchemas";
+
 pub(crate) use crate::codegen::{generate_env_manifest, ts_member_name};
 
 /// A project-specific component mapping loaded from patterns.json
@@ -27,8 +29,16 @@ pub struct ExtraComponentMapping {
     pub category: String,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum TypeProjection {
+    #[default]
+    Wire,
+    HostInput,
+}
+
 /// TypeScript code generation backend
 pub struct TypeScriptBackend {
+    pub type_projection: TypeProjection,
     /// Use strict TypeScript mode
     pub strict: bool,
     /// Generate JSDoc comments
@@ -48,6 +58,7 @@ pub struct TypeScriptBackend {
 impl Default for TypeScriptBackend {
     fn default() -> Self {
         Self {
+            type_projection: TypeProjection::Wire,
             strict: true,
             jsdoc: true,
             target: "full".to_string(),
@@ -120,7 +131,7 @@ impl TypeScriptBackend {
         files.push(self.generate_shared_schemas(entities, &module.named_types));
         files.push(self.generate_shared_event_types(module));
         files.push(self.generate_shared_trait_configs(module));
-        files.push(self.generate_shared_index_kernel());
+        files.push(self.generate_shared_index_kernel(&module.named_types));
         files.extend(self.generate_kernel_program());
         files.push(self.generate_shared_package_json());
 
@@ -180,6 +191,7 @@ impl Backend for TypeScriptBackend {
         };
 
         let mode_backend = TypeScriptBackend {
+            type_projection: self.type_projection,
             strict: self.strict,
             jsdoc: self.jsdoc,
             target: target.to_string(),
@@ -213,7 +225,7 @@ impl Backend for TypeScriptBackend {
 pub mod kernel_host;
 mod shared;
 mod types;
-pub(crate) use types::map_type_ts;
+pub(crate) use types::{map_type_ts, map_type_ts_with_projection};
 mod utils;
 
 // Free helpers / case converters used across submodules.
@@ -314,6 +326,7 @@ mod tests {
     fn char_declared_struct_honors_optional_and_enum() {
         let b = TypeScriptBackend::new();
         let st = OirType::Struct {
+            additional: None,
             fields: vec![
                 OirField::new("title", OirType::String),
                 OirField::optional("count", OirType::Number),
@@ -326,6 +339,7 @@ mod tests {
         let mut enum_field = OirField::new("kind", OirType::String);
         enum_field.enum_values = Some(ev(&["x", "y"]));
         let st2 = OirType::Struct {
+            additional: None,
             fields: vec![enum_field],
         };
         assert_eq!(b.map_type_with_enum(&st2, None), "{ kind: 'x' | 'y' }");
@@ -364,6 +378,7 @@ mod tests {
         let mut enum_field = OirField::new("kind", OirType::String);
         enum_field.enum_values = Some(ev(&["x", "y"]));
         let st = OirType::Struct {
+            additional: None,
             fields: vec![enum_field],
         };
         assert_eq!(b.payload_struct_ts(&st), "{ kind: string }");
