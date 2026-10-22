@@ -26,6 +26,8 @@ export type {
 export interface KernelServerHandle {
   start(orbital: string, requestJson: string): string;
   resume(flight: number, repliesJson: string): string;
+  dispatchStream(): string;
+  liveItemDelivered(itemJson: string, viewerJson: string, clientId?: string): boolean;
   /** A row-set reference resolved for a viewer through the host-answered store; a `ResolveProgressWire` as JSON. */
   resolveRows(refJson: string, viewerJson: string): string;
   resumeResolve(flight: number, repliesJson: string): string;
@@ -72,6 +74,7 @@ export interface KernelModule extends KernelEvaluatorExports {
   osDeferringOps(): string;
   /** The `{ event, payload }` JSON a deferred keyed `os/` call's outcome fires on its call site, or `null` when it declares no route. */
   osCompletionEvent(siteJson: string, key: string, outcomeJson: string): string;
+  substrateCompletionEvent(siteJson: string, key: string, op: string, outcomeJson: string): string;
   /** Whether the Chrome match pattern matches the URL: the one rule a browser-tab host filters tabs with. */
   tabUrlMatches(pattern: string, url: string): boolean;
   /** Installs the language data (`@almadar/core/language-data` `LanguageBundle` as JSON) for a host with no `node_modules`; the first install wins. */

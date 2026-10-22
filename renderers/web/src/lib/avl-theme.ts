@@ -107,6 +107,7 @@ export const EFFECT_CATEGORY_COLORS: Record<EffectCategory, { color: string; bg:
 };
 
 const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
+  'access-check': 'system',
   'render-ui': 'ui', 'navigate': 'ui', 'navigate-back': 'ui',
   'set': 'data', 'persist': 'data', 'fetch': 'data', 'fetch-stream': 'data', 'ref': 'data', 'deref': 'data', 'swap': 'data', 'watch': 'data',
   'emit': 'communication', 'notify': 'communication', 'send-server': 'communication', 'call-service': 'communication', 'cancel-call': 'communication',
@@ -120,7 +121,7 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
   'workspace/write-plan': 'system', 'workspace/archive-orbital': 'system',
   'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/compose': 'system', 'program/step': 'system',
-  'program/inputs': 'system', 'program/dispatch': 'system', 'persist/read-named': 'system',
+  'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
   'http': 'communication', 'redis': 'communication', 'postgres': 'communication', 'oauth-authorize': 'communication', 'oauth-connection-status': 'communication', 'oauth-connection-forget': 'communication',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'compute',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system',
@@ -135,6 +136,7 @@ const EFFECT_FAMILY_CATEGORY: Record<EffectOperatorFamily, EffectCategory> = {
 export type EffectZone = 'entity' | 'store' | 'bus' | 'screen' | 'route' | 'toast' | 'remote' | 'instances' | 'flow' | 'timer' | 'model' | 'system';
 
 const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
+  'access-check': 'system',
   'render-ui': 'screen', 'navigate': 'route', 'navigate-back': 'route',
   'set': 'entity', 'swap': 'entity', 'ref': 'store', 'deref': 'store', 'watch': 'store',
   'persist': 'store', 'fetch': 'store', 'fetch-stream': 'store',
@@ -149,7 +151,7 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
   'workspace/write-plan': 'system', 'workspace/archive-orbital': 'system',
   'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/compose': 'system', 'program/step': 'system',
-  'program/inputs': 'system', 'program/dispatch': 'system', 'persist/read-named': 'system',
+  'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
   'http': 'remote', 'redis': 'remote', 'postgres': 'remote', 'oauth-authorize': 'remote', 'oauth-connection-status': 'remote', 'oauth-connection-forget': 'remote',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'system',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system',

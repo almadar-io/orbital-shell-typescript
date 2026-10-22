@@ -1,0 +1,20 @@
+{
+  "entityByTrait": {
+    "Editor": {
+      "id": "draft-1",
+      "text": "unsaved"
+    }
+  },
+  "event": "$TICK_autosave",
+  "runTick": {
+    "tick": "autosave",
+    "trait": "Editor"
+  },
+  "targetTrait": "Editor",
+  "traits": [
+    {
+      "from": "editing",
+      "trait": "Editor"
+    }
+  ]
+}

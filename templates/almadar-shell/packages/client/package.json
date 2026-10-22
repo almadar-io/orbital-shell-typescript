@@ -18,7 +18,6 @@
     "@almadar/core": "^10.128.0",
     "@almadar/kernel": "^18.0.0",
     "@almadar/logger": "^1.18.0",
-    "@almadar/runtime": "^6.112.0",
     "@almadar/syntax": "^1.21.0",
     "@almadar/shell-web": "^0.1.0",
     "@monaco-editor/react": "^4.7.0",

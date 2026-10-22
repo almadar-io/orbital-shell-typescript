@@ -1,0 +1,74 @@
+[
+  {
+    "name": "guard",
+    "expr": [
+      ">",
+      "@payload.amount",
+      0
+    ],
+    "body": "[\">\",\"\\u0040payload.amount\",0]"
+  },
+  {
+    "name": "nested-call-effect",
+    "expr": [
+      "set",
+      "@entity.total",
+      [
+        "+",
+        "@entity.total",
+        1
+      ]
+    ],
+    "body": "[\"set\",\"\\u0040entity.total\",[\"+\",\"\\u0040entity.total\",1]]"
+  },
+  {
+    "name": "object-keys-sorted",
+    "expr": {
+      "to": "paid",
+      "from": "pending",
+      "guard": [
+        ">",
+        "@payload.amount",
+        0
+      ]
+    },
+    "body": "{\"from\":\"pending\",\"guard\":[\">\",\"\\u0040payload.amount\",0],\"to\":\"paid\"}"
+  },
+  {
+    "name": "binding-atom",
+    "expr": "@entity.total",
+    "body": "\"\\u0040entity.total\""
+  },
+  {
+    "name": "unicode-text",
+    "expr": "مرحبا @user.name — Živjo",
+    "body": "\"مرحبا \\u0040user.name — Živjo\""
+  },
+  {
+    "name": "numbers-and-literals",
+    "expr": [
+      1.5,
+      -3,
+      0,
+      null,
+      true,
+      false
+    ],
+    "body": "[1.5,-3,0,null,true,false]"
+  },
+  {
+    "name": "literal-backslash-u0040-text",
+    "expr": "a\\u0040b",
+    "body": "\"a\\\\u0040b\""
+  },
+  {
+    "name": "quote-and-newline",
+    "expr": "say \"hi\"\nthen @payload.x",
+    "body": "\"say \\\"hi\\\"\\nthen \\u0040payload.x\""
+  },
+  {
+    "name": "empty-list",
+    "expr": [],
+    "body": "[]"
+  }
+]

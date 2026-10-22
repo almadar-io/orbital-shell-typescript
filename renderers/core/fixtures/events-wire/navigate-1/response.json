@@ -1,0 +1,16 @@
+{
+  "clientEffects": [
+    [
+      "navigate",
+      "/notes"
+    ]
+  ],
+  "emittedEvents": [],
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NotePersistor": "idle"
+  },
+  "success": true,
+  "transitioned": true
+}

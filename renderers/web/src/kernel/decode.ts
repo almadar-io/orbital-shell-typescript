@@ -51,6 +51,7 @@ function decodeSite(value: JsonValue): CallSiteWire {
   return {
     ...(orbital !== undefined ? { orbital } : {}),
     trait: text(value, 'trait'),
+    ...(optionalText(value, 'entityId') !== undefined ? { entityId: optionalText(value, 'entityId') } : {}),
     followOn,
     emit: {
       ...(success !== undefined ? { success } : {}),
@@ -341,8 +342,11 @@ export function decodeRequest(value: JsonValue): IoRequestWire {
     }
     case 'cancelCall':
       return { kind, key: text(value, 'key') };
-    case 'substrate':
-      return { kind, op: text(value, 'op'), args: list(value, 'args') };
+    case 'substrate': {
+      const key = optionalText(value, 'key');
+      const site = value.site;
+      return { kind, op: text(value, 'op'), args: list(value, 'args'), ...(key !== undefined ? { key } : {}), ...(site !== undefined ? { site: decodeSite(site) } : {}) };
+    }
     case 'http': {
       const key = optionalText(value, 'key');
       const rawSite = value.site;

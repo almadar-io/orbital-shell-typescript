@@ -1,0 +1,1081 @@
+{
+  "version": "1.0.0",
+  "exportedAt": "2026-10-13T17:39:34.142Z",
+  "contracts": {
+    "form": {
+      "emits": [
+        {
+          "event": "GLOBAL_VARIABLE_SET",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "VIOLATION_DETECTED",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "FIELD_CHANGED",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "VALIDATION_FAILED",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "CLOSE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [
+        "SAVE",
+        "CANCEL"
+      ],
+      "entityAware": true
+    },
+    "form-section": {
+      "emits": [
+        {
+          "event": "GLOBAL_VARIABLE_SET",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "VIOLATION_DETECTED",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "FIELD_CHANGED",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "VALIDATION_FAILED",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "CLOSE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [
+        "SAVE",
+        "CANCEL"
+      ],
+      "entityAware": true
+    },
+    "form-actions": {
+      "emits": [
+        {
+          "event": "DISPATCH",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "NAVIGATE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true,
+      "configDriven": true
+    },
+    "detail-panel": {
+      "emits": [
+        {
+          "event": "NAVIGATE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "page-header": {
+      "emits": [
+        {
+          "event": "NAVIGATE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false,
+      "configDriven": true
+    },
+    "filter-group": {
+      "emits": [
+        {
+          "event": "FILTER",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "CLEAR_FILTERS",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true,
+      "configDriven": true
+    },
+    "search-input": {
+      "emits": [
+        {
+          "event": "SEARCH",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "CLEAR_SEARCH",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "empty-state": {
+      "emits": [
+        {
+          "event": "CREATE",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          },
+          "optional": true
+        }
+      ],
+      "requires": [],
+      "entityAware": false,
+      "configDriven": true
+    },
+    "loading-state": {
+      "emits": [],
+      "requires": [],
+      "entityAware": false
+    },
+    "error-state": {
+      "emits": [
+        {
+          "event": "RETRY",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          },
+          "optional": true
+        }
+      ],
+      "requires": [],
+      "entityAware": false,
+      "configDriven": true
+    },
+    "notification": {
+      "emits": [
+        {
+          "event": "DISMISS",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          },
+          "optional": true
+        },
+        {
+          "event": "ACTION",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          },
+          "optional": true
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "tabs": {
+      "emits": [
+        {
+          "event": "TAB_CHANGE",
+          "trigger": "click",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "tabId": "string"
+            }
+          },
+          "optional": true
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "breadcrumb": {
+      "emits": [],
+      "requires": [],
+      "entityAware": false
+    },
+    "wizard-container": {
+      "emits": [
+        {
+          "event": "WIZARD_NEXT",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "WIZARD_BACK",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "WIZARD_COMPLETE",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "WIZARD_STEP_CHANGE",
+          "trigger": "click",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "step": "number"
+            }
+          }
+        }
+      ],
+      "requires": [
+        "WIZARD_COMPLETE"
+      ],
+      "entityAware": false
+    },
+    "wizard-progress": {
+      "emits": [
+        {
+          "event": "WIZARD_STEP_CLICK",
+          "trigger": "click",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "step": "number"
+            }
+          },
+          "optional": true
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "wizard-navigation": {
+      "emits": [
+        {
+          "event": "WIZARD_NEXT",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "WIZARD_BACK",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "WIZARD_COMPLETE",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false,
+      "configDriven": true
+    },
+    "pagination": {
+      "emits": [
+        {
+          "event": "PAGE_CHANGE",
+          "trigger": "click",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "page": "number"
+            }
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "modal": {
+      "emits": [
+        {
+          "event": "CLOSE",
+          "trigger": "close",
+          "payload": {
+            "type": "void"
+          }
+        }
+      ],
+      "requires": [
+        "CLOSE"
+      ],
+      "entityAware": false
+    },
+    "drawer": {
+      "emits": [
+        {
+          "event": "CLOSE",
+          "trigger": "close",
+          "payload": {
+            "type": "void"
+          }
+        }
+      ],
+      "requires": [
+        "CLOSE"
+      ],
+      "entityAware": false
+    },
+    "confirm-dialog": {
+      "emits": [
+        {
+          "event": "CONFIRM",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "CANCEL",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          }
+        }
+      ],
+      "requires": [
+        "CONFIRM",
+        "CANCEL"
+      ],
+      "entityAware": false
+    },
+    "card": {
+      "emits": [
+        {
+          "event": "CLICK",
+          "trigger": "click",
+          "payload": {
+            "type": "void"
+          },
+          "optional": true
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "runtime-debugger": {
+      "emits": [],
+      "requires": [],
+      "entityAware": false
+    },
+    "repeatable-form-section": {
+      "emits": [
+        {
+          "event": "SECTION_ADDED",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "SECTION_REMOVED",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "studio-home-web": {
+      "emits": [
+        {
+          "event": "CREATE_PROJECT",
+          "trigger": "action",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "SELECT_PROJECT",
+          "trigger": "click",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "project": "object"
+            }
+          }
+        },
+        {
+          "event": "DELETE_PROJECT",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "project": "object"
+            }
+          }
+        },
+        {
+          "event": "OPEN_PROJECT",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "project": "object"
+            }
+          }
+        },
+        {
+          "event": "SEARCH",
+          "trigger": "input",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "query": "string"
+            }
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "studio-home-electron": {
+      "emits": [
+        {
+          "event": "OPEN_FILE",
+          "trigger": "action",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "CREATE_NEW",
+          "trigger": "action",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "OPEN_RECENT",
+          "trigger": "click",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "file": "object"
+            }
+          }
+        },
+        {
+          "event": "REMOVE_RECENT",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "file": "object"
+            }
+          }
+        },
+        {
+          "event": "CLEAR_RECENT",
+          "trigger": "action",
+          "payload": {
+            "type": "void"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "studio-project": {
+      "emits": [
+        {
+          "event": "MODE_CHANGE",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "mode": "string"
+            }
+          }
+        },
+        {
+          "event": "TAB_CHANGE",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "tab": "string"
+            }
+          }
+        },
+        {
+          "event": "SAVE",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "projectId": "string"
+            }
+          }
+        },
+        {
+          "event": "VALIDATE",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "projectId": "string"
+            }
+          }
+        },
+        {
+          "event": "COMPILE",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "projectId": "string"
+            }
+          }
+        },
+        {
+          "event": "PREVIEW",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "projectId": "string"
+            }
+          }
+        },
+        {
+          "event": "BACK",
+          "trigger": "action",
+          "payload": {
+            "type": "void"
+          }
+        },
+        {
+          "event": "TOGGLE_AGENT",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "visible": "boolean"
+            }
+          }
+        },
+        {
+          "event": "TOGGLE_INSPECTOR",
+          "trigger": "action",
+          "payload": {
+            "type": "object",
+            "shape": {
+              "visible": "boolean"
+            }
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "drawer-slot": {
+      "emits": [
+        {
+          "event": "CLOSE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "CANCEL",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "modal-slot": {
+      "emits": [
+        {
+          "event": "CLOSE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "CANCEL",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "toast-slot": {
+      "emits": [
+        {
+          "event": "DISMISS",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "CLOSE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "document-viewer": {
+      "emits": [
+        {
+          "event": "DOCUMENT_DOWNLOAD",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "DOCUMENT_PRINT",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "DOCUMENT_PAGE_CHANGE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "media-gallery": {
+      "emits": [
+        {
+          "event": "MEDIA_SELECT",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "table": {
+      "emits": [
+        {
+          "event": "SORT",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "SELECT",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "DESELECT",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "PAGINATE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "SEARCH",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "code-block": {
+      "emits": [
+        {
+          "event": "COPY_CODE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "EDITOR_FOCUS",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "EDITOR_BLUR",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "ui-slot-renderer": {
+      "emits": [
+        {
+          "event": "CLOSE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "CANCEL",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "game-menu": {
+      "emits": [
+        {
+          "event": "NAVIGATE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "trait-slot": {
+      "emits": [
+        {
+          "event": "CLICK",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "REMOVE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "activation-block": {
+      "emits": [
+        {
+          "event": "SAVE_ACTIVATION",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "bloom-quiz-block": {
+      "emits": [
+        {
+          "event": "ANSWER_BLOOM",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "reflection-block": {
+      "emits": [
+        {
+          "event": "SAVE_REFLECTION",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "code-runner-panel": {
+      "emits": [
+        {
+          "event": "COPY_CODE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "chat-bar": {
+      "emits": [
+        {
+          "event": "CHAT_SEND",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "form-layout": {
+      "emits": [
+        {
+          "event": "TOGGLE_COLLAPSE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "data-grid": {
+      "emits": [
+        {
+          "event": "NAVIGATE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "dashboard-layout": {
+      "emits": [
+        {
+          "event": "NAVIGATE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "SIGN_OUT",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "data-list": {
+      "emits": [
+        {
+          "event": "NAVIGATE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": true
+    },
+    "flow-canvas": {
+      "emits": [
+        {
+          "event": "WIRE_VALIDATION_WARNING",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    },
+    "orb-inspector": {
+      "emits": [
+        {
+          "event": "NOTIFY",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "PROP_CHANGE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "ADD_FIELD",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "UPDATE_FIELD",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "REMOVE_FIELD",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "GUARD_CHANGE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "ADD_EFFECT",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "REMOVE_EFFECT",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "CODE_CHANGE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        },
+        {
+          "event": "SERVICE_MODE_TOGGLE",
+          "trigger": "action",
+          "payload": {
+            "type": "object"
+          }
+        }
+      ],
+      "requires": [],
+      "entityAware": false
+    }
+  }
+}

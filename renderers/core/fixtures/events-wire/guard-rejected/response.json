@@ -1,0 +1,11 @@
+{
+  "emittedEvents": [],
+  "guardFailed": "NoteCatalog.CREATE_DRAFT",
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NotePersistor": "idle"
+  },
+  "success": true,
+  "transitioned": false
+}

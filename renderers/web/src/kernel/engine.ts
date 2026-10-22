@@ -3,13 +3,16 @@
  * (`@almadar/kernel`, WebAssembly) decides every execution step; this host answers the I/O it asks for
  * and nothing else. The continuation of a stopped dispatch never leaves the wasm instance.
  */
-import { installKernelEvaluator, isEntityReferenceAny, type EventPayload, type MessageCatalogs, type OrbitalEventRequest, type OrbitalEventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext } from '@almadar/core';
+import { installKernelEvaluator, isEntityReferenceAny, EventStreamItemSchema, type EventPayload, type EventStreamItem, type MessageCatalogs, type OrbitalEventRequest, type OrbitalEventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext } from '@almadar/core';
+import { DispatchLane } from './lane.js';
 import { decodeProgress, decodeResolveProgress } from './decode.js';
 import { answerRequest, declareCapabilities, type KernelAnswerScope, type KernelHostPorts } from './host.js';
+import type { OsCompletionEvent } from './os-port.js';
 import type { IoReplyWire, KernelModule, KernelServerHandle } from './wire.js';
 
 export class KernelEngine {
   private handle: KernelServerHandle;
+  private readonly lane = new DispatchLane();
   private tickMount: string[] = [];
   private messages: { locales: readonly string[]; catalogs: MessageCatalogs } = { locales: [], catalogs: {} };
 
@@ -22,6 +25,11 @@ export class KernelEngine {
     forkedFrom?: KernelServerHandle,
   ) {
     installKernelEvaluator(kernel);
+    this.ports = {
+      ...ports,
+      substrateMessage: (site, key, value): OsCompletionEvent | null => JSON.parse(kernel.osCompletionEvent(JSON.stringify({ ...site, emit: { success: site.emit.onMessage } }), key, JSON.stringify({ ok: value }))),
+      substrateCompletion: (site, key, op, outcome): OsCompletionEvent | null => JSON.parse(kernel.substrateCompletionEvent(JSON.stringify(site), key, op, JSON.stringify(outcome))),
+    };
     this.handle = forkedFrom?.fork() ?? this.openServer();
     this.declare();
   }
@@ -95,6 +103,10 @@ export class KernelEngine {
     this.handle.free();
   }
 
+  liveItemDelivered(item: object, viewer: object | null, clientId?: string): boolean {
+    return this.handle.liveItemDelivered(JSON.stringify(item), JSON.stringify(viewer), clientId);
+  }
+
   /** `OsGrants::allows` over the grants of the program this kernel runs. */
   osAllows(requirementJson: string): boolean {
     return this.handle.osAllows(requirementJson);
@@ -132,22 +144,31 @@ export class KernelEngine {
 
   /** Run `request` against `orbital`: start it, answer every request the kernel asks for, resume until done. */
   async evaluate(orbital: string, request: OrbitalEventRequest, scope: KernelAnswerScope): Promise<OrbitalEventResponse> {
-    const handle = this.handle;
-    let progress = decodeProgress(handle.start(orbital, JSON.stringify(request)));
-    while (progress.status === 'await') {
-      const { flight, requests } = progress;
-      let replies: IoReplyWire[];
-      try {
-        replies = await Promise.all(
-          requests.map(async (pending) => ({ id: pending.id, answer: await answerRequest(this.ports, pending.request, scope) })),
-        );
-      } catch (error) {
-        handle.abandon(flight);
-        throw error;
+    const guard = await this.lane.enter();
+    try {
+      const handle = this.handle;
+      let progress = decodeProgress(handle.start(orbital, JSON.stringify(request)));
+      while (progress.status === 'await') {
+        const { flight, requests } = progress;
+        let replies: IoReplyWire[];
+        guard.park(request.event);
+        try {
+          replies = await Promise.all(
+            requests.map(async (pending) => ({ id: pending.id, answer: await answerRequest(this.ports, pending.request, { ...scope, assertReentry: () => this.lane.assertCanReenter(guard.turn) }) })),
+          );
+        } catch (error) {
+          handle.abandon(flight);
+          throw error;
+        }
+        guard.resume();
+        progress = decodeProgress(handle.resume(flight, JSON.stringify(replies)));
       }
-      progress = decodeProgress(handle.resume(flight, JSON.stringify(replies)));
-    }
-    return progress.response;
+      if (scope.onStream !== undefined) {
+        const items = EventStreamItemSchema.array().parse(JSON.parse(handle.dispatchStream()));
+        for (const item of items) scope.onStream(item);
+      }
+      return progress.response;
+    } finally { guard.release(); }
   }
 }
 
@@ -157,6 +178,7 @@ export interface KernelEvaluation {
   /** The orbital the request is addressed to. */
   orbital: string;
   outsideEventQueue?: <T>(work: () => Promise<T>) => Promise<T>;
+  onStream?: (item: EventStreamItem) => void;
 }
 
 /**
@@ -200,6 +222,13 @@ export async function evaluateOnKernel(
     ...(request.clientId !== undefined ? { originClientId: request.clientId } : {}),
     ...(locale !== undefined ? { locale } : {}),
     ...(request.entityId !== undefined ? { entityId: request.entityId } : {}),
+    ...(kernel.onStream !== undefined ? { onStream: (item: EventStreamItem): void => {
+      if (item.type === 'event' && item.data.source !== undefined && request.clientId !== undefined) {
+        kernel.onStream?.({ ...item, data: { ...item.data, source: { ...item.data.source, originClientId: item.data.source.originClientId ?? request.clientId } } });
+      } else if (item.type === 'complete') {
+        kernel.onStream?.({ ...item, data: withOriginClient(item.data, request.clientId) });
+      } else kernel.onStream?.(item);
+    } } : {}),
     ...(kernel.outsideEventQueue !== undefined ? { outsideEventQueue: kernel.outsideEventQueue } : {}),
   }), request.clientId);
 }

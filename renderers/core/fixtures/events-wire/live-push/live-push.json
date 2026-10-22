@@ -1,0 +1,12 @@
+{
+  "event": "NoteSaved",
+  "originClientId": "tab-1",
+  "payload": {
+    "id": "note-1",
+    "title": "Grocery list"
+  },
+  "source": {
+    "orbital": "NoteBoard",
+    "trait": "NotePersistor"
+  }
+}

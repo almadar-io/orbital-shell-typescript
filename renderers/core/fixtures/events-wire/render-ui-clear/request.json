@@ -1,0 +1,5 @@
+{
+  "clientId": "tab-1",
+  "event": "CLOSE_DIALOG",
+  "targetTrait": "NoteCatalog"
+}

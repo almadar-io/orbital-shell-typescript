@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { InMemoryPersistence } from '@almadar/db/mock';
-import type { EntityRow, RowSetRef } from '@almadar/core';
+import { type EventStreamItem, type EntityRow, type RowSetRef } from '@almadar/core';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 import { KernelEngine } from '../src/kernel/engine.js';
 import type { KernelHostPorts } from '../src/kernel/host.js';
@@ -34,7 +34,7 @@ const ports = (persistence: InMemoryPersistence): KernelHostPorts => ({
 });
 
 /** A kernel that resolves by asking for two reads and folding the answers, as the Rust resolve does. */
-function scripted(log: string[]): KernelModule {
+function scripted(log: string[], service = false): KernelModule {
   class Handle implements KernelServerHandle {
     private answers: string[] = [];
     resolveRows(_ref: string, _viewer: string): string {
@@ -49,8 +49,26 @@ function scripted(log: string[]): KernelModule {
       return JSON.stringify({ status: 'done', rows: rows.filter((r) => reference.ids.includes(String(r.id))), total: rows.length });
     }
     abandon(flight: number): boolean { log.push(`abandon ${flight}`); return true; }
-    start(): string { throw new Error('unused'); }
-    resume(): string { throw new Error('unused'); }
+    start(_orbital: string, request: string): string {
+      log.push(`start ${JSON.parse(request).event}`);
+      if (service) return JSON.stringify({ status: 'await', flight: 1, requests: [{ id: 0, request: { kind: 'callService', service: 'test', method: 'again', args: {}, site: { orbital: 'Main', trait: 'Worker', followOn: false, emit: {} } } }] });
+      return JSON.stringify({ status: 'await', flight: 1, requests: [{ id: 0, request: { kind: 'listRows', entityType: 'Ticket' } }] });
+    }
+    resume(_flight: number, replies: string): string {
+      log.push('resume');
+      if (service) log.push(JSON.parse(replies)[0].answer.result.error);
+      return JSON.stringify({ status: 'done', response: { success: true, transitioned: true, states: {}, emittedEvents: [] } });
+    }
+    liveItemDelivered(): boolean { return true; }
+    dispatchStream(): string {
+      log.push('stream');
+      return JSON.stringify([
+        { type: 'event', data: { event: 'FIRST' }, timestamp: 1 },
+        { type: 'effect', data: ['navigate', '/next'], timestamp: 2 },
+        { type: 'event', data: { event: 'LAST' }, timestamp: 3 },
+        { type: 'complete', data: { success: true, transitioned: true, states: {}, emittedEvents: [] }, timestamp: 4 },
+      ]);
+    }
     inFlight(): number { return 0; }
     getState(): string { return ''; }
     setDefaultUser(): void {}
@@ -90,4 +108,34 @@ describe('KernelEngine.resolveRows', () => {
     expect(page.rows.map((r) => r.id)).toEqual(['t5']);
     expect(page.total).toBe(3);
   });
+});
+
+
+it('reads the canonical ordered stream before another dispatch starts; plain calls do not read it', async () => {
+  const log: string[] = [];
+  const items: EventStreamItem[] = [];
+  const engine = new KernelEngine(scripted(log), '{}', ports(new InMemoryPersistence()));
+  await Promise.all([
+    engine.evaluate('Main', { event: 'FIRST' }, { orbital: 'Main', onStream: (item) => { items.push(item); log.push(`item ${item.type}`); } }),
+    engine.evaluate('Main', { event: 'SECOND' }, { orbital: 'Main' }),
+  ]);
+  expect(items.map((item) => item.type)).toEqual(['event', 'effect', 'event', 'complete']);
+  expect(log).toEqual(['start FIRST', 'resume', 'stream', 'item event', 'item effect', 'item event', 'item complete', 'start SECOND', 'resume']);
+});
+
+
+it('refuses a service reentering its parked turn instead of waiting on itself', async () => {
+  const log: string[] = [];
+  const base = ports(new InMemoryPersistence());
+  const host: KernelHostPorts = {
+    ...base,
+    servicePorts: (caller, user, message, assertReentry) => ({ ...base.servicePorts(caller, user, message), dispatchInput: async () => { assertReentry?.(); throw new Error('should not reach dispatch'); } }),
+    callService: async (_service, _method, _args, context) => {
+      await context?.host?.dispatchInput('Main', { targetTrait: 'Worker', event: 'AGAIN' });
+      return null;
+    },
+  };
+  const engine = new KernelEngine(scripted(log, true), '{}', host);
+  await engine.evaluate('Main', { event: 'ASK' }, { orbital: 'Main' });
+  expect(log).toEqual(['start ASK', 'resume', 'dispatch #0 (ASK) is parked holding the dispatch lane on this thread; resume or drop it before starting another dispatch']);
 });

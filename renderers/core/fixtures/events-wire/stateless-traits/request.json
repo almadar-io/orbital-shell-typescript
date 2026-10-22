@@ -1,0 +1,27 @@
+{
+  "behavior": "NoteBoard",
+  "entityByTrait": {
+    "NoteCatalog": {
+      "id": "note-1",
+      "title": "Old title"
+    },
+    "NotePersistor": {
+      "id": "note-1",
+      "title": "Old title"
+    }
+  },
+  "event": "RENAME",
+  "payload": {
+    "title": "New title"
+  },
+  "traits": [
+    {
+      "from": "browsing",
+      "trait": "NoteCatalog"
+    },
+    {
+      "from": "idle",
+      "trait": "NotePersistor"
+    }
+  ]
+}

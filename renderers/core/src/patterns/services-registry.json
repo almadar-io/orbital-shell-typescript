@@ -1,0 +1,727 @@
+{
+  "version": "1.0.0",
+  "exportedAt": "2026-10-18T10:09:31.700Z",
+  "services": {
+    "hosting": {
+      "name": "hosting",
+      "description": "Hosting — publish an app as <handle>/<name> behind the pre-deploy gate, serve, roll back, topology, logs, own-cloud export",
+      "category": "infrastructure",
+      "package": "@almadar-io/hosting",
+      "backend": "production",
+      "runtimes": [
+        "node"
+      ],
+      "actions": [
+        {
+          "name": "deploy",
+          "description": "Publish an app: run the pre-deploy gate, make it its handle's next package version and serve it at `<handle>/<name>`. Streams one progress message per step.",
+          "params": [
+            {
+              "name": "appId",
+              "type": "string",
+              "required": true,
+              "description": "The app (workspace) to publish."
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "required": true,
+              "description": "The published name, lowercase kebab-case."
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "required": true,
+              "description": "What the app is."
+            },
+            {
+              "name": "tags",
+              "type": "string[]",
+              "required": true,
+              "description": "Catalog tags."
+            },
+            {
+              "name": "teamId",
+              "type": "string",
+              "required": false,
+              "description": "Publish as this team (owner or admin only); as the caller when omitted."
+            },
+            {
+              "name": "private",
+              "type": "boolean",
+              "required": false,
+              "description": "A paid team's app served to its members only."
+            }
+          ],
+          "responseShape": {
+            "ok": "boolean",
+            "failedStep": "string",
+            "findings": "string[]",
+            "version": "number",
+            "uses": "string",
+            "packageVersion": "string",
+            "liveUrl": "string"
+          }
+        },
+        {
+          "name": "status",
+          "description": "What an app is published as, the version served, its history and its masked credentials.",
+          "params": [
+            {
+              "name": "appId",
+              "type": "string",
+              "required": true,
+              "description": "The app."
+            }
+          ],
+          "responseShape": {
+            "published": "boolean",
+            "handle": "string",
+            "name": "string",
+            "teamOnly": "boolean",
+            "liveUrl": "string",
+            "hasActive": "boolean",
+            "active": {
+              "type": "HostingDeploymentRow",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "required": true,
+                  "description": "Row id: the version as text."
+                },
+                "version": {
+                  "type": "number",
+                  "required": true
+                },
+                "commit": {
+                  "type": "string",
+                  "required": true,
+                  "description": "The workspace commit deployed."
+                },
+                "target": {
+                  "type": "'shared-host' | 'own-cloud'",
+                  "required": true
+                },
+                "packageVersion": {
+                  "type": "string",
+                  "required": true,
+                  "description": "The handle package version a shared-host deployment serves; empty for own-cloud."
+                },
+                "publishedBy": {
+                  "type": "string",
+                  "required": true,
+                  "description": "Who published it; empty when unrecorded."
+                },
+                "recordedAt": {
+                  "type": "number",
+                  "required": true,
+                  "description": "When it was recorded, epoch ms; 0 when unrecorded."
+                }
+              }
+            },
+            "history": {
+              "type": "HostingDeploymentRow[]",
+              "items": {
+                "type": "HostingDeploymentRow",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Row id: the version as text."
+                  },
+                  "version": {
+                    "type": "number",
+                    "required": true
+                  },
+                  "commit": {
+                    "type": "string",
+                    "required": true,
+                    "description": "The workspace commit deployed."
+                  },
+                  "target": {
+                    "type": "'shared-host' | 'own-cloud'",
+                    "required": true
+                  },
+                  "packageVersion": {
+                    "type": "string",
+                    "required": true,
+                    "description": "The handle package version a shared-host deployment serves; empty for own-cloud."
+                  },
+                  "publishedBy": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Who published it; empty when unrecorded."
+                  },
+                  "recordedAt": {
+                    "type": "number",
+                    "required": true,
+                    "description": "When it was recorded, epoch ms; 0 when unrecorded."
+                  }
+                }
+              }
+            },
+            "credentials": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Row id: `<service>/<envVar>`."
+                  },
+                  "service": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "envVar": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "last4": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "updatedAt": {
+                    "type": "number",
+                    "required": true,
+                    "description": "Epoch ms."
+                  }
+                }
+              }
+            },
+            "credentialsEnabled": "boolean"
+          }
+        },
+        {
+          "name": "setCredential",
+          "description": "Store one of a published app's own credentials.",
+          "params": [
+            {
+              "name": "appId",
+              "type": "string",
+              "required": true,
+              "description": ""
+            },
+            {
+              "name": "service",
+              "type": "string",
+              "required": true,
+              "description": "Integration the credential belongs to."
+            },
+            {
+              "name": "envVar",
+              "type": "string",
+              "required": true,
+              "description": "Declared env var."
+            },
+            {
+              "name": "value",
+              "type": "string",
+              "required": true,
+              "description": "Secret value; never logged."
+            }
+          ],
+          "responseShape": {
+            "saved": "boolean",
+            "last4": "string"
+          }
+        },
+        {
+          "name": "rollback",
+          "description": "Serve an earlier deployment version again.",
+          "params": [
+            {
+              "name": "appId",
+              "type": "string",
+              "required": true,
+              "description": ""
+            },
+            {
+              "name": "version",
+              "type": "number",
+              "required": true,
+              "description": "The deployment version to serve."
+            }
+          ],
+          "responseShape": {
+            "hasActive": "boolean",
+            "active": {
+              "type": "HostingDeploymentRow",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "required": true,
+                  "description": "Row id: the version as text."
+                },
+                "version": {
+                  "type": "number",
+                  "required": true
+                },
+                "commit": {
+                  "type": "string",
+                  "required": true,
+                  "description": "The workspace commit deployed."
+                },
+                "target": {
+                  "type": "'shared-host' | 'own-cloud'",
+                  "required": true
+                },
+                "packageVersion": {
+                  "type": "string",
+                  "required": true,
+                  "description": "The handle package version a shared-host deployment serves; empty for own-cloud."
+                },
+                "publishedBy": {
+                  "type": "string",
+                  "required": true,
+                  "description": "Who published it; empty when unrecorded."
+                },
+                "recordedAt": {
+                  "type": "number",
+                  "required": true,
+                  "description": "When it was recorded, epoch ms; 0 when unrecorded."
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "topology",
+          "description": "The published app's clients, host, services and stores, with the calls observed between them.",
+          "params": [
+            {
+              "name": "appId",
+              "type": "string",
+              "required": true,
+              "description": ""
+            },
+            {
+              "name": "sinceMs",
+              "type": "number",
+              "required": false,
+              "description": "Window start, epoch ms; the last 24 hours when omitted."
+            }
+          ],
+          "responseShape": {
+            "sinceMs": "number",
+            "units": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "column": {
+                    "type": "'client' | 'host' | 'service' | 'store' | 'external'",
+                    "required": true
+                  },
+                  "label": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "status": {
+                    "type": "'ok' | 'degraded' | 'down' | 'idle'",
+                    "required": true
+                  },
+                  "metric": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Empty when the unit reports none."
+                  }
+                }
+              }
+            },
+            "edges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "source": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "target": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "label": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "status": {
+                    "type": "'ok' | 'degraded' | 'down' | 'idle'",
+                    "required": true
+                  },
+                  "calls": {
+                    "type": "number",
+                    "required": true
+                  },
+                  "errors": {
+                    "type": "number",
+                    "required": true
+                  },
+                  "p50Ms": {
+                    "type": "number",
+                    "required": true,
+                    "description": "Median latency in ms; 0 when unmeasured."
+                  }
+                }
+              }
+            },
+            "dashboardUrl": "string"
+          }
+        },
+        {
+          "name": "logs",
+          "description": "One topology unit's log tail.",
+          "params": [
+            {
+              "name": "appId",
+              "type": "string",
+              "required": true,
+              "description": ""
+            },
+            {
+              "name": "unit",
+              "type": "string",
+              "required": true,
+              "description": "Topology unit id."
+            },
+            {
+              "name": "sinceMs",
+              "type": "number",
+              "required": false,
+              "description": "Window start, epoch ms; the last 24 hours when omitted."
+            }
+          ],
+          "responseShape": {
+            "lines": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Row id: the line's position in the tail."
+                  },
+                  "time": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "severity": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "message": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "op": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Empty when the line is not a call."
+                  },
+                  "ok": {
+                    "type": "boolean",
+                    "required": true,
+                    "description": "Whether the call succeeded; true for a line that is not a call."
+                  },
+                  "durationMs": {
+                    "type": "number",
+                    "required": true,
+                    "description": "0 when unmeasured."
+                  },
+                  "error": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Empty when none."
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "export",
+          "description": "Build the app for its owner's own cloud (compiled code + Terraform) behind the same gate; the archive is stored and offered by URL.",
+          "params": [
+            {
+              "name": "appId",
+              "type": "string",
+              "required": true,
+              "description": ""
+            }
+          ],
+          "responseShape": {
+            "ok": "boolean",
+            "failedStep": "string",
+            "findings": "string[]",
+            "url": "string",
+            "filename": "string"
+          }
+        }
+      ],
+      "credentials": []
+    },
+    "registry": {
+      "name": "registry",
+      "description": "Registry — claim handles, list the handle package, publish a behavior to the library, manage a team's behaviors",
+      "category": "devtools",
+      "package": "@almadar-io/hosting",
+      "backend": "production",
+      "runtimes": [
+        "node"
+      ],
+      "actions": [
+        {
+          "name": "handles",
+          "description": "The caller's handle and each of their teams' handles.",
+          "params": [],
+          "responseShape": {
+            "handle": "string",
+            "teams": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Row id: the team id."
+                  },
+                  "name": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "handle": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Empty when the team has not claimed one."
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "claimHandle",
+          "description": "Claim a handle for the caller or one of their teams (owner or admin).",
+          "params": [
+            {
+              "name": "handle",
+              "type": "string",
+              "required": true,
+              "description": "The handle to claim."
+            },
+            {
+              "name": "teamId",
+              "type": "string",
+              "required": false,
+              "description": "Claim for this team; for the caller when omitted."
+            }
+          ],
+          "responseShape": {
+            "claimed": "boolean",
+            "refusal": "'' | 'invalid' | 'reserved' | 'taken' | 'kept' | 'forbidden'",
+            "message": "string"
+          }
+        },
+        {
+          "name": "packages",
+          "description": "The latest version of the caller's handle package and the behaviors in it.",
+          "params": [],
+          "responseShape": {
+            "handle": "string",
+            "version": "string",
+            "behaviors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Row id: the behavior name."
+                  },
+                  "name": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "description": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "uses": {
+                    "type": "string",
+                    "required": true,
+                    "description": "The import string, `<handle>/<name>`."
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "publishBehavior",
+          "description": "Offer a behavior to the community library (reviewed as a pull request).",
+          "params": [
+            {
+              "name": "name",
+              "type": "string",
+              "required": true,
+              "description": "Behavior name, lowercase kebab-case."
+            },
+            {
+              "name": "description",
+              "type": "string",
+              "required": true,
+              "description": ""
+            },
+            {
+              "name": "visibility",
+              "type": "'public' | 'private'",
+              "required": true,
+              "description": ""
+            },
+            {
+              "name": "program",
+              "type": "string",
+              "required": true,
+              "description": "The behavior's program as `.orb` JSON text."
+            }
+          ],
+          "responseShape": {
+            "name": "string",
+            "prUrl": "string"
+          }
+        },
+        {
+          "name": "teamBehaviors",
+          "description": "A team's behaviors (team owner or admin).",
+          "params": [
+            {
+              "name": "teamId",
+              "type": "string",
+              "required": true,
+              "description": ""
+            }
+          ],
+          "responseShape": {
+            "behaviors": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "required": true,
+                    "description": "Row id: the behavior name."
+                  },
+                  "name": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "handle": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "version": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "description": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "tags": {
+                    "type": "string[]",
+                    "required": true
+                  },
+                  "enabled": {
+                    "type": "boolean",
+                    "required": true
+                  },
+                  "createdAt": {
+                    "type": "number",
+                    "required": true,
+                    "description": "Epoch ms."
+                  },
+                  "createdBy": {
+                    "type": "string",
+                    "required": true
+                  },
+                  "orbitalCount": {
+                    "type": "number",
+                    "required": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "setTeamBehaviorEnabled",
+          "description": "Enable or disable one of a team's behaviors for its members (team owner or admin).",
+          "params": [
+            {
+              "name": "teamId",
+              "type": "string",
+              "required": true,
+              "description": ""
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "required": true,
+              "description": ""
+            },
+            {
+              "name": "enabled",
+              "type": "boolean",
+              "required": true,
+              "description": ""
+            }
+          ],
+          "responseShape": {
+            "found": "boolean",
+            "enabled": "boolean"
+          }
+        },
+        {
+          "name": "removeTeamBehavior",
+          "description": "Remove one of a team's behaviors (team owner or admin).",
+          "params": [
+            {
+              "name": "teamId",
+              "type": "string",
+              "required": true,
+              "description": ""
+            },
+            {
+              "name": "name",
+              "type": "string",
+              "required": true,
+              "description": ""
+            }
+          ],
+          "responseShape": {
+            "removed": "boolean"
+          }
+        }
+      ],
+      "credentials": []
+    }
+  },
+  "categories": [
+    "devtools",
+    "infrastructure"
+  ]
+}

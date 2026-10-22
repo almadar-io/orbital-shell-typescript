@@ -26,7 +26,7 @@ const workspace = flag('--workspace');
 /** The monorepo folder of each @almadar package the client depends on. */
 const WORKSPACE_PACKAGES = {
   '@almadar/auth': 'packages/almadar-auth',
-  '@almadar/core': 'packages/almadar-core',
+  '@almadar/core': 'orbital-rust/crates/orbital-shell-typescript/renderers/core',
   '@almadar/kernel': 'orbital-rust/crates/orbital-wasm/js',
   '@almadar/logger': 'packages/almadar-logger',
   '@almadar/runtime': 'packages/almadar-runtime',

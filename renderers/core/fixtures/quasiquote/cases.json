@@ -1,0 +1,143 @@
+[
+  {
+    "name": "single-hole",
+    "template": [
+      "set",
+      "@entity.a",
+      [
+        "unquote",
+        "@payload.v"
+      ]
+    ],
+    "ir": [
+      "quasiquote",
+      "[\"set\",\"\\u0040entity.a\",[\"unquote\",0]]",
+      "@payload.v"
+    ],
+    "values": [
+      42
+    ],
+    "result": [
+      "set",
+      "@entity.a",
+      42
+    ]
+  },
+  {
+    "name": "orbital-import-splice",
+    "template": [
+      "orbital",
+      "Page",
+      {
+        "pages": {
+          "/dash": [
+            "unquote",
+            "@entity.widget"
+          ]
+        }
+      }
+    ],
+    "ir": [
+      "quasiquote",
+      "[\"orbital\",\"Page\",{\"pages\":{\"/dash\":[\"unquote\",0]}}]",
+      "@entity.widget"
+    ],
+    "values": [
+      "std/std-kanban.traits.KanbanBoard"
+    ],
+    "result": [
+      "orbital",
+      "Page",
+      {
+        "pages": {
+          "/dash": "std/std-kanban.traits.KanbanBoard"
+        }
+      }
+    ]
+  },
+  {
+    "name": "object-value-hole",
+    "template": {
+      "from": "a",
+      "widget": [
+        "unquote",
+        "@entity.w"
+      ]
+    },
+    "ir": [
+      "quasiquote",
+      "{\"from\":\"a\",\"widget\":[\"unquote\",0]}",
+      "@entity.w"
+    ],
+    "values": [
+      {
+        "ref": "std/std-kanban.traits.KanbanBoard",
+        "config": {
+          "compact": true
+        }
+      }
+    ],
+    "result": {
+      "from": "a",
+      "widget": {
+        "ref": "std/std-kanban.traits.KanbanBoard",
+        "config": {
+          "compact": true
+        }
+      }
+    }
+  },
+  {
+    "name": "two-holes-sorted-keys",
+    "template": {
+      "z": [
+        "unquote",
+        "@entity.z"
+      ],
+      "a": [
+        "unquote",
+        [
+          "+",
+          "@entity.n",
+          1
+        ]
+      ]
+    },
+    "ir": [
+      "quasiquote",
+      "{\"a\":[\"unquote\",0],\"z\":[\"unquote\",1]}",
+      [
+        "+",
+        "@entity.n",
+        1
+      ],
+      "@entity.z"
+    ],
+    "values": [
+      1,
+      2
+    ],
+    "result": {
+      "a": 1,
+      "z": 2
+    }
+  },
+  {
+    "name": "no-hole",
+    "template": [
+      ">",
+      "@payload.amount",
+      0
+    ],
+    "ir": [
+      "quasiquote",
+      "[\">\",\"\\u0040payload.amount\",0]"
+    ],
+    "values": [],
+    "result": [
+      ">",
+      "@payload.amount",
+      0
+    ]
+  }
+]

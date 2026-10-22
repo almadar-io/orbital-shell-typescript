@@ -1,0 +1,6 @@
+{
+  "clientId": "tab-1",
+  "event": "CREATE_DRAFT",
+  "payload": {},
+  "targetTrait": "NoteCatalog"
+}

@@ -1,0 +1,33 @@
+"use strict";
+const tsParser = require("@typescript-eslint/parser");
+const almadarPlugin = require("@almadar/eslint-plugin");
+
+module.exports = [
+  { ignores: ["dist/**", "node_modules/**"] },
+  {
+    files: ["src/**/*.ts", "src/**/*.tsx"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: { ecmaVersion: "latest", sourceType: "module" },
+    },
+    plugins: { almadar: almadarPlugin },
+    rules: {
+      "almadar/no-as-any": "error",
+      "almadar/no-as-unknown-as": "error",
+      "almadar/no-import-generated": "error",
+      "almadar/no-record-string-unknown": "error",
+    },
+  },
+  {
+    files: ["__tests__/**/*.ts", "__tests__/**/*.tsx"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: { ecmaVersion: "latest", sourceType: "module" },
+    },
+    plugins: { almadar: almadarPlugin },
+    rules: {
+      "almadar/no-as-any": "error",
+      "almadar/no-as-unknown-as": "error",
+    },
+  },
+];

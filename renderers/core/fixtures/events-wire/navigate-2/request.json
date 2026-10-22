@@ -1,0 +1,8 @@
+{
+  "clientId": "tab-1",
+  "event": "OPEN_NOTE",
+  "payload": {
+    "id": "note-1"
+  },
+  "targetTrait": "NoteCatalog"
+}

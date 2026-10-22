@@ -1,0 +1,57 @@
+{
+  "clientEffects": [
+    [
+      "render-ui",
+      "main",
+      {
+        "message": "Saved",
+        "type": "alert"
+      }
+    ],
+    [
+      "render-ui",
+      "sidebar",
+      {
+        "entity": "Note",
+        "type": "data-list"
+      }
+    ]
+  ],
+  "clientEffectsByTrait": [
+    {
+      "effect": [
+        "render-ui",
+        "main",
+        {
+          "message": "Saved",
+          "type": "alert"
+        }
+      ],
+      "event": "SAVE",
+      "fromState": "editing",
+      "traitName": "NoteForm"
+    },
+    {
+      "effect": [
+        "render-ui",
+        "sidebar",
+        {
+          "entity": "Note",
+          "type": "data-list"
+        }
+      ],
+      "event": "REFRESH",
+      "fromState": "idle",
+      "traitName": "NoteCatalog"
+    }
+  ],
+  "emittedEvents": [],
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NoteForm": "saved",
+    "NotePersistor": "idle"
+  },
+  "success": true,
+  "transitioned": true
+}

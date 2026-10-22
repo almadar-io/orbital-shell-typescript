@@ -1,0 +1,519 @@
+//! The kernel as a native Node add-on. Every export is the `orbital-wasm` host API (`orbital_wasm::api`, `http`, `oauth`)
+//! under the name the wasm module gives it, so a host loads either one behind the same ports. Marshalling only: every
+//! decision is `orbital_core::embed`'s.
+
+use napi::bindgen_prelude::Error;
+use napi::bindgen_prelude::Buffer;
+use napi::threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode};
+use napi::{Env, JsFunction};
+use napi_derive::napi;
+use orbital_wasm::api;
+use orbital_wasm::stored::{ServerHandle, Slot};
+use orbital_wasm::{http, oauth};
+
+fn js(message: String) -> Error {
+    Error::from_reason(message)
+}
+
+fn flight_id(flight: f64) -> napi::Result<u64> {
+    if flight.is_finite()
+        && flight >= 0.0
+        && flight.fract() == 0.0
+        && flight <= 9_007_199_254_740_991.0
+    {
+        Ok(flight as u64)
+    } else {
+        Err(js(format!("{flight} is not a flight id")))
+    }
+}
+
+/// One response as the host writes it.
+#[napi(object)]
+pub struct HostResponse {
+    pub status: u32,
+    pub headers_json: String,
+    pub body: Buffer,
+}
+
+/// A program served by `orbital-server` in this process: every request goes through the server's own router, so a
+/// TypeScript host serves the routes `orb serve` serves. The host keeps its listener and the live stream's connections.
+#[napi]
+pub struct NativeServer {
+    host: orbital_server::embedded::EmbeddedHost,
+}
+
+#[napi]
+impl NativeServer {
+    /// Boot `program_json` with the environment `env_json` (the store, sign-in and credentials it names) and the message
+    /// catalogs `catalogs_json` (`{ locale: { key: message } }`); `on_live(itemJson)` receives each live item.
+    #[napi(factory)]
+    pub fn open(
+        env: Env,
+        program_json: String,
+        env_json: String,
+        catalogs_json: String,
+        #[napi(ts_arg_type = "((itemJson: string) => void) | undefined | null")] on_live: Option<JsFunction>,
+    ) -> napi::Result<Self> {
+        let vars: std::collections::HashMap<String, String> =
+            serde_json::from_str(&env_json).map_err(|e| js(format!("parse env_json: {e}")))?;
+        let catalogs: orbital_server::Catalogs =
+            serde_json::from_str(&catalogs_json).map_err(|e| js(format!("parse catalogs_json: {e}")))?;
+        let callback: Option<ThreadsafeFunction<String, ErrorStrategy::Fatal>> = match on_live {
+            Some(function) => {
+                let mut tsfn: ThreadsafeFunction<String, ErrorStrategy::Fatal> = function
+                    .create_threadsafe_function(0, |ctx: napi::threadsafe_function::ThreadSafeCallContext<String>| {
+                        ctx.env.create_string(&ctx.value).map(|s| vec![s])
+                    })?;
+                tsfn.unref(&env)?;
+                Some(tsfn)
+            }
+            None => None,
+        };
+        let on_live: Box<dyn Fn(String) + Send + Sync> = Box::new(move |item_json| {
+            if let Some(callback) = callback.as_ref() {
+                callback.call(item_json, ThreadsafeFunctionCallMode::NonBlocking);
+            }
+        });
+        let host = orbital_server::embedded::EmbeddedHost::open(&program_json, &vars, catalogs, on_live).map_err(|e| js(format!("{e:#}")))?;
+        Ok(Self { host })
+    }
+
+    /// Run one request (`headers_json`: `[[name, value], ...]`) through the server's router.
+    #[napi]
+    pub fn handle(&self, method: String, uri: String, headers_json: String, body: Buffer) -> napi::Result<HostResponse> {
+        let headers: Vec<(String, String)> =
+            serde_json::from_str(&headers_json).map_err(|e| js(format!("parse headers_json: {e}")))?;
+        let response = self.host.handle(&method, &uri, &headers, body.to_vec()).map_err(|e| js(format!("{e:#}")))?;
+        Ok(HostResponse {
+            status: u32::from(response.status),
+            headers_json: serde_json::to_string(&response.headers).map_err(|e| js(e.to_string()))?,
+            body: response.body.into(),
+        })
+    }
+
+    /// The viewer JSON a stream ticket was minted for, once; `null` for a forged, expired or used ticket.
+    #[napi]
+    pub fn take_ticket(&self, ticket: String) -> Option<String> {
+        self.host.take_ticket(&ticket)
+    }
+
+    /// The indexes of `connections_json` (`[{ clientId, viewer }]`) that receive the live item `item_json`, as JSON.
+    #[napi]
+    pub fn live_recipients(&self, item_json: String, connections_json: String) -> napi::Result<String> {
+        self.host.live_recipients(&item_json, &connections_json).map_err(js)
+    }
+}
+
+/// The server role: `start` a request, answer the I/O it asks for, `resume` the flight until it is done.
+#[napi]
+pub struct Server {
+    api: Slot<ServerHandle>,
+}
+
+#[napi]
+impl Server {
+    #[napi(constructor)]
+    pub fn new(resolved_schema_json: String) -> napi::Result<Self> {
+        Ok(Self {
+            api: Slot::new(ServerHandle::plain(&resolved_schema_json).map_err(js)?),
+        })
+    }
+
+    /// A server that answers its own row asks from the store `present_json` selects (`DATA_BACKEND`, `DATABASE_URL`,
+    /// `COUCHDB_URL`, the Firebase variables); the host answers the rest. The plain constructor is unchanged.
+    #[napi(factory)]
+    pub fn with_store(resolved_schema_json: String, present_json: String) -> napi::Result<Self> {
+        let env: std::collections::HashMap<String, String> =
+            serde_json::from_str(&present_json).map_err(|e| js(format!("parse present_json: {e}")))?;
+        Ok(Self {
+            api: Slot::new(ServerHandle::from_env(&resolved_schema_json, &env).map_err(js)?),
+        })
+    }
+
+    #[napi]
+    pub fn free(&self) {
+        self.api.take();
+    }
+
+    /// A server holding this one's registered program and none of its session.
+    #[napi]
+    pub fn fork(&self) -> napi::Result<Server> {
+        Ok(Server {
+            api: Slot::new(self.api.get().map_err(js)?.fork().map_err(js)?),
+        })
+    }
+
+    #[napi]
+    pub fn os_allows(&self, requirement_json: String) -> napi::Result<bool> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .os_allows(&requirement_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn start(&self, orbital: String, request_json: String) -> napi::Result<String> {
+        self.api
+            .get()
+            .map_err(js)?
+            .start(&orbital, &request_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn live_item_delivered(&self, item_json: String, viewer_json: String, client_id: Option<String>) -> napi::Result<bool> {
+        self.api.get().map_err(js)?.api().live_item_delivered(&item_json, &viewer_json, client_id.as_deref()).map_err(js)
+    }
+
+    #[napi]
+    pub fn dispatch_stream(&self) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().dispatch_stream().map_err(js)
+    }
+
+    #[napi]
+    pub fn resume(&self, flight: f64, replies_json: String) -> napi::Result<String> {
+        self.api
+            .get()
+            .map_err(js)?
+            .resume(flight_id(flight)?, &replies_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn resolve_rows(&self, ref_json: String, viewer_json: String) -> napi::Result<String> {
+        self.api
+            .get()
+            .map_err(js)?
+            .resolve_rows(&ref_json, &viewer_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn resume_resolve(&self, flight: f64, replies_json: String) -> napi::Result<String> {
+        self.api
+            .get()
+            .map_err(js)?
+            .resume_resolve(flight_id(flight)?, &replies_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn abandon(&self, flight: f64) -> napi::Result<bool> {
+        Ok(self.api.get().map_err(js)?.abandon(flight_id(flight)?))
+    }
+
+    #[napi]
+    pub fn in_flight(&self) -> napi::Result<u32> {
+        Ok(self.api.get().map_err(js)?.api().in_flight() as u32)
+    }
+
+    #[napi]
+    pub fn get_state(&self, trait_name: String, entity_id: Option<String>) -> napi::Result<String> {
+        Ok(self
+            .api
+            .get()
+            .map_err(js)?
+            .api()
+            .get_state(&trait_name, entity_id.as_deref()))
+    }
+
+    #[napi]
+    pub fn set_managed_program(&self, program_json: String) -> napi::Result<()> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .set_managed_program(&program_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn set_default_user(&self, user_json: String) -> napi::Result<()> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .set_default_user(&user_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn mount(&self, traits_json: String) -> napi::Result<()> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .mount(&traits_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn remount(&self, traits_json: String) -> napi::Result<()> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .remount(&traits_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn set_messages(&self, locales_json: String, catalogs_json: String) -> napi::Result<()> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .set_messages(&locales_json, &catalogs_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn set_capabilities(
+        &self,
+        entity_type: String,
+        query_json: String,
+        write_json: String,
+    ) -> napi::Result<()> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .set_capabilities(&entity_type, &query_json, &write_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn set_tick_mount(&self, traits_json: String) -> napi::Result<()> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .set_tick_mount(&traits_json)
+            .map_err(js)
+    }
+
+    #[napi]
+    pub fn seed_runtime_mock(&self, viewer_id: Option<String>) -> napi::Result<()> {
+        self.api.get().map_err(js)?.api().seed_runtime_mock(viewer_id);
+        Ok(())
+    }
+
+    #[napi]
+    pub fn last_error(&self) -> napi::Result<String> {
+        Ok(self.api.get().map_err(js)?.api().last_error())
+    }
+}
+
+#[napi]
+pub fn install_language(bundle_json: String) -> napi::Result<()> {
+    api::install_language(&bundle_json).map_err(js)
+}
+
+#[napi]
+pub fn verify_plan(resolved_schema_json: String, options_json: String) -> String {
+    api::verify_plan(&resolved_schema_json, &options_json)
+}
+
+#[napi]
+pub fn verify_expect(step_json: String) -> napi::Result<String> {
+    api::verify_expect(&step_json).map_err(js)
+}
+
+#[napi]
+pub fn verify_judge(expectation_json: String, observation_json: String) -> napi::Result<String> {
+    api::verify_judge(&expectation_json, &observation_json).map_err(js)
+}
+
+#[napi]
+pub fn verify_proposition(ensures_json: String, observation_json: String) -> napi::Result<String> {
+    api::verify_proposition(&ensures_json, &observation_json).map_err(js)
+}
+
+#[napi]
+pub fn http_driver_start(call_json: String, egress_json: String) -> napi::Result<String> {
+    http::http_driver_start(&call_json, &egress_json).map_err(js)
+}
+
+#[napi]
+pub fn http_driver_resume(driver_json: String, answer_json: String) -> napi::Result<String> {
+    http::http_driver_resume(&driver_json, &answer_json).map_err(js)
+}
+
+#[napi]
+pub fn http_driver_drop(driver_json: String) -> napi::Result<()> {
+    http::http_driver_drop(&driver_json).map_err(js)
+}
+
+#[napi]
+pub fn os_glob_matches(glob: String, path: String) -> bool {
+    api::os_glob_matches(&glob, &path)
+}
+
+#[napi]
+pub fn tab_url_matches(pattern: String, url: String) -> bool {
+    api::tab_url_matches(&pattern, &url)
+}
+
+#[napi]
+pub fn os_deferring_ops() -> napi::Result<String> {
+    api::os_deferring_ops().map_err(js)
+}
+
+#[napi]
+pub fn os_completion_event(
+    site_json: String,
+    key: String,
+    outcome_json: String,
+) -> napi::Result<String> {
+    api::os_completion_event(&site_json, &key, &outcome_json).map_err(js)
+}
+
+#[napi]
+pub fn is_public_address(ip: String) -> napi::Result<bool> {
+    http::is_public_address(&ip).map_err(js)
+}
+
+#[napi]
+pub fn frame_stream(
+    framing: String,
+    key: Option<String>,
+    chunk: String,
+    carry: String,
+) -> napi::Result<String> {
+    http::frame_stream(&framing, key.as_deref(), &chunk, &carry).map_err(js)
+}
+
+#[napi]
+pub fn frame_stream_finish(
+    framing: String,
+    key: Option<String>,
+    carry: String,
+) -> napi::Result<String> {
+    http::frame_stream_finish(&framing, key.as_deref(), &carry).map_err(js)
+}
+
+#[napi]
+pub fn stream_events(driver_json: String, chunk: String, carry: String) -> napi::Result<String> {
+    http::stream_events(&driver_json, &chunk, &carry).map_err(js)
+}
+
+#[napi]
+pub fn stream_finish(driver_json: String, carry: String) -> napi::Result<String> {
+    http::stream_finish(&driver_json, &carry).map_err(js)
+}
+
+#[napi]
+pub fn oauth_authorize_plan(client_json: String, options_json: String) -> napi::Result<String> {
+    oauth::oauth_authorize_plan(&client_json, &options_json).map_err(js)
+}
+
+#[napi]
+pub fn oauth_authorize_build(
+    plan_json: String,
+    client_id: String,
+    metadata_json: String,
+    state_base64: String,
+    verifier_base64: String,
+) -> napi::Result<String> {
+    oauth::oauth_authorize_build(
+        &plan_json,
+        &client_id,
+        &metadata_json,
+        &state_base64,
+        &verifier_base64,
+    )
+    .map_err(js)
+}
+
+#[napi]
+pub fn oauth_authorize_mock_build(plan_json: String, state_base64: String) -> napi::Result<String> {
+    oauth::oauth_authorize_mock_build(&plan_json, &state_base64).map_err(js)
+}
+
+#[napi]
+pub fn oauth_failure(reason: String) -> napi::Result<String> {
+    oauth::oauth_failure(&reason).map_err(js)
+}
+
+#[napi]
+pub fn evaluate_many(context_json: String, expressions_json: String) -> napi::Result<String> {
+    api::evaluate_many(&context_json, &expressions_json).map_err(js)
+}
+
+#[napi]
+pub fn resolve_values(context_json: String, values_json: String) -> napi::Result<String> {
+    api::resolve_values(&context_json, &values_json).map_err(js)
+}
+
+#[napi]
+pub fn evaluate_guards(context_json: String, guards_json: String) -> napi::Result<String> {
+    api::evaluate_guards(&context_json, &guards_json).map_err(js)
+}
+
+#[napi]
+pub fn evaluate_traced(context_json: String, expression_json: String) -> napi::Result<String> {
+    api::evaluate_traced(&context_json, &expression_json).map_err(js)
+}
+
+#[napi]
+pub fn trace_effects(context_json: String, effects_json: String) -> napi::Result<String> {
+    api::trace_effects(&context_json, &effects_json).map_err(js)
+}
+
+#[napi]
+pub fn credential_seed_plan(declared_json: String, held_json: String, present_json: String) -> napi::Result<String> {
+    api::credential_seed_plan(&declared_json, &held_json, &present_json).map_err(js)
+}
+
+#[napi]
+pub fn map_listen_payload(mapping_json: String, payload_json: String) -> napi::Result<String> {
+    api::map_listen_payload(&mapping_json, &payload_json).map_err(js)
+}
+
+#[napi]
+pub fn scope_rows(
+    bindings_json: String,
+    rows_json: String,
+    policy_json: String,
+    filter_json: String,
+    entity_type: String,
+) -> napi::Result<String> {
+    api::scope_rows(
+        &bindings_json,
+        &rows_json,
+        &policy_json,
+        &filter_json,
+        &entity_type,
+    )
+    .map_err(js)
+}
+
+#[napi]
+pub fn check_mutation_access(
+    operation: String,
+    bindings_json: String,
+    row_json: String,
+    policy_json: String,
+    entity_type: String,
+) -> napi::Result<String> {
+    api::check_mutation_access(
+        &operation,
+        &bindings_json,
+        &row_json,
+        &policy_json,
+        &entity_type,
+    )
+    .map_err(js)
+}
+
+#[napi]
+pub fn resolve_row_binding(term: String, bindings_json: String) -> napi::Result<String> {
+    api::resolve_row_binding(&term, &bindings_json).map_err(js)
+}
+
+#[napi]
+pub fn substrate_completion_event(site_json: String, key: String, op: String, outcome_json: String) -> napi::Result<String> {
+    api::substrate_completion_event(&site_json, &key, &op, &outcome_json).map_err(js)
+}

@@ -35,6 +35,10 @@ export class DispatchLane {
   private parkedEvent: string | undefined;
   private readonly waiters: Waiter[] = [];
 
+  assertCanReenter(turn: LaneTurn): void {
+    if (this.holder === turn && this.parkedEvent !== undefined) throw new LaneHeldByParkedDispatch(turn.ticket, this.parkedEvent);
+  }
+
   async enter(turn?: LaneTurn): Promise<LaneGuard> {
     const holder = this.holder;
     if (holder !== undefined && turn === holder) {

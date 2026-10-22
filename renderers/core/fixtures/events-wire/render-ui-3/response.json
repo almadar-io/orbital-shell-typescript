@@ -1,0 +1,20 @@
+{
+  "clientEffects": [
+    [
+      "render-ui",
+      "main",
+      {
+        "direction": "vertical",
+        "type": "stack"
+      }
+    ]
+  ],
+  "emittedEvents": [],
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NotePersistor": "idle"
+  },
+  "success": true,
+  "transitioned": true
+}

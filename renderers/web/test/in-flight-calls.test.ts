@@ -8,6 +8,16 @@ import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 const never = (signal: AbortSignal) => new Promise<string>((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
 
 describe('InFlightCalls', () => {
+  it('cancels all app-owned calls when the runtime closes or resets', async () => {
+    const calls = new InFlightCalls();
+    const a = calls.run('a', never);
+    const b = calls.run('b', never);
+    calls.cancelAll();
+    expect(await Promise.all([a, b])).toEqual([{ cancelled: true }, { cancelled: true }]);
+    expect(calls.inFlight('a')).toBe(false);
+    expect(calls.inFlight('b')).toBe(false);
+  });
+
   it('cancelling a key aborts every call running under it', async () => {
     const calls = new InFlightCalls();
     const first = calls.run('batch', never);

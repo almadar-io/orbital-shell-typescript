@@ -1,0 +1,22 @@
+{
+  "clientEffects": [
+    [
+      "navigate",
+      "/notes/:id",
+      {
+        "id": "note-1"
+      },
+      {
+        "crumb": "Grocery list"
+      }
+    ]
+  ],
+  "emittedEvents": [],
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NotePersistor": "idle"
+  },
+  "success": true,
+  "transitioned": true
+}

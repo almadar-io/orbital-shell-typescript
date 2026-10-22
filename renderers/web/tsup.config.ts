@@ -11,6 +11,7 @@ export default defineConfig([
   {
     entry: {
       index: 'src/index.ts',
+      ServerBridge: 'src/client/ServerBridge.ts',
       'test-support': 'src/test-support/index.ts',
       core: 'src/core/index.ts',
       'components/index': 'src/components/index.ts',

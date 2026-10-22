@@ -1,0 +1,52 @@
+{
+  "clientEffects": [
+    [
+      "render-ui",
+      "main",
+      {
+        "entity": "Note",
+        "type": "data-list"
+      }
+    ],
+    [
+      "render-ui",
+      "toolbar",
+      {
+        "label": "New Note",
+        "type": "button"
+      }
+    ]
+  ],
+  "clientEffectsByTrait": [
+    {
+      "effect": [
+        "render-ui",
+        "main",
+        {
+          "entity": "Note",
+          "type": "data-list"
+        }
+      ],
+      "traitName": "NoteCatalog"
+    },
+    {
+      "effect": [
+        "render-ui",
+        "toolbar",
+        {
+          "label": "New Note",
+          "type": "button"
+        }
+      ],
+      "traitName": "InlineButtonRender3"
+    }
+  ],
+  "emittedEvents": [],
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NotePersistor": "idle"
+  },
+  "success": true,
+  "transitioned": true
+}

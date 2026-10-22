@@ -1,0 +1,20 @@
+[package]
+name = "orbital-node"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "The native Node add-on of the Almadar kernel: the orbital-wasm host API as N-API, loaded in place of the wasm module"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+orbital-wasm = { path = "../../../../orbital-wasm" }
+orbital-server = { path = "../../../../orbital-server" }
+napi = { version = "2", default-features = false, features = ["napi4"] }
+napi-derive = "2"
+serde_json = "1.0"
+
+[build-dependencies]
+napi-build = "2"

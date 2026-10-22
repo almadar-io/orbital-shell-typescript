@@ -1,0 +1,15 @@
+{
+  "emittedEvents": [],
+  "entityByTrait": {
+    "NotePersistor": {
+      "id": "note-1",
+      "title": "New title"
+    }
+  },
+  "states": {
+    "NoteCatalog": "browsing",
+    "NotePersistor": "idle"
+  },
+  "success": true,
+  "transitioned": true
+}

@@ -1,0 +1,16 @@
+{
+  "actionPrefix": "action-",
+  "overflowKey": "overflow",
+  "gestureEventProps": {
+    "longPressEvent": "long-press",
+    "swipeLeftEvent": "swipe-left",
+    "swipeRightEvent": "swipe-right"
+  },
+  "nativeIdPrefix": {
+    "pattern": "pattern-",
+    "row": "row-",
+    "field": "field-",
+    "slot": "slot-"
+  },
+  "nativeIdSeparator": " "
+}

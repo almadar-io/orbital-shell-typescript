@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import type { EventPayload, OrbitalEventResponse } from '@almadar/core';
-import type { OrbitalServerRuntime as OrbitalServerRuntimeType } from '@almadar/runtime/OrbitalServerRuntime';
+import type { OrbitalServerRuntime as OrbitalServerRuntimeType } from '@almadar/shell-node/OrbitalServerRuntime';
 import type { KernelModule } from '@almadar/shell-web';
 import type { EmitRecord, JsonValue, Scenario, ScenarioFixture, ScenarioHarness, ScenarioSession, ScenarioStep, TraceStep } from './types.js';
 
@@ -11,7 +11,7 @@ declare global {
 }
 
 interface Loaded {
-  runtime: typeof import('@almadar/runtime/OrbitalServerRuntime');
+  runtime: typeof import('@almadar/shell-node/OrbitalServerRuntime');
   kernel: KernelModule;
 }
 
@@ -84,7 +84,7 @@ export class B1KernelHarness implements ScenarioHarness {
       const { loadInstalledKernel, loadKernelModule, loadNativeKernelModule } = await import('@almadar/shell-node');
       const source = this.source;
       this.loaded = {
-        runtime: await import('@almadar/runtime/OrbitalServerRuntime'),
+        runtime: await import('@almadar/shell-node/OrbitalServerRuntime'),
         kernel: source === undefined
           ? await loadInstalledKernel(PACKAGE_ROOT)
           : this.engine === 'native' ? await loadNativeKernelModule(source, { languageFrom: PACKAGE_ROOT }) : await loadKernelModule(source, { languageFrom: PACKAGE_ROOT }),

@@ -1,0 +1,163 @@
+{
+  "name": "@almadar/core",
+  "version": "10.128.0",
+  "description": "Core schema types and definitions for Almadar",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js",
+      "require": "./dist/types/index.js"
+    },
+    "./factory": {
+      "types": "./dist/factory/index.d.ts",
+      "import": "./dist/factory/index.js",
+      "require": "./dist/factory/index.js"
+    },
+    "./factory-runtime": {
+      "types": "./dist/factory-runtime/index.d.ts",
+      "import": "./dist/factory-runtime/index.js",
+      "require": "./dist/factory-runtime/index.js"
+    },
+    "./lolo-document": {
+      "types": "./dist/lolo-document/index.d.ts",
+      "import": "./dist/lolo-document/index.js",
+      "require": "./dist/lolo-document/index.js"
+    },
+    "./state-machine": {
+      "types": "./dist/state-machine/index.d.ts",
+      "import": "./dist/state-machine/index.js",
+      "require": "./dist/state-machine/index.js"
+    },
+    "./builders": {
+      "types": "./dist/builders.d.ts",
+      "import": "./dist/builders.js",
+      "require": "./dist/builders.js"
+    },
+    "./patterns": {
+      "types": "./dist/patterns/index.d.ts",
+      "import": "./dist/patterns/index.js",
+      "require": "./dist/patterns/index.js"
+    },
+    "./mock": {
+      "types": "./dist/mock/index.d.ts",
+      "import": "./dist/mock/index.js",
+      "require": "./dist/mock/index.js"
+    },
+    "./kernel-wire": {
+      "types": "./dist/kernel-wire.d.ts",
+      "import": "./dist/kernel-wire.js",
+      "require": "./dist/kernel-wire.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "import": "./dist/i18n/index.js",
+      "require": "./dist/i18n/index.js"
+    },
+    "./themes": {
+      "types": "./dist/themes/index.d.ts",
+      "import": "./dist/themes/index.js",
+      "require": "./dist/themes/index.js"
+    },
+    "./patterns/*": {
+      "types": "./dist/patterns/*",
+      "import": "./dist/patterns/*",
+      "require": "./dist/patterns/*"
+    },
+    "./fixtures": {
+      "types": "./dist/fixtures.d.ts",
+      "import": "./dist/fixtures.js",
+      "require": "./dist/fixtures.js"
+    },
+    "./behavior-package": {
+      "types": "./dist/behavior-package.d.ts",
+      "import": "./dist/behavior-package.js",
+      "require": "./dist/behavior-package.js"
+    },
+    "./language-data": {
+      "types": "./dist/language-data.d.ts",
+      "import": "./dist/language-data.js",
+      "require": "./dist/language-data.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src/types/verification-ids.json",
+    "themes",
+    "fixtures"
+  ],
+  "orbLanguage": {
+    "compiler": ">=17.11.2",
+    "patterns": "dist/patterns/patterns-registry.json",
+    "componentMapping": "dist/patterns/component-mapping.json",
+    "eventContracts": "dist/patterns/event-contracts.json",
+    "services": "dist/patterns/services-registry.json",
+    "bindingRules": "dist/language/binding-rules.json",
+    "programTypes": "dist/language/program-types.json",
+    "vocabulary": "dist/language/vocabulary.json",
+    "constructs": "dist/language/constructs.json",
+    "validationCodes": "dist/language/validation-codes.json",
+    "themes": "themes",
+    "fixtures": "fixtures"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm run build:themes && pnpm run build:fixtures && pnpm run build:contract && tsup",
+    "build:watch": "tsup --watch",
+    "build:fixtures": "tsx scripts/generate-event-wire-fixtures.ts && tsx scripts/generate-theme-fixtures.ts",
+    "build:contract": "tsx scripts/generate-runtime-contract.ts",
+    "build:themes": "tsx scripts/generate-theme-index.ts",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build",
+    "prepare": "git config core.hooksPath .githooks",
+    "gen:orb-notation": "tsx scripts/gen-orb-notation.mts"
+  },
+  "dependencies": {
+    "@noble/hashes": "1.8.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@almadar/eslint-plugin": "^2.22.0",
+    "@almadar/lolo-ar": "^1.3.0",
+    "@almadar/lolo-sl": "^1.3.0",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/parser": "8.65.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "10.0.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.22.4",
+    "turbo": "^2.8.17",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^1.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/almadar-io/orbital-shell-typescript.git",
+    "directory": "renderers/core"
+  },
+  "license": "BSL-1.1",
+  "keywords": [
+    "almadar",
+    "orbital",
+    "schema",
+    "types"
+  ],
+  "homepage": "https://github.com/almadar-io/almadar#readme",
+  "packageManager": "pnpm@10.30.3"
+}

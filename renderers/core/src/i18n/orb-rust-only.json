@@ -1,0 +1,12 @@
+{
+  "description": "`.orb` keys the compiled path (orbital-core serde) serializes that the TS OrbitalSchema type tree does not declare. Each entry is a recorded two-paths divergence; target 0.",
+  "keys": [
+    "emitsScope",
+    "eventIds",
+    "pattern",
+    "sections",
+    "timeBoundMs",
+    "typeArgs",
+    "unique"
+  ]
+}

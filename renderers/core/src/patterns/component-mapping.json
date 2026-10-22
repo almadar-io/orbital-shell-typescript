@@ -1,0 +1,1338 @@
+{
+  "version": "1.0.0",
+  "exportedAt": "2026-10-13T17:39:34.142Z",
+  "mappings": {
+    "page-header": {
+      "component": "PageHeader",
+      "importPath": "@almadar/shell-web/components/core/molecules/PageHeader",
+      "category": "header"
+    },
+    "detail-panel": {
+      "component": "DetailPanel",
+      "importPath": "@almadar/shell-web/components/core/organisms/DetailPanel",
+      "category": "display"
+    },
+    "form": {
+      "component": "Form",
+      "importPath": "@almadar/shell-web/components/core/organisms/Form",
+      "category": "form"
+    },
+    "form-section": {
+      "component": "Form",
+      "importPath": "@almadar/shell-web/components/core/organisms/Form",
+      "category": "form"
+    },
+    "form-actions": {
+      "component": "ButtonGroup",
+      "importPath": "@almadar/shell-web/components/core/molecules/ButtonGroup",
+      "category": "form"
+    },
+    "filter-group": {
+      "component": "FilterGroup",
+      "importPath": "@almadar/shell-web/components/core/molecules/FilterGroup",
+      "category": "filter"
+    },
+    "search-input": {
+      "component": "SearchInput",
+      "importPath": "@almadar/shell-web/components/core/molecules/SearchInput",
+      "category": "filter"
+    },
+    "empty-state": {
+      "component": "EmptyState",
+      "importPath": "@almadar/shell-web/components/core/molecules/EmptyState",
+      "category": "state"
+    },
+    "loading-state": {
+      "component": "LoadingState",
+      "importPath": "@almadar/shell-web/components/core/molecules/LoadingState",
+      "category": "state"
+    },
+    "error-state": {
+      "component": "ErrorState",
+      "importPath": "@almadar/shell-web/components/core/molecules/ErrorState",
+      "category": "state"
+    },
+    "notification": {
+      "component": "Toast",
+      "importPath": "@almadar/shell-web/components/core/molecules/Toast",
+      "category": "state"
+    },
+    "tabs": {
+      "component": "Tabs",
+      "importPath": "@almadar/shell-web/components/core/molecules/Tabs",
+      "category": "navigation"
+    },
+    "breadcrumb": {
+      "component": "Breadcrumb",
+      "importPath": "@almadar/shell-web/components/core/molecules/Breadcrumb",
+      "category": "navigation"
+    },
+    "wizard-container": {
+      "component": "WizardContainer",
+      "importPath": "@almadar/shell-web/components/core/molecules/WizardContainer",
+      "category": "navigation"
+    },
+    "wizard-progress": {
+      "component": "WizardProgress",
+      "importPath": "@almadar/shell-web/components/core/molecules/WizardProgress",
+      "category": "navigation"
+    },
+    "wizard-navigation": {
+      "component": "WizardNavigation",
+      "importPath": "@almadar/shell-web/components/core/molecules/WizardNavigation",
+      "category": "navigation"
+    },
+    "pagination": {
+      "component": "Pagination",
+      "importPath": "@almadar/shell-web/components/core/molecules/Pagination",
+      "category": "navigation"
+    },
+    "card": {
+      "component": "Card",
+      "importPath": "@almadar/shell-web/core/atoms/Card",
+      "category": "display"
+    },
+    "modal": {
+      "component": "Modal",
+      "importPath": "@almadar/shell-web/components/core/molecules/Modal",
+      "category": "layout"
+    },
+    "drawer": {
+      "component": "Drawer",
+      "importPath": "@almadar/shell-web/components/core/molecules/Drawer",
+      "category": "layout"
+    },
+    "confirm-dialog": {
+      "component": "ConfirmDialog",
+      "importPath": "@almadar/shell-web/components/core/molecules/ConfirmDialog",
+      "category": "layout"
+    },
+    "runtime-debugger": {
+      "component": "RuntimeDebugger",
+      "importPath": "@almadar/shell-web/components/core/organisms/RuntimeDebugger",
+      "category": "debug"
+    },
+    "repeatable-form-section": {
+      "component": "RepeatableFormSection",
+      "importPath": "@almadar/shell-web/components/core/molecules/RepeatableFormSection",
+      "category": "form"
+    },
+    "box": {
+      "component": "Box",
+      "importPath": "@almadar/shell-web/core/atoms/Box",
+      "category": "layout"
+    },
+    "grid": {
+      "component": "Grid",
+      "importPath": "@almadar/shell-web/components/core/molecules/Grid",
+      "category": "layout"
+    },
+    "center": {
+      "component": "Center",
+      "importPath": "@almadar/shell-web/core/atoms/Center",
+      "category": "layout"
+    },
+    "spacer": {
+      "component": "Spacer",
+      "importPath": "@almadar/shell-web/core/atoms/Spacer",
+      "category": "layout"
+    },
+    "divider": {
+      "component": "Divider",
+      "importPath": "@almadar/shell-web/core/atoms/Divider",
+      "category": "layout"
+    },
+    "button": {
+      "component": "Button",
+      "importPath": "@almadar/shell-web/core/atoms/Button",
+      "category": "atom"
+    },
+    "badge": {
+      "component": "Badge",
+      "importPath": "@almadar/shell-web/core/atoms/Badge",
+      "category": "atom"
+    },
+    "avatar": {
+      "component": "Avatar",
+      "importPath": "@almadar/shell-web/core/atoms/Avatar",
+      "category": "atom"
+    },
+    "icon": {
+      "component": "Icon",
+      "importPath": "@almadar/shell-web/core/atoms/Icon",
+      "category": "atom"
+    },
+    "spinner": {
+      "component": "Spinner",
+      "importPath": "@almadar/shell-web/core/atoms/Spinner",
+      "category": "atom"
+    },
+    "input": {
+      "component": "Input",
+      "importPath": "@almadar/shell-web/core/atoms/Input",
+      "category": "form"
+    },
+    "textarea": {
+      "component": "Textarea",
+      "importPath": "@almadar/shell-web/core/atoms/Textarea",
+      "category": "form"
+    },
+    "select": {
+      "component": "Select",
+      "importPath": "@almadar/shell-web/core/atoms/Select",
+      "category": "form"
+    },
+    "checkbox": {
+      "component": "Checkbox",
+      "importPath": "@almadar/shell-web/core/atoms/Checkbox",
+      "category": "form"
+    },
+    "radio": {
+      "component": "Radio",
+      "importPath": "@almadar/shell-web/core/atoms/Radio",
+      "category": "form"
+    },
+    "switch": {
+      "component": "Switch",
+      "importPath": "@almadar/shell-web/core/atoms/Switch",
+      "category": "form"
+    },
+    "label": {
+      "component": "Label",
+      "importPath": "@almadar/shell-web/core/atoms/Label",
+      "category": "form"
+    },
+    "alert": {
+      "component": "Alert",
+      "importPath": "@almadar/shell-web/components/core/molecules/Alert",
+      "category": "state"
+    },
+    "accordion": {
+      "component": "Accordion",
+      "importPath": "@almadar/shell-web/components/core/molecules/Accordion",
+      "category": "display"
+    },
+    "tooltip": {
+      "component": "Tooltip",
+      "importPath": "@almadar/shell-web/components/core/molecules/Tooltip",
+      "category": "atom"
+    },
+    "popover": {
+      "component": "Popover",
+      "importPath": "@almadar/shell-web/components/core/molecules/Popover",
+      "category": "atom"
+    },
+    "menu": {
+      "component": "Menu",
+      "importPath": "@almadar/shell-web/components/core/molecules/Menu",
+      "category": "navigation"
+    },
+    "progress-bar": {
+      "component": "ProgressBar",
+      "importPath": "@almadar/shell-web/core/atoms/ProgressBar",
+      "category": "display"
+    },
+    "container": {
+      "component": "Container",
+      "importPath": "@almadar/shell-web/components/core/molecules/Container",
+      "category": "layout"
+    },
+    "simple-grid": {
+      "component": "SimpleGrid",
+      "importPath": "@almadar/shell-web/components/core/molecules/SimpleGrid",
+      "category": "layout"
+    },
+    "studio-home-web": {
+      "component": "StudioHomeWebTemplate",
+      "importPath": "@/clients/builder/templates/StudioHomeWebTemplate",
+      "category": "template",
+      "client": "builder"
+    },
+    "studio-home-electron": {
+      "component": "StudioHomeElectronTemplate",
+      "importPath": "@/clients/builder/templates/StudioHomeElectronTemplate",
+      "category": "template",
+      "client": "builder"
+    },
+    "studio-project": {
+      "component": "StudioProjectTemplate",
+      "importPath": "@/clients/builder/templates/StudioProjectTemplate",
+      "category": "template",
+      "client": "builder"
+    },
+    "hex-battlefield": {
+      "component": "BattlefieldTemplate",
+      "importPath": "@/clients/trait-wars/templates/BattlefieldTemplate",
+      "category": "template",
+      "client": "trait-wars"
+    },
+    "hero-selection": {
+      "component": "HexTraitWarsGame",
+      "importPath": "@/clients/trait-wars/templates/HexTraitWarsGame",
+      "category": "template",
+      "client": "trait-wars"
+    },
+    "hero-profile": {
+      "component": "HeroProfileTemplate",
+      "importPath": "@/clients/trait-wars/templates/HeroProfileTemplate",
+      "category": "template",
+      "client": "trait-wars"
+    },
+    "army-builder": {
+      "component": "ArmyBuilderTemplate",
+      "importPath": "@/clients/trait-wars/templates/ArmyBuilderTemplate",
+      "category": "template",
+      "client": "trait-wars"
+    },
+    "conditional-wrapper": {
+      "component": "ConditionalWrapper",
+      "importPath": "@almadar/shell-web/core/atoms/ConditionalWrapper",
+      "category": "component"
+    },
+    "law-reference-tooltip": {
+      "component": "LawReferenceTooltip",
+      "importPath": "@almadar/shell-web/core/atoms/LawReferenceTooltip",
+      "category": "component"
+    },
+    "overlay": {
+      "component": "Overlay",
+      "importPath": "@almadar/shell-web/core/atoms/Overlay",
+      "category": "container"
+    },
+    "stack": {
+      "component": "Stack",
+      "importPath": "@almadar/shell-web/core/atoms/Stack",
+      "category": "component"
+    },
+    "vstack": {
+      "component": "VStack",
+      "importPath": "@almadar/shell-web/core/atoms/Stack",
+      "category": "component"
+    },
+    "hstack": {
+      "component": "HStack",
+      "importPath": "@almadar/shell-web/core/atoms/Stack",
+      "category": "component"
+    },
+    "text-highlight": {
+      "component": "TextHighlight",
+      "importPath": "@almadar/shell-web/core/atoms/TextHighlight",
+      "category": "component"
+    },
+    "theme-toggle": {
+      "component": "ThemeToggle",
+      "importPath": "@almadar/shell-web/core/atoms/ThemeToggle",
+      "category": "component"
+    },
+    "typography": {
+      "component": "Typography",
+      "importPath": "@almadar/shell-web/core/atoms/Typography",
+      "category": "component"
+    },
+    "flex": {
+      "component": "Flex",
+      "importPath": "@almadar/shell-web/components/core/molecules/Flex",
+      "category": "component"
+    },
+    "floating-action-button": {
+      "component": "FloatingActionButton",
+      "importPath": "@almadar/shell-web/components/core/molecules/FloatingActionButton",
+      "category": "component"
+    },
+    "form-field": {
+      "component": "FormField",
+      "importPath": "@almadar/shell-web/components/core/molecules/FormField",
+      "category": "form"
+    },
+    "form-section-header": {
+      "component": "FormSectionHeader",
+      "importPath": "@almadar/shell-web/components/core/molecules/FormSectionHeader",
+      "category": "form"
+    },
+    "input-group": {
+      "component": "InputGroup",
+      "importPath": "@almadar/shell-web/components/core/molecules/InputGroup",
+      "category": "form"
+    },
+    "relation-select": {
+      "component": "RelationSelect",
+      "importPath": "@almadar/shell-web/components/core/molecules/RelationSelect",
+      "category": "form"
+    },
+    "side-panel": {
+      "component": "SidePanel",
+      "importPath": "@almadar/shell-web/components/core/molecules/SidePanel",
+      "category": "component"
+    },
+    "violation-alert": {
+      "component": "ViolationAlert",
+      "importPath": "@almadar/shell-web/components/core/molecules/ViolationAlert",
+      "category": "state"
+    },
+    "stat-display": {
+      "component": "StatDisplay",
+      "importPath": "@almadar/shell-web/components/core/molecules/StatDisplay",
+      "category": "display"
+    },
+    "drawer-slot": {
+      "component": "DrawerSlot",
+      "importPath": "@almadar/shell-web/components/core/organisms/DrawerSlot",
+      "category": "layout"
+    },
+    "header": {
+      "component": "Header",
+      "importPath": "@almadar/shell-web/components/core/molecules/Header",
+      "category": "header"
+    },
+    "modal-slot": {
+      "component": "ModalSlot",
+      "importPath": "@almadar/shell-web/components/core/organisms/ModalSlot",
+      "category": "layout"
+    },
+    "navigation": {
+      "component": "Navigation",
+      "importPath": "@almadar/shell-web/components/core/molecules/Navigation",
+      "category": "navigation"
+    },
+    "orbital-visualization": {
+      "component": "OrbitalVisualization",
+      "importPath": "@almadar/shell-web/components/core/molecules/OrbitalVisualization",
+      "category": "display"
+    },
+    "section": {
+      "component": "Section",
+      "importPath": "@almadar/shell-web/components/core/molecules/Section",
+      "category": "display"
+    },
+    "sidebar": {
+      "component": "Sidebar",
+      "importPath": "@almadar/shell-web/components/core/molecules/Sidebar",
+      "category": "navigation"
+    },
+    "split": {
+      "component": "Split",
+      "importPath": "@almadar/shell-web/components/core/molecules/Split",
+      "category": "layout"
+    },
+    "toast-slot": {
+      "component": "ToastSlot",
+      "importPath": "@almadar/shell-web/components/core/organisms/ToastSlot",
+      "category": "layout"
+    },
+    "auth-layout": {
+      "component": "AuthLayout",
+      "importPath": "@almadar/shell-web/components/core/templates/AuthLayout",
+      "category": "template"
+    },
+    "counter-template": {
+      "component": "CounterTemplate",
+      "importPath": "@almadar/shell-web/components/core/templates/CounterTemplate",
+      "category": "template"
+    },
+    "dashboard-layout": {
+      "component": "DashboardLayout",
+      "importPath": "@almadar/shell-web/components/core/templates/DashboardLayout",
+      "category": "template"
+    },
+    "generic-app-template": {
+      "component": "GenericAppTemplate",
+      "importPath": "@almadar/shell-web/components/core/templates/GenericAppTemplate",
+      "category": "template"
+    },
+    "game-shell": {
+      "component": "GameShell",
+      "importPath": "@almadar/shell-web/components/game/templates/GameShell",
+      "category": "game"
+    },
+    "chart": {
+      "component": "Chart",
+      "importPath": "@almadar/shell-web/components/core/molecules/Chart",
+      "category": "visualization"
+    },
+    "meter": {
+      "component": "Meter",
+      "importPath": "@almadar/shell-web/components/core/molecules/Meter",
+      "category": "visualization"
+    },
+    "timeline": {
+      "component": "Timeline",
+      "importPath": "@almadar/shell-web/components/core/organisms/Timeline",
+      "category": "display"
+    },
+    "media-gallery": {
+      "component": "MediaGallery",
+      "importPath": "@almadar/shell-web/components/core/organisms/MediaGallery",
+      "category": "media"
+    },
+    "signature-pad": {
+      "component": "SignaturePad",
+      "importPath": "@almadar/shell-web/components/core/molecules/SignaturePad",
+      "category": "form"
+    },
+    "document-viewer": {
+      "component": "DocumentViewer",
+      "importPath": "@almadar/shell-web/components/core/molecules/DocumentViewer",
+      "category": "display"
+    },
+    "graph-canvas": {
+      "component": "GraphCanvas",
+      "importPath": "@almadar/shell-web/components/core/molecules/GraphCanvas",
+      "category": "visualization"
+    },
+    "error-boundary": {
+      "component": "ErrorBoundary",
+      "importPath": "@almadar/shell-web/components/core/molecules/ErrorBoundary",
+      "category": "state"
+    },
+    "skeleton": {
+      "component": "Skeleton",
+      "importPath": "@almadar/shell-web/components/core/molecules/Skeleton",
+      "category": "component"
+    },
+    "quiz-block": {
+      "component": "QuizBlock",
+      "importPath": "@almadar/shell-web/components/core/molecules/QuizBlock",
+      "category": "component"
+    },
+    "code-block": {
+      "component": "CodeBlock",
+      "importPath": "@almadar/shell-web/components/core/molecules/CodeBlock",
+      "category": "component"
+    },
+    "markdown-content": {
+      "component": "MarkdownContent",
+      "importPath": "@almadar/shell-web/components/core/molecules/MarkdownContent",
+      "category": "component"
+    },
+    "content-renderer": {
+      "component": "ContentRenderer",
+      "importPath": "@almadar/shell-web/components/core/molecules/ContentRenderer",
+      "category": "display"
+    },
+    "jazari-state-machine": {
+      "component": "JazariStateMachine",
+      "importPath": "@almadar/shell-web/components/core/molecules/JazariStateMachine",
+      "category": "display"
+    },
+    "state-machine-view": {
+      "component": "StateMachineView",
+      "importPath": "@almadar/shell-web/components/core/organisms/StateMachineView",
+      "category": "display"
+    },
+    "scaled-diagram": {
+      "component": "ScaledDiagram",
+      "importPath": "@almadar/shell-web/components/core/molecules/ScaledDiagram",
+      "category": "component"
+    },
+    "day-cell": {
+      "component": "DayCell",
+      "importPath": "@almadar/shell-web/core/atoms/DayCell",
+      "category": "component"
+    },
+    "flip-container": {
+      "component": "FlipContainer",
+      "importPath": "@almadar/shell-web/core/atoms/FlipContainer",
+      "category": "layout"
+    },
+    "time-slot-cell": {
+      "component": "TimeSlotCell",
+      "importPath": "@almadar/shell-web/core/atoms/TimeSlotCell",
+      "category": "layout"
+    },
+    "calendar-grid": {
+      "component": "CalendarGrid",
+      "importPath": "@almadar/shell-web/components/core/molecules/CalendarGrid",
+      "category": "display"
+    },
+    "chart-legend": {
+      "component": "ChartLegend",
+      "importPath": "@almadar/shell-web/components/core/molecules/ChartLegend",
+      "category": "display"
+    },
+    "date-range-selector": {
+      "component": "DateRangeSelector",
+      "importPath": "@almadar/shell-web/components/core/molecules/DateRangeSelector",
+      "category": "form"
+    },
+    "flip-card": {
+      "component": "FlipCard",
+      "importPath": "@almadar/shell-web/components/core/molecules/FlipCard",
+      "category": "display"
+    },
+    "graph-view": {
+      "component": "GraphView",
+      "importPath": "@almadar/shell-web/components/core/molecules/GraphView",
+      "category": "component"
+    },
+    "data-grid": {
+      "component": "DataGrid",
+      "importPath": "@almadar/shell-web/components/core/molecules/DataGrid",
+      "category": "display"
+    },
+    "data-list": {
+      "component": "DataList",
+      "importPath": "@almadar/shell-web/components/core/molecules/DataList",
+      "category": "display"
+    },
+    "line-chart": {
+      "component": "LineChart",
+      "importPath": "@almadar/shell-web/components/core/molecules/LineChart",
+      "category": "display"
+    },
+    "progress-dots": {
+      "component": "ProgressDots",
+      "importPath": "@almadar/shell-web/components/core/molecules/ProgressDots",
+      "category": "component"
+    },
+    "map-view": {
+      "component": "MapView",
+      "importPath": "@almadar/shell-web/components/core/molecules/MapView",
+      "category": "component"
+    },
+    "range-slider": {
+      "component": "RangeSlider",
+      "importPath": "@almadar/shell-web/core/atoms/RangeSlider",
+      "category": "component"
+    },
+    "status-dot": {
+      "component": "StatusDot",
+      "importPath": "@almadar/shell-web/core/atoms/StatusDot",
+      "category": "display"
+    },
+    "trend-indicator": {
+      "component": "TrendIndicator",
+      "importPath": "@almadar/shell-web/core/atoms/TrendIndicator",
+      "category": "component"
+    },
+    "lightbox": {
+      "component": "Lightbox",
+      "importPath": "@almadar/shell-web/components/core/molecules/Lightbox",
+      "category": "component"
+    },
+    "number-stepper": {
+      "component": "NumberStepper",
+      "importPath": "@almadar/shell-web/components/core/molecules/NumberStepper",
+      "category": "component"
+    },
+    "star-rating": {
+      "component": "StarRating",
+      "importPath": "@almadar/shell-web/components/core/molecules/StarRating",
+      "category": "component"
+    },
+    "upload-drop-zone": {
+      "component": "UploadDropZone",
+      "importPath": "@almadar/shell-web/components/core/molecules/UploadDropZone",
+      "category": "component"
+    },
+    "animated-counter": {
+      "component": "AnimatedCounter",
+      "importPath": "@almadar/shell-web/components/core/molecules/AnimatedCounter",
+      "category": "component"
+    },
+    "confetti-effect": {
+      "component": "ConfettiEffect",
+      "importPath": "@almadar/shell-web/core/atoms/ConfettiEffect",
+      "category": "component"
+    },
+    "infinite-scroll-sentinel": {
+      "component": "InfiniteScrollSentinel",
+      "importPath": "@almadar/shell-web/core/atoms/InfiniteScrollSentinel",
+      "category": "component"
+    },
+    "typewriter-text": {
+      "component": "TypewriterText",
+      "importPath": "@almadar/shell-web/core/atoms/TypewriterText",
+      "category": "component"
+    },
+    "carousel": {
+      "component": "Carousel",
+      "importPath": "@almadar/shell-web/components/core/molecules/Carousel",
+      "category": "component"
+    },
+    "pull-to-refresh": {
+      "component": "PullToRefresh",
+      "importPath": "@almadar/shell-web/components/core/molecules/PullToRefresh",
+      "category": "component"
+    },
+    "sortable-list": {
+      "component": "SortableList",
+      "importPath": "@almadar/shell-web/components/core/molecules/SortableList",
+      "category": "display"
+    },
+    "swipeable-row": {
+      "component": "SwipeableRow",
+      "importPath": "@almadar/shell-web/components/core/molecules/SwipeableRow",
+      "category": "component"
+    },
+    "section-header": {
+      "component": "SectionHeader",
+      "importPath": "@almadar/shell-web/core/atoms/SectionHeader",
+      "category": "header"
+    },
+    "feature-card": {
+      "component": "FeatureCard",
+      "importPath": "@almadar/shell-web/components/core/molecules/FeatureCard",
+      "category": "display"
+    },
+    "feature-grid": {
+      "component": "FeatureGrid",
+      "importPath": "@almadar/shell-web/components/core/molecules/FeatureGrid",
+      "category": "display"
+    },
+    "social-proof": {
+      "component": "SocialProof",
+      "importPath": "@almadar/shell-web/components/core/molecules/SocialProof",
+      "category": "component"
+    },
+    "animated-graphic": {
+      "component": "AnimatedGraphic",
+      "importPath": "@almadar/shell-web/core/atoms/AnimatedGraphic",
+      "category": "component"
+    },
+    "animated-reveal": {
+      "component": "AnimatedReveal",
+      "importPath": "@almadar/shell-web/core/atoms/AnimatedReveal",
+      "category": "component"
+    },
+    "pattern-tile": {
+      "component": "PatternTile",
+      "importPath": "@almadar/shell-web/core/atoms/PatternTile",
+      "category": "game"
+    },
+    "edge-decoration": {
+      "component": "EdgeDecoration",
+      "importPath": "@almadar/shell-web/components/core/molecules/EdgeDecoration",
+      "category": "component"
+    },
+    "ui-slot-renderer": {
+      "component": "UISlotRenderer",
+      "importPath": "@almadar/shell-web/components/core/organisms/UISlotRenderer",
+      "category": "layout"
+    },
+    "trait-frame": {
+      "component": "TraitFrame",
+      "importPath": "@almadar/shell-web/components/core/atoms/TraitFrame",
+      "category": "component"
+    },
+    "file-tree": {
+      "component": "FileTree",
+      "importPath": "@almadar/shell-web/components/core/molecules/FileTree",
+      "category": "component"
+    },
+    "filter-pill": {
+      "component": "FilterPill",
+      "importPath": "@almadar/shell-web/core/atoms/FilterPill",
+      "category": "filter"
+    },
+    "likert-scale": {
+      "component": "LikertScale",
+      "importPath": "@almadar/shell-web/components/core/molecules/LikertScale",
+      "category": "component"
+    },
+    "matrix-question": {
+      "component": "MatrixQuestion",
+      "importPath": "@almadar/shell-web/components/core/molecules/MatrixQuestion",
+      "category": "component"
+    },
+    "qr-scanner": {
+      "component": "QrScanner",
+      "importPath": "@almadar/shell-web/components/core/molecules/QrScanner",
+      "category": "component"
+    },
+    "vote-stack": {
+      "component": "VoteStack",
+      "importPath": "@almadar/shell-web/components/core/molecules/VoteStack",
+      "category": "component"
+    },
+    "branching-logic-builder": {
+      "component": "BranchingLogicBuilder",
+      "importPath": "@almadar/shell-web/components/core/molecules/BranchingLogicBuilder",
+      "category": "display"
+    },
+    "reply-tree": {
+      "component": "ReplyTree",
+      "importPath": "@almadar/shell-web/components/core/molecules/ReplyTree",
+      "category": "display"
+    },
+    "version-diff": {
+      "component": "VersionDiff",
+      "importPath": "@almadar/shell-web/components/core/molecules/VersionDiff",
+      "category": "display"
+    },
+    "option-constraint-group": {
+      "component": "OptionConstraintGroup",
+      "importPath": "@almadar/shell-web/components/core/molecules/OptionConstraintGroup",
+      "category": "component"
+    },
+    "positioned-canvas": {
+      "component": "PositionedCanvas",
+      "importPath": "@almadar/shell-web/components/core/molecules/PositionedCanvas",
+      "category": "game"
+    },
+    "choice-button": {
+      "component": "ChoiceButton",
+      "importPath": "@almadar/shell-web/components/game/atoms/ChoiceButton",
+      "category": "game"
+    },
+    "control-button": {
+      "component": "ControlButton",
+      "importPath": "@almadar/shell-web/components/game/atoms/ControlButton",
+      "category": "game"
+    },
+    "dialogue-bubble": {
+      "component": "DialogueBubble",
+      "importPath": "@almadar/shell-web/components/game/atoms/DialogueBubble",
+      "category": "game"
+    },
+    "health-bar": {
+      "component": "HealthBar",
+      "importPath": "@almadar/shell-web/components/game/atoms/HealthBar",
+      "category": "game"
+    },
+    "score-display": {
+      "component": "ScoreDisplay",
+      "importPath": "@almadar/shell-web/components/game/atoms/ScoreDisplay",
+      "category": "game"
+    },
+    "timer-display": {
+      "component": "TimerDisplay",
+      "importPath": "@almadar/shell-web/components/game/atoms/TimerDisplay",
+      "category": "game"
+    },
+    "svg-branch": {
+      "component": "SvgBranch",
+      "importPath": "@almadar/shell-web/core/atoms/SvgBranch",
+      "category": "component"
+    },
+    "svg-connection": {
+      "component": "SvgConnection",
+      "importPath": "@almadar/shell-web/core/atoms/SvgConnection",
+      "category": "component"
+    },
+    "svg-flow": {
+      "component": "SvgFlow",
+      "importPath": "@almadar/shell-web/core/atoms/SvgFlow",
+      "category": "component"
+    },
+    "svg-grid": {
+      "component": "SvgGrid",
+      "importPath": "@almadar/shell-web/core/atoms/SvgGrid",
+      "category": "display"
+    },
+    "svg-lobe": {
+      "component": "SvgLobe",
+      "importPath": "@almadar/shell-web/core/atoms/SvgLobe",
+      "category": "component"
+    },
+    "svg-mesh": {
+      "component": "SvgMesh",
+      "importPath": "@almadar/shell-web/core/atoms/SvgMesh",
+      "category": "component"
+    },
+    "svg-morph": {
+      "component": "SvgMorph",
+      "importPath": "@almadar/shell-web/core/atoms/SvgMorph",
+      "category": "component"
+    },
+    "svg-node": {
+      "component": "SvgNode",
+      "importPath": "@almadar/shell-web/core/atoms/SvgNode",
+      "category": "component"
+    },
+    "svg-pulse": {
+      "component": "SvgPulse",
+      "importPath": "@almadar/shell-web/core/atoms/SvgPulse",
+      "category": "component"
+    },
+    "svg-ring": {
+      "component": "SvgRing",
+      "importPath": "@almadar/shell-web/core/atoms/SvgRing",
+      "category": "component"
+    },
+    "svg-shield": {
+      "component": "SvgShield",
+      "importPath": "@almadar/shell-web/core/atoms/SvgShield",
+      "category": "component"
+    },
+    "svg-stack": {
+      "component": "SvgStack",
+      "importPath": "@almadar/shell-web/core/atoms/SvgStack",
+      "category": "component"
+    },
+    "doc-breadcrumb": {
+      "component": "DocBreadcrumb",
+      "importPath": "@almadar/shell-web/components/core/molecules/DocBreadcrumb",
+      "category": "navigation"
+    },
+    "doc-pagination": {
+      "component": "DocPagination",
+      "importPath": "@almadar/shell-web/components/core/molecules/DocPagination",
+      "category": "navigation"
+    },
+    "doc-search": {
+      "component": "DocSearch",
+      "importPath": "@almadar/shell-web/components/core/molecules/DocSearch",
+      "category": "filter"
+    },
+    "doc-sidebar": {
+      "component": "DocSidebar",
+      "importPath": "@almadar/shell-web/components/core/molecules/DocSidebar",
+      "category": "navigation"
+    },
+    "doc-toc": {
+      "component": "DocTOC",
+      "importPath": "@almadar/shell-web/components/core/molecules/DocTOC",
+      "category": "component"
+    },
+    "gradient-divider": {
+      "component": "GradientDivider",
+      "importPath": "@almadar/shell-web/components/core/molecules/GradientDivider",
+      "category": "component"
+    },
+    "behavior-view": {
+      "component": "BehaviorView",
+      "importPath": "@almadar/shell-web/components/avl/molecules/BehaviorView",
+      "category": "component"
+    },
+    "module-card": {
+      "component": "ModuleCard",
+      "importPath": "@almadar/shell-web/components/avl/molecules/ModuleCard",
+      "category": "display"
+    },
+    "game-hud": {
+      "component": "GameHud",
+      "importPath": "@almadar/shell-web/components/game/molecules/GameHud",
+      "category": "game"
+    },
+    "game-menu": {
+      "component": "GameMenu",
+      "importPath": "@almadar/shell-web/components/game/molecules/GameMenu",
+      "category": "game"
+    },
+    "stat-badge": {
+      "component": "StatBadge",
+      "importPath": "@almadar/shell-web/components/game/molecules/StatBadge",
+      "category": "game"
+    },
+    "game-audio-toggle": {
+      "component": "GameAudioToggle",
+      "importPath": "@almadar/shell-web/components/game/atoms/GameAudioToggle",
+      "category": "game"
+    },
+    "trait-slot": {
+      "component": "TraitSlot",
+      "importPath": "@almadar/shell-web/components/game/molecules/TraitSlot",
+      "category": "game"
+    },
+    "action-palette": {
+      "component": "ActionPalette",
+      "importPath": "@almadar/shell-web/components/game/molecules/ActionPalette",
+      "category": "game"
+    },
+    "action-tile": {
+      "component": "ActionTile",
+      "importPath": "@almadar/shell-web/components/game/molecules/ActionTile",
+      "category": "game"
+    },
+    "sequence-bar": {
+      "component": "SequenceBar",
+      "importPath": "@almadar/shell-web/components/game/molecules/SequenceBar",
+      "category": "game"
+    },
+    "dashboard-grid": {
+      "component": "DashboardGrid",
+      "importPath": "@almadar/shell-web/components/core/organisms/DashboardGrid",
+      "category": "game"
+    },
+    "split-pane": {
+      "component": "SplitPane",
+      "importPath": "@almadar/shell-web/components/core/organisms/SplitPane",
+      "category": "layout"
+    },
+    "tabbed-container": {
+      "component": "TabbedContainer",
+      "importPath": "@almadar/shell-web/components/core/organisms/TabbedContainer",
+      "category": "navigation"
+    },
+    "master-detail-layout": {
+      "component": "MasterDetailLayout",
+      "importPath": "@almadar/shell-web/components/core/organisms/MasterDetailLayout",
+      "category": "display"
+    },
+    "sparkline": {
+      "component": "Sparkline",
+      "importPath": "@almadar/shell-web/core/atoms/Sparkline",
+      "category": "component"
+    },
+    "date-range-picker": {
+      "component": "DateRangePicker",
+      "importPath": "@almadar/shell-web/components/core/molecules/DateRangePicker",
+      "category": "component"
+    },
+    "aside": {
+      "component": "Aside",
+      "importPath": "@almadar/shell-web/core/atoms/Aside",
+      "category": "component"
+    },
+    "dialog": {
+      "component": "Dialog",
+      "importPath": "@almadar/shell-web/core/atoms/Dialog",
+      "category": "container"
+    },
+    "tag-input": {
+      "component": "TagInput",
+      "importPath": "@almadar/shell-web/components/core/molecules/TagInput",
+      "category": "form"
+    },
+    "table-view": {
+      "component": "TableView",
+      "importPath": "@almadar/shell-web/components/core/molecules/TableView",
+      "category": "display"
+    },
+    "stat-card": {
+      "component": "StatCard",
+      "importPath": "@almadar/shell-web/components/core/organisms/StatCard",
+      "category": "display"
+    },
+    "activation-block": {
+      "component": "ActivationBlock",
+      "importPath": "@almadar/shell-web/components/core/molecules/ActivationBlock",
+      "category": "component"
+    },
+    "bloom-quiz-block": {
+      "component": "BloomQuizBlock",
+      "importPath": "@almadar/shell-web/components/core/molecules/BloomQuizBlock",
+      "category": "component"
+    },
+    "connection-block": {
+      "component": "ConnectionBlock",
+      "importPath": "@almadar/shell-web/components/core/molecules/ConnectionBlock",
+      "category": "component"
+    },
+    "reflection-block": {
+      "component": "ReflectionBlock",
+      "importPath": "@almadar/shell-web/components/core/molecules/ReflectionBlock",
+      "category": "component"
+    },
+    "code-runner-panel": {
+      "component": "CodeRunnerPanel",
+      "importPath": "@almadar/shell-web/components/core/organisms/CodeRunnerPanel",
+      "category": "display"
+    },
+    "segment-renderer": {
+      "component": "SegmentRenderer",
+      "importPath": "@almadar/shell-web/components/core/organisms/SegmentRenderer",
+      "category": "display"
+    },
+    "chat-bar": {
+      "component": "ChatBar",
+      "importPath": "@almadar/shell-web/components/core/organisms/ChatBar",
+      "category": "display"
+    },
+    "subagent-trace-panel": {
+      "component": "SubagentTracePanel",
+      "importPath": "@almadar/shell-web/components/core/organisms/SubagentTracePanel",
+      "category": "display"
+    },
+    "canvas-2d": {
+      "component": "Canvas2D",
+      "importPath": "@almadar/shell-web/components/game/molecules/Canvas2D",
+      "category": "game"
+    },
+    "control-grid": {
+      "component": "ControlGrid",
+      "importPath": "@almadar/shell-web/components/game/molecules/ControlGrid",
+      "category": "game"
+    },
+    "game-icon": {
+      "component": "GameIcon",
+      "importPath": "@almadar/shell-web/core/atoms/GameIcon",
+      "category": "game"
+    },
+    "form-layout": {
+      "component": "FormLayout",
+      "importPath": "@almadar/shell-web/components/core/molecules/FormSection",
+      "category": "form"
+    },
+    "learning-canvas": {
+      "component": "LearningCanvas",
+      "importPath": "@almadar/shell-web/components/learning/atoms/LearningCanvas",
+      "category": "learning"
+    },
+    "biology-canvas": {
+      "component": "BiologyCanvas",
+      "importPath": "@almadar/shell-web/components/learning/molecules/BiologyCanvas",
+      "category": "learning"
+    },
+    "chemistry-canvas": {
+      "component": "ChemistryCanvas",
+      "importPath": "@almadar/shell-web/components/learning/molecules/ChemistryCanvas",
+      "category": "learning"
+    },
+    "math-canvas": {
+      "component": "MathCanvas",
+      "importPath": "@almadar/shell-web/components/learning/molecules/MathCanvas",
+      "category": "learning"
+    },
+    "physics-canvas": {
+      "component": "PhysicsCanvas",
+      "importPath": "@almadar/shell-web/components/learning/molecules/PhysicsCanvas",
+      "category": "learning"
+    },
+    "state-graph": {
+      "component": "StateGraph",
+      "importPath": "@almadar/shell-web/components/game/molecules/StateGraph",
+      "category": "game"
+    },
+    "state-json-view": {
+      "component": "StateJsonView",
+      "importPath": "@almadar/shell-web/components/game/molecules/StateJsonView",
+      "category": "game"
+    },
+    "algorithm-canvas": {
+      "component": "AlgorithmCanvas",
+      "importPath": "@almadar/shell-web/components/learning/molecules/AlgorithmCanvas",
+      "category": "learning"
+    },
+    "atlas-image": {
+      "component": "AtlasImage",
+      "importPath": "@almadar/shell-web/core/atoms/AtlasImage",
+      "category": "component"
+    },
+    "atlas-panel": {
+      "component": "AtlasPanel",
+      "importPath": "@almadar/shell-web/core/atoms/AtlasImage",
+      "category": "component"
+    },
+    "draw-shape": {
+      "component": "DrawShape",
+      "importPath": "@almadar/shell-web/components/game/atoms/DrawShape",
+      "category": "game"
+    },
+    "draw-sprite": {
+      "component": "DrawSprite",
+      "importPath": "@almadar/shell-web/components/game/atoms/DrawSprite",
+      "category": "game"
+    },
+    "draw-skinned-mesh": {
+      "component": "DrawSkinnedMesh",
+      "importPath": "@almadar/shell-web/components/game/atoms/DrawSkinnedMesh",
+      "category": "game"
+    },
+    "draw-text": {
+      "component": "DrawText",
+      "importPath": "@almadar/shell-web/components/game/atoms/DrawText",
+      "category": "game"
+    },
+    "draw-shape-layer": {
+      "component": "DrawShapeLayer",
+      "importPath": "@almadar/shell-web/components/game/molecules/DrawShapeLayer",
+      "category": "game"
+    },
+    "draw-sprite-layer": {
+      "component": "DrawSpriteLayer",
+      "importPath": "@almadar/shell-web/components/game/molecules/DrawSpriteLayer",
+      "category": "game"
+    },
+    "draw-text-layer": {
+      "component": "DrawTextLayer",
+      "importPath": "@almadar/shell-web/components/game/molecules/DrawTextLayer",
+      "category": "game"
+    },
+    "canvas": {
+      "component": "Canvas",
+      "importPath": "@almadar/shell-web/components/game/molecules/Canvas",
+      "category": "game"
+    },
+    "presence": {
+      "component": "Presence",
+      "importPath": "@almadar/shell-web/core/atoms/Presence",
+      "category": "component"
+    },
+    "page-transition": {
+      "component": "PageTransition",
+      "importPath": "@almadar/shell-web/components/core/molecules/PageTransition",
+      "category": "component"
+    },
+    "import-preview-tree": {
+      "component": "ImportPreviewTree",
+      "importPath": "@almadar/shell-web/components/core/molecules/ImportPreviewTree",
+      "category": "component"
+    },
+    "import-progress": {
+      "component": "ImportProgress",
+      "importPath": "@almadar/shell-web/components/core/molecules/ImportProgress",
+      "category": "component"
+    },
+    "import-source-picker": {
+      "component": "ImportSourcePicker",
+      "importPath": "@almadar/shell-web/components/core/molecules/ImportSourcePicker",
+      "category": "component"
+    },
+    "draw-group": {
+      "component": "DrawGroup",
+      "importPath": "@almadar/shell-web/components/game/atoms/DrawGroup",
+      "category": "game"
+    },
+    "emoji-picker": {
+      "component": "EmojiPicker",
+      "importPath": "@almadar/shell-web/components/core/molecules/EmojiPicker",
+      "category": "component"
+    },
+    "draw-mesh": {
+      "component": "DrawMesh",
+      "importPath": "@almadar/shell-web/components/game/atoms/DrawMesh",
+      "category": "game"
+    },
+    "algo-graph-canvas": {
+      "component": "AlgoGraphCanvas",
+      "importPath": "@almadar/shell-web/components/learning/molecules/AlgoGraphCanvas",
+      "category": "learning"
+    },
+    "fx-overlay": {
+      "component": "FxOverlay",
+      "importPath": "@almadar/shell-web/components/core/molecules/FxOverlay",
+      "category": "container"
+    },
+    "draw-fx-layer": {
+      "component": "DrawFxLayer",
+      "importPath": "@almadar/shell-web/components/game/molecules/DrawFxLayer",
+      "category": "game"
+    },
+    "rich-text-editor": {
+      "component": "RichTextEditor",
+      "importPath": "@almadar/shell-web/components/core/molecules/RichTextEditor",
+      "category": "component"
+    },
+    "document-panel": {
+      "component": "DocumentPanel",
+      "importPath": "@almadar/shell-web/components/core/molecules/DocumentPanel",
+      "category": "component"
+    },
+    "document-details": {
+      "component": "DocumentDetails",
+      "importPath": "@almadar/shell-web/components/core/molecules/DocumentDetails",
+      "category": "display"
+    },
+    "floating-toolbar": {
+      "component": "FloatingToolbar",
+      "importPath": "@almadar/shell-web/components/core/molecules/FloatingToolbar",
+      "category": "component"
+    },
+    "dock-layout": {
+      "component": "DockLayout",
+      "importPath": "@almadar/shell-web/components/core/organisms/DockLayout",
+      "category": "layout"
+    },
+    "command-palette": {
+      "component": "CommandPalette",
+      "importPath": "@almadar/shell-web/components/core/molecules/CommandPalette",
+      "category": "component"
+    },
+    "game-audio-cue": {
+      "component": "GameAudioCue",
+      "importPath": "@almadar/shell-web/components/game/atoms/GameAudioCue",
+      "category": "game"
+    },
+    "ui-slot-component": {
+      "component": "UISlotComponent",
+      "importPath": "@almadar/shell-web/components/core/organisms/UISlotRenderer",
+      "category": "layout"
+    },
+    "gantt": {
+      "component": "Gantt",
+      "importPath": "@almadar/shell-web/components/core/molecules/Gantt",
+      "category": "component"
+    },
+    "image": {
+      "component": "Image",
+      "importPath": "@almadar/shell-web/core/atoms/Image",
+      "category": "component"
+    },
+    "geometric-pattern": {
+      "component": "GeometricPattern",
+      "importPath": "@almadar/shell-web/components/core/molecules/GeometricPattern",
+      "category": "component"
+    },
+    "icon-button": {
+      "component": "IconButton",
+      "importPath": "@almadar/shell-web/components/core/molecules/IconButton",
+      "category": "component"
+    },
+    "top-nav-item": {
+      "component": "TopNavItem",
+      "importPath": "@almadar/shell-web/components/core/molecules/TopNavItem",
+      "category": "navigation"
+    },
+    "change-list": {
+      "component": "ChangeList",
+      "importPath": "@almadar/shell-web/components/core/molecules/ChangeList",
+      "category": "display"
+    },
+    "commit-row": {
+      "component": "CommitRow",
+      "importPath": "@almadar/shell-web/components/core/molecules/CommitRow",
+      "category": "component"
+    },
+    "avl-state-machine": {
+      "component": "AvlStateMachine",
+      "importPath": "@almadar/shell-web/components/avl/molecules/AvlStateMachine",
+      "category": "display"
+    },
+    "avl-glyph": {
+      "component": "AvlGlyph",
+      "importPath": "@almadar/shell-web/components/avl/molecules/AvlGlyph",
+      "category": "component"
+    },
+    "agent-activity-feed": {
+      "component": "AgentActivityFeed",
+      "importPath": "@almadar/shell-web/components/core/molecules/AgentActivityFeed",
+      "category": "component"
+    },
+    "agent-activity-row": {
+      "component": "AgentActivityRow",
+      "importPath": "@almadar/shell-web/components/core/molecules/AgentActivityFeed",
+      "category": "component"
+    },
+    "agent-chat-feed": {
+      "component": "AgentChatFeed",
+      "importPath": "@almadar/shell-web/components/core/molecules/AgentChatFeed",
+      "category": "component"
+    },
+    "avl-transition-explainer": {
+      "component": "AvlTransitionExplainer",
+      "importPath": "@almadar/shell-web/components/avl/molecules/AvlTransitionExplainer",
+      "category": "component"
+    },
+    "flow-canvas": {
+      "component": "FlowCanvas",
+      "importPath": "@almadar/shell-web/components/avl/organisms/FlowCanvas",
+      "category": "display"
+    },
+    "layers-panel": {
+      "component": "LayersPanel",
+      "importPath": "@almadar/shell-web/components/avl/organisms/LayersPanel",
+      "category": "display"
+    },
+    "orb-inspector": {
+      "component": "OrbInspector",
+      "importPath": "@almadar/shell-web/components/avl/organisms/OrbInspector",
+      "category": "debug"
+    },
+    "avl-transition-detail": {
+      "component": "AvlTransitionDetail",
+      "importPath": "@almadar/shell-web/components/avl/molecules/AvlTransitionDetail",
+      "category": "display"
+    },
+    "activity-rail": {
+      "component": "ActivityRail",
+      "importPath": "@almadar/shell-web/components/core/molecules/ActivityRail",
+      "category": "component"
+    },
+    "video-embed": {
+      "component": "VideoEmbed",
+      "importPath": "@almadar/shell-web/core/atoms/VideoEmbed",
+      "category": "component"
+    }
+  }
+}

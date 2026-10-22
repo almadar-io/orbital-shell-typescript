@@ -136,7 +136,7 @@ export async function runWriteHeavyRow(options: WriteHeavyOptions): Promise<Writ
 async function runRow(options: WriteHeavyOptions): Promise<Omit<WriteHeavyResult, 'fallbackNotices'>> {
   if (options.ops < 1 || options.tableRows < 1) throw new Error('ops and tableRows must be positive');
   globalThis.__ALMADAR_DEBUG__ = '';
-  const { OrbitalServerRuntime } = await import('@almadar/runtime/OrbitalServerRuntime');
+  const { OrbitalServerRuntime } = await import('@almadar/shell-node/OrbitalServerRuntime');
   const memory = new InMemoryPersistence();
   for (let n = 1; n <= options.tableRows; n++) await memory.create('Item', { id: itemId(n), n: 0 });
   const counting = new CountingPersistence(options.pushdown === false ? new PlainPersistence(memory) : memory);

@@ -5,6 +5,11 @@
  */
 export type KeyedCallOutcome<T> = { cancelled: true } | { cancelled: false; value: T };
 
+export interface KeyedCallLease {
+  signal: AbortSignal;
+  release(): void;
+}
+
 export class InFlightCalls {
   private readonly calls = new Map<string, Set<AbortController>>();
 
@@ -19,20 +24,38 @@ export class InFlightCalls {
    * `work` settles, whatever it settled with.
    */
   async run<T>(key: string, work: (signal: AbortSignal) => Promise<T>): Promise<KeyedCallOutcome<T>> {
+    const lease = this.track(key);
+    try {
+      const value = await work(lease.signal);
+      return lease.signal.aborted ? { cancelled: true } : { cancelled: false, value };
+    } catch (err) {
+      if (lease.signal.aborted) return { cancelled: true };
+      throw err;
+    } finally {
+      lease.release();
+    }
+  }
+
+  reserve(key: string): KeyedCallLease | undefined {
+    return this.inFlight(key) ? undefined : this.track(key);
+  }
+
+  private track(key: string): KeyedCallLease {
     const controller = new AbortController();
     const running = this.calls.get(key) ?? new Set<AbortController>();
     running.add(controller);
     this.calls.set(key, running);
-    try {
-      const value = await work(controller.signal);
-      return controller.signal.aborted ? { cancelled: true } : { cancelled: false, value };
-    } catch (err) {
-      if (controller.signal.aborted) return { cancelled: true };
-      throw err;
-    } finally {
-      running.delete(controller);
-      if (running.size === 0 && this.calls.get(key) === running) this.calls.delete(key);
-    }
+    return {
+      signal: controller.signal,
+      release: () => {
+        running.delete(controller);
+        if (running.size === 0 && this.calls.get(key) === running) this.calls.delete(key);
+      },
+    };
+  }
+
+  cancelAll(): void {
+    for (const key of this.calls.keys()) this.cancel(key);
   }
 
   /** Abort every call running under `key`; false (a no-op) when none is. */

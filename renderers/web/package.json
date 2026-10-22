@@ -94,7 +94,11 @@
       "types": "./bundling.d.mts",
       "import": "./bundling.mjs"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./ServerBridge": {
+      "types": "./dist/ServerBridge.d.ts",
+      "import": "./dist/ServerBridge.js"
+    }
   },
   "files": [
     "dist",

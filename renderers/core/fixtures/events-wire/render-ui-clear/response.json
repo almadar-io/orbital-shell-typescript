@@ -1,0 +1,27 @@
+{
+  "clientEffects": [
+    [
+      "render-ui",
+      "modal",
+      null
+    ]
+  ],
+  "clientEffectsByTrait": [
+    {
+      "effect": [
+        "render-ui",
+        "modal",
+        null
+      ],
+      "traitName": "NoteCatalog"
+    }
+  ],
+  "emittedEvents": [],
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NotePersistor": "idle"
+  },
+  "success": true,
+  "transitioned": true
+}

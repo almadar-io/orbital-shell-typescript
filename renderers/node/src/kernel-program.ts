@@ -10,7 +10,7 @@ import { InMemoryPersistence } from '@almadar/db/mock';
 import { dispatchInbound, KernelEngine, createHttpPorts, InFlightCalls, kernelOsGrants, type KernelHostPorts, type HttpPorts, type HttpPortsOptions, type KernelModule, type OsHostPort } from '@almadar/shell-web';
 import { resolveOrbBinary } from '@almadar/core/behavior-package';
 import { tickEventKey } from '@almadar/core';
-import { installNodeHostPorts } from './index.js';
+import { installNodeHostPorts } from './host-ports.js';
 import { createNodeOsHost } from './os-node.js';
 import { loadHttpKernel, loadKernelModule, loadNativeKernelModule, resolveNativeAddon, type LoadedKernel } from './kernel-loader.js';
 

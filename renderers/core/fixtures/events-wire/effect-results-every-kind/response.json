@@ -1,0 +1,75 @@
+{
+  "effectResults": [
+    {
+      "effect": "set",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "persist",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "call-service",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "http",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "fetch",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "fetch-stream",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "ref",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "deref",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "swap",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "atomic",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "effect": "emit",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "data": {
+        "id": "mem-1"
+      },
+      "effect": "substrate",
+      "name": "memory/store",
+      "success": true
+    }
+  ],
+  "emittedEvents": [],
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NotePersistor": "saved"
+  },
+  "success": true,
+  "transitioned": true
+}

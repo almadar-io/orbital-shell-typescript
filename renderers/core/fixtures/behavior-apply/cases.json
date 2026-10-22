@@ -1,0 +1,181 @@
+[
+  {
+    "name": "trait value: config/events/fields merge key-wise, the rest replaces",
+    "value": {
+      "behavior": "almadar-std/std-kanban",
+      "trait": "KanbanBoard",
+      "config": {
+        "a": 1,
+        "b": 2
+      },
+      "emitsScope": "internal"
+    },
+    "overrides": {
+      "config": {
+        "b": 3
+      },
+      "events": {
+        "MOVE": "SHIFT"
+      },
+      "emitsScope": "external"
+    },
+    "expected": {
+      "behavior": "almadar-std/std-kanban",
+      "trait": "KanbanBoard",
+      "config": {
+        "a": 1,
+        "b": 3
+      },
+      "events": {
+        "MOVE": "SHIFT"
+      },
+      "emitsScope": "external"
+    }
+  },
+  {
+    "name": "orbital value: maps merge, traits per trait, extend/retype by name, the rest replaces",
+    "value": {
+      "behavior": "almadar-std/std-kanban",
+      "orbital": "KanbanOrbital",
+      "entity": "Task",
+      "config": {
+        "pageSize": 10,
+        "title": "Board"
+      },
+      "extend": [
+        {
+          "name": "priority",
+          "type": "string"
+        }
+      ],
+      "traits": {
+        "KanbanBoard": {
+          "config": {
+            "compact": false
+          },
+          "events": {
+            "MOVE": "SHIFT"
+          }
+        }
+      }
+    },
+    "overrides": {
+      "entity": "Ticket",
+      "name": "Tickets",
+      "config": {
+        "pageSize": 20
+      },
+      "extend": [
+        {
+          "name": "priority",
+          "type": "number"
+        },
+        {
+          "name": "due",
+          "type": "date"
+        }
+      ],
+      "traits": {
+        "KanbanBoard": {
+          "config": {
+            "compact": true
+          }
+        }
+      }
+    },
+    "expected": {
+      "behavior": "almadar-std/std-kanban",
+      "orbital": "KanbanOrbital",
+      "entity": "Ticket",
+      "name": "Tickets",
+      "config": {
+        "pageSize": 20,
+        "title": "Board"
+      },
+      "extend": [
+        {
+          "name": "priority",
+          "type": "number"
+        },
+        {
+          "name": "due",
+          "type": "date"
+        }
+      ],
+      "traits": {
+        "KanbanBoard": {
+          "config": {
+            "compact": true
+          },
+          "events": {
+            "MOVE": "SHIFT"
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "orbital value: app knobs merge key-wise like config",
+    "value": {
+      "behavior": "almadar-behaviors/std-store-solution",
+      "orbital": "ProductOrbital",
+      "app": {
+        "appName": "Atelier",
+        "navItems": [
+          {
+            "href": "/",
+            "label": "Home"
+          }
+        ]
+      }
+    },
+    "overrides": {
+      "app": {
+        "appName": "Candles"
+      }
+    },
+    "expected": {
+      "behavior": "almadar-behaviors/std-store-solution",
+      "orbital": "ProductOrbital",
+      "app": {
+        "appName": "Candles",
+        "navItems": [
+          {
+            "href": "/",
+            "label": "Home"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "control: an import key on a trait value is refused",
+    "value": {
+      "behavior": "almadar-std/std-kanban",
+      "trait": "KanbanBoard"
+    },
+    "overrides": {
+      "entity": "Task"
+    },
+    "error": true
+  },
+  {
+    "name": "control: an unknown key on an orbital value is refused",
+    "value": {
+      "behavior": "almadar-std/std-kanban",
+      "orbital": "KanbanOrbital"
+    },
+    "overrides": {
+      "notAnImportKey": true
+    },
+    "error": true
+  },
+  {
+    "name": "control: a plain object is not a behavior value",
+    "value": {
+      "behavior": "plain"
+    },
+    "overrides": {},
+    "error": true
+  }
+]

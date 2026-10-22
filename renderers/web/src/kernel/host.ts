@@ -13,6 +13,7 @@ import {
   WriteDeclinedError,
   type EntityRow,
   type EventPayload,
+  type EventStreamItem,
   type HttpStreamEvent,
   type JsonValue,
   type OnDeviceModelPorts,
@@ -29,7 +30,7 @@ import { readPageFacts } from '../effects/page-facts.js';
 import { embedOnDevice, OnDeviceModelFailure, promptOnDevice } from '../effects/on-device-model.js';
 import { base64Standard, checkOAuthReply, sendBeaconRequest, sendHttp, streamHttp, systemRandom, type CredentialAdminPort, type Exchange, type HttpPorts } from './http.js';
 import type { CallSiteWire, IoAnswerWire, IoRequestWire, Settled, SubstrateFailureWire } from './wire.js';
-import type { OsCompletionPort, OsHostPort } from './os-port.js';
+import type { OsCompletionEvent, OsCompletionPort, OsHostPort } from './os-port.js';
 import { TabHostFailure, type BrowserTabPort } from '@almadar/core';
 
 function issuePayload(issue: ProgramValidationIssue): EventPayload {
@@ -60,6 +61,10 @@ export interface DeferredCallOutcome {
   locale: string | undefined;
 }
 
+export interface SubstrateStreamSource {
+  subscribe(message: (value: JsonValue) => void, ended: () => void): () => void;
+}
+
 export interface KernelHostPorts {
   persistence: PersistenceAdapter;
   callService: KernelCallService;
@@ -67,7 +72,7 @@ export interface KernelHostPorts {
   programEffect: () => ((op: ProgramEffectName, args: readonly JsonValue[], context?: Pick<ServiceCallContext, 'principal' | 'role'>) => Promise<ProgramEffectOutcome>) | undefined;
   inFlightCalls: InFlightCalls;
   /** The running app lent to one `call-service` provider as the caller. */
-  servicePorts: (caller: { orbital: string; trait: string }, user: UserContext | undefined, message: (payload: EventPayload) => void) => ServiceHostPorts;
+  servicePorts: (caller: { orbital: string; trait: string }, user: UserContext | undefined, message: (payload: EventPayload) => void, assertReentry?: () => void) => ServiceHostPorts;
   /** Deliver one live message of a running call (`emit.onMessage`) to the requesting tab only, never in-band. */
   deliverLive: (site: { orbital: string; trait: string; event: string }, payload: EventPayload, originClientId: string | undefined) => void;
   /** Read per call: the sink a follow-on call's outcome runs through, absent when the host cannot deliver it to the tab. */
@@ -82,6 +87,9 @@ export interface KernelHostPorts {
   os?: OsHostPort;
   /** What the kernel decides about a deferred `os` call (which ops defer, the event an outcome fires); absent, every `os` ask is answered in place. */
   osCompletions?: OsCompletionPort;
+  substrateStream?: (op: string, args: readonly JsonValue[], scope: KernelAnswerScope) => SubstrateStreamSource | undefined;
+  substrateMessage?: (site: CallSiteWire, key: string, value: JsonValue) => OsCompletionEvent | null;
+  substrateCompletion?: (site: CallSiteWire, key: string, op: string, outcome: Settled<JsonValue, SubstrateFailureWire>) => OsCompletionEvent | null;
   /** The host clock in epoch milliseconds, answering the kernel's `clock` ask; absent, the system clock. */
   now?: () => number;
 }
@@ -98,6 +106,8 @@ export interface KernelAnswerScope {
   entityId?: string;
   /** Runs `work` with the host's event queue released (a service call must not hold the next event). */
   outsideEventQueue?: <T>(work: () => Promise<T>) => Promise<T>;
+  onStream?: (item: EventStreamItem) => void;
+  assertReentry?: () => void;
 }
 
 function toJson(value: object | string | number | boolean | null): JsonValue {
@@ -118,7 +128,7 @@ function serviceParams(args: JsonValue): ServiceParams | undefined {
   return args;
 }
 
-function failureMessage(error: unknown): string {
+function failureMessage<T>(error: T): string {
   return error instanceof Error ? error.message : String(error);
 }
 
@@ -135,8 +145,8 @@ async function callService(
     if (site === undefined || onMessage === undefined) return;
     ports.deliverLive({ orbital, trait: site.trait, event: onMessage }, payload, scope.originClientId);
   };
-  const host = site !== undefined ? ports.servicePorts({ orbital, trait: site.trait }, scope.user, message) : undefined;
   const call = async (signal?: AbortSignal, outsideRequest?: true): Promise<JsonValue> => {
+    const host = site !== undefined ? ports.servicePorts({ orbital, trait: site.trait }, scope.user, message, outsideRequest === true ? undefined : scope.assertReentry) : undefined;
     const context: ServiceCallContext | undefined =
       caller !== undefined || signal !== undefined || host !== undefined || outsideRequest !== undefined
         ? { ...identity, ...(host !== undefined ? { host } : {}), ...(signal !== undefined ? { signal } : {}), ...(outsideRequest !== undefined ? { outsideRequest } : {}) }
@@ -192,7 +202,7 @@ function startDeferredCall(
         deliver(site.emit.success, settled.value === null ? undefined : toEventPayload(settled.value));
       }
     },
-    (error: unknown) => {
+    (error) => {
       if (site.emit.failure !== undefined) deliver(site.emit.failure, { error: failureMessage(error) });
     },
   );
@@ -207,17 +217,57 @@ async function substrate(
   request: Extract<IoRequestWire, { kind: 'substrate' }>,
   scope: KernelAnswerScope,
 ): Promise<IoAnswerWire> {
+  const { key, site } = request;
+  const sink = ports.deferCallOutcome();
+  const complete = ports.substrateCompletion;
+  if (key === undefined || site === undefined || sink === undefined || complete === undefined) return substrateInPlace(ports, request, scope);
+  const source = site.emit.onMessage !== undefined ? ports.substrateStream?.(request.op, request.args, scope) : undefined;
+  if (ports.inFlightCalls.inFlight(key)) return { kind: 'substrate', result: { error: { message: source !== undefined ? `key ${key} already has a stream open` : `key ${key} already has a completion pending`, errors: [] } } };
+  const deliver = (fired: OsCompletionEvent | null): void => {
+    if (fired !== null) sink({ orbital: site.orbital ?? scope.orbital, traitName: site.trait, event: fired.event, payload: isJsonObject(fired.payload) ? fired.payload : undefined, entityId: site.entityId, originClientId: scope.originClientId, user: scope.user, locale: scope.locale });
+  };
+  const failed = <T>(error: T): void => deliver(complete(site, key, request.op, { error: { message: failureMessage(error), errors: [] } }));
+  if (source !== undefined && ports.substrateMessage !== undefined) {
+    const message = ports.substrateMessage;
+    void ports.inFlightCalls.run(key, (signal) => new Promise<void>((resolve) => {
+      let unsubscribe: (() => void) | undefined;
+      let ended = false;
+      const end = (): void => { ended = true; unsubscribe?.(); signal.removeEventListener('abort', end); resolve(); };
+      signal.addEventListener('abort', end, { once: true });
+      unsubscribe = source.subscribe((value) => {
+        if (signal.aborted) return;
+        const fired = message(site, key, value);
+        deliver(fired);
+      }, end);
+      if (ended) unsubscribe();
+    })).catch(failed);
+    return { kind: 'serviceDeferred' };
+  }
+  const pending = ports.inFlightCalls.run(key, (signal) => untilAborted(signal, substrateInPlace(ports, request, { ...scope, assertReentry: undefined })));
+  void pending.then((outcome) => {
+    if (outcome.cancelled || outcome.value.kind !== 'substrate') return;
+    deliver(complete(site, key, request.op, outcome.value.result));
+  }, failed);
+  return { kind: 'serviceDeferred' };
+}
+
+async function substrateInPlace(
+  ports: KernelHostPorts,
+  request: Extract<IoRequestWire, { kind: 'substrate' }>,
+  scope: KernelAnswerScope,
+): Promise<IoAnswerWire> {
+  if (request.op === 'program/live') return { kind: 'substrate', result: { error: { message: 'program/live streams to its onMessage route: give it a key and an onMessage route', errors: [] } } };
   const handler = ports.programEffect();
   const failure = (message: string, errors: JsonValue[] = []): IoAnswerWire => {
     const detail: SubstrateFailureWire = { message, errors };
     return { kind: 'substrate', result: { error: detail } };
   };
   if (isAgentPortOperator(request.op)) {
-    const lent = ports.servicePorts({ orbital: scope.orbital, trait: '' }, scope.user, () => {});
+    const lent = ports.servicePorts({ orbital: scope.orbital, trait: '' }, scope.user, () => {}, scope.assertReentry);
     try {
       const outcome = await runAgentPort(request.op, request.args, lent);
       if (outcome.ok) return { kind: 'substrate', result: { ok: toJson(outcome.result) } };
-      return failure(outcome.error, (outcome.errors ?? []).map((issue) => ({ code: issue.code, message: issue.message })));
+      return failure(outcome.error, (outcome.errors ?? []).map((issue) => ({ ...issue })));
     } catch (error) {
       return failure(error instanceof Error ? error.message : String(error));
     }
@@ -358,7 +408,14 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
   const sink = ports.deferCallOutcome();
   if (key !== undefined && site !== undefined && completions !== undefined && sink !== undefined && os.defer !== undefined && completions.defers(op)) {
     const orbital = site.orbital ?? scope.orbital;
+    const lease = ports.inFlightCalls.reserve(key);
+    if (lease === undefined) return { kind: 'os', result: { error: { kind: 'invalid', message: `${op}: key ${key} already has a completion pending` } } };
+    const cancel = (): void => { os.cancel?.(key); lease.release(); };
+    lease.signal.addEventListener('abort', cancel, { once: true });
     const started = os.defer(op, args, key, (outcome) => {
+      lease.release();
+      lease.signal.removeEventListener('abort', cancel);
+      if (lease.signal.aborted) return;
       const fired = completions.event(site, key, outcome);
       if (fired === null) return;
       sink({
@@ -372,6 +429,7 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
         locale: scope.locale,
       });
     });
+    if ('error' in started) { lease.release(); lease.signal.removeEventListener('abort', cancel); }
     return 'error' in started ? { kind: 'os', result: started } : { kind: 'serviceDeferred' };
   }
   return { kind: 'os', result: await os.answer(op, args) };

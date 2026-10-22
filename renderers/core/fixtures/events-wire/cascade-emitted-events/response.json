@@ -1,0 +1,30 @@
+{
+  "emittedEvents": [
+    {
+      "event": "NoteSaved",
+      "payload": {
+        "id": "note-1"
+      },
+      "source": {
+        "orbital": "NoteBoard",
+        "trait": "NotePersistor"
+      }
+    },
+    {
+      "event": "NoteListRefreshed",
+      "payload": {},
+      "source": {
+        "fromBridge": true,
+        "orbital": "NoteBoard",
+        "trait": "NoteCatalog"
+      }
+    }
+  ],
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NotePersistor": "saved"
+  },
+  "success": true,
+  "transitioned": true
+}

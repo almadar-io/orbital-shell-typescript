@@ -1,0 +1,38 @@
+{
+  "payload": {
+    "http.method": "GET",
+    "http": { "method": "nested" },
+    "esc": { "b.c": 7, "d\\": { "e": 1 }, "f\\.g": 2 },
+    "items": [{ "id": "a" }, { "id": "b" }],
+    "items[0]": { "id": "literal-items-0" },
+    "rows": [{ "id": "row-0" }],
+    "obj": { "0": "zero-key", "k": "v" },
+    "matrix": [[{ "id": "m" }]],
+    "matrix[0][0]": { "id": "literal-matrix-0-0" },
+    "weird[x]": { "id": "literal-weird-x" },
+    "nothing": null,
+    "tail": { "last": [1, 2, 3] }
+  },
+  "cases": [
+    { "name": "escaped-dot-is-one-literal-key", "binding": "@payload.http\\.method", "found": true, "value": "GET" },
+    { "name": "plain-dot-stays-a-path", "binding": "@payload.http.method", "found": true, "value": "nested" },
+    { "name": "escaped-dot-after-a-path-segment", "binding": "@payload.esc.b\\.c", "found": true, "value": 7 },
+    { "name": "escaped-backslash-then-a-path-dot", "binding": "@payload.esc.d\\\\.e", "found": true, "value": 1 },
+    { "name": "escaped-backslash-then-escaped-dot", "binding": "@payload.esc.f\\\\\\.g", "found": true, "value": 2 },
+    { "name": "dotted-numeric-on-array", "binding": "@payload.items.0.id", "found": true, "value": "a" },
+    { "name": "dotted-numeric-on-array-second", "binding": "@payload.items.1.id", "found": true, "value": "b" },
+    { "name": "dotted-numeric-on-object", "binding": "@payload.obj.0", "found": true, "value": "zero-key" },
+    { "name": "dotted-numeric-nested", "binding": "@payload.matrix.0.0.id", "found": true, "value": "m" },
+    { "name": "bracket-numeric-is-a-literal-key", "binding": "@payload.items[0].id", "found": true, "value": "literal-items-0" },
+    { "name": "bracket-numeric-repeated-is-a-literal-key", "binding": "@payload.matrix[0][0].id", "found": true, "value": "literal-matrix-0-0" },
+    { "name": "bracket-numeric-never-indexes-an-array", "binding": "@payload.rows[0].id", "found": false },
+    { "name": "bracket-numeric-without-literal-key-on-sibling", "binding": "@payload.items[1].id", "found": false },
+    { "name": "bracket-string-key", "binding": "@payload.weird[x].id", "found": true, "value": "literal-weird-x" },
+    { "name": "out-of-range-index", "binding": "@payload.items.5.id", "found": false },
+    { "name": "missing-key", "binding": "@payload.nope.id", "found": false },
+    { "name": "missing-key-on-object", "binding": "@payload.obj.zzz", "found": false },
+    { "name": "null-intermediate", "binding": "@payload.nothing.id", "found": false },
+    { "name": "nested-array-in-object", "binding": "@payload.tail.last.2", "found": true, "value": 3 },
+    { "name": "root-only", "binding": "@payload.obj.k", "found": true, "value": "v" }
+  ]
+}

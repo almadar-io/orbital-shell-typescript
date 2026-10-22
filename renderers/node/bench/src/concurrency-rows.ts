@@ -90,7 +90,7 @@ export interface ConcurrencyRowResult {
 
 async function openRuntime(options: ConcurrencyRunOptions, store: PersistenceAdapter) {
   globalThis.__ALMADAR_DEBUG__ = '';
-  const { OrbitalServerRuntime } = await import('@almadar/runtime/OrbitalServerRuntime');
+  const { OrbitalServerRuntime } = await import('@almadar/shell-node/OrbitalServerRuntime');
   // No kernel given: the runtime runs on the kernel it installs.
   return new OrbitalServerRuntime({ debug: false, mode: 'real', persistence: store, ...(options.kernel !== undefined ? { kernel: options.kernel } : {}) });
 }

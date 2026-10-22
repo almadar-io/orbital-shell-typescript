@@ -1,0 +1,42 @@
+{
+  "effectResults": [
+    {
+      "action": "create",
+      "data": {
+        "id": "note-1",
+        "title": "Grocery list"
+      },
+      "effect": "persist",
+      "entityType": "Note",
+      "success": true
+    },
+    {
+      "data": {
+        "id": "note-1",
+        "title": "Grocery list"
+      },
+      "effect": "fetch",
+      "entityType": "Note",
+      "success": true
+    }
+  ],
+  "emittedEvents": [
+    {
+      "event": "NoteSaved",
+      "payload": {
+        "id": "note-1"
+      },
+      "source": {
+        "orbital": "NoteBoard",
+        "trait": "NotePersistor"
+      }
+    }
+  ],
+  "states": {
+    "InlineButtonRender3": "idle",
+    "NoteCatalog": "browsing",
+    "NotePersistor": "saved"
+  },
+  "success": true,
+  "transitioned": true
+}

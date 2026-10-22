@@ -1,0 +1,9 @@
+{
+  "clientId": "tab-1",
+  "entityId": "note-1",
+  "event": "SAVE",
+  "payload": {
+    "title": "Grocery list"
+  },
+  "targetTrait": "NotePersistor"
+}

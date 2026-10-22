@@ -1,0 +1,1972 @@
+[
+  {
+    "name": "Span",
+    "kind": "struct",
+    "doc": "Source span for error reporting.",
+    "fields": [
+      {
+        "name": "line",
+        "type": "u32",
+        "doc": ""
+      },
+      {
+        "name": "col",
+        "type": "u32",
+        "doc": ""
+      },
+      {
+        "name": "len",
+        "type": "u16",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Comment",
+    "kind": "struct",
+    "doc": "A source comment (`;;`, `#`, or `#= … =#`), captured by the lexer as trivia so the formatter can re-emit it. `line` is the 1-based source line; `text` is the verbatim comment text starting at its marker (leading indentation is dropped — the formatter re-indents).",
+    "fields": [
+      {
+        "name": "line",
+        "type": "u32",
+        "doc": ""
+      },
+      {
+        "name": "text",
+        "type": "String",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Program",
+    "kind": "struct",
+    "doc": "Top-level program. One `.lolo` file is one `Program`.",
+    "fields": [
+      {
+        "name": "app",
+        "type": "AppHeader",
+        "doc": "`app NAME [vVERSION]` line."
+      },
+      {
+        "name": "type_aliases",
+        "type": "Vec<TypeAlias>",
+        "doc": "Top-level type aliases (scoped to the whole file)."
+      },
+      {
+        "name": "uses",
+        "type": "Vec<UseDecl>",
+        "doc": "File-scoped `uses Alias from \"path\"` declarations — legal ABOVE any `orbital` block (orbital-import Stage A). Lowering merges these into every orbital's own `uses` (local alias wins on collision), which is what lets a top-level `orbital X = Alias.orbitals.Y` reference resolve `Alias` through the same per-orbital `ctx` loop the compiler already runs — no change needed there. Distinct from `Orbital.uses`, which stays legal too (per-orbital, unchanged)."
+      },
+      {
+        "name": "orbitals",
+        "type": "Vec<Orbital>",
+        "doc": "Orbital declarations."
+      },
+      {
+        "name": "comments",
+        "type": "Vec<Comment>",
+        "doc": "Source comments (trivia), in source order. Re-emitted by the formatter, interleaved by source line; ignored by lowering."
+      }
+    ]
+  },
+  {
+    "name": "AppHeader",
+    "kind": "struct",
+    "doc": "`app NAME \"VERSION\" [ modifiers ]` header.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "version",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "description",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "theme",
+        "type": "Option<ThemeDecl>",
+        "doc": "`theme \"<key>\"` on the line after the header — the APP-level skin every orbital's `@currentTheme` seeds from unless the orbital declares its own `theme`. A full `<base>-<light|dark>` registry key, or an inline `theme { … }` token definition."
+      },
+      {
+        "name": "themes",
+        "type": "Vec<String>",
+        "doc": "`themes: [\"<key>\", …]` — the registry themes the program switches to inside a page."
+      },
+      {
+        "name": "locales",
+        "type": "Vec<String>",
+        "doc": "`locales [en, ar, sl]` — the locales this program ships."
+      },
+      {
+        "name": "store",
+        "type": "Option<String>",
+        "doc": "`store: Driver` — the default store-driver orbital for persistent entities that name none."
+      },
+      {
+        "name": "egress",
+        "type": "Vec<String>",
+        "doc": "`egress: [\"https://host\", …]` — the origins `http` may reach."
+      },
+      {
+        "name": "inbound",
+        "type": "Vec<String>",
+        "doc": "`inbound: [\"name\", …]` — the hook names (`/api/hooks/<name>`) the program accepts."
+      },
+      {
+        "name": "os_grants",
+        "type": "orbital_core_base::os_grants::OsGrants",
+        "doc": "`fs:` / `exec:` / `net:` / `env:` / `stdio:` / `sys:` / `desktop:` — the `os/` grants of every orbital."
+      },
+      {
+        "name": "deployment",
+        "type": "Vec<(String, Vec<String>)>",
+        "doc": "`deployment: { unit: [Orbital, …] }`, units in source order."
+      },
+      {
+        "name": "public",
+        "type": "Option<String>",
+        "doc": "`public: \"./public\"` — a folder copied verbatim to the built site's root."
+      },
+      {
+        "name": "site",
+        "type": "orbital_core_base::schema::SiteMeta",
+        "doc": "`origin:` / `icon:` / `siteName:` / `signIn:` site modifiers."
+      },
+      {
+        "name": "legacy_lines",
+        "type": "bool",
+        "doc": "The modifiers were written as loose lines after `app` (the pre-bracket form) — still parsed, reported as `ORB_L_APP_HEADER_LEGACY`."
+      },
+      {
+        "name": "config",
+        "type": "Vec<ConfigField>",
+        "doc": "App-level `config { ... }` block, declared right after the header (orbital-import Stage A, `OrbitalSchema.config`) — ORGANISM-wide knobs every orbital's traits may forward with `@config.<knob>`."
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "ThemeDecl",
+    "kind": "enum",
+    "doc": "A `theme` declaration — either a registry-key reference (`theme \"<key>\"`, lowers to `ThemeRef::Reference`) or an inline token definition (`theme { name: \"…\" tokens { … } variants { … } }`, lowers to `ThemeRef::Inline`).",
+    "fields": [
+      {
+        "name": "Reference",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "Inline",
+        "type": "InlineTheme",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "InlineTheme",
+    "kind": "struct",
+    "doc": "Inline theme definition — the `.lolo` surface of `ThemeDefinition`.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "display_name",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "tokens",
+        "type": "ThemeTokenMaps",
+        "doc": ""
+      },
+      {
+        "name": "variants",
+        "type": "Vec<(String, ThemeTokenMaps)>",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "ThemeTokenMaps",
+    "kind": "struct",
+    "doc": "The theme token categories; entries keep source order. The five legacy maps (`colors`/`radii`/`spacing`/`typography`/`shadows`) are free-form; the typed axes `typeScale`/`geometry`/`elevation`/`surface` take only their flat string fields (camelCase keys, see [`THEME_TYPED_AXIS_KEYS`]). Nested typed fields (type scale/intents) and density/motion/iconography stay `.orb`-JSON-only.",
+    "fields": [
+      {
+        "name": "colors",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "radii",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "spacing",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "typography",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "shadows",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "type_scale",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "geometry",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "elevation",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "surface",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "motion",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "diagram",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "scene",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "TypeAlias",
+    "kind": "struct",
+    "doc": "`type Name [T] = ...` declaration. The optional `type_param` is the single entity-type variable used in parameterized shapes (`type Browsable T = ...`); it's bound when the alias is applied via `::` annotation.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "type_param",
+        "type": "Option<String>",
+        "doc": "Single-ident type parameter — either the bare form (`T` in `type Browsable T = ...`) or the name half of the parenthesized kinded form (`E` in `type Foo (E : Entity) = ...`). `None` for non-parameterized aliases."
+      },
+      {
+        "name": "type_param_kind",
+        "type": "Option<String>",
+        "doc": "The kind half of a parenthesized kinded type parameter (`Entity` in `type Foo (E : Entity) = ...`) — one of `Type | Entity | Trait | Page | Orbital | Event`. `None` for the bare form or when there's no parameter at all. Only `Entity` is acted on by the compiler today (increment 3-I: `(E : Entity)` on an `Event` alias monomorphizes to the using trait's bound entity); other kinds are stored but inert."
+      },
+      {
+        "name": "body",
+        "type": "TypeBody",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "TypeBody",
+    "kind": "enum",
+    "doc": "Body of a type alias. In addition to the legacy sum/struct/alias forms, aliases can name composable shapes: `Entity`, `Trait`, `Page`, `Orbital`. Composition via `&` merges two bodies of the same kind.",
+    "fields": [
+      {
+        "name": "Enum",
+        "type": "Vec<String>",
+        "doc": "`type Status = a | b | c` enum form."
+      },
+      {
+        "name": "Struct",
+        "type": "Vec<(String, TypeExpr, bool)>",
+        "doc": "`type Coord = { lat: float, lng: float! }` struct form. Each entry is `(field_name, type, required)` — `required` mirrors the optional `!` marker after the field's type (`name : T` → false, `name : T!` → true). Carrying it through the AST instead of dropping it (per the old `Vec<(String, TypeExpr)>` shape) is what lets the codegen emit lolo struct fields as optional-by-default in TS, matching lolo's authoring semantics."
+      },
+      {
+        "name": "Alias",
+        "type": "TypeExpr",
+        "doc": "`type Money = number` nominal alias form."
+      },
+      {
+        "name": "Entity",
+        "type": "Option<Persistence>, Option<String>, Vec<EntityField>",
+        "doc": "`type Patient = Entity [persistent: patients] { id : string! ... }`."
+      },
+      {
+        "name": "Trait",
+        "type": "Option<String>, Option<TypeExpr>",
+        "doc": "`type Browsable T = Trait Browse.traits.BrowseItemBrowse -> T`. `linked_entity_param` is the name of the type parameter that binds to the trait's linkedEntity slot (e.g. `T`). Nominal references to named entities can instead be expressed via `TypeExpr::Named` in `linked_entity`."
+      },
+      {
+        "name": "Page",
+        "type": "Option<String>, Vec<TypeExpr>",
+        "doc": "`type ListPage T = Page -> Trait[Browsable T]`."
+      },
+      {
+        "name": "Orbital",
+        "type": "Option<TypeExpr>, Vec<TypeExpr>, Option<TypeExpr>",
+        "doc": "`type CrudOrbital T = Orbital { entity: T; traits: ...; page: ... }`."
+      },
+      {
+        "name": "Event",
+        "type": "TypeExpr, Option<EventScopeAst>, Option<String>",
+        "doc": "`type BrowseItemLoaded = Event BrowseItem` or `type OrderShipped = Event OrderShipment [external]` or `type Err = Event { message: string }` or `type XLoaded = Event X \"Fired when X finishes loading\"`. The payload type can be any TypeExpr: a named entity / type alias, an anonymous struct body, or a primitive. The optional bracket modifier sets the event's cross-orbital scope; unmarked defaults to `internal`. The optional trailing string literal sets the event description; it flows through to `EmitDefinition.description` on every emit reference. Lowers to one `EmitDefinition { event, scope, description, payload }` per reference in a trait's `emits: [...]` list."
+      },
+      {
+        "name": "Composition",
+        "type": "Vec<TypeBody>",
+        "doc": "`A & B & C` composition. Resolver flattens, checks kind compatibility, merges fields / traits / pages depending on the kind of the members."
+      }
+    ]
+  },
+  {
+    "name": "EventScopeAst",
+    "kind": "enum",
+    "doc": "Event scope marker parsed from `[internal]` / `[external]` after an `Event ...` type body. `None` in the outer `Option<EventScopeAst>` means the author did not annotate; the lowerer defaults to Internal.",
+    "fields": [
+      {
+        "name": "Internal",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "External",
+        "type": "",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "TypeKind",
+    "kind": "enum",
+    "doc": "Kind tag used by the type resolver for composition-compatibility checks. Not parsed from source — derived from the `TypeBody` variant.",
+    "fields": [
+      {
+        "name": "Enum",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Struct",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Alias",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Entity",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Trait",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Page",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Orbital",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Event",
+        "type": "",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "TypeAnnotation",
+    "kind": "struct",
+    "doc": "`Name :: TypeName [Arg1 Arg2 ...]` annotation above a declaration.  Applied to entity / trait / page / orbital blocks. The parser attaches this to the corresponding AST node; the type resolver checks the body against the named type (with `type_args` substituted for the alias's type parameters).",
+    "fields": [
+      {
+        "name": "type_name",
+        "type": "String",
+        "doc": "Dotted name of the type alias to apply (e.g. `\"Auditable\"` or `\"Lib.CrudOrbital\"` once cross-file resolution is wired)."
+      },
+      {
+        "name": "type_args",
+        "type": "Vec<String>",
+        "doc": "Positional type arguments. Each is a single identifier that resolves to another type alias or entity name."
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Orbital",
+    "kind": "struct",
+    "doc": "`orbital Name [:: TypeAnnotation] { ... }` declaration.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "type_annotation",
+        "type": "Option<TypeAnnotation>",
+        "doc": "Optional `::` type annotation above the orbital declaration."
+      },
+      {
+        "name": "uses",
+        "type": "Vec<UseDecl>",
+        "doc": ""
+      },
+      {
+        "name": "expects",
+        "type": "Vec<ExpectsDecl>",
+        "doc": "`expects ...` declarations — consumer-side requirements on sibling orbitals (docs/Almadar_LOLO_Expects_Proposal.md §3)."
+      },
+      {
+        "name": "type_aliases",
+        "type": "Vec<TypeAlias>",
+        "doc": ""
+      },
+      {
+        "name": "entity",
+        "type": "Option<Entity>",
+        "doc": ""
+      },
+      {
+        "name": "extra_entities",
+        "type": "Vec<Entity>",
+        "doc": "Entity declarations beyond the first. The first `entity` block is the orbital's primary entity; later blocks lower into the IR's `auxiliary_entities` (previously the parser silently last-wins REPLACED the primary — C-VALIDATE-MULTI-ENTITY-ORBITAL)."
+      },
+      {
+        "name": "traits",
+        "type": "Vec<Trait>",
+        "doc": ""
+      },
+      {
+        "name": "pages",
+        "type": "Vec<Page>",
+        "doc": ""
+      },
+      {
+        "name": "theme",
+        "type": "Option<ThemeDecl>",
+        "doc": "`theme \"<name>\"` / `theme { … }` — the orbital's active skin: a reference to a theme in the built-in `@almadar-ui/themes/` registry, or an inline token definition carried by the orbital itself. `@currentTheme` resolves to this at render time. `None` ⇒ no skin declared (the host omits `data-theme`, or the assembler sets it via the factory `theme` param)."
+      },
+      {
+        "name": "body",
+        "type": "Vec<SExpression>",
+        "doc": "Free-floating s-expression body items at the orbital level (e.g., `(behavior/compose { ... })`). Lowered to top-level effects on the orbital that the Compose pass will resolve."
+      },
+      {
+        "name": "reference",
+        "type": "Option<String>",
+        "doc": "`orbital Name = Alias.orbitals.Y { ... }` — the dotted reference path (`\"Alias.orbitals.Y\"`) when this orbital is a REFERENCE to an imported orbital, not an inline definition (orbital-import Stage A, mirrors `Page.reference`/`Trait.reference`). `entity`/`extra_entities`/ `pages` MUST be empty when this is `Some` — the upstream organism owns them; the fields below are the override surface. `traits` (Stage B) holds SIBLING trait declarations authored in the reference body — the upstream's own traits arrive at inline, never here."
+      },
+      {
+        "name": "entity_rebind",
+        "type": "Option<String>",
+        "doc": "`entity NAME` override body — rebinds the imported orbital's primary entity, exactly as `-> Entity` does on a trait reference."
+      },
+      {
+        "name": "entity_rebind_tags",
+        "type": "Option<EntityRebindTags>",
+        "doc": "The entity-header bracket after `entity [Name]` in an import body (`[persistent: tbl]`, `[runtime]`, `[local]`, flags), overriding the materialized primary entity's persistence/collection/flags."
+      },
+      {
+        "name": "fields_remap",
+        "type": "Vec<(String, String, Span)>",
+        "doc": "`fields { up: local }` — primary-entity field renames the imported traits read/write, lifted from the trait form's `fields {}` to orbital scope. Third tuple element is the KEY token's span (Stage C `.lolo` spans), for `ORB_O_*` diagnostics that name this key."
+      },
+      {
+        "name": "pages_remap",
+        "type": "Vec<(String, String, Span)>",
+        "doc": "`pages { \"/up\": \"/local\" }` — route-path remap. An unmapped upstream path keeps its own value; required whenever two imports of the same orbital would otherwise collide on route. Third element: KEY span."
+      },
+      {
+        "name": "page_modifiers",
+        "type": "Vec<(String, orbital_core_base::schema::PageModifiers)>",
+        "doc": "`pages { \"/up\": \"/local\" [access: …] }` — page modifiers per remap entry, keyed by the UPSTREAM path, in source order."
+      },
+      {
+        "name": "omit",
+        "type": "Vec<(String, Span)>",
+        "doc": "`omit { A B }` — trait/aux-entity names to drop from the imported set. Omitting a trait some other imported trait embeds is an error, not a silent drop (checked post-inline). Second element: the name token's span."
+      },
+      {
+        "name": "only",
+        "type": "Vec<String>",
+        "doc": "`only { A B }` — trait/aux-entity names to KEEP; everything else is dropped. Mutually exclusive with `omit` in authoring practice, not enforced by the grammar."
+      },
+      {
+        "name": "config_overrides",
+        "type": "Vec<ConfigField>",
+        "doc": "`config { ... }` override body — overrides the referenced orbital's OWN declared knobs (`Orbital.config`) 1:1; a dotted `Trait.knob` is the upstream (pre-prefix) escape hatch."
+      },
+      {
+        "name": "events_remap",
+        "type": "Vec<(String, String)>",
+        "doc": "`events { UP: LOCAL }` — orbital-scope event rename, applied to every trait in the imported set (emits AND listen keys), same rule as the trait reference form's `events {}`."
+      },
+      {
+        "name": "roles_remap",
+        "type": "Vec<(String, Vec<String>, Span)>",
+        "doc": "`roles { approver: [owner, project_manager]  employee: team_member }` (Stage B) — upstream role vocabulary word → one or more consumer roster role names. Order preserved for the formatter. Third element: the KEY (upstream word) token's span."
+      },
+      {
+        "name": "entities_remap",
+        "type": "Vec<(String, String, Span)>",
+        "doc": "`entities { Employee: Person }` (Stage B) — out-of-orbital upstream entity name → consumer entity name. Identity (`X: X`) is legal. Third element: the KEY token's span."
+      },
+      {
+        "name": "mounts",
+        "type": "Vec<(String, Vec<String>, Span)>",
+        "doc": "`pages { \"/up\": \"/local\" -> TraitA, TraitB }` mount tails (Stage B), keyed by the UPSTREAM path — sibling trait names (declared in `traits` below) to mount on that page in addition to its own. Third element: the upstream path key's span (same span `pages_remap` records for the same path)."
+      },
+      {
+        "name": "config",
+        "type": "Vec<ConfigField>",
+        "doc": "`config { ... }` — an INLINE orbital's own declared knobs (orbital-import Stage A, `Orbital.config`). Empty for a reference-form orbital, whose declared knobs live upstream; always empty together with `config_overrides`, which is the reference form's override surface for THIS field on the orbital it references."
+      },
+      {
+        "name": "extend_fields",
+        "type": "Vec<EntityField>",
+        "doc": "`extend { <field-decl>+ }` (Stage C) — full entity-field declarations appended to the primary entity, AFTER `fields {}` renames apply. Unlike `fields {}` (rename-only), each entry is a whole new field."
+      },
+      {
+        "name": "mock_overrides",
+        "type": "Vec<(String, String, Span)>",
+        "doc": "`mock { field: \"a, b\" }` — the import's own sample data for fields of the materialized primary entity, replacing the upstream `@mock`."
+      },
+      {
+        "name": "retype_fields",
+        "type": "Vec<EntityField>",
+        "doc": "`retype { name : type = default }` — replaces the type/default of fields the upstream primary entity already declares (after `fields {}` renames)."
+      },
+      {
+        "name": "trait_overrides",
+        "type": "Vec<TraitOverride>",
+        "doc": "`traits { UpstreamTrait [-> Entity] { events fields config listens emitsScope } }` — per-imported-trait overrides, keyed by the UPSTREAM trait name."
+      },
+      {
+        "name": "import_listens",
+        "type": "Vec<Listen>",
+        "doc": "Orbital-import `listens { Source.EVENT -> Target.TRIGGER }` — routes into the imported set; each carries its `target_trait`."
+      },
+      {
+        "name": "alias_entity_refs",
+        "type": "Vec<String>",
+        "doc": "Entity names a spec shape reaches through a `uses` alias (`owner : Inner.Customer` names `Customer`). Set by the projection pass; they are legal relation targets, supplied by the imported spec."
+      },
+      {
+        "name": "os_grants",
+        "type": "orbital_core_base::os_grants::OsGrants",
+        "doc": "`orbital Name [ fs: …, exec: … ]` — this orbital's own `os/` grants."
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "EntityRebindTags",
+    "kind": "struct",
+    "doc": "Entity-header tags written on an import body's `entity` line.",
+    "fields": [
+      {
+        "name": "persistence",
+        "type": "Option<Persistence>",
+        "doc": ""
+      },
+      {
+        "name": "collection",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "shared",
+        "type": "bool",
+        "doc": ""
+      },
+      {
+        "name": "identity",
+        "type": "bool",
+        "doc": ""
+      },
+      {
+        "name": "local",
+        "type": "bool",
+        "doc": ""
+      },
+      {
+        "name": "mock",
+        "type": "bool",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "TraitOverride",
+    "kind": "struct",
+    "doc": "One `traits { UpstreamTrait [-> Entity] { ... } }` entry of an orbital-import body.",
+    "fields": [
+      {
+        "name": "trait_name",
+        "type": "String",
+        "doc": "The trait's UPSTREAM name."
+      },
+      {
+        "name": "linked_entity",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "body",
+        "type": "TraitRefBody",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "UseDecl",
+    "kind": "struct",
+    "doc": "`uses Alias from \"path\"`.",
+    "fields": [
+      {
+        "name": "alias",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "path",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "lazy",
+        "type": "bool",
+        "doc": "`uses lazy A from \"…\"` — compiled to its own `.orb`, loaded when one of its pages is opened."
+      },
+      {
+        "name": "config",
+        "type": "Vec<ConfigField>",
+        "doc": "Optional `{ config { ... } }` body (orbital-import Stage A) — overrides the imported behavior's ORGANISM-wide `config {}` knobs for every orbital taken from this alias. Empty for the bare form."
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "ExpectedAccess",
+    "kind": "struct",
+    "doc": "The `@read|@create|@update|@delete` directives of an entity body or an `expects entity` shape.",
+    "fields": [
+      {
+        "name": "read_policy",
+        "type": "Option<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "create_policy",
+        "type": "Option<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "update_policy",
+        "type": "Option<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "delete_policy",
+        "type": "Option<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "access_waivers",
+        "type": "Vec<(String, String)>",
+        "doc": "`@<op> none \"<reason>\"` waivers, as `(op, reason)`."
+      }
+    ]
+  },
+  {
+    "name": "ExpectsDecl",
+    "kind": "struct",
+    "doc": "One `expects ...` declaration inside an orbital block.",
+    "fields": [
+      {
+        "name": "kind",
+        "type": "ExpectsKind",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "ExpectsKind",
+    "kind": "enum",
+    "doc": "The three expectation forms. `shape` reuses the entity field-declaration grammar verbatim — it is the consumer's declared minimal contract.",
+    "fields": [
+      {
+        "name": "Identity",
+        "type": "Option<String>, Option<Vec<EntityField>>",
+        "doc": "`expects entity [Name] [identity] [{ fields }]` — bare (neither name nor shape) is the hand-authoring escape hatch."
+      },
+      {
+        "name": "Entity",
+        "type": "String, Option<Vec<EntityField>>, Option<Persistence>, bool, bool, ExpectedAccess, Vec<SExpression>",
+        "doc": "`expects entity Name [persistent, shared] [{ fields, @read … }]` — shape omitted = opaque reference."
+      },
+      {
+        "name": "Event",
+        "type": "String, String, Vec<EventField>",
+        "doc": "`expects trait Trait { emits { EVENT } }` — one per emitted event; names pass through verbatim."
+      },
+      {
+        "name": "Page",
+        "type": "String, Vec<String>",
+        "doc": "`expects page \"/articles/:slug\"` — a route a sibling orbital declares and this one navigates to. The provider's PATTERN, which a navigate effect's static prefix cannot supply."
+      },
+      {
+        "name": "State",
+        "type": "String, String, Option<SExpression>",
+        "doc": "`expects trait T { state paid }` — the provider trait declares this state; `state paid @holds <expr>` adds a proposition over `@entity` that holds while the trait is in it."
+      },
+      {
+        "name": "Transition",
+        "type": "String, String, String, String, Vec<SExpression>",
+        "doc": "`expects trait T { state idle { PAY -> paid } }` — the provider trait has this transition; `@ensures <expr>` lines after the target add its outcome contract."
+      },
+      {
+        "name": "Config",
+        "type": "ConfigField",
+        "doc": "`expects config { stdio : string = \"pipe\" }` — one per knob: a trait of the program declares it, of this type and, when stated, with this default."
+      }
+    ]
+  },
+  {
+    "name": "Entity",
+    "kind": "struct",
+    "doc": "`entity Name [:: TypeAnnotation] [persistence] { fields... }`.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "type_annotation",
+        "type": "Option<TypeAnnotation>",
+        "doc": "Optional `::` type annotation above the entity declaration."
+      },
+      {
+        "name": "persistence",
+        "type": "Option<Persistence>",
+        "doc": ""
+      },
+      {
+        "name": "collection",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "shared",
+        "type": "bool",
+        "doc": "`shared` header tag — orthogonal to persistence: entity state shared across all bound traits vs copied per-trait."
+      },
+      {
+        "name": "identity",
+        "type": "bool",
+        "doc": "`identity` header tag — orthogonal to both persistence and `shared`: this entity types the ambient `@user` viewer. An app-owned user directory is both persisted and the identity, so it cannot be a persistence mode."
+      },
+      {
+        "name": "local",
+        "type": "bool",
+        "doc": "`local` header tag — `[persistent: x, local]`: the rows live in the browser."
+      },
+      {
+        "name": "seed_mock",
+        "type": "bool",
+        "doc": "`mock` header tag — seed an empty browser store from the shared mock seeder."
+      },
+      {
+        "name": "store",
+        "type": "Option<String>",
+        "doc": "`store: Driver` header tag — the store-driver orbital answering this entity's row asks."
+      },
+      {
+        "name": "instances",
+        "type": "Vec<orbital_core_base::schema::SObject>",
+        "doc": "`instances [ { … }, … ]` — written-out rows the entity starts with."
+      },
+      {
+        "name": "locale_instances",
+        "type": "std::collections::BTreeMap<String, Vec<orbital_core_base::schema::SObject>>",
+        "doc": "`instances <lang> [ … ]` — the written-out rows for one declared locale."
+      },
+      {
+        "name": "read_policy",
+        "type": "Option<SExpression>",
+        "doc": "`@read <sexpr>` — a per-row predicate evaluated with `@entity` bound to the candidate row and `@user` to the viewer. ANDed with any call-site `filter:`; enforced once, for every trait that fetches this entity — the read-access twin of `@create`/`@update`/`@delete` below."
+      },
+      {
+        "name": "create_policy",
+        "type": "Option<SExpression>",
+        "doc": "`@create <sexpr>` — evaluated with `@entity` bound to the INCOMING data about to become a row (no row exists yet) and `@user` to the viewer."
+      },
+      {
+        "name": "update_policy",
+        "type": "Option<SExpression>",
+        "doc": "`@update <sexpr>` — evaluated with `@entity` bound to the EXISTING row before mutation (fetched fresh) and `@user` to the viewer."
+      },
+      {
+        "name": "delete_policy",
+        "type": "Option<SExpression>",
+        "doc": "`@delete <sexpr>` — same binding shape as `@update`."
+      },
+      {
+        "name": "access_waivers",
+        "type": "Vec<(String, String)>",
+        "doc": "`@<op> none \"<reason>\"` — a DECLARED omission, keyed by op name (`read`/`create`/`update`/`delete`) with the author's stated reason. Behaves exactly like leaving the directive out; it exists so a lint can tell a considered omission from a forgotten one."
+      },
+      {
+        "name": "invariants",
+        "type": "Vec<SExpression>",
+        "doc": "`@invariant <expr>` lines: propositions every stored row satisfies, proved by `orb validate`."
+      },
+      {
+        "name": "fields",
+        "type": "Vec<EntityField>",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Persistence",
+    "kind": "enum",
+    "doc": "Persistence tag.",
+    "fields": [
+      {
+        "name": "Persistent",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Runtime",
+        "type": "",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "EntityField",
+    "kind": "struct",
+    "doc": "One field on an entity.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "type_expr",
+        "type": "TypeExpr",
+        "doc": ""
+      },
+      {
+        "name": "required",
+        "type": "bool",
+        "doc": "`!` modifier on the type."
+      },
+      {
+        "name": "nullable",
+        "type": "bool",
+        "doc": "`?` modifier on the type."
+      },
+      {
+        "name": "is_key",
+        "type": "bool",
+        "doc": "Trailing `@key` annotation."
+      },
+      {
+        "name": "is_unique",
+        "type": "bool",
+        "doc": "Trailing `@unique` annotation."
+      },
+      {
+        "name": "is_intrinsic",
+        "type": "bool",
+        "doc": "Trailing `@intrinsic` annotation. Marks the field as machinery/view-state the owning trait computes internally; it travels WITH the trait on a `linkedEntity` rebind and is NOT required to pre-exist on the target."
+      },
+      {
+        "name": "description",
+        "type": "Option<String>",
+        "doc": "Trailing `@description \"...\"` annotation — human/semantic description of the field. Authoring/build-time metadata (factory-signature catalog, embeddings, curation remap); the runtime ignores it."
+      },
+      {
+        "name": "synonyms",
+        "type": "Option<String>",
+        "doc": "Trailing `@synonyms \"...\"` annotation — user-vocabulary synonyms (free text) feeding catalog search / curation field-matching."
+      },
+      {
+        "name": "mock",
+        "type": "Option<String>",
+        "doc": "Trailing `@mock \"...\"` annotation — a declared literal value (or comma-separated candidate list) the seeder uses AS-IS, never through a domain-name lookup table. Authoring metadata only, like `description`/ `synonyms` — the runtime ignores it."
+      },
+      {
+        "name": "default",
+        "type": "Option<SExpression>",
+        "doc": "Default value `= sexpr`."
+      },
+      {
+        "name": "derived",
+        "type": "Option<SExpression>",
+        "doc": "`derived` field flag with the derivation expression."
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "PayloadOfTarget",
+    "kind": "enum",
+    "doc": "What a `@payload <arg>` dependent type resolves against — the two spellings `TypeExpr::EventPayloadOf` carries. Kept as one enum (not a string convention) so every consumer switches on a closed shape instead of re-parsing a leading sigil out of a string.",
+    "fields": [
+      {
+        "name": "ConfigKnob",
+        "type": "String",
+        "doc": "`@payload @config.<knob>` — the payload of the event that config knob names. Resolved post-inline (L2), against the call site's folded config default — see `orbital-compiler::phases::inline::sigil_types`."
+      },
+      {
+        "name": "SiblingMember",
+        "type": "String",
+        "doc": "`@payload <member>` — the payload of the event that a SIBLING member of the SAME struct body names. `member` must be declared alongside this field (same `type X = { ... }` / inline object body) and typed `event`. Resolved at L1, against literal struct instances authored in the same file — see `types::check_payload_sibling_refs`."
+      }
+    ]
+  },
+  {
+    "name": "TypeExpr",
+    "kind": "enum",
+    "doc": "Type expression in field declarations.",
+    "fields": [
+      {
+        "name": "Primitive",
+        "type": "String",
+        "doc": "Primitive type (`string`, `int`, `bool`, ...)."
+      },
+      {
+        "name": "Named",
+        "type": "String",
+        "doc": "User-defined named type (e.g. `Status`, `Order`)."
+      },
+      {
+        "name": "StringLiteral",
+        "type": "String",
+        "doc": "String-literal singleton type (`\"active\"`). Only meaningful inside a `Union` that spells out a finite set of strings — the lowerer detects such unions and emits them as `\"type\": \"string\"` + `\"values\": [...]` on the field, matching the committed `.orb` shape."
+      },
+      {
+        "name": "Array",
+        "type": "Box<TypeExpr>",
+        "doc": "`[T]` array type."
+      },
+      {
+        "name": "Tuple",
+        "type": "Vec<TypeExpr>",
+        "doc": "`[T1, T2, …]` — a fixed-length tuple (two or more slots)."
+      },
+      {
+        "name": "Map",
+        "type": "Box<TypeExpr>, Box<TypeExpr>",
+        "doc": "`Map K V` dynamic-key map type — a uniform-value dictionary with arbitrary keys (e.g. `Map string SimulationParameter`). Reserved built-in binary constructor applied by juxtaposition, mirroring Haskell's `Map k v`. Lowers to `Record<K, V>` in codegen. Distinct from the fixed-key `Object` struct: keys aren't known at author time."
+      },
+      {
+        "name": "Object",
+        "type": "Vec<(String, TypeExpr, bool)>",
+        "doc": "`{ k: T, ... }` / `{ k: T! }` inline object type. Each entry is `(field_name, type, required)`; the optional `!` marker tracks whether the field is required so the lowerer can emit the matching `required` flag on the resulting `FieldDefinition`."
+      },
+      {
+        "name": "Union",
+        "type": "Vec<TypeExpr>",
+        "doc": "`T | U` union (lowering inlines this to enum values when all members are bare names or string literals)."
+      },
+      {
+        "name": "BoundEntityRow",
+        "type": "",
+        "doc": "`@entity` — the bound entity's ROW type (self-reference). The sigil already means \"the bound entity\" throughout the expression grammar; in a payload type position it names that entity's row shape, resolved at compose time against the trait's final `linkedEntity` (monomorphized exactly like an Entity-kinded type parameter's default). Only legal in event payload positions (Event alias bodies, emits/listens payloads)."
+      },
+      {
+        "name": "EventPayloadOf",
+        "type": "PayloadOfTarget",
+        "doc": "`@payload <knob>` — the declared payload type of the event that the named config knob resolves to. A sigil type constructor applied by JUXTAPOSITION, like `Map K V`; the language has exactly two application forms (Lisp `(fn args)` in expressions, juxtaposition in types) and a third would be an inconsistency.  The argument is a value REFERENCE, not a type — this is the language's first dependent type, so it is deliberately fenced: the knob must be declared on the same trait, resolution is compile-time and total (resolve or hard error), and there is no nesting.  Distinct from the expression-position `@payload.x`, which reads the CURRENT event's payload. Same word, different grammar position, different referent — the parser change is scoped to `parse_type_atom` so the two can never overlap."
+      },
+      {
+        "name": "NamedEntityRow",
+        "type": "String",
+        "doc": "`@entity <knob>` — the row type of the entity that the named config knob resolves to. The unary sibling of `BoundEntityRow`: same sigil, arity distinguishes \"the bound entity\" from \"the entity that knob names\"."
+      },
+      {
+        "name": "ExpectedIdentityRow",
+        "type": "",
+        "doc": "`@user` — the row type of the identity this orbital `expects`. The identity axis's counterpart to `BoundEntityRow`: lets a reusable atom say \"the acting user\" without naming whose identity entity that is."
+      },
+      {
+        "name": "Optional",
+        "type": "Box<TypeExpr>",
+        "doc": "`T?` nullable."
+      },
+      {
+        "name": "FieldOf",
+        "type": "String, String, Option<Box<TypeExpr>>",
+        "doc": "`T.f` — the declared type of field `f` of the entity or struct type `T`, legal in every type position. `resolved` is `f`'s own type expression, filled by `lower::projection` before lowering; [`TypeExpr::peel`] reads through it, and field builders record the provenance (`projectedFrom`)."
+      },
+      {
+        "name": "RelationMany",
+        "type": "String",
+        "doc": "`T*` one-to-many relation."
+      },
+      {
+        "name": "RelationManyNonEmpty",
+        "type": "String",
+        "doc": "`T+` one-or-more relation."
+      },
+      {
+        "name": "Trait",
+        "type": "",
+        "doc": "`trait` — value is a `@trait.X` reference. Substituted to embedded trait UI at render time. Allowed only in `config { ... }` blocks."
+      },
+      {
+        "name": "Orbital",
+        "type": "",
+        "doc": "`orbital` — an orbital value held as data (`<spec>.orbitals.<O>` plus a recorded §8b import body), or `none`. Never rendered."
+      },
+      {
+        "name": "Behavior",
+        "type": "",
+        "doc": "`behavior` — a whole behavior held as data (`behavior/ref`), or `none`. Embedded in a render tree, it runs the program in place."
+      },
+      {
+        "name": "EntityRef",
+        "type": "",
+        "doc": "`entity` — value is an entity NAME reference (V4-W5). The stamp records the referenced entity's id on the config field so a declaration-only rename resolves the value by id. Allowed only in `config { ... }` blocks."
+      },
+      {
+        "name": "EventRef",
+        "type": "",
+        "doc": "`event` — value is an event NAME reference (V4-W5), id-carried by the stamp like `EntityRef`. Allowed only in `config { ... }` blocks."
+      },
+      {
+        "name": "EventAddress",
+        "type": "",
+        "doc": "`EventAddress` — a value addressing a declared external input (`Trait.EVENT`, `Orbital.Trait.EVENT`). Allowed only in `config { ... }` blocks."
+      },
+      {
+        "name": "Slot",
+        "type": "",
+        "doc": "`slot` — value is a UI slot name. Validated against `VALID_SLOTS`."
+      },
+      {
+        "name": "Pattern",
+        "type": "",
+        "doc": "`pattern` — value is a pattern type name. Validated against `PATTERN_TYPES`."
+      },
+      {
+        "name": "Secret",
+        "type": "",
+        "doc": "`secret` — value is a credential REFERENCE (an env-var key name for `resolveCredentialRef`), never secret material itself. Config-only (core's `SECRET_CONFIG_TYPES` contract, I-29): UI renders the knob as a password input; traces/bakes mask it as defense-in-depth."
+      },
+      {
+        "name": "SExpr",
+        "type": "",
+        "doc": "`SExpr` — value is a compiled s-expression (the `SExpr` brand from `@almadar/core`). Used for config fields that hold an s-expression (e.g. a `conditionalFields` visibility condition). Emits the recursive `SExpr` TypeScript type (inlined as a local alias in codegen, like `TraitFieldRef`). Allowed only in `config { ... }` blocks."
+      },
+      {
+        "name": "Match",
+        "type": "String, Vec<MatchArm>",
+        "doc": "`match @config.<knob> { <pattern> -> <type> ... }` — a compile-time conditional TYPE selected by a config knob's resolved literal (§25). Replaces `@typeWhen` outright: one concept, one spelling. The `_` arm is mandatory and must be last; it lowers to the field's base `field_type`, and every other arm lowers to one entry of the unchanged `PayloadTypeWhen` wire list (`lower_match_field_type`). Legal only as an event-payload field's WHOLE type (`emits`/local `listens`); forbidden everywhere else in the type grammar (entity fields, `expects`, config fields, type-alias/Event-alias bodies, nested inside another type) — see `check_match_types` + `type_expr_config_only_type`/`type_expr_contains_match`."
+      }
+    ]
+  },
+  {
+    "name": "MatchArm",
+    "kind": "struct",
+    "doc": "One arm of a type-level `match` (`TypeExpr::Match`). `ty` is restricted to `Primitive`/`[Primitive]` in v1 — anything else is `ELOLO_MATCH_ARM_TYPE_UNSUPPORTED` (`check_match_types`).",
+    "fields": [
+      {
+        "name": "pattern",
+        "type": "MatchPattern",
+        "doc": ""
+      },
+      {
+        "name": "ty",
+        "type": "TypeExpr",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "MatchPattern",
+    "kind": "enum",
+    "doc": "A type-level match arm's pattern. Compared against a resolved config literal's canonical spelling (`orbital_core::schema::config_literal_spelling`) via `spelling()` below — `Str`/`Word` are interchangeable spellings of the same literal (`\"number\"` and `number` both spell `\"number\"`).",
+    "fields": [
+      {
+        "name": "Str",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "Word",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "Bool",
+        "type": "bool",
+        "doc": ""
+      },
+      {
+        "name": "Int",
+        "type": "i64",
+        "doc": ""
+      },
+      {
+        "name": "Wildcard",
+        "type": "",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "TraitTypeParam",
+    "kind": "struct",
+    "doc": "One trait-level type parameter (Increment 3-II): `(V : Type)` in `trait LookupRun (V : Type, R : Type) -> KeyLookup [lifecycle, instance] { ... }`. Parsed immediately after the trait name, before `::`/`->`/`=`. `kind` is validated against the same six kind names Increment 3-I's alias params accept (`Type | Entity | Trait | Page | Orbital | Event`); only `Type` and `Entity` are meaningfully acted on downstream. A param name is usable in this trait's own `emits`/`listens`/config type positions, lowering each reference to a `\"$<name>\"` sentinel (3-I's substitution machinery).",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "kind",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "default",
+        "type": "Option<String>",
+        "doc": "Gap C: optional `= <ident>` declaration default — a primitive name, an entity name, or a struct-alias name, all resolved in the atom's own file."
+      }
+    ]
+  },
+  {
+    "name": "TraitScope",
+    "kind": "enum",
+    "doc": "`trait Name [:: TypeAnnotation] -> Entity [category] { ... }` or `trait Name [:: TypeAnnotation] = Alias.traits.Upstream -> Entity { ... }` (reference form). Instance vs collection scope, parsed from the trait modifier list (`[interaction, instance]` / `[interaction, collection]`). Optional in this phase; unmarked traits pass. The type-checker will require one of these in a later phase (see Almadar_Entity_V2_Plan.md Phase 4).",
+    "fields": [
+      {
+        "name": "Instance",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Collection",
+        "type": "",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Trait",
+    "kind": "struct",
+    "doc": "A `trait` declaration: an inline state machine bound to an entity, or a reference to an imported trait with call-site overrides.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "type_params",
+        "type": "Vec<TraitTypeParam>",
+        "doc": "Increment 3-II: trait-level type parameters declared `(V : Type, ...)` immediately after the name. Empty for traits that declare none — which is every trait predating this increment, and always empty on a reference-form trait (a reference supplies ARGUMENTS via `::`, not a parameter declaration)."
+      },
+      {
+        "name": "type_annotation",
+        "type": "Option<TypeAnnotation>",
+        "doc": "Optional `::` type annotation above the trait declaration."
+      },
+      {
+        "name": "linked_entity",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "linked_entity_span",
+        "type": "Option<Span>",
+        "doc": "Where the entity name after `->` is written."
+      },
+      {
+        "name": "entity_rebindable",
+        "type": "bool",
+        "doc": "Set when the binding was authored as `-> @rebindable Entity`. Opts the trait into consumer entity-rebinding via `linkedEntity`. Only meaningful on inline trait definitions (atoms); a reference's `->` IS the rebind, so this is always false there."
+      },
+      {
+        "name": "entity_binding_description",
+        "type": "Option<String>",
+        "doc": "`@description \"...\"` annotation on the rebindable binding (body-level). Surfaced to the catalog/knob-embeddings so the LLM can discover the binding from intent vocabulary. Only emitted when `entity_rebindable`."
+      },
+      {
+        "name": "entity_binding_synonyms",
+        "type": "Option<String>",
+        "doc": "`@synonyms \"...\"` annotation on the rebindable binding (body-level)."
+      },
+      {
+        "name": "category",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "scope",
+        "type": "Option<TraitScope>",
+        "doc": "Instance or collection scope marker parsed from the modifier list. `None` today means the trait opted out / predates the modifier. Phase 4 of the V2 migration turns `None` into a warning."
+      },
+      {
+        "name": "local",
+        "type": "bool",
+        "doc": "`local` marker parsed from the same trait-header bracket list. Declares client-only dispatch (see `docs/Almadar_LOLO.md` §7). Undeclared (`false`) is server-gated dispatch — never inferred."
+      },
+      {
+        "name": "capabilities",
+        "type": "Vec<String>",
+        "doc": "Author-supplied capability tags parsed from the trait header's bracket list. Anything beyond the scope marker (`instance`/`collection`) and the first category identifier collects here. Free-form strings — the parser doesn't validate against a known set. Source for `OirTrait.capabilities` and downstream `FactorySignature` matching. See `docs/Almadar_Domain_Language.md` Phase 3."
+      },
+      {
+        "name": "initial_state",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "states",
+        "type": "Vec<State>",
+        "doc": ""
+      },
+      {
+        "name": "emits",
+        "type": "Vec<Emit>",
+        "doc": ""
+      },
+      {
+        "name": "listens",
+        "type": "Vec<Listen>",
+        "doc": ""
+      },
+      {
+        "name": "ticks",
+        "type": "Vec<Tick>",
+        "doc": ""
+      },
+      {
+        "name": "config",
+        "type": "Vec<ConfigField>",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      },
+      {
+        "name": "reference",
+        "type": "Option<TraitRefData>",
+        "doc": "When `Some`, this trait is a reference to an imported trait, not an inline definition. The reference data carries the dotted path (`Alias.traits.X`) plus per-event override maps. `states`, `initial_state`, `ticks`, and `config` MUST be empty when this is set; the upstream atom owns state-machine topology. `linked_entity`, `listens`, and `emits` may still be set: they translate into the reference's `linkedEntity`, `listens`, and (via `emits_scope`) `emitsScope` overrides."
+      },
+      {
+        "name": "is_inline_synthetic",
+        "type": "bool",
+        "doc": "When `true`, this trait declaration was synthesized by the parser from an inline `@(...)` reference. The formatter uses this marker to reconstruct the original sugar instead of emitting a top-level `trait` declaration."
+      }
+    ]
+  },
+  {
+    "name": "TraitRefBody",
+    "kind": "struct",
+    "doc": "Parsed body of a trait-reference call site — the `{ events {} fields {} config {} listens {} emitsScope {} }` shared between the `trait Name = Alias.traits.X { … }` declaration form and the inline `@(Alias.traits.X { … })` sugar. Produced by `Parser::parse_trait_ref_body`.",
+    "fields": [
+      {
+        "name": "events",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "fields",
+        "type": "Vec<(String, String)>",
+        "doc": ""
+      },
+      {
+        "name": "config",
+        "type": "Vec<ConfigField>",
+        "doc": ""
+      },
+      {
+        "name": "listens",
+        "type": "Vec<Listen>",
+        "doc": ""
+      },
+      {
+        "name": "emits_scope",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "name_override",
+        "type": "Option<String>",
+        "doc": "`name: \"InstanceName\"` — instance-name override for the reference."
+      }
+    ]
+  },
+  {
+    "name": "TraitRefData",
+    "kind": "struct",
+    "doc": "Override payload for a `trait Name = Alias.traits.Upstream { ... }` form.",
+    "fields": [
+      {
+        "name": "reference",
+        "type": "String",
+        "doc": "Dotted path: e.g. `\"Modal.traits.ModalRecordModal\"`."
+      },
+      {
+        "name": "name_override",
+        "type": "Option<String>",
+        "doc": "`name: \"InstanceName\"` — instance-name override lowered to `name` on the trait reference. Disambiguates multiple rebinds of one source trait in a single orbital (the declaration identifier stays free for embed unification); absent, the declaration identifier is the name."
+      },
+      {
+        "name": "events",
+        "type": "Vec<(String, String)>",
+        "doc": "Event-key renames in source order: `[(\"OPEN\", \"ADD_ITEM\"), ...]`. Lowered to `events: { OPEN: \"ADD_ITEM\" }` on the trait reference."
+      },
+      {
+        "name": "fields",
+        "type": "Vec<(String, String)>",
+        "doc": "Entity-field renames in source order: `[(\"title\", \"dishName\"), ...]`. Lowered to `fields: { title: \"dishName\" }` on the trait reference. The inline phase rewrites `@entity.title` reads to `@entity.dishName`."
+      },
+      {
+        "name": "config",
+        "type": "Vec<ConfigField>",
+        "doc": "Caller-supplied `config: { param: value, ... }` values at the trait-ref call site. Inline phase substitutes `@config.<param>` in the imported trait's effects/guards with these values. May carry full annotations (`@label`/`@description`/`@synonyms`/`@tier`) when the organism explicitly re-documents a knob. Lowered to `config: { ... }` on the trait reference."
+      },
+      {
+        "name": "emits_scope",
+        "type": "Option<String>",
+        "doc": "`emitsScope external|internal` override. Lowered to `emitsScope` on the trait reference."
+      }
+    ]
+  },
+  {
+    "name": "State",
+    "kind": "struct",
+    "doc": "`state name [for duration] { transitions... }`.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "time_bound",
+        "type": "Option<u64>",
+        "doc": "Duration in milliseconds for `state name for 30s` form."
+      },
+      {
+        "name": "transitions",
+        "type": "Vec<Transition>",
+        "doc": "All transitions out of this state, in source order."
+      },
+      {
+        "name": "holds",
+        "type": "Option<SExpression>",
+        "doc": "`@holds <expr>`: a proposition over `@entity` that holds while the trait is in this state."
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Transition",
+    "kind": "struct",
+    "doc": "`EVENT -> target [when (guard)] { effects... }`.",
+    "fields": [
+      {
+        "name": "event",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "target",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "guard",
+        "type": "Option<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "ensures",
+        "type": "Vec<SExpression>",
+        "doc": "`@ensures <expr>` lines: the outcome contract owed at this transition (`@fromEntity` is the row before it)."
+      },
+      {
+        "name": "effects",
+        "type": "Vec<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      },
+      {
+        "name": "guard_spans",
+        "type": "Vec<(String, Span)>",
+        "doc": "L2 source-map spans captured while parsing `guard`, keyed by the JSON-pointer trail relative to the guard expression's own root (`\"\"` for the guard's own span). Empty when there's no guard."
+      },
+      {
+        "name": "effect_spans",
+        "type": "Vec<Vec<(String, Span)>>",
+        "doc": "Parallel to `effects`: `effect_spans[i]` holds the trail/span pairs captured while parsing `effects[i]`."
+      },
+      {
+        "name": "term_match",
+        "type": "Option<TermMatch>",
+        "doc": "`EVENT -> target match @entity.<f> { … }` sugar (Phase 2, pattern- matching doc §1(a)) — mutually exclusive with `guard`/`effects`, which stay `None`/empty when this is `Some` (`parser::trait_::parse_transition` enforces the exclusion; `when` + `match` together is a parse error). Pure L1 sugar: `lower::expand_term_match` turns each arm into one ordinary guarded `Transition` before anything downstream ever sees it."
+      }
+    ]
+  },
+  {
+    "name": "TermMatch",
+    "kind": "struct",
+    "doc": "Transition-position term-level `match` (Phase 2). Dispatches on a VALUE (`@entity.<f>`/`@payload.<f>`, v1) rather than Phase 1's config-resolved TYPE — same `MatchPattern` arm vocabulary, reused as-is.",
+    "fields": [
+      {
+        "name": "scrutinee",
+        "type": "MatchScrutinee",
+        "doc": ""
+      },
+      {
+        "name": "arms",
+        "type": "Vec<TermMatchArm>",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "MatchScrutinee",
+    "kind": "enum",
+    "doc": "A term-match scrutinee: `@entity.<field>` / `@payload.<field>`, or the Phase-3a dotted destructuring form `@entity.<field>.<member>` / `@payload.<field>.<member>` where `<field>`'s declared type is a tagged struct union and `<member>` is its discriminating member (each variant's single-valued closed member, e.g. `type : \"draw-shape\"`). `@config.<knob>` (degenerate constant dispatch; use type-level `match` or a plain guard) and `@user.<field>` (fail-open class needs its own design pass) are parse errors, see `parser::trait_::parse_term_match_scrutinee`.",
+    "fields": [
+      {
+        "name": "Entity",
+        "type": "String, Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "Payload",
+        "type": "String, Option<String>",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "TermMatchArm",
+    "kind": "struct",
+    "doc": "One arm of a term-level `match`. `effects` mirrors `Transition::effects` (zero or more s-expressions, authoring order); `effect_spans` mirrors `Transition::effect_spans`.",
+    "fields": [
+      {
+        "name": "pattern",
+        "type": "MatchPattern",
+        "doc": ""
+      },
+      {
+        "name": "effects",
+        "type": "Vec<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "effect_spans",
+        "type": "Vec<Vec<(String, Span)>>",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Emit",
+    "kind": "struct",
+    "doc": "One entry in an `emits { }` block.  Two surface shapes (post-Phase 10): `EVENT [-> internal|external] [{ fields }]`  When `payload` is empty, the lower step resolves `event` against the orbital-scope `type EVENT = Event { ... }` alias registry and uses the alias's fields. Bare names with no matching alias produce a payloadless emit definition.",
+    "fields": [
+      {
+        "name": "event",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "scope",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "payload",
+        "type": "Vec<EventField>",
+        "doc": ""
+      },
+      {
+        "name": "description",
+        "type": "Option<String>",
+        "doc": "Semantic annotations (trailing `@description`/`@synonyms`/`@tier`), mirror of the entity-field + config-knob annotation layer. Feed the event matcher."
+      },
+      {
+        "name": "synonyms",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "tier",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Listen",
+    "kind": "struct",
+    "doc": "One entry in a `listens { }` block.  Two shapes (post-Phase 10):  - **Cross-orbital**: `Source.EVENT -> TRIGGER [when (...)] [with { ... }]`. `event` is `\"Source.EVENT\"`, `triggers` names the local event to fire. Source and event are dot-separated.  - **Local (incoming trigger metadata)**: `EVENT [{ fields }]`. No source, no `->`. `event` is the bare key. When `payload` is empty, the lower step resolves against the orbital-scope alias registry (same rule as `Emit`).",
+    "fields": [
+      {
+        "name": "event",
+        "type": "String",
+        "doc": "Source orbital and event in `Source.EVENT` form for the cross-orbital shape; bare key (`\"REQUEST\"`) for the local shape."
+      },
+      {
+        "name": "triggers",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "guard",
+        "type": "Option<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "payload_mapping",
+        "type": "Vec<(String, SExpression)>",
+        "doc": ""
+      },
+      {
+        "name": "payload",
+        "type": "Vec<EventField>",
+        "doc": "Inline payload field list for the local shape: `REQUEST { id : string!, foo : string }`. Empty for cross-orbital or payloadless locals."
+      },
+      {
+        "name": "description",
+        "type": "Option<String>",
+        "doc": "Semantic annotations (trailing `@description`/`@synonyms`/`@tier`)."
+      },
+      {
+        "name": "synonyms",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "tier",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "target_trait",
+        "type": "Option<String>",
+        "doc": "`-> Target.TRIGGER`: the imported trait that gains this route. Only an orbital import's `listens {}` carries one."
+      },
+      {
+        "name": "external",
+        "type": "bool",
+        "doc": "`EVENT -> external { … }`: a declared external input, an event a client outside the program may send this trait."
+      },
+      {
+        "name": "inbound",
+        "type": "Option<InboundListen>",
+        "doc": "`EVENT -> inbound \"name\" answers ANSWER { … }`: the hook delivered to this event and the event that answers it."
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "InboundListen",
+    "kind": "struct",
+    "doc": "The `inbound \"name\" answers ANSWER` part of a local listen.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "answers",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "verifies",
+        "type": "Option<InboundVerifies>",
+        "doc": "`verifies \"<header>\" \"<CREDENTIAL>\"`: the kernel compares the header with the named credential."
+      }
+    ]
+  },
+  {
+    "name": "InboundVerifies",
+    "kind": "struct",
+    "doc": "The `verifies \"<header>\" \"<CREDENTIAL>\"` part of an inbound listen.",
+    "fields": [
+      {
+        "name": "header",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "credential",
+        "type": "String",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Tick",
+    "kind": "struct",
+    "doc": "One entry in a `ticks { }` block.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "interval",
+        "type": "TickInterval",
+        "doc": "Interval in milliseconds (or original cron string when not numeric)."
+      },
+      {
+        "name": "guard",
+        "type": "Option<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "effects",
+        "type": "Vec<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "background",
+        "type": "bool",
+        "doc": "`[background]`: runs with no client mounted."
+      },
+      {
+        "name": "visible",
+        "type": "bool",
+        "doc": "`[visible]`: a browser tick that pauses while its trait's output is off screen."
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      },
+      {
+        "name": "guard_spans",
+        "type": "Vec<(String, Span)>",
+        "doc": "L2 source-map spans captured while parsing `guard`. See [`Transition::guard_spans`]."
+      },
+      {
+        "name": "effect_spans",
+        "type": "Vec<Vec<(String, Span)>>",
+        "doc": "Parallel to `effects`. See [`Transition::effect_spans`]."
+      }
+    ]
+  },
+  {
+    "name": "TickInterval",
+    "kind": "enum",
+    "doc": "How often a tick fires: a fixed interval or a cron expression.",
+    "fields": [
+      {
+        "name": "Millis",
+        "type": "u64",
+        "doc": "A fixed interval in milliseconds (`every 5s`)."
+      },
+      {
+        "name": "Cron",
+        "type": "String",
+        "doc": "A quoted cron expression (`every \"0 9 * * *\"`)."
+      }
+    ]
+  },
+  {
+    "name": "ConfigField",
+    "kind": "struct",
+    "doc": "One entry in a `config { }` block.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "type_expr",
+        "type": "TypeExpr",
+        "doc": ""
+      },
+      {
+        "name": "default",
+        "type": "Option<SExpression>",
+        "doc": ""
+      },
+      {
+        "name": "label",
+        "type": "Option<String>",
+        "doc": "Human-readable question prompt — `@label \"...\"` annotation on the line below the field declaration. Threads through to the .orb config block so the studio questionnaire can render it without inventing labels."
+      },
+      {
+        "name": "description",
+        "type": "Option<String>",
+        "doc": "Long-form help text — `@description \"...\"` annotation on the line below the field declaration."
+      },
+      {
+        "name": "synonyms",
+        "type": "Option<String>",
+        "doc": "User-vocabulary synonyms — `@synonyms \"...\"` annotation on the line below the field declaration. Comma-separated free text that downstream consumers (the agent's catalog summary, the knob-embeddings bake) use to widen vocabulary recall for user prompts. e.g. `@synonyms \"taller, shorter, pixel height\"` on a `height` field lets the LLM connect \"make it taller\" to the `height` knob without inferring cold."
+      },
+      {
+        "name": "tier",
+        "type": "Option<String>",
+        "doc": "Decision-kind tier — `@tier \"...\"` annotation on the line below the field declaration. One of `domain`, `presentation`, `internal`. Drives the studio Questionnaire's filter + disclosure: `internal` knobs are hidden entirely, `presentation` knobs collapse under the \"Polish wording\" panel, `domain` knobs render inline. Untagged knobs are treated as `presentation` on the consumer side (safe default — most un-audited knobs are presentation polish). The L2 validator (`ORB_T_CONFIG_TIER_INVALID`) rejects any other value."
+      },
+      {
+        "name": "required",
+        "type": "bool",
+        "doc": "`!` required marker — `fields : [FieldSpec]! = [...]`. Declares this knob must be supplied by every call site referencing the owning trait (the atom's own page binding is exempt). May coexist with a `default` (the default serves the demo page)."
+      },
+      {
+        "name": "event_refs",
+        "type": "Vec<(String, Span)>",
+        "doc": "Dotted event atoms in `default`, keyed by their trail inside it — each must sit at an `event`-typed position."
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "EventField",
+    "kind": "struct",
+    "doc": "One field in an event payload schema.",
+    "fields": [
+      {
+        "name": "name",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "type_expr",
+        "type": "TypeExpr",
+        "doc": ""
+      },
+      {
+        "name": "required",
+        "type": "bool",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "Page",
+    "kind": "struct",
+    "doc": "`page /path [:: TypeAnnotation] -> Trait [, Trait...] [options]` or `page /path [:: TypeAnnotation] = Alias.pages.Upstream [-> Trait [, Trait...]]` (reference form).",
+    "fields": [
+      {
+        "name": "path",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "type_annotation",
+        "type": "Option<TypeAnnotation>",
+        "doc": "Optional `::` type annotation above the page declaration."
+      },
+      {
+        "name": "traits",
+        "type": "Vec<String>",
+        "doc": ""
+      },
+      {
+        "name": "view",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "primary_entity",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
+        "name": "is_initial",
+        "type": "bool",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      },
+      {
+        "name": "reference",
+        "type": "Option<String>",
+        "doc": "When `Some`, this page is a reference to an imported page. The string is the dotted path (`Alias.pages.PageName`). When set, `traits` and `primary_entity` (if present) act as overrides on the imported page."
+      },
+      {
+        "name": "name",
+        "type": "Option<String>",
+        "doc": "Explicit page name override from `page \"/path\" as PageName -> ...`. When `Some`, the lowerer uses it as the .orb `name` field verbatim; when `None`, a name is derived from the path. Explicit naming avoids fragile path-to-name heuristics — every committed .orb was authored with a hand-picked name that no single derivation rule reproduces."
+      },
+      {
+        "name": "icon",
+        "type": "Option<String>",
+        "doc": "Nav icon name — `@icon \"...\"` annotation below the page line."
+      },
+      {
+        "name": "label",
+        "type": "Option<String>",
+        "doc": "Human nav label — `@label \"...\"` annotation below the page line."
+      },
+      {
+        "name": "roles",
+        "type": "Option<Vec<String>>",
+        "doc": "Nav entry roles — `@roles \"a, b\"` annotation below the page line."
+      },
+      {
+        "name": "access",
+        "type": "Option<orbital_core_base::schema::PageAccess>",
+        "doc": ""
+      },
+      {
+        "name": "indexing",
+        "type": "Option<orbital_core_base::schema::PageIndexing>",
+        "doc": ""
+      },
+      {
+        "name": "title",
+        "type": "Option<orbital_core_base::schema::PageMeta>",
+        "doc": ""
+      },
+      {
+        "name": "description",
+        "type": "Option<orbital_core_base::schema::PageMeta>",
+        "doc": ""
+      },
+      {
+        "name": "translation_of",
+        "type": "Option<String>",
+        "doc": "`translationOf:` — the translation group this page belongs to."
+      }
+    ]
+  }
+]
