@@ -425,3 +425,45 @@ describe('nearestRows', () => {
     expect(RowQuerySchema.safeParse({ nearest: { field: 'v', vector: [1], k: 2 } }).success).toBe(true);
   });
 });
+
+describe('native rekey contract and unsupported reference writes', () => {
+  const rekey = { kind: 'rekey', entityType: 'Task', id: 'a', newId: 'b', guard: { kind: 'const', value: true } };
+  const rows: EntityRow[] = [{ id: 'a', title: 'source', createdAt: 'source-time' }, { id: 'b', title: 'destination', createdAt: 'destination-time' }];
+
+  it('accepts a nonempty destination and retains the native capability flag', () => {
+    expect(RowWriteOpSchema.parse(rekey)).toEqual(rekey);
+    expect(RowWriteBatchSchema.parse({ ops: [rekey], onFailure: 'atomic' })).toEqual({ ops: [rekey], onFailure: 'atomic' });
+    expect(WriteCapabilitiesSchema.parse({ ...FULL_WRITE_CAPABILITIES, rekey: true })).toEqual({ ...FULL_WRITE_CAPABILITIES, rekey: true });
+    expect(WriteCapabilitiesSchema.parse({ ...FULL_WRITE_CAPABILITIES, rekey: false })).toEqual({ ...FULL_WRITE_CAPABILITIES, rekey: false });
+    expect(WriteCapabilitiesSchema.parse(FULL_WRITE_CAPABILITIES)).toEqual(FULL_WRITE_CAPABILITIES);
+    expect(FULL_WRITE_CAPABILITIES).not.toHaveProperty('rekey');
+  });
+
+  it('rejects missing, empty and non-string destinations', () => {
+    for (const newId of [undefined, '', 12, null, [], {}]) {
+      expect(RowWriteOpSchema.safeParse({ ...rekey, newId }).success).toBe(false);
+    }
+  });
+
+  it('refuses rekey without implementing collision, lookup or guard semantics', () => {
+    for (const id of ['a', 'missing']) {
+      for (const value of [true, false]) {
+        const op = RowWriteOpSchema.parse({ ...rekey, id, guard: { kind: 'const', value } });
+        expect(runRowWrite(rows, op)).toEqual({ rows, outcome: { kind: 'failed', message: 'rekey is unsupported by this store' } });
+      }
+    }
+    expect(rows).toEqual([{ id: 'a', title: 'source', createdAt: 'source-time' }, { id: 'b', title: 'destination', createdAt: 'destination-time' }]);
+  });
+
+  it('retains atomic rollback and stop-prefix behavior on unsupported rekey', () => {
+    const ops = RowWriteBatchSchema.parse({ ops: [
+      { kind: 'update', entityType: 'Task', id: 'a', data: { title: 'changed' } },
+      rekey,
+      { kind: 'delete', entityType: 'Task', id: 'b' },
+    ], onFailure: 'atomic' }).ops;
+    expect(runRowWriteBatch(rows, { ops, onFailure: 'atomic' })).toEqual({ rows, outcomes: [{ kind: 'rolled-back' }, { kind: 'failed', message: 'rekey is unsupported by this store' }] });
+    const stopped = runRowWriteBatch(rows, { ops, onFailure: 'stop' });
+    expect(stopped.rows).toEqual([{ id: 'a', title: 'changed', createdAt: 'source-time' }, rows[1]]);
+    expect(stopped.outcomes.map((outcome) => outcome.kind)).toEqual(['updated', 'failed']);
+  });
+});

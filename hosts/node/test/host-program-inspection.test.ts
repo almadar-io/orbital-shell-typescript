@@ -13,6 +13,7 @@ afterEach(() => {
 
 const source = `app inspection-twin [version: "1.0.0"]
 ;; 🌱 original editor buffer
+uses A from "./atom"
 orbital Hello {
   entity Greeting [runtime] {
     id : string!
@@ -24,6 +25,7 @@ orbital Hello {
         (render-ui main { type: "typography", content: "hi" })
     }
   }
+  trait Imported = A.traits.Cycle -> Greeting {}
   page "/" -> Greet
 }
 `;
@@ -34,6 +36,19 @@ describe.skipIf(!existsSync(orb))('native program inspection host twin', () => {
     directories.push(cwd);
     const original = join(cwd, 'original.lolo');
     const input = join(cwd, 'unsaved.lolo');
+    const atom = join(cwd, 'atom.lolo');
+    writeFileSync(atom, `app inspection-twin-atom [version: "1.0.0"]
+orbital Mechanism {
+  entity Row [runtime] {
+    id : string!
+  }
+  trait Cycle -> @rebindable Row [interaction] {
+    initial: idle
+    state idle { NEXT -> done }
+    state done { RESET -> idle }
+  }
+}
+`);
     writeFileSync(original, 'invalid disk content');
     writeFileSync(input, source);
     const direct = spawnSync(orb, ['emit', 'orb', input, '--inspect-source', original, '--document-version', '31'], { cwd, encoding: 'utf8' });
@@ -43,7 +58,8 @@ describe.skipIf(!existsSync(orb))('native program inspection host twin', () => {
     expect(out.ok).toBe(true);
     if (!out.ok) return;
     expect(out.result).toEqual(expected);
-    expect(expected.sourceMap.find((a) => a.pointer.endsWith('.stateMachine.transitions[0]'))).toMatchObject({ path: original, exact: true });
+    expect(expected.sourceMap.find((a) => a.pointer === 'orbitals[0].traits[0].stateMachine.transitions[0]')).toMatchObject({ path: original, exact: true });
+    expect(expected.sourceMap.find((a) => a.pointer === 'orbitals[0].traits[1].stateMachine.transitions[0]')).toMatchObject({ path: atom, exact: true });
   });
 
   it('refuses a fabricated relative original location', async () => {

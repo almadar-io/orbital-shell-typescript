@@ -43,7 +43,36 @@ inspector.jump()
 assert(vim.api.nvim_get_current_buf() == source_buffer)
 assert(vim.api.nvim_win_get_cursor(0)[1] == anchor.line)
 assert(not vim.bo[source_buffer].modified)
+vim.api.nvim_exec_autocmds("CursorMoved", { buffer = source_buffer })
+assert(vim.wait(10000, function()
+    local focus = inspector.status().selection.focus
+    return focus and vim.tbl_contains(focus.nodeIds, "backoff")
+end, 5), "native state focus did not follow source cursor")
+local transition_source, transition_id
+for _, entry in ipairs(inspector.status().selection.edgeSources) do
+    for _, location in ipairs(entry.sources) do
+        if location.path == source and location.exact then
+            transition_source, transition_id = location, entry.id
+            break
+        end
+    end
+    if transition_source then break end
+end
+assert(transition_source, "native transition source location missing")
+local transition_line = transition_source.line
+local transition_column = transition_source.column - 1
+if transition_source.scopeEndLine and transition_source.scopeEndLine > transition_line + 1 then
+    transition_line, transition_column = transition_line + 1, 0
+end
+local transition_text = vim.api.nvim_buf_get_lines(source_buffer, transition_line - 1, transition_line, false)[1]
+vim.api.nvim_win_set_cursor(0, { transition_line, vim.str_byteindex(transition_text, transition_column) })
+vim.api.nvim_exec_autocmds("CursorMoved", { buffer = source_buffer })
+assert(vim.wait(10000, function()
+    local focus = inspector.status().selection.focus
+    return focus and vim.tbl_contains(focus.edgeIds, transition_id)
+end, 5), "native transition scope focus did not follow source cursor")
+assert(#errors == 0, table.concat(errors, "\n"))
 inspector.close()
 assert(not inspector.status().running)
-print("inspector: native read, selection, layout, renderer, exact state navigation and teardown passed")
+print("inspector: native read, selection, layout, renderer, exact navigation, state/transition scope focus and teardown passed")
 vim.cmd("qa!")

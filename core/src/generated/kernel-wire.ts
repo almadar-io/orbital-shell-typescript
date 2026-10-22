@@ -687,7 +687,7 @@ export type RowWriteBatch = { ops: Array<RowWriteOp>, onFailure: RowWriteFailure
 
 export type RowWriteFailureMode = "atomic" | "stop";
 
-export type RowWriteOp = { "kind": "create", entityType: string, data: EntityRow, } | { "kind": "upsert", entityType: string, data: EntityRow, } | { "kind": "update", entityType: string, id: string, data: EntityRow, guard?: RowPredicate, } | { "kind": "delete", entityType: string, id: string, guard?: RowPredicate, };
+export type RowWriteOp = { "kind": "create", entityType: string, data: EntityRow, } | { "kind": "upsert", entityType: string, data: EntityRow, } | { "kind": "update", entityType: string, id: string, data: EntityRow, guard?: RowPredicate, } | { "kind": "rekey", entityType: string, id: string, newId: string, guard?: RowPredicate, } | { "kind": "delete", entityType: string, id: string, guard?: RowPredicate, };
 
 export type RowWriteOutcome = { "kind": "created", row: EntityRow, } | { "kind": "updated", row: EntityRow, before?: EntityRow, } | { "kind": "deleted", before?: EntityRow, } | { "kind": "not-found" } | { "kind": "duplicate-id" } | { "kind": "refused" } | { "kind": "failed", message: string, } | { "kind": "rolled-back" };
 
@@ -888,7 +888,7 @@ role?: string, permissions?: Array<string>, claims: Array<Claim>, };
 
 export type ViewerRequirement = { role?: RoleWire, owner?: OwnerRequirement, };
 
-export type WriteCapabilities = { guards: GuardCapabilities, conditional: boolean, returnsRow: boolean, stopRuns: boolean, atomicBatch: boolean, };
+export type WriteCapabilities = { guards: GuardCapabilities, conditional: boolean, returnsRow: boolean, stopRuns: boolean, atomicBatch: boolean, rekey?: boolean, };
 
 const isRecord = (v: JsonValue | undefined): v is JsonObject => typeof v === 'object' && v !== null && !Array.isArray(v);
 

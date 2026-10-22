@@ -72,7 +72,9 @@ interface Mirror {
   rowQuery: Expect<Mutual<Wire.RowQuery, RowQuery>, true>;
   queryCapabilities: Expect<Mutual<Wire.QueryCapabilities, QueryCapabilities>, true>;
   writeCapabilities: Expect<Mutual<Wire.WriteCapabilities, WriteCapabilities>, true>;
+  writeCapabilitiesKeys: Expect<SameKeys<Wire.WriteCapabilities, WriteCapabilities>, true>;
   rowWriteOp: Expect<Mutual<Wire.RowWriteOp, RowWriteOp>, true>;
+  rekeyKeys: Expect<SameKeys<Extract<Wire.RowWriteOp, { kind: 'rekey' }>, Extract<RowWriteOp, { kind: 'rekey' }>>, true>;
   rowWriteOutcome: Expect<Mutual<Wire.RowWriteOutcome, RowWriteOutcome>, true>;
 }
 

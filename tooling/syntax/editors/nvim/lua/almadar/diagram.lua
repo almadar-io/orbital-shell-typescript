@@ -154,6 +154,8 @@ local function define_highlights()
     local definitions = {
         Node = { link = "Normal" }, Edge = { link = "Comment" }, Selected = { reverse = true, bold = true },
         Active = { bold = true, underline = true }, Fired = { bold = true, underline = true },
+        SelectedActive = { reverse = true, bold = true, underline = true },
+        SelectedFired = { reverse = true, bold = true, underline = true },
         Visited = { italic = true },
     }
     for name, definition in pairs(definitions) do
@@ -179,7 +181,10 @@ local function highlight(view, opts)
             local owner, group = cell.owner, nil
             if owner then
                 if (owner.kind == "node" and (owner.id == opts.selectedNodeId or selected_nodes[owner.id]))
-                    or (owner.kind == "edge" and (owner.id == opts.selectedEdgeId or selected_edges[owner.id])) then group = "Selected"
+                    or (owner.kind == "edge" and (owner.id == opts.selectedEdgeId or selected_edges[owner.id])) then
+                    if owner.kind == "node" and (owner.id == opts.activeNodeId or active_nodes[owner.id]) then group = "SelectedActive"
+                    elseif owner.kind == "edge" and (owner.id == opts.firedEdgeId or fired_edges[owner.id]) then group = "SelectedFired"
+                    else group = "Selected" end
                 elseif owner.kind == "node" and (owner.id == opts.activeNodeId or active_nodes[owner.id]) then group = "Active"
                 elseif owner.kind == "edge" and (owner.id == opts.firedEdgeId or fired_edges[owner.id]) then group = "Fired"
                 elseif (owner.kind == "node" and visited_nodes[owner.id])

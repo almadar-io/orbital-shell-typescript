@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { EntityRowSchema, JsonValueSchema, OrbitalSchemaSchema, eventPayloadOf, isJsonObject, orbitalInlineEntities, type EventPayload, type KernelMemoryStoreExports, type OrbitalSchema, type QueryCapabilities } from '@almadar/core';
+import { EntityRowSchema, JsonValueSchema, OrbitalSchemaSchema, eventPayloadOf, isJsonObject, orbitalInlineEntities, type EventPayload, type JsonValue, type KernelMemoryStoreExports, type OrbitalSchema, type QueryCapabilities } from '@almadar/core';
 import { KernelEngine } from '../src/kernel/engine.js';
 import type { KernelModule } from '../src/kernel/wire.js';
 import type { KernelHostPorts } from '../src/kernel/host.js';
@@ -148,6 +148,45 @@ for (const implementation of implementations) {
           seed.reset();
           persistence.clear();
         }
+        for (const identityCollection of ['user', 'users']) {
+          const scalarAppProgram = OrbitalSchemaSchema.parse({ name: 'ScalarIdentityContext', orbitals: [{
+            name: 'IdentityRows', entity: { name: 'User', identity: true, collection: identityCollection, fields: [{ name: 'id', type: 'string', required: true }] },
+            auxiliaryEntities: [{ name: 'Task', collection: 'tasks', fields: [{ name: 'id', type: 'string', required: true }, { name: 'ownerId', type: 'relation', relation: { entity: 'User', cardinality: 'one' } }] }], traits: [],
+          }] });
+          const scalarApp = KernelEngine.open(kernel, scalarAppProgram, ports(persistence));
+          const scalarSeed = scalarApp.forkProgram(seedProgram);
+          try {
+            for (const control of [{ id: '007', refuses: false }, { id: [1], refuses: true }] satisfies { id: JsonValue; refuses: boolean }[]) {
+              const input: JsonValue = { orbitals: [
+                { entity: { name: 'User', identity: true, collection: identityCollection, fields: [{ name: 'id', type: 'string', required: true }], instances: [{ id: control.id }] } },
+                { entity: { name: 'Task', collection: 'tasks', fields: [{ name: 'id', type: 'string', required: true }, { name: 'ownerId', type: 'relation', relation: { entity: 'User', cardinality: 'one' } }] } },
+              ] };
+              const payload = eventPayloadOf({ program: input, count: 1, seed: 1, nowMs: 0, viewerId: 'viewer', ownerPairs: [{ entity: 'Task', column: 'ownerId' }] });
+              const response = await scalarSeed.evaluate('MockSeedOrbital', { event: 'DATASET_INPUT', targetTrait: 'MockSeed', payload }, { orbital: 'MockSeedOrbital', user: { id: 'viewer' } });
+              expect(response.success).toBe(true);
+              expect(response.rejections ?? []).toEqual([]);
+              if (control.refuses) {
+                expect(response.emittedEvents.filter((event) => event.event === 'DATASET_FAILED').map((event) => event.payload)).toEqual([{ error: 'Type mismatch: expected string | number | boolean | date | datetime, got array' }]);
+                expect(response.emittedEvents.filter((event) => event.event === 'DATASET_DONE')).toEqual([]);
+                const resumed = await scalarSeed.evaluate('MockSeedOrbital', { event: 'DS_STORE', targetTrait: 'MockSeed', payload: { at: 0 } }, { orbital: 'MockSeedOrbital' });
+                expect(resumed.emittedEvents.filter((event) => event.event === 'DATASET_DONE')).toEqual([]);
+              } else {
+                expect(response.emittedEvents.filter((event) => event.event === 'DATASET_FAILED')).toEqual([]);
+                const dataset = JsonValueSchema.parse(response.emittedEvents.find((event) => event.event === 'DATASET_DONE')?.payload);
+                if (!isJsonObject(dataset) || !isJsonObject(dataset.stores)) throw new Error('std seed must return dataset stores');
+                expect(EntityRowSchema.array().parse(dataset.stores[identityCollection])[0]?.id).toBe('007');
+              }
+              scalarSeed.reset();
+            }
+            const recovered = await scalarSeed.evaluate('MockSeedOrbital', { event: 'DATASET_INPUT', targetTrait: 'MockSeed', payload: eventPayloadOf({ program: { orbitals: [] }, count: 0, seed: 1, nowMs: 0, viewerId: '', ownerPairs: [] }) }, { orbital: 'MockSeedOrbital' });
+            expect(recovered.emittedEvents.filter((event) => event.event === 'DATASET_DONE')).toHaveLength(1);
+            expect(recovered.emittedEvents.filter((event) => event.event === 'DATASET_FAILED')).toEqual([]);
+            console.info(`seed:scalar-refusal passed (${implementation.name}, ${identityCollection}): scalar identity preserved, consumed compound identity fails terminally, reset recovers`);
+          } finally {
+            scalarSeed.dispose();
+            scalarApp.dispose();
+          }
+        }
       } finally {
         seed.dispose();
         app.dispose();
@@ -210,6 +249,31 @@ for (const implementation of implementations) {
       expect(await persistence.getById('ActiveDeployment', 'contended')).toBeNull();
       expect(await persistence.getById('Deployment', 'contended#1')).toMatchObject({ activates: false });
       console.info('deployment:atomic-failure passed: real duplicate exhausts retries with no partial counter/active writes');
+    } finally {
+      engine.dispose();
+    }
+  });
+
+  it.skipIf(!implementation.path || !process.env.ORBITAL_DECLARED_FOLD_PROBE)(`runs compiler-resolved guarded recursive fold (${implementation.name})`, async () => {
+    if (!implementation.path || !process.env.ORBITAL_DECLARED_FOLD_PROBE) throw new Error('real kernel and resolved compiler fold fixture paths are required');
+    const kernel: KernelModule & KernelMemoryStoreExports = require(implementation.path);
+    const schema = OrbitalSchemaSchema.parse(JSON.parse(readFileSync(process.env.ORBITAL_DECLARED_FOLD_PROBE, 'utf8')));
+    const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
+    const engine = KernelEngine.open(kernel, schema, ports(persistence));
+    const controls: { value: JsonValue; expected: number }[] = [
+      { value: ['one', 2, true], expected: 3 },
+      { value: [[1, 'x'], false], expected: 2 },
+      { value: 'one', expected: 0 },
+      { value: { a: [1, 'x'] }, expected: 0 },
+    ];
+    try {
+      for (const { value, expected } of controls) {
+        const response = await engine.evaluate('Probe', { event: 'ASK', targetTrait: 'Run', payload: eventPayloadOf({ value }) }, { orbital: 'Probe' });
+        expect(response.success).toBe(true);
+        expect(response.transitioned).toBe(true);
+        expect(response.entityByTrait?.Run?.out).toBe(expected);
+      }
+      console.info(`compiler:declared-fold passed (${implementation.name}): mixed/nested arrays and scalar/map controls through compiled typed wrappers`);
     } finally {
       engine.dispose();
     }

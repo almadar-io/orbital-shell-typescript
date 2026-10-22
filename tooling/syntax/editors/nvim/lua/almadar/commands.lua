@@ -243,10 +243,10 @@ function M.setup()
     end, { desc = "Close the native behavior inspector" })
 
     vim.api.nvim_create_user_command("OrbInspectAttach", function(opts)
-        if #opts.fargs ~= 2 then
-            return vim.notify("Usage: OrbInspectAttach <trace-url> <runtime-instance>", vim.log.levels.ERROR)
+        if #opts.fargs ~= 3 then
+            return vim.notify("Usage: OrbInspectAttach <origin> <absolute-path> <runtime-instance>", vim.log.levels.ERROR)
         end
-        require("almadar.inspector").attach(opts.fargs[1], opts.fargs[2])
+        require("almadar.inspector").attach(opts.fargs[1], opts.fargs[2], opts.fargs[3])
     end, { nargs = "+", desc = "Observe an explicitly identified native runtime" })
 
     vim.api.nvim_create_user_command("OrbInspectDetach", function()

@@ -59,6 +59,7 @@ export const RowWriteOpSchema: z.ZodType<RowWriteOp> = z.discriminatedUnion('kin
   z.object({ kind: z.literal('upsert'), entityType: z.string(), data: EntityRowSchema }),
   z.object({ kind: z.literal('update'), entityType: z.string(), id: z.string(), data: EntityRowSchema, guard: RowPredicateSchema.optional() }),
   z.object({ kind: z.literal('delete'), entityType: z.string(), id: z.string(), guard: RowPredicateSchema.optional() }),
+  z.object({ kind: z.literal('rekey'), entityType: z.string(), id: z.string(), newId: z.string().min(1), guard: RowPredicateSchema.optional() }),
 ]);
 
 export const RowWriteOutcomeSchema: z.ZodType<RowWriteOutcome> = z.discriminatedUnion('kind', [
@@ -103,6 +104,7 @@ export const WriteCapabilitiesSchema: z.ZodType<WriteCapabilities> = z.object({
   returnsRow: z.boolean(),
   stopRuns: z.boolean(),
   atomicBatch: z.boolean(),
+  rekey: z.boolean().optional(),
 });
 
 export const RowQueryPageSchema: z.ZodType<RowQueryPage> = z.object({
@@ -360,6 +362,7 @@ function rowIdOf(row: EntityRow): string | null {
 
 /** The reference run of one write over a full row set; the input is not mutated. */
 export function runRowWrite(rows: readonly EntityRow[], op: RowWriteOp): RowWriteResult {
+  if (op.kind === 'rekey') return { rows: [...rows], outcome: { kind: 'failed', message: 'rekey is unsupported by this store' } };
   if (op.kind === 'create') {
     const id = rowIdOf(op.data);
     if (id === null) return { rows: [...rows], outcome: { kind: 'failed', message: 'create needs a string id' } };
@@ -430,7 +433,7 @@ export const FULL_QUERY_CAPABILITIES: QueryCapabilities = {
   nearest: true,
 };
 
-/** Capabilities of a store that runs every write form: conditional, ordered runs and transactional batches. */
+/** Capabilities for conditional writes, ordered runs and transactional batches; rekey requires an explicit declaration. */
 export const FULL_WRITE_CAPABILITIES: WriteCapabilities = {
   guards: { leaves: FULL_QUERY_CAPABILITIES.leaves, combinators: FULL_QUERY_CAPABILITIES.combinators, compareOps: FULL_QUERY_CAPABILITIES.compareOps },
   conditional: true,

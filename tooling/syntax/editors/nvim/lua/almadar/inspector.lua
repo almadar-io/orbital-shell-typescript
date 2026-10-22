@@ -36,19 +36,12 @@ local function clear_runtime()
     end
 end
 
-local function receive_notification(method, params)
-    if not session or method ~= "trace" then return end
-    session.traceMessages[#session.traceMessages + 1] = params
+local function apply_runtime_projection()
+    if not session then return end
     local attachment = session.attachment
     if not attachment then return end
-    if params.type == "trace-disconnected"
-        and (params.instance == attachment.instance or params.expectedInstance == attachment.instance) then
-        clear_runtime()
-        session.attachment = nil
-        return set_status("Runtime observation disconnected · :OrbInspectTrace for details")
-    end
     if not session.selection or not session.layout or not session.selection.machine then return end
-    for _, update in ipairs(params.diagramUpdates or {}) do
+    for _, update in ipairs(session.pendingDiagramUpdates or {}) do
         if update.path == vim.api.nvim_buf_get_name(session.source)
             and update.documentVersion == current_version()
             and update.documentVersion == session.program.version
@@ -59,11 +52,44 @@ local function receive_notification(method, params)
                 session.observation = update
                 session.visual.activeNodeIds, session.visual.firedEdgeIds = update.activeNodeIds, update.firedEdgeIds
                 diagram.update(session.buffer, session.visual)
-                set_status(session.selection.orbital .. " / " .. session.selection.trait
-                    .. " · observed states / completed transitions · " .. update.instance .. " #" .. update.sequence)
+                if #(update.bindingIssues or {}) > 0 then
+                    set_status("Native source binding is ambiguous · :OrbInspectTrace for complete findings")
+                elseif #(update.activeNodeIds or {}) == 0 and #(update.frames or {}) == 0 then
+                    set_status("Runtime " .. update.instance .. " · unobserved until an authoritative outcome arrives")
+                else
+                    local modes, labels = {}, { source = "source definition", effective = "effective definition" }
+                    for _, frame in ipairs(update.frames) do
+                        if labels[frame.binding] then modes[labels[frame.binding]] = true end
+                    end
+                    local bindings = vim.tbl_keys(modes)
+                    table.sort(bindings)
+                    set_status(session.selection.orbital .. " / " .. session.selection.trait
+                        .. " · " .. table.concat(bindings, " + ") .. " observations / completed transitions · " .. update.instance .. " #" .. update.sequence)
+                end
             end
         end
     end
+end
+
+local function receive_notification(method, params)
+    if not session or (method ~= "trace" and method ~= "diagram") then return end
+    session.traceMessages[#session.traceMessages + 1] = { method = method, params = params }
+    if method == "trace" and params.type == "trace-disconnected" then
+        local message = "Runtime observation disconnected"
+        if type(params.reason) == "string" then message = message .. ": " .. params.reason end
+        notify(message, vim.log.levels.WARN)
+    end
+    local attachment = session.attachment
+    if not attachment then return end
+    if method == "trace" and params.type == "trace-disconnected"
+        and (params.instance == attachment.instance or params.expectedInstance == attachment.instance) then
+        clear_runtime()
+        session.pendingDiagramUpdates = nil
+        session.attachment = nil
+        return set_status("Runtime observation disconnected · :OrbInspectTrace for details")
+    end
+    session.pendingDiagramUpdates = params.diagramUpdates
+    apply_runtime_projection()
 end
 
 local function item_at_cursor()
@@ -176,6 +202,7 @@ local function render_selection(selection, version)
         session.visual = { selectedNodeIds = focus.nodeIds, selectedEdgeIds = focus.edgeIds }
         diagram.render(session.buffer, result.layout, session.visual)
         set_status(selection.orbital .. " / " .. selection.trait .. "  ·  Enter source · K details · t trait · r refresh")
+        apply_runtime_projection()
     end)
 end
 
@@ -200,6 +227,7 @@ end
 function M.refresh()
     if not session or not current_version() then return end
     clear_runtime()
+    session.pendingDiagramUpdates = nil
     local version = current_version()
     local source = table.concat(vim.api.nvim_buf_get_lines(session.source, 0, -1, false), "\n")
     if vim.bo[session.source].endofline then source = source .. "\n" end
@@ -223,19 +251,24 @@ function M.refresh()
     end)
 end
 
-function M.attach(url, instance)
+function M.attach(origin, path, instance)
     if not session then return notify("Open the inspector before attaching a runtime") end
-    if type(url) ~= "string" or url == "" or type(instance) ~= "string" or instance == "" then
-        return notify("Provide the trace URL and expected runtime instance explicitly")
+    if type(origin) ~= "string" or origin == "" or type(path) ~= "string" or path == ""
+        or type(instance) ~= "string" or instance == "" then
+        return notify("Provide the trace origin, absolute path, and expected runtime instance explicitly")
     end
     if session.attachment then return notify("Detach the current runtime before attaching another") end
     local current = session
-    current.attachment = { url = url, instance = instance }
-    current.client.request("attach", { url = url, instance = instance }, function(_, err)
-        if session ~= current then return end
+    set_status("Runtime " .. instance .. " · unobserved until an authoritative outcome arrives")
+    local attachment = { origin = origin, path = path, instance = instance }
+    current.attachment = attachment
+    current.client.request("attach", { origin = origin, path = path, instance = instance }, function(result, err)
+        if session ~= current or current.attachment ~= attachment then return end
         if err then
             current.attachment = nil
             if err.code ~= "PROCESS_STOPPED" then notify(err.code .. ": " .. err.message) end
+        else
+            attachment.response = result
         end
     end)
 end
@@ -243,6 +276,7 @@ end
 function M.detach()
     if not session then return end
     clear_runtime()
+    session.pendingDiagramUpdates = nil
     session.attachment = nil
     request("detach", {}, function() set_status("Runtime observation detached") end)
 end

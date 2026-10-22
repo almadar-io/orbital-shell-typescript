@@ -421,13 +421,14 @@ export interface RowIdPage {
  * One write. `create` fails (`duplicate-id`) when its id is taken. `upsert` creates the row or replaces it
  * whole by id (`created` / `updated`), keeping the existing `createdAt`. `update` changes an existing row only
  * (never an upsert) and merges `data` over it with `id` stamped last; `guard` is tested against the pre-image.
- * `delete` likewise.
+ * `delete` likewise. Native `rekey` moves an existing id with insertion-order collision semantics; support is explicit.
  */
 export type RowWriteOp =
   | { kind: "create"; entityType: string; data: EntityRow }
   | { kind: "upsert"; entityType: string; data: EntityRow }
   | { kind: "update"; entityType: string; id: string; data: EntityRow; guard?: RowPredicate }
-  | { kind: "delete"; entityType: string; id: string; guard?: RowPredicate };
+  | { kind: "delete"; entityType: string; id: string; guard?: RowPredicate }
+  | { kind: "rekey"; entityType: string; id: string; newId: string; guard?: RowPredicate };
 
 /**
  * What one write did. `before` (the pre-image) is present exactly when the op carried a guard.
@@ -468,6 +469,8 @@ export interface WriteCapabilities {
   stopRuns: boolean;
   /** `writeBatch` with `onFailure: "atomic"`; needs transactions. */
   atomicBatch: boolean;
+  /** Native id moves; absent means unsupported. */
+  rekey?: boolean;
 }
 
 /**

@@ -123,6 +123,27 @@ Approximate locations are identified explicitly; missing locations are
 reported instead of guessed. The editor refuses stale source navigation
 while a changed document is awaiting a new diagram.
 
+Attach to an explicitly identified runtime using the native HTTP contract:
+
+```vim
+:OrbInspectAttach http://127.0.0.1:3030 /api/inspector/trace <runtime-instance>
+```
+
+The origin, absolute endpoint path, and expected instance are separate arguments.
+The view remains unobserved until an authoritative matching execution outcome
+arrives. Native projections supply observed states and completed transitions;
+failed guards do not highlight a completed transition. The status identifies
+whether observations bind to the effective definition or its generic source
+definition. Source-definition observations do not claim that the displayed
+generic config equals the running realization's overrides.
+
+`:OrbInspectTrace` opens all received native trace and diagram messages, frame
+identities, guards, effects, and binding findings without truncation.
+`:OrbInspectDetach` disconnects observation and clears execution overlays.
+Refreshing the source or changing the selected trait clears old overlays until
+a matching native projection arrives. Ambiguous source bindings are reported
+visibly and are not highlighted.
+
 ## How highlighting works
 
 **`.lolo`** uses `tree-sitter-lolo`. Its generated `parser.c` is committed, so
