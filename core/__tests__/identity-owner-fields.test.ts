@@ -347,7 +347,7 @@ describe('an imported roster copy', () => {
  * a heuristic, only literals actually compared against `@user.role` in the
  * declared policy, intersected with the identity entity's own declared
  * `role` vocabulary. Compiled-path twin: `check_comparison` in
- * `orbital-compiler/src/phases/validation/user_identity.rs`.
+ * `orbital-compiler/src/phases/validation/identity/user_identity.rs`.
  */
 const EMPLOYEE_APPROVER: OrbitalEntity = identityEntity('Employee', [
     ID_FIELD,

@@ -32,7 +32,7 @@ function inlineEntities(schema: OrbitalSchema): OrbitalEntity[] {
  * an orbital's PRIMARY entity or an auxiliary copy an import brought along.
  *
  * Compiled-path twin: `identity_entities_tagged` in
- * `orbital-compiler/src/phases/validation/user_identity.rs` (L57-76).
+ * `orbital-compiler/src/phases/validation/identity/user_identity.rs` (L57-76).
  */
 function identityEntitiesTaggedOf(
   orbitals: readonly OrbitalDefinition[],
@@ -66,7 +66,7 @@ function identityEntitiesTaggedOf(
  * wraps one behavior inherit that behavior's roster.
  *
  * Compiled-path twin: `identity_entities` in
- * `orbital-compiler/src/phases/validation/user_identity.rs` (L94-102).
+ * `orbital-compiler/src/phases/validation/identity/user_identity.rs` (L94-102).
  */
 export function identityEntitiesOf(orbitals: readonly OrbitalDefinition[]): OrbitalEntity[] {
   const tagged = identityEntitiesTaggedOf(orbitals);
@@ -78,7 +78,7 @@ export function identityEntitiesOf(orbitals: readonly OrbitalDefinition[]): Orbi
  * The name of the schema's `[identity]` entity, if it declares one.
  *
  * Compiled-path twin: `identity_entities` in
- * `orbital-compiler/src/phases/validation/user_identity.rs`.
+ * `orbital-compiler/src/phases/validation/identity/user_identity.rs`.
  */
 export function identityEntityName(schema: OrbitalSchema): string | undefined {
   return identityEntitiesOf(schema.orbitals ?? [])[0]?.name;
@@ -94,7 +94,7 @@ export function identityEntityName(schema: OrbitalSchema): string | undefined {
  * treats the very same column as an owner column.
  *
  * Compiled-path twin: `identity_entity_names` in
- * `orbital-compiler/src/phases/validation/user_identity.rs`.
+ * `orbital-compiler/src/phases/validation/identity/user_identity.rs`.
  */
 export function identityEntityNames(schema: OrbitalSchema): string[] {
   const out: string[] = [];
@@ -110,7 +110,7 @@ export function identityEntityNames(schema: OrbitalSchema): string[] {
  * multi-valued role field is read through `items` — one level, not recursive.
  *
  * Compiled-path twin: `vocabulary` in
- * `orbital-compiler/src/phases/validation/user_identity.rs` (L125-134).
+ * `orbital-compiler/src/phases/validation/identity/user_identity.rs` (L125-134).
  */
 export function roleVocabularyOf(
   entity: OrbitalEntity,
@@ -314,7 +314,7 @@ export function ownerFieldsFromSchema(schema: OrbitalSchema): string[] {
 
 /**
  * Equality operators an access-policy comparison may use. Compiled-path twin:
- * `EQUALITY_OPS` in `orbital-compiler/src/phases/validation/user_identity.rs`
+ * `EQUALITY_OPS` in `orbital-compiler/src/phases/validation/identity/user_identity.rs`
  * — shared there with the orbital-import role-literal rewrite
  * (`inline/rewrite.rs` `rewrite_role_literals`), so this JS list and
  * {@link collectUserFieldLiterals} must stay shape-identical to that Rust

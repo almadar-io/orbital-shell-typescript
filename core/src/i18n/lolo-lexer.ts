@@ -1,5 +1,5 @@
 /**
- * A `.lolo` lexer — the JS-path mirror of `orbital-lolo/src/lexer.rs`.
+ * A `.lolo` lexer — the JS-path mirror of `orbital-lolo/src/syntax/lexer.rs`.
  *
  * It exists so the JS path can rewrite a program's VOCABULARY without
  * re-implementing the parser: every token carries its byte span, so a

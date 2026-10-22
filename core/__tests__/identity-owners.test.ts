@@ -7,7 +7,7 @@ import type { Orbital } from '../src/types/orbital.js';
 
 /**
  * `identityEntitiesOf` is the JS twin of `identity_entities` in
- * `orbital-compiler/src/phases/validation/user_identity.rs` (L94-102); the
+ * `orbital-compiler/src/phases/validation/identity/user_identity.rs` (L94-102); the
  * ordering and shadowing rule must match exactly or the two paths disagree
  * about who `@user` is. `roleVocabularyOf` mirrors `vocabulary` (L125-134).
  */

@@ -11,7 +11,7 @@
  * behavior lists never hand-drift from the registry. The token hierarchy
  * (order matters — first match wins) mirrors prism-lolo.ts's documented
  * order; punctuation, string escapes, and comment forms are grounded in the
- * real lolo lexer (orbital-rust/crates/orbital-lolo/src/lexer.rs), not just
+ * real lolo lexer (orbital-rust/crates/orbital-lolo/src/syntax/lexer.rs), not just
  * the highlighting approximation.
  *
  * @packageDocumentation
