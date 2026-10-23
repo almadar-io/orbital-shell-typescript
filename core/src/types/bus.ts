@@ -435,6 +435,8 @@ export interface OrbitalEventRequest {
    * meaning; `event` carries the first seed's event.
    */
   mount?: MountSeed[];
+  /** Where this leg runs, set by the kernel (EXEC-DIST-6): `browser` for browser-stored rows only, else `server`. */
+  residence?: 'browser' | 'server';
 }
 
 /** The lifecycle events a trait runs when it enters a page (the first it handles). */

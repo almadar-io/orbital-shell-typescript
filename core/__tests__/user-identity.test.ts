@@ -11,8 +11,6 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
   ANONYMOUS_USER,
-  DEFAULT_VIEWER,
-  resolveDefaultViewer,
   findPersonaInRoster,
   normalizeUserContext,
   personaFromIdentityRow,
@@ -124,15 +122,3 @@ describe('persona roster', () => {
   });
 });
 
-describe('the default viewer, shared with the Rust hosts', () => {
-  const fixture: { viewer: UserContext } = JSON.parse(readFileSync(new URL('./fixtures/default-viewer.json', import.meta.url), 'utf8'));
-
-  it('is the fixture orbital-core pins as well', () => {
-    expect(DEFAULT_VIEWER).toEqual(fixture.viewer);
-  });
-
-  it('is what an app with no [identity] roster presents, and a declared roster presents its first member (control)', () => {
-    expect(resolveDefaultViewer([])).toEqual(fixture.viewer);
-    expect(resolveDefaultViewer(ROSTER)).toEqual(ROSTER[0]);
-  });
-});

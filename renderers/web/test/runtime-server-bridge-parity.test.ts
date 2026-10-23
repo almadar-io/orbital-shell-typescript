@@ -8,7 +8,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { EventPayload } from '@almadar/core';
 import type { EventListener, IEventBus, Unsubscribe } from '@almadar/shell-web';
-import { createServerBridge } from '../src/client/ServerBridge.js';
+import { createServerBridge } from '@almadar/shell-runtime/client/ServerBridge';
 
 function jsonResponse<T>(body: T): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });

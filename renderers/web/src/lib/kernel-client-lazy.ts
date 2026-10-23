@@ -30,5 +30,7 @@ export function createLazyKernelClient(opts: KernelClientOptions): KernelClient 
     framePause: () => loaded?.framePause(),
     frameResume: () => loaded?.frameResume(),
     traitState: (traitName) => loaded?.traitState(traitName),
+    traitConfig: (traitName) => loaded?.traitConfig(traitName),
+    setViewer: (user) => client.then((c) => c.setViewer(user)),
   };
 }

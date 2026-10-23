@@ -27,14 +27,6 @@ export {
 // Callback-prop wrapper for pattern event bindings
 export { wrapCallbackForEvent } from './wrapCallbackForEvent';
 
-// Preview/mock schema prep — pure schema + EntityData manipulation
-export {
-  buildMockData,
-  adjustSchemaForMockData,
-  prepareSchemaForPreview,
-  type PreparedPreviewSchema,
-} from './prepareSchemaForPreview';
-
 // Trait → orbital mapping for qualified UI bus keys
 export {
   buildOrbitalsByTrait,

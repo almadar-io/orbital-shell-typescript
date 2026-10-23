@@ -8,8 +8,7 @@
  * already keyed by `IndexedTrait.frameKey` (`$shared::<entity>` for a
  * `[shared]` entity, the trait's own name otherwise — `trait-index.ts`), so
  * a shared entity's traits already read/write the SAME frame with no
- * separate store, and `IndexedTrait.config` already carries the resolved
- * three-layer config merge (plan §5.1 G4) — nothing left to recompute here.
+ * separate store. `@config` is the kernel's own resolved config (`traitConfig`).
  *
  * @packageDocumentation
  */
@@ -26,7 +25,7 @@ export function useEntityBindingSource(
   store: CircuitStore,
   traitIndex: TraitIndex,
   /** The kernel engine's client: its trait states are the source of `@state`; rows arrive through the store it mirrors into. */
-  kernel?: Pick<KernelClient, 'traitState'>,
+  kernel?: Pick<KernelClient, 'traitState' | 'traitConfig'>,
 ): EntityBindingSource {
   // Re-render every binding-source consumer on any circuit commit — the
   // store's own `notify()` is global (one version counter for the whole
@@ -53,7 +52,8 @@ export function useEntityBindingSource(
         snapshots.set(frameKey, next);
         return next;
       },
-      getConfig: (traitName) => traitIndex.byName.get(traitName)?.config,
+      // A render scope that names no trait of the program (a mount scope) has no config.
+      getConfig: (traitName) => (traitIndex.byName.has(traitName) ? kernel?.traitConfig(traitName) : undefined),
       getState: (traitName) => (kernel !== undefined
         ? kernel.traitState(traitName)
         : store.states.getState(traitName)?.currentState) ?? '',

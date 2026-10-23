@@ -6,7 +6,7 @@ import { constants } from 'node:os';
 import type { Readable, Writable } from 'node:stream';
 import type { ChildProcess } from 'node:child_process';
 import type { FileHandle } from 'node:fs/promises';
-import type { Socket as TcpSocket } from 'node:net';
+import type { Server as TcpServer, Socket as TcpSocket } from 'node:net';
 import type { Socket as UdpSocket } from 'node:dgram';
 import type { JsonValue } from '@almadar/core';
 import type { OsError, OsErrorKind, OsOp } from '@almadar/core/kernel-wire';
@@ -374,6 +374,7 @@ export interface ChildEntry {
 
 export type SockEntry =
   | { kind: 'stream'; socket: TcpSocket; source: ByteSource; shut: boolean }
+  | { kind: 'listener'; server: TcpServer }
   | { kind: 'datagram'; socket: UdpSocket; inbox: Datagram[]; failure: Error | undefined; wake: (() => void) | undefined };
 
 export interface Datagram {
@@ -452,6 +453,7 @@ export function closeFd(entry: FdEntry): void {
 
 export function closeSock(entry: SockEntry): void {
   if (entry.kind === 'stream') entry.socket.destroy();
+  else if (entry.kind === 'listener') entry.server.close();
   else entry.socket.close();
 }
 

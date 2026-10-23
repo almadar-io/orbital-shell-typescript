@@ -3,8 +3,6 @@
 //! decision is `orbital_core::embed`'s.
 
 use napi::bindgen_prelude::Error;
-use napi::bindgen_prelude::Buffer;
-use napi::{Env, JsFunction};
 use napi_derive::napi;
 use orbital_wasm::api;
 use orbital_wasm::stored::{ServerHandle, Slot};
@@ -23,53 +21,6 @@ fn flight_id(flight: f64) -> napi::Result<u64> {
         Ok(flight as u64)
     } else {
         Err(js(format!("{flight} is not a flight id")))
-    }
-}
-
-/// One response as the host writes it.
-#[napi(object)]
-pub struct HostResponse {
-    pub status: u32,
-    pub headers_json: String,
-    pub body: Buffer,
-}
-
-/// The retired embedded HTTP adapter. Native kernel APIs below remain available.
-#[napi]
-pub struct NativeServer {
-    unavailable: std::convert::Infallible,
-}
-
-#[napi]
-impl NativeServer {
-    #[napi(factory)]
-    pub fn open(
-        env: Env,
-        program_json: String,
-        env_json: String,
-        catalogs_json: String,
-        #[napi(ts_arg_type = "((itemJson: string) => void) | undefined | null")] on_live: Option<JsFunction>,
-    ) -> napi::Result<Self> {
-        let _ = (env, program_json, env_json, catalogs_json, on_live);
-        Err(js("NATIVE_SERVER_UNAVAILABLE: the embedded HTTP adapter retired with orbital-server; the std server adapter is pending. Native kernel Server APIs remain available.".to_string()))
-    }
-
-    #[napi]
-    pub fn handle(&self, method: String, uri: String, headers_json: String, body: Buffer) -> napi::Result<HostResponse> {
-        let _ = (method, uri, headers_json, body);
-        match self.unavailable {}
-    }
-
-    #[napi]
-    pub fn take_ticket(&self, ticket: String) -> Option<String> {
-        let _ = ticket;
-        match self.unavailable {}
-    }
-
-    #[napi]
-    pub fn live_recipients(&self, item_json: String, connections_json: String) -> napi::Result<String> {
-        let _ = (item_json, connections_json);
-        match self.unavailable {}
     }
 }
 
@@ -133,6 +84,16 @@ impl Server {
             .api()
             .os_allows(&requirement_json)
             .map_err(js)
+    }
+
+    #[napi]
+    pub fn set_os_anchors(&self, anchors_json: String) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().set_os_anchors(&anchors_json).map_err(js)
+    }
+
+    #[napi]
+    pub fn os_resolve_args(&self, op: String, args_json: String) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().os_resolve_args(&op, &args_json).map_err(js)
     }
 
     #[napi]
@@ -344,6 +305,11 @@ pub fn os_deferring_ops() -> napi::Result<String> {
 }
 
 #[napi]
+pub fn os_stream_ops() -> napi::Result<String> {
+    api::os_stream_ops().map_err(js)
+}
+
+#[napi]
 pub fn os_completion_event(
     site_json: String,
     key: String,
@@ -496,8 +462,8 @@ pub fn resolve_row_binding(term: String, bindings_json: String) -> napi::Result<
 }
 
 #[napi]
-pub fn substrate_completion_event(site_json: String, key: String, op: String, outcome_json: String) -> napi::Result<String> {
-    api::substrate_completion_event(&site_json, &key, &op, &outcome_json).map_err(js)
+pub fn substrate_completion_event(site_json: String, key: String, op: String, args_json: String, outcome_json: String) -> napi::Result<String> {
+    api::substrate_completion_event(&site_json, &key, &op, &args_json, &outcome_json).map_err(js)
 }
 
 use orbital_wasm::MemoryStoreApi;

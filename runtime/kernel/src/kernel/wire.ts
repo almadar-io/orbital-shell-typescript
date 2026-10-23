@@ -34,6 +34,10 @@ export interface KernelServerHandle {
   abandon(flight: number): boolean;
   /** `OsGrants::allows` over the grants the registered program declares; `requirementJson` is an `OsRequirement`. */
   osAllows(requirementJson: string): boolean;
+  /** Place the program's anchored grants and arguments under the host's anchors; answers `[{ path, message }]` for what grants nothing. */
+  setOsAnchors(anchorsJson: string): string;
+  /** An `os/` call's arguments with its anchored parts resolved; a `Settled<args, OsError>` as JSON. */
+  osResolveArgs(op: string, argsJson: string): string;
   inFlight(): number;
   getState(traitName: string, entityId?: string): string;
   setDefaultUser(userJson: string): void;
@@ -73,9 +77,11 @@ export interface KernelModule extends KernelEvaluatorExports {
   isPublicAddress(ip: string): boolean;
   /** The `os/` operations whose keyed call may defer its completion (`OsOp::defers_completion`), as a JSON array of names. */
   osDeferringOps(): string;
+  /** The `os/` operations whose keyed call is a stream (`OsOp::is_stream`), as a JSON array of names. */
+  osStreamOps(): string;
   /** The `{ event, payload }` JSON a deferred keyed `os/` call's outcome fires on its call site, or `null` when it declares no route. */
   osCompletionEvent(siteJson: string, key: string, outcomeJson: string): string;
-  substrateCompletionEvent(siteJson: string, key: string, op: string, outcomeJson: string): string;
+  substrateCompletionEvent(siteJson: string, key: string, op: string, argsJson: string, outcomeJson: string): string;
   /** Whether the Chrome match pattern matches the URL: the one rule a browser-tab host filters tabs with. */
   tabUrlMatches(pattern: string, url: string): boolean;
   /** Installs the language data (`@almadar/core/language-data` `LanguageBundle` as JSON) for a host with no `node_modules`; the first install wins. */

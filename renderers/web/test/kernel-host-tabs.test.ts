@@ -4,10 +4,10 @@
 import { describe, expect, it } from 'vitest';
 import { TabHostFailure, type BrowserTabPort, type EventPayload, type ExternalInputRequest, type ServiceHostPorts } from '@almadar/core';
 import type { TabAsk } from '@almadar/core/kernel-wire';
-import { InMemoryPersistence } from '@almadar/db/mock';
-import { InFlightCalls } from '../src/effects/in-flight-calls.js';
-import { decodeRequest } from '../src/kernel/decode.js';
-import { answerRequest, type KernelHostPorts } from '../src/kernel/host.js';
+import { untouchedPersistence } from './helpers/persistence.js';
+import { InFlightCalls } from '@almadar/shell-runtime/effects/in-flight-calls';
+import { decodeRequest } from '@almadar/shell-runtime/kernel/decode';
+import { answerRequest, type KernelHostPorts } from '@almadar/shell-runtime/kernel/host';
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
@@ -15,7 +15,7 @@ interface Dispatched { orbital: string; request: Omit<ExternalInputRequest, 'use
 
 function ports(tabs: BrowserTabPort | undefined, calls = new InFlightCalls(), dispatched: Dispatched[] = []): KernelHostPorts {
     return {
-        persistence: new InMemoryPersistence(),
+        persistence: untouchedPersistence(),
         callService: async () => null,
         programEffect: () => undefined,
         inFlightCalls: calls,

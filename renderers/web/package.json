@@ -95,10 +95,6 @@
       "import": "./bundling.mjs"
     },
     "./package.json": "./package.json",
-    "./ServerBridge": {
-      "types": "./dist/ServerBridge.d.ts",
-      "import": "./dist/ServerBridge.js"
-    },
     "./storage/browser": {
       "types": "./dist/storage/browser/index.d.ts",
       "import": "./dist/storage/browser/index.js",

@@ -1,7 +1,7 @@
 // The HTTP transport's resolve route: POSTs the reference to `<serverUrl>/resolve-rows` as the signed-in viewer.
 import { describe, expect, it, vi } from 'vitest';
 import type { RowSetRef } from '@almadar/core';
-import { createHttpTransport, createInProcessTransport } from '../src/client/EventTransport.js';
+import { createHttpTransport, createInProcessTransport } from '@almadar/shell-runtime/client/EventTransport';
 
 const reference: RowSetRef = { entityType: 'Note', ids: ['a1', 'a2'], total: 3, query: {} };
 const json = (body: object, status = 200): Response => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });

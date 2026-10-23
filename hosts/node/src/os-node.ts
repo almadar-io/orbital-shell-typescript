@@ -13,8 +13,12 @@ import { isProcessOp, ProcessOps } from './os-node-process.js';
 import { isSysOp, SysOps } from './os-node-sys.js';
 import { invalid, osFailure, OsFailure, OsState, type Deferral } from './os-node-support.js';
 import { homedir } from 'node:os';
+import { dirname } from 'node:path';
+import { createLogger } from '@almadar/logger';
 import { anchoredGrants, type OsAnchors, type OsGrantPort, type OsHostPort } from '@almadar/shell-runtime';
 
+
+const log = createLogger('almadar:host:os');
 
 function failureOf(op: OsOp, raised: unknown): OsError {
   if (raised instanceof OsFailure) return raised.error;
@@ -27,8 +31,11 @@ class NodeOsHost implements OsHostPort {
   private readonly process: ProcessOps;
   private readonly net: NetOps;
   private readonly sys: SysOps;
+  private placed = false;
+  /** The listener handle of each open stream, by its key. */
+  private readonly streams = new Map<string, number>();
 
-  constructor(given: OsGrantPort, anchors: OsAnchors) {
+  constructor(private readonly given: OsGrantPort, private readonly anchors: OsAnchors) {
     this.state = new OsState(anchors);
     const grants = anchoredGrants(given, anchors);
     this.fs = new FsOps(this.state, grants);
@@ -37,7 +44,19 @@ class NodeOsHost implements OsHostPort {
     this.sys = new SysOps(grants);
   }
 
-  private async dispatch(op: OsOp, args: JsonValue[]): Promise<JsonValue> {
+  /** The call's arguments with every anchored part resolved by the kernel, the program's anchors placed on the first call. */
+  private resolved(op: OsOp, args: JsonValue[]): JsonValue[] {
+    if (!this.placed) {
+      for (const problem of this.given.anchor(this.anchors)) log.warn('anchor:grants-nothing', { at: problem.path, message: problem.message });
+      this.placed = true;
+    }
+    const resolved = this.given.resolveArgs(op, args);
+    if ('error' in resolved) throw new OsFailure(resolved.error);
+    return resolved.ok;
+  }
+
+  private async dispatch(op: OsOp, given: JsonValue[]): Promise<JsonValue> {
+    const args = this.resolved(op, given);
     if (op === 'os/close') {
       if (this.fs.closeOwned(args) || this.net.closeOwned(args)) return {};
       throw osFailure('closed', op, 'not an open handle');
@@ -78,7 +97,7 @@ class NodeOsHost implements OsHostPort {
   defer(op: OsOp, args: JsonValue[], key: string, deliver: (outcome: Settled<JsonValue, OsError>) => void): Settled<null, OsError> {
     let blocking: Deferral;
     try {
-      blocking = this.deferral(op, args);
+      blocking = this.deferral(op, this.resolved(op, args));
     } catch (raised) {
       return { error: failureOf(op, raised) };
     }
@@ -95,7 +114,29 @@ class NodeOsHost implements OsHostPort {
     return { ok: null };
   }
 
+  /** A keyed stream (EXEC-QUEUE-12): `os/tcp-listen` binds and answers in place, then each connection reaches `message`. */
+  async stream(op: OsOp, args: JsonValue[], key: string, message: (value: JsonValue) => boolean, fail: (error: OsError) => void): Promise<Settled<JsonValue, OsError>> {
+    try {
+      if (op !== 'os/tcp-listen') throw osFailure('unsupported', op, 'this host streams only os/tcp-listen');
+      if (this.streams.has(key)) throw invalid(op, `key ${key} already has a stream open`);
+      const answer = await this.net.listen(op, this.resolved(op, args), message, (error) => {
+        this.streams.delete(key);
+        fail(error);
+      });
+      this.streams.set(key, answer.sock);
+      return { ok: answer };
+    } catch (raised) {
+      return { error: failureOf(op, raised) };
+    }
+  }
+
   cancel(key: string): boolean {
+    const listener = this.streams.get(key);
+    if (listener !== undefined) {
+      this.streams.delete(key);
+      this.net.stopListening(listener);
+      return true;
+    }
     return this.state.completions.cancel(key);
   }
 
@@ -106,10 +147,17 @@ class NodeOsHost implements OsHostPort {
 
 /** One program instance's `os` host: its own handle tables, closed by `close`. */
 export interface NodeOsHostOptions {
-  /** Where `~/` and `./` are anchored; absent, the user's home and the process's working directory. */
+  /** Where `~/` and `./` and the declared grant anchors are placed; absent, the process's own (`OsAnchors::of_process`). */
   anchors?: OsAnchors;
 }
 
+/** The process's home, working directory, executable directory and environment, read once (`OsAnchors::of_process`). */
+export function processAnchors(): OsAnchors {
+  const env: Record<string, string> = {};
+  for (const [name, value] of Object.entries(process.env)) if (value !== undefined) env[name] = value;
+  return { home: homedir(), start: process.cwd(), exeDir: dirname(process.execPath), env };
+}
+
 export function createNodeOsHost(grants: OsGrantPort, options: NodeOsHostOptions = {}): OsHostPort {
-  return new NodeOsHost(grants, options.anchors ?? { home: homedir(), start: process.cwd() });
+  return new NodeOsHost(grants, options.anchors ?? processAnchors());
 }

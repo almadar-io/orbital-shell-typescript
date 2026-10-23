@@ -13,6 +13,7 @@ export function stubKernelModule(Server: KernelServerClass, overrides: Partial<O
     osGlobMatches: () => false,
     isPublicAddress: () => false,
     osDeferringOps: () => '[]',
+    osStreamOps: () => '[]',
     osCompletionEvent: () => 'null',
     substrateCompletionEvent: () => 'null',
     tabUrlMatches: () => false,

@@ -181,7 +181,7 @@ export function toWireValue(value: WireInput): JsonValue {
 
 /**
  * A listen entry's `payloadMapping` applied to the source payload by the kernel, in one crossing. No mapping, or no
- * payload, passes the payload through (`applyListenPayloadMapping`'s contract).
+ * payload, passes the payload through.
  */
 export function applyListenMapping(
   payloadMapping: Readonly<Record<string, SExpr>> | undefined,

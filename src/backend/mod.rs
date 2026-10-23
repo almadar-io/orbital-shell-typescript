@@ -1,13 +1,13 @@
 //! TypeScript Backend Implementation
 //!
-//! Generates the kernel-hosted TypeScript app from Orbital IR: client (React) and server (Express) host glue.
+//! Generates the kernel-hosted TypeScript app from Orbital IR: the client's runtime files and the server's program.
 //!
 //! Output structure matches KFlow shell convention:
 //! - packages/shared/src/types/entities.ts - Entity interfaces
 //! - packages/shared/src/schemas/entities.ts - Zod schemas
 //! - packages/shared/src/program.json - the resolved program the embedded kernel runs
-//! - packages/client - the web client around `@almadar/kernel`; packages/server - the template's host over the native kernel
-//!   add-on (`kernel/kernel.node`), with `generated/language.json`
+//! - packages/client - the web client around `@almadar/kernel`; packages/server - the Node host running
+//!   `generated/program.json` (the app composed with `std-http-server`) on the native kernel add-on (`kernel/kernel.node`)
 
 pub(crate) use orbital_core_base::generate::{Backend, GeneratedFile, GeneratedOutput};
 pub(crate) use orbital_core_base::ir::{
@@ -53,6 +53,8 @@ pub struct TypeScriptBackend {
     pub dev_logs: bool,
     /// The resolved schema, bundled into the client for its browser-store legs.
     pub browser_schema: Option<orbital_core_base::schema::types::OrbitalSchema>,
+    /// The resolved program composed with `std-http-server`: what the server runs.
+    pub served_schema: Option<orbital_core_base::schema::types::OrbitalSchema>,
 }
 
 impl Default for TypeScriptBackend {
@@ -66,6 +68,7 @@ impl Default for TypeScriptBackend {
             schema_language: "en".to_string(),
             dev_logs: false,
             browser_schema: None,
+            served_schema: None,
         }
     }
 }
@@ -140,10 +143,7 @@ impl TypeScriptBackend {
         }
 
         if self.target == "server" || self.target == "full" {
-            // The server is the template's fixed host over the native kernel; it installs this language before the program.
-            if let Ok(bundle) = orbital_core_base::language_data::language_bundle_json() {
-                files.push(InternalFile::new("packages/server/generated/language.json", bundle, GeneratedFileType::Config));
-            }
+            files.extend(self.generate_served_program());
             // Credential manifest for the services this schema invokes.
             if let Some((env_example, secrets_md)) = generate_env_manifest(module) {
                 files.push(InternalFile::new(
@@ -199,6 +199,7 @@ impl Backend for TypeScriptBackend {
             schema_language: self.schema_language.clone(),
             dev_logs: self.dev_logs,
             browser_schema: self.browser_schema.clone(),
+            served_schema: self.served_schema.clone(),
         };
 
         // Use the mode-aware backend to generate

@@ -7,9 +7,9 @@
  */
 import { lookup } from 'node:dns/promises';
 import { createSocket } from 'node:dgram';
-import { createConnection, isIP, type Socket } from 'node:net';
+import { createConnection, createServer, isIP, type Socket } from 'node:net';
 import type { JsonValue } from '@almadar/core';
-import type { OsOp } from '@almadar/core/kernel-wire';
+import type { OsError, OsOp } from '@almadar/core/kernel-wire';
 import type { OsGrantPort, OsNetKind } from '@almadar/shell-runtime';
 import {
   argBytes,
@@ -18,6 +18,7 @@ import {
   argStr,
   ByteSource,
   bytesValue,
+  closeSock,
   denied,
   errnoCode,
   errnoError,
@@ -128,8 +129,7 @@ export class NetOps {
     const entry = this.state.socks.get(id);
     if (entry === undefined) return false;
     this.state.socks.delete(id);
-    if (entry.kind === 'stream') entry.socket.destroy();
-    else entry.socket.close();
+    closeSock(entry);
     return true;
   }
 
@@ -156,6 +156,59 @@ export class NetOps {
       default:
         throw osFailure('unsupported', op, 'streaming host not implemented');
     }
+  }
+
+  /**
+   * The keyed listening stream of `os/tcp-listen` (native `listen`): binds, answers `{ sock, address, port }`, then hands
+   * each accepted connection to `accept` as `{ sock, peer }`; a connection no one takes is closed. Closing the listener's
+   * handle stops listening.
+   */
+  async listen(op: OsOp, args: JsonValue[], accept: (value: JsonValue) => boolean, fail: (error: OsError) => void): Promise<{ sock: number; address: string; port: number }> {
+    const name = hostArg(args, 0, op);
+    const port = portArg(args, 1, op);
+    this.checkGrant(op, name, port, 'listen');
+    const literal = isIP(name);
+    const [address] = literal !== 0 ? [{ address: name, family: literal === 6 ? 6 : 4 }] : await this.resolve(op, name);
+    if (address === undefined) throw osFailure('not-found', op, `${name} did not resolve`);
+    const server = createServer();
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen({ host: address.address, port }, () => {
+        server.off('error', reject);
+        resolve();
+      });
+    }).catch((raised: Error) => {
+      throw netFailure(op, raised);
+    });
+    const id = this.state.allocate();
+    this.state.socks.set(id, { kind: 'listener', server });
+    server.on('connection', (socket: Socket) => {
+      if (!this.state.socks.has(id)) {
+        socket.destroy();
+        return;
+      }
+      const conn = this.state.allocate();
+      this.state.socks.set(conn, { kind: 'stream', socket, source: new ByteSource(socket, SOCKET_HIGH_WATER), shut: false });
+      if (!accept({ sock: conn, peer: peerOf(socket) })) {
+        this.state.socks.delete(conn);
+        socket.destroy();
+      }
+    });
+    server.on('error', (raised: Error) => {
+      if (this.state.socks.delete(id)) server.close();
+      fail(netFailure(op, raised).error);
+    });
+    const bound = server.address();
+    if (bound === null || typeof bound === 'string') throw osFailure('io', op, 'the listener has no address');
+    return { sock: id, address: bound.address, port: bound.port };
+  }
+
+  /** Stop the listener `id` (the stream's cancel): its handle closes and no connection is accepted after. */
+  stopListening(id: number): void {
+    const entry = this.state.socks.get(id);
+    if (entry?.kind !== 'listener') return;
+    this.state.socks.delete(id);
+    entry.server.close();
   }
 
   private connectOnce(address: Address, port: number): Promise<Socket> {
@@ -353,4 +406,11 @@ export class NetOps {
     entry.shut = true;
     return {};
   }
+}
+
+/** A connection's peer as Rust's `SocketAddr` prints it: `host:port`, an IPv6 host in brackets. */
+function peerOf(socket: Socket): string {
+  const host = socket.remoteAddress ?? '';
+  const port = socket.remotePort ?? 0;
+  return isIP(host) === 6 ? `[${host}]:${port}` : `${host}:${port}`;
 }

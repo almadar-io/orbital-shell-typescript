@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest';
 import { OrbitalSchemaSchema, type EventStreamItem } from '@almadar/core';
-import { InMemoryPersistence } from '@almadar/db/mock';
+import { untouchedPersistence } from './helpers/persistence.js';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 import { KernelEngine } from '../src/kernel/engine.js';
 import type { KernelHostPorts } from '../src/kernel/host.js';
@@ -8,7 +8,8 @@ import { loadTestKernel } from '../src/test-support/kernel-engine.js';
 
 const schema = OrbitalSchemaSchema.parse({
   name: 'Parity',
-  orbitals: [{ name: 'Main', entity: { name: 'Job', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] }, traits: [{ name: 'Worker', linkedEntity: 'Job', stateMachine: {
+  orbitals: [{ name: 'Main', entity: { name: 'Job', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] }, traits: [{ name: 'Worker', linkedEntity: 'Job', scope: 'instance', stateMachine: {
+    events: [{ key: 'GO', name: 'GO' }, { key: 'ASK', name: 'ASK' }, { key: 'FINISH', name: 'FINISH' }],
     states: [{ name: 'idle', isInitial: true }, { name: 'busy' }, { name: 'done' }],
     transitions: [
       { from: 'idle', to: 'idle', event: 'GO', effects: [['emit', 'FIRST', {}], ['navigate', '/next'], ['emit', 'LAST', {}]] },
@@ -25,7 +26,7 @@ it('the actual wasm supplies ordered stream items and queues unrelated dispatche
   const gate = new Promise<void>((resolve) => { release = resolve; });
   const calls: string[] = [];
   const ports: KernelHostPorts = {
-    persistence: new InMemoryPersistence(), inFlightCalls: new InFlightCalls(),
+    persistence: untouchedPersistence(), inFlightCalls: new InFlightCalls(),
     callService: async () => { calls.push('ask'); await gate; return null; },
     programEffect: () => undefined,
     servicePorts: (caller, _user, message) => ({ caller, message, inputs: () => [], readableEntities: () => [], read: async () => [], dispatchInput: async () => { throw new Error('unused'); } }),
@@ -55,7 +56,7 @@ it('the actual wasm supplies ordered stream items and queues unrelated dispatche
 
 it('the actual wasm reports same-turn service reentry as a failure without hanging', async () => {
   const ports: KernelHostPorts = {
-    persistence: new InMemoryPersistence(), inFlightCalls: new InFlightCalls(),
+    persistence: untouchedPersistence(), inFlightCalls: new InFlightCalls(),
     callService: async (_service, _action, _params, context) => {
       await context?.host?.dispatchInput('Main', { targetTrait: 'Worker', event: 'GO' });
       return null;

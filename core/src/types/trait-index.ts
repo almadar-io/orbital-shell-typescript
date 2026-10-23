@@ -8,7 +8,7 @@ import type { Entity } from './entity.js';
 import type { EventId, TraitId } from './identity.js';
 import type { OrbitalDefinition } from './orbital.js';
 import type { SExpr } from './expression.js';
-import type { DispatchMode, Trait, TraitConfig, TraitEventListener } from './trait.js';
+import type { Trait, TraitEventListener } from './trait.js';
 
 /** Minimal trait definition for state machine processing. */
 export interface TraitDefinition {
@@ -43,8 +43,6 @@ export interface IndexedTrait {
   irTrait: Trait;
   /** The trait's RESOLVED linked entity (cross-orbital/auxiliary aware). */
   entity: Entity;
-  /** Declared schema defaults ⊕ call-site `uses` override. */
-  config?: TraitConfig;
   /** Host orbital's declared name (emit stamping, bus keys). */
   orbitalName: string;
   /** Host orbital's V4 id (emit stamping), when the schema carries one. */
@@ -57,8 +55,6 @@ export interface IndexedTrait {
   frameKey: string;
   /** The linked entity's declared `shared` flag (render-binding deferral). */
   isSharedEntity: boolean;
-  /** Declared dispatch (`local` flag + `[runtime]` entity) — never inferred from effects. */
-  dispatchMode: DispatchMode;
 }
 
 export interface TraitIndex {

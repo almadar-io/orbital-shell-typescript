@@ -49,14 +49,12 @@ export {
   pageModifiers,
 } from './src/resolver';
 
-// Embedded-trait `@config.X` forward resolution — shared by the JS
-// interpreter (`@almadar/runtime`) and the render substrate (`@almadar/ui`).
+// Embedded-trait adjacency and `@config.X` forward facts — read by
+// the render substrate (`@almadar/ui`); config itself is the kernel's.
 export {
-  collectEmbeddedTraitReferrers,
   collectTraitEmbedAdjacency,
   collectTraitConfigRefAdjacency,
   traitDeclaresConfigForward,
-  buildResolvedTraitConfigs,
   traitReferencesCallsitePayload,
   collectCallsiteCaptureChildren,
   collectForwardedConfigKeys,
@@ -78,9 +76,7 @@ export { INDISTINCT_DELTA_E, themeModes, toneColor, hexToLab, ciede2000, colorDi
 
 // Listen-route `with { ... }` payload mapping — shared by the server runtime
 // (`@almadar/runtime`) and the client cross-trait wiring (`@almadar/ui`).
-export { applyListenPayloadMapping } from './src/listen-payload-mapping';
 export { importsOf, dependencyGraphOf, DependencyGraphSchema, type BehaviorTier, type DependencyLayer, type BehaviorImport, type DependencyGraph, type DependencyGraphDeps } from './src/dependency-graph';
-export type { ListenPayloadEvaluator } from './src/listen-payload-mapping';
 export {
   createKernelEvaluator,
   installKernelEvaluator,
@@ -203,6 +199,7 @@ export {
   type EntityAccessPolicies,
   entityAccessPolicies,
   entityAccessTable,
+  entityOwnerOrbital,
   orbitalInlineEntities,
 } from './src/access/entityAccess';
 
@@ -210,10 +207,9 @@ export {
 export { type EventAddress, type ExternalInput, externalInputsOf, findExternalInput, findInputByAddress, payloadIssues, payloadSchemaToJsonSchema, readableEntitiesOf, type PayloadIssue } from './src/access/externalInputs';
 
 // The three kernel abilities an LLM tool loop is written with: program/inputs, program/dispatch, persist/read-named.
-export { AGENT_PORT_OPERATORS, UNKNOWN_ENTITY_CODE, agentPortPayload, type AgentPortIssue, type AgentPortOperator, type AgentPortOutcome, type AgentPortResult, type AgentReflection, type DispatchAnswer, type DispatchIssue, type NamedRows, type ReflectedInput, dispatchFailureOf, dispatchOutcomeOf, isAgentPortOperator, reflectInput, runAgentPort } from './src/access/agentPorts';
 
 // Declared inbound deliveries: the `/api/hooks/<name>` requests a program accepts.
-export { type InboundAnswer, type InboundDelivery, type InboundRoute, type InboundDeclaration, type InboundVerification, constantTimeEquals, dispatchFailed, inboundOnlyMessage, inboundOnlyTrait, findInbound, inboundAnswerOf, inboundPayload, inboundRoutesOf, unknownHook } from './src/access/inbound';
+export { type InboundAnswer, type InboundDelivery, type InboundRoute, type InboundDeclaration, type InboundVerification, constantTimeEquals, credentialUnset, dispatchFailed, inboundOnlyMessage, inboundOnlyTrait, findInbound, inboundAnswerOf, inboundPayload, inboundRoutesOf, unknownHook } from './src/access/inbound';
 
 // `expects` shape union — the JS composer's merge (derivation itself lives in `orb`:
 // `orb behaviors expects` / `orb behaviors describe`).

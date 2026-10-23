@@ -94,6 +94,11 @@ export function unknownHook(name: string): InboundAnswer {
   return { status: 404, body: errorBody(`Unknown hook provider: ${name}`) };
 }
 
+/** The answer for a route whose `verifies` names a credential the host holds no value for: nothing runs. */
+export function credentialUnset(credential: string): InboundAnswer {
+  return { status: 401, body: errorBody(`credential ${credential} is not set`) };
+}
+
 /** The answer for a delivery whose dispatch failed; the sender retries a 5xx. */
 export function dispatchFailed(message: string): InboundAnswer {
   return { status: 500, body: errorBody(message) };
@@ -122,7 +127,7 @@ export function constantTimeEquals(a: string, b: string): boolean {
  * twice joins its values with `, `), `rawBody` exactly as received, `body`, the parsed JSON of
  * `rawBody` or null when it is empty or not JSON, and, when the route declares `verifies`,
  * `verified`: the comparison of the named header with the credential's value, which stays out of
- * the payload. An unset or empty credential means the channel is unchecked: it passes.
+ * the payload. An unset or empty credential never verifies; the dispatcher refuses it first (`credentialUnset`).
  */
 export function inboundPayload(route: InboundRoute, delivery: InboundDelivery, credential?: string | null): EventPayload {
   const headers: EventPayload = {};
@@ -135,7 +140,7 @@ export function inboundPayload(route: InboundRoute, delivery: InboundDelivery, c
   const payload: EventPayload = { headers, body: parsedBody(delivery.rawBody), rawBody: delivery.rawBody };
   if (route.verifies !== undefined) {
     const seen = headers[route.verifies.header];
-    payload.verified = credential === undefined || credential === null || credential === '' ? true : constantTimeEquals(typeof seen === 'string' ? seen : '', credential);
+    payload.verified = credential === undefined || credential === null || credential === '' ? false : constantTimeEquals(typeof seen === 'string' ? seen : '', credential);
   }
   return payload;
 }

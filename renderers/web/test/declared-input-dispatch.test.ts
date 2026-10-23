@@ -3,7 +3,7 @@
 // declared ones become an ordinary event request addressed to their trait.
 import { describe, it, expect } from 'vitest';
 import type { OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
-import { dispatchDeclaredInput } from '../src/client/declared-input-dispatch.js';
+import { dispatchDeclaredInput } from '@almadar/shell-runtime/client/declared-input-dispatch';
 
 const schema: OrbitalSchema = {
   name: 'inputs',

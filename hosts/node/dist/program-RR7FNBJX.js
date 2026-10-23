@@ -1,0 +1,2 @@
+export { behaviorCatalog, behaviorCatalogSync, behaviorDependencies, behaviorDescribe, behaviorResolve, behaviorSource, mountBehaviorValue, mountTraitValue, programCompose, programEval, programPrint, programRead, programResolve, programResolveSchema, programStep, programValidate, runProgramEffect, workspaceAccessError } from './chunk-QLDWVDYK.js';
+export { installWorkspaceHost, installedWorkspaceHost, uninstallWorkspaceHost, workspaceOwnerSegment } from './chunk-BWMLDDCL.js';

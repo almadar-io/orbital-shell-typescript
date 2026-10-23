@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
 import servicesRegistry from '../src/patterns/services-registry.json' with { type: 'json' };
-import { mockValueForDescriptor } from '../src/mock/serviceAnswer.js';
 
 interface Node {
   type?: string;
@@ -71,14 +70,5 @@ describe('the service contracts declare no generic type', () => {
     expect(generic(bare, 's')).toEqual(['s.a(x): object']);
     const shaped: Action[] = [{ name: 'a', params: [{ name: 'x', type: 'map', mapValue: { type: 'string' } }], responseShape: {} }];
     expect(generic(shaped, 's')).toEqual([]);
-  });
-});
-
-describe('a map descriptor mocks as a dictionary', () => {
-  it('mocks one sample entry of the value type', () => {
-    expect(mockValueForDescriptor('labels', { type: 'map', mapValue: { type: 'string' } })).toEqual({ sample: 'mock_sample' });
-  });
-  it('a bare map type string mocks as an empty dictionary', () => {
-    expect(mockValueForDescriptor('labels', 'map')).toEqual({});
   });
 });

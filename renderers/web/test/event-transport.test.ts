@@ -11,7 +11,7 @@ import {
   createHttpTransport,
   createInProcessTransport,
   deriveCarriesCircuitState,
-} from '../src/client/EventTransport.js';
+} from '@almadar/shell-runtime/client/EventTransport';
 
 const schema: OrbitalSchema = { name: 'Probe', orbitals: [] };
 

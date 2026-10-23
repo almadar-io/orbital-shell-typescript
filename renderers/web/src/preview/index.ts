@@ -73,14 +73,6 @@ export {
     type SlotHostManifest,
 } from '../types/slot-host';
 
-// Preview prep — single source of truth for the doc/playground mock pipeline
-export {
-    prepareSchemaForPreview,
-    buildMockData,
-    adjustSchemaForMockData,
-    type PreparedPreviewSchema,
-} from '../lib/prepareSchemaForPreview';
-
 // ServerBridge — client-server bridge for dual execution
 export { ServerBridgeProvider, useServerBridge, type ServerBridgeContextValue, type ServerBridgeTransport, type AccessTokenProvider } from '../providers/ServerBridge';
 

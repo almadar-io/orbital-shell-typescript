@@ -12,7 +12,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { normalizeUserContext, type OrbitalSchema } from '@almadar/core';
-import { createHttpTransport, deriveCarriesCircuitState } from '@almadar/shell-web';
+import { createHttpTransport, deriveCarriesCircuitState } from '@almadar/shell-runtime';
 import { I18nProvider, createTranslate } from '@almadar/shell-web/core';
 import { KernelEngineProvider } from '@almadar/shell-web/providers';
 import { OrbPreview } from '@almadar/shell-web/runtime';

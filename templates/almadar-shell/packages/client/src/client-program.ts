@@ -5,14 +5,16 @@
  * @packageDocumentation
  */
 
-import { parseOrbitalSchema, type OrbitalSchema } from '@almadar/core';
+import type { OrbitalSchema } from '@almadar/core';
 
 let loaded: Promise<OrbitalSchema> | undefined;
 
 async function fetchProgram(): Promise<OrbitalSchema> {
   const response = await fetch(`${import.meta.env.BASE_URL}program.client.json`);
   if (!response.ok) throw new Error(`program.client.json: ${response.status}`);
-  return parseOrbitalSchema(await response.json());
+  // The compile wrote it from the resolved program, and the kernel validates the program it opens.
+  const program: OrbitalSchema = await response.json();
+  return program;
 }
 
 export function loadProgram(): Promise<OrbitalSchema> {

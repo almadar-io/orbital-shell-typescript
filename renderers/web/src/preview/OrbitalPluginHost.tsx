@@ -43,8 +43,11 @@ import React, {
   type ReactNode,
 } from 'react';
 import type { EffectHandlers } from '../runtime';
-import { buildTraitIndex, createLocalStoreTransport, openLocalKernel, seedMockStore } from '../runtime';
-import { createMemoryCircuitStore, type ClientKernelOutcome, type KernelEngine, type TraitState } from '../index';
+import { buildTraitIndex, createLocalStoreTransport, nativeMemoryPersistence, openLocalKernel, seedMockStore, withForkedSeeder } from '../runtime';
+import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
+import type { ClientKernelOutcome } from '@almadar/shell-runtime/client/client-kernel';
+import type { TraitState } from '@almadar/shell-runtime/client/trait-types';
+import type { KernelEngine } from '../index';
 import type {
   BusEventSource,
   ClientEffectTuple,
@@ -58,7 +61,6 @@ import type {
   UISlot,
   UserContext,
 } from '@almadar/core';
-import { MockPersistenceAdapter } from '@almadar/db/mock';
 import { createLazyKernelClient } from '../lib/kernel-client-lazy';
 import type { KernelClient } from '../lib/kernel-client';
 import type { KernelInstance } from '../lib/kernel-wire';
@@ -73,7 +75,7 @@ import { useTranslate } from '../core';
 import { useUISlots, type UISlotManager, type SlotProps } from '../providers/UISlotContext';
 import type { EventTransport } from '../index';
 import type { KeyCaptureEntry, KeyCaptureTable } from '../hooks/useKeyboardRouter';
-import { KernelLoaderMissingError, LanguageLoaderMissingError, useKernelEngine, type KernelEngineValue } from '../providers/KernelEngineContext';
+import { KernelLoaderMissingError, LanguageLoaderMissingError, SeedProgramLoaderMissingError, useKernelEngine, type KernelEngineValue } from '../providers/KernelEngineContext';
 
 const log = createLogger('almadar:ui:plugin-host');
 
@@ -324,9 +326,10 @@ function openPluginKernel(
 ): PluginLocalKernel {
   if (engine === null) throw new KernelLoaderMissingError();
   const language = engine.loadLanguage !== undefined ? engine.loadLanguage() : Promise.reject(new LanguageLoaderMissingError());
+  const loadSeedProgram = engine.loadSeedProgram;
   const schema = plugin.schema;
   const opened = Promise.all([engine.loadModule(), language]).then(async ([kernel, bundle]) => {
-    const rows = new MockPersistenceAdapter({ defaultSeedCount: 6 });
+    const rows = nativeMemoryPersistence(kernel);
     const persistence = denySet.has('persist') ? writeDeniedStore(plugin.id, rows) : rows;
     const server = openLocalKernel({
       kernel,
@@ -343,8 +346,10 @@ function openPluginKernel(
         : {}),
     });
     // The owner gates evaluate on the kernel, so the store seeds once its language is installed.
-    let viewer: UserContext | undefined;
-    viewer = await seedMockStore(rows, schema, { namedByHost: false, current: () => viewer, seedIdentity: true });
+    if (loadSeedProgram === undefined) throw new SeedProgramLoaderMissingError();
+    const { viewer } = await withForkedSeeder(server, schema, loadSeedProgram, rows, undefined, (host) =>
+      seedMockStore(host, schema, { namedByHost: false, current: () => undefined, seedIdentity: true }),
+    );
     server.seedRuntimeMock(viewer?.id);
     return { kernel, server, viewer };
   });

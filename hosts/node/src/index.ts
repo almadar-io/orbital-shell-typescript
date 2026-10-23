@@ -6,6 +6,5 @@ export * from './kernel-loader.js';
 export * from './program/index.js';
 export * from './kernel-program.js';
 export * from './runtime/OrbitalServerRuntime.js';
-export * from './runtime/sse.js';
 export * from './program/createProgramHandlers.js';
 export * from './program/kernel-workspace-host.js';

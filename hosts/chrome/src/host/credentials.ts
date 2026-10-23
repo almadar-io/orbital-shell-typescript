@@ -1,6 +1,6 @@
 /** The credential store of a browser host: the server host's encrypted rows over `chrome.storage`, never a second store. */
-import { EntityRowSchema, type EntityRow } from '@almadar/core';
-import { CREDENTIAL_ENTITY_TYPE, CredentialStore, type CredentialPersistence } from '@almadar/shell-web';
+import { EntityRowSchema, FULL_WRITE_CAPABILITIES, runRowWrite, type EntityRow } from '@almadar/core';
+import { CREDENTIAL_ENTITY_TYPE, CredentialStore, DERIVED_ENTITY_TYPE, type CredentialPersistence, type DerivedPersistence } from '@almadar/shell-web';
 
 /** The slice of `chrome.storage` a browser host keeps its rows in. */
 export interface ChromeStorageArea {
@@ -10,41 +10,63 @@ export interface ChromeStorageArea {
 }
 
 export const CHROME_CREDENTIAL_ROWS_KEY = 'almadar.credentials.rows';
+export const CHROME_DERIVED_ROWS_KEY = 'almadar.credentials.derived';
 export const CHROME_CREDENTIAL_MASTER_KEY = 'almadar.credentials.masterKey';
 
-/** The store's rows kept as one array under one `chrome.storage` key; writes are applied one after another. */
-export function chromeCredentialRows(storage: ChromeStorageArea): CredentialPersistence {
+/** The store's rows kept as one array per entity type under one `chrome.storage` key each; writes are applied one after another. */
+export function chromeCredentialRows(storage: ChromeStorageArea): CredentialPersistence & DerivedPersistence {
   let queue: Promise<unknown> = Promise.resolve();
-  const read = async (): Promise<EntityRow[]> => {
-    const held = (await storage.get(CHROME_CREDENTIAL_ROWS_KEY))[CHROME_CREDENTIAL_ROWS_KEY];
-    const rows = EntityRowSchema.array().safeParse(held);
-    return rows.success ? rows.data : [];
+  const keyOf = (entityType: string): string => {
+    if (entityType === CREDENTIAL_ENTITY_TYPE) return CHROME_CREDENTIAL_ROWS_KEY;
+    if (entityType === DERIVED_ENTITY_TYPE) return CHROME_DERIVED_ROWS_KEY;
+    throw new Error(`the chrome credential store holds no ${entityType} rows`);
   };
-  const write = (rows: EntityRow[]): Promise<void> => storage.set({ [CHROME_CREDENTIAL_ROWS_KEY]: rows });
-  const change = <T>(work: (rows: EntityRow[]) => Promise<T> | T): Promise<T> => {
-    const next = queue.then(async () => work(await read()));
+  const read = async (key: string): Promise<EntityRow[]> => {
+    const held = (await storage.get(key))[key];
+    if (held === undefined) return [];
+    const rows = EntityRowSchema.array().safeParse(held);
+    if (!rows.success) throw new Error(`the credential rows under ${key} are unreadable: ${rows.error.message}`);
+    return rows.data;
+  };
+  const write = (key: string, rows: EntityRow[]): Promise<void> => storage.set({ [key]: rows });
+  const change = <T>(entityType: string, work: (rows: EntityRow[], key: string) => Promise<T> | T): Promise<T> => {
+    const key = keyOf(entityType);
+    const next = queue.then(async () => work(await read(key), key));
     queue = next.catch(() => undefined);
     return next;
   };
   return {
     async list(entityType) {
-      if (entityType !== CREDENTIAL_ENTITY_TYPE) return [];
+      const key = keyOf(entityType);
       await queue;
-      return read();
+      return read(key);
     },
-    create: (_entityType, data) =>
-      change(async (rows) => {
-        const id = globalThis.crypto.randomUUID();
-        await write([...rows, { ...data, id }]);
+    async getById(entityType, id) {
+      const key = keyOf(entityType);
+      await queue;
+      return (await read(key)).find((row) => row.id === id) ?? null;
+    },
+    create: (entityType, data) =>
+      change(entityType, async (rows, key) => {
+        const id = typeof data.id === 'string' ? data.id : globalThis.crypto.randomUUID();
+        await write(key, [...rows, { ...data, id }]);
         return { id };
       }),
-    update: (_entityType, id, data) =>
-      change(async (rows) => {
-        await write(rows.map((row) => (row.id === id ? { ...row, ...data, id } : row)));
+    update: (entityType, id, data) =>
+      change(entityType, async (rows, key) => {
+        await write(key, rows.map((row) => (row.id === id ? { ...row, ...data, id } : row)));
       }),
-    delete: (_entityType, id) =>
-      change(async (rows) => {
-        await write(rows.filter((row) => row.id !== id));
+    delete: (entityType, id) =>
+      change(entityType, async (rows, key) => {
+        await write(key, rows.filter((row) => row.id !== id));
+      }),
+    writeCapabilities: () => FULL_WRITE_CAPABILITIES,
+    writeWhere: (op) =>
+      change(op.entityType, async (rows, key) => {
+        const result = runRowWrite(rows, op);
+        const { kind } = result.outcome;
+        if (kind === 'created' || kind === 'updated' || kind === 'deleted') await write(key, result.rows);
+        return result.outcome;
       }),
   };
 }

@@ -885,6 +885,11 @@
     "description": "An HTTP request/auth header name is not a token, or its value is not a single-line string."
   },
   {
+    "code": "ORB_HTTP_REQUEST_OPTION_INVALID",
+    "category": "effect",
+    "description": "An HTTP request's `timeoutMs`, `delayMs` or `retry` is not a value of its declared kind."
+  },
+  {
     "code": "ORB_HTTP_AUTH_ON_CLIENT",
     "category": "effect",
     "description": "an `http` with `auth` sits where its trait runs on the client (a `local` trait, a browser-run tick)"
@@ -1848,6 +1853,11 @@
     "code": "ORB_STORE_ON_NON_PERSISTENT",
     "category": "entity",
     "description": "`store:` on an entity whose rows live in no store (`[runtime]` or browser-`local`). Error severity."
+  },
+  {
+    "code": "ORB_STORE_VERB_OUTSIDE_SEAM",
+    "category": "entity",
+    "description": "A trait outside a store driver orbital emits a row verb: the store seam alone asks a driver, one frame per ask (EXEC-STORE-4). Error severity."
   },
   {
     "code": "ORB_STORE_DRIVER_NOT_CONDITIONAL",

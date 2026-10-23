@@ -9,7 +9,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { HStack, Select, Typography } from '@almadar/shell-web/core';
-import { useDevPersonas } from '@almadar/auth/react';
+import { useDevPersonas } from '@almadar/shell-web/auth/react';
 import { useAuthContext } from '../AuthContext';
 import { authEmulatorHost } from '../../../config/auth';
 

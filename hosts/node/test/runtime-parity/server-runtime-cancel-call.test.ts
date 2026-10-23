@@ -4,7 +4,7 @@ import './helpers/kernel-evaluator.setup.js';
 import { describe, it, expect } from 'vitest';
 import type { EventPayload, OrbitalSchema } from '@almadar/core';
 import { OrbitalServerRuntime } from '../../src/runtime/OrbitalServerRuntime.js';
-import { InMemoryPersistence } from '@almadar/db/mock';
+import { describeWithMemoryKernel, memoryKernel, nativeMemory } from './helpers/native-memory.js';
 import type { ServiceCallContext } from '@almadar/shell-runtime';
 
 const schema: OrbitalSchema = {
@@ -32,9 +32,9 @@ const schema: OrbitalSchema = {
   }],
 };
 
-function runtimeWith(signals: Array<AbortSignal | undefined>, finishers: Array<(v: EventPayload) => void>) {
-  return new OrbitalServerRuntime({
-    persistence: new InMemoryPersistence(),
+async function runtimeWith(signals: Array<AbortSignal | undefined>, finishers: Array<(v: EventPayload) => void>) {
+  return new OrbitalServerRuntime({ mode: 'real',
+    kernel: await memoryKernel(), persistence: await nativeMemory(),
     debug: false,
     effectHandlers: {
       callService: (_s, _a, _p, context?: ServiceCallContext) =>
@@ -48,10 +48,10 @@ function runtimeWith(signals: Array<AbortSignal | undefined>, finishers: Array<(
 }
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-describe('OrbitalServerRuntime cancel-call', () => {
+describeWithMemoryKernel('OrbitalServerRuntime cancel-call', () => {
   it('a STOP dispatched mid-call aborts the call started by START, which routes to cancelled with { key }', async () => {
     const signals: Array<AbortSignal | undefined> = [];
-    const runtime = runtimeWith(signals, []);
+    const runtime = await runtimeWith(signals, []);
     await runtime.register(schema);
     const start = runtime.processOrbitalEvent('JobOrbital', { event: 'START', targetTrait: 'Runner' });
     await wait(20);
@@ -65,8 +65,8 @@ describe('OrbitalServerRuntime cancel-call', () => {
   it('control: another runtime instance has its own registry, so its STOP cancels nothing here', async () => {
     const signals: Array<AbortSignal | undefined> = [];
     const finishers: Array<(v: EventPayload) => void> = [];
-    const runtime = runtimeWith(signals, finishers);
-    const other = runtimeWith([], []);
+    const runtime = await runtimeWith(signals, finishers);
+    const other = await runtimeWith([], []);
     await runtime.register(schema);
     await other.register(schema);
     const start = runtime.processOrbitalEvent('JobOrbital', { event: 'START', targetTrait: 'Runner' });

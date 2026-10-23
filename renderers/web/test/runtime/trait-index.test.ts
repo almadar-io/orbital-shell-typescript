@@ -66,20 +66,6 @@ describe('buildTraitIndex', () => {
     );
   });
 
-  it('merges declared config defaults under the call-site override', () => {
-    const usesTrait = {
-      ref: 'x',
-      config: { mode: 'compact' },
-      _resolved: trait('Composer', {
-        config: { mode: { type: 'string', default: 'full' }, size: { type: 'number', default: 10 } },
-      } as Partial<Trait>),
-    };
-    const idx = buildTraitIndex([
-      orbital('App', { entity: { name: 'E', fields: [] }, traits: [usesTrait as never] }),
-    ]);
-    expect(idx.byName.get('Composer')?.config).toEqual({ mode: 'compact', size: 10 });
-  });
-
   it('stubs + warns for a genuinely unresolvable linkedEntity', () => {
     const idx = buildTraitIndex([
       orbital('App', {

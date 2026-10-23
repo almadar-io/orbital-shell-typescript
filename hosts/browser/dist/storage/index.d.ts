@@ -1,4 +1,4 @@
-import { EntityRow, PersistenceAdapter, RowQuery, RowQueryPage, RowIdPage, QueryCapabilities, WriteCapabilities, RowWriteOp, RowWriteOutcome, RowWriteBatch } from '@almadar/core';
+import { EntityRow, PersistenceAdapter, WriteCapabilities, RowCommit } from '@almadar/core';
 
 /**
  * IndexedDbPersistence — the browser store for `[persistent: x, local]` entities.
@@ -7,8 +7,8 @@ import { EntityRow, PersistenceAdapter, RowQuery, RowQueryPage, RowIdPage, Query
  * `fetch`/`persist` against it exactly as a server runs them against Firestore
  * or Postgres. Sync-ready: minted ids are UUIDs, every write stamps `updatedAt`
  * and appends to an ordered change log (`__changes`) a later sync can replay.
- * `query`/`listPage` are left to the contract's fallback over `list`; `queryPage` evaluates the
- * policy and filter in one cursor pass, so only matching rows are held, then orders and windows them.
+ * It answers plain reads; the kernel filters, orders and windows rows itself. Writes arrive as one
+ * compare-and-commit of rows the kernel decided (EXEC-STORE-5), so the store holds no query or write semantics.
  *
  * @packageDocumentation
  */
@@ -49,15 +49,9 @@ declare class IndexedDbPersistence implements PersistenceAdapter {
     delete(entityType: string, id: string): Promise<void>;
     getById(entityType: string, id: string): Promise<EntityRow | null>;
     list(entityType: string): Promise<EntityRow[]>;
-    private matching;
-    queryPage(entityType: string, query: RowQuery): Promise<RowQueryPage>;
-    queryIds(entityType: string, query: RowQuery): Promise<RowIdPage>;
-    queryCapabilities(_entityType: string): QueryCapabilities;
     writeCapabilities(_entityType: string): WriteCapabilities;
-    writeWhere(op: RowWriteOp): Promise<RowWriteOutcome>;
-    writeBatch(batch: RowWriteBatch): Promise<RowWriteOutcome[]>;
-    /** Every op reads and writes inside one readwrite transaction; an atomic batch that fails aborts it, a stop run commits its applied prefix. */
-    private writeInTransaction;
+    /** The kernel's decided rows, applied in one readwrite transaction only if each row still equals the version it read (EXEC-STORE-5). */
+    commitRows(rows: readonly RowCommit[]): Promise<boolean>;
     countRows(entityType: string): Promise<number>;
     /** The write log, oldest first — the seam a later `sync` replays. */
     changes(): Promise<ChangeRecord[]>;

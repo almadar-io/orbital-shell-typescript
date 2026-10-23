@@ -4,7 +4,7 @@ import './helpers/kernel-evaluator.setup.js';
 // declared event stamped as the calling trait — never in-band.
 import { describe, it, expect } from 'vitest';
 import { OrbitalServerRuntime, type LiveBroadcastItem } from '../../src/runtime/OrbitalServerRuntime.js';
-import { InMemoryPersistence } from '@almadar/db/mock';
+import { describeWithMemoryKernel, memoryKernel, nativeMemory } from './helpers/native-memory.js';
 import type { OrbitalSchema, UserContext } from '@almadar/core';
 
 const ALICE: UserContext = { id: 'alice', role: 'member' };
@@ -47,8 +47,8 @@ function schema(emit: Record<string, string>): OrbitalSchema {
 async function setup(emit: Record<string, string>) {
   const items: LiveBroadcastItem[] = [];
   let itemsBeforeReturn = -1;
-  const runtime = new OrbitalServerRuntime({
-    persistence: new InMemoryPersistence(),
+  const runtime = new OrbitalServerRuntime({ mode: 'real',
+    kernel: await memoryKernel(), persistence: await nativeMemory(),
     debug: false,
     effectHandlers: {
       callService: async (_service, _action, _params, context) => {
@@ -101,11 +101,11 @@ function crossOrbitalSchema(): OrbitalSchema {
   };
 }
 
-describe('call-service live messages', () => {
+describeWithMemoryKernel('call-service live messages', () => {
   it('a cross-orbital relay hop runs as the requesting viewer, not the default user', async () => {
     const principals: Array<string | undefined> = [];
-    const runtime = new OrbitalServerRuntime({
-      persistence: new InMemoryPersistence(),
+    const runtime = new OrbitalServerRuntime({ mode: 'real',
+      kernel: await memoryKernel(), persistence: await nativeMemory(),
       debug: false,
       defaultUser: { id: 'default', role: 'member' },
       effectHandlers: {
@@ -122,8 +122,8 @@ describe('call-service live messages', () => {
 
   it('a call reached through a cross-orbital relay hop still delivers to the requesting tab', async () => {
     const items: LiveBroadcastItem[] = [];
-    const runtime = new OrbitalServerRuntime({
-      persistence: new InMemoryPersistence(),
+    const runtime = new OrbitalServerRuntime({ mode: 'real',
+      kernel: await memoryKernel(), persistence: await nativeMemory(),
       debug: false,
       effectHandlers: {
         callService: async (_service, _action, _params, context) => {

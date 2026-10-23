@@ -6,7 +6,7 @@
 import { benchCommand, benchCompareCommand, benchReportCommand, genDeviceWorkloadsCommand, genLargeTableCommand, scenariosCommand } from './commands.js';
 import { LOAD_COMMANDS, LOAD_HELP, loadCommand } from './load-commands.js';
 import { formatBoundaryRows, runBoundaryMicro } from './f3b-boundary.js';
-import { formatWide, loadKernel, runWideTable, seedStore } from './wide-table.js';
+import { formatWide, runWideTable, seedStore } from './wide-table.js';
 
 const HELP = `
 Kernel bench
@@ -84,10 +84,11 @@ async function scenarioCommands(): Promise<boolean> {
   if (command === 'wide-table') {
     const dir = process.env.ALMADAR_KERNEL_DIR;
     if (dir === undefined) throw new Error('wide-table: set ALMADAR_KERNEL_DIR to the built @almadar/kernel directory');
-    const { InMemoryPersistence } = await import('@almadar/db');
-    const store = new InMemoryPersistence();
-    seedStore(store);
-    console.log(formatWide(await runWideTable(await loadKernel(dir), store, runs(), Math.min(20, runs()))));
+    const { loadKernelModule, nativeMemoryOf } = await import('@almadar/shell-node');
+    const kernel = await loadKernelModule(dir, { languageFrom: process.cwd() });
+    const store = nativeMemoryOf(kernel);
+    await seedStore(store);
+    console.log(formatWide(await runWideTable(kernel, store, runs(), Math.min(20, runs()))));
     return true;
   }
   return false;

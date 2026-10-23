@@ -32,11 +32,13 @@ import type {
   OrbitalDefinition,
   ResolvedTraitBinding,
   ServiceParams,
-  TraitConfig,
   UserContext,
 } from '@almadar/core';
-import { createMemoryCircuitStore, type CircuitStore, type ClientKernel, type ClientKernelOutcome, type EventTransport, type TransitionObserver } from '../../index';
-import { buildTraitIndex, collectListenerTargets, createLocalStoreTransport, createResidenceTransport, localStorePersistence, openLocalKernel } from '../../runtime';
+import { createMemoryCircuitStore, type CircuitStore } from '@almadar/shell-runtime/client/circuit-store';
+import type { ClientKernel, ClientKernelOutcome } from '@almadar/shell-runtime/client/client-kernel';
+import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
+import type { TransitionObserver } from '@almadar/shell-runtime/client/trait-types';
+import { buildTraitIndex, collectListenerTargets, createLocalStoreTransport, createResidenceTransport, localStorePersistence, nativeMemoryPersistence, openLocalKernel } from '../../runtime';
 import type { IndexedTrait, TraitIndex } from '@almadar/core';
 import { UNMOUNT_EVENT, type OrbitalSchema, type PersistenceAdapter } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
@@ -53,9 +55,6 @@ export interface UseCircuitKernelOptions {
    *  the one input `buildTraitIndex` needs; the trait index is then
    *  restricted to the traits `traitBindings` actually mounts. */
   orbitals: readonly OrbitalDefinition[];
-  /** Page-level resolved config per trait — the middle layer of
-   *  `buildTraitIndex`'s three-layer merge (plan §5.1 G4). */
-  traitConfigsByName?: Record<string, TraitConfig>;
   /** Caller-owned transport (server bridge, or a custom in-process one). */
   transport?: EventTransport;
   /** From the transport's `register()` result — `true` = the stateless
@@ -145,11 +144,9 @@ export function useCircuitKernel(
   options: UseCircuitKernelOptions,
 ): CircuitKernelHandle {
   const orbitals = useContentStable(options.orbitals);
-  // A host that runs the whole program (an extension worker) runs every trait; this view only shows them.
-  const hostRunsProgram = options.transport?.hostsBrowserStore === true;
   const fullTraitIndex = useMemo(
-    () => buildTraitIndex(orbitals, options.traitConfigsByName, { hostRunsProgram }),
-    [orbitals, options.traitConfigsByName, hostRunsProgram],
+    () => buildTraitIndex(orbitals),
+    [orbitals],
   );
   const appTraitNames = useMemo(() => new Set(fullTraitIndex.byName.keys()), [fullTraitIndex]);
   // Keyed on the active trait SET, not the bindings array identity: a same-traits re-render must not rebuild the store.
@@ -204,7 +201,7 @@ export function useCircuitKernel(
           kernel,
           language: bundle,
           schema,
-          persistence: localStorePersistence(schema, store),
+          persistence: localStorePersistence(schema, store, nativeMemoryPersistence(kernel)),
           ...(options.callService !== undefined ? { callService: options.callService } : {}),
           ...(i18n !== undefined ? { messages: { [i18n.locale]: i18n.messages } } : {}),
         }));
@@ -212,6 +209,7 @@ export function useCircuitKernel(
       kernelEngine.catch(() => undefined);
       return createLocalStoreTransport({
         kernelEngine,
+        schema,
         ...(options.user !== undefined ? { user: options.user } : {}),
       });
     },
@@ -260,11 +258,6 @@ export function useCircuitKernel(
     instance.catch((err) => log.error('kernel-load-failed', { error: String(err) }));
     return instance;
   }, [loadModule, orbitalName, orbitals]);
-  useEffect(() => {
-    if (options.user === undefined) return;
-    const user = options.user;
-    void kernelInstance.then((k) => k.setCurrentUser(JSON.stringify(user)));
-  }, [kernelInstance, options.user]);
   // A transition the client paints locally resolves `i18n/t` against the viewer's catalog, as the server leg does.
   useEffect(() => {
     if (i18n === undefined) return;
@@ -279,6 +272,10 @@ export function useCircuitKernel(
     ...(effectiveTransport !== undefined ? { transport: effectiveTransport } : {}),
   }), [kernelInstance, store, traitIndex, topology, effectiveTransport, options.observer]);
   const rawKernel: ClientKernel = kernelClient;
+  useEffect(() => {
+    if (options.user === undefined) return;
+    void kernelClient.setViewer(options.user);
+  }, [kernelClient, options.user]);
 
   // Stamp the per-tab clientId and the viewer's locale onto every dispatch
   // that doesn't already carry them, so callers (`useBusIngress`, the composer) never have to

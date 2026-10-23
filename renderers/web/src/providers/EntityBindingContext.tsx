@@ -18,7 +18,7 @@
  * @packageDocumentation
  */
 
-import { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
+import { createContext, useContext, useSyncExternalStore } from 'react';
 import type { EntityRow, TraitConfig } from '@almadar/core';
 
 /**
@@ -60,13 +60,8 @@ export function useEntityBindingSnapshot(traitName: string | undefined): {
       : NOOP_SUBSCRIBE,
     () => (source !== null && traitName !== undefined ? source.getEntitySnapshot(traitName) : EMPTY_ENTITY),
   );
-  // The source rebuilds only when its inputs change (bindings map, shared
-  // store), so memoing on it keeps the config object identity-stable
-  // across renders — downstream `useMemo` on resolved props depends on it.
-  const config = useMemo(
-    () => (source !== null && traitName !== undefined ? source.getConfig(traitName) : undefined),
-    [source, traitName],
-  );
+  // Read every render: the kernel client holds one config object per trait until the viewer changes.
+  const config = source !== null && traitName !== undefined ? source.getConfig(traitName) : undefined;
   return {
     entity,
     config,

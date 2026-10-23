@@ -2,18 +2,19 @@ import './helpers/kernel-evaluator.setup.js';
 /**
  * The kernel-backed engine (`OrbitalServerRuntime`, `evaluateOrbitalEvent`'s `kernel`
  * dep): the Rust kernel decides every step, this package answers the I/O it asks for. Needs the built
- * `@almadar/kernel` (ALMADAR_KERNEL_DIR); the suite is skipped without it.
+ * `@almadar/kernel` (ALMADAR_KERNEL_DIR) and a kernel with a `MemoryStore` (ORBITAL_KERNEL_NODE or
+ * ORBITAL_KERNEL_MEMORY_WASM); the suite is skipped without them.
  */
-import { beforeAll, describe, expect, it } from 'vitest';
-import { InMemoryPersistence } from '@almadar/db/mock';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { EntityRow, EventPayload, OrbitalSchema, PersistenceAdapter, ServiceHostPorts } from '@almadar/core';
 import { OrbitalServerRuntime } from '../../src/runtime/OrbitalServerRuntime.js';
-import { InFlightCalls } from '@almadar/shell-runtime';
+import { InFlightCalls, type NativeMemoryPersistenceAdapter } from '@almadar/shell-runtime';
 import { answerRequest, type DeferredCallOutcome, type KernelAnswerScope, type KernelHostPorts } from '@almadar/shell-runtime';
 import type { KernelModule } from '@almadar/shell-runtime';
 import { loadHttpKernel } from '@almadar/shell-node';
 import { memorySecrets } from './helpers/fake-http-kernel.js';
-import { KERNEL_DIR, loadKernel, PACKAGE_ROOT } from './helpers/kernel-module.js';
+import { KERNEL_DIR, PACKAGE_ROOT } from './helpers/kernel-module.js';
+import { MEMORY_KERNEL_PATH, memoryKernel, nativeMemory } from './helpers/native-memory.js';
 
 const emit = { emit: { success: 'SAVED', failure: 'SAVE_FAILED' } };
 
@@ -97,10 +98,10 @@ function service(): OrbitalSchema {
   };
 }
 
-describe.skipIf(KERNEL_DIR === undefined)('kernel engine', () => {
+describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('kernel engine', () => {
   let kernel: KernelModule;
   beforeAll(async () => {
-    kernel = await loadKernel();
+    kernel = await memoryKernel();
   });
 
   const open = async (schema: OrbitalSchema, config: ConstructorParameters<typeof OrbitalServerRuntime>[0] = {}): Promise<OrbitalServerRuntime> => {
@@ -110,7 +111,7 @@ describe.skipIf(KERNEL_DIR === undefined)('kernel engine', () => {
   };
 
   it('runs a persisting dispatch through the persistence adapter', async () => {
-    const persistence = new InMemoryPersistence();
+    const persistence = await nativeMemory();
     const runtime = await open(notes(), { persistence });
     const response = await runtime.processOrbitalEvent('Main', { event: 'SAVE', targetTrait: 'Draft' });
     expect(response.success).toBe(true);
@@ -121,15 +122,15 @@ describe.skipIf(KERNEL_DIR === undefined)('kernel engine', () => {
   });
 
   it('control: the JS engine, unselected, gives the same states and leaves the kernel unopened', async () => {
-    const persistence = new InMemoryPersistence();
-    const runtime = new OrbitalServerRuntime({ mode: 'real', persistence });
+    const persistence = await nativeMemory();
+    const runtime = new OrbitalServerRuntime({ mode: 'real', kernel, persistence });
     await runtime.register(notes());
     const response = await runtime.processOrbitalEvent('Main', { event: 'SAVE', targetTrait: 'Draft' });
     expect(response.states).toEqual({ Draft: 'saved' });
   });
 
   it('a refused write takes the declared failure path', async () => {
-    const memory = new InMemoryPersistence();
+    const memory = await nativeMemory();
     const refusing: PersistenceAdapter = {
       create: () => Promise.reject(new Error('disk full')),
       update: (t, id, d) => memory.update(t, id, d),
@@ -256,8 +257,12 @@ describe.skipIf(KERNEL_DIR === undefined)('kernel engine', () => {
   });
 
   describe('host answers', () => {
+    let defaultStore: NativeMemoryPersistenceAdapter;
+    beforeEach(async () => {
+      defaultStore = await nativeMemory();
+    });
     const ports = (over: Partial<KernelHostPorts> = {}): KernelHostPorts => ({
-      persistence: new InMemoryPersistence(),
+      persistence: defaultStore,
       inFlightCalls: new InFlightCalls(),
       callService: async () => null,
       programEffect: () => undefined,
@@ -269,7 +274,7 @@ describe.skipIf(KERNEL_DIR === undefined)('kernel engine', () => {
     const scope = (over: Partial<KernelAnswerScope> = {}): KernelAnswerScope => ({ orbital: 'Main', ...over });
 
     it('a write upserts and merges into the existing row', async () => {
-      const persistence = new InMemoryPersistence();
+      const persistence = await nativeMemory();
       const p = ports({ persistence });
       const first = await answerRequest(p, { kind: 'writeRow', entityType: 'N', id: 'a', data: { title: 'x', n: 1 } }, scope());
       expect(first).toEqual({ kind: 'row', result: { ok: { title: 'x', n: 1, id: 'a' } } });

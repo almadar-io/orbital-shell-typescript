@@ -13,7 +13,6 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { OrbitalSchema } from '@almadar/core';
-import { InMemoryPersistence } from '@almadar/db/mock';
 import { OrbPreview } from '../OrbPreview';
 import { statelessKernelTransport } from '../../test-support/stateless-kernel';
 
@@ -112,7 +111,7 @@ function schema(): OrbitalSchema {
 }
 
 function statelessTransport(s: OrbitalSchema) {
-  return statelessKernelTransport(s, new InMemoryPersistence());
+  return statelessKernelTransport(s);
 }
 
 describe('stateless cross-orbital fan-out answers reach the on-page searcher', () => {

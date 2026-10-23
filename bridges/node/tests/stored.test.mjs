@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixtures = join(here, 'fixtures', 'stored');
-const { Server, NativeServer } = createRequire(import.meta.url)(process.env.ORBITAL_KERNEL_NODE);
+const { Server } = createRequire(import.meta.url)(process.env.ORBITAL_KERNEL_NODE);
 const schema = readFileSync(join(fixtures, 'notes.schema.json'), 'utf8');
 const save = JSON.stringify({ event: 'SAVE', targetTrait: 'Draft' });
 const memory = JSON.stringify({ DATA_BACKEND: 'mock', NODE_ENV: 'development' });
@@ -28,34 +28,4 @@ test('control: the plain server leaves the row ask to the host', () => {
 
 test('control: production refuses the memory store', () => {
   assert.throws(() => Server.withStore(schema, JSON.stringify({ DATA_BACKEND: 'mock' })), /not permitted/);
-});
-
-const desk = JSON.stringify({
-  name: 'Desk',
-  inbound: ['ping'],
-  orbitals: [{
-    name: 'Desk',
-    entity: { name: 'Note', persistence: 'persistent', collection: 'notes', fields: [{ name: 'id', type: 'string' }] },
-    traits: [{
-      name: 'Notes',
-      linkedEntity: 'Note',
-      stateMachine: {
-        states: [{ name: 'idle', isInitial: true }],
-        events: [
-          { key: 'ADD', name: 'Add', external: true },
-          { key: 'PING', name: 'Ping', inbound: { name: 'ping', answers: 'PONG' } },
-          { key: 'PONG', name: 'Pong' },
-        ],
-        transitions: [
-          { from: 'idle', to: 'idle', event: 'ADD' },
-          { from: 'idle', to: 'idle', event: 'PING', effects: [['emit', 'PONG', { status: 202, body: 'pong' }]] },
-        ],
-      },
-      emits: [{ event: 'PONG' }],
-    }],
-  }],
-});
-
-test('the retired native HTTP adapter reports its explicit unavailable contract', () => {
-  assert.throws(() => NativeServer.open(desk, memory, '{}', null), /NATIVE_SERVER_UNAVAILABLE/);
 });

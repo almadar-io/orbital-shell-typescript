@@ -3,8 +3,8 @@
 // serves any EventTransport (here an in-process one) on the channel.
 import { describe, it, expect } from 'vitest';
 import type { EmittedEvent, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
-import { createChannelTransport, holdUntilServed, serveChannel, type ChannelMessage, type TransportChannel } from '../src/client/channel-transport.js';
-import { createInProcessTransport, type PushTarget } from '../src/client/EventTransport.js';
+import { createChannelTransport, holdUntilServed, serveChannel, type ChannelMessage, type TransportChannel } from '@almadar/shell-runtime/client/channel-transport';
+import { createInProcessTransport, type PushTarget } from '@almadar/shell-runtime/client/EventTransport';
 
 function pair(): [TransportChannel, TransportChannel] {
   const a: Array<(m: ChannelMessage) => void> = [];

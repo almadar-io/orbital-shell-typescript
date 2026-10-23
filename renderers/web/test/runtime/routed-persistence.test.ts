@@ -1,20 +1,20 @@
 // The browser host's kernel store: the program's browser-stored entities in the browser database, every other entity in memory.
 import { describe, expect, it } from 'vitest';
 import type { RowQuery } from '@almadar/core';
-import { InMemoryPersistence } from '@almadar/db/mock';
 import { routeByEntity } from '../../src/runtime/evaluation/routed-persistence';
+import { nativeMemory } from '../helpers/persistence.js';
 
 const everything: RowQuery = { offset: 0, limit: 10, total: 'exact' };
 
-function stores() {
-  const stored = new InMemoryPersistence();
-  const rest = new InMemoryPersistence();
+async function stores() {
+  const stored = await nativeMemory();
+  const rest = await nativeMemory();
   return { stored, rest, routed: routeByEntity(new Set(['Note']), stored, rest) };
 }
 
 describe('routeByEntity', () => {
   it('sends a browser-stored entity to the browser store and any other to the other store', async () => {
-    const { stored, rest, routed } = stores();
+    const { stored, rest, routed } = await stores();
     await routed.create('Note', { id: 'n1', title: 'a' });
     await routed.create('Clock', { id: 'c1', n: 1 });
     expect(await stored.list('Note')).toHaveLength(1);
@@ -30,7 +30,7 @@ describe('routeByEntity', () => {
   });
 
   it('pushes queries and conditional writes down to the store that holds the entity', async () => {
-    const { rest, routed } = stores();
+    const { rest, routed } = await stores();
     expect(await routed.writeWhere?.({ kind: 'create', entityType: 'Clock', data: { id: 'c1', n: 1 } })).toMatchObject({ kind: 'created' });
     expect(await rest.list('Clock')).toHaveLength(1);
     expect((await routed.queryPage?.('Clock', everything))?.rows).toHaveLength(1);
@@ -40,7 +40,7 @@ describe('routeByEntity', () => {
   });
 
   it('a batch within one store runs in it, and a batch spanning both is refused', async () => {
-    const { stored, routed } = stores();
+    const { stored, routed } = await stores();
     const outcomes = await routed.writeBatch?.({ ops: [{ kind: 'create', entityType: 'Note', data: { id: 'n1' } }, { kind: 'create', entityType: 'Note', data: { id: 'n2' } }], onFailure: 'atomic' });
     expect(outcomes).toHaveLength(2);
     expect(await stored.list('Note')).toHaveLength(2);
@@ -51,8 +51,8 @@ describe('routeByEntity', () => {
   });
 
   it('control: with no browser-stored entity every entity is the other store', async () => {
-    const stored = new InMemoryPersistence();
-    const rest = new InMemoryPersistence();
+    const stored = await nativeMemory();
+    const rest = await nativeMemory();
     const routed = routeByEntity(new Set(), stored, rest);
     await routed.create('Note', { id: 'n1' });
     expect(await rest.list('Note')).toHaveLength(1);

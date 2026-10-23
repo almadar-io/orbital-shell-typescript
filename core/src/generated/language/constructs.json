@@ -1051,6 +1051,11 @@
         "doc": "`{ k: T, ... }` / `{ k: T! }` inline object type. Each entry is `(field_name, type, required)`; the optional `!` marker tracks whether the field is required so the lowerer can emit the matching `required` flag on the resulting `FieldDefinition`."
       },
       {
+        "name": "OpenObject",
+        "type": "Vec<(String, TypeExpr, bool)>, Box<TypeExpr>",
+        "doc": ""
+      },
+      {
         "name": "Union",
         "type": "Vec<TypeExpr>",
         "doc": "`T | U` union (lowering inlines this to enum values when all members are bare names or string literals)."

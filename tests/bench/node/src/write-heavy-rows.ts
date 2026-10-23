@@ -1,10 +1,8 @@
 import { performance } from 'node:perf_hooks';
 import type { OrbitalSchema } from '@almadar/core';
 import type { KernelModule } from '@almadar/shell-web';
-import { CountingPersistence, PERSISTENCE_METHODS, type PersistenceMethod } from '@almadar/db';
-import { InMemoryPersistence } from '@almadar/db/mock';
 import { percentile } from './bench.js';
-import { captureFallbackNotices, formatNotices, PlainPersistence, type FallbackNotices } from './persistence-wrappers.js';
+import { captureFallbackNotices, CountingPersistence, formatNotices, PERSISTENCE_METHODS, PlainPersistence, type FallbackNotices, type PersistenceMethod } from './persistence-wrappers.js';
 
 declare global {
   var __ALMADAR_DEBUG__: string | undefined;
@@ -137,11 +135,13 @@ async function runRow(options: WriteHeavyOptions): Promise<Omit<WriteHeavyResult
   if (options.ops < 1 || options.tableRows < 1) throw new Error('ops and tableRows must be positive');
   globalThis.__ALMADAR_DEBUG__ = '';
   const { OrbitalServerRuntime } = await import('@almadar/shell-node/OrbitalServerRuntime');
-  const memory = new InMemoryPersistence();
+  const { loadInstalledKernel, nativeMemoryOf } = await import('@almadar/shell-node');
+  const kernel = options.kernel ?? await loadInstalledKernel(process.cwd());
+  const memory = nativeMemoryOf(kernel);
   for (let n = 1; n <= options.tableRows; n++) await memory.create('Item', { id: itemId(n), n: 0 });
   const counting = new CountingPersistence(options.pushdown === false ? new PlainPersistence(memory) : memory);
-  // No kernel given: the runtime runs on the kernel it installs.
-  const runtime = new OrbitalServerRuntime({ debug: false, mode: 'real', persistence: counting, ...(options.kernel !== undefined ? { kernel: options.kernel } : {}) });
+  // No kernel given: the installed one, which also holds the table.
+  const runtime = new OrbitalServerRuntime({ debug: false, mode: 'real', persistence: counting, kernel });
   await runtime.register(writeHeavySchema());
 
   const plan = planWriteMix(options.ops, options.tableRows, options.seed);

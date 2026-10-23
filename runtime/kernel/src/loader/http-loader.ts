@@ -26,6 +26,11 @@ import type {
  * Tracks import chains to detect circular imports.
  * Compatible with ImportChainLike interface.
  */
+/** A base is either an absolute URL (it names a scheme) or a path served from the page's own origin. */
+function isAbsoluteUrl(base: string): boolean {
+  return /^[a-z][a-z0-9+.-]*:/i.test(base);
+}
+
 export class HttpImportChain implements ImportChainLike {
   private chain: string[] = [];
 
@@ -430,33 +435,18 @@ export class HttpLoader implements SchemaLoader {
       return path;
     }
 
-    // Use URL API if available (browser and modern Node.js)
-    if (typeof URL !== "undefined") {
-      try {
-        // Ensure base has a trailing slash for proper resolution
-        const baseUrl = base.endsWith("/") ? base : base + "/";
-        return new URL(path, baseUrl).href;
-      } catch {
-        // Fall back to string manipulation
-      }
-    }
+    if (isAbsoluteUrl(base)) return new URL(path, base.endsWith("/") ? base : base + "/").href;
 
-    // Simple string manipulation fallback
     const normalizedBase = base.endsWith("/") ? base.slice(0, -1) : base;
     const normalizedPath = path.startsWith("/") ? path : "/" + path;
-
-    // Handle relative path navigation
     if (normalizedPath.startsWith("/./")) {
       return normalizedBase + normalizedPath.slice(2);
     }
-
-    // Handle parent directory navigation
     if (normalizedPath.startsWith("/../")) {
       const baseParts = normalizedBase.split("/");
-      baseParts.pop(); // Remove last segment
+      baseParts.pop();
       return baseParts.join("/") + normalizedPath.slice(3);
     }
-
     return normalizedBase + normalizedPath;
   }
 
@@ -464,23 +454,15 @@ export class HttpLoader implements SchemaLoader {
    * Get parent URL (directory) from a URL.
    */
   private getParentUrl(url: string): string {
-    if (typeof URL !== "undefined") {
-      try {
-        const urlObj = new URL(url);
-        const pathParts = urlObj.pathname.split("/");
-        pathParts.pop(); // Remove file name
-        urlObj.pathname = pathParts.join("/");
-        return urlObj.href;
-      } catch {
-        // Fall back to string manipulation
-      }
+    if (isAbsoluteUrl(url)) {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split("/");
+      pathParts.pop();
+      urlObj.pathname = pathParts.join("/");
+      return urlObj.href;
     }
-
     const lastSlash = url.lastIndexOf("/");
-    if (lastSlash !== -1) {
-      return url.slice(0, lastSlash);
-    }
-    return url;
+    return lastSlash !== -1 ? url.slice(0, lastSlash) : url;
   }
 
   /**

@@ -13,7 +13,6 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { OrbitalEventRequest, OrbitalSchema } from '@almadar/core';
 import type { EventTransport } from '../../index';
-import { InMemoryPersistence } from '@almadar/db/mock';
 import { OrbPreview } from '../OrbPreview';
 import { statelessKernelTransport } from '../../test-support/stateless-kernel';
 
@@ -43,7 +42,7 @@ function schema(): OrbitalSchema {
 }
 
 function delayedRegisterStatelessTransport(s: OrbitalSchema, sends: Array<{ registered: boolean; request: OrbitalEventRequest }>): EventTransport {
-  const base = statelessKernelTransport(s, new InMemoryPersistence());
+  const base = statelessKernelTransport(s);
   let registered = false;
   return {
     ...base,

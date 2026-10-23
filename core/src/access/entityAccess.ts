@@ -37,6 +37,11 @@ export function orbitalInlineEntities(orbital: OrbitalDefinition): OrbitalEntity
   return out;
 }
 
+/** The orbital of `schema` that declares the entity `entityType` inline, when one does. */
+export function entityOwnerOrbital(schema: OrbitalSchema, entityType: string): OrbitalDefinition | undefined {
+  return schema.orbitals.find((orbital) => orbitalInlineEntities(orbital).some((entity) => entity.name === entityType));
+}
+
 /** Inline entity definitions of every orbital in a schema: each orbital's
  * primary entity plus any auxiliaries. */
 function inlineEntities(schema: OrbitalSchema): OrbitalEntity[] {

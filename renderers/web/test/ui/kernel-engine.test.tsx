@@ -368,7 +368,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
 describe('useEntityBindingSource kernel state', () => {
   it('reads the state from the kernel client when one is given, the store otherwise', () => {
     const { result: stateless } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', []), engine: KERNEL_ENGINE }));
-    const withKernel = renderHook(() => useEntityBindingSource(stateless.current.store, stateless.current.traitIndex, { traitState: () => 'from-kernel' }));
+    const withKernel = renderHook(() => useEntityBindingSource(stateless.current.store, stateless.current.traitIndex, { traitState: () => 'from-kernel', traitConfig: () => undefined }));
     const withStore = renderHook(() => useEntityBindingSource(stateless.current.store, stateless.current.traitIndex));
     expect(withKernel.result.current.getState('Driver')).toBe('from-kernel');
     expect(withStore.result.current.getState('Driver')).toBe('idle');

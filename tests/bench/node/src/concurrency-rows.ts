@@ -1,7 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import type { OrbitalSchema, PersistenceAdapter } from '@almadar/core';
 import type { KernelModule } from '@almadar/shell-web';
-import { InMemoryPersistence } from '@almadar/db/mock';
 import { percentile } from './bench.js';
 import { captureFallbackNotices, formatNotices, LatencyPersistence, PlainPersistence, type FallbackNotices } from './persistence-wrappers.js';
 
@@ -88,11 +87,10 @@ export interface ConcurrencyRowResult {
   fallbackNotices: FallbackNotices;
 }
 
-async function openRuntime(options: ConcurrencyRunOptions, store: PersistenceAdapter) {
+async function openRuntime(kernel: KernelModule, store: PersistenceAdapter) {
   globalThis.__ALMADAR_DEBUG__ = '';
   const { OrbitalServerRuntime } = await import('@almadar/shell-node/OrbitalServerRuntime');
-  // No kernel given: the runtime runs on the kernel it installs.
-  return new OrbitalServerRuntime({ debug: false, mode: 'real', persistence: store, ...(options.kernel !== undefined ? { kernel: options.kernel } : {}) });
+  return new OrbitalServerRuntime({ debug: false, mode: 'real', persistence: store, kernel });
 }
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -104,10 +102,14 @@ export async function runConcurrencyRow(options: ConcurrencyRunOptions): Promise
 
 async function runRow(options: ConcurrencyRunOptions): Promise<Omit<ConcurrencyRowResult, 'fallbackNotices'>> {
   if (options.clients < 1 || options.eventsPerClient < 1) throw new Error('clients and eventsPerClient must be positive');
-  const memory = new InMemoryPersistence();
+  globalThis.__ALMADAR_DEBUG__ = '';
+  // No kernel given: the installed one, which also holds the counters.
+  const { loadInstalledKernel, nativeMemoryOf } = await import('@almadar/shell-node');
+  const kernel = options.kernel ?? await loadInstalledKernel(process.cwd());
+  const memory = nativeMemoryOf(kernel);
   for (let i = 0; i < options.clients; i++) await memory.create('Counter', { id: clientId(i), count: 0 });
   const store = new LatencyPersistence(options.pushdown === false ? new PlainPersistence(memory) : memory, options.latencyMs);
-  const runtime = await openRuntime(options, store);
+  const runtime = await openRuntime(kernel, store);
   await runtime.register(concCounterSchema());
 
   const latencies: number[] = [];

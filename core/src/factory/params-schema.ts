@@ -678,7 +678,7 @@ const ENTITY_FIELD_BASE_PROPS = {
   projectedFrom: {
     type: 'object' as JsonSchemaType,
     additionalProperties: false,
-    required: ['type', 'field'],
+    required: ['type'],
     properties: { type: { type: 'string' as JsonSchemaType }, field: { type: 'string' as JsonSchemaType } },
   },
   properties: { type: 'object' as JsonSchemaType, additionalProperties: { $ref: 'urn:almadar:entity-field#/$defs/field' } },

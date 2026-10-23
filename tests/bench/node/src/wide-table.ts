@@ -219,8 +219,8 @@ export async function runWideTable(mod: KernelModule, store: PersistenceAdapter,
   return results;
 }
 
-export function seedStore(store: { seed(data: Record<string, EntityRow[]>): void }): void {
-  store.seed({ Wide: wideRows(WIDE_ROWS) as EntityRow[] });
+export async function seedStore(store: PersistenceAdapter): Promise<void> {
+  for (const row of wideRows(WIDE_ROWS) as EntityRow[]) await store.create('Wide', row);
 }
 
 export function formatWide(results: readonly WideResult[]): string {

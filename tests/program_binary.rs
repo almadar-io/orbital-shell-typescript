@@ -14,8 +14,9 @@ fn request(ir_version: u32) -> GenerateRequest {
         ir_version,
         module: OirModule::new("App", "1.0.0"),
         resolved: None,
+        served: None,
         source_path: None,
-        write: WriteOptions { copy_template: true, ..WriteOptions::default() },
+        write: WriteOptions { copy_template: true, mode: orbital_core_base::generate::ShellMode::Client, ..WriteOptions::default() },
         options: BTreeMap::new(),
     }
 }
@@ -54,8 +55,8 @@ fn control_an_ir_the_shell_does_not_accept_is_refused_by_code() {
 #[test]
 fn edge_a_bad_option_is_refused_not_ignored() {
     let mut bad = request(IR_VERSION);
-    bad.options.insert("framework".to_string(), serde_json::Value::from("koa"));
+    bad.options.insert("typeProjection".to_string(), serde_json::Value::from("koa"));
     let err = invoke_emit(Path::new(BINARY), &bad).unwrap_err();
-    assert!(err.message.contains("framework must be express"), "{}", err.message);
+    assert!(err.message.contains("typeProjection must be wire or hostInput"), "{}", err.message);
 }
 

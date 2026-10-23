@@ -5,12 +5,12 @@
  * `fetch`/`persist` against it exactly as a server runs them against Firestore
  * or Postgres. Sync-ready: minted ids are UUIDs, every write stamps `updatedAt`
  * and appends to an ordered change log (`__changes`) a later sync can replay.
- * `query`/`listPage` are left to the contract's fallback over `list`; `queryPage` evaluates the
- * policy and filter in one cursor pass, so only matching rows are held, then orders and windows them.
+ * It answers plain reads; the kernel filters, orders and windows rows itself. Writes arrive as one
+ * compare-and-commit of rows the kernel decided (EXEC-STORE-5), so the store holds no query or write semantics.
  *
  * @packageDocumentation
  */
-import { FULL_QUERY_CAPABILITIES, FULL_WRITE_CAPABILITIES, rowMatchesPredicate, runRowIds, runRowQuery, runRowWrite, type EntityRow, type PersistenceAdapter, type QueryCapabilities, type RowIdPage, type RowQuery, type RowQueryPage, type RowWriteBatch, type RowWriteOp, type RowWriteOutcome, type WriteCapabilities } from "@almadar/core";
+import { FULL_WRITE_CAPABILITIES, type EntityRow, type FieldValue, type PersistenceAdapter, type RowCommit, type WriteCapabilities } from "@almadar/core";
 
 /** Object store holding the append-only write log. */
 export const CHANGE_LOG = "__changes";
@@ -133,86 +133,37 @@ export class IndexedDbPersistence implements PersistenceAdapter {
     return request<EntityRow[]>(tx.objectStore(entityType).getAll());
   }
 
-  private async matching(entityType: string, query: RowQuery): Promise<EntityRow[]> {
-    const tx = this.db.transaction(this.store(entityType), "readonly");
-    const matched: EntityRow[] = [];
-    await new Promise<void>((resolve, reject) => {
-      const cursor = tx.objectStore(entityType).openCursor();
-      cursor.onerror = () => reject(cursor.error);
-      cursor.onsuccess = () => {
-        const at = cursor.result;
-        if (!at) return resolve();
-        const row: EntityRow = at.value;
-        if (
-          (query.policy === undefined || rowMatchesPredicate(row, query.policy)) &&
-          (query.filter === undefined || rowMatchesPredicate(row, query.filter))
-        ) {
-          matched.push(row);
-        }
-        at.continue();
-      };
-    });
-    return matched;
-  }
-
-  async queryPage(entityType: string, query: RowQuery): Promise<RowQueryPage> {
-    return runRowQuery(await this.matching(entityType, query), { order: query.order, offset: query.offset, limit: query.limit, total: query.total, nearest: query.nearest });
-  }
-
-  async queryIds(entityType: string, query: RowQuery): Promise<RowIdPage> {
-    return runRowIds(await this.matching(entityType, query), { order: query.order, offset: query.offset, limit: query.limit, total: query.total, nearest: query.nearest });
-  }
-
-  queryCapabilities(_entityType: string): QueryCapabilities {
-    return { ...FULL_QUERY_CAPABILITIES, idsOnly: true };
-  }
-
   writeCapabilities(_entityType: string): WriteCapabilities {
-    return FULL_WRITE_CAPABILITIES;
+    return { ...FULL_WRITE_CAPABILITIES, commitRows: true };
   }
 
-  async writeWhere(op: RowWriteOp): Promise<RowWriteOutcome> {
-    const [outcome] = await this.writeInTransaction({ ops: [op], onFailure: "stop" });
-    return outcome;
-  }
-
-  async writeBatch(batch: RowWriteBatch): Promise<RowWriteOutcome[]> {
-    return this.writeInTransaction(batch);
-  }
-
-  /** Every op reads and writes inside one readwrite transaction; an atomic batch that fails aborts it, a stop run commits its applied prefix. */
-  private async writeInTransaction(batch: RowWriteBatch): Promise<RowWriteOutcome[]> {
-    if (batch.ops.length === 0) return [];
-    const stores = [...new Set(batch.ops.map((op) => this.store(op.entityType)))];
+  /** The kernel's decided rows, applied in one readwrite transaction only if each row still equals the version it read (EXEC-STORE-5). */
+  async commitRows(rows: readonly RowCommit[]): Promise<boolean> {
+    if (rows.length === 0) return true;
+    const stores = [...new Set(rows.map((row) => this.store(row.entityType)))];
     const tx = this.db.transaction([...stores, CHANGE_LOG], "readwrite");
     const log = tx.objectStore(CHANGE_LOG);
-    const outcomes: RowWriteOutcome[] = [];
-    for (const op of batch.ops) {
-      const objectStore = tx.objectStore(op.entityType);
-      const id = op.kind === "create" || op.kind === "upsert" ? (typeof op.data.id === "string" ? op.data.id : null) : op.id;
-      const existing = id === null ? undefined : await request<EntityRow | undefined>(objectStore.get(id));
-      const { outcome } = runRowWrite(existing ? [existing] : [], op);
-      if (outcome.kind === "created" || outcome.kind === "updated") {
-        const row: EntityRow = { ...outcome.row, updatedAt: this.now() };
-        objectStore.put(row);
-        log.add({ op: outcome.kind === "created" ? "create" : "update", entityType: op.entityType, id: String(row.id), row, at: this.now() } satisfies ChangeRecord);
-        outcomes.push({ ...outcome, row });
-      } else if (outcome.kind === "deleted" && op.kind === "delete") {
-        objectStore.delete(op.id);
-        log.add({ op: "delete", entityType: op.entityType, id: op.id, row: null, at: this.now() } satisfies ChangeRecord);
-        outcomes.push(outcome);
-      } else {
-        outcomes.push(outcome);
-        if (batch.onFailure === "atomic") {
-          tx.abort();
-          await done(tx).catch(() => undefined);
-          return [...outcomes.slice(0, -1).map((): RowWriteOutcome => ({ kind: "rolled-back" })), outcome];
-        }
-        break;
+    for (const row of rows) {
+      const current = await request<EntityRow | undefined>(tx.objectStore(row.entityType).get(row.id));
+      if (!sameRow(current ?? null, row.expected)) {
+        tx.abort();
+        await done(tx).catch(() => undefined);
+        return false;
+      }
+    }
+    for (const row of rows) {
+      const objectStore = tx.objectStore(row.entityType);
+      if (row.write.kind === "put") {
+        const stored: EntityRow = { ...row.write.row, updatedAt: this.now() };
+        objectStore.put(stored);
+        log.add({ op: row.expected === null ? "create" : "update", entityType: row.entityType, id: row.id, row: stored, at: this.now() } satisfies ChangeRecord);
+      } else if (row.write.kind === "delete") {
+        objectStore.delete(row.id);
+        log.add({ op: "delete", entityType: row.entityType, id: row.id, row: null, at: this.now() } satisfies ChangeRecord);
       }
     }
     await done(tx);
-    return outcomes;
+    return true;
   }
 
   async countRows(entityType: string): Promise<number> {
@@ -225,4 +176,20 @@ export class IndexedDbPersistence implements PersistenceAdapter {
     const tx = this.db.transaction(CHANGE_LOG, "readonly");
     return request<ChangeRecord[]>(tx.objectStore(CHANGE_LOG).getAll());
   }
+}
+
+/** Plain structural equality of two stored rows: the compare in compare-and-commit, no predicate logic. */
+function sameRow(a: EntityRow | null, b: EntityRow | null): boolean {
+  return sameValue(a, b);
+}
+
+function sameValue(a: FieldValue | undefined, b: FieldValue | undefined): boolean {
+  if (a === b) return true;
+  if (a instanceof Date || b instanceof Date) return a instanceof Date && b instanceof Date && a.getTime() === b.getTime();
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, i) => sameValue(item, b[i]));
+  }
+  if (a === null || b === null || a === undefined || b === undefined || typeof a !== "object" || typeof b !== "object") return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((key) => sameValue(a[key], b[key]));
 }

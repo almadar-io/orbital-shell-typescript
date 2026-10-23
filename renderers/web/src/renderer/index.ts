@@ -109,24 +109,6 @@ export {
 } from '../lib/slot-definitions';
 
 // ============================================================================
-// Offline Executor
-// ============================================================================
-
-export {
-  OfflineExecutor,
-  createOfflineExecutor,
-  useOfflineExecutor,
-} from '../lib/offline-executor';
-
-export type {
-  PendingSyncEffect,
-  OfflineExecutorConfig,
-  OfflineExecutorState,
-  UseOfflineExecutorOptions,
-  UseOfflineExecutorResult,
-} from '../lib/offline-executor';
-
-// ============================================================================
 // Schema-Driven Navigation
 // ============================================================================
 

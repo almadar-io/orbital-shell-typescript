@@ -1,10 +1,9 @@
 /**
- * Mock-seed value synthesis: one policy, two entropy providers.
+ * Identity and owner facts a mock store's seeding and policies read; sampling is the std-mock-seed program's.
  *
  * @packageDocumentation
  */
 
-export * from './random.js';
 export {
   collectUserFieldLiterals,
   identityEntitiesOf,
@@ -21,34 +20,3 @@ export {
   entityAccessPoliciesByStoreKey,
   entityAccessTable,
 } from '../access/entityAccess.js';
-export {
-  type SampleEntity,
-  type SampleContext,
-  type SampleStrategy,
-  IMAGE_FIELD_NAMES,
-  RESERVED_FIELD_NAMES,
-  isDeclaredDefaultHonored,
-  projectionOf,
-  sampleFieldValue,
-  sampleImageUrl,
-  sampleRow,
-  sampleRowCount,
-  sampleRows,
-} from './sampleValue.js';
-export {
-  type SelfRelationForest,
-  crossRelationValue,
-  isRelationPlaceholder,
-  linkSelfRelationField,
-  selfRelationForest,
-} from './relationForest.js';
-export {
-  type ResponseShapeField,
-  type ServiceMockAnswer,
-  type ServiceMockValue,
-  mockFromResponseShape,
-  mockServiceAnswer,
-  mockValueForDescriptor,
-  registryActionNames,
-  registryServiceNames,
-} from './serviceAnswer.js';

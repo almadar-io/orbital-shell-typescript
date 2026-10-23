@@ -28,10 +28,9 @@ import type {
   OrbitalDefinition,
   ResolvedTraitBinding,
   ServiceParams,
-  TraitConfig,
   UserContext,
 } from '@almadar/core';
-import { TraitMountError } from '../index';
+import { TraitMountError } from '@almadar/shell-runtime/client/trait-mount-error';
 import { type EventTransport } from '../index';
 import { collectListenerTargets } from '../runtime';
 import type { ClientKernelOutcome, TraitState } from '../index';
@@ -110,7 +109,6 @@ export interface UseTraitStateMachineOptions {
   /** The browser store for `[persistent: x, local]` entities (see `useCircuitKernel`). */
   browserStore?: PersistenceAdapter;
   callService?: (service: string, action: string, params?: ServiceParams) => Promise<EventPayload>;
-  traitConfigsByName?: Record<string, TraitConfig>;
   embeddedTraits?: ReadonlySet<string>;
   callsiteCaptureChildrenByTrait?: ReadonlyMap<string, ReadonlySet<string>>;
   debug?: boolean;
@@ -137,7 +135,6 @@ export function useTraitStateMachine(
   const { kernel, store, traitIndex, appTraitNames, transport, engine: kernelClient } = useCircuitKernel(traitBindings, {
     orbitals: options.orbitals,
     engine,
-    ...(options.traitConfigsByName !== undefined ? { traitConfigsByName: options.traitConfigsByName } : {}),
     ...(options.transport !== undefined ? { transport: options.transport } : {}),
     ...(options.carriesCircuitState !== undefined ? { carriesCircuitState: options.carriesCircuitState } : {}),
     ...(options.awaitTopology !== undefined ? { awaitTopology: options.awaitTopology } : {}),
@@ -486,7 +483,7 @@ export function useTraitStateMachine(
       if (
         embeddedChildren.has(traitName) &&
         indexed !== undefined &&
-        (traitReferencesCallsitePayload(indexed.irTrait) || configReferencesCallsitePayload(indexed.config)) &&
+        (traitReferencesCallsitePayload(indexed.irTrait) || configReferencesCallsitePayload(kernelClient.traitConfig(traitName))) &&
         store.states.repaintLifecycleEvent(traitName) !== undefined &&
         !store.callsitePayloads.has(traitName)
       ) {

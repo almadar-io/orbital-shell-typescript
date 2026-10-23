@@ -28,13 +28,13 @@ import { UISlotRenderer } from '../components/core/organisms/UISlotRenderer';
 import { useEventBus } from '../core';
 import { useTranslate } from '../core';
 import type { OrbitalSchema, EntityData, ResolvedTraitBinding, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority } from '@almadar/core';
-import { buildResolvedTraitConfigs, orbitalInlineEntities, storesRowsInBrowser, collectCallsiteCaptureChildren, isHostSignInRoute, localeAlternates } from '@almadar/core';
+import { orbitalInlineEntities, storesRowsInBrowser, collectCallsiteCaptureChildren, isHostSignInRoute, localeAlternates } from '@almadar/core';
 import { useResolvedSchema } from '../hooks/useResolvedSchema';
 import { matchPathAmong } from '../core';
 import { collectEmbeddedTraits, collectTraitRefsFromResolvedTrait } from '../lib/embedded-traits';
 import { useTraitStateMachine } from '../hooks/useTraitStateMachine';
 import { buildOrbitalsByTrait } from '../lib/orbitalsByTrait';
-import { buildTraitLinkedEntities } from '../runtime';
+import { buildTraitLinkedEntities, nativeMemoryPersistence, seedMockStore, withBrowserSeeder } from '../runtime';
 import { EntitySchemaProvider } from '../providers/EntitySchemaContext';
 import { EntityBindingContext } from '../providers/EntityBindingContext';
 import { AwaitingSkeletonContext } from '../providers/AwaitingSkeletonContext';
@@ -44,19 +44,17 @@ import { getAllPages } from '../core';
 import { PageAccessHost } from '../providers/PageAccessHost';
 import { usePageHead } from '../hooks/usePageHead';
 import { NavStackProvider, useNavStack, type NavStackApi, type NavPageDecl } from '../core';
-import { prepareSchemaForPreview } from '../lib/prepareSchemaForPreview';
 import { loadLazyPage, type SchemaLoader } from '../index';
 import type { PersistenceAdapter } from '@almadar/core';
-import { InMemoryPersistence } from '@almadar/db/mock';
 import { LoadingState } from '../components/core/molecules/LoadingState';
 import { ErrorState } from '../components/core/molecules/ErrorState';
 import { useBrowserStore } from '../hooks/circuit/useBrowserStore';
-import { KernelEngineProvider } from '../providers/KernelEngineContext';
+import { KernelEngineProvider, KernelLoaderMissingError, LanguageLoaderMissingError, SeedProgramLoaderMissingError, useKernelEngine } from '../providers/KernelEngineContext';
 import { ClientTicksPausedContext } from '../hooks/circuit/useClientTicks';
-import type { KernelLoader, LanguageLoader } from '../lib/kernel-wire';
+import type { KernelLoader, LanguageLoader, SeedProgramLoader } from '../lib/kernel-wire';
 import { RowSetResolverProvider } from '../providers/RowSetResolverContext';
 import { createCircuitRowSetResolver } from '../lib/store-row-set-resolver';
-import { viewerReadPolicy } from '../lib/viewer-read-policy';
+import { browserRowSets } from '../lib/browser-row-sets';
 import { createLogger } from '@almadar/logger';
 import { fitContentTransform, slotContentRect, type FitTransform } from './fitContent';
 
@@ -116,7 +114,7 @@ function appPathFromHref(href: string, hostHrefBase: string): string | null {
  * its own `sendEvent`/mount-time dispatch resolves — this component only
  * decides WHICH transport (or none) the kernel dispatches through.
  */
-function TraitInitializer({ traits, routeParams, mountKey, orbitals, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, persistence, browserStore, traitConfigsByName, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
+function TraitInitializer({ traits, routeParams, mountKey, orbitals, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, persistence, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
   traits: ResolvedTraitBinding[];
   /** Route params from a parameterized page path — merged into every INIT payload. */
   routeParams?: Record<string, string>;
@@ -124,7 +122,6 @@ function TraitInitializer({ traits, routeParams, mountKey, orbitals, onNavigate,
   mountKey?: string;
   /** The resolved schema's full orbital set — `useCircuitKernel`'s one input. */
   orbitals: readonly OrbitalDefinition[];
-  traitConfigsByName?: Record<string, import('@almadar/core').TraitConfig>;
   onNavigate?: (path: string, params?: Record<string, string>, crumb?: string) => void;
   /** navigate-back effect handler: pop the orbital's navigation stack. */
   onNavigateBack?: () => void;
@@ -188,7 +185,6 @@ function TraitInitializer({ traits, routeParams, mountKey, orbitals, onNavigate,
     orbitals,
     ...(onNavigate !== undefined ? { navigate: onNavigate } : {}),
     ...(onNavigateBack !== undefined ? { navigateBack: onNavigateBack } : {}),
-    ...(traitConfigsByName !== undefined ? { traitConfigsByName } : {}),
     ...(embeddedTraits !== undefined ? { embeddedTraits } : {}),
     ...(callsiteCaptureChildrenByTrait !== undefined ? { callsiteCaptureChildrenByTrait } : {}),
     initPayload: routeParams,
@@ -288,12 +284,54 @@ function FitToBox({ children, mode = 'box' }: { children: React.ReactNode; mode?
   );
 }
 
+type MockStoreState =
+  | { status: 'none' }
+  | { status: 'opening' }
+  | { status: 'ready'; store: PersistenceAdapter }
+  | { status: 'failed'; error: Error };
+
+/**
+ * The offline-preview store: the kernel's own memory store, seeded by the std mock-seed program for `seedFrom`
+ * (the same seeding every browser store uses); rebuilt when the program changes. The program runs unchanged.
+ */
+function useMockStore(seedFrom: OrbitalSchema | undefined): MockStoreState {
+  const engine = useKernelEngine();
+  const [state, setState] = useState<MockStoreState>(() => (seedFrom === undefined ? { status: 'none' } : { status: 'opening' }));
+  useEffect(() => {
+    if (seedFrom === undefined) {
+      setState({ status: 'none' });
+      return;
+    }
+    let cancelled = false;
+    setState({ status: 'opening' });
+    const open = async (): Promise<void> => {
+      try {
+        if (engine === null) throw new KernelLoaderMissingError();
+        if (engine.loadLanguage === undefined) throw new LanguageLoaderMissingError();
+        if (engine.loadSeedProgram === undefined) throw new SeedProgramLoaderMissingError();
+        const [kernel, language] = await Promise.all([engine.loadModule(), engine.loadLanguage()]);
+        const store = nativeMemoryPersistence(kernel);
+        await withBrowserSeeder({ kernel, language, loadSeedProgram: engine.loadSeedProgram, app: seedFrom }, (host) =>
+          seedMockStore({ ...host, persistence: store }, seedFrom, { namedByHost: false, current: () => undefined, seedIdentity: true }));
+        if (!cancelled) setState({ status: 'ready', store });
+      } catch (error) {
+        if (!cancelled) setState({ status: 'failed', error: error instanceof Error ? error : new Error(String(error)) });
+      }
+    };
+    void open();
+    return () => {
+      cancelled = true;
+    };
+  }, [seedFrom, engine]);
+  return state;
+}
+
 /**
  * Resolves schema, mounts trait state machines, and renders the UI.
  * When `serverUrl` is provided, wraps with ServerBridgeProvider and
  * forwards events to the server after local processing.
  */
-function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, pageName, routeParams, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, persistence, themeOverride }: {
+function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, pageName, routeParams, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, mockRows, themeOverride }: {
   schema: OrbitalSchema;
   serverUrl?: string;
   transport?: ServerBridgeTransport;
@@ -309,8 +347,8 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   onLocalFallback?: () => void;
   /** Forwarded to TraitInitializer — see OrbPreviewProps doc. */
   localFallbackTimeoutMs?: number;
-  /** Offline-preview persistence layer. */
-  persistence?: PersistenceAdapter;
+  /** Offline-preview mock rows; present, the preview runs over a kernel memory store seeded with them. */
+  mockRows?: OrbitalSchema;
   /** See OrbPreviewProps.themeOverride. */
   themeOverride?: string;
 }) {
@@ -456,29 +494,12 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
     });
   }, [pageName, allPageTraits, orbitalsByTrait, pageOrbitalNames]);
 
-  // Map trait name → TraitConfig from the orbital-level traits[] entries.
-  // @almadar/core's page resolver doesn't propagate config from the
-  // orbital level into the page-level binding, so the client kernel
-  // would otherwise see no config and OPEN guards
-  // like `["or", ["=", "@config.mode", "create"], "@payload.row"]` would
-  // reject the create flow.
-  //
-  // `buildResolvedTraitConfigs` (@almadar/core, shared with the SERVER-side
-  // OrbitalServerRuntime binding-context builder) also chains embedded
-  // sub-traits' `@config.X` forwards (e.g. std-browse's `DataGrid1: config
-  // { fields: @config.fields }`) through to the trait that actually embeds
-  // them — see `embedded-trait-config.ts` for the full rationale.
-  const traitConfigsByName = useMemo(
-    () => buildResolvedTraitConfigs(schema),
-    [schema],
-  );
-
   // Referrer trait name → the DIRECT children (via `@trait.X`) that need
   // their lifecycle transition re-run under the referrer's payload whenever
   // the referrer's own transition fires (`@almadar/core`'s
   // `collectCallsiteCaptureChildren`, threaded to `useTraitStateMachine`'s
   // `reRenderCallsiteCaptureChildren`). Merged across every orbital in the
-  // schema, same flattening `orbitalsByTrait`/`traitConfigsByName` use —
+  // schema, same flattening `orbitalsByTrait` uses —
   // trait names are unique within one running schema.
   const callsiteCaptureChildrenByTrait = useMemo<ReadonlyMap<string, ReadonlySet<string>>>(() => {
     const merged = new Map<string, ReadonlySet<string>>();
@@ -520,20 +541,30 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   const activeOrbitalTheme = useMemo(() => resolvePreviewTheme(schema, pageName), [schema, pageName]);
   const { locale } = useTranslate();
   // A host that runs the whole program keeps its browser-stored entities; this view opens none.
+  const mockStore = useMockStore(mockRows);
+  const persistence = mockStore.status === 'ready' ? mockStore.store : undefined;
   const browserStore = useBrowserStore(schema.name ?? 'app', transport?.hostsBrowserStore === true ? NO_ORBITALS : schema.orbitals, locale);
 
   const viewer = useUser();
   const bridge = useServerBridge();
+  const kernelEngine = useKernelEngine();
+  const browserRows = useMemo(
+    () => (browserStore.status === 'ready' && kernelEngine !== null
+      ? browserRowSets(kernelEngine, { name: schema.name ?? 'app', orbitals: schema.orbitals }, browserStore.store, viewer.user ?? undefined)
+      : undefined),
+    [browserStore, kernelEngine, schema.name, schema.orbitals, viewer.user],
+  );
+  useEffect(() => () => browserRows?.dispose(), [browserRows]);
   const rowSets = useMemo(() => {
     const inlineEntities = schema.orbitals.flatMap(orbitalInlineEntities);
     const remote = bridge.transport.resolveRows?.bind(bridge.transport);
     return createCircuitRowSetResolver({
-      ...(browserStore.status === 'ready'
-        ? { browser: { store: browserStore.store, entityTypes: new Set(inlineEntities.filter(storesRowsInBrowser).map((e) => e.name)), policy: viewerReadPolicy(inlineEntities, viewer.user ?? undefined) } }
+      ...(browserRows !== undefined
+        ? { browser: { resolve: browserRows.resolve, entityTypes: new Set(inlineEntities.filter(storesRowsInBrowser).map((e) => e.name)) } }
         : {}),
       ...(remote !== undefined ? { remote } : {}),
     });
-  }, [browserStore, schema.orbitals, viewer.user, bridge.transport]);
+  }, [browserRows, schema.orbitals, bridge.transport]);
 
   const circuit = (
     <VerificationProvider enabled>
@@ -548,7 +579,6 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
           mountKey={pageName}
           orbitals={schema.orbitals}
           hasBridge={Boolean(serverUrl || transport)}
-          traitConfigsByName={traitConfigsByName}
           embeddedTraits={embeddedTraits}
           callsiteCaptureChildrenByTrait={callsiteCaptureChildrenByTrait}
           onNavigate={onNavigate}
@@ -590,7 +620,8 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
 
   const inner = rowSets === undefined ? circuit : <RowSetResolverProvider resolver={rowSets}>{circuit}</RowSetResolverProvider>;
 
-  if (browserStore.status === 'opening') return <LoadingState />;
+  if (mockStore.status === 'opening' || browserStore.status === 'opening') return <LoadingState />;
+  if (mockStore.status === 'failed') return <ErrorState data-testid="mock-store-error" message={mockStore.error.message} />;
   if (browserStore.status === 'failed') {
     return <ErrorState data-testid="browser-store-error" message={browserStore.error.message} />;
   }
@@ -647,6 +678,8 @@ export interface OrbPreviewProps {
   kernelLoader?: KernelLoader;
   /** Resolves the language bundle a kernel opened over browser-stored rows needs (forwarded to `KernelEngineProvider`); keep its identity stable. */
   languageLoader?: LanguageLoader;
+  /** Resolves the std mock-seed program that seeds a browser store. */
+  seedProgramLoader?: SeedProgramLoader;
   /**
    * How long (ms) to wait for the server bridge to connect before assuming
    * it's unreachable and falling back to local-only execution. Default
@@ -816,6 +849,7 @@ export function OrbPreview({
   getAccessToken,
   kernelLoader,
   languageLoader,
+  seedProgramLoader,
   initialPagePath,
   isolated = false,
   fit = false,
@@ -873,41 +907,17 @@ export function OrbPreview({
       parsed = schema;
     }
 
-    // Skip the legacy autoMock prep pipeline when a runtime transport is
-    // wired (an in-process host runs `OrbitalServerRuntime` with
-    // MockPersistenceAdapter — that's the single mock source).
-    if (autoMock && !serverUrl && !transport) {
-      const prepared = prepareSchemaForPreview(parsed);
-      return { ok: true, schema: prepared.schema, mockData: prepared.mockData };
-    }
-
     return { ok: true, schema: parsed, mockData: mockData ?? {} };
-  }, [schema, autoMock, serverUrl, transport, mockData]);
+  }, [schema, mockData]);
 
   const parsedSchema = parseResult.ok ? parseResult.schema : null;
   // Arbitrary-value classes exist only in the schema; the host compiles them.
   useArbitraryClassStyles(parsedSchema);
   const effectiveMockData: EntityData = parseResult.ok ? parseResult.mockData : {};
 
-  // Offline-preview persistence. When `autoMock` is on and no `serverUrl`
-  // is set, build an `InMemoryPersistence` seeded from the generated mock
-  // rows and hand it to the state machine. The runtime's
-  // `createServerEffectHandlers` layers on top of the client handlers, so
-  // `fetch` / `persist` / `set` / `ref` / `deref` / `swap` / `atomic` /
-  // `callService` run the same semantics `OrbitalServerRuntime` would on
-  // the server — just against in-memory storage. This is what makes
-  // 3-state `loading → browsing` schemas like `std-list` advance past the
-  // initial spinner without a real server.
-  //
-  // The adapter is built once per schema parse — re-parses (schema swap
-  // in the playground) reset the persistence to the fresh seed.
-  const persistence = useMemo<PersistenceAdapter | undefined>(() => {
-    if (!parsedSchema || serverUrl || transport) return undefined;
-    if (!autoMock) return undefined;
-    const adapter = new InMemoryPersistence();
-    adapter.seed(effectiveMockData);
-    return adapter;
-  }, [parsedSchema, serverUrl, transport, autoMock, effectiveMockData]);
+  // Offline preview: with `autoMock` and no `serverUrl`/`transport`, the std mock-seed program seeds a kernel memory
+  // store inside `SchemaRunner` for this program; a re-parse (schema swap in the playground) reseeds.
+  const mockRows = !parsedSchema || serverUrl || transport || !autoMock ? undefined : parsedSchema;
 
   // Discover pages from schema for effect-driven navigation
   const pages = useMemo(() => {
@@ -1207,7 +1217,7 @@ export function OrbPreview({
       </ServerBridgeProvider>
     ) : node;
     const engined = kernelLoader !== undefined ? (
-      <KernelEngineProvider loader={kernelLoader} {...(languageLoader !== undefined ? { languageLoader } : {})}>{bridged}</KernelEngineProvider>
+      <KernelEngineProvider loader={kernelLoader} {...(languageLoader !== undefined ? { languageLoader } : {})} {...(seedProgramLoader !== undefined ? { seedProgramLoader } : {})}>{bridged}</KernelEngineProvider>
     ) : bridged;
     return <ClientTicksPausedContext.Provider value={paused}>{engined}</ClientTicksPausedContext.Provider>;
   };
@@ -1296,7 +1306,7 @@ export function OrbPreview({
                     onNavigateBack={handleNavigateBack}
                     onLocalFallback={handleLocalFallback}
                     localFallbackTimeoutMs={localFallbackTimeoutMs}
-                    persistence={persistence}
+                    mockRows={mockRows}
                     themeOverride={themeOverride}
                   />
                 </FitToBox>
@@ -1313,7 +1323,7 @@ export function OrbPreview({
                   onNavigateBack={handleNavigateBack}
                   onLocalFallback={handleLocalFallback}
                   localFallbackTimeoutMs={localFallbackTimeoutMs}
-                  persistence={persistence}
+                  mockRows={mockRows}
                   themeOverride={themeOverride}
                 />
               )}

@@ -45,22 +45,6 @@ const CLIENT_UNREAD_PROGRAM_KEYS: [&str; 2] = ["_metadata", "ledger"];
 /// transport-backed `OrbPreview` skips.
 const CLIENT_UNREAD_TRAIT_KEYS: [&str; 2] = ["effectRow", "sourceEntityDefinition"];
 
-/// The program with every object's keys in sorted order. The schema's maps (`config`, ...) are hash maps, so
-/// two resolves of one program would otherwise embed the same data in different byte orders.
-fn with_sorted_keys(value: serde_json::Value) -> serde_json::Value {
-    match value {
-        serde_json::Value::Object(map) => {
-            let mut entries: Vec<(String, serde_json::Value)> = map.into_iter().collect();
-            entries.sort_by(|a, b| a.0.cmp(&b.0));
-            serde_json::Value::Object(entries.into_iter().map(|(k, v)| (k, with_sorted_keys(v))).collect())
-        }
-        serde_json::Value::Array(items) => {
-            serde_json::Value::Array(items.into_iter().map(with_sorted_keys).collect())
-        }
-        other => other,
-    }
-}
-
 /// The resolved program as the browser receives it. The server keeps the whole program.
 /// The program's files the program-independent web client reads at startup, by path under the
 /// client's public root: `client.json` (the `ClientManifest`), `themes.css` (the declared themes, or
@@ -116,7 +100,7 @@ pub fn client_runtime_files(module: &OirModule, language: &str, ships_language: 
 /// `program.client.json`: the resolved program as the web client fetches it (keys sorted, without what no
 /// client code path reads).
 pub fn client_program_json(schema: &orbital_core_base::schema::types::OrbitalSchema) -> serde_json::Result<String> {
-    serde_json::to_string(&client_program(&with_sorted_keys(serde_json::to_value(schema)?)))
+    serde_json::to_string(&client_program(&orbital_core_eval::util::canonical_json(&serde_json::to_value(schema)?)))
 }
 
 pub(crate) fn client_program(program: &serde_json::Value) -> serde_json::Value {
@@ -172,7 +156,7 @@ impl TypeScriptBackend {
         let Ok(value) = serde_json::to_value(schema) else {
             return Vec::new();
         };
-        let Ok(json) = serde_json::to_string(&with_sorted_keys(value)) else {
+        let Ok(json) = serde_json::to_string(&orbital_core_eval::util::canonical_json(&value)) else {
             return Vec::new();
         };
         vec![
@@ -192,6 +176,20 @@ impl TypeScriptBackend {
                 GeneratedFileType::Config,
             ),
         ]
+    }
+
+    /// The served program (the app composed with `std-http-server`), the program the template server runs.
+    pub(crate) fn generate_served_program(&self) -> Vec<InternalFile> {
+        let Some(schema) = &self.served_schema else {
+            return Vec::new();
+        };
+        let Ok(value) = serde_json::to_value(schema) else {
+            return Vec::new();
+        };
+        let Ok(json) = serde_json::to_string(&orbital_core_eval::util::canonical_json(&value)) else {
+            return Vec::new();
+        };
+        vec![InternalFile::new("packages/server/generated/program.json", json, GeneratedFileType::Config)]
     }
 
     /// The kernel-hosted client: the loader and the `App` that renders the program on the kernel.
@@ -239,10 +237,8 @@ impl TypeScriptBackend {
         if self.browser_schema.is_none() {
             warnings.push("kernel host: no resolved schema was supplied, so the program is not embedded".to_string());
         }
-        if self.target != "client" {
-            if let Err(e) = orbital_core_base::language_data::language_bundle_json() {
-                warnings.push(format!("kernel host: the installed language could not be read for the server's native kernel ({}: {e})", e.code()));
-            }
+        if self.target != "client" && self.served_schema.is_none() {
+            warnings.push("kernel host: no served program was supplied, so the server has no program to run".to_string());
         }
         if self.target != "server" && self.client_needs_language(module) {
             if let Err(e) = orbital_core_base::language_data::language_bundle_json() {
@@ -255,7 +251,8 @@ impl TypeScriptBackend {
 
 #[cfg(test)]
 mod client_program_tests {
-    use super::{client_program, with_sorted_keys};
+    use super::client_program;
+    use orbital_core_eval::util::canonical_json;
     use serde_json::json;
 
     fn program() -> serde_json::Value {
@@ -302,7 +299,7 @@ mod client_program_tests {
 
     #[test]
     fn keys_are_sorted_at_every_depth_and_array_order_is_kept() {
-        let out = with_sorted_keys(json!({ "b": 1, "a": { "z": [ { "y": 1, "x": 2 }, 0 ], "c": null } }));
+        let out = canonical_json(&json!({ "b": 1, "a": { "z": [ { "y": 1, "x": 2 }, 0 ], "c": null } }));
         assert_eq!(
             serde_json::to_string(&out).unwrap(),
             r#"{"a":{"c":null,"z":[{"x":2,"y":1},0]},"b":1}"#
@@ -311,6 +308,6 @@ mod client_program_tests {
 
     #[test]
     fn edge_a_scalar_passes_through_unchanged() {
-        assert_eq!(with_sorted_keys(json!("k")), json!("k"));
+        assert_eq!(canonical_json(&json!("k")), json!("k"));
     }
 }

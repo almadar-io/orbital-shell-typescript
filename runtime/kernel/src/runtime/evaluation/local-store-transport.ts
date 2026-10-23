@@ -3,10 +3,9 @@
  * (`openLocalKernel`), and this host answers its I/O. The offline preview and the browser-stored side of a
  * residence-routed host both use it.
  */
-import type { BrowserTabPort, MessageCatalogs, OnDeviceModelPorts, OrbitalEventRequest, OrbitalSchema, PersistenceAdapter, UserContext } from '@almadar/core';
-import { applyRowAccess, inlineTraitRefs, orbitalInlineEntities, readableEntitiesOf, storesRowsInBrowser, externalInputsOf } from '@almadar/core';
+import type { BrowserTabPort, MessageCatalogs, OnDeviceModelPorts, OrbitalEventRequest, OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef, UserContext } from '@almadar/core';
+import { applyRowAccess, entityOwnerOrbital, inlineTraitRefs, orbitalInlineEntities, readableEntitiesOf, storesRowsInBrowser, externalInputsOf } from '@almadar/core';
 import { entityAccessPolicies } from '@almadar/core/mock';
-import { InMemoryPersistence } from '@almadar/db/mock';
 import type { EffectHandlers } from '../types.js';
 import { KernelEngine, evaluateOnKernel } from '../../kernel/engine.js';
 import type { KernelHostPorts } from '../../kernel/host.js';
@@ -40,10 +39,10 @@ export interface LocalKernelOptions {
   messages?: MessageCatalogs;
 }
 
-/** A local store's rows as the kernel holds them: browser-stored entities in `store`, every other entity in memory. */
-export function localStorePersistence(schema: OrbitalSchema, store: PersistenceAdapter): PersistenceAdapter {
+/** A local store's rows as the kernel holds them: browser-stored entities in `store`, every other entity in `memory` (a native `MemoryStore` adapter). */
+export function localStorePersistence(schema: OrbitalSchema, store: PersistenceAdapter, memory: PersistenceAdapter): PersistenceAdapter {
   const browserStored = new Set(schema.orbitals.flatMap(orbitalInlineEntities).filter(storesRowsInBrowser).map((entity) => entity.name));
-  return routeByEntity(browserStored, store, new InMemoryPersistence());
+  return routeByEntity(browserStored, store, memory);
 }
 
 /** A kernel over a local store, answering its I/O with `persistence` and the given ports. */
@@ -84,6 +83,8 @@ export interface LocalStoreTransportOptions {
   user?: UserContext | Promise<UserContext | undefined>;
   /** Releases the host's request queue while a `call-service` awaits its provider. */
   outsideEventQueue?: <T>(work: () => Promise<T>) => Promise<T>;
+  /** The program the kernel runs; given, the transport resolves row-set references on that kernel. */
+  schema?: OrbitalSchema;
 }
 
 export function createLocalStoreTransport(options: LocalStoreTransportOptions): EventTransport {
@@ -98,6 +99,20 @@ export function createLocalStoreTransport(options: LocalStoreTransportOptions): 
       await options.user,
       request.locale,
     ),
-    { carriesCircuitState: false },
+    {
+      carriesCircuitState: false,
+      ...(options.schema !== undefined ? { resolveRows: resolveOn(options, options.schema) } : {}),
+    },
   );
+}
+
+function resolveOn(options: LocalStoreTransportOptions, schema: OrbitalSchema): (reference: RowSetRef) => Promise<RowQueryPage> {
+  return async (reference) => resolveLocalRows(await options.kernelEngine, schema, await options.user, reference);
+}
+
+/** `reference` resolved on a local kernel for `user`: the kernel applies the viewer's `@read`, the host answers its row reads. */
+export function resolveLocalRows(engine: KernelEngine, schema: OrbitalSchema, user: UserContext | undefined, reference: RowSetRef): Promise<RowQueryPage> {
+  const owner = entityOwnerOrbital(schema, reference.entityType);
+  if (owner === undefined) return Promise.reject(new Error(`${reference.entityType}: no orbital of the local program declares this entity`));
+  return engine.resolveRows(reference, { orbital: owner.name, ...(user !== undefined ? { user } : {}) });
 }

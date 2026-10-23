@@ -51,17 +51,12 @@ fn fnv1a(bytes: &[u8], mut hash: u64) -> u64 {
     hash
 }
 
-/// The installed language the server ships (`packages/server/generated/language.json`) is the installed package's bytes, not this
-/// shell's output, so it is left out of the digest.
-const INSTALLED_LANGUAGE: &str = "packages/server/generated/language.json";
-
 fn digest(backend: &TypeScriptBackend) -> u64 {
     let mut files: Vec<_> = backend
         .generate(&module())
         .files
         .into_iter()
         .map(|f| (f.path, f.content))
-        .filter(|(path, _)| path != INSTALLED_LANGUAGE)
         .collect();
     files.sort();
     files
@@ -116,13 +111,12 @@ fn file<'a>(files: &'a [(String, String)], path: &str) -> &'a str {
 }
 
 #[test]
-fn the_server_is_the_templates_native_host_and_the_compile_ships_only_its_language() {
-    let files = files_of(&kernel_backend());
+fn the_server_is_the_templates_node_host_and_the_compile_ships_only_its_served_program() {
+    let files = files_of(&TypeScriptBackend { served_schema: Some(served()), ..kernel_backend() });
     let server: Vec<&str> = files.iter().map(|(p, _)| p.as_str()).filter(|p| p.starts_with("packages/server/")).collect();
-    assert_eq!(server, [INSTALLED_LANGUAGE], "no TypeScript server logic is generated");
-    assert!(file(&files, INSTALLED_LANGUAGE).starts_with('{'), "the language bundle is JSON");
-    let kernel = template("packages/server/src/kernel.ts");
-    assert!(kernel.contains("kernel.installLanguage(") && kernel.contains("kernel.NativeServer.open("), "{kernel}");
+    assert_eq!(server, [SERVED_PROGRAM], "no TypeScript server logic is generated");
+    let index = template("packages/server/src/index.ts");
+    assert!(index.contains("new OrbitalServerRuntime(") && index.contains("runtime.register(program"), "{index}");
 }
 
 #[test]
@@ -287,12 +281,12 @@ fn a_client_only_compile_emits_no_server_files_and_a_server_only_one_no_client_f
         .files
         .iter()
         .any(|f| f.path.starts_with("packages/server/")));
-    let server = kernel_backend()
+    let server = TypeScriptBackend { served_schema: Some(served()), ..kernel_backend() }
         .generate_with_mode(&module, orbital_core_base::generate::ShellMode::Server);
     assert!(server
         .files
         .iter()
-        .any(|f| f.path == INSTALLED_LANGUAGE));
+        .any(|f| f.path == SERVED_PROGRAM));
     assert!(!server
         .files
         .iter()
@@ -444,4 +438,35 @@ fn control_a_server_only_compile_ships_no_client_projection() {
         .files
         .iter()
         .any(|f| f.path.contains("program.client.json")));
+}
+
+const SERVED_PROGRAM: &str = "packages/server/generated/program.json";
+
+fn served() -> orbital_core_base::schema::types::OrbitalSchema {
+    orbital_core_base::schema::types::OrbitalSchema { name: "BooksServed".to_string(), ..schema() }
+}
+
+#[test]
+fn the_served_program_is_what_a_full_or_server_compile_ships_its_server() {
+    let backend = TypeScriptBackend { served_schema: Some(served()), ..kernel_backend() };
+    for mode in [orbital_core_base::generate::ShellMode::Full, orbital_core_base::generate::ShellMode::Server] {
+        let output = backend.generate_with_mode(&module(), mode);
+        let file = output.files.iter().find(|f| f.path == SERVED_PROGRAM).expect("the served program is written");
+        let written: serde_json::Value = serde_json::from_str(&file.content).expect("the served program is JSON");
+        assert_eq!(written["name"], "BooksServed");
+    }
+}
+
+#[test]
+fn control_a_client_only_compile_ships_no_served_program() {
+    let backend = TypeScriptBackend { served_schema: Some(served()), ..kernel_backend() };
+    let client = backend.generate_with_mode(&module(), orbital_core_base::generate::ShellMode::Client);
+    assert!(!client.files.iter().any(|f| f.path == SERVED_PROGRAM));
+}
+
+#[test]
+fn edge_a_server_compile_given_no_served_program_ships_none_and_says_so() {
+    let output = kernel_backend().generate_with_mode(&module(), orbital_core_base::generate::ShellMode::Server);
+    assert!(!output.files.iter().any(|f| f.path == SERVED_PROGRAM));
+    assert!(output.warnings.iter().any(|w| w.contains("no served program")), "{:?}", output.warnings);
 }

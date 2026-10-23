@@ -4,7 +4,7 @@
  * the lane or folding) skips the next animation frame, so a stalled lane never stacks frames; the
  * kernel drops missed beats. A hidden page pauses the kernel's clock and stops polling.
  */
-import type { LocalFoldKernel } from '../client/client-kernel.js';
+import type { LocalFoldKernel } from '@almadar/shell-runtime/client/client-kernel';
 import { applyFrame, type FrameApplied, type FramePostPort } from './frame-applier.js';
 import type { DispatchLane } from './lane.js';
 

@@ -5,6 +5,7 @@
  * @packageDocumentation
  */
 
+import type { OrbitalSchema } from '@almadar/core';
 import type { KernelModule as RuntimeKernelModule } from '../index';
 
 /** The `Kernel` class `@almadar/kernel` exports: JSON strings in, JSON strings out. */
@@ -22,6 +23,10 @@ export interface KernelInstance {
   framePause(): void;
   frameResume(): void;
   tickCount(): number;
+  /** The kernel's dispatch mode for a registered trait (`DispatchMode` as JSON text); throws for an unregistered one. */
+  dispatchMode(traitName: string): string;
+  /** The config the kernel binds as `@config` for a registered trait (JSON text); throws for an unregistered one. */
+  traitConfig(traitName: string): string;
   getState(traitName: string, entityId?: string): string;
   setCurrentUser(userJson: string): void;
   /** The viewer's locales (`string[]`, the first is painted) and their catalogs (`{ [locale]: { [key]: text } }`) for `i18n/t`. */
@@ -52,3 +57,6 @@ export type KernelLoader = () => Promise<KernelModule>;
 
 /** Resolves the language bundle (`@almadar/core/language-data` `LanguageBundle`) as JSON text, for a kernel a browser opens over a local store. */
 export type LanguageLoader = () => Promise<string>;
+
+/** Resolves the std `std-mock-seed` program (an already-resolved schema) that seeds a mock or browser store. */
+export type SeedProgramLoader = () => Promise<OrbitalSchema>;

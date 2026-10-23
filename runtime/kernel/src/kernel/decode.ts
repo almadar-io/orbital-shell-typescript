@@ -1,6 +1,6 @@
 /** Decoders for what the kernel hands back as JSON: narrowed by checks, never cast. */
 import { isEventResponse, type Envelope, type InstanceRef, type OAuthAsk, type OsOp, type PageFactFieldWire, type TabAction, type TabApply, type TabAsk, type TabCommand, type TabField } from '@almadar/core/kernel-wire';
-import { isJsonObject, type JsonObject, RowQuerySchema, RowWriteBatchSchema, type EntityRow, type JsonValue, type OrbitalEventResponse } from '@almadar/core';
+import { isJsonObject, type JsonObject, RowCommitSchema, RowQuerySchema, RowWriteBatchSchema, type EntityRow, type JsonValue, type OrbitalEventResponse } from '@almadar/core';
 import type { CallSiteWire, HttpBody, HttpRequestWire, HttpResponseWire, IoRequestWire, PendingRequestWire, ResolveProgressWire, ServerProgressWire } from './wire.js';
 
 type JsonRecord = { [key: string]: JsonValue };
@@ -131,7 +131,7 @@ function osOp(record: JsonRecord, name: string): OsOp {
 
 /** Every request kind of the generated wire, keyed so a kind the wire gains is a type error here until listed. */
 const REQUEST_KINDS: { readonly [K in IoRequestWire['kind']]: true } = {
-  readRow: true, listRows: true, queryRows: true, writeRows: true, createRow: true, writeRow: true, deleteRow: true,
+  readRow: true, listRows: true, queryRows: true, writeRows: true, commitRows: true, createRow: true, writeRow: true, deleteRow: true,
   callService: true, cancelCall: true, substrate: true, http: true, httpStream: true, httpBeacon: true, pageFacts: true,
   prompt: true, embed: true, tab: true, secret: true, secretSet: true, secretRotate: true, oauth: true, deliver: true, random: true,
   os: true, credentialStatus: true, credentialForget: true, clock: true,
@@ -314,6 +314,8 @@ export function decodeRequest(value: JsonValue): IoRequestWire {
     }
     case 'writeRows':
       return { kind, batch: RowWriteBatchSchema.parse(field(value, 'batch')) };
+    case 'commitRows':
+      return { kind, rows: RowCommitSchema.array().parse(field(value, 'rows')) };
     case 'createRow':
       return { kind, entityType: text(value, 'entityType'), data: field(value, 'data') };
     case 'writeRow':

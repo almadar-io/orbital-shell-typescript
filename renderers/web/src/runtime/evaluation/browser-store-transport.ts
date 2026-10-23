@@ -8,14 +8,15 @@ import { applyRowAccess, externalInputsOf, orbitalInlineEntities, parseOrbitalSc
 import { entityAccessPolicies } from '@almadar/core/mock';
 import type { KernelHostPorts } from '../../kernel/host.js';
 import type { HttpPorts } from '../../kernel/http.js';
-import type { KernelModule } from '../../kernel/wire.js';
-import { dispatchDeclaredInput } from '../../client/declared-input-dispatch.js';
+import type { KernelModule, SeedProgramLoader } from '../../lib/kernel-wire.js';
+import { dispatchDeclaredInput } from '@almadar/shell-runtime/client/declared-input-dispatch';
 import { IndexedDbPersistence } from '@almadar/shell-browser/storage';
-import { InMemoryPersistence } from '@almadar/db/mock';
 import type { EffectHandlers } from '../types.js';
 import type { DeferredCallOutcome } from '../../kernel/host.js';
 import { seedBrowserStore } from '../entities/seedBrowserStore.js';
-import type { EventTransport } from '../../client/EventTransport.js';
+import { withBrowserSeeder, type BrowserStoreSeeding } from '../entities/seed-host.js';
+import { nativeMemoryPersistence } from './native-memory.js';
+import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import { buildTraitIndex } from '../traits/trait-index.js';
 import { createLocalStoreTransport, localStorePersistence, openLocalKernel } from './local-store-transport.js';
 import { tickEventKey } from '@almadar/core';
@@ -33,6 +34,7 @@ export function browserStoreName(appName: string, locale: string | undefined): s
 export async function openBrowserStore(
   databaseName: string,
   orbitals: readonly OrbitalDefinition[],
+  seeding: BrowserStoreSeeding,
   factory?: IDBFactory,
   locale?: string,
 ): Promise<IndexedDbPersistence | null> {
@@ -43,7 +45,7 @@ export async function openBrowserStore(
     entityTypes: entities.map((e) => e.name),
     ...(factory !== undefined ? { factory } : {}),
   });
-  await seedBrowserStore(store, entities, locale);
+  await withBrowserSeeder(seeding, (host) => seedBrowserStore(store, entities, locale, host));
   return store;
 }
 
@@ -54,6 +56,8 @@ export interface BrowserStoreTransportOptions {
   kernel: KernelModule;
   /** The language bundle as JSON (`LanguageBundle`) the kernel is opened with: a browser has no `node_modules` to read it from. */
   language: string;
+  /** Resolves the std mock-seed program that seeds the store when it is first opened. */
+  loadSeedProgram: SeedProgramLoader;
   factory?: IDBFactory;
   /** The viewer's locale: picks the entity's rows for it when the store is first seeded. */
   locale?: string;
@@ -66,12 +70,13 @@ export interface BrowserStoreTransportOptions {
 }
 
 export async function openBrowserStoreTransport(options: BrowserStoreTransportOptions): Promise<EventTransport> {
-  const stored = await openBrowserStore(options.databaseName, options.schema.orbitals, options.factory, options.locale);
+  const stored = await openBrowserStore(options.databaseName, options.schema.orbitals, { kernel: options.kernel, language: options.language, loadSeedProgram: options.loadSeedProgram, app: options.schema }, options.factory, options.locale);
   if (stored === null && options.callService === undefined) {
     throw new Error(`openBrowserStoreTransport: schema "${options.schema.name}" declares no browser-stored entity`);
   }
   // Legs that only call browser-only services keep no rows of their own.
-  const persistence = localStorePersistence(options.schema, stored ?? new InMemoryPersistence());
+  const memory = nativeMemoryPersistence(options.kernel);
+  const persistence = localStorePersistence(options.schema, stored ?? memory, memory);
   return createLocalStoreTransport({
     kernelEngine: openLocalKernel({
       kernel: options.kernel,
@@ -89,13 +94,14 @@ export async function openBrowserStoreTransport(options: BrowserStoreTransportOp
  * A compiled client's bundled `browserSchema.json`, parsed by this runtime's own core (the client's core may predate
  * the browser-storage fields), served on the kernel like any local host.
  */
-export function openBundledBrowserStore(bundled: RuntimeValue, kernel: KernelModule, language: string, locale?: string, callService?: EffectHandlers['callService'], messages?: MessageCatalogs, http?: HttpPorts): Promise<EventTransport> {
+export function openBundledBrowserStore(bundled: RuntimeValue, kernel: KernelModule, language: string, loadSeedProgram: SeedProgramLoader, locale?: string, callService?: EffectHandlers['callService'], messages?: MessageCatalogs, http?: HttpPorts): Promise<EventTransport> {
   const schema = parseOrbitalSchema(bundled);
   return openBrowserStoreTransport({
     databaseName: browserStoreName(schema.name, locale),
     schema,
     kernel,
     language,
+    loadSeedProgram,
     ...(locale !== undefined ? { locale } : {}),
     ...(callService !== undefined ? { callService } : {}),
     ...(http !== undefined ? { http } : {}),
@@ -116,6 +122,8 @@ export interface BrowserHostOptions {
   kernel: KernelModule;
   /** The language bundle as JSON (`LanguageBundle`) the kernel is opened with: a browser has no `node_modules` to read it from. */
   language: string;
+  /** Resolves the std mock-seed program that seeds the store when it is first opened. */
+  loadSeedProgram: SeedProgramLoader;
   /** The browser's tabs for the `browser/tab-*` effects; absent, a tab ask fails `unavailable`. */
   tabs?: BrowserTabPort;
   factory?: IDBFactory;
@@ -152,37 +160,36 @@ function refuseUnhostedTicks(traitIndex: ReturnType<typeof buildTraitIndex>): vo
  * by `callService`. The host holds the circuit state itself.
  */
 export async function openBrowserHost(options: BrowserHostOptions): Promise<BrowserHost> {
-  const browserStore = await openBrowserStore(options.databaseName, options.schema.orbitals, options.factory, options.locale);
-  const persistence = localStorePersistence(options.schema, browserStore ?? new InMemoryPersistence());
+  const browserStore = await openBrowserStore(options.databaseName, options.schema.orbitals, { kernel: options.kernel, language: options.language, loadSeedProgram: options.loadSeedProgram, app: options.schema }, options.factory, options.locale);
+  const memory = nativeMemoryPersistence(options.kernel);
+  const persistence = localStorePersistence(options.schema, browserStore ?? memory, memory);
   const traitIndex = buildTraitIndex(options.schema.orbitals);
   refuseUnhostedTicks(traitIndex);
   const { schema } = options;
   let transport: EventTransport | undefined;
   const listeners = new Set<InputDispatchListener>();
 
-  // The host holds one circuit, so it runs one request at a time. A person's requests (from a view)
-  // go before queued background work (ticks, a watched page reporting elements); the request that is
-  // running is never interrupted.
+  // The host holds one circuit, so it runs one request at a time, in arrival order (EXEC-CONC-1: the lane is a FIFO
+  // ticket queue); the request that is running is never interrupted.
   // The host's one running slot. The turn that holds it may release it while it awaits something
-  // outside the host (`outsideEventQueue`) and takes a new slot, in its own lane, afterwards.
+  // outside the host (`outsideEventQueue`) and takes a new slot, at the back of the lane, afterwards.
   interface Turn { id: number; lane: Array<(free: () => void) => void>; held: boolean; done: boolean; release: () => void }
   let turns = 0;
   type Lane = Turn['lane'];
-  const foreground: Lane = [];
-  const background: Lane = [];
+  const lane: Lane = [];
   let pumping = false;
   let running: Turn | undefined;
   const pump = async (): Promise<void> => {
     if (pumping) return;
     pumping = true;
-    for (let grant = foreground.shift() ?? background.shift(); grant !== undefined; grant = foreground.shift() ?? background.shift()) {
+    for (let grant = lane.shift(); grant !== undefined; grant = lane.shift()) {
       await new Promise<void>(grant);
     }
     pumping = false;
   };
   const take = (turn: Turn): Promise<void> =>
     new Promise<void>((taken) => {
-      queueLog.debug('queue:wait', { turn: turn.id, lane: turn.lane === foreground ? 'foreground' : 'background', running: running?.id });
+      queueLog.debug('queue:wait', { turn: turn.id, running: running?.id });
       turn.lane.push((free) => {
         turn.held = true;
         running = turn;
@@ -207,8 +214,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
       if (turn.held) turn.release();
     }
   };
-  const serially = <T>(work: () => Promise<T>): Promise<T> => enqueue(foreground, work);
-  const inBackground = <T>(work: () => Promise<T>): Promise<T> => enqueue(background, work);
+  const serially = <T>(work: () => Promise<T>): Promise<T> => enqueue(lane, work);
 
   // A call-service awaits its provider with the slot released, so a slow service never stalls a view's
   // request and a provider may dispatch into the app; the slot is re-taken, in the turn's own lane, before
@@ -236,7 +242,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
       dispatchInput: (orbital, request) => {
         const host = transport;
         if (!host) return Promise.reject(new Error('openBrowserHost: the host is not open yet'));
-        const send = (o: string, r: OrbitalEventRequest) => (lentBy !== undefined && lentBy.held && !lentBy.done ? host.send(o, r) : inBackground(() => host.send(o, r)));
+        const send = (o: string, r: OrbitalEventRequest) => (lentBy !== undefined && lentBy.held && !lentBy.done ? host.send(o, r) : serially(() => host.send(o, r)));
         return dispatchDeclaredInput(schema, orbital, { ...request, ...(user !== undefined ? { user } : {}) }, async (o, r) => {
           const response = await send(o, r);
           for (const listener of listeners) listener(o, r, response);
@@ -262,7 +268,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
   });
   const local = createLocalStoreTransport({ kernelEngine, outsideEventQueue });
   transport = local;
-  // A follow-on call's outcome runs as a dispatch of its own, in the background lane, and shows in open views.
+  // A follow-on call's outcome runs as a dispatch of its own, at the back of the lane, and shows in open views.
   deferred = (call) => {
     const request: OrbitalEventRequest = {
       event: call.event,
@@ -273,7 +279,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
       ...(call.user !== undefined ? { user: call.user } : {}),
       ...(call.locale !== undefined ? { locale: call.locale } : {}),
     };
-    void inBackground(async () => {
+    void serially(async () => {
       const response = await local.send(call.orbital, request);
       for (const listener of listeners) listener(call.orbital, request, response);
     }).catch((error: Error) => {
@@ -298,7 +304,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
           targetTrait: entry.traitDef.name,
           tick: tick.name,
         };
-        void inBackground(async () => {
+        void serially(async () => {
           const response = await local.send(entry.orbitalName, request);
           if (response.transitioned) for (const listener of listeners) listener(entry.orbitalName, request, response);
         }).catch((error: Error) => {

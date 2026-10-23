@@ -69,8 +69,9 @@ export interface RawUserClaims {
   email?: string | null;
   name?: string;
   displayName?: string | null;
-  role?: string;
-  permissions?: string[];
+  /** Absent or `null` when the token carries none, as the kernel's `Viewer.role` (`Option`). */
+  role?: string | null;
+  permissions?: string[] | null;
   [key: string]: FieldValue | undefined;
 }
 
@@ -82,10 +83,13 @@ export const RawUserClaimsSchema: z.ZodType<RawUserClaims> = z
     email: z.string().nullable().optional(),
     name: z.string().optional(),
     displayName: z.string().nullable().optional(),
-    role: z.string().optional(),
-    permissions: z.array(z.string()).optional(),
+    role: z.string().nullable().optional(),
+    permissions: z.array(z.string()).nullable().optional(),
   })
   .catchall(FieldValueSchema.optional());
+
+/** Claim keys a `null` leaves absent, as the kernel's `Viewer` reads them (`Option`). */
+const NONE_WHEN_NULL_CLAIM_KEYS: readonly string[] = ['role', 'permissions'];
 
 /** Claim keys {@link normalizeUserContext} derives rather than copies verbatim. */
 const DERIVED_CLAIM_KEYS: readonly string[] = ['id', 'name', 'displayName', 'email'];
@@ -113,6 +117,7 @@ export function normalizeUserContext(
   const user: UserContext = { id };
   for (const [key, value] of Object.entries(claims)) {
     if (value === undefined || DERIVED_CLAIM_KEYS.includes(key)) continue;
+    if (value === null && NONE_WHEN_NULL_CLAIM_KEYS.includes(key)) continue;
     user[key] = value;
   }
 
@@ -143,46 +148,6 @@ export function personaFromIdentityRow(
     persona[key] = value;
   }
   return persona;
-}
-
-/**
- * The viewer a host presents when nothing named one.
- *
- * Without this, `@user` is `Null` in headless verify and preview, so every
- * `viewerName: @user.name` binding renders blank and the account menu never
- * appears — an app that cannot say who you are. Worse, an ownership filter that
- * works and one that is broken both render an empty table.
- *
- * `role` is deliberately EMPTY, not a guess. A default of `admin` would silently
- * flip which branch renders at the 38 `@user.role` comparisons in the corpus;
- * an empty role matches no literal, exactly as `Null` did, so this fixes
- * "undefined at runtime" without changing a single guard outcome.
- */
-export const DEFAULT_VIEWER: UserContext = {
-  id: 'viewer-1',
-  name: 'Dev Viewer',
-  email: 'viewer@example.com',
-  role: '',
-};
-
-/**
- * The viewer to present an app as when nothing named one.
- *
- * `DEFAULT_VIEWER` is synthetic — `viewer-1` is in no app's roster — so under it
- * every ownership predicate (`@entity.<owner> == @user.id`) matches zero rows and
- * a correctly-scoped app renders empty tables everywhere. That is indistinguishable
- * on screen from a broken filter, which is exactly the failure DEFAULT_VIEWER's own
- * comment warns about.
- *
- * So when the app declares an `[identity]` roster, the default viewer is a REAL
- * member of it. `DEFAULT_VIEWER` remains the fallback for apps that declare no
- * identity entity, where there is nobody to be.
- *
- * Both execution paths share this rule; the Rust twin is
- * `orbital-core::runtime::persona::resolve_default_viewer`.
- */
-export function resolveDefaultViewer(roster: readonly UserContext[]): UserContext {
-  return roster.length > 0 ? (roster[0] as UserContext) : DEFAULT_VIEWER;
 }
 
 /** Look a persona up in a roster by id, or by role when no id matches. */

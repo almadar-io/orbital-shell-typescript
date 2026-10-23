@@ -1,10 +1,10 @@
 import { expect, it } from 'vitest';
 import type { JsonValue } from '@almadar/core';
-import { InMemoryPersistence } from '@almadar/db/mock';
-import { InFlightCalls } from '../src/effects/in-flight-calls.js';
-import { answerRequest, type DeferredCallOutcome, type KernelHostPorts } from '../src/kernel/host.js';
+import { untouchedPersistence } from './helpers/persistence.js';
+import { InFlightCalls } from '@almadar/shell-runtime/effects/in-flight-calls';
+import { answerRequest, type DeferredCallOutcome, type KernelHostPorts } from '@almadar/shell-runtime/kernel/host';
 import type { OsError, Settled } from '@almadar/core/kernel-wire';
-import { decodeRequest } from '../src/kernel/decode.js';
+import { decodeRequest } from '@almadar/shell-runtime/kernel/decode';
 
 const request = () => decodeRequest({ kind: 'substrate', op: 'program/read', args: [], key: 'job', site: { orbital: 'Main', trait: 'Worker', entityId: 'r1', followOn: true, emit: { success: 'DONE', failure: 'FAILED' } } });
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -15,15 +15,16 @@ it('defers keyed substrate answers, preserves context and suppresses cancelled c
   const gate = new Promise<void>((resolve) => { release = resolve; });
   const calls = new InFlightCalls();
   const host: KernelHostPorts = {
-    persistence: new InMemoryPersistence(), inFlightCalls: calls,
+    persistence: untouchedPersistence(), inFlightCalls: calls,
     callService: async () => null,
     programEffect: () => async () => { await gate; return { ok: true, result: 'value' }; },
     servicePorts: (caller, _user, message) => ({ caller, message, inputs: () => [], readableEntities: () => [], dispatchInput: async () => { throw new Error('unused'); }, read: async () => [] }),
     deliverLive: () => undefined,
     deferCallOutcome: () => (outcome) => { delivered.push(outcome); },
-    substrateCompletion: (site, key, op, outcome) => {
+    substrateCompletion: (site, key, op, args, outcome) => {
       expect(site.trait).toBe('Worker');
       expect(op).toBe('program/read');
+      expect(args).toEqual(request().args);
       expect(outcome).toEqual({ ok: 'value' });
       return { event: 'CANONICAL', payload: { key, result: 1 } };
     },
@@ -67,7 +68,7 @@ it('defers keyed substrate answers, preserves context and suppresses cancelled c
     ...host,
     programEffect: () => async () => { await crossGate; return { ok: true, result: 'value' }; },
     os: { answer: async () => ({ ok: null }), defer: (_op, _args, _key, deliver) => { completeOs = deliver; return { ok: null }; }, cancel: () => { cancelledOs += 1; return true; }, close: () => undefined },
-    osCompletions: { defers: () => true, event: () => ({ event: 'OS_DONE', payload: {} }) },
+    osCompletions: { defers: () => true, streams: () => false, event: () => ({ event: 'OS_DONE', payload: {} }) },
   };
   const os = decodeRequest({ kind: 'os', op: 'os/wait', args: [1], key: 'shared', site: { trait: 'Worker', followOn: true, emit: { success: 'OS_DONE' } } });
   const sameKey = decodeRequest({ kind: 'substrate', op: 'program/read', args: [], key: 'shared', site: { trait: 'Worker', followOn: true, emit: { success: 'DONE' } } });

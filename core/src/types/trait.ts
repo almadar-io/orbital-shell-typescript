@@ -16,7 +16,7 @@ import { StateMachineSchema, PayloadTypeWhenSchema } from './state-machine.js';
 import type { Effect } from './effect.js';
 import { EffectSchema, PatternObjectSchema } from './effect.js';
 import type { Entity } from './entity.js';
-import { EntitySchema, isClientResident } from './entity.js';
+import { EntitySchema } from './entity.js';
 import type { AnyPatternConfig } from '../patterns/index.js';
 import type { Expression, SExpr } from './expression.js';
 import { ExpressionSchema, SExprSchema } from './expression.js';
@@ -155,8 +155,8 @@ export function isConfigFieldSchema(entry: CallSiteConfigEntry): entry is Config
  * extraction, so it lives here — the most-upstream package they share —
  * rather than being duplicated in each.
  *
- * A declared field with no `default` yields no value (dropped) — mirroring
- * `collectDeclaredConfigDefaults`. Leaking such a schema object through as a
+ * A declared field with no `default` yields no value (dropped), as the
+ * kernel reads it. Leaking such a schema object through as a
  * value made `@config.leftIcon` resolve to `{ type: "icon", … }`, which the
  * render substrate then mounted as an element and passed to `Input`'s icon
  * slot → "Element type is invalid: got <SlotContentRenderer />".
@@ -1014,8 +1014,8 @@ export type TraitEventListener = {
     /**
      * `with { ... }` payload rewrite: `{ targetField: SExpr }`. Each value is a
      * full s-expression evaluated against the source payload — a `@payload.<field>`
-     * read, a literal, or an operator list. Apply it with
-     * `applyListenPayloadMapping`.
+     * read, a literal, or an operator list. The kernel applies it
+     * (`applyListenMapping` crosses into it).
      */
     payloadMapping?: Record<string, SExpr>;
     /**
@@ -1415,40 +1415,6 @@ export const EffectRowSchema = z.array(EffectUseSchema);
 export type DispatchMode = 'persistedAwaited' | 'hybridClientOnly' | 'runtimeOptimistic';
 
 export const DispatchModeSchema = z.enum(['persistedAwaited', 'hybridClientOnly', 'runtimeOptimistic']);
-
-/**
- * The one rule (`orbital-core`'s `runtime::dispatch_mode::compute`): `local`
- * is always client-only; a `[runtime]` entity lives in the client, so its
- * trait is client-only unless the trait's own effects reach the server
- * (`touchesServer`, from the registry's declared `runsOn`), then optimistic;
- * anything else awaits the server.
- */
-export function computeDispatchMode(local: boolean, entityIsRuntime: boolean, touchesServer: boolean): DispatchMode {
-    if (local) {
-        return 'hybridClientOnly';
-    }
-    if (entityIsRuntime) {
-        return touchesServer ? 'runtimeOptimistic' : 'hybridClientOnly';
-    }
-    return 'persistedAwaited';
-}
-
-/**
- * `computeDispatchMode` for a trait plus its resolved linked entity — the TS
- * twin of `OirTrait::dispatch_mode(entity: Option<&OirEntity>)` /
- * `TraitDefinition::dispatch_mode`. `entity` is `undefined` when unlinked or
- * unresolved, matching the Rust `None` case (treated as not-runtime, so the
- * trait falls through to `persistedAwaited` unless `local`). `touchesServer`:
- * the trait's own transitions or client ticks call a `runsOn: server` effect —
- * computed downstream, where the operator registry lives.
- */
-export function computeTraitDispatchMode(
-    trait: Pick<Trait, 'local'>,
-    entity: Entity | undefined,
-    touchesServer: boolean,
-): DispatchMode {
-    return computeDispatchMode(trait.local ?? false, entity !== undefined && isClientResident(entity), touchesServer);
-}
 
 export type Trait = {
     /** V4 dual-carry id sibling of `name` — optional until the Phase-7 flip. */

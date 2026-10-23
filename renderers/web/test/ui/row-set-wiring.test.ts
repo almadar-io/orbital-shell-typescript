@@ -2,11 +2,10 @@
  * S8-wire: the store's one resolver, the loading state of an unresolved reference, and the rows-changed signal.
  */
 import { describe, it, expect } from 'vitest';
-import { ANONYMOUS_USER, ROW_SET_MARKER, runRowQuery, type Entity, type EntityRow, type SExpr, type UserContext, type PersistenceAdapter, type RowQuery, type RowSetMarker, type RowSetRef } from '@almadar/core';
+import { ROW_SET_MARKER, type EntityRow, type RowQueryPage, type RowSetMarker, type RowSetRef } from '@almadar/core';
 import { resolveRenderBindingMarkers } from '../../src/lib/resolve-render-bindings';
 import { createCircuitRowSetResolver } from '../../src/lib/store-row-set-resolver';
 import { notifyRowsChanged } from '../../src/lib/rows-changed';
-import { viewerReadPolicy } from '../../src/lib/viewer-read-policy';
 import { createRowSetResolver, type RowSetResolver } from '../../src/lib/row-set-resolver';
 import type { SlotProps } from '../../src/providers/UISlotContext';
 
@@ -19,22 +18,25 @@ const walk = (props: SlotProps, resolver: ReturnType<typeof createRowSetResolver
   if (typeof out === 'string') throw new Error('expected props');
   return out;
 };
-const queryPageOf = (tables: Record<string, EntityRow[]>) => async (entityType: string, query: RowQuery) => runRowQuery(tables[entityType] ?? [], query);
+/** A stand-in for the kernel that holds the rows: the ref's ids still present, the total re-counted. */
+const kernelOf = (tables: Record<string, EntityRow[]>) => async (r: RowSetRef): Promise<RowQueryPage> => {
+  const held = tables[r.entityType] ?? [];
+  const byId = new Map(held.map((row) => [String(row.id), row]));
+  return { rows: r.ids.flatMap((id) => (byId.has(id) ? [byId.get(id) as EntityRow] : [])), total: held.length };
+};
 
 describe('createCircuitRowSetResolver (browser store)', () => {
-  it('builds a resolver over a store that can queryPage', async () => {
+  it('builds a resolver over the kernel opened on the browser store', async () => {
     const tables = { Task: rowsOf(3) };
-    const store: Pick<PersistenceAdapter, 'queryPage'> = { queryPage: queryPageOf(tables) };
-    const resolver = createCircuitRowSetResolver({ browser: { store: store as PersistenceAdapter, entityTypes: new Set(['Task']) } });
+    const resolver = createCircuitRowSetResolver({ browser: { resolve: kernelOf(tables), entityTypes: new Set(['Task']) } });
     expect(resolver).toBeDefined();
     resolver?.resolve(ref(['t2'], 3));
     await settle();
     expect(resolver?.resolve(ref(['t2'], 3)).rows.map((r) => r.id)).toEqual(['t2']);
   });
 
-  it('control: a store with no queryPage gets no resolver, so markers stay raw', () => {
-    const store: Pick<PersistenceAdapter, 'queryPage'> = {};
-    expect(createCircuitRowSetResolver({ browser: { store: store as PersistenceAdapter, entityTypes: new Set(['Task']) } })).toBeUndefined();
+  it('control: no kernel and no server gives no resolver, so markers stay raw', () => {
+    expect(createCircuitRowSetResolver({})).toBeUndefined();
     const props: SlotProps = { entity: marker(ref(['t1'], 1)) };
     expect(walk(props, undefined)).toBe(props);
   });
@@ -42,7 +44,7 @@ describe('createCircuitRowSetResolver (browser store)', () => {
 
 describe('loading state of an unresolved reference', () => {
   it('flags the owning pattern isLoading until the rows arrive, then clears it', async () => {
-    const resolver = createRowSetResolver({ store: { queryPage: queryPageOf({ Task: rowsOf(3) }) } });
+    const resolver = createRowSetResolver({ resolve: kernelOf({ Task: rowsOf(3) }) });
     const props: SlotProps = { type: 'data-table', entity: marker(ref(['t1', 't2'], 3)) };
     const first = walk(props, resolver);
     expect(first.entity).toEqual([]);
@@ -54,7 +56,7 @@ describe('loading state of an unresolved reference', () => {
   });
 
   it('flags a nested pattern node, not its siblings', () => {
-    const resolver = createRowSetResolver({ store: { queryPage: queryPageOf({ Task: rowsOf(3) }) } });
+    const resolver = createRowSetResolver({ resolve: kernelOf({ Task: rowsOf(3) }) });
     const props: SlotProps = {
       type: 'stack',
       children: [{ type: 'data-table', entity: marker(ref(['t1'], 1)) }, { type: 'text', content: 'hi' }],
@@ -68,7 +70,7 @@ describe('loading state of an unresolved reference', () => {
 
   it('shows loading again while a rows-changed refresh is in flight', async () => {
     const tables = { Task: rowsOf(2) };
-    const resolver = createRowSetResolver({ store: { queryPage: queryPageOf(tables) } });
+    const resolver = createRowSetResolver({ resolve: kernelOf(tables) });
     const props: SlotProps = { entity: marker(ref(['t1'], 2)) };
     walk(props, resolver);
     await settle();
@@ -102,36 +104,5 @@ describe('rows-changed repaint (EXEC-RENDER-3)', () => {
 
   it('control: no resolver is a no-op', () => {
     expect(() => notifyRowsChanged(undefined, taskTable)).not.toThrow();
-  });
-});
-
-describe('viewer @read policy', () => {
-  const owned: SExpr = ['=', '@entity.owner', '@user.id'];
-  const entity = { name: 'Task', fields: [{ name: 'id', type: 'string', required: true }, { name: 'owner', type: 'string', required: true }], read_policy: owned } as Entity;
-  const tables = { Task: [{ id: 't1', owner: 'u1' }, { id: 't2', owner: 'u2' }, { id: 't3', owner: 'u1' }] };
-  const viewerOf = (id: string): UserContext => ({ ...ANONYMOUS_USER, id, role: 'user' });
-  const resolveFor = async (id: string) => {
-    const store: Pick<PersistenceAdapter, 'queryPage'> = { queryPage: queryPageOf(tables) };
-    const resolver = createCircuitRowSetResolver({ browser: { store: store as PersistenceAdapter, entityTypes: new Set(['Task']), policy: viewerReadPolicy([entity], viewerOf(id)) } });
-    const r = ref(['t1', 't2', 't3'], 3);
-    resolver?.resolve(r);
-    await settle();
-    return resolver?.resolve(r);
-  };
-
-  it('omits a row the viewer cannot read and re-counts the total', async () => {
-    const res = await resolveFor('u2');
-    expect(res?.rows.map((x) => x.id)).toEqual(['t2']);
-    expect(res?.total).toBe(1);
-  });
-
-  it('control: the owner of two rows sees those two', async () => {
-    const res = await resolveFor('u1');
-    expect(res?.rows.map((x) => x.id)).toEqual(['t1', 't3']);
-    expect(res?.total).toBe(2);
-  });
-
-  it('control: an entity declaring no @read has no policy', () => {
-    expect(viewerReadPolicy([{ ...entity, read_policy: undefined }], viewerOf('u1'))('Task')).toBeUndefined();
   });
 });

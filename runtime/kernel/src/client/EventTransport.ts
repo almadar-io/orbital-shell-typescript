@@ -361,8 +361,8 @@ export function createHttpTransport(options: HttpTransportOptions): EventTranspo
     async unregister() {
       try {
         await fetchFn(`${serverUrl}/unregister`, { method: 'DELETE', headers: await authHeaders(getAccessToken) });
-      } catch {
-        // Ignore cleanup errors — mirrors the ui transport this replaces.
+      } catch (error) {
+        log.warn('unregister-failed', { error: error instanceof Error ? error.message : String(error) });
       }
     },
 
@@ -416,6 +416,8 @@ export interface InProcessTransportOptions {
    * `'stateless-http'`).
    */
   carriesCircuitState?: boolean;
+  /** Resolves a row-set reference on the in-process kernel (`KernelEngine.resolveRows`), `@read` applied there. */
+  resolveRows?: (reference: RowSetRef) => Promise<RowQueryPage>;
 }
 
 /** In-process transport — the evaluator is INJECTED (e.g. the unified `evaluateOrbitalEvent`, owned elsewhere). */
@@ -431,6 +433,7 @@ export function createInProcessTransport(evaluate: OrbitalEvaluator, options: In
     async send(orbitalName, request) {
       return evaluate(orbitalName, request);
     },
+    ...(options.resolveRows !== undefined ? { resolveRows: options.resolveRows } : {}),
     // No `subscribe` — an in-process transport has no server to push from.
   };
 }

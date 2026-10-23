@@ -1,9 +1,9 @@
 /**
  * A reference whose rows live on a server resolves through the transport's resolve route (the server applies the
- * viewer's `@read`); a browser-stored entity still resolves against the browser store. Rows-changed re-resolves.
+ * viewer's `@read`); a browser-stored entity resolves on the kernel opened over the browser store. Rows-changed re-resolves.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { runRowQuery, type EntityRow, type PersistenceAdapter, type RowQuery, type RowQueryPage, type RowSetRef } from '@almadar/core';
+import { type EntityRow, type RowQueryPage, type RowSetRef } from '@almadar/core';
 import { createCircuitRowSetResolver } from '../../src/lib/store-row-set-resolver';
 
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
@@ -57,15 +57,15 @@ describe('server-hosted references', () => {
 });
 
 describe('one store location, one path', () => {
-  it('a browser-stored entity resolves against the browser store, any other against the server', async () => {
-    const queryPage = vi.fn(async (entityType: string, query: RowQuery) => runRowQuery([{ id: 'n1' }, { id: 'n2' }], query));
-    const store: Pick<PersistenceAdapter, 'queryPage'> = { queryPage };
+  it('a browser-stored entity resolves on the browser-store kernel, any other on the server', async () => {
+    const local = serverRows([{ id: 'n1' }, { id: 'n2' }]);
     const remote = serverRows([{ id: 't1', owner: 'u1' }]);
-    const resolver = createCircuitRowSetResolver({ browser: { store: store as PersistenceAdapter, entityTypes: new Set(['Note']) }, remote });
+    const resolver = createCircuitRowSetResolver({ browser: { resolve: local, entityTypes: new Set(['Note']) }, remote });
     resolver?.resolve(ref('Note', ['n2']));
     resolver?.resolve(ref('Task', ['t1']));
     await settle();
-    expect(queryPage).toHaveBeenCalled();
+    expect(local).toHaveBeenCalledTimes(1);
+    expect(local.mock.calls[0]?.[0].entityType).toBe('Note');
     expect(remote).toHaveBeenCalledTimes(1);
     expect(remote.mock.calls[0]?.[0].entityType).toBe('Task');
     expect(resolver?.resolve(ref('Note', ['n2'])).rows.map((x) => x.id)).toEqual(['n2']);

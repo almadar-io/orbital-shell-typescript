@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { OrbitalSchema } from '@almadar/core';
-import { createHttpTransport } from '../src/client/EventTransport.js';
+import { createHttpTransport } from '@almadar/shell-runtime/client/EventTransport';
 
 describe('createHttpTransport — behavior addressing', () => {
   it('stamps the registered schema name on every posted event', async () => {

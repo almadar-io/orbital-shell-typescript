@@ -3,7 +3,7 @@ import './helpers/kernel-evaluator.setup.js';
 // through the same dispatch a click uses (guards, policies). The app's own event channel is unchanged.
 import { describe, it, expect } from 'vitest';
 import { OrbitalServerRuntime } from '../../src/runtime/OrbitalServerRuntime.js';
-import { InMemoryPersistence } from '@almadar/db/mock';
+import { describeWithMemoryKernel, memoryKernel, nativeMemory } from './helpers/native-memory.js';
 import type { OrbitalSchema, SExpr, UserContext } from '@almadar/core';
 
 const MEMBERS_ONLY: SExpr = ['=', '@user.role', 'member'];
@@ -59,12 +59,12 @@ const ALICE: UserContext = { id: 'alice', role: 'member' };
 const VIEWER: UserContext = { id: 'vic', role: 'viewer' };
 
 async function setup() {
-  const runtime = new OrbitalServerRuntime({ persistence: new InMemoryPersistence(), debug: false });
+  const runtime = new OrbitalServerRuntime({ mode: 'real', kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
   await runtime.register(schema());
   return runtime;
 }
 
-describe('OrbitalServerRuntime.dispatchExternalInput', () => {
+describeWithMemoryKernel('OrbitalServerRuntime.dispatchExternalInput', () => {
   it('runs a declared input as the given user', async () => {
     const runtime = await setup();
     const res = await runtime.dispatchExternalInput('TaskOrbital', {
@@ -118,7 +118,7 @@ describe('OrbitalServerRuntime.dispatchExternalInput', () => {
   });
 });
 
-describe('OrbitalServerRuntime.dispatchEventRequest (program/dispatch event requests)', () => {
+describeWithMemoryKernel('OrbitalServerRuntime.dispatchEventRequest (program/dispatch event requests)', () => {
   const tasks = async (runtime: OrbitalServerRuntime) =>
     (await runtime.persistence.list('Task')).map((row) => row['title']);
 

@@ -4,7 +4,7 @@
  * handler event with the declared payload, and answers with the handler's own emit of its
  * `answers` event. Twin of `RuntimeKernel::deliver_inbound` (`orbital-core` `kernel/inbound.rs`).
  */
-import { dispatchFailed, findInbound, inboundAnswerOf, inboundPayload, unknownHook } from '@almadar/core';
+import { credentialUnset, dispatchFailed, findInbound, inboundAnswerOf, inboundPayload, unknownHook } from '@almadar/core';
 import type { InboundAnswer, InboundDelivery, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
 
 export async function dispatchInbound(
@@ -12,12 +12,13 @@ export async function dispatchInbound(
   name: string,
   delivery: InboundDelivery,
   send: (orbitalName: string, request: OrbitalEventRequest) => Promise<OrbitalEventResponse>,
-  credential: (name: string) => Promise<string | null | undefined> = async () => undefined,
+  credential: (name: string) => Promise<string | null | undefined>,
 ): Promise<InboundAnswer> {
   const route = schema ? findInbound(schema, name) : undefined;
   if (route === undefined) return unknownHook(name);
   try {
     const held = route.verifies !== undefined ? await credential(route.verifies.credential) : undefined;
+    if (route.verifies !== undefined && (held === undefined || held === null || held === '')) return credentialUnset(route.verifies.credential);
     const response = await send(route.orbital, {
       event: route.event,
       payload: inboundPayload(route, delivery, held),

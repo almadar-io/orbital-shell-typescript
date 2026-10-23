@@ -42,22 +42,22 @@ export {
   type RouteSourceMeta,
 } from './events/identity/routing.js';
 
-export { browserLegEvents, buildTraitIndex, type TraitIndexOptions } from './traits/trait-index.js';
+export { buildTraitIndex } from './traits/trait-index.js';
 export { collectListenerTargets, type CollectedListenerTarget } from './traits/listen-targets.js';
-export { collectDeclaredConfigDefaults, collectDeclaredEntityDefaults } from './traits/config-defaults.js';
 export { parseOrbitalTraits, type ParsedOrbitalTraits } from './traits/OrbitalTraitParsing.js';
 
-export { resolveRowSetFromStore, resolveRowSetFromRows, type RowSetStore } from './effects/row-set-resolve.js';
 
 export { seedBrowserStore } from './entities/seedBrowserStore.js';
-export { bindDeclaredCollections, installPolicyOwnerGates, prepareMockSeeding, registerMockEntity, seedEntityInstances, seedMockIdentity, seedMockOrbital, seedMockStore, type MockSeedViewer } from './entities/mockStoreSeed.js';
-export { createLocalStoreTransport, localStorePersistence, openLocalKernel, type LocalKernelOptions } from './evaluation/local-store-transport.js';
+export { bindDeclaredCollections, restampMockOwner, seedMockStore, type MockSeeded, type MockSeedHost, type MockSeedViewer } from './entities/mockStoreSeed.js';
+export { StdMockSeed, readSeededStores, type MockSeedEngine, type SeedOwnerJournal } from './entities/std-mock-seed.js';
+export { withBrowserSeeder, withForkedSeeder, type BrowserStoreSeeding } from './entities/seed-host.js';
+export { nativeMemoryPersistence } from './evaluation/native-memory.js';
+export { createLocalStoreTransport, localStorePersistence, openLocalKernel, resolveLocalRows, type LocalKernelOptions } from './evaluation/local-store-transport.js';
 export type { LocalStoreTransportOptions } from './evaluation/local-store-transport.js';
 export { createResidenceTransport } from './evaluation/residence-transport.js';
 export type { ResidenceTransportOptions } from './evaluation/residence-transport.js';
 export { browserStoreName, openBrowserHost, openBrowserStore, openBrowserStoreTransport, openBundledBrowserStore } from './evaluation/browser-store-transport.js';
 export type { BrowserHost, BrowserHostOptions, BrowserStoreTransportOptions, InputDispatchListener } from './evaluation/browser-store-transport.js';
-export { runsBrowserDataEffect, runsServerEffect } from './traits/trait-index.js';
 
 export * as composition from './effects/composition/index.js';
 export {

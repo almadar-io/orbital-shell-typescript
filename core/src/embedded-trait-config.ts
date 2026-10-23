@@ -1,27 +1,13 @@
 /**
- * Embedded-trait config resolution — shared by the JS interpreter
- * (`@almadar/runtime`) and the render substrate (`@almadar/ui`).
- *
- * A molecule's inline sub-trait (e.g. `std-browse`'s `DataGrid1`) authors
- * `config { fields: @config.fields }` — a forward meaning "read MY
- * embedder's `config.fields`". That's a lexical-scope reference in the
- * atom's own `.lolo`; once the molecule is flattened (the compiled path's
- * `orbital resolve`, or the JS resolvers in `@almadar/runtime`) the embedder
- * is no longer an enclosing scope, just a sibling trait in `orbital.traits[]`.
- * Left unresolved, the literal string `"@config.fields"` becomes the
- * sub-trait's own `@config.fields` binding value — components consuming it
- * (e.g. `DataGrid`'s `fieldDefs.find`) receive a string instead of an array
- * and throw.
- *
- * `buildResolvedTraitConfigs` chains those forwards through to the trait
- * that actually embeds each one (found via `@trait.X` literals, the same
- * shape `collectEmbeddedTraits`-style walkers look for), recursively when
- * the referrer is itself an embedded sub-trait one level up.
+ * Embedded-trait facts the render substrate (`@almadar/ui`) reads: which traits
+ * embed which (`@trait.X`), which knobs a trait forwards (`@config.X`), and
+ * which children read their embedder's `@callsitePayload`. Resolving a trait's
+ * config is the kernel's (`traitConfig`), never done here.
  *
  * @packageDocumentation
  */
 import type { ConfigFieldDeclaration, DeclaredTraitConfig, OrbitalDefinition, OrbitalSchema, RuntimeValue, SExpr, Trait, TraitConfig, TraitConfigObject, TraitConfigValue, TraitRef } from './types/index.js';
-import { isCallSiteConfigDeclaration, normalizeCallSiteConfigToValues } from './types/index.js';
+import { isCallSiteConfigDeclaration } from './types/index.js';
 
 const TRAIT_BINDING_PREFIX = '@trait.';
 const CONFIG_FORWARD_RE = /^@config\.([A-Za-z_][A-Za-z0-9_]*)$/;
@@ -131,60 +117,6 @@ function targetTraitOf(traitRef: TraitRef): Trait | undefined {
 }
 
 /**
- * Build the childTraitName → referrerTraitName map: for every trait whose
- * config literally contains `@trait.X`, record `X -> thisTrait`.
- *
- * **One referrer per embedded trait is an invariant, not a convenience.** The
- * sibling-pull materialises a sub-view PER EMBEDDER on both paths
- * (`orbital-compiler/src/phases/inline/trait.rs`, `@almadar/runtime`'s
- * `ReferenceResolver.pullSiblingTraits`), so two embedders can never land on
- * one child. That matters here because a child's `@config.X` forwards chain to
- * its referrer: with two referrers only one call site's config could ever win,
- * and the loser would render the other's columns. It equally matters to
- * `useUISlots.updateTraitContent`, which is keyed by trait name — N embedders
- * of one name means N renders of one frame.
- *
- * First referrer wins if the invariant is ever violated; the observable check
- * lives in `@almadar-io/verify`'s wiring lint
- * (`embedded-sibling-single-referrer`), which is the layer allowed to report.
- *
- * Safe to call on the resolved (post-inline) schema. Memoize by reference.
- */
-export function collectEmbeddedTraitReferrers(
-  schema: OrbitalSchema | undefined | null,
-): ReadonlyMap<string, string> {
-  const out = new Map<string, string>();
-  if (!schema?.orbitals) return out;
-  for (const orbital of schema.orbitals as OrbitalDefinition[]) {
-    const traits: TraitRef[] = orbital.traits;
-    if (!Array.isArray(traits)) continue;
-    for (const traitRef of traits) {
-      const target = targetTraitOf(traitRef);
-      if (!target) continue;
-      const referrerName = target.name;
-      if (typeof referrerName !== 'string' || referrerName.length === 0) continue;
-      // Scan BOTH the trait's config (where a molecule like std-browse embeds
-      // `@trait.X` inside a `bodyContent`-style config default) AND its state
-      // machine (where an atom renders `@trait.X` directly in a transition's
-      // `render-ui` effect). Config-only scanning missed the latter, so an
-      // inline sub-trait embedded from a transition never chained its
-      // `@config.X` forwards to its embedder and reached the component as the
-      // literal string `"@config.X"`.
-      const refs = new Set<string>();
-      if (target.config) collectTraitRefsFromValue(target.config, refs);
-      const stateMachine = (target as { stateMachine?: SExpr }).stateMachine;
-      if (stateMachine) collectTraitRefsFromValue(stateMachine, refs);
-      if (refs.size === 0) continue;
-      for (const child of refs) {
-        if (child === referrerName) continue;
-        if (!out.has(child)) out.set(child, referrerName);
-      }
-    }
-  }
-  return out;
-}
-
-/**
  * Per-orbital referrer → embedded-children adjacency: for every trait in the
  * orbital, the set of trait names it embeds via `@trait.X` (config OR state
  * machine — same scan as `collectEmbeddedTraitReferrers`, but keeping EVERY
@@ -282,155 +214,6 @@ export function traitDeclaresConfigForward(trait: Trait | undefined | null): boo
     if (found) return true;
   }
   return false;
-}
-
-/**
- * Chain `@config.<key>` forwards through the whole config value tree, not
- * just top-level strings. A vessel like a service wrapper atom's
- * `ComposerSlot { children: [@config.uiTrait] }` carries its forward
- * INSIDE an array — top-level-only resolution left the literal string in
- * `children`, so the embedder's `uiTrait` default (the standalone test
- * form) never rendered and the atom booted blank. An unresolvable forward
- * (referrer lacks the key) keeps its literal, matching the top-level
- * behavior.
- */
-function resolveForwardsDeep(
-  value: TraitConfigValue,
-  referrerConfig: TraitConfig | undefined,
-  consumed?: Map<string, TraitConfigValue>,
-): TraitConfigValue {
-  if (typeof value === 'string') {
-    const match = CONFIG_FORWARD_RE.exec(value);
-    if (match) {
-      const forwarded = referrerConfig?.[match[1]];
-      if (forwarded !== undefined) {
-        consumed?.set(match[1], forwarded);
-        return forwarded;
-      }
-    }
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => resolveForwardsDeep(item, referrerConfig, consumed));
-  }
-  if (value !== null && typeof value === 'object') {
-    const out: Record<string, TraitConfigValue> = {};
-    for (const [k, v] of Object.entries(value)) {
-      out[k] = resolveForwardsDeep(v, referrerConfig, consumed);
-    }
-    return out;
-  }
-  return value;
-}
-
-/**
- * Resolve a declared trait config's defaults (`OrbitalDefinition.config` /
- * `OrbitalSchema.config`) into a plain `TraitConfig`, for use as a forward
- * rung the same shape as a referrer's call-site config. Keys with no
- * `default` contribute nothing. `undefined` when nothing resolves, so a
- * caller can skip the rung entirely.
- */
-function fromDeclared(declared: DeclaredTraitConfig | undefined): TraitConfig | undefined {
-  if (!declared) return undefined;
-  const out: Record<string, TraitConfigValue> = {};
-  let any = false;
-  for (const [key, field] of Object.entries(declared)) {
-    if (field.default !== undefined) {
-      out[key] = field.default;
-      any = true;
-    }
-  }
-  return any ? out : undefined;
-}
-
-/**
- * Apply one forward rung in place: chain any still-unresolved `@config.<key>`
- * literal in `out` through `rungConfig`. A no-op when `rungConfig` is absent
- * or when nothing in `out` is still a literal forward — resolved values from
- * an earlier (higher-priority) rung are untouched.
- */
-function applyForwardRung(
-  out: Record<string, TraitConfigValue>,
-  rungConfig: TraitConfig | undefined,
-): void {
-  if (!rungConfig) return;
-  const consumed = new Map<string, TraitConfigValue>();
-  for (const [key, value] of Object.entries(out)) {
-    out[key] = resolveForwardsDeep(value, rungConfig, consumed);
-  }
-  for (const [key, value] of consumed) {
-    if (!(key in out)) {
-      out[key] = value;
-    }
-  }
-}
-
-/**
- * Build the trait-name → resolved-`TraitConfig` map for a schema: each
- * trait's raw call-site config, normalized to plain values, with any
- * `@config.<key>` forward chained through to the referrer that actually
- * embeds it (recursively, with a cycle guard).
- */
-export function buildResolvedTraitConfigs(
-  schema: OrbitalSchema | undefined | null,
-): Record<string, TraitConfig> {
-  const rawByName: Record<string, TraitRef & { config?: unknown }> = {};
-  const orbitalByTrait: Record<string, OrbitalDefinition> = {};
-  if (!schema?.orbitals) return {};
-  for (const orbital of schema.orbitals as OrbitalDefinition[]) {
-    const traitRefs: TraitRef[] | undefined = orbital.traits;
-    if (!traitRefs) continue;
-    for (const t of traitRefs) {
-      if (typeof t === 'string') continue;
-      const name = (t as { name?: string; ref?: string }).name ?? (t as { ref?: string }).ref;
-      if (typeof name === 'string') {
-        orbitalByTrait[name] = orbital;
-      }
-      const config = (t as { config?: unknown }).config;
-      if (typeof name === 'string' && config !== undefined) {
-        rawByName[name] = { ...(t as object), config } as TraitRef & { config?: unknown };
-      }
-    }
-  }
-
-  const referrerByChild = collectEmbeddedTraitReferrers(schema);
-  const resolved = new Map<string, TraitConfig>();
-  const resolving = new Set<string>();
-
-  function resolveConfig(name: string): TraitConfig | undefined {
-    const cached = resolved.get(name);
-    if (cached) return cached;
-    const raw = rawByName[name]?.config as Parameters<typeof normalizeCallSiteConfigToValues>[0];
-    const base = normalizeCallSiteConfigToValues(raw);
-    if (!base) return undefined;
-    // Cycle guard: a referrer chain can't legitimately loop back to
-    // itself; bail to the unresolved forward rather than recurse forever.
-    if (resolving.has(name)) return base;
-    resolving.add(name);
-    const out: Record<string, TraitConfigValue> = { ...base };
-    // Rung 1: the trait that embeds this one via `@trait.X` (the child's
-    // RENDER TREE still carries the raw token, e.g. `content: "@config.title"`,
-    // and render-time interpolation resolves it against the child's own
-    // config — so a consumed key must ALSO surface there, or the knob
-    // resolves while the tree read stays blank, per
-    // R-CONFIG-DEFAULT-INLINE-TRAIT-OWN-CONFIG-UNRESOLVED).
-    const referrer = referrerByChild.get(name);
-    applyForwardRung(out, referrer && referrer !== name ? resolveConfig(referrer) : undefined);
-    // Rung 2: the trait's owning orbital's declared config defaults.
-    applyForwardRung(out, fromDeclared(orbitalByTrait[name]?.config));
-    // Rung 3: the schema's declared config defaults.
-    applyForwardRung(out, fromDeclared(schema?.config));
-    resolving.delete(name);
-    resolved.set(name, out);
-    return out;
-  }
-
-  const map: Record<string, TraitConfig> = {};
-  for (const name of Object.keys(rawByName)) {
-    const cfg = resolveConfig(name);
-    if (cfg !== undefined) map[name] = cfg;
-  }
-  return map;
 }
 
 /**

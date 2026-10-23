@@ -1,15 +1,13 @@
 /**
  * RowSetResolver: the one paint-time resolve entry for `RowSetMarker` leaves (Speed Design 5.4/5.5).
- * A ref is resolved where its rows live: through the browser store's `queryPage` or by the server that holds them
- * (`@almadar/runtime`'s `resolveRowSetFromStore` / `EventTransport.resolveRows`, both re-checking the viewer's
- * `@read`); `total` is a true re-count of the ref's query. A missing or now-hidden row is omitted. `rowsChanged(entityType)` (EXEC-RENDER-3) re-resolves every ref
+ * A ref is resolved by the kernel that holds its rows (`KernelEngine.resolveRows` over the browser store, or the
+ * server's `EventTransport.resolveRows`), which re-checks the viewer's `@read`; `total` is a true re-count of the ref's query. A missing or now-hidden row is omitted. `rowsChanged(entityType)` (EXEC-RENDER-3) re-resolves every ref
  * of that type. Answers are asynchronous, so `resolve` is a synchronous read of the cache and kicks the fetch.
  *
  * @packageDocumentation
  */
 import { createLogger } from '@almadar/logger';
-import type { EntityRow, PersistenceAdapter, RowPredicate, RowQueryPage, RowSetRef } from '@almadar/core';
-import { resolveRowSetFromStore } from '../runtime';
+import type { EntityRow, RowQueryPage, RowSetRef } from '@almadar/core';
 
 const log = createLogger('almadar:ui:row-set-resolver');
 
@@ -20,17 +18,10 @@ export interface RowSetResolution {
   loading: boolean;
 }
 
-/**
- * Where a reference is answered: a store the client can `queryPage` (the browser store; the viewer's `@read` is
- * applied here), or any `resolve` (a server that holds the rows and applies `@read` itself).
- */
-export type RowSetResolverOptions =
-  | {
-      store: { queryPage: NonNullable<PersistenceAdapter['queryPage']> };
-      /** The current viewer's `@read` predicate for an entity type; absent = none. */
-      policy?: (entityType: string) => RowPredicate | undefined;
-    }
-  | { resolve: (ref: RowSetRef) => Promise<RowQueryPage> };
+/** Where a reference is answered: a kernel that holds the rows and applies `@read` itself. */
+export interface RowSetResolverOptions {
+  resolve: (ref: RowSetRef) => Promise<RowQueryPage>;
+}
 
 export interface RowSetResolver {
   resolve(ref: RowSetRef): RowSetResolution;
@@ -52,8 +43,7 @@ export function createRowSetResolver(opts: RowSetResolverOptions): RowSetResolve
   const listeners = new Set<() => void>();
   let epoch = 0;
 
-  const answerOf = (ref: RowSetRef): Promise<RowQueryPage> =>
-    'resolve' in opts ? opts.resolve(ref) : resolveRowSetFromStore(opts.store, ref, opts.policy?.(ref.entityType));
+  const answerOf = (ref: RowSetRef): Promise<RowQueryPage> => opts.resolve(ref);
 
   const keyOf = (ref: RowSetRef): string => JSON.stringify([ref.entityType, ref.ids, ref.query]);
 

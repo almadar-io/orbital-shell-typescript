@@ -13,6 +13,7 @@ const SAMPLES: { readonly [K in IoRequestWire['kind']]: Extract<IoRequestWire, {
   listRows: { kind: 'listRows', entityType: 'E' },
   queryRows: { kind: 'queryRows', entityType: 'E', query: {}, project: 'rows' },
   writeRows: { kind: 'writeRows', batch: { ops: [], onFailure: 'atomic' } },
+  commitRows: { kind: 'commitRows', rows: [{ entityType: 'E', id: '1', expected: null, write: { kind: 'put', row: { id: '1' } } }] },
   createRow: { kind: 'createRow', entityType: 'E', data: { a: 1 } },
   writeRow: { kind: 'writeRow', entityType: 'E', id: '1', data: { a: 1 } },
   deleteRow: { kind: 'deleteRow', entityType: 'E', id: '1' },

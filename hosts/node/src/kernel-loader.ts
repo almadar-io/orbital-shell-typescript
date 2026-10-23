@@ -3,16 +3,25 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { installKernelEvaluator } from '@almadar/core';
+import { installKernelEvaluator, type KernelMemoryStoreExports } from '@almadar/core';
 import { readLanguageBundle } from '@almadar/core/language-data';
 import * as installedModule from '@almadar/kernel';
-import type { HttpKernel } from '@almadar/shell-runtime';
-import type { KernelModule } from '@almadar/shell-runtime';
+import { NativeMemoryPersistenceAdapter, type HttpKernel, type KernelModule } from '@almadar/shell-runtime';
 import type { CredentialSeedKernel } from '@almadar/shell-runtime';
 
 /** The whole server kernel as Node loads it: the shared module plus the server-only exports the client build omits. */
-export interface LoadedKernel extends KernelModule, HttpKernel, CredentialSeedKernel {
+export interface LoadedKernel extends KernelModule, HttpKernel, CredentialSeedKernel, KernelMemoryStoreExports {
   initSync(input: { module: Uint8Array }): object;
+}
+
+function hasMemoryStore(kernel: KernelModule): kernel is KernelModule & KernelMemoryStoreExports {
+  return 'MemoryStore' in kernel;
+}
+
+/** A row store the kernel itself holds (its `MemoryStore`), as a host keeps rows with no database. */
+export function nativeMemoryOf(kernel: KernelModule): NativeMemoryPersistenceAdapter {
+  if (!hasMemoryStore(kernel)) throw new Error('this kernel module exports no MemoryStore; install a kernel build that carries it');
+  return new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
 }
 
 export interface LoadKernelOptions {

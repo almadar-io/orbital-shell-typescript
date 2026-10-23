@@ -1,0 +1,573 @@
+import { CallServiceHandler } from '../service/default-call-service.js';
+import { ServiceCallContext } from '../service/service-provider.js';
+import { EventPayload, BusEventSource, BusEventListener, Unsubscribe as Unsubscribe$1, BusEvent, EntityRow, TraitConfig, UserContext, NavItem, RuntimeValue, TraitId, OrbitalId, EventId, FieldValue, SExpr, FetchResult, RowSetRef, PatternConfig, OrbitalDefinition, PageFactField, BrowserPageFacts, JsonValue, ServiceHostPorts, AgentContext, LlmContext, WorkspaceContext, SessionContext, MemoryContext, TraceContext, ResolvedPatternProps } from '@almadar/core';
+export { EntityRow, EventPayload, FetchResult, ServiceParams } from '@almadar/core';
+import { ProgramEffectName, ProgramEffectOutcome } from '../kernel/program-effects.js';
+import { ComposeBehaviorsInput, ComposeBehaviorsResult } from './effects/composition/compose-behaviors.js';
+import { EventWiringEntry } from './effects/composition/event-wiring.js';
+import { LayoutStrategy } from './effects/composition/layout-strategy.js';
+import { PipeStep } from './effects/composition/pipe.js';
+
+/**
+ * Unified Runtime Types
+ *
+ * Platform-agnostic interfaces for trait execution on client or server.
+ *
+ * @packageDocumentation
+ */
+
+/** Alias for ResolvedPatternProps to avoid breaking internal consumers */
+type PatternProps = ResolvedPatternProps;
+/**
+ * Value a render-ui pattern prop can carry AFTER interpolation. Mirrors
+ * `FieldValue` but extends with `RuntimeRenderPattern` so nested pattern
+ * configs (children, slot props that are themselves render-ui nodes)
+ * round-trip without an `unknown` escape hatch.
+ */
+type RuntimePatternValue = string | number | boolean | null | undefined | EntityRow | EntityRow[] | readonly RuntimePatternValue[] | RuntimeRenderPattern;
+/**
+ * Shape of a render-ui pattern AFTER interpolation, as the runtime hands
+ * it to `EffectHandlers.renderUI`. Different from `ResolvedPatternProps`
+ * (`@almadar/core`) because the post-interpolation pattern carries
+ * resolved EntityRow values (e.g. `{ entity: <row> }` from `@payload.row`)
+ * not just primitives. Used by render-ui observability helpers to narrow
+ * safely without `unknown` casts.
+ */
+interface RuntimeRenderPattern {
+    readonly [prop: string]: RuntimePatternValue;
+}
+
+type ConfigContext = TraitConfig;
+/**
+ * Event structure for cross-trait communication.
+ * Re-export of `BusEvent` from `@almadar/core` so runtime + ui + codegen
+ * all agree on the bus envelope shape. `RuntimeEvent` is kept as a type
+ * alias for anyone importing by the old name.
+ */
+type RuntimeEvent = BusEvent;
+type EventListener = BusEventListener;
+type Unsubscribe = Unsubscribe$1;
+/**
+ * Event bus interface for pub/sub communication
+ */
+interface IEventBus {
+    /** Emit an event. `routingKey` (V4) keys delivery by event-id when the
+     *  schema carries ids; absent → keyed by `type` (name, legacy). */
+    emit(type: string, payload?: EventPayload, source?: BusEventSource, routingKey?: string): void;
+    /** Subscribe to an event */
+    on(type: string, listener: EventListener): Unsubscribe;
+    /** Subscribe to ALL events (wildcard listener) */
+    onAny(listener: EventListener): Unsubscribe;
+    /** Check if there are listeners for an event */
+    hasListeners(type: string): boolean;
+    /** Get all registered event types */
+    getRegisteredEvents(): string[];
+    /** Clear all listeners */
+    clear(): void;
+}
+/**
+ * Result of processing an event through a state machine
+ */
+interface TransitionResult {
+    /** Whether a transition was executed */
+    executed: boolean;
+    /** New state after transition (same as current if not executed) */
+    newState: string;
+    /** Previous state before transition */
+    previousState: string;
+    /** Effects to execute (empty if guard failed or no transition found) */
+    effects: SExpr[];
+    /** The transition that was executed (undefined if none) */
+    transition?: {
+        from: string;
+        to: string;
+        event: string;
+    };
+    /** Guard evaluation result (undefined if no guard) */
+    guardResult?: boolean;
+}
+/**
+ * Effect handlers interface - platform-specific implementations
+ *
+ * Client: React hooks, DOM, router
+ * Server: Express, database, integrators
+ */
+/** What one `http` effect came to: the `<METHOD> <origin><path>` it addressed and, on failure, the declared `emit.failure` event the program routed it to. */
+interface HttpEffectReport {
+    success: boolean;
+    target: string;
+    error?: string;
+    routed?: string;
+}
+interface EffectHandlers {
+    /**
+     * Emit an event to the event bus.
+     *
+     * `source` carries the emitter's identity (orbital + trait) so that
+     * source-scoped listeners (`TraitName EVENT -> TRIGGER` and
+     * `Orbital.TraitName EVENT -> TRIGGER` in .lolo) can filter incoming
+     * events by their originating trait. Omitted when the emit is
+     * synthesized by a non-trait context (e.g. test harness).
+     *
+     * `fromPersistSuccess` is set only by `EffectExecutor`'s `persist` case
+     * (batch and single-op), never inferred from the event name — the
+     * positional signal a server-side implementation uses to also fan this
+     * emit out to other connected clients (live-broadcast). Absent/false
+     * for every other emit source (plain `emit` effect, `set`/`call-service`/
+     * `fetch` success envelopes, cascade re-emits).
+     */
+    emit: (event: string, payload?: EventPayload, source?: RuntimeEvent['source'], fromPersistSuccess?: boolean) => void;
+    /**
+     * Persist data (create/update/delete/batch).
+     *
+     * Returns the persisted ROW — for a create that is the submitted data
+     * plus the store-minted `id`, which the caller's `emit:{success}`
+     * envelope carries. Without it a `*_CREATED` listener sees no id (the
+     * compiled path emits the created row), so anything routing on the new
+     * row's identity — navigating to the page just created — worked in one
+     * execution path only.
+     *
+     * `create`/`update`/`delete` (batch is separate — see `PersistBatchSummary`)
+     * return `undefined` ONLY to signal the write was DENIED or otherwise
+     * failed (a policy rejection, a missing row key, a no-op stub) — never
+     * a genuine success with nothing to report, since every real success
+     * branch sets a row. The caller (`EffectExecutor`'s `persist` case)
+     * treats `undefined` as a failure: it skips the declared `success`
+     * emit entirely rather than falling back to the submitted data, which
+     * previously made a denied delete indistinguishable from a completed
+     * one.
+     */
+    persist: (action: 'create' | 'upsert' | 'update' | 'delete' | 'batch', entityType: string, data?: EntityRow) => Promise<EntityRow | undefined>;
+    /**
+     * Runs a run of consecutive plain persists as stop-mode requests (one when nothing is refused) when the store declares it. Answers the
+     * per-op results in order (`undefined` = that persist failed, a handled outcome, and the ones after it still run).
+     * Answers `null` when the run cannot be pushed, and the executor then runs the effects one by one.
+     */
+    persistRun?: (ops: Array<{
+        action: 'create' | 'upsert' | 'update' | 'delete';
+        entityType: string;
+        data: EntityRow | string | undefined;
+    }>) => Promise<Array<EntityRow | undefined> | null>;
+    /**
+     * Bridge mode: the SERVER executes every persist of this dispatch and
+     * returns the real outcome in its response (`effectResults`), so the
+     * client's `persist` member is a placeholder that must never be read as
+     * a denial. When `true`, `EffectExecutor` skips the persist locally —
+     * no `persist:denied` error, no client-side `failure` emit (which fired
+     * the declared failure event in the browser while the server had
+     * succeeded), no `success` emit either (the server's cascade carries it).
+     * Set by `@almadar/ui`'s `createClientEffectHandlers` when no live
+     * client entity is supplied; absent everywhere a handler really writes.
+     */
+    persistDelegated?: true;
+    /**
+     * Bridge mode: the SERVER runs every `call-service` of this dispatch and
+     * its cascade carries the success/failure emits, so the client's mock
+     * `callService` must not also run one. Set by `@almadar/ui`'s
+     * `createClientEffectHandlers` when no consumer `callService` is wired.
+     */
+    callServiceDelegated?: true;
+    /**
+     * Set a field value on an entity. `void` for a client-side/in-memory
+     * handler (synchronous mutation); `Promise<void>` for a server-side
+     * handler backed by real persistence (e.g. `createServerEffectHandlers`,
+     * Firestore) — callers MUST `await` this, not just call it, or the
+     * write (and any telemetry it records) can still be in flight when the
+     * caller moves on. Verified 2026-09-15: `EffectExecutor.dispatch`'s
+     * 'set' case called this without `await`, invisible against every
+     * existing (synchronous, in-memory) test but a real dropped-write race
+     * the instant a real async persistence backend (Firestore) was wired in.
+     */
+    set: (entityId: string, field: string, value: FieldValue) => void | Promise<void>;
+    /** Report the outcome of an `http` effect to the host's effect trace. */
+    httpResult?: (report: HttpEffectReport) => void;
+    /** Call an external service. `context` carries the caller's identity
+     * (the same viewer entity ACL enforces against) so role-gated services
+     * can enforce server-side; hosts forward it to the integration factory. */
+    callService: CallServiceHandler;
+    /** Fetch entity data (server only) - returns data for client-side rendering.
+     *
+     * Always returns a `FetchResult` (`{rows, total}`) on success. `total`
+     * is the count of rows matching the `filter` BEFORE `offset`/`limit`
+     * are applied so a paginating caller can compute totalPages without
+     * a second round-trip. Single-id fetches return `total: 1`. `null`
+     * means "not found / failed".
+     */
+    fetch?: (entityType: string, options?: {
+        id?: string;
+        filter?: SExpr | Record<string, RuntimeValue>;
+        limit?: number;
+        offset?: number;
+        /** `"field"` or `"field:asc|desc"` — ordered before offset/limit */
+        orderBy?: string;
+        /** `none`: the store need not count every match; the success payload carries no `totalCount`. */
+        total?: 'exact' | 'none';
+        /** Relation fields to include (populate) in the response */
+        include?: string[];
+    }) => Promise<FetchResult | null>;
+    /** A collection fetch delivered by reference (`fetch … { deliver: ids }`, server only): the window's ids, the
+     * count of every match and the query that re-counts it at resolve time. Rejects when the fetch cannot be
+     * expressed as a row query, which the executor routes to `emit.failure`. */
+    fetchRowSet?: (entityType: string, options?: {
+        filter?: SExpr | Record<string, RuntimeValue>;
+        limit?: number;
+        offset?: number;
+        /** `"field"` or `"field:asc|desc"` — ordered before offset/limit */
+        orderBy?: string;
+        /** `none`: the store need not count every match; the success payload carries no `totalCount`. */
+        total?: 'exact' | 'none';
+    }) => Promise<RowSetRef>;
+    /** Stream an LLM or HTTP response (server only).
+     *
+     * Calls `onChunk` per incoming chunk; resolves with the final aggregated
+     * result on completion. The executor fires `emit.on_message` per chunk and
+     * `emit.success` on resolution. `null` means stream failed before any chunk.
+     */
+    fetchStream?: (entityType: string, options: {
+        id?: string;
+        filter?: SExpr | Record<string, RuntimeValue>;
+    } | undefined, onChunk: (chunk: RuntimeValue) => void) => Promise<RuntimeValue>;
+    /** Spawn a new entity instance */
+    spawn?: (entityType: string, props?: EntityRow) => void;
+    /** Despawn (delete) an entity instance */
+    despawn?: (entityId: string) => void;
+    /** Send an orbital event to the server over WebSocket (client-only).
+     *
+     * Produces the wire message `{ type: 'ORBITAL_EVENT', payload: { orbital, event, payload, entityId? } }`
+     * which `setupEventBroadcast` decodes → server bus → `processOrbitalEvent`.
+     */
+    sendServer?: (event: string, payload?: EventPayload) => void;
+    /** Render UI to a slot (client only). `pattern` is the post-interpolation
+     * `PatternConfig` from the trait's `(render-ui slot pattern)` SExpr, or
+     * `null` when the trait clears the slot (`render-ui slot null`).
+     * May be async: the server runtime injects relation option data
+     * (relationsData) read from the persistence adapter before pushing —
+     * the interpreter's mirror of codegen's build-time relationsData. */
+    renderUI?: (slot: string, pattern: PatternConfig | null) => void | Promise<void>;
+    /** Navigate to a route (client only). `crumb` labels the navigation-stack
+     * entry the client pushes for the target page (from the effect's
+     * `{ crumb: … }` options). */
+    navigate?: (path: string, params?: {
+        [key: string]: string;
+    }, crumb?: string) => void;
+    /** Pop the orbital-scoped navigation stack and return to the previous
+     * entry (client only). */
+    navigateBack?: () => void;
+    /** Log a message */
+    log?: (message: string, level?: 'log' | 'warn' | 'error', data?: RuntimeValue) => void;
+    /** Ref: declarative data subscription (server: same as fetch) */
+    ref?: (entityType: string, options?: {
+        id?: string;
+        filter?: SExpr | Record<string, RuntimeValue>;
+        limit?: number;
+        offset?: number;
+        include?: string[];
+    }) => Promise<FetchResult | null>;
+    /** Deref: one-shot data read (server: same as fetch) */
+    deref?: (entityType: string, options?: {
+        id?: string;
+        filter?: SExpr | Record<string, RuntimeValue>;
+    }) => Promise<FetchResult | null>;
+    /** Swap!: atomic read-modify-write on an entity */
+    swap?: (entityType: string, entityId: string, transform: SExpr) => Promise<EntityRow | null>;
+    /** Watch: client-side reactive subscription (no-op on server) */
+    watch?: (entityType: string, options?: {
+        id?: string;
+        filter?: SExpr | Record<string, RuntimeValue>;
+        limit?: number;
+    }) => void;
+    /** Atomic: execute inner effects as a transaction */
+    atomic?: (effects: SExpr[]) => Promise<void>;
+    /** Compose multiple orbitals into one schema. Compile-time only. */
+    composeBehaviors?: (input: ComposeBehaviorsInput) => ComposeBehaviorsResult;
+    /** Apply cross-orbital event wiring. Compile-time only. */
+    applyEventWiring?: (orbitals: OrbitalDefinition[], wiring: EventWiringEntry[]) => OrbitalDefinition[];
+    /** Auto-detect layout strategy. Compile-time only. */
+    detectLayoutStrategy?: (orbitals: OrbitalDefinition[], wiring?: EventWiringEntry[]) => LayoutStrategy;
+    /** Left-to-right behavior pipeline. Compile-time only. */
+    pipeBehaviors?: <T>(seed: T, ...steps: Array<PipeStep<T, T>>) => T;
+    /** browser/open-file-picker — resolves with `{ files }` inside `result` */
+    browserOpenFilePicker?: (options?: BrowserFilePickerOptions) => Promise<{
+        files: BrowserFileMeta[];
+    }>;
+    /** browser/clipboard-read — resolves with `{ text }` inside `result` */
+    browserClipboardRead?: () => Promise<{
+        text: string;
+    }>;
+    /** browser/clipboard-write — resolves with `{ text }` (echo) inside `result` */
+    browserClipboardWrite?: (text: string) => Promise<{
+        text: string;
+    }>;
+    /** browser/geolocation-current — resolves with the position inside `result` */
+    browserGeolocationCurrent?: (options?: BrowserGeolocationOptions) => Promise<BrowserGeolocationPosition>;
+    /**
+     * browser/page-facts — reads the requested facts in the order given and resolves with the flat facts
+     * (`PAGE_FACTS_SHAPE`). No page resolves `available: false`; a getter that throws rejects, which is not no-page.
+     */
+    browserPageFacts?: (fields: readonly PageFactField[]) => Promise<BrowserPageFacts>;
+    /**
+     * browser/prompt — the on-device model's raw reply text for `text` under the JSON Schema text; rejects with an
+     * `OnDeviceModelFailure` (`unconfigured`, `unavailable` or `failed`), and stops on an aborted `signal`.
+     */
+    browserPrompt?: (text: string, schemaText: string, key: string | null, signal?: AbortSignal) => Promise<string>;
+    /** browser/embed — one vector per text, in input order; rejects as `browserPrompt` does. */
+    browserEmbed?: (texts: readonly string[], key: string | null, signal?: AbortSignal) => Promise<number[][]>;
+    /** browser/push-subscribe — resolves with the flat Web Push subscription credentials inside `result` */
+    browserPushSubscribe?: () => Promise<{
+        endpoint: string;
+        p256dh: string;
+        auth: string;
+    }>;
+    programEffect?: (op: ProgramEffectName, args: readonly JsonValue[], context?: Pick<ServiceCallContext, 'principal' | 'role'>) => Promise<ProgramEffectOutcome>;
+    agentPorts?: () => ServiceHostPorts | undefined;
+}
+/**
+ * What a `batch` persist hands back — the shape `canonical-operators.json`
+ * declares for persist's batch branch, so the `emit: { success }` envelope
+ * carries exactly what the type system promises. Before this existed the
+ * envelope emitted the raw INPUT array, so `?completedCount` / `?totalCount`
+ * read `undefined` at runtime.
+ *
+ * Structurally an {@link EntityRow} — `operations` is an array of rows and the
+ * counts are numbers, all valid `FieldValue`s — so `EffectHandlers.persist`
+ * needs no widened return type and no cast: a batch summary reaches the bus by
+ * the same path a create/update row does.
+ *
+ * Declared as a `type` alias, NOT an `interface`, deliberately: only an object
+ * type alias gets TypeScript's implicit index signature, which is what makes it
+ * assignable to `EntityRow`'s `Record<string, FieldValue | undefined>` half. As
+ * an interface it fails that assignment (TS2322) and the only way to ship it
+ * would be a cast — which the type-safety rule forbids, and rightly: the cast
+ * would have hidden that the contract, not the value, was wrong.
+ */
+type PersistBatchSummary = {
+    /** One result row per attempted operation, in submission order. */
+    operations: EntityRow[];
+    /** How many operations completed before the batch stopped. */
+    completedCount: number;
+    /** How many were submitted. */
+    totalCount: number;
+};
+/** Options for `browser/open-file-picker`. */
+interface BrowserFilePickerOptions {
+    /** Allow selecting multiple files. */
+    multiple?: boolean;
+    /** MIME type filter (e.g. "image/*"). Best-effort; host may ignore. */
+    accept?: string;
+}
+/** Metadata for a file chosen via `browser/open-file-picker`. */
+interface BrowserFileMeta {
+    name: string;
+    size: number;
+    type: string;
+    lastModified: number;
+}
+/** Options for `browser/geolocation-current` (subset of PositionOptions). */
+interface BrowserGeolocationOptions {
+    enableHighAccuracy?: boolean;
+    timeout?: number;
+    maximumAge?: number;
+}
+/** Position returned by `browser/geolocation-current`. */
+interface BrowserGeolocationPosition {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+}
+/**
+ * Context for resolving bindings like @entity.field, @payload.value
+ */
+interface BindingContext {
+    /** Current entity data */
+    entity?: EntityRow;
+    /** Event payload data */
+    payload?: EventPayload;
+    /** Current state name */
+    state?: string;
+    /** Trait-level state/config */
+    config?: ConfigContext;
+    /** Authenticated viewer behind `@user.x` — ownership (`@user.id`) and role gates. */
+    user?: UserContext;
+    /** The dispatch's one `now` stamp (ms epoch) — every guard, effect and time operator in it reads this. */
+    now?: number;
+    /** `@locale`: the viewer's locale (`OrbitalEventRequest.locale`, else the program's first declared locale). */
+    locale?: string;
+    /** That locale's catalog — `i18n/t` reads it. */
+    messages?: Readonly<Record<string, string>>;
+    /** `@event`: the delivery being processed (`deliveryRecordValue`, Runtime Spec Clause 5.5). */
+    event?: EventPayload;
+    /** `@prevEvents`: deliveries this trait already received this dispatch. */
+    prevEvents?: EventPayload[];
+    /** `@prevStates`: states this trait left this dispatch. */
+    prevStates?: string[];
+    /** `@fromState` / `@toState`: the transition's ends. */
+    fromState?: string;
+    toState?: string;
+    /**
+     * The host orbital's pages for the `@pages` render sigil (`href`/`label`
+     * per inline page). Seeded onto the render binding context only — never
+     * present on a guard/tick context. Mirrors the compiler's
+     * `OirBindingRoot::Pages`.
+     */
+    pages?: NavItem[];
+    /**
+     * The `data-theme` key string for the `@currentTheme` render sigil,
+     * derived from the host orbital's `Orbital.theme`. Render-context only.
+     */
+    currentTheme?: string;
+    /**
+     * Local variables introduced by a `let` form, keyed by bare name and
+     * referenced via `@<name>` (the canonical evaluator convention — same as
+     * `createChildContext` in `@almadar/evaluator`). Carried on the context so
+     * a `let` body's effects resolve their value expressions against the
+     * `let`-bound locals.
+     */
+    locals?: Map<string, RuntimeValue>;
+    /**
+     * The composing effect's triggering payload, for a trait embedded via
+     * `@trait.X` inline into a parent's render-ui. Set when re-running an
+     * embedded child's lifecycle transition under its embedder's payload
+     * (see `OrbitalServerRuntime.executeEffects` / the client's
+     * `useTraitStateMachine`), so `@callsitePayload.<field>` resolves on the
+     * child's evaluation context — mirrors the compiled path's
+     * `CALLSITE_PAYLOAD_PREFIX` capture.
+     */
+    callsitePayload?: EventPayload;
+    /** Additional custom bindings */
+    [key: string]: RuntimeValue | undefined;
+}
+/**
+ * Executable effect tuple: operator name plus already-resolved arguments.
+ *
+ * Runtime-local on purpose — NOT `@almadar/core`'s `Effect` (`TypedEffect`),
+ * which is a CLOSED union of authoring-time tuples. The runtime's operator
+ * set is extensible (custom handlers, `os/*`, substrate ops), so the executor
+ * input is this open tuple. The wire-level type for effect lists stays
+ * `SExpr[]` (`TransitionResult.effects`, `TraitDefinition.transitions[].effects`);
+ * narrow it to `Effect[]` at the executor boundary with {@link isEffectTuple}.
+ */
+type Effect = [string, ...RuntimeValue[]];
+/**
+ * Type guard: is this value an executable effect tuple (operator + args)?
+ * Narrows wire-level `SExpr` effect lists to the executor-input `Effect`
+ * without a cast. (Parameter is `RuntimeValue`, not `SExpr`, because a type
+ * predicate's type must be assignable to its parameter's type — `Effect`'s
+ * `RuntimeValue` tail is wider than `SExpr`. Every `SExpr` is a `RuntimeValue`,
+ * so call sites pass either.)
+ */
+declare function isEffectTuple(value: RuntimeValue): value is Effect;
+/**
+ * Effect execution context
+ */
+interface EffectContext {
+    /** Trait name */
+    traitName: string;
+    /** Orbital that owns the firing trait. Used to stamp the source
+     * metadata on emits so source-scoped listens (`TraitName EVENT` for
+     * intra-orbital, `Orbital.TraitName EVENT` for cross-orbital) can
+     * filter by emitter identity. */
+    orbitalName?: string;
+    /**
+     * V4 dual-carry id sibling of `traitName` — stamped onto emit sources
+     * so id-scoped `listens` (`buildSourceMatcher`) match by id,
+     * rename-proof. The matcher compares ids ONLY when the listen source
+     * carries one, so a name-only stamp never matches a `traitId`-carrying
+     * listen (the chat SAVE → DO_CREATE relay died on the stateful path,
+     * 2026-09-22). Parity with `OrbitalServerRuntime`'s emit stamp.
+     */
+    traitId?: TraitId;
+    /**
+     * V4 dual-carry id sibling of `orbitalName` — same contract as
+     * `traitId`, for `kind: 'orbital'` listen sources.
+     */
+    orbitalId?: OrbitalId;
+    /**
+     * The trait's emit contracts — the emit-source stamp reads `eventId`
+     * from the matching contract (parity with `OrbitalServerRuntime`'s
+     * `emitContract?.eventId`).
+     */
+    emits?: ReadonlyArray<{
+        event: string;
+        eventId?: EventId;
+    }>;
+    /** Current state */
+    state: string;
+    /** Transition description */
+    transition: string;
+    /** Linked entity name */
+    linkedEntity?: string;
+    /** Entity ID (if available) */
+    entityId?: string;
+}
+/**
+ * Result of executing a single effect, with status tracking.
+ */
+interface EffectResult {
+    /** Effect operator (e.g., "persist", "render-ui") */
+    type: string;
+    /** Effect arguments */
+    args: RuntimeValue[];
+    /** Whether the effect executed successfully */
+    status: "executed" | "failed" | "skipped";
+    /** Error message if failed */
+    error?: string;
+    /** Execution duration in milliseconds */
+    durationMs?: number;
+    /** Refused before the effect's handler ran (e.g. a `persist create` missing a
+     *  required field), so no handler recorded it — the host reports it. */
+    refusedBeforeHandler?: boolean;
+}
+/**
+ * Runtime configuration for strictness and safety modes.
+ *
+ * These options control how the runtime handles edge cases:
+ * - `strictBindings`: Log warnings when bindings resolve to undefined (RCG-01)
+ * - `maxEventDepth`: Prevent infinite event loops (RCG-05)
+ */
+interface RuntimeConfig {
+    /**
+     * When true, log warnings when bindings like @entity.field resolve to undefined.
+     * Helps detect typos and missing fields early. (RCG-01)
+     * @default false
+     */
+    strictBindings?: boolean;
+    /**
+     * Maximum event emission depth before triggering circuit breaker. (RCG-05)
+     * Prevents infinite loops from circular emit/listen chains.
+     * @default 10
+     */
+    maxEventDepth?: number;
+    /**
+     * Additional fields to spread onto every EvaluationContext.
+     * Used to inject module contexts (e.g., { agent: AgentContext }).
+     * The evaluator dispatches agent/* operators to ctx.agent.
+     */
+    contextExtensions?: EvaluationContextExtensions;
+}
+/**
+ * Typed extensions that get spread onto every EvaluationContext.
+ * Each field here corresponds to an optional field on EvaluationContext.
+ */
+interface EvaluationContextExtensions {
+    /** Agent context for agent/* operators (memory, LLM, tools, session) */
+    agent?: AgentContext;
+    /** Substrate contexts for the new operator namespaces */
+    llm?: LlmContext;
+    workspace?: WorkspaceContext;
+    session?: SessionContext;
+    memory?: MemoryContext;
+    trace?: TraceContext;
+}
+/**
+ * Execution context for handler manifest validation.
+ * Defines which effect handlers should be available in each environment.
+ */
+type ExecutionEnvironment = "client" | "server" | "test" | "ssr";
+/**
+ * Effect handlers each execution environment is expected to carry. `client`
+ * and `server` derive from the registry's `runsOn`; `ssr` is a render mode
+ * (one server-side page render), not an execution site, so it stays listed.
+ */
+declare const HANDLER_MANIFEST: Record<ExecutionEnvironment, string[]>;
+
+export { type BindingContext, type BrowserFileMeta, type BrowserFilePickerOptions, type BrowserGeolocationOptions, type BrowserGeolocationPosition, type ConfigContext, type Effect, type EffectContext, type EffectHandlers, type EffectResult, type EvaluationContextExtensions, type EventListener, type ExecutionEnvironment, HANDLER_MANIFEST, type HttpEffectReport, type IEventBus, type PatternProps, type PersistBatchSummary, type RuntimeConfig, type RuntimeEvent, type RuntimePatternValue, type RuntimeRenderPattern, type TransitionResult, type Unsubscribe, isEffectTuple };

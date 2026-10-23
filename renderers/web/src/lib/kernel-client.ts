@@ -8,7 +8,7 @@
  *
  * @packageDocumentation
  */
-import type { EventPayload, OrbitalEventRequest, OrbitalEventResponse, TransitionRejection } from '@almadar/core';
+import type { EventPayload, OrbitalEventRequest, OrbitalEventResponse, TraitConfig, TransitionRejection, UserContext } from '@almadar/core';
 import {
   createLocalFold,
   createTickDriver,
@@ -28,11 +28,11 @@ import {
   type VisibilityPort,
 } from '../index';
 import type { TraitIndex } from '@almadar/core';
-import { TraitMountError } from '../index';
+import { TraitMountError } from '@almadar/shell-runtime/client/trait-mount-error';
 import { createLogger } from '@almadar/logger';
 import type { FrameScheduler } from './kernel-frames';
 import { getTraitPresence, presenceGroup } from '../core';
-import type { AppliedWire, AwaitingTrait, DispatchWire, MountWire, TraitSnapshot } from '@almadar/core/kernel-wire';
+import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, MountWire, TraitSnapshot } from '@almadar/core/kernel-wire';
 import type { KernelInstance } from './kernel-wire';
 
 const log = createLogger('almadar:ui:kernel-client');
@@ -61,6 +61,10 @@ export interface KernelClient extends ClientKernel {
   unmount(traits: readonly string[]): Promise<void>;
   /** The kernel's current state of a trait; `undefined` until the WebAssembly is loaded. */
   traitState(traitName: string): string | undefined;
+  /** The config the kernel binds as `@config` for a trait (render markers resolve against it); `undefined` until the WebAssembly is loaded. */
+  traitConfig(traitName: string): TraitConfig | undefined;
+  /** The viewer the kernel binds as `@user`; the trait configs' `@user` forwards are read again after it. */
+  setViewer(user: UserContext): Promise<void>;
 }
 
 export interface KernelClientOptions {
@@ -94,6 +98,7 @@ function payloadJson(payload: EventPayload | undefined): string | undefined {
 export function createKernelClient(opts: KernelClientOptions): KernelClient {
   const { store, traitIndex, transport } = opts;
   let loaded: KernelInstance | undefined;
+  const configs = new Map<string, TraitConfig>();
   const ready = opts.instance.then((k) => {
     loaded = k;
     return k;
@@ -315,12 +320,11 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     const traitName = request.targetTrait;
     if (traitName === undefined) throw new Error('dispatch requires request.targetTrait (the seed trait)');
     const k = await ready;
-    const indexed = traitIndex.byName.get(traitName);
     if (request.runTick !== undefined) {
       const response = parse<OrbitalEventResponse>(k.tick(request.runTick.trait, request.runTick.tick, request.entityId));
       mirror(response);
       store.notify();
-      return { response, mode: indexed?.dispatchMode ?? 'hybridClientOnly' };
+      return { response, mode: parse<DispatchMode>(k.dispatchMode(request.runTick.trait)) };
     }
     const wire = parse<DispatchWire>(k.dispatch(traitName, request.entityId, request.event, payloadJson(request.payload)));
     log.debug('dispatch', { trait: traitName, event: request.event, mode: wire.mode, legs: wire.serverLegs.length, success: wire.response.success, states: wire.response.states, effects: (wire.response.clientEffectsByTrait ?? []).map((e) => `${e.traitName}:${e.effect[0]}:${e.effect[1] ?? ''}`), emitted: wire.response.emittedEvents.map((e) => e.event) });
@@ -350,7 +354,8 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     },
     foldHostDispatch: (request, response) => enqueue(async () => {
       const k = await ready;
-      const mode = (request.targetTrait !== undefined ? traitIndex.byName.get(request.targetTrait)?.dispatchMode : undefined) ?? 'persistedAwaited';
+      if (request.targetTrait === undefined) throw new Error('foldHostDispatch requires request.targetTrait (the seed trait)');
+      const mode = parse<DispatchMode>(k.dispatchMode(request.targetTrait));
       if (!response.success) return { response: { ...response, clientEffects: [], clientEffectsByTrait: [] }, mode };
       const applied = parse<AppliedWire>(k.applyServerResponse(JSON.stringify(response), '[]'));
       trace(applied.response);
@@ -473,6 +478,19 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       };
     },
     traitState: (traitName) => loaded?.getState(traitName),
+    traitConfig: (traitName) => {
+      if (loaded === undefined) return undefined;
+      const held = configs.get(traitName);
+      if (held !== undefined) return held;
+      const config = parse<TraitConfig>(loaded.traitConfig(traitName));
+      configs.set(traitName, config);
+      return config;
+    },
+    setViewer: async (user) => {
+      const k = await ready;
+      k.setCurrentUser(JSON.stringify(user));
+      configs.clear();
+    },
   };
   return client;
 }

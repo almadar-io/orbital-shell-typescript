@@ -22,7 +22,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo } 
 import type { ReactNode } from 'react';
 import type { OrbitalSchema } from '@almadar/core';
 import { type EventTransport, type AccessTokenProvider } from '../index';
-import { createHttpTransport as createRuntimeHttpTransport } from '../index';
+import { createHttpTransport as createRuntimeHttpTransport } from '@almadar/shell-runtime/client/EventTransport';
 
 // `EventTransport` (plan P5, `docs/Almadar_Runtime_Stateless_Stateful_PLAN.md`
 // §4.2) is the ONE owner of the HTTP request/response leg. This provider is

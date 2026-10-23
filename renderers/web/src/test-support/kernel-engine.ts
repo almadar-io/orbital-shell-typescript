@@ -1,8 +1,9 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { installKernelEvaluator } from '@almadar/core';
+import { OrbitalSchemaSchema, installKernelEvaluator, type OrbitalSchema } from '@almadar/core';
 import { readLanguageBundle } from '@almadar/core/language-data';
 import type { KernelEngineValue } from '../providers/KernelEngineContext.js';
 import type { KernelModule } from '../lib/kernel-wire.js';
@@ -52,7 +53,18 @@ export function loadTestKernel(): Promise<KernelModule> {
   return (shared ??= load());
 }
 
-export const KERNEL_ENGINE: KernelEngineValue = { loadModule: () => loadTestKernel(), loadLanguage: () => Promise.resolve(TEST_LANGUAGE) };
+const WHICH_LINE = /^(\/\S+\.(?:orb|lolo)) \((.+)\)$/;
+
+/** The std mock-seed program as `orb` resolves it from the installed packages, the way a Node host does. */
+export function loadTestSeedProgram(): Promise<OrbitalSchema> {
+  const run = (args: readonly string[]): string => execFileSync('orb', [...args], { cwd: process.cwd(), encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 });
+  const which = run(['behaviors', 'which', 'std/behaviors/std-mock-seed']).trim().split('\n').pop() ?? '';
+  const match = WHICH_LINE.exec(which);
+  if (match === null) return Promise.reject(new Error(`std/behaviors/std-mock-seed is not installed: ${which}`));
+  return Promise.resolve(OrbitalSchemaSchema.parse(JSON.parse(run(['resolve', match[1]]))));
+}
+
+export const KERNEL_ENGINE: KernelEngineValue = { loadModule: () => loadTestKernel(), loadLanguage: () => Promise.resolve(TEST_LANGUAGE), loadSeedProgram: loadTestSeedProgram };
 export const ENGINES: ReadonlyArray<readonly [string, KernelEngineValue]> = KERNEL_AVAILABLE ? [['kernel', KERNEL_ENGINE]] : [];
 
 /** A client-build kernel instance of its own, as a browser loads it: nothing has installed language data into it. */

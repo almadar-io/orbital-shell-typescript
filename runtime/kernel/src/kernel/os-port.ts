@@ -29,6 +29,16 @@ export interface OsGrantPort {
   globMatches(glob: string, path: string): boolean;
   /** `is_public_address`: the rule an outbound host name must pass. */
   isPublicAddress(ip: string): boolean;
+  /** Place the program's anchored grants and arguments under the host's anchors (`set_os_anchors_json`); answers what grants nothing. */
+  anchor(anchors: OsAnchors): OsAnchorProblem[];
+  /** An `os/` call's arguments with every anchored part replaced by what it names under the host's anchors (`resolve_anchored_args`). */
+  resolveArgs(op: OsOp, args: JsonValue[]): Settled<JsonValue[], OsError>;
+}
+
+/** An anchored grant entry that grants nothing under the host's anchors. */
+export interface OsAnchorProblem {
+  path: string;
+  message: string;
 }
 
 /** What a host answers an `os` ask with; `close` drops every handle it holds, as the native `OsHandles::close_all`. */
@@ -40,7 +50,13 @@ export interface OsHostPort {
    * the key is cancelled first. A host with no `defer` answers every ask in place.
    */
   defer?(op: OsOp, args: JsonValue[], key: string, deliver: (outcome: Settled<JsonValue, OsError>) => void): Settled<null, OsError>;
-  /** `OsHandles::cancel_completion`: drop the pending completion of `key`; `false` when none is pending. */
+  /**
+   * A keyed stream (`OsOp::is_stream`, EXEC-QUEUE-12): the host binds and answers once in place, then hands each message
+   * to `message` until it ends; `message` answers `false` when no one takes it any more. A failure after the answer
+   * reaches `fail` once. A host with no `stream` answers every stream ask in place, as unsupported.
+   */
+  stream?(op: OsOp, args: JsonValue[], key: string, message: (value: JsonValue) => boolean, fail: (error: OsError) => void): Promise<Settled<JsonValue, OsError>>;
+  /** `OsHandles::cancel_completion`: drop the pending completion of `key`, or stop its stream; `false` when none is open. */
   cancel?(key: string): boolean;
   close(): void;
 }
@@ -54,20 +70,24 @@ export interface OsCompletionEvent {
 /** What the wasm kernel decides about a deferred `os` call: which ops defer, and the event an outcome fires. */
 export interface OsCompletionPort {
   defers(op: OsOp): boolean;
+  streams(op: OsOp): boolean;
   event(site: CallSiteWire, key: string, outcome: Settled<JsonValue, OsError>): OsCompletionEvent | null;
 }
 
 /** The kernel exports the completion port is built from. */
 export interface OsCompletionMatchers {
   osDeferringOps(): string;
+  osStreamOps(): string;
   osCompletionEvent(siteJson: string, key: string, outcomeJson: string): string;
 }
 
-/** The completion port over the wasm kernel: `OsOp::defers_completion` and `completion_event`, not copied. */
+/** The completion port over the wasm kernel: `OsOp::defers_completion`, `OsOp::is_stream` and `completion_event`, not copied. */
 export function kernelOsCompletions(kernel: OsCompletionMatchers): OsCompletionPort {
   const deferring: string[] = JSON.parse(kernel.osDeferringOps());
+  const streaming: string[] = JSON.parse(kernel.osStreamOps());
   return {
     defers: (op) => deferring.includes(op),
+    streams: (op) => streaming.includes(op),
     event: (site, key, outcome) => {
       const fired: OsCompletionEvent | null = JSON.parse(kernel.osCompletionEvent(JSON.stringify(site), key, JSON.stringify(outcome)));
       return fired;
@@ -78,6 +98,8 @@ export function kernelOsCompletions(kernel: OsCompletionMatchers): OsCompletionP
 /** The kernel pieces a grant port is built from: the `Server` handle holding the program's grants and the module-level matchers. */
 export interface OsGrantKernel {
   osAllows(requirementJson: string): boolean;
+  setOsAnchors(anchorsJson: string): string;
+  osResolveArgs(op: string, argsJson: string): string;
 }
 
 export interface OsGrantMatchers {
@@ -91,13 +113,26 @@ export function kernelOsGrants(matchers: OsGrantMatchers, server: () => OsGrantK
     allows: (need) => server().osAllows(JSON.stringify(need)),
     globMatches: (glob, path) => matchers.osGlobMatches(glob, path),
     isPublicAddress: (ip) => matchers.isPublicAddress(ip),
+    anchor: (anchors) => {
+      const problems: OsAnchorProblem[] = JSON.parse(server().setOsAnchors(JSON.stringify(anchors)));
+      return problems;
+    },
+    resolveArgs: (op, args) => {
+      const resolved: Settled<JsonValue[], OsError> = JSON.parse(server().osResolveArgs(op, JSON.stringify(args)));
+      return resolved;
+    },
   };
 }
 
-/** Where a host anchors `~/` and `./` paths and grants: the user's home and the directory it started the program in (`orbital-core` `OsAnchors`). */
+/**
+ * Where a host anchors `~/` and `./` paths and grants (the user's home and the directory it started the program in), and
+ * what a grant's declared anchors resolve to: its executable's directory and its boot environment (`orbital-core` `OsAnchors`).
+ */
 export interface OsAnchors {
   readonly home?: string;
   readonly start?: string;
+  readonly exeDir?: string;
+  readonly env?: Readonly<Record<string, string>>;
 }
 
 /** What a written path names under the host's anchors (`OsAnchors::expand`). */

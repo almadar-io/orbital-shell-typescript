@@ -1,5 +1,8 @@
 'use client';
 import { useRef, useEffect, useCallback } from 'react';
+import { createLogger } from '@almadar/logger';
+
+const log = createLogger('almadar:ui:render-interpolation');
 
 export interface Positioned {
   id: string;
@@ -83,12 +86,15 @@ export function useRenderInterpolation<T extends Positioned>(
   const startLoop = useCallback(
     (draw: (positions: Map<string, { x: number; y: number }>) => void): (() => void) => {
       let active = true;
+      let reported = false;
       const loop = () => {
         if (!active) return;
         try {
           draw(getInterpolated(performance.now()));
-        } catch {
-          // never block the loop
+        } catch (error) {
+          // A failed frame must not stop the loop; the first failure of a loop is reported.
+          if (!reported) log.error('draw-failed', { error: error instanceof Error ? error.message : String(error) });
+          reported = true;
         }
         rafRef.current = requestAnimationFrame(loop);
       };

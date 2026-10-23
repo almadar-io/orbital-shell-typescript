@@ -8,10 +8,9 @@ import {
   credentialStatusConnected,
   type BrowserPageFacts,
   type PageFactField,
-  isAgentPortOperator,
   isJsonObject,
+  OrbitalEventRequestSchema,
   QueryDeclinedError,
-  runAgentPort,
   WriteDeclinedError,
   type EntityRow,
   type EventPayload,
@@ -91,7 +90,7 @@ export interface KernelHostPorts {
   osCompletions?: OsCompletionPort;
   substrateStream?: (op: string, args: readonly JsonValue[], scope: KernelAnswerScope) => SubstrateStreamSource | undefined;
   substrateMessage?: (site: CallSiteWire, key: string, value: JsonValue) => OsCompletionEvent | null;
-  substrateCompletion?: (site: CallSiteWire, key: string, op: string, outcome: Settled<JsonValue, SubstrateFailureWire>) => OsCompletionEvent | null;
+  substrateCompletion?: (site: CallSiteWire, key: string, op: string, args: readonly JsonValue[], outcome: Settled<JsonValue, SubstrateFailureWire>) => OsCompletionEvent | null;
   /** The host clock in epoch milliseconds, answering the kernel's `clock` ask; absent, the system clock. */
   now?: () => number;
 }
@@ -201,13 +200,18 @@ function startDeferredCall(
       if (settled.cancelled) {
         if (site.emit.cancelled !== undefined && key !== undefined) deliver(site.emit.cancelled, { key });
       } else if (site.emit.success !== undefined) {
-        deliver(site.emit.success, settled.value === null ? undefined : toEventPayload(settled.value));
+        deliver(site.emit.success, keyed(settled.value === null ? undefined : toEventPayload(settled.value), key));
       }
     },
     (error) => {
-      if (site.emit.failure !== undefined) deliver(site.emit.failure, { error: failureMessage(error) });
+      if (site.emit.failure !== undefined) deliver(site.emit.failure, keyed({ error: failureMessage(error) }, key));
     },
   );
+}
+
+/** A completion payload with the call's key beside it; a payload that is not a record is left as it is. */
+function keyed(payload: EventPayload | undefined, key: string | undefined): EventPayload | undefined {
+  return payload !== undefined && key !== undefined ? { ...payload, key } : payload;
 }
 
 function toEventPayload(value: JsonValue): EventPayload | undefined {
@@ -228,7 +232,7 @@ async function substrate(
   const deliver = (fired: OsCompletionEvent | null): void => {
     if (fired !== null) sink({ orbital: site.orbital ?? scope.orbital, traitName: site.trait, event: fired.event, payload: isJsonObject(fired.payload) ? fired.payload : undefined, entityId: site.entityId, originClientId: scope.originClientId, user: scope.user, locale: scope.locale });
   };
-  const failed = <T>(error: T): void => deliver(complete(site, key, request.op, { error: { message: failureMessage(error), errors: [] } }));
+  const failed = <T>(error: T): void => deliver(complete(site, key, request.op, request.args, { error: { message: failureMessage(error), errors: [] } }));
   if (source !== undefined && ports.substrateMessage !== undefined) {
     const message = ports.substrateMessage;
     void ports.inFlightCalls.run(key, (signal) => new Promise<void>((resolve) => {
@@ -248,7 +252,7 @@ async function substrate(
   const pending = ports.inFlightCalls.run(key, (signal) => untilAborted(signal, substrateInPlace(ports, request, { ...scope, assertReentry: undefined })));
   void pending.then((outcome) => {
     if (outcome.cancelled || outcome.value.kind !== 'substrate') return;
-    deliver(complete(site, key, request.op, outcome.value.result));
+    deliver(complete(site, key, request.op, request.args, outcome.value.result));
   }, failed);
   return { kind: 'serviceDeferred' };
 }
@@ -264,12 +268,12 @@ async function substrateInPlace(
     const detail: SubstrateFailureWire = { message, errors };
     return { kind: 'substrate', result: { error: detail } };
   };
-  if (isAgentPortOperator(request.op)) {
+  if (request.op === 'program/dispatch' || request.op === 'program/inputs') {
     const lent = ports.servicePorts({ orbital: scope.orbital, trait: '' }, scope.user, () => {}, scope.assertReentry);
     try {
-      const outcome = await runAgentPort(request.op, request.args, lent);
-      if (outcome.ok) return { kind: 'substrate', result: { ok: toJson(outcome.result) } };
-      return failure(outcome.error, (outcome.errors ?? []).map((issue) => ({ ...issue })));
+      const delivered = await deliverAgentAsk(request.op, request.args, lent);
+      if (delivered.ok) return { kind: 'substrate', result: { ok: delivered.result } };
+      return failure(delivered.error, delivered.errors ?? []);
     } catch (error) {
       return failure(error instanceof Error ? error.message : String(error));
     }
@@ -284,6 +288,70 @@ async function substrateInPlace(
   } catch (error) {
     return failure(error instanceof Error ? error.message : String(error));
   }
+}
+
+type Delivered = { ok: true; result: JsonValue } | { ok: false; error: string; errors?: JsonValue[] };
+
+/** An empty text, record or list in an event request is absent, as the HTTP routes read it. */
+function present(value: JsonValue | undefined): value is JsonValue {
+  if (value === undefined || value === null || value === '') return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (isJsonObject(value)) return Object.keys(value).length > 0;
+  return true;
+}
+
+/**
+ * The asks the kernel plans for `program/dispatch` and `program/inputs` (EXEC-AGENT-1), delivered raw: an inbound
+ * delivery, a declared input, an event request, or the trace. The kernel checks and shapes; the host only delivers.
+ */
+async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs', args: readonly JsonValue[], host: ServiceHostPorts): Promise<Delivered> {
+  const [first, second, third] = args;
+  if (op === 'program/inputs') {
+    const steps = args.length === 1 && isJsonObject(first) ? first['trace'] : undefined;
+    if (typeof steps !== 'number') return { ok: false, error: 'program/inputs: the host is asked for { trace } only' };
+    if (host.trace === undefined) return { ok: false, error: 'program/inputs: this host keeps no dispatch trace' };
+    return { ok: true, result: host.trace(steps) };
+  }
+  if (args.length === 1 && isJsonObject(first)) {
+    const { inbound, body, headers } = first;
+    if (typeof inbound !== 'string' || typeof body !== 'string' || !isJsonObject(headers)) return { ok: false, error: 'program/dispatch: the host is asked for { inbound, body, headers }' };
+    if (host.deliverInbound === undefined) return { ok: false, error: 'program/dispatch: this host does not deliver inbound requests' };
+    const named: Record<string, string> = {};
+    for (const [key, value] of Object.entries(headers)) if (typeof value === 'string') named[key] = value;
+    const answer = await host.deliverInbound(inbound, { headers: named, rawBody: body });
+    return { ok: true, result: { status: answer.status, body: answer.body } };
+  }
+  if (typeof first !== 'string' || second === undefined || !isJsonObject(second)) return { ok: false, error: 'program/dispatch: the host is asked for a qualified address and a payload record' };
+  const payload = second;
+  if (isJsonObject(third)) {
+    if (host.dispatchRequest === undefined) return { ok: false, error: 'program/dispatch: this host does not serve event requests' };
+    const stream = third['stream'] === true;
+    if (stream && host.supportsDispatchStream !== true) return { ok: false, error: 'program/dispatch: this host does not answer stream items' };
+    const fields: { [key: string]: JsonValue } = { payload };
+    for (const key of ['event', 'entityId', 'targetTrait', 'clientId', 'locale', 'delivery', 'dispatchLog', 'mount']) {
+      const value = third[key];
+      if (present(value)) fields[key] = value;
+    }
+    const traits = third['traits'];
+    if (traits !== undefined && traits !== null) fields['traits'] = traits;
+    if (isJsonObject(third['viewer'])) fields['user'] = third['viewer'];
+    const parsed = OrbitalEventRequestSchema.safeParse(fields);
+    if (!parsed.success) {
+      const message = `program/dispatch: not an event request: ${parsed.error.message}`;
+      return { ok: false, error: message, errors: [{ code: 'INVALID_REQUEST', message, status: 400 }] };
+    }
+    const orbital = typeof third['orbital'] === 'string' ? third['orbital'] : '';
+    const answered = await host.dispatchRequest(orbital, parsed.data, third['input'] === true, stream);
+    if (!answered.ok) return { ok: false, error: answered.error, errors: [{ code: answered.code, message: answered.error, status: answered.status }] };
+    if (!stream) return { ok: true, result: toJson(answered.response) };
+    if (answered.streamItems === undefined) return { ok: false, error: 'program/dispatch: this host does not answer stream items' };
+    return { ok: true, result: toJson({ ...answered.response, items: answered.streamItems }) };
+  }
+  const event = first.lastIndexOf('.');
+  const trait = first.lastIndexOf('.', event - 1);
+  if (event < 0 || trait < 0) return { ok: false, error: `program/dispatch: '${first}' is not a qualified address` };
+  const response = await host.dispatchInput(first.slice(0, trait), { targetTrait: first.slice(trait + 1, event), event: first.slice(event + 1), payload });
+  return { ok: true, result: toJson(response) };
 }
 
 const HTTP_UNAVAILABLE = 'HTTP_KERNEL_UNAVAILABLE: this host was given no http ports';
@@ -408,6 +476,26 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
   const { op, args, key, site } = request;
   const completions = ports.osCompletions;
   const sink = ports.deferCallOutcome();
+  const message = ports.substrateMessage;
+  if (key !== undefined && site !== undefined && completions !== undefined && sink !== undefined && message !== undefined && os.stream !== undefined && completions.streams(op)) {
+    const orbital = site.orbital ?? scope.orbital;
+    const lease = ports.inFlightCalls.reserve(key);
+    if (lease === undefined) return { kind: 'os', result: { error: { kind: 'invalid', message: `${op}: key ${key} already has a stream open` } } };
+    const stop = (): void => { os.cancel?.(key); lease.release(); };
+    lease.signal.addEventListener('abort', stop, { once: true });
+    const deliver = (fired: OsCompletionEvent | null): boolean => {
+      if (fired === null || lease.signal.aborted) return false;
+      sink({ orbital, traitName: site.trait, event: fired.event, payload: isJsonObject(fired.payload) ? fired.payload : undefined, entityId: site.entityId, originClientId: scope.originClientId, user: scope.user, locale: scope.locale });
+      return true;
+    };
+    const started = await os.stream(op, args, key, (value) => deliver(message(site, key, value)), (error) => {
+      lease.release();
+      lease.signal.removeEventListener('abort', stop);
+      deliver(completions.event(site, key, { error }));
+    });
+    if ('error' in started) { lease.release(); lease.signal.removeEventListener('abort', stop); }
+    return { kind: 'os', result: started };
+  }
   if (key !== undefined && site !== undefined && completions !== undefined && sink !== undefined && os.defer !== undefined && completions.defers(op)) {
     const orbital = site.orbital ?? scope.orbital;
     const lease = ports.inFlightCalls.reserve(key);
@@ -527,6 +615,16 @@ async function queryRows(persistence: PersistenceAdapter, request: Extract<IoReq
 }
 
 /** Pushed-down writes: one op is a `writeWhere`, a run or a batch is a `writeBatch`. */
+/** A compare-and-commit of rows the kernel decided (EXEC-STORE-5): the store applies them together or reports a conflict. */
+async function commitRows(persistence: PersistenceAdapter, request: Extract<IoRequestWire, { kind: 'commitRows' }>): Promise<IoAnswerWire> {
+  if (!persistence.commitRows) return { kind: 'committed', result: { error: 'this store does not commit rows' } };
+  try {
+    return { kind: 'committed', result: { ok: await persistence.commitRows(request.rows) } };
+  } catch (error) {
+    return { kind: 'committed', result: { error: failureMessage(error) } };
+  }
+}
+
 export async function writeRows(persistence: PersistenceAdapter, request: Extract<IoRequestWire, { kind: 'writeRows' }>): Promise<IoAnswerWire> {
   const { batch } = request;
   try {
@@ -542,7 +640,7 @@ export async function writeRows(persistence: PersistenceAdapter, request: Extrac
 export function declareCapabilities(persistence: PersistenceAdapter, declare: (entityType: string, queryJson: string, writeJson: string) => void, entityTypes: readonly string[]): void {
   for (const entityType of entityTypes) {
     const query = persistence.queryPage ? persistence.queryCapabilities?.(entityType) : undefined;
-    const write = persistence.writeWhere || persistence.writeBatch ? persistence.writeCapabilities?.(entityType) : undefined;
+    const write = persistence.writeWhere || persistence.writeBatch || persistence.commitRows ? persistence.writeCapabilities?.(entityType) : undefined;
     if (query === undefined && write === undefined) continue;
     declare(entityType, JSON.stringify(query ?? null), JSON.stringify(write ?? null));
   }
@@ -569,6 +667,8 @@ export async function answerRequest(ports: KernelHostPorts, request: IoRequestWi
       return queryRows(persistence, request);
     case 'writeRows':
       return writeRows(persistence, request);
+    case 'commitRows':
+      return commitRows(persistence, request);
     case 'createRow':
       return {
         kind: 'row',

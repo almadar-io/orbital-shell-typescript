@@ -57,6 +57,77 @@ export class LatencyPersistence implements PersistenceAdapter {
   }
 }
 
+/** Every adapter call a {@link CountingPersistence} tallies. */
+export const PERSISTENCE_METHODS = ['getById', 'list', 'create', 'update', 'delete', 'countRows', 'query', 'listPage', 'queryPage', 'queryIds', 'writeWhere', 'writeBatch'] as const;
+export type PersistenceMethod = (typeof PERSISTENCE_METHODS)[number];
+
+/**
+ * Counts the calls the host makes on the adapter, by method. Optional members are present on the wrapper exactly when
+ * the inner adapter has them, so push-down engages through it as it does through `LatencyPersistence`.
+ */
+export class CountingPersistence implements PersistenceAdapter {
+  readonly countRows?: PersistenceAdapter['countRows'];
+  readonly query?: PersistenceAdapter['query'];
+  readonly listPage?: PersistenceAdapter['listPage'];
+  readonly queryPage?: PersistenceAdapter['queryPage'];
+  readonly queryCapabilities?: PersistenceAdapter['queryCapabilities'];
+  readonly queryIds?: PersistenceAdapter['queryIds'];
+  readonly writeWhere?: PersistenceAdapter['writeWhere'];
+  readonly writeBatch?: PersistenceAdapter['writeBatch'];
+  readonly writeCapabilities?: PersistenceAdapter['writeCapabilities'];
+  private tally: Record<PersistenceMethod, number> = emptyTally();
+
+  constructor(private readonly inner: PersistenceAdapter) {
+    const { countRows, query, listPage, queryPage, queryCapabilities, queryIds, writeWhere, writeBatch, writeCapabilities } = inner;
+    if (countRows) this.countRows = (t) => this.counted('countRows', () => countRows.call(inner, t));
+    if (query) this.query = (t, f) => this.counted('query', () => query.call(inner, t, f));
+    if (listPage) this.listPage = (t, r) => this.counted('listPage', () => listPage.call(inner, t, r));
+    if (queryPage) this.queryPage = (t, r) => this.counted('queryPage', () => queryPage.call(inner, t, r));
+    if (queryCapabilities) this.queryCapabilities = queryCapabilities.bind(inner);
+    if (queryIds) this.queryIds = (t, r) => this.counted('queryIds', () => queryIds.call(inner, t, r));
+    if (writeWhere) this.writeWhere = (op) => this.counted('writeWhere', () => writeWhere.call(inner, op));
+    if (writeBatch) this.writeBatch = (batch) => this.counted('writeBatch', () => writeBatch.call(inner, batch));
+    if (writeCapabilities) this.writeCapabilities = writeCapabilities.bind(inner);
+  }
+
+  private counted<T>(method: PersistenceMethod, run: () => Promise<T>): Promise<T> {
+    this.tally[method] += 1;
+    return run();
+  }
+
+  counts(): { byMethod: Record<PersistenceMethod, number> } {
+    return { byMethod: { ...this.tally } };
+  }
+
+  reset(): void {
+    this.tally = emptyTally();
+  }
+
+  create(entityType: string, data: EntityRow): Promise<{ id: string }> {
+    return this.counted('create', () => this.inner.create(entityType, data));
+  }
+
+  update(entityType: string, id: string, data: EntityRow): Promise<void> {
+    return this.counted('update', () => this.inner.update(entityType, id, data));
+  }
+
+  delete(entityType: string, id: string): Promise<void> {
+    return this.counted('delete', () => this.inner.delete(entityType, id));
+  }
+
+  getById(entityType: string, id: string): Promise<EntityRow | null> {
+    return this.counted('getById', () => this.inner.getById(entityType, id));
+  }
+
+  list(entityType: string): Promise<EntityRow[]> {
+    return this.counted('list', () => this.inner.list(entityType));
+  }
+}
+
+function emptyTally(): Record<PersistenceMethod, number> {
+  return { getById: 0, list: 0, create: 0, update: 0, delete: 0, countRows: 0, query: 0, listPage: 0, queryPage: 0, queryIds: 0, writeWhere: 0, writeBatch: 0 };
+}
+
 /** Only the five core methods: no query, conditional-write or capability members, so the runtime takes the fallback path. */
 export class PlainPersistence implements PersistenceAdapter {
   constructor(private readonly inner: PersistenceAdapter) {}

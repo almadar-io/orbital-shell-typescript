@@ -13,6 +13,15 @@ import { createLogger } from '@almadar/logger';
 
 const log = createLogger('almadar:ui:file-editor');
 
+/** A schema file's text as a schema, or null when it is not JSON (the file is then saved as text). */
+function parseSchemaText(text: string): OrbitalSchema | null {
+  try {
+    return JSON.parse(text) as OrbitalSchema;
+  } catch {
+    return null;
+  }
+}
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -118,12 +127,12 @@ export function useFileEditor(options: UseFileEditorOptions): UseFileEditorResul
       let action: FileEditResult['action'] = 'saved';
 
       if (path.endsWith('.orb') || path.endsWith('schema.json')) {
-        try {
-          const schema = JSON.parse(content) as OrbitalSchema;
+        const schema = parseSchemaText(content);
+        if (schema !== null) {
           await onSchemaUpdate?.(schema);
           action = 'updated_schema';
-        } catch {
-          // Not valid JSON, just save as file
+        } else {
+          log.warn('schema-file-not-json', { path });
         }
       } else if (path.includes('/extensions/')) {
         action = path.endsWith('.new') ? 'converted_extension' : 'saved_extension';
@@ -154,12 +163,9 @@ export function useFileEditor(options: UseFileEditorOptions): UseFileEditorResul
 
       // Check if this is a schema file
       if (path.endsWith('.orb') || path.endsWith('schema.json')) {
-        try {
-          const schema = JSON.parse(file.content) as OrbitalSchema;
-          await onSchemaUpdate?.(schema);
-        } catch {
-          // Not valid JSON, ignore
-        }
+        const schema = parseSchemaText(file.content);
+        if (schema !== null) await onSchemaUpdate?.(schema);
+        else log.warn('schema-file-not-json', { path });
       }
     } catch (err) {
       log.error('Failed to save file', { error: err instanceof Error ? err : String(err) });

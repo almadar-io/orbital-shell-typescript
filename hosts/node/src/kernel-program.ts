@@ -5,9 +5,8 @@
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
-import type { EmittedEvent, EntityRow, EventPayload, InboundAnswer, InboundDelivery, OrbitalSchema, TransitionRejection, UserContext } from '@almadar/core';
-import { InMemoryPersistence } from '@almadar/db/mock';
-import { dispatchInbound, KernelEngine, createHttpPorts, InFlightCalls, kernelOsGrants, type KernelHostPorts, type HttpPorts, type HttpPortsOptions, type KernelModule, type OsHostPort } from '@almadar/shell-runtime';
+import type { KernelMemoryStoreExports, EmittedEvent, EntityRow, EventPayload, InboundAnswer, InboundDelivery, OrbitalSchema, TransitionRejection, UserContext } from '@almadar/core';
+import { dispatchInbound, KernelEngine, NativeMemoryPersistenceAdapter, createHttpPorts, InFlightCalls, kernelOsGrants, type KernelHostPorts, type HttpPorts, type HttpPortsOptions, type KernelModule, type OsHostPort } from '@almadar/shell-runtime';
 import { resolveOrbBinary } from '@almadar/core/behavior-package';
 import { tickEventKey } from '@almadar/core';
 import { installNodeHostPorts } from './host-ports.js';
@@ -90,7 +89,7 @@ export class KernelProgram {
     private readonly os: OsHostPort | undefined,
     private readonly schema: OrbitalSchema,
     private readonly http: HttpPorts,
-    private readonly persistence: InMemoryPersistence,
+    private readonly persistence: NativeMemoryPersistenceAdapter,
   ) {}
 
   static async open(schema: OrbitalSchema, options: KernelProgramOptions): Promise<KernelProgram> {
@@ -100,15 +99,17 @@ export class KernelProgram {
     if (options.store !== undefined && options.seed !== undefined) throw new Error('KernelProgram: `seed` fills the host store, which `store` replaces');
     const addon: LoadedKernel | undefined = native ? await loadNativeKernelModule(options.nativeAddon ?? resolveNativeAddon(options.languageFrom), languageFrom) : undefined;
     const kernelDir = addon === undefined ? (options.kernelDir ?? resolveKernelDir()) : '';
-    const kernel: KernelModule = addon ?? (await loadKernelModule(kernelDir, languageFrom));
+    const kernel: KernelModule & KernelMemoryStoreExports = addon ?? (await loadKernelModule(kernelDir, languageFrom));
     installNodeHostPorts();
     const http = createHttpPorts({
       kernel: addon !== undefined ? async () => addon : () => loadHttpKernel(kernelDir, languageFrom),
       ...options.http,
       egress: schema.egress ?? [],
     });
-    const persistence = new InMemoryPersistence();
-    if (options.seed !== undefined) persistence.seed(options.seed);
+    const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
+    for (const [entityType, rows] of Object.entries(options.seed ?? {})) {
+      for (const row of rows) await persistence.writeWhere({ kind: 'upsert', entityType, data: row });
+    }
     let engine: KernelEngine | undefined;
     const requireEngine = (): KernelEngine => {
       if (engine === undefined) throw new Error('KernelProgram: an os ask arrived before the program opened');

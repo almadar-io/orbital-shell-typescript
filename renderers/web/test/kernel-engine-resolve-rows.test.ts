@@ -4,13 +4,13 @@
  * for the by-id window and the re-count; the host answers them from its persistence and the engine returns the page.
  */
 import { describe, expect, it } from 'vitest';
-import { InMemoryPersistence } from '@almadar/db/mock';
-import { type EventStreamItem, type EntityRow, type RowSetRef } from '@almadar/core';
+import { type EventStreamItem, type EntityRow, type PersistenceAdapter, type RowSetRef } from '@almadar/core';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 import { KernelEngine } from '../src/kernel/engine.js';
 import type { KernelHostPorts } from '../src/kernel/host.js';
 import type { KernelModule, KernelServerHandle } from '../src/kernel/wire.js';
 import { stubKernelModule } from '../src/test-support/stub-kernel-module.js';
+import { fixtureRows, untouchedPersistence } from './helpers/persistence.js';
 
 const reference: RowSetRef = {
   entityType: 'Ticket',
@@ -23,7 +23,7 @@ const ROWS: EntityRow[] = [
   { id: 't1', status: 'open' }, { id: 't2', status: 'open' }, { id: 't3', status: 'open' }, { id: 't5', status: 'open' },
 ];
 
-const ports = (persistence: InMemoryPersistence): KernelHostPorts => ({
+const ports = (persistence: PersistenceAdapter): KernelHostPorts => ({
   persistence,
   inFlightCalls: new InFlightCalls(),
   callService: async () => null,
@@ -81,6 +81,8 @@ function scripted(log: string[], service = false): KernelModule {
     setManagedProgram(): void {}
     lastError(): string { return ''; }
     osAllows(): boolean { return false; }
+    setOsAnchors(): string { return '[]'; }
+    osResolveArgs(_op: string, argsJson: string): string { return JSON.stringify({ ok: JSON.parse(argsJson) }); }
     fork(): KernelServerHandle { throw new Error('unused'); }
     forkProgram(): KernelServerHandle { throw new Error('unused'); }
     free(): void {}
@@ -90,8 +92,7 @@ function scripted(log: string[], service = false): KernelModule {
 
 describe('KernelEngine.resolveRows', () => {
   it('answers the kernel\'s reads from the host store and returns the resolved page', async () => {
-    const persistence = new InMemoryPersistence();
-    for (const row of ROWS) await persistence.create('Ticket', { ...row });
+    const persistence = fixtureRows('Ticket', ROWS);
     const log: string[] = [];
     const engine = new KernelEngine(scripted(log), '{}', ports(persistence));
     const page = await engine.resolveRows(reference, { orbital: 'Main', user: { id: 'u1', role: 'member' } });
@@ -101,8 +102,7 @@ describe('KernelEngine.resolveRows', () => {
   });
 
   it('a row deleted since the fetch is omitted and the total follows the store', async () => {
-    const persistence = new InMemoryPersistence();
-    for (const row of ROWS) await persistence.create('Ticket', { ...row });
+    const persistence = fixtureRows('Ticket', ROWS);
     await persistence.delete('Ticket', 't2');
     const engine = new KernelEngine(scripted([]), '{}', ports(persistence));
     const page = await engine.resolveRows(reference, { orbital: 'Main' });
@@ -115,7 +115,7 @@ describe('KernelEngine.resolveRows', () => {
 it('reads the canonical ordered stream before another dispatch starts; plain calls do not read it', async () => {
   const log: string[] = [];
   const items: EventStreamItem[] = [];
-  const engine = new KernelEngine(scripted(log), '{}', ports(new InMemoryPersistence()));
+  const engine = new KernelEngine(scripted(log), '{}', ports(untouchedPersistence()));
   await Promise.all([
     engine.evaluate('Main', { event: 'FIRST' }, { orbital: 'Main', onStream: (item) => { items.push(item); log.push(`item ${item.type}`); } }),
     engine.evaluate('Main', { event: 'SECOND' }, { orbital: 'Main' }),
@@ -127,7 +127,7 @@ it('reads the canonical ordered stream before another dispatch starts; plain cal
 
 it('refuses a service reentering its parked turn instead of waiting on itself', async () => {
   const log: string[] = [];
-  const base = ports(new InMemoryPersistence());
+  const base = ports(untouchedPersistence());
   const host: KernelHostPorts = {
     ...base,
     servicePorts: (caller, user, message, assertReentry) => ({ ...base.servicePorts(caller, user, message), dispatchInput: async () => { assertReentry?.(); throw new Error('should not reach dispatch'); } }),

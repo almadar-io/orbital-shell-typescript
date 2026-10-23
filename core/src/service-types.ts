@@ -471,6 +471,19 @@ export interface WriteCapabilities {
   atomicBatch: boolean;
   /** Native id moves; absent means unsupported. */
   rekey?: boolean;
+  /** The store commits rows the kernel decided (`commitRows`) and holds no write semantics (EXEC-STORE-5). */
+  commitRows?: boolean;
+}
+
+/** What a compare-and-commit does to one row the kernel read. */
+export type RowCommitWrite = { kind: "keep" } | { kind: "put"; row: EntityRow } | { kind: "delete" };
+
+/** One row of a compare-and-commit: the version the kernel read (`null` when absent) and what it writes (EXEC-STORE-5). */
+export interface RowCommit {
+  entityType: string;
+  id: string;
+  expected: EntityRow | null;
+  write: RowCommitWrite;
 }
 
 /**
@@ -501,6 +514,8 @@ export interface PersistenceAdapter {
   writeBatch?(batch: RowWriteBatch): Promise<RowWriteOutcome[]>;
   /** What `writeWhere`/`writeBatch` honour; absent = the host cannot push a write down. */
   writeCapabilities?(entityType: string): WriteCapabilities;
+  /** Apply every row's write in one storage transaction only if each row still equals its `expected` version; `false` (nothing applied) on a conflict. */
+  commitRows?(rows: readonly RowCommit[]): Promise<boolean>;
   /** Bind `entityType` to its declared `[persistent: tbl]` collection: a store that keys rows by collection stores the entity's rows under that name. Absent = the store keys by entity name alone. */
   bindCollection?(entityType: string, collection: string): void;
 }

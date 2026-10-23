@@ -368,11 +368,9 @@ export {
 // the JS interpreter and the compiled shell.
 export {
   ANONYMOUS_USER,
-  DEFAULT_VIEWER,
   findPersonaInRoster,
   normalizeUserContext,
   personaFromIdentityRow,
-  resolveDefaultViewer,
   resolvePersonaSpec,
   type UserContext,
   type Viewer,
@@ -726,8 +724,6 @@ export {
   // Client dispatch strategy (mirrors orbital-core runtime::dispatch_mode)
   type DispatchMode,
   DispatchModeSchema,
-  computeDispatchMode,
-  computeTraitDispatchMode,
   // Schemas
   TraitSchema,
   EntityFieldContractSchema,
@@ -1196,6 +1192,8 @@ export {
   type RowWriteFailureMode,
   type RowWriteBatch,
   type WriteCapabilities,
+  type RowCommit,
+  type RowCommitWrite,
   type PersistenceAdapter,
   type StoreContract,
   // Typed EventBus wrapper
@@ -1210,35 +1208,23 @@ export {
   RowQuerySchema,
   RowQueryPageSchema,
   rowMatchesPredicate,
-  compareByField,
-  orderRows,
-  DEFAULT_ROW_ORDER,
-  effectiveRowOrder,
-  runRowQuery,
-  runRowIds,
   runRowWrite,
-  runRowWriteBatch,
-  resolveRowSet,
-  queryUnsupportedReason,
   QueryDeclinedError,
   WriteDeclinedError,
   RowIdPageSchema,
   RowWriteOpSchema,
   RowWriteOutcomeSchema,
   RowWriteBatchSchema,
+  RowCommitSchema,
   WriteCapabilitiesSchema,
   QueryCapabilitiesSchema,
-  FULL_QUERY_CAPABILITIES,
   FULL_WRITE_CAPABILITIES,
   type QueryUnsupportedReason,
   type QueryDeclinedReason,
 } from "../row-query.js";
 
 export {
-  compileRowPredicate,
   parseFetchOrder,
-  type PredicateCompilation,
-  type PredicateCompileContext,
   type RowBindingResult,
   type RowBindingScalar,
 } from "../row-predicate.js";

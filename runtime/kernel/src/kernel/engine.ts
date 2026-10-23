@@ -35,7 +35,7 @@ export class KernelEngine {
     this.ports = {
       ...ports,
       substrateMessage: (site, key, value): OsCompletionEvent | null => JSON.parse(kernel.osCompletionEvent(JSON.stringify({ ...site, emit: { success: site.emit.onMessage } }), key, JSON.stringify({ ok: value }))),
-      substrateCompletion: (site, key, op, outcome): OsCompletionEvent | null => JSON.parse(kernel.substrateCompletionEvent(JSON.stringify(site), key, op, JSON.stringify(outcome))),
+      substrateCompletion: (site, key, op, args, outcome): OsCompletionEvent | null => JSON.parse(kernel.substrateCompletionEvent(JSON.stringify(site), key, op, JSON.stringify(args), JSON.stringify(outcome))),
     };
     this.handle = providedHandle ?? forkedFrom?.fork() ?? this.openServer();
     this.declare();
@@ -127,6 +127,16 @@ export class KernelEngine {
   /** `OsGrants::allows` over the grants of the program this kernel runs. */
   osAllows(requirementJson: string): boolean {
     return this.handle.osAllows(requirementJson);
+  }
+
+  /** Place the program's anchored grants and arguments under the host's anchors. */
+  setOsAnchors(anchorsJson: string): string {
+    return this.handle.setOsAnchors(anchorsJson);
+  }
+
+  /** An `os/` call's arguments with its anchored parts resolved under the host's anchors. */
+  osResolveArgs(op: string, argsJson: string): string {
+    return this.handle.osResolveArgs(op, argsJson);
   }
 
   /** The current state of a trait instance, `''` when it has none. */

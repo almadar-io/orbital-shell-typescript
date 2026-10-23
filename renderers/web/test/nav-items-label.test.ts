@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { appNavItems, inlineNavItems } from '../src/client/render-sigils';
+import { appNavItems, inlineNavItems } from '@almadar/shell-runtime/client/render-sigils';
 
 describe('@pages nav entries', () => {
   it('uses the declared @label', () => {
