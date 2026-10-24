@@ -3,7 +3,7 @@
  * seeded once, and the in-process transport its legs run through. The runtime
  * host (`useBrowserStore`) and compiled static clients both open it here.
  */
-import type { BrowserTabPort, MessageCatalogs, OnDeviceModelPorts, OrbitalDefinition, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema, RuntimeValue } from '@almadar/core';
+import type { BrowserTabPort, MessageCatalogs, MountSeed, OnDeviceModelPorts, OrbitalDefinition, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema, RuntimeValue } from '@almadar/core';
 import { applyRowAccess, externalInputsOf, orbitalInlineEntities, parseOrbitalSchema, readableEntitiesOf, storesRowsInBrowser } from '@almadar/core';
 import { entityAccessPolicies } from '@almadar/core/mock';
 import type { KernelHostPorts } from '../../kernel/host.js';
@@ -136,6 +136,8 @@ export type InputDispatchListener = (orbital: string, request: OrbitalEventReque
 export interface BrowserHost extends EventTransport {
   /** Hear every declared input and tick firing the host runs (e.g. a watched page element), to show it in open views. */
   onInputDispatched(listener: InputDispatchListener): () => void;
+  /** The kernel's mounts for a client opening `routePath` (EXEC-ENDPOINT-3). */
+  routeMounts(routePath: string): MountSeed[];
   /** Stop the program's ticks. */
   close(): void;
 }
@@ -328,6 +330,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    routeMounts: (routePath) => kernelEngine.routeMounts(routePath),
     close() {
       for (const handle of tickHandles) handle.stop();
     },

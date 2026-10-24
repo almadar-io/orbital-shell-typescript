@@ -158,11 +158,11 @@ describe('FieldSchema', () => {
         }
     });
 
-    it('normalizes `int` alias to canonical `number`', () => {
+    it('keeps `int` as its own field type (the Rust core writes it)', () => {
         const result = FieldSchema.safeParse({ name: 'count', type: 'int' });
         expect(result.success).toBe(true);
         if (result.success) {
-            expect(result.data.type).toBe('number');
+            expect(result.data.type).toBe('int');
         }
     });
 
@@ -271,7 +271,7 @@ describe('TraitSchema', () => {
     });
 
     it('keeps the dispatch mode', () => {
-        for (const dispatch of ['client', 'optimistic'] as const) {
+        for (const dispatch of ['client', 'optimistic', 'server'] as const) {
             const result = TraitSchema.safeParse({ name: 'T', dispatch });
             expect(result.success && result.data.dispatch).toBe(dispatch);
         }

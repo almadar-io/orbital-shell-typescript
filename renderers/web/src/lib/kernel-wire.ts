@@ -35,6 +35,10 @@ export interface KernelInstance {
   setHostFansOut(fansOut: boolean): void;
   /** Carry each hop's `@entity` before and after it on the dispatch's transitions, for a verifier (EXEC-STEP-10). */
   setRecordEntityAfter(record: boolean): void;
+  /** The kernel's mounts for a host start on `side` (`client|server|process|start`): `MountSeed[]` as JSON. */
+  bootMounts(side: string): string;
+  /** The kernel's mounts for a client opening `routePath`: `MountSeed[]` as JSON. */
+  routeMounts(routePath: string): string;
   mount(traitsJson: string): void;
   remount(traitsJson: string): void;
   unmount(traitsJson: string): void;

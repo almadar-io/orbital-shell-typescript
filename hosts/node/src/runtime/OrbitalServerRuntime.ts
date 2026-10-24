@@ -99,6 +99,7 @@ import type {
   InboundAnswer,
   InboundDelivery,
 } from "@almadar/core";
+import type { MountSeed } from "@almadar/core";
 import { externalInputsOf, inboundOnlyMessage, inboundOnlyTrait, readableEntitiesOf } from "@almadar/core";
 import { dispatchDeclaredInput } from "@almadar/shell-runtime";
 import { dispatchInbound } from "@almadar/shell-runtime";
@@ -816,6 +817,31 @@ export class OrbitalServerRuntime {
     await this.seedStores(registered);
     this.seedKernelRuntimeMock();
     this.syncTickMount();
+    await this.mountBootEndpoints();
+  }
+
+  /** Run the kernel's boot mounts for the server side (EXEC-ENDPOINT-3): the host sends what the kernel lists and chooses nothing. */
+  private async mountBootEndpoints(): Promise<void> {
+    const owners = new Map<string, RegisteredOrbital>();
+    for (const registered of this.orbitals.values()) {
+      for (const trait of registered.traits) owners.set(trait.name, registered);
+    }
+    const batches = new Map<RegisteredOrbital, MountSeed[]>();
+    for (const seed of this.requireKernelEngine().bootMounts('server')) {
+      const owner = owners.get(seed.trait);
+      if (owner === undefined) continue;
+      batches.set(owner, [...(batches.get(owner) ?? []), seed]);
+    }
+    for (const [registered, mount] of batches) {
+      const first = mount[0];
+      if (first === undefined) continue;
+      const response = await this.enqueueEvent((hold) =>
+        this.evaluateForOrbital(registered, { event: first.event, mount, payload: {} }, undefined, hold),
+      );
+      if (!response.success) {
+        throw new Error(`OrbitalServerRuntime: the boot mount of orbital "${registered.schema.name}" failed: ${response.error ?? 'the kernel refused it'}`);
+      }
+    }
   }
 
   /** The program whose rows the store holds, once seeded; absent before the first seed and after `unregisterAll`. */

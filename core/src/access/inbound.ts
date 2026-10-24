@@ -38,6 +38,20 @@ export interface InboundAnswer {
   status: number;
   body: string;
   stderr?: string;
+  /** Response headers the answer declares; a terminal host reads `orb-run` (twin of the kernel's `InboundAnswer.headers`). */
+  headers?: Record<string, string>;
+}
+
+/** The declared `headers` of an answer: absent or null is none, a map of strings is them, anything else is invalid. */
+function answerHeaders(value: EventPayloadValue | undefined): Record<string, string> | undefined | false {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'object' || Array.isArray(value)) return false;
+  const out: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (typeof entry !== 'string') return false;
+    out[key] = entry;
+  }
+  return out;
 }
 
 export function inboundRoutesOf(schema: OrbitalSchema): InboundRoute[] {
@@ -160,8 +174,14 @@ export function inboundAnswerOf(
   if (answer === undefined) return dispatchFailed(failure ?? 'inbound-unanswered');
   const payload: EventPayload = answer.payload ?? {};
   const { status, body, stderr } = payload;
-  if (typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 && typeof body === 'string' && (stderr === undefined || typeof stderr === 'string')) {
-    return stderr === undefined ? { status, body } : { status, body, stderr };
+  const headers = answerHeaders(payload.headers);
+  if (typeof status === 'number' && Number.isInteger(status) && status >= 100 && status <= 599 && typeof body === 'string' && (stderr === undefined || typeof stderr === 'string') && headers !== false) {
+    return {
+      status,
+      body,
+      ...(stderr === undefined ? {} : { stderr }),
+      ...(headers === undefined ? {} : { headers }),
+    };
   }
   return dispatchFailed('inbound-answer-invalid');
 }

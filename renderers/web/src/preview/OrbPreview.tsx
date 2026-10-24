@@ -114,12 +114,13 @@ function appPathFromHref(href: string, hostHrefBase: string): string | null {
  * its own `sendEvent`/mount-time dispatch resolves — this component only
  * decides WHICH transport (or none) the kernel dispatches through.
  */
-function TraitInitializer({ traits, routeParams, mountKey, orbitals, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, persistence, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
+function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, persistence, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
   traits: ResolvedTraitBinding[];
   /** Route params from a parameterized page path — merged into every INIT payload. */
   routeParams?: Record<string, string>;
   /** The mounted page's identity — keys the once-per-mount INIT guard. */
   mountKey?: string;
+  routePath?: string;
   /** The resolved schema's full orbital set — `useCircuitKernel`'s one input. */
   orbitals: readonly OrbitalDefinition[];
   onNavigate?: (path: string, params?: Record<string, string>, crumb?: string) => void;
@@ -189,6 +190,7 @@ function TraitInitializer({ traits, routeParams, mountKey, orbitals, onNavigate,
     ...(callsiteCaptureChildrenByTrait !== undefined ? { callsiteCaptureChildrenByTrait } : {}),
     initPayload: routeParams,
     ...(mountKey !== undefined ? { mountKey } : {}),
+    ...(routePath !== undefined ? { routePath } : {}),
     ...(hasBridge
       ? { transport: bridge.transport, carriesCircuitState: bridge.carriesCircuitState, awaitTopology: !bridge.topologyKnown }
       : { persistence }),
@@ -440,6 +442,11 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
     [schema, ir],
   );
 
+  const mountRoute = useMemo<string | undefined>(() => {
+    const pages = ir ? Array.from(ir.pages.values()) : [];
+    return (pageName !== undefined ? pages.find((p) => p.name === pageName) : pages[0])?.path;
+  }, [ir, pageName]);
+
   // Per-trait linkedEntity map for EntitySchemaProvider — page bindings plus embedded traits (G-UI-086).
   const traitLinkedEntitiesMap = useMemo<ReadonlyMap<string, string>>(
     () => (ir ? buildTraitLinkedEntities(ir) : new Map<string, string>()),
@@ -577,6 +584,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
           traits={allPageTraits}
           routeParams={routeParams}
           mountKey={pageName}
+          {...(mountRoute !== undefined ? { routePath: mountRoute } : {})}
           orbitals={schema.orbitals}
           hasBridge={Boolean(serverUrl || transport)}
           embeddedTraits={embeddedTraits}

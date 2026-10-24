@@ -319,6 +319,7 @@ function NestedArrayEditor({
 const FIELD_TYPE_OPTIONS = [
   { value: 'string', label: 'string' },
   { value: 'number', label: 'number' },
+  { value: 'int', label: 'int' },
   { value: 'boolean', label: 'boolean' },
   { value: 'date', label: 'date' },
   { value: 'datetime', label: 'datetime' },

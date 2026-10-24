@@ -41,6 +41,10 @@ export interface KernelServerHandle {
   inFlight(): number;
   getState(traitName: string, entityId?: string): string;
   setDefaultUser(userJson: string): void;
+  /** The kernel's mounts for a host start on `side` (`client|server|process|start`): `MountSeed[]` as JSON. */
+  bootMounts(side: string): string;
+  /** The kernel's mounts for a client opening `routePath`: `MountSeed[]` as JSON. */
+  routeMounts(routePath: string): string;
   mount(traitsJson: string): void;
   remount(traitsJson: string): void;
   setTickMount(traitsJson: string): void;

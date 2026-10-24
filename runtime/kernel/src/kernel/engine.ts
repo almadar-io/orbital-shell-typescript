@@ -3,7 +3,7 @@
  * (`@almadar/kernel`, WebAssembly) decides every execution step; this host answers the I/O it asks for
  * and nothing else. The continuation of a stopped dispatch never leaves the wasm instance.
  */
-import { installKernelEvaluator, isEntityReferenceAny, EventStreamItemSchema, type EventPayload, type EventStreamItem, type MessageCatalogs, type OrbitalEventRequest, type OrbitalEventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext } from '@almadar/core';
+import { installKernelEvaluator, isEntityReferenceAny, EventStreamItemSchema, MountSeedSchema, type MountSeed, type EventPayload, type EventStreamItem, type MessageCatalogs, type OrbitalEventRequest, type OrbitalEventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext } from '@almadar/core';
 import { DispatchLane } from './lane.js';
 import { decodeProgress, decodeResolveProgress } from './decode.js';
 import { answerRequest, declareCapabilities, type KernelAnswerScope, type KernelHostPorts } from './host.js';
@@ -109,6 +109,16 @@ export class KernelEngine {
   setTickMount(traits: string[]): void {
     this.tickMount = traits;
     this.handle.setTickMount(JSON.stringify(traits));
+  }
+
+  /** What this host mounts when it starts: the kernel's boot mounts for the side it serves (EXEC-ENDPOINT-3). */
+  bootMounts(side: 'server' | 'process'): MountSeed[] {
+    return MountSeedSchema.array().parse(JSON.parse(this.handle.bootMounts(side)));
+  }
+
+  /** What mounts when a client opens `routePath` (EXEC-ENDPOINT-3). */
+  routeMounts(routePath: string): MountSeed[] {
+    return MountSeedSchema.array().parse(JSON.parse(this.handle.routeMounts(routePath)));
   }
 
   /** Mock-seed the `[runtime]` entities the kernel holds itself, owner columns stamped with `viewerId`. */

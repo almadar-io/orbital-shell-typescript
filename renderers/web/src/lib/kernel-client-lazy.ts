@@ -17,6 +17,7 @@ export function createLazyKernelClient(opts: KernelClientOptions): KernelClient 
     dispatchProgress: (request) => client.then((c) => c.dispatchProgress(request)),
     foldHostDispatch: (request, response) => client.then((c) => c.foldHostDispatch(request, response)),
     dispatchMount: (seeds, hooks, base) => client.then((c) => c.dispatchMount(seeds, hooks, base)),
+    routeMounts: (routePath) => client.then((c) => c.routeMounts(routePath)),
     remount: (traits) => client.then((c) => c.remount(traits)),
     mount: (traits) => client.then((c) => c.mount(traits)),
     unmount: (traits) => client.then((c) => c.unmount(traits)),

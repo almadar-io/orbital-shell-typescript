@@ -1358,10 +1358,10 @@ export type DispatchMode = 'persistedAwaited' | 'hybridClientOnly' | 'runtimeOpt
 
 export const DispatchModeSchema = z.enum(['persistedAwaited', 'hybridClientOnly', 'runtimeOptimistic']);
 
-/** The `[client]` / `[optimistic]` trait-header word; absent = server dispatch. Mirrors Rust `DispatchMode` (serde lowercase). */
-export type TraitDispatchMode = 'client' | 'optimistic';
+/** The `[client]` / `[optimistic]` / `[server]` trait-header word; absent = server dispatch, `server` is the explicit spelling that overrides an atom's mode. Mirrors Rust `DispatchMode` (serde lowercase). */
+export type TraitDispatchMode = 'client' | 'optimistic' | 'server';
 
-export const TraitDispatchModeSchema = z.enum(['client', 'optimistic']);
+export const TraitDispatchModeSchema = z.enum(['client', 'optimistic', 'server']);
 
 export type Trait = {
     /** V4 dual-carry id sibling of `name` — optional until the Phase-7 flip. */
@@ -1396,7 +1396,7 @@ export type Trait = {
     /** `@synonyms "..."` authored on the `@rebindable` binding in `.lolo`. */
     entityBindingSynonyms?: string;
     /**
-     * Dispatch mode authored as `[client]` / `[optimistic]` on the `.lolo` trait
+     * Dispatch mode authored as `[client]` / `[optimistic]` / `[server]` on the `.lolo` trait
      * header. Absent means server dispatch. Mirrors the Rust
      * `TraitDefinition.dispatch` field; never inferred from effects.
      */

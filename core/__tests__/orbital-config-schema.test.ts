@@ -156,6 +156,16 @@ describe('OrbitalRefObjectSchema', () => {
         expect(() => OrbitalRefObjectSchema.parse({ ...withMock, mock: { role: 3 } })).toThrow();
     });
 
+    it('keeps a per-trait dispatch override; control: an unknown mode is refused', () => {
+        const withMode = { ref: 'Shop.orbitals.CartOrbital', traits: { CartView: { dispatch: 'optimistic' } } };
+        expect(OrbitalRefObjectSchema.parse(withMode)).toEqual(withMode);
+        const server = { ref: 'Shop.orbitals.CartOrbital', traits: { CartView: { dispatch: 'server' } } };
+        expect(OrbitalRefObjectSchema.parse(server)).toEqual(server);
+        expect(() =>
+            OrbitalRefObjectSchema.parse({ ref: 'Shop.orbitals.CartOrbital', traits: { CartView: { dispatch: 'local' } } }),
+        ).toThrow();
+    });
+
     it('rejects a malformed ref string', () => {
         expect(() =>
             OrbitalRefObjectSchema.parse({ ref: 'timeTracking.orbitals.TimesheetPanelOrbital' }),

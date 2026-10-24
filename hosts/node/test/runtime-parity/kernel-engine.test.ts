@@ -43,6 +43,31 @@ function notes(): OrbitalSchema {
   };
 }
 
+function endpoints(): OrbitalSchema {
+  const lifecycle = (name: string) => ({
+    name,
+    linkedEntity: 'Note',
+    stateMachine: {
+      states: [{ name: 'idle', isInitial: true }, { name: 'ready' }],
+      events: [{ key: 'INIT', name: 'INIT' }],
+      transitions: [{ from: 'idle', to: 'ready', event: 'INIT' }],
+    },
+  });
+  return {
+    name: 'endpoints',
+    version: '1.0.0',
+    orbitals: [{
+      name: 'Main',
+      pages: [
+        { name: 'Home', path: '/', traits: [{ ref: 'ViewT' }] },
+        { name: 'Background', path: '', protocol: 'boot', traits: [{ ref: 'BootT' }] },
+      ],
+      entity: { name: 'Note', persistence: 'persistent', collection: 'notes', fields: [{ name: 'id', type: 'string', primaryKey: true }] },
+      traits: [lifecycle('ViewT'), lifecycle('BootT')],
+    }],
+  };
+}
+
 function fetcher(egress: string[]): OrbitalSchema {
   return {
     name: 'fetcher',
@@ -116,6 +141,12 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
     expect(await persistence.getById('Note', 'd1')).toMatchObject({ id: 'd1', title: 'draft' });
     expect(runtime.getState('Main', 'Draft')).toMatchObject({ currentState: 'saved' });
     expect(runtime.getState('Main')).toEqual({ Draft: expect.objectContaining({ currentState: 'saved' }) });
+  });
+
+  it('boots exactly the kernel\'s server mounts: a boot-endpoint trait is mounted and a route trait is not', async () => {
+    const runtime = await open(endpoints(), { persistence: await nativeMemory() });
+    expect(runtime.getState('Main', 'BootT')).toMatchObject({ currentState: 'ready' });
+    expect(runtime.getState('Main', 'ViewT')).toMatchObject({ currentState: 'idle' });
   });
 
   it('control: the JS engine, unselected, gives the same states and leaves the kernel unopened', async () => {

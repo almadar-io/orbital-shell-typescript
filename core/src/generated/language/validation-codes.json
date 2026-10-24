@@ -32,22 +32,12 @@
   {
     "code": "ORB_E_LOCAL_REQUIRES_PERSISTENT",
     "category": "entity",
-    "description": "`local` on a non-persistent entity (ORB_E_LOCAL_REQUIRES_PERSISTENT)"
-  },
-  {
-    "code": "ORB_E_MOCK_SEED_NOT_LOCAL",
-    "category": "entity",
-    "description": "`mock` seeding on an entity that is not `local` (ORB_E_MOCK_SEED_NOT_LOCAL)"
-  },
-  {
-    "code": "ORB_E_SEED_SOURCE_CONFLICT",
-    "category": "entity",
-    "description": "Both `mock` seeding and written-out `instances` (ORB_E_SEED_SOURCE_CONFLICT)"
+    "description": "`browser` on a non-persistent entity (ORB_E_LOCAL_REQUIRES_PERSISTENT)"
   },
   {
     "code": "ORB_E_IDENTITY_LOCAL",
     "category": "entity",
-    "description": "`[identity]` entity declared `local` (ORB_E_IDENTITY_LOCAL)"
+    "description": "`[identity]` entity declared `browser` (ORB_E_IDENTITY_LOCAL)"
   },
   {
     "code": "ORB_E_INSTANCE_INVALID",
@@ -110,11 +100,6 @@
     "description": "Trait has invalid format"
   },
   {
-    "code": "ORB_T_INVALID_CATEGORY",
-    "category": "trait",
-    "description": "Trait category is not valid"
-  },
-  {
     "code": "ORB_T_NO_INITIAL_STATE",
     "category": "trait",
     "description": "State machine has no initial state"
@@ -163,6 +148,21 @@
     "code": "ORB_T_MISSING_RENDER_UI",
     "category": "trait",
     "description": "Interaction trait missing render_ui effects"
+  },
+  {
+    "code": "ORB_T_ENDPOINT_TRAIT_RENDERS",
+    "category": "trait",
+    "description": "A trait mounted only on protocol endpoints renders"
+  },
+  {
+    "code": "ORB_T_TRAIT_ON_ROUTE_AND_ENDPOINT",
+    "category": "trait",
+    "description": "One trait is listed on both a route page and a protocol endpoint"
+  },
+  {
+    "code": "ORB_T_TRAIT_UNMOUNTED",
+    "category": "trait",
+    "description": "A program trait is listed on no page"
   },
   {
     "code": "ORB_T_DEPRECATED_UI",
@@ -337,7 +337,7 @@
   {
     "code": "ORB_T_LOCAL_TRAIT_TOUCHES_SERVER",
     "category": "trait",
-    "description": "A `local` trait's transitions contain a server-bound effect (`fetch`/`persist`/`call-service`/`ref`/`deref`/`swap`/`watch`/ `atomic`/`fetch-stream`), or a guard reading `@user.*`. `local` declares client-only dispatch (`OirTrait::dispatch_mode`) — a trait that actually touches the server or reads viewer identity is mis-tagged; its transitions would never await the round trip they depend on. Wave 2. Error severity."
+    "description": "A `[client]` trait's transitions contain a server-bound effect (`fetch`/`persist`/`call-service`/`ref`/`deref`/`swap`/`watch`/ `atomic`/`fetch-stream`), or a guard reading `@user.*`. `[client]` declares client-only dispatch (`OirTrait::dispatch_mode`) — a trait that actually touches the server or reads viewer identity is mis-tagged; its transitions would never await the round trip they depend on. Wave 2. Error severity."
   },
   {
     "code": "ORB_T_CLIENT_TICK_SERVER_EFFECT",
@@ -347,7 +347,7 @@
   {
     "code": "ORB_T_LOCAL_ON_NON_SHARED_PERSISTENT",
     "category": "trait",
-    "description": "`local` on a trait whose linked entity is neither `[shared]` nor `[runtime]`. `local` is only legal on an entity multiple traits co-mutate client-side (`[shared]`) or one that is never persisted at all (`[runtime]`) — on an ordinary persistent entity it would silently hide server-gated writes behind client-only dispatch. Wave 2. Error severity."
+    "description": "`[client]` on a trait whose linked entity is neither `[shared]` nor `[runtime]`. `[client]` is only legal on an entity multiple traits co-mutate client-side (`[shared]`) or one that is never persisted at all (`[runtime]`) — on an ordinary persistent entity it would silently hide server-gated writes behind client-only dispatch. Wave 2. Error severity."
   },
   {
     "code": "ORB_AUTH_GUARD_CLIENT_ONLY",
@@ -400,6 +400,21 @@
     "description": "A page is declared on the host's own sign-in route (`/login`)"
   },
   {
+    "code": "ORB_P_UNKNOWN_PROTOCOL",
+    "category": "page",
+    "description": "A page names a protocol that is no row of the protocol table"
+  },
+  {
+    "code": "ORB_P_ENDPOINT_GRANT_MISSING",
+    "category": "page",
+    "description": "An `http` endpoint has no covering `net` listen grant"
+  },
+  {
+    "code": "ORB_P_ADDRESS_INVALID",
+    "category": "page",
+    "description": "A protocol page's address does not type-check against the protocol's address record"
+  },
+  {
     "code": "ORB_P_TRANSLATION_DUPLICATE_LOCALE",
     "category": "page",
     "description": "One locale holds two pages of the same `translationOf` group"
@@ -413,11 +428,6 @@
     "code": "ORB_P_EMPTY_TRAITS",
     "category": "page",
     "description": "Page traits array is empty"
-  },
-  {
-    "code": "ORB_O_MISSING_PAGES",
-    "category": "page",
-    "description": "Orbital has no pages defined"
   },
   {
     "code": "ORB_O_DUPLICATE_NAME",
@@ -892,7 +902,7 @@
   {
     "code": "ORB_HTTP_AUTH_ON_CLIENT",
     "category": "effect",
-    "description": "an `http` with `auth` sits where its trait runs on the client (a `local` trait, a browser-run tick)"
+    "description": "an `http` with `auth` sits where its trait runs on the client (a `[client]` trait, a browser-run tick)"
   },
   {
     "code": "ORB_HTTP_BODY_CONFLICT",
@@ -1217,7 +1227,7 @@
   {
     "code": "ORB_T_CLIENT_TICK_NOT_LOCAL",
     "category": "cross",
-    "description": "A trait writing a client-held `[runtime]` frame from client ticks (or bound to a `[shared]` one another trait ticks) is not `local`: its dispatches post to a stateful host whose stale copy folds back."
+    "description": "A trait writing a client-held `[runtime]` frame from client ticks (or bound to a `[shared]` one another trait ticks) is not `[client]`: its dispatches post to a stateful host whose stale copy folds back."
   },
   {
     "code": "ORB_X_CIRCULAR_DEPENDENCY",
@@ -1700,11 +1710,6 @@
     "description": "A transition arm re-emits its OWN trigger event (`X --X--> Y` whose effects contain `(emit X ...)`), the `to` state has another arm on X, and the re-emitted payload does not derive from `@payload` — the runtime path re-enters an arm on the same event with unchanged payload and loops forever (G-RUNTIME-020). Payloads derived from `@payload` (sentinel fan-out counters) make progress per hop and are not flagged; neither is a self-emit whose target state has no same-event arm (a dead-end broadcast). Error severity."
   },
   {
-    "code": "ORB_CIRCUIT_CLIENT_UNBOUND_STATE_MACHINE",
-    "category": "circuit",
-    "description": "An inline trait owns a non-empty `stateMachine.transitions` but is absent from `client_bound_traits(orbital)` — no page declares it and no page's `@trait.X` embed closure reaches it, so the client never mounts a state machine for it and it can never handle an event in the shipped app. Ported from the JS wiring lint's `client-unbound-state-machine`. Error severity."
-  },
-  {
     "code": "ORB_CIRCUIT_INIT_UNCOVERED_STATE",
     "category": "circuit",
     "description": "A page trait that initializes on `INIT` has a reachable state with no `INIT` arm: trait state survives unmount, so revisiting the page from that state does nothing (G-ORB-186)."
@@ -1852,7 +1857,7 @@
   {
     "code": "ORB_STORE_ON_NON_PERSISTENT",
     "category": "entity",
-    "description": "`store:` on an entity whose rows live in no store (`[runtime]` or browser-`local`). Error severity."
+    "description": "`store:` on an entity whose rows live in no store (`[runtime]` or browser-stored). Error severity."
   },
   {
     "code": "ORB_STORE_VERB_OUTSIDE_SEAM",

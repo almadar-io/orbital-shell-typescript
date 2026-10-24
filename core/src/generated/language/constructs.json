@@ -148,7 +148,7 @@
       {
         "name": "legacy_lines",
         "type": "bool",
-        "doc": "The modifiers were written as loose lines after `app` (the pre-bracket form) — still parsed, reported as `ORB_L_APP_HEADER_LEGACY`."
+        "doc": "The modifiers were written as loose lines after `app` (the pre-bracket form) — still parsed; lowering rejects it with `ORB_L_APP_HEADER_LEGACY`."
       },
       {
         "name": "config",
@@ -641,13 +641,13 @@
         "doc": ""
       },
       {
-        "name": "local",
+        "name": "browser",
         "type": "bool",
         "doc": ""
       },
       {
-        "name": "mock",
-        "type": "bool",
+        "name": "retired_words",
+        "type": "Vec<RetiredWord>",
         "doc": ""
       }
     ]
@@ -838,14 +838,14 @@
         "doc": "`identity` header tag — orthogonal to both persistence and `shared`: this entity types the ambient `@user` viewer. An app-owned user directory is both persisted and the identity, so it cannot be a persistence mode."
       },
       {
-        "name": "local",
+        "name": "browser",
         "type": "bool",
-        "doc": "`local` header tag — `[persistent: x, browser]`: the rows live in the browser."
+        "doc": "`browser` header tag — `[persistent: x, browser]`: the rows live in the browser."
       },
       {
-        "name": "seed_mock",
-        "type": "bool",
-        "doc": "`mock` header tag — seed an empty browser store from the shared mock seeder."
+        "name": "retired_words",
+        "type": "Vec<RetiredWord>",
+        "doc": "Retired header tags (`local`, `mock`); lowering rejects each."
       },
       {
         "name": "store",
@@ -1214,7 +1214,7 @@
   {
     "name": "TraitTypeParam",
     "kind": "struct",
-    "doc": "One trait-level type parameter (Increment 3-II): `(V : Type)` in `trait LookupRun (V : Type, R : Type) -> KeyLookup [lifecycle, instance] { ... }`. Parsed immediately after the trait name, before `::`/`->`/`=`. `kind` is validated against the same six kind names Increment 3-I's alias params accept (`Type | Entity | Trait | Page | Orbital | Event`); only `Type` and `Entity` are meaningfully acted on downstream. A param name is usable in this trait's own `emits`/`listens`/config type positions, lowering each reference to a `\"$<name>\"` sentinel (3-I's substitution machinery).",
+    "doc": "One trait-level type parameter (Increment 3-II): `(V : Type)` in `trait LookupRun (V : Type, R : Type) -> KeyLookup { ... }`. Parsed immediately after the trait name, before `::`/`->`/`=`. `kind` is validated against the same six kind names Increment 3-I's alias params accept (`Type | Entity | Trait | Page | Orbital | Event`); only `Type` and `Entity` are meaningfully acted on downstream. A param name is usable in this trait's own `emits`/`listens`/config type positions, lowering each reference to a `\"$<name>\"` sentinel (3-I's substitution machinery).",
     "fields": [
       {
         "name": "name",
@@ -1234,17 +1234,34 @@
     ]
   },
   {
-    "name": "TraitScope",
-    "kind": "enum",
-    "doc": "`trait Name [:: TypeAnnotation] -> Entity [category] { ... }` or `trait Name [:: TypeAnnotation] = Alias.traits.Upstream -> Entity { ... }` (reference form). Instance vs collection scope, parsed from the trait modifier list (`[interaction, instance]` / `[interaction, collection]`). Optional in this phase; unmarked traits pass. The type-checker will require one of these in a later phase (see Almadar_Entity_V2_Plan.md Phase 4).",
+    "name": "RetiredWord",
+    "kind": "struct",
+    "doc": "`trait Name [:: TypeAnnotation] -> Entity [category] { ... }` or `trait Name [:: TypeAnnotation] = Alias.traits.Upstream -> Entity { ... }` (reference form). A header word the language no longer takes (or never took), kept with its location so lowering can report it with the fix-it.",
     "fields": [
       {
-        "name": "Instance",
+        "name": "word",
+        "type": "String",
+        "doc": ""
+      },
+      {
+        "name": "span",
+        "type": "Span",
+        "doc": ""
+      }
+    ]
+  },
+  {
+    "name": "TraitDispatch",
+    "kind": "enum",
+    "doc": "The dispatch mode a trait header declares: `[client]` or `[optimistic]`. No header word means server dispatch.",
+    "fields": [
+      {
+        "name": "Client",
         "type": "",
         "doc": ""
       },
       {
-        "name": "Collection",
+        "name": "Optimistic",
         "type": "",
         "doc": ""
       }
@@ -1296,24 +1313,14 @@
         "doc": "`@synonyms \"...\"` annotation on the rebindable binding (body-level)."
       },
       {
-        "name": "category",
-        "type": "Option<String>",
-        "doc": ""
+        "name": "dispatch",
+        "type": "Option<TraitDispatch>",
+        "doc": "`[client]` / `[optimistic]` header word; `None` is server dispatch."
       },
       {
-        "name": "scope",
-        "type": "Option<TraitScope>",
-        "doc": "Instance or collection scope marker parsed from the modifier list. `None` today means the trait opted out / predates the modifier. Phase 4 of the V2 migration turns `None` into a warning."
-      },
-      {
-        "name": "local",
-        "type": "bool",
-        "doc": "`local` marker parsed from the same trait-header bracket list. Declares client-only dispatch (see `docs/Almadar_LOLO.md` §7). Undeclared (`false`) is server-gated dispatch — never inferred."
-      },
-      {
-        "name": "capabilities",
-        "type": "Vec<String>",
-        "doc": "Author-supplied capability tags parsed from the trait header's bracket list. Anything beyond the scope marker (`instance`/`collection`) and the first category identifier collects here. Free-form strings — the parser doesn't validate against a known set. Source for `OirTrait.capabilities` and downstream `FactorySignature` matching. See `docs/Almadar_Domain_Language.md` Phase 3."
+        "name": "retired_words",
+        "type": "Vec<RetiredWord>",
+        "doc": "Header words outside the dispatch modes; lowering rejects each."
       },
       {
         "name": "initial_state",
@@ -1679,9 +1686,14 @@
         "doc": "`-> Target.TRIGGER`: the imported trait that gains this route. Only an orbital import's `listens {}` carries one."
       },
       {
-        "name": "external",
+        "name": "input",
         "type": "bool",
-        "doc": "`EVENT -> external { … }`: a declared external input, an event a client outside the program may send this trait."
+        "doc": "`EVENT -> input { … }`: a declared input, an event a client outside the program may send this trait."
+      },
+      {
+        "name": "retired_external",
+        "type": "Option<RetiredWord>",
+        "doc": "The retired `-> external {` spelling of `input`; lowering rejects it."
       },
       {
         "name": "inbound",
@@ -1893,9 +1905,19 @@
     "doc": "`page /path [:: TypeAnnotation] -> Trait [, Trait...] [options]` or `page /path [:: TypeAnnotation] = Alias.pages.Upstream [-> Trait [, Trait...]]` (reference form).",
     "fields": [
       {
+        "name": "protocol",
+        "type": "Option<String>",
+        "doc": "The protocol word after `page` (`http`, `stdio`, `boot`); `None` is a route."
+      },
+      {
+        "name": "address",
+        "type": "Option<SExpression>",
+        "doc": "The `{ … }` address record after the protocol word."
+      },
+      {
         "name": "path",
         "type": "String",
-        "doc": ""
+        "doc": "The route path; empty on a protocol page."
       },
       {
         "name": "type_annotation",

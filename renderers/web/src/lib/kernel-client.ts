@@ -8,7 +8,7 @@
  *
  * @packageDocumentation
  */
-import type { EventPayload, OrbitalEventRequest, OrbitalEventResponse, TraitConfig, TransitionRejection, UserContext } from '@almadar/core';
+import type { EventPayload, MountSeed, OrbitalEventRequest, OrbitalEventResponse, TraitConfig, TransitionRejection, UserContext } from '@almadar/core';
 import {
   createLocalFold,
   createTickDriver,
@@ -55,6 +55,8 @@ export interface KernelClient extends ClientKernel {
   startFrames(onFrame: (outcomes: ClientKernelOutcome[]) => void, schedule?: FrameScheduler): () => void;
   /** Declare a new mount (a page switch): the tick clock runs the ticks of `traits` only. Applied before the next frame. */
   remount(traits: readonly string[]): Promise<void>;
+  /** The kernel's mounts for a client opening `routePath`: the traits to mount and the lifecycle event each runs. */
+  routeMounts(routePath: string): Promise<MountSeed[]>;
   /** Add traits to the current mount; the first mount declared scopes the tick clock to it. */
   mount(traits: readonly string[]): Promise<void>;
   /** Traits leaving the mount: their ticks stop. */
@@ -420,6 +422,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       }
       return outcome;
     }),
+    routeMounts: async (routePath) => parse<MountSeed[]>((await ready).routeMounts(routePath)),
     remount: (traits) => declareScope((k) => k.remount(JSON.stringify(traits))),
     mount: (traits) => declareScope((k) => k.mount(JSON.stringify(traits))),
     unmount: (traits) => declareScope((k) => k.unmount(JSON.stringify(traits))),

@@ -46,7 +46,7 @@ import { registerTrait, unregisterTrait, type TraitDebugInfo } from '../lib/trai
 import { bindTraitStateGetter, registerTraitSnapshot } from '../lib/verificationRegistry';
 import { createCircuitVerificationObserver, recordDispatchVerdict } from '../lib/circuitVerificationObserver';
 import { hostDispatchInView } from '../lib/hostDispatchInView';
-import { LIFECYCLE_EVENTS, normalizeEventKey, TRAIT_MOUNT_ERROR_TESTID, configReferencesCallsitePayload, traitReferencesCallsitePayload, type TraitStateSnapshot, type PersistenceAdapter, type TransitionRejection } from '@almadar/core';
+import { normalizeEventKey, TRAIT_MOUNT_ERROR_TESTID, configReferencesCallsitePayload, traitReferencesCallsitePayload, type TraitStateSnapshot, type PersistenceAdapter, type TransitionRejection } from '@almadar/core';
 import type { useUISlots } from '../providers/UISlotContext';
 import { getTabClientId, useCircuitKernel } from './circuit/useCircuitKernel';
 import { useBusIngress } from './circuit/useBusIngress';
@@ -96,6 +96,8 @@ export interface UseTraitStateMachineOptions {
   initPayload?: EventPayload;
   /** The mounted page's identity; with `initPayload` it keys the once-per-mount lifecycle guard (Runtime Spec Clause 4.1). */
   mountKey?: string;
+  /** The route the page is opened at; the kernel's mounts for it are what the hook runs (EXEC-ENDPOINT-3). */
+  routePath?: string;
   /** The resolved schema's full orbital set — `buildTraitIndex`'s one input. */
   orbitals: readonly OrbitalDefinition[];
   /** Caller-owned transport (server bridge). Omitted + `persistence` set =
@@ -471,7 +473,7 @@ export function useTraitStateMachine(
     if (left.length > 0) void kernelClient.unmount(left).catch((err: Error) => stateLog.warn('unmount:failed', { error: err.message }));
     // Every entering trait awaits its own lifecycle event BEFORE any of them
     // dispatches: a sibling's INIT cascade must not reach it first.
-    const entering: MountSeed[] = [];
+    const candidates: string[] = [];
     const embeddedChildren = new Set([...(options.callsiteCaptureChildrenByTrait?.values() ?? [])].flatMap((c) => [...c]));
     for (const binding of traitBindings) {
       const traitName = binding.trait.name;
@@ -489,10 +491,16 @@ export function useTraitStateMachine(
       ) {
         continue;
       }
-      const lifecycleEvent = LIFECYCLE_EVENTS.find((evt) => store.states.canHandleEvent(traitName, evt));
-      if (lifecycleEvent !== undefined) entering.push({ trait: traitName, event: lifecycleEvent });
+      candidates.push(traitName);
     }
-    if (entering.length > 0) {
+    if (candidates.length > 0 && options.routePath !== undefined) {
+      void kernelClient.routeMounts(options.routePath).then((seeds) => {
+        const entering = seeds.filter((seed) => candidates.includes(seed.trait));
+        if (entering.length === 0) return;
+        mountEntering(entering);
+      }, (err: Error) => stateLog.warn('mount:route-mounts-failed', { error: err.message }));
+    }
+    function mountEntering(entering: MountSeed[]): void {
       uiSlots.clearBySource('main', MOUNT_ERROR_SOURCE);
       void mountAndSettle(entering, { ...(options.initPayload ?? {}) }).then((failure) => {
         if (failure === undefined || !aliveRef.current) return;
@@ -521,7 +529,7 @@ export function useTraitStateMachine(
       });
     }
     mountedRef.current = mount;
-  }, [traitBindings, store, mountAndSettle, mountKey, uiSlots, traitIndex, options.callsiteCaptureChildrenByTrait, t, kernelClient]);
+  }, [traitBindings, store, mountAndSettle, mountKey, uiSlots, traitIndex, options.callsiteCaptureChildrenByTrait, options.routePath, t, kernelClient]);
 
   // Re-render on every committed circuit change (mirrors the old hook's own
   // `setTraitStates(manager.getAllStates())` after each dispatch) — the

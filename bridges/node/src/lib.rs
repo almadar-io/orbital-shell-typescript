@@ -193,6 +193,16 @@ impl Server {
     }
 
     #[napi]
+    pub fn boot_mounts(&self, side: String) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().boot_mounts(&side).map_err(js)
+    }
+
+    #[napi]
+    pub fn route_mounts(&self, route_path: String) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().route_mounts(&route_path).map_err(js)
+    }
+
+    #[napi]
     pub fn remount(&self, traits_json: String) -> napi::Result<()> {
         self.api
             .get()

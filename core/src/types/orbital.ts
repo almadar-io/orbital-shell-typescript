@@ -33,6 +33,7 @@ import type {
   DeclaredTraitConfig,
   TraitEventListener,
   ConfigFieldDeclaration,
+  TraitDispatchMode,
 } from "./trait.js";
 import {
   isInlineTrait,
@@ -45,6 +46,7 @@ import {
   DeclaredTraitConfigSchema,
   TraitEventListenerSchema,
   ConfigFieldDeclarationSchema,
+  TraitDispatchModeSchema,
 } from "./trait.js";
 import type {
   DomainContext,
@@ -851,6 +853,8 @@ export type OrbitalRefTraitOverride = {
   /** Replaces the trait's whole `listens` array. */
   listens?: readonly TraitEventListener[];
   emitsScope?: EventScope;
+  /** `Up [client|optimistic|server]`: replaces the imported trait's declared dispatch mode. */
+  dispatch?: TraitDispatchMode;
 };
 
 /** One orbital-import `listens {}` entry: the target imported trait plus an ordinary listen. */
@@ -898,6 +902,7 @@ export const OrbitalRefObjectSchema = z.object({
         fields: z.record(z.string()).optional(),
         listens: z.array(TraitEventListenerSchema).optional(),
         emitsScope: EventScopeSchema.optional(),
+        dispatch: TraitDispatchModeSchema.optional(),
       }),
     )
     .optional(),

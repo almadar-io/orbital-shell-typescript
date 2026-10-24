@@ -5,8 +5,8 @@
  * At start it mounts the program's `/` page, as a view would, so its traits run with no view open;
  * the side panel connects over a port and renders the same running program.
  */
-import { getTraitName, isRoutePage, parseOrbitalSchema } from '@almadar/core';
-import { holdUntilServed, serveChannel, type EventTransport } from '@almadar/shell-web';
+import { getTraitName, parseOrbitalSchema } from '@almadar/core';
+import { holdUntilServed, serveChannel } from '@almadar/shell-web';
 import { browserStoreName, openBrowserHost, type BrowserHost } from '@almadar/shell-web';
 import { chromePromptModel, chromeTabPort, type ChromeLanguageModel } from '@almadar/shell-chrome';
 import programText from './generated/program.orb?raw';
@@ -40,14 +40,13 @@ const hostReady: Promise<BrowserHost> = kernelReady.then((kernel) => {
   });
 });
 
-async function mountRootPage(host: EventTransport): Promise<void> {
+async function mountRootPage(host: BrowserHost): Promise<void> {
+  const seeds = host.routeMounts('/');
   for (const orbital of schema.orbitals) {
-    for (const page of orbital.pages ?? []) {
-      if (typeof page === 'string' || !isRoutePage(page) || page.path !== '/') continue;
-      for (const ref of page.traits ?? []) {
-        await host.send(orbital.name, { event: 'INIT', targetTrait: getTraitName(ref), payload: {} });
-      }
-    }
+    const owned = new Set((orbital.traits ?? []).map(getTraitName));
+    const mount = seeds.filter((seed) => owned.has(seed.trait));
+    const first = mount[0];
+    if (first !== undefined) await host.send(orbital.name, { event: first.event, mount, payload: {} });
   }
 }
 

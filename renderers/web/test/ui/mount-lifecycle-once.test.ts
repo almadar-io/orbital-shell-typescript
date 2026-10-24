@@ -24,7 +24,11 @@ function orbitals(): OrbitalSchema['orbitals'] {
   return [{
     name: 'PageOrbital',
     id: 'orb_page' as OrbitalId,
-    pages: [],
+    pages: [
+      { name: 'DetailPage', path: '/detail', traits: [{ ref: 'Header' }, { ref: 'Detail' }, { ref: 'NoInit' }] },
+      { name: 'PageA', path: '/a', traits: [{ ref: 'Header' }, { ref: 'Detail' }] },
+      { name: 'PageB', path: '/b', traits: [{ ref: 'Header' }, { ref: 'Sidebar' }] },
+    ],
     entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [mk('Header'), mk('Detail'), mk('Sidebar'), mk('NoInit')],
   }];
@@ -51,6 +55,8 @@ function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
   };
 }
 
+const ROUTES: Record<string, string> = { DetailPage: '/detail', PageA: '/a', PageB: '/b' };
+
 type Props = { names: string[]; mountKey?: string; initPayload?: EventPayload };
 
 function mount(initial: Props) {
@@ -60,7 +66,7 @@ function mount(initial: Props) {
     ({ names, mountKey, initPayload }: Props) =>
       useTraitStateMachine(names.map(binding), slots, {
         orbitals: orbs,
-        ...(mountKey !== undefined ? { mountKey } : {}),
+        ...(mountKey !== undefined ? { mountKey, routePath: ROUTES[mountKey] } : {}),
         ...(initPayload !== undefined ? { initPayload } : {}),
       }),
     { initialProps: initial },
@@ -128,5 +134,17 @@ describe('useTraitStateMachine — once-per-mount lifecycle', () => {
     const m = await mounted({ names: ['NoInit', 'Header'], mountKey: 'PageA' });
     expect(m.inits('NoInit')).toBe(0);
     expect(m.inits('Header')).toBe(1);
+  });
+
+  it('mounts only the opened route\'s traits, the kernel\'s list, not every bound trait', async () => {
+    const m = await mounted({ names: ['Header', 'Detail', 'Sidebar'], mountKey: 'PageA' });
+    expect(m.inits('Header')).toBe(1);
+    expect(m.inits('Detail')).toBe(1);
+    expect(m.inits('Sidebar')).toBe(0);
+  });
+
+  it('mounts nothing when the host names no route', async () => {
+    const m = await mounted({ names: ['Header'] });
+    expect(m.inits('Header')).toBe(0);
   });
 });

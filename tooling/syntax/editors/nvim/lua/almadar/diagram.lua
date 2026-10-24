@@ -25,7 +25,7 @@ function M.measure(graph)
     local result = { nodes = {}, edges = {} }
     for _, node in ipairs(graph.nodes) do
         local width, height = dimensions(node.label)
-        result.nodes[#result.nodes + 1] = { id = node.id, label = node.label, width = width + 4, height = height + 2 }
+        result.nodes[#result.nodes + 1] = { id = node.id, label = node.label, width = width + 2, height = height + 2 }
     end
     for _, edge in ipairs(graph.edges) do
         local width, height = dimensions(edge.label)
@@ -126,7 +126,7 @@ local function raster(layout)
     end
     for _, node in ipairs(layout.nodes) do
         local width, height = dimensions(node.label)
-        assert(integer(node.width) and integer(node.height) and node.width >= width + 4 and node.height >= height + 2,
+        assert(integer(node.width) and integer(node.height) and node.width >= width + 2 and node.height >= height + 2,
             "diagram node measurements are too small")
         local owner = { kind = "node", id = node.id }
         for y = node.y, node.y + node.height - 1 do
@@ -144,7 +144,7 @@ local function raster(layout)
         put(node.x + node.width - 1, node.y, "┐", owner)
         put(node.x, node.y + node.height - 1, "└", owner)
         put(node.x + node.width - 1, node.y + node.height - 1, "┘", owner)
-        write(node.x + 2, node.y + 1, node.label, owner)
+        write(node.x + 1, node.y + 1, node.label, owner)
     end
     for _, arrow in ipairs(arrows) do put(arrow.x, arrow.y, arrow.text, arrow.owner) end
     return cells
