@@ -42,7 +42,6 @@ function schema(): OrbitalSchema {
         traits: [
           {
             name: 'Searcher',
-            scope: 'instance',
             linkedEntity: 'Query',
             emits: [{ event: 'REQUESTED', scope: 'external', payloadSchema: [{ name: 'moduleKey', type: 'string' }] }],
             listens: [{ event: 'RESULTS', source: { kind: 'any' }, triggers: 'RESULTS' }],
@@ -87,9 +86,7 @@ function schema(): OrbitalSchema {
         traits: [
           {
             name: 'Responder',
-            scope: 'instance',
             linkedEntity: 'Item',
-            category: 'lifecycle',
             emits: [{ event: 'RESULTS', scope: 'external', payloadSchema: [{ name: 'moduleKey', type: 'string' }] }],
             listens: [{ event: 'REQUESTED', source: { kind: 'any' }, triggers: 'REQUESTED' }],
             stateMachine: {

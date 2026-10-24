@@ -17,7 +17,6 @@ const composed = (config: Record<string, string>, extra: Partial<Exclude<TraitRe
 
 const inline = (title?: string): TraitRef => ({
   name: 'Local',
-  scope: 'instance',
   ...(title !== undefined ? { config: { title: { type: 'string', default: title } } } : {}),
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },
 });

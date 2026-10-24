@@ -21,7 +21,6 @@ function schema(emit: Record<string, string>): OrbitalSchema {
         traits: [
           {
             name: 'Assistant',
-            scope: 'instance',
             linkedEntity: 'Turn',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }, { name: 'thinking' }],
@@ -80,7 +79,6 @@ function crossOrbitalSchema(): OrbitalSchema {
         traits: [
           {
             name: 'Page',
-            scope: 'instance',
             linkedEntity: 'PageView',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],

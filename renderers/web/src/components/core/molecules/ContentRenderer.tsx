@@ -86,7 +86,6 @@ export const ContentRenderer: React.FC<ContentRendererProps> = ({
               Array.isArray((v as OrbitalSchema).orbitals);
             const inlineTrait: Trait = {
               name: 'inline',
-              scope: 'instance',
               stateMachine: parsed as StateMachine,
             };
             const schema: OrbitalSchema = isFullSchema(parsed)

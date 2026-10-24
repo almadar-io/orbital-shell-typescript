@@ -1,6 +1,6 @@
 /**
  * `externalInputsOf` — the one owner of "which events may an outside client send
- * which trait": every `stateMachine.events[]` entry marked `external: true` on an
+ * which trait": every `stateMachine.events[]` entry marked `input: true` on an
  * inline trait, with its payload schema and annotations. Hosts (runtime, compiled
  * server), MCP and the verify planner read it; nothing re-derives it.
  */
@@ -17,7 +17,6 @@ const schema: OrbitalSchema = {
       traits: [
         {
           name: 'TaskPersistor',
-          scope: 'instance',
           linkedEntity: 'Task',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }],
@@ -26,7 +25,7 @@ const schema: OrbitalSchema = {
               {
                 key: 'DO_CREATE',
                 name: 'Do create',
-                external: true,
+                input: true,
                 description: 'Create a task',
                 payloadSchema: [{ name: 'title', type: 'string', required: true }],
               },

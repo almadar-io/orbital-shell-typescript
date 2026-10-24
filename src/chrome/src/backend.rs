@@ -203,7 +203,7 @@ impl Backend for ChromeBackend {
         let mut output = GeneratedOutput::default();
         match &self.resolved_schema {
             Some(schema) => match orbital_core_eval::util::canonical_json::to_canonical_string_pretty(schema) {
-                Ok(json) => output.files.push(GeneratedFile::new("program.json", json)),
+                Ok(json) => output.files.push(GeneratedFile::new("program.orb", json)),
                 Err(e) => output
                     .warnings
                     .push(format!("could not serialize the resolved program: {e}")),

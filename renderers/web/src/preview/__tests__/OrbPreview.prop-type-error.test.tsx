@@ -19,7 +19,6 @@ function schemaWith(items: string | Array<{ title: string; content: string }>): 
       entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       traits: [{
         name: 'Layout',
-        scope: 'instance',
         linkedEntity: 'Item',
         stateMachine: {
           states: [{ name: 'idle', isInitial: true }],

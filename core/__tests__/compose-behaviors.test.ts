@@ -23,7 +23,7 @@ function orbital(name: string, id?: string): OrbitalDefinition {
     name,
     entity: `${name}Item`,
     pages: [],
-    traits: [{ name: `${name}Render`, scope: 'instance' }],
+    traits: [{ name: `${name}Render` }],
   };
 }
 

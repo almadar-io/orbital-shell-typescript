@@ -16,12 +16,11 @@ const schema: OrbitalSchema = {
       traits: [
         {
           name: 'Watcher',
-          scope: 'instance',
           linkedEntity: 'Item',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }],
             events: [
-              { key: 'ITEM_SEEN', name: 'Item seen', external: true, payloadSchema: [{ name: 'elementId', type: 'string', required: true }] },
+              { key: 'ITEM_SEEN', name: 'Item seen', input: true, payloadSchema: [{ name: 'elementId', type: 'string', required: true }] },
               { key: 'CLEAR', name: 'Clear' },
             ],
             transitions: [

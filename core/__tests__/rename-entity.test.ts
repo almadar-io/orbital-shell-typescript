@@ -11,7 +11,6 @@ import { atomTraitResolver, entityRenameBlockers, renameEntity, renameEntityInSc
 
 const trait = (body: Partial<Trait>): Trait => ({
   name: 'StaffManage',
-  scope: 'instance',
   linkedEntity: 'Staff',
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [{ key: 'LOAD', name: 'Load' }], transitions: [] },
   ...body,
@@ -156,7 +155,7 @@ describe('renameEntity — a call-site knob the atom declares entity-typed', () 
     pages: [],
   });
   const atomTraitOf = (_orbital: OrbitalDefinition, ref: string): Trait | undefined => (ref === 'StatusLifecycle.traits.StatusMachine'
-    ? { name: 'StatusMachine', scope: 'instance', config: { targetEntity: { type: 'entity', default: 'StatusRecord' }, label: { type: 'string', default: 'x' } } }
+    ? { name: 'StatusMachine', config: { targetEntity: { type: 'entity', default: 'StatusRecord' }, label: { type: 'string', default: 'x' } } }
     : undefined);
 
   it('renames the value of a knob the referenced atom declares `entity`', () => {
@@ -207,14 +206,14 @@ describe('entityRenameBlockers — an atom that fixes its entity pins the name',
     ],
     pages: [],
   }];
-  const atomTraitOf = (_orbital: OrbitalDefinition, ref: string): Trait => ({ name: ref, scope: 'instance', entityRebindable: ref !== 'Waitlist.traits.Queue' });
+  const atomTraitOf = (_orbital: OrbitalDefinition, ref: string): Trait => ({ name: ref, entityRebindable: ref !== 'Waitlist.traits.Queue' });
 
   it('names each reference trait whose atom binding is not rebindable', () => {
     expect(entityRenameBlockers(app(), 'WaitlistEntry', atomTraitOf)).toEqual([{ orbitalName: 'WaitlistOrbital', traitName: 'WaitlistQueue', traitRef: 'Waitlist.traits.Queue' }]);
   });
 
   it('control: every binding rebindable → nothing blocks the rename', () => {
-    expect(entityRenameBlockers(app(), 'WaitlistEntry', (_o, ref) => ({ name: ref, scope: 'instance', entityRebindable: true }))).toEqual([]);
+    expect(entityRenameBlockers(app(), 'WaitlistEntry', (_o, ref) => ({ name: ref, entityRebindable: true }))).toEqual([]);
   });
 });
 
@@ -227,7 +226,7 @@ describe('renameEntity — an entity-kind type argument', () => {
     traits: [{ ref: 'Approval.traits.ApprovalGateReview', name: 'DeploymentApproval', typeArgs: { p: 'Deployment', e: 'Deployment' } }],
     pages: [],
   }]));
-  const atomTraitOf = (): Trait => ({ name: 'ApprovalGateReview', scope: 'instance', typeParams: [{ kind: 'Entity', name: 'p' }, { kind: 'Event', name: 'e' }] });
+  const atomTraitOf = (): Trait => ({ name: 'ApprovalGateReview', typeParams: [{ kind: 'Entity', name: 'p' }, { kind: 'Event', name: 'e' }] });
 
   it('renames the argument of a parameter the atom declares Entity-kind', () => {
     const [out] = renameEntity(generic(), 'Deployment', 'OpsDeployment', { atomTraitOf });
@@ -248,8 +247,8 @@ describe('renameEntity — a reference that binds its atom\'s entity implicitly'
     pages: [],
   }];
   const atomTraitOf = (_o: OrbitalDefinition, ref: string): Trait => (ref === 'Slots.traits.SlotBoard'
-    ? { name: 'SlotBoard', scope: 'instance', linkedEntity: 'InterviewSlot', entityRebindable: true }
-    : { name: 'Panel', scope: 'instance', linkedEntity: 'PanelRow', entityRebindable: true });
+    ? { name: 'SlotBoard', linkedEntity: 'InterviewSlot', entityRebindable: true }
+    : { name: 'Panel', linkedEntity: 'PanelRow', entityRebindable: true });
 
   it('a reference with no linkedEntity whose atom binds the renamed entity gets the binding made explicit', () => {
     const [out] = renameEntity(slots(), 'InterviewSlot', 'AtsInterviewSlot', { atomTraitOf });
@@ -262,7 +261,7 @@ describe('renameEntity — a reference that binds its atom\'s entity implicitly'
   });
 
   it('an implicit binding to an atom that fixes its entity blocks the rename', () => {
-    const fixed = (_o: OrbitalDefinition, ref: string): Trait => ({ name: ref, scope: 'instance', linkedEntity: ref === 'Slots.traits.SlotBoard' ? 'InterviewSlot' : 'PanelRow', entityRebindable: false });
+    const fixed = (_o: OrbitalDefinition, ref: string): Trait => ({ name: ref, linkedEntity: ref === 'Slots.traits.SlotBoard' ? 'InterviewSlot' : 'PanelRow', entityRebindable: false });
     expect(entityRenameBlockers(slots(), 'InterviewSlot', fixed)).toEqual([{ orbitalName: 'InterviewScheduleOrbital', traitName: 'InterviewSlotBoard', traitRef: 'Slots.traits.SlotBoard' }]);
   });
 });
@@ -271,7 +270,7 @@ describe('atomTraitResolver — a reference resolved through the orbital\'s uses
   const atom: OrbitalSchema = {
     name: 'std-status-lifecycle',
     version: '1.0.0',
-    orbitals: [{ name: 'StatusOrbital', entity: { name: 'StatusRecord', persistence: 'persistent', fields: [{ name: 'id', type: 'string' }] }, traits: [{ name: 'StatusMachine', scope: 'instance', linkedEntity: 'StatusRecord', entityRebindable: true }], pages: [] }],
+    orbitals: [{ name: 'StatusOrbital', entity: { name: 'StatusRecord', persistence: 'persistent', fields: [{ name: 'id', type: 'string' }] }, traits: [{ name: 'StatusMachine', linkedEntity: 'StatusRecord', entityRebindable: true }], pages: [] }],
   };
   const host: OrbitalDefinition = { name: 'JournalOrbital', entity: 'Journal.entity', uses: [{ from: 'std/behaviors/std-status-lifecycle', as: 'StatusLifecycle' }], traits: [], pages: [] };
   const loads: string[] = [];
@@ -300,7 +299,6 @@ describe('renameOrbital — an orbital held under another name', () => {
       entity: 'CartItem.entity',
       traits: [{
         name: 'CartItemAddToCart',
-        scope: 'instance',
         listens: [
           { event: 'ADD_TO_CART', triggers: 'ADD_TO_CART', source: { kind: 'orbital', orbital: 'ProductOrbital', trait: 'ProductBrowseList' } },
           { event: 'PING', triggers: 'PING', source: { kind: 'trait', trait: 'ProductOrbital' } },

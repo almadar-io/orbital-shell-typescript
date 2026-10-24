@@ -24,7 +24,6 @@ function program(name: string, entityName: string, command: string): OrbitalSche
       traits: [{
         name: `${name}Trait`,
         linkedEntity: entityName,
-        scope: 'instance',
         stateMachine: {
           events: [{ key: 'GO', name: 'GO' }],
           states: [{ name: 'idle', isInitial: true }, { name: 'done' }],
@@ -64,7 +63,7 @@ for (const implementation of implementations) {
         entity: { name: 'Counter', persistence: 'runtime', fields: [
           { name: 'id', type: 'string' }, { name: 'count', type: 'number', default: 0 },
         ] },
-        traits: [{ name: 'CounterTrait', linkedEntity: 'Counter', scope: 'instance', stateMachine: {
+        traits: [{ name: 'CounterTrait', linkedEntity: 'Counter', stateMachine: {
           events: ['READ', 'UPDATE', 'FETCH', 'DELETE'].map((name) => ({ key: name, name })),
           states: [{ name: 'idle', isInitial: true }],
           transitions: [
@@ -149,7 +148,7 @@ for (const implementation of implementations) {
             { name: 'ownerId', type: 'string', relation: { entity: 'User', cardinality: 'many-to-one' } }],
           create_policy: ['=', ['object/get', '@entity', 'ownerId'], '@user.id'],
           read_policy: ['=', ['object/get', '@entity', 'ownerId'], '@user.id'],
-        }, { name: 'LocalNote', collection: 'notes', persistence: 'persistent', local: true,
+        }, { name: 'LocalNote', collection: 'notes', persistence: 'persistent', browser: true,
           fields: [{ name: 'id', type: 'string', required: true }, { name: 'title', type: 'string', required: true }],
           instances: [{ id: 'default', title: 'Default' }],
           localeInstances: { ar: [{ id: 'arabic', title: 'عربي' }], empty: [] },

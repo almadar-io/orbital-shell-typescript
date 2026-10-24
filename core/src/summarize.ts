@@ -146,6 +146,13 @@ function summarizeField(f: EntityField): EntityField {
       ...(f.required ? { required: true } : {}),
     };
   }
+  if (f.type === 'object') {
+    return {
+      ...(f.name !== undefined ? { name: f.name } : {}),
+      type: 'object',
+      ...(f.required ? { required: true } : {}),
+    };
+  }
   if (isTypeVariableField(f)) {
     return {
       ...(f.name !== undefined ? { name: f.name } : {}),
@@ -209,8 +216,7 @@ function summarizeTrait(trait: Trait): Trait {
   const events = trait.stateMachine?.events ?? [];
   const transitions = trait.stateMachine?.transitions ?? [];
 
-  const result: Trait = { name: trait.name, scope: trait.scope };
-  if (trait.category) result.category = trait.category;
+  const result: Trait = { name: trait.name };
   if (trait.linkedEntity) result.linkedEntity = trait.linkedEntity;
 
   if (trait.stateMachine) {
@@ -255,6 +261,8 @@ function summarizeTrait(trait: Trait): Trait {
  */
 function summarizePage(page: Page): Page {
   const result: Page = { name: page.name, path: page.path };
+  if (page.protocol !== undefined) result.protocol = page.protocol;
+  if (page.address !== undefined) result.address = page.address;
   if (page.traits && page.traits.length > 0) {
     result.traits = page.traits.map(t => ({ ref: t.ref }));
   }

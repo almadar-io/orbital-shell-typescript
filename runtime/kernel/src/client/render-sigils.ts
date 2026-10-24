@@ -4,7 +4,7 @@
  *
  * @packageDocumentation
  */
-import { isPageReference, themeDataKey, type NavItem, type OrbitalDefinition, type Page, type PageRef } from '@almadar/core';
+import { isPageReference, isRoutePage, themeDataKey, type NavItem, type OrbitalDefinition, type Page, type PageRef } from '@almadar/core';
 
 /** The baseline theme `@currentTheme` falls back to when no orbital or app theme is declared. Mirrors the compiler's `DEFAULT_THEME_KEY`. */
 export const DEFAULT_THEME_KEY = 'minimalist-light';
@@ -20,7 +20,7 @@ export function inlineNavItems(pages: readonly PageRef[]): NavItem[] {
   for (const page of pages) {
     if (isPageReference(page)) continue;
     const p: Page = page;
-    if (typeof p.label !== 'string' || p.path.includes(':')) continue;
+    if (!isRoutePage(p) || typeof p.label !== 'string' || p.path.includes(':')) continue;
     const item: NavItem = { href: p.path, label: p.label };
     if (typeof p.icon === 'string') item.icon = p.icon;
     if (p.roles !== undefined) item.roles = [...p.roles];

@@ -19,7 +19,6 @@ const schema = {
       traits: [
         {
           name: 'Browse',
-          scope: 'collection',
           linkedEntity: 'Task',
           emits: [{ event: 'TASK_OPENED', scope: 'external' }],
           stateMachine: {
@@ -37,7 +36,6 @@ const schema = {
         },
         {
           name: 'Stats',
-          scope: 'instance',
           linkedEntity: 'Task',
           sourceBehavior: { alias: 'Stat', behavior: 'std-stat-card' },
           stateMachine: {
@@ -58,7 +56,6 @@ const schema = {
       traits: [
         {
           name: 'Listen',
-          scope: 'instance',
           linkedEntity: 'Note',
           listens: [{ event: 'TASK_OPENED', triggers: 'SHOW', scope: 'external' }],
           stateMachine: {
@@ -151,7 +148,6 @@ describe('stateOptionsOf — guarded arms of one transition (G-UI-059)', () => {
       entity: { name: 'Layout', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       traits: [{
         name: 'AppLayout',
-        scope: 'instance',
         linkedEntity: 'Layout',
         stateMachine: {
           states: [{ name: 'composing', isInitial: true }],
@@ -221,7 +217,6 @@ describe('initialStateOf', () => {
         traits: [
           {
             name: 'Create',
-            scope: 'instance',
             linkedEntity: 'Provider',
             stateMachine: {
               states: [{ name: 'closed', isInitial: true }, { name: 'open' }],
@@ -234,7 +229,6 @@ describe('initialStateOf', () => {
           },
           {
             name: 'Shell',
-            scope: 'instance',
             linkedEntity: 'Provider',
             stateMachine: {
               states: [{ name: 'composing', isInitial: true }],

@@ -23,7 +23,6 @@ const schema: OrbitalSchema = {
       traits: [
         {
           name: 'TaskList',
-          scope: 'collection',
           linkedEntity: 'Task',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }, { name: 'loaded' }],
@@ -154,7 +153,6 @@ const nestedSchema: OrbitalSchema = {
       traits: [
         {
           name: 'PanelView',
-          scope: 'collection',
           linkedEntity: 'Item',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }],
@@ -283,7 +281,6 @@ const contentSchema: OrbitalSchema = {
       traits: [
         {
           name: 'ListView',
-          scope: 'collection',
           linkedEntity: 'Item',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }],

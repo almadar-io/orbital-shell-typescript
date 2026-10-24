@@ -16,7 +16,7 @@ const orbitals: OrbitalSchema['orbitals'] = [{
   name: 'Main', pages: [],
   entity: { name: 'Note', persistence: 'persistent', collection: 'notes', fields: [{ name: 'id', type: 'string' }] },
   traits: [{
-    name: 'Shell', linkedEntity: 'Note', scope: 'instance',
+    name: 'Shell', linkedEntity: 'Note',
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }], events: [],
       transitions: [

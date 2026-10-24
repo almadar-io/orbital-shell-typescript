@@ -13,7 +13,7 @@
  *
  * - **No `unknown`.** Every field has a concrete type, sourced from
  *   this same module where the type already exists (`EntityField`,
- *   `EntityPersistence`, `TraitCategory`, `TraitScope`, `SExpr`,
+ *   `EntityPersistence`, `SExpr`,
  *   `PageTraitRef`, `TraitEventContract`, `TraitEventListener`).
  *
  * - **No index signatures.** If the LLM emits a key the schema doesn't
@@ -34,7 +34,6 @@
  */
 import type { EntityField } from './field.js';
 import type { EntityPersistence } from './entity.js';
-import type { TraitCategory, TraitScope } from './trait.js';
 import type { PageTraitRef } from './page.js';
 import type { SExpr } from './expression.js';
 
@@ -72,14 +71,11 @@ export interface ParsedEntity {
 export interface ParsedTrait {
   name: string;
   linkedEntity: string;
-  category?: TraitCategory;
-  scope?: TraitScope;
   description?: string;
   config?: ParsedTraitConfig;
   emits?: ParsedEmitDeclaration[];
   listens?: ParsedListenDeclaration[];
   stateMachine?: ParsedStateMachine;
-  capabilities?: string[];
 }
 
 /**

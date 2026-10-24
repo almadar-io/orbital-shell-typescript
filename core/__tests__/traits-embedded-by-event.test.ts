@@ -10,7 +10,6 @@ import type { Trait } from '../src/types/index.js';
 
 const panel: Trait = {
   name: 'Panel',
-  scope: 'instance',
   config: { contentTrait: { type: 'string', default: '@trait.Body' } },
   stateMachine: {
     states: [{ name: 'idle', isInitial: true }],

@@ -24,7 +24,6 @@ const app: OrbitalSchema = {
     entity: { name: 'HomeState', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [{
       name: 'HomeView',
-      scope: 'instance',
       linkedEntity: 'HomeState',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],

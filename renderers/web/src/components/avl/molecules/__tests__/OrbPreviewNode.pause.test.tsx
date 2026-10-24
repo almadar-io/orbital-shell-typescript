@@ -45,7 +45,6 @@ function schema(): OrbitalSchema {
         traits: [
           {
             name: 'Clicker',
-            scope: 'instance',
             linkedEntity: 'Item',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }, { name: 'done' }],
@@ -709,7 +708,7 @@ function embeddedSchema(): OrbitalSchema {
   const base = schema();
   const orbital = base.orbitals[0];
   const button = (name: string, label: string): Trait => ({
-    name, scope: 'instance' as const, linkedEntity: 'Item',
+    name, linkedEntity: 'Item',
     stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'button', label, action: 'GO' }]] }] },
   });
   const card = orbital.traits[0];

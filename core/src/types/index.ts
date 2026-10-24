@@ -198,6 +198,14 @@ export {
   PageMetaSchema,
   type PageModifiers,
   PageModifiersSchema,
+  type ProtocolSide,
+  type ProtocolAddressField,
+  type ProtocolSpec,
+  ProtocolSideSchema,
+  ProtocolSpecSchema,
+  ROUTE_PROTOCOL,
+  isRoutePage,
+  protocolName,
   resolvePageMeta,
 } from "./page.js";
 
@@ -671,7 +679,6 @@ export {
   type Trait,
   type TraitRef,
   type TraitReference,
-  type TraitCategory,
   type TraitConfig,
   type TraitConfigObject,
   type TraitConfigValue,
@@ -724,12 +731,13 @@ export {
   // Client dispatch strategy (mirrors orbital-core runtime::dispatch_mode)
   type DispatchMode,
   DispatchModeSchema,
+  type TraitDispatchMode,
+  TraitDispatchModeSchema,
   // Schemas
   TraitSchema,
   EntityFieldContractSchema,
   TraitRefSchema,
   TraitReferenceSchema,
-  TraitCategorySchema,
   TraitEventListenerSchema,
   ListenSourceSchema,
   TraitUIBindingSchema,

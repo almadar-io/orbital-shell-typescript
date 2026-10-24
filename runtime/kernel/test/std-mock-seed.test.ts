@@ -163,7 +163,7 @@ describe('seedMockStore', () => {
 
 describe('seedBrowserStore', () => {
   const local = (name: string, extra: object) => OrbitalSchemaSchema.parse({
-    name: 'L', orbitals: [{ name: 'O', entity: { name, collection: 'notes', persistence: 'persistent', local: true, fields: [{ name: 'id', type: 'string', required: true }], ...extra }, traits: [] }],
+    name: 'L', orbitals: [{ name: 'O', entity: { name, collection: 'notes', persistence: 'persistent', browser: true, fields: [{ name: 'id', type: 'string', required: true }], ...extra }, traits: [] }],
   }).orbitals.map((o) => o.entity);
 
   it('seeds an empty browser-stored entity from the program for the locale', async () => {

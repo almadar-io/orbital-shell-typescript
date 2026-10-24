@@ -25,7 +25,6 @@ function schema(): OrbitalSchema {
       entity: { name: 'Note', persistence: 'persistent', fields: [{ name: 'id', type: 'string' }, { name: 'title', type: 'string' }] },
       traits: [{
         name: 'NoteList',
-        scope: 'instance',
         linkedEntity: 'Note',
         stateMachine: {
           states: [{ name: 'loading', isInitial: true }, { name: 'ready' }],

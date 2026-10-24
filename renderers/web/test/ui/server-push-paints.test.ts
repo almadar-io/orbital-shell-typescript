@@ -13,7 +13,6 @@ import { createEmptyResolvedTrait } from '@almadar/core';
 
 const chat: Trait = {
   name: 'Chat',
-  scope: 'instance',
   linkedEntity: 'Turn',
   listens: [{ event: 'STEP', source: { kind: 'trait', trait: 'Loop' }, triggers: 'STEP' }],
   stateMachine: {
@@ -97,7 +96,6 @@ describe('server push ingress', () => {
 // source and must reach it, not only traits that listen to it.
 const creator: Trait = {
   name: 'Creator',
-  scope: 'instance',
   linkedEntity: 'Turn',
   emits: [{ event: 'GOAL_PROGRESS', scope: 'internal' }],
   stateMachine: {
@@ -147,7 +145,6 @@ describe('a running call\'s own live message', () => {
 // A trait that calls a service reaches the server, so it is never client-only and the host's result is its own.
 const builder: Trait = {
   name: 'Builder',
-  scope: 'instance',
   linkedEntity: 'Turn',
   stateMachine: {
     states: [{ name: 'building', isInitial: true }, { name: 'built' }],

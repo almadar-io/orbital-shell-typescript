@@ -12,7 +12,6 @@ import { collectCallsiteCaptureChildren, createEmptyResolvedTrait } from '@almad
 
 const parent: Trait = {
   name: 'Catalog',
-  scope: 'instance',
   linkedEntity: 'Item',
   stateMachine: {
     states: [{ name: 'idle', isInitial: true }],
@@ -26,7 +25,6 @@ const parent: Trait = {
 
 const ledger: Trait = {
   name: 'Ledger',
-  scope: 'instance',
   linkedEntity: 'Item',
   stateMachine: {
     states: [{ name: 'loading', isInitial: true }, { name: 'browsing' }, { name: 'closed' }],

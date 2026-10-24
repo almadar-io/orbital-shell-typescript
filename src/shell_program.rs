@@ -292,7 +292,7 @@ mod tests {
         assert!(manifest["dependencies"].get("@almadar/shell-node").is_some(), "the server runs on the Node host");
         assert!(manifest["dependencies"].get("express").is_none(), "the retired express adapter is gone");
         let index = std::fs::read_to_string(root.join("src/index.ts")).unwrap();
-        assert!(index.contains("'generated', 'program.json'") && index.contains("'kernel.node'"), "{index}");
+        assert!(index.contains("'generated', 'program.orb'") && index.contains("'kernel.node'"), "{index}");
         for retired in ["src/app.ts", "src/live.ts", "src/kernel.ts"] {
             assert!(!root.join(retired).exists(), "{retired} is archived");
         }

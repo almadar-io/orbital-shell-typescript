@@ -448,48 +448,6 @@ export const DeclaredTraitConfigSchema: z.ZodType<DeclaredTraitConfig, z.ZodType
 );
 
 // ============================================================================
-// Trait Categories
-// ============================================================================
-
-/**
- * Categories for organizing traits
- */
-export type TraitCategory =
-    | 'lifecycle'
-    | 'temporal'
-    | 'validation'
-    | 'notification'
-    | 'integration'
-    | 'interaction'
-    | 'agent'
-    | 'game-core'
-    | 'game-character'
-    | 'game-ai'
-    | 'game-combat'
-    | 'game-items'
-    | 'game-cards'
-    | 'game-board'
-    | 'game-puzzle';
-
-export const TraitCategorySchema = z.enum([
-    'lifecycle',
-    'temporal',
-    'validation',
-    'notification',
-    'integration',
-    'interaction',
-    'agent',
-    'game-core',
-    'game-character',
-    'game-ai',
-    'game-combat',
-    'game-items',
-    'game-cards',
-    'game-board',
-    'game-puzzle',
-]);
-
-// ============================================================================
 // Trait Entity Field (simplified)
 // ============================================================================
 
@@ -1323,22 +1281,6 @@ export const TraitUIBindingSchema = z.record(
  * - `listens`: Events this trait listens for (with optional payloadMapping)
  */
 /**
- * Instance vs collection scope for a trait.
- *
- * Mirrors the `.lolo` trait modifier list (`[interaction, instance]` /
- * `[interaction, collection]`). Instance traits own a single entity record
- * (typed by `linkedEntity`) and read/write `@entity.field`. Collection
- * traits render records of `linkedEntity` without owning any one; data flows
- * through `@payload.data` typed as `Array<linkedEntity>`.
- *
- * Optional today. A future phase (Almadar_Entity_V2_Plan.md Phase 4) makes
- * it required and adds static checks in the compiler.
- */
-export type TraitScope = 'instance' | 'collection';
-
-export const TraitScopeSchema = z.enum(['instance', 'collection']);
-
-/**
  * Inferred field contract for a `@rebindable` trait binding. `requires` =
  * entity fields the trait READS via `@entity.<field>`; `provides` = fields it
  * WRITES via `(set @entity.<field> ...)`. A consumer that rebinds the trait
@@ -1416,13 +1358,17 @@ export type DispatchMode = 'persistedAwaited' | 'hybridClientOnly' | 'runtimeOpt
 
 export const DispatchModeSchema = z.enum(['persistedAwaited', 'hybridClientOnly', 'runtimeOptimistic']);
 
+/** The `[client]` / `[optimistic]` trait-header word; absent = server dispatch. Mirrors Rust `DispatchMode` (serde lowercase). */
+export type TraitDispatchMode = 'client' | 'optimistic';
+
+export const TraitDispatchModeSchema = z.enum(['client', 'optimistic']);
+
 export type Trait = {
     /** V4 dual-carry id sibling of `name` — optional until the Phase-7 flip. */
     id?: TraitId;
     name: string;
     description?: string;
     description_visual_prompt?: string;
-    category?: TraitCategory;
     /**
      * Opt-in marker authored as `-> @rebindable Entity` in `.lolo`. When
      * `true`, a consuming molecule/organism may rebind this trait's entity via
@@ -1450,30 +1396,11 @@ export type Trait = {
     /** `@synonyms "..."` authored on the `@rebindable` binding in `.lolo`. */
     entityBindingSynonyms?: string;
     /**
-     * Author-supplied capability tags lifted from the `.lolo` trait header's
-     * bracket list. Anything beyond the known scope tokens (`instance` /
-     * `collection`) and the first category identifier accumulates here.
-     * Free-form strings — the lolo parser does not validate them against a
-     * known set. The Phase 4 translator overlay matches rules to traits by
-     * exact set membership against this list. Empty when no capabilities
-     * were declared. See `docs/Almadar_Domain_Language.md` Phase 3.
+     * Dispatch mode authored as `[client]` / `[optimistic]` on the `.lolo` trait
+     * header. Absent means server dispatch. Mirrors the Rust
+     * `TraitDefinition.dispatch` field; never inferred from effects.
      */
-    capabilities?: string[];
-    /**
-     * Instance or collection scope. Required in V2: every trait operates on
-     * either a single record (`instance`) or a group (`collection`). Drives
-     * payload-inference rules for emits declared via `type X = Event<T>` and
-     * shapes the runtime's binding semantics. Authored in `.lolo` as the
-     * `[instance]` / `[collection]` modifier on the trait header.
-     */
-    scope: TraitScope;
-    /**
-     * `local` trait-header flag — declares client-only dispatch. Authored in
-     * `.lolo` as the `local` modifier on the trait header (`[interaction, instance, local]`).
-     * Undeclared (`undefined`) means server-gated dispatch. Mirrors the Rust
-     * `OirTrait::local` field; never inferred from effects.
-     */
-    local?: boolean;
+    dispatch?: TraitDispatchMode;
     /**
      * The entity this trait is linked to.
      * Required for inline trait definitions within an orbital.
@@ -1619,16 +1546,12 @@ export const TraitSchema = z.object({
     name: z.string().min(1),
     description: z.string().optional(),
     description_visual_prompt: z.string().optional(),
-    category: TraitCategorySchema.optional(),
     entityRebindable: z.boolean().optional(),
     entityContract: EntityFieldContractSchema.optional(),
     effectRow: EffectRowSchema.optional(),
     entityBindingDescription: z.string().optional(),
     entityBindingSynonyms: z.string().optional(),
-    capabilities: z.array(z.string()).optional(),
-    scope: TraitScopeSchema,
-    /** `local` trait-header flag — declares client-only dispatch (mirrors Rust `OirTrait::local`). Undeclared = server-gated dispatch. */
-    local: z.boolean().optional(),
+    dispatch: TraitDispatchModeSchema.optional(),
     linkedEntity: z.string().optional(),
     linkedEntityId: EntityIdSchema.optional(),
     entityRefIds: z.record(z.string().min(1), EntityIdSchema).optional(),

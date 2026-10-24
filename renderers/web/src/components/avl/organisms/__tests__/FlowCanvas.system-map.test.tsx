@@ -26,7 +26,6 @@ const schema: OrbitalSchema = {
       traits: [
         {
           name: 'Browse',
-          scope: 'instance',
           linkedEntity: 'Product',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }],

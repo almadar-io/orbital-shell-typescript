@@ -25,8 +25,8 @@ const schema: OrbitalSchema = {
     name: 'HouseOrbital',
     entity: { name: 'Room', fields: [{ name: 'open', type: 'boolean' }] },
     traits: [
-      { name: 'HouseDoor', scope: 'instance', stateMachine: doorMachine, sourceBehavior: { behavior: 'std/std-door', alias: 'Door', originalName: 'DoorLife' } },
-      { name: 'Lamp', scope: 'instance', stateMachine: lampMachine },
+      { name: 'HouseDoor', stateMachine: doorMachine, sourceBehavior: { behavior: 'std/std-door', alias: 'Door', originalName: 'DoorLife' } },
+      { name: 'Lamp', stateMachine: lampMachine },
     ],
     pages: [],
   }],

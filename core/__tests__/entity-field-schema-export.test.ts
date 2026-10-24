@@ -107,6 +107,13 @@ describe('shared entity field tool contract', () => {
     expect(() => EntityFieldSchema.parse({ name: 'value', type: 'scalar' })).toThrow();
   });
 
+  it('keeps an int field int, as the Rust core writes it, while float still reads as number', () => {
+    expect(EntityFieldSchema.parse({ name: 'steps', type: 'int' }).type).toBe('int');
+    expect(EntityFieldSchema.parse({ name: 'ratio', type: 'float' }).type).toBe('number');
+    expect(EntityFieldSchema.parse({ name: 'total', type: 'number' }).type).toBe('number');
+    expect(ENTITY_FIELD_SCHEMA.oneOf?.some(branch => branch.properties?.type?.enum?.includes('int'))).toBe(true);
+  });
+
   it.each(['file', 'trait', 'slot', 'pattern', 'node', 'event', 'EventAddress', 'CallKey', 'SExpr'])('carries an existing scalar tag: %s', type => {
     const field = EntityFieldSchema.parse({ name: 'value', type });
     expect(ENTITY_FIELD_SCHEMA.oneOf?.some(branch => branch.properties?.type?.enum?.includes(field.type))).toBe(true);

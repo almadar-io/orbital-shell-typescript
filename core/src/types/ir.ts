@@ -227,10 +227,6 @@ export interface ResolvedTrait {
   /** Where this trait came from */
   source: 'schema' | 'library' | 'inline';
 
-  /** Category for organizing traits */
-  category?: 'lifecycle' | 'temporal' | 'validation' | 'notification' | 'integration' | 'interaction' | 'agent' |
-  'game-core' | 'game-character' | 'game-ai' | 'game-combat' | 'game-items' | 'game-cards' | 'game-board' | 'game-puzzle';
-
   // State Machine (all optional - not all traits have state machines)
   states: ResolvedTraitState[];
   events: ResolvedTraitEvent[];

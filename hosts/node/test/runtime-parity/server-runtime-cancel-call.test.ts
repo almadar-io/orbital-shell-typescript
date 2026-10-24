@@ -16,7 +16,6 @@ const schema: OrbitalSchema = {
     entity: { name: 'Job', persistence: 'runtime', fields: [{ name: 'id', type: 'string', primaryKey: true }] },
     traits: [{
       name: 'Runner',
-      scope: 'instance',
       linkedEntity: 'Job',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],

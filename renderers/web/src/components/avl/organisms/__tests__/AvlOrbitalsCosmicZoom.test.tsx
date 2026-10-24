@@ -27,7 +27,6 @@ const schema: OrbitalSchema = {
       traits: [
         {
           name: 'Modes',
-          scope: 'instance',
           linkedEntity: 'Doc',
           stateMachine: {
             states: [{ name: 'NORMAL', isInitial: true }, { name: 'INSERT' }],
@@ -155,10 +154,10 @@ describe('AvlOrbitalsCosmicZoom — the orbital flow (L2)', () => {
       entity: { name: 'Order', fields: [] },
       pages: [],
       traits: [
-        { name: 'Persistor', scope: 'instance', emits: [{ event: 'SAVED' }], listens: [{ event: 'SAVE', triggers: 'SAVE', source: { kind: 'trait', trait: 'Form' } }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
-        { name: 'Form', scope: 'instance', sourceBehavior: { alias: 'Modal', behavior: 'std/behaviors/std-modal', originalName: 'Modal' }, emits: [{ event: 'SAVE' }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
-        { name: 'FormTwo', scope: 'instance', sourceBehavior: { alias: 'Modal', behavior: 'std/behaviors/std-modal', originalName: 'Other' }, stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
-        { name: 'Grid', scope: 'instance', sourceBehavior: { alias: 'Browse', behavior: 'std/behaviors/std-browse', originalName: 'Browse' }, listens: [{ event: 'SAVED', triggers: 'SAVED', source: { kind: 'trait', trait: 'Persistor' } }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
+        { name: 'Persistor', emits: [{ event: 'SAVED' }], listens: [{ event: 'SAVE', triggers: 'SAVE', source: { kind: 'trait', trait: 'Form' } }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
+        { name: 'Form', sourceBehavior: { alias: 'Modal', behavior: 'std/behaviors/std-modal', originalName: 'Modal' }, emits: [{ event: 'SAVE' }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
+        { name: 'FormTwo', sourceBehavior: { alias: 'Modal', behavior: 'std/behaviors/std-modal', originalName: 'Other' }, stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
+        { name: 'Grid', sourceBehavior: { alias: 'Browse', behavior: 'std/behaviors/std-browse', originalName: 'Browse' }, listens: [{ event: 'SAVED', triggers: 'SAVED', source: { kind: 'trait', trait: 'Persistor' } }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
       ],
     }],
   };

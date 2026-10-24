@@ -14,6 +14,7 @@ import type { EntityField } from './types/field.js';
 import type { FieldValue } from './types/entity.js';
 import type { State, Event, Transition } from './types/state-machine.js';
 import type { TraitEventListener, TraitTick } from './types/trait.js';
+import { isRoutePage } from './types/page.js';
 
 /**
  * Extended entity shape for schema data that may carry `defaults`/`icon`.
@@ -181,7 +182,6 @@ export function schemaToIR(schema: OrbitalSchema, useCache: boolean = true): Res
         name: trait.name,
         description: trait.description,
         source: 'schema',
-        category: trait.category,
         // V4 dual-carry ids + emit contracts, preserved when the source
         // trait carries them — the emit-source stamp needs `id`/`eventId`
         // for id-scoped `listens` matching (`buildSourceMatcher` compares
@@ -233,8 +233,9 @@ export function schemaToIR(schema: OrbitalSchema, useCache: boolean = true): Res
       ir.traits.set(trait.name, resolvedTrait);
     }
 
-    // Resolve pages
+    // Resolve pages: the route table a client opens; protocol pages are served by other sides
     for (const page of (orbital.pages || []) as Page[]) {
+      if (!isRoutePage(page)) continue;
       const resolvedPage: ResolvedPage = {
         name: page.name,
         path: page.path,

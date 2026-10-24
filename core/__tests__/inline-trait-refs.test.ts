@@ -5,7 +5,6 @@ import type { OrbitalDefinition, Trait, TraitReference } from '../src/types/inde
 
 const BASE: Trait = {
   name: 'Counter',
-  scope: 'instance',
   linkedEntity: 'Item',
   config: { step: { type: 'number', default: 1, label: 'Step' }, label: { type: 'string', default: 'n' } },
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },

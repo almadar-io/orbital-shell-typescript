@@ -17,7 +17,6 @@ const schema: OrbitalSchema = JSON.parse(JSON.stringify({
     entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [{
       name: 'Show',
-      scope: 'instance',
       linkedEntity: 'Item',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],

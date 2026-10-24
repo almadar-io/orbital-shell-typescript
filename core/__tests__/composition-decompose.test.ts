@@ -9,7 +9,6 @@ import type { OrbitalDefinition, Trait } from '../src/types/index.js';
 
 const browseTrait: Trait = {
   name: 'BrowseItemBrowse',
-  scope: 'collection',
   entityRebindable: true,
   config: { browseLook: { type: 'string', default: 'table' }, emptyTitle: { type: 'string', default: '' } },
   emits: [{ event: 'VIEW', scope: 'internal' }, { event: 'EDIT', scope: 'internal' }],
@@ -39,7 +38,7 @@ describe('blockContractOf', () => {
   });
 
   it('control: a fixed-binding trait with no knobs, emits or listens', () => {
-    expect(blockContractOf({ name: 'Bare', scope: 'instance' })).toEqual({
+    expect(blockContractOf({ name: 'Bare' })).toEqual({
       configKeys: [],
       emits: [],
       triggers: [],
@@ -66,7 +65,7 @@ const organismOrbital: OrbitalDefinition = {
     },
     { ref: 'Typography.traits.TypographyRender', name: 'InlineTypographyRender1', config: { content: 'Your cart', variant: 'h1' } },
     { ref: 'Ghost.traits.Nope', name: 'Orphan' },
-    { name: 'CartView', scope: 'instance', linkedEntity: 'CartItem' },
+    { name: 'CartView', linkedEntity: 'CartItem' },
   ],
   pages: [],
 };
@@ -102,7 +101,6 @@ describe('decomposeOrbital', () => {
 describe('blockContractOf — entity fields a block writes', () => {
   const trait: Trait = {
     name: 'Feed',
-    scope: 'instance',
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }],
       events: [{ key: 'INIT', name: 'Init' }, { key: 'OPEN', name: 'Open' }],
@@ -123,20 +121,20 @@ describe('blockContractOf — entity fields a block writes', () => {
   });
 
   it('control: a trait with no state machine reads and writes nothing', () => {
-    expect(blockContractOf({ name: 'Bare', scope: 'instance' }).setsFields).toEqual([]);
+    expect(blockContractOf({ name: 'Bare' }).setsFields).toEqual([]);
   });
 });
 
 describe('blockContractOf — a trait with no declared binding is bound to its orbital\'s record', () => {
   it('an unbound trait takes the orbital\'s primary record, fixed', () => {
-    expect(blockContractOf({ name: 'ListingCatalog', scope: 'instance' }, 'Listing')).toMatchObject({ linkedEntity: 'Listing', entityRebindable: false });
+    expect(blockContractOf({ name: 'ListingCatalog' }, 'Listing')).toMatchObject({ linkedEntity: 'Listing', entityRebindable: false });
   });
 
   it('control: a declared binding wins over the orbital\'s record', () => {
-    expect(blockContractOf({ name: 'Tags', scope: 'instance', linkedEntity: 'Tag' }, 'Listing').linkedEntity).toBe('Tag');
+    expect(blockContractOf({ name: 'Tags', linkedEntity: 'Tag' }, 'Listing').linkedEntity).toBe('Tag');
   });
 
   it('control: with no orbital record given, nothing is assumed', () => {
-    expect(blockContractOf({ name: 'Bare', scope: 'instance' }).linkedEntity).toBeUndefined();
+    expect(blockContractOf({ name: 'Bare' }).linkedEntity).toBeUndefined();
   });
 });

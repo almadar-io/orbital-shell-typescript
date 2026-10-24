@@ -11,12 +11,12 @@ import type { EventPayload, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trai
 import { createEmptyResolvedTrait } from '@almadar/core';
 
 const host: Trait = {
-  name: 'Host', scope: 'instance', linkedEntity: 'Item',
+  name: 'Host', linkedEntity: 'Item',
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [],
     transitions: [{ from: 'idle', to: 'idle', event: 'PING', effects: [['render-ui', 'main', { type: 'stack', children: ['@trait.Feed'] }]] }] },
 };
 const feed: Trait = {
-  name: 'Feed', scope: 'instance', linkedEntity: 'Item',
+  name: 'Feed', linkedEntity: 'Item',
   stateMachine: { states: [{ name: 'browsing', isInitial: true }], events: [],
     transitions: [
       { from: 'browsing', to: 'browsing', event: 'INIT', effects: [['set', '@entity.id', 'reload'], ['render-ui', 'main', { type: 'spinner' }]] },
@@ -24,7 +24,7 @@ const feed: Trait = {
     ] },
 };
 const leaf: Trait = {
-  name: 'Leaf', scope: 'instance', linkedEntity: 'Item',
+  name: 'Leaf', linkedEntity: 'Item',
   config: { content: { type: 'string', default: '@callsitePayload.label' } },
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [],
     transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'button', label: '@config.content' }]] }] },

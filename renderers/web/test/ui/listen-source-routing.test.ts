@@ -42,7 +42,6 @@ function gatewayOrbitals(): OrbitalSchema['orbitals'] {
     traits: [
       {
         name: 'RouteCatalog',
-        scope: 'instance' as const,
         linkedEntity: 'Route',
         stateMachine: {
           states: [{ name: 'browsing', isInitial: true }],
@@ -52,7 +51,6 @@ function gatewayOrbitals(): OrbitalSchema['orbitals'] {
       },
       {
         name: 'RouteCreate',
-        scope: 'instance' as const,
         linkedEntity: 'Route',
         listens: [{ event: 'CREATE', source: { kind: 'trait', trait: 'RouteCatalog' }, triggers: 'CREATE' }],
         stateMachine: {
@@ -143,13 +141,11 @@ describe('listen-source bus routing — the emitter declares the event', () => {
       traits: [
         {
           name: 'ContactCreate',
-          scope: 'instance' as const,
           linkedEntity: 'Contact',
           stateMachine: { states: formStates.map((name, i) => ({ name, isInitial: i === 0 })), events: [], transitions: [{ ...formArm, effects: [] }] },
         },
         {
           name: 'ContactPersistor',
-          scope: 'instance' as const,
           linkedEntity: 'Contact',
           listens,
           stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [{ from: 'idle', to: 'idle', event: 'DO_CREATE', effects: [['set', '@entity.created', ['+', '@entity.created', 1]]] }] },

@@ -12,7 +12,6 @@ const WITH_INIT = ['Header', 'Detail', 'Sidebar'];
 function orbitals(): OrbitalSchema['orbitals'] {
   const mk = (name: string): Trait => ({
     name,
-    scope: 'instance' as const,
     linkedEntity: 'Item',
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }],

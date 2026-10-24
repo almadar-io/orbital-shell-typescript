@@ -43,7 +43,6 @@ const schema: OrbitalSchema = {
       traits: [
         {
           name: 'TaskList',
-          scope: 'collection',
           linkedEntity: 'Task',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }, { name: 'loaded' }],
@@ -260,7 +259,6 @@ function styledSchema(className: string | ['concat', string, string]): OrbitalSc
         traits: [
           {
             name: 'TaskList',
-            scope: 'collection',
             linkedEntity: 'Task',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }, { name: 'loaded' }],
@@ -613,7 +611,6 @@ describe('OrbInspector — every prop is reachable', () => {
   const buttonSchema: OrbitalSchema = JSON.parse(JSON.stringify(schema));
   buttonSchema.orbitals[0].traits = [{
     name: 'TaskList',
-    scope: 'instance',
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }],
       events: [{ key: 'LOAD', name: 'Load' }],

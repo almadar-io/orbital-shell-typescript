@@ -4,7 +4,6 @@ import { schemaToSystemGraph, SYSTEM_CHIP } from '../avl-preview-converter';
 
 const trait = (name: string, emits: string[], listens: TraitEventListener[] = []): Trait => ({
   name,
-  scope: 'instance',
   emits: emits.map((event) => ({ event })),
   listens,
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },

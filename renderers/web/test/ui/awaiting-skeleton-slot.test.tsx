@@ -32,7 +32,6 @@ function schema(): OrbitalSchema {
         traits: [
           {
             name: 'ItemBrowse',
-            scope: 'instance',
             linkedEntity: 'Item',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }, { name: 'loaded' }],
@@ -54,7 +53,6 @@ function schema(): OrbitalSchema {
           },
           {
             name: 'ItemStats',
-            scope: 'instance',
             linkedEntity: 'Item',
             stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },
           },

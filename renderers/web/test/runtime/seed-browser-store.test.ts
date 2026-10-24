@@ -1,5 +1,5 @@
 /**
- * `seedBrowserStore` — the one seed rule for browser-stored entities (`[persistent: x, local]`): an EMPTY store gets the
+ * `seedBrowserStore` — the one seed rule for browser-stored entities (`[persistent: x, browser]`): an EMPTY store gets the
  * rows the native `std-mock-seed` program answers for the viewer's locale; rows the user already has are never
  * overwritten. The program is scripted here; the sampler is pinned by its own goldens.
  */
@@ -18,7 +18,7 @@ const fields = [
 ];
 
 function invoice(extra: Partial<OrbitalEntity>): OrbitalEntity {
-  return { name: 'Invoice', persistence: 'persistent', collection: 'invoices', local: true, fields, ...extra };
+  return { name: 'Invoice', persistence: 'persistent', collection: 'invoices', browser: true, fields, ...extra };
 }
 
 const journal = { viewerId: '', stamped: [], deferred: [] };
@@ -64,7 +64,7 @@ describe('seedBrowserStore', () => {
   it('control: server-stored entities are not seeded into the browser store', async () => {
     const store = writableRows();
     const { host, asked } = scripted([{ id: 'INV-1', client: 'x', amount: 1 }]);
-    await seedBrowserStore(store, [invoice({ local: false })], undefined, host);
+    await seedBrowserStore(store, [invoice({ browser: false })], undefined, host);
     expect(await store.list('Invoice')).toEqual([]);
     expect(asked).toEqual([]);
   });

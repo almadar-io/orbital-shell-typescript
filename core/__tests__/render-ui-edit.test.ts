@@ -40,7 +40,6 @@ function renderTransition(
 function trait(name: string, transitions: Transition[]): Trait {
   return {
     name,
-    scope: 'instance',
     stateMachine: {
       states: Array.from(new Set(transitions.map((t) => t.from))).map((name) => ({ name })),
       events: Array.from(new Set(transitions.map((t) => t.event))).map((key) => ({

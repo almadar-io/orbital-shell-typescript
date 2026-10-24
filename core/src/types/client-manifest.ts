@@ -1,5 +1,5 @@
 /**
- * What a server hands the program-independent web client at startup (`/client.json`), beside `program.client.json`:
+ * What a server hands the program-independent web client at startup (`/client.json`), beside `program.client.orb`:
  * the program's locale and text direction, its themes with the default theme and mode, and whether the kernel's
  * language data ships (`/language.json`). The TypeScript shell writes it for `orb compile` and `orb serve` alike.
  */

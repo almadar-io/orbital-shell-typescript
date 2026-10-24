@@ -560,7 +560,6 @@ describe('dedupeComposedSurface — FIX-M (@trait.<old> tokens rewritten on inli
     const sprint = orbitals[1]!;
     const inlineButton: Trait = {
       name: 'InlineButtonRender9',
-      scope: 'instance',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],
         events: [{ key: 'SELECT', name: 'Select' }],
@@ -747,7 +746,6 @@ describe('dedupeComposedIdentity — FIX-N (owner-relation retarget on identity 
         traits: [
           {
             name: 'TaskEditor',
-            scope: 'instance',
             stateMachine: {
               states: [{ name: 'editing', isInitial: true }],
               events: [{ key: 'SAVE', name: 'Save' }],
@@ -1185,7 +1183,6 @@ describe('dedupeComposedIdentity — a demoted identity\'s declared vocabulary j
 describe('dedupeComposedIdentity — FIX-L keeps a rewritten expectation true to what the orbital writes', () => {
   const presence = (persisted: boolean): Trait => ({
     name: 'OnlinePresence',
-    scope: 'instance',
     linkedEntity: 'OnlineUser',
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }],
@@ -1371,7 +1368,7 @@ describe('composeOrbitalSurface — organisms are namespaces', () => {
     }],
   });
   const organisms: Record<string, string> = { StaffOrbital: 'std-ats-recruiting', InterviewOrbital: 'std-ats-recruiting', HrPortalStaffOrbital: 'std-hr-portal', LeaveOrbital: 'std-hr-portal' };
-  const atomTraitOf = (_o: OrbitalDefinition, ref: string): Trait => ({ name: ref, scope: 'instance', entityRebindable: ref !== 'Fixed.traits.Board' });
+  const atomTraitOf = (_o: OrbitalDefinition, ref: string): Trait => ({ name: ref, entityRebindable: ref !== 'Fixed.traits.Board' });
   const app = (pinned = false): OrbitalSchema[] => [
     file('StaffOrbital', 'Staff', {}, 'staff'),
     file('InterviewOrbital', 'Interview'),
@@ -1407,8 +1404,8 @@ describe('composeOrbitalSurface — organisms are namespaces', () => {
 describe('composeOrbitalSurface — an atom\'s implicit entity cannot move, so a declared one yields', () => {
   const organisms: Record<string, string> = { MembershipOrbital: 'std-fitness-studio', SubscriptionOrbital: 'std-subscription-billing' };
   const atomTraitOf = (_o: OrbitalDefinition, ref: string): Trait | undefined => (ref === 'Billing.traits.SubscriptionPanel'
-    ? { name: 'SubscriptionPanel', scope: 'instance', linkedEntity: 'Subscription', entityRebindable: true }
-    : { name: ref, scope: 'instance', entityRebindable: true });
+    ? { name: 'SubscriptionPanel', linkedEntity: 'Subscription', entityRebindable: true }
+    : { name: ref, entityRebindable: true });
   const files = (explicit: boolean): OrbitalSchema[] => [
     { name: 'MembershipOrbital', version: '1.0.0', orbitals: [{ name: 'MembershipOrbital', entity: { name: 'Membership', persistence: 'persistent', fields: [{ name: 'id', type: 'string' }] }, auxiliaryEntities: [{ name: 'Subscription', persistence: 'persistent', fields: [{ name: 'id', type: 'string' }, { name: 'searchTerm', type: 'string' }] }], traits: [{ ref: 'AppSearch.traits.AppSearch', name: 'MembershipSearch', linkedEntity: 'Subscription' }], pages: [{ name: 'Memberships', path: '/memberships', traits: [] }] }] },
     { name: 'SubscriptionOrbital', version: '1.0.0', orbitals: [{ name: 'SubscriptionOrbital', entity: { name: 'Plan', persistence: 'persistent', fields: [{ name: 'id', type: 'string' }] }, traits: [{ ref: 'Billing.traits.SubscriptionPanel', name: 'Panel', ...(explicit ? { linkedEntity: 'Plan' } : {}) }], pages: [{ name: 'Plans', path: '/plans', traits: [] }] }] },
@@ -1429,7 +1426,7 @@ describe('composeOrbitalSurface — an atom\'s implicit entity cannot move, so a
 });
 
 describe('composeOrbitalSurface — renames reach references in sibling orbitals', () => {
-  const trait = (name: string, extra: Partial<Trait> = {}): Trait => ({ name, scope: 'instance', ...extra });
+  const trait = (name: string, extra: Partial<Trait> = {}): Trait => ({ name, ...extra });
   it('a renamed trait is renamed in every listen sourced from it, in any orbital', () => {
     const files: OrbitalDefinition[] = [
       { name: 'AlarmOrbital', entity: 'Alarm.entity', traits: [trait('AlertPersistor')], pages: [{ name: 'A', path: '/a', traits: [] }] },
@@ -1461,7 +1458,7 @@ describe('composeOrbitalSurface — renames reach references in sibling orbitals
 });
 
 describe('composeOrbitalSurface — a later organism\'s colliding routes move under its own path', () => {
-  const nav = (...targets: string[]): Trait => ({ name: 'Nav', scope: 'instance', stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [{ key: 'GO', name: 'Go' }], transitions: targets.map((t, i) => ({ from: 'idle', to: 'idle', event: 'GO', guard: ['=', i, i], effects: [['navigate', t]] })) } });
+  const nav = (...targets: string[]): Trait => ({ name: 'Nav', stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [{ key: 'GO', name: 'Go' }], transitions: targets.map((t, i) => ({ from: 'idle', to: 'idle', event: 'GO', guard: ['=', i, i], effects: [['navigate', t]] })) } });
   const files = (): OrbitalDefinition[] => [
     { name: 'CrmProjectOrbital', entity: 'CrmProject.entity', traits: [], pages: [{ name: 'CrmProjects', path: '/projects', traits: [] }, { name: 'CrmProject', path: '/projects/:id', traits: [] }] },
     { name: 'ProjectOrbital', entity: 'Project.entity', traits: [nav('/projects/@payload.id')], pages: [{ name: 'Projects', path: '/projects', traits: [] }, { name: 'Project', path: '/projects/:id', traits: [] }, { name: 'Team', path: '/projects/:id/team', traits: [] }, { name: 'Templates', path: '/project-templates', traits: [] }] },
@@ -1490,7 +1487,7 @@ describe('composeOrbitalSurface — a later organism\'s colliding routes move un
 
 describe('composeOrbitalSurface — two organisms bringing one atom\'s entity implicitly', () => {
   const organisms: Record<string, string> = { DeploymentOrbital: 'std-cicd', ExpenseOrbital: 'std-accounting' };
-  const atomTraitOf = (): Trait => ({ name: 'ApprovalGateReview', scope: 'instance', linkedEntity: 'ApprovalRequest', entityRebindable: true });
+  const atomTraitOf = (): Trait => ({ name: 'ApprovalGateReview', linkedEntity: 'ApprovalRequest', entityRebindable: true });
   // `typeArgs` is not declared on `TraitRef` (G-CORE-016): the fixture enters as parsed JSON, as a `.orb` does.
   const files = (secondArgs: Record<string, string>): OrbitalDefinition[] => JSON.parse(JSON.stringify([
     { name: 'DeploymentOrbital', entity: 'Deployment.entity', uses: [{ from: 'std/behaviors/std-approval-gate', as: 'Approval' }], traits: [{ ref: 'Approval.traits.ApprovalGateReview', name: 'DeploymentApproval', typeArgs: { p: 'Deployment' } }], pages: [{ name: 'D', path: '/d', traits: [] }] },

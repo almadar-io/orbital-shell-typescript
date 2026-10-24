@@ -16,7 +16,6 @@ const rows: EntityRow[] = [{ id: 't1', title: 'Pour' }, { id: 't2', title: 'Fram
 
 const feed: Trait = {
   name: 'Feed',
-  scope: 'instance',
   linkedEntity: 'Entry',
   stateMachine: {
     states: [{ name: 'loading', isInitial: true }, { name: 'browsing' }],
@@ -31,7 +30,6 @@ const feed: Trait = {
 
 const body: Trait = {
   name: 'Body',
-  scope: 'instance',
   linkedEntity: 'Entry',
   config: { rows: { type: 'unknown', default: '@callsitePayload.data' } },
   stateMachine: {

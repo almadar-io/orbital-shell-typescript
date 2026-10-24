@@ -1798,8 +1798,7 @@ mod system_timestamp_tests {
         OirEntity {
             shared: false,
             identity: false,
-            local: false,
-            seed_mock: false,
+            browser: false,
             id: None,
             name: "Revision".to_string(),
             description: None,
@@ -1883,8 +1882,7 @@ mod nested_named_type_import_tests {
         m.entities.push(OirEntity {
             shared: false,
             identity: false,
-            local: false,
-            seed_mock: false,
+            browser: false,
             id: None,
             name: "Draft".to_string(),
             description: None,
@@ -2136,7 +2134,7 @@ mod native_open_record_tests {
             assert!(barrel.contains("export * from './types/entities.js';"), "{barrel}");
             assert!(barrel.contains("export * from './schemas/entities.js';"), "{barrel}");
             assert!(barrel.contains("export { Contract, Second } from './schemas/entities.js';"), "{barrel}");
-            assert!(barrel.contains("export * from './program.js';"), "{barrel}");
+            assert!(!barrel.contains("./program.js"), "{barrel}");
             assert!(barrel.contains("export * from './dispatch.js';"), "{barrel}");
         }
     }

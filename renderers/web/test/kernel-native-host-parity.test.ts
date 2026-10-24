@@ -8,7 +8,7 @@ import { loadTestKernel } from '../src/test-support/kernel-engine.js';
 
 const schema = OrbitalSchemaSchema.parse({
   name: 'Parity',
-  orbitals: [{ name: 'Main', entity: { name: 'Job', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] }, traits: [{ name: 'Worker', linkedEntity: 'Job', scope: 'instance', stateMachine: {
+  orbitals: [{ name: 'Main', entity: { name: 'Job', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] }, traits: [{ name: 'Worker', linkedEntity: 'Job', stateMachine: {
     events: [{ key: 'GO', name: 'GO' }, { key: 'ASK', name: 'ASK' }, { key: 'FINISH', name: 'FINISH' }],
     states: [{ name: 'idle', isInitial: true }, { name: 'busy' }, { name: 'done' }],
     transitions: [

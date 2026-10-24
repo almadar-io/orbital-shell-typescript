@@ -141,7 +141,7 @@ function TraitInitializer({ traits, routeParams, mountKey, orbitals, onNavigate,
    * when `autoMock` is active and no `serverUrl`/`transport` is supplied.
    */
   persistence?: PersistenceAdapter;
-  /** The browser store for `[persistent: x, local]` entities. */
+  /** The browser store for `[persistent: x, browser]` entities. */
   browserStore?: PersistenceAdapter;
   /**
    * Set of trait names referenced via `@trait.X` by some sibling layout

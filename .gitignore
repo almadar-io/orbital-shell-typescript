@@ -1,4 +1,4 @@
 /target
 node_modules/
 /templates/almadar-web-client/
-/renderers/*/dist/
+dist/

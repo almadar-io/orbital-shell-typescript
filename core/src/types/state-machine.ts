@@ -239,13 +239,13 @@ export type Event = {
    */
   payloadEntity?: string;
   /**
-   * A declared external input (`listens { EVENT -> external { … } }`): a client
+   * A declared input (`listens { EVENT -> input { … } }`): a client
    * outside the program (an API, an agent, an MCP client) may send this event to
-   * the trait. Absent = not an input. Mirrors Rust `EventDefinition.external`.
+   * the trait. Absent = not an input. Mirrors Rust `EventDefinition.input`.
    */
-  external?: boolean;
+  input?: boolean;
   /**
-   * Declared in the trait's own `listens { EVENT … }` block (the local form, external or
+   * Declared in the trait's own `listens { EVENT … }` block (the local form, input or
    * not): an input the author offers to the program. Absent = not declared there.
    * Mirrors Rust `EventDefinition.listened`.
    */
@@ -272,7 +272,7 @@ export const EventSchema = z.object({
   tier: z.string().optional(),
   payloadSchema: z.array(PayloadFieldSchema).optional(),
   payloadEntity: z.string().optional(),
-  external: z.boolean().optional(),
+  input: z.boolean().optional(),
   listened: z.boolean().optional(),
   inbound: InboundDeclarationSchema.optional(),
   classification: z.enum(["domain", "system"]).optional(),

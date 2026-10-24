@@ -132,7 +132,6 @@ export interface MakeLayoutTraitOpts {
  * Build the canonical stateless LayoutTrait used by std layout-shell molecules.
  *
  * Result shape:
- * - `category: 'interaction'`, `scope: 'instance'`
  * - `linkedEntity` set per the option
  * - `emits` declares the loaded + loadFailed events when `fetchEntity` is set
  * - One state: `'composing'` (`isInitial: true`)
@@ -202,9 +201,7 @@ export function makeLayoutTrait(opts: MakeLayoutTraitOpts): Trait {
   const trait: Trait = {
     name: opts.name,
     ...(opts.description ? { description: opts.description } : {}),
-    category: 'interaction',
     linkedEntity: opts.linkedEntity,
-    scope: 'instance',
     ...(emits.length > 0 ? { emits } : {}),
     stateMachine: {
       states: [{ name: 'composing', isInitial: true }],

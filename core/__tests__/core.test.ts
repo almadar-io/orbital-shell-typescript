@@ -5,6 +5,9 @@ import {
     EntitySchema,
     OrbitalSchemaSchema,
     PageSchema,
+    isRoutePage,
+    protocolName,
+    ProtocolSpecSchema,
     FieldSchema,
     StateMachineSchema,
     EffectSchema,
@@ -42,7 +45,7 @@ import {
 const VALID_ORBITAL = {
     name: 'UserOrbital',
     entity: { name: 'User', fields: [{ name: 'name', type: 'string' }] },
-    traits: [{ name: 'user-lifecycle', scope: 'instance' }],
+    traits: [{ name: 'user-lifecycle' }],
     pages: [{ name: 'UserList', path: '/users' }],
 };
 
@@ -234,7 +237,7 @@ describe('StateMachineSchema', () => {
 
 describe('TraitSchema', () => {
     it('parses a minimal trait', () => {
-        const trait = { name: 'my-trait', scope: 'instance' };
+        const trait = { name: 'my-trait' };
         const result = TraitSchema.safeParse(trait);
         expect(result.success).toBe(true);
     });
@@ -242,8 +245,6 @@ describe('TraitSchema', () => {
     it('parses a trait with full state machine', () => {
         const trait = {
             name: 'lifecycle',
-            category: 'lifecycle',
-            scope: 'instance',
             linkedEntity: 'User',
             stateMachine: {
                 states: [{ name: 'idle' }, { name: 'loading' }],
@@ -268,6 +269,22 @@ describe('TraitSchema', () => {
         const result = TraitSchema.safeParse({});
         expect(result.success).toBe(false);
     });
+
+    it('keeps the dispatch mode', () => {
+        for (const dispatch of ['client', 'optimistic'] as const) {
+            const result = TraitSchema.safeParse({ name: 'T', dispatch });
+            expect(result.success && result.data.dispatch).toBe(dispatch);
+        }
+    });
+
+    it('control: an undeclared dispatch stays absent (server)', () => {
+        const result = TraitSchema.safeParse({ name: 'T' });
+        expect(result.success && result.data.dispatch).toBeUndefined();
+    });
+
+    it('rejects a retired dispatch spelling', () => {
+        expect(TraitSchema.safeParse({ name: 'T', dispatch: 'persistedAwaited' }).success).toBe(false);
+    });
 });
 
 // ============================================================================
@@ -284,7 +301,7 @@ describe('TraitRefSchema', () => {
     });
 
     it('accepts an inline trait', () => {
-        expect(TraitRefSchema.safeParse({ name: 'inline-trait', scope: 'instance' }).success).toBe(true);
+        expect(TraitRefSchema.safeParse({ name: 'inline-trait' }).success).toBe(true);
     });
 
     it('rejects empty string', () => {
@@ -298,7 +315,7 @@ describe('TraitRefSchema', () => {
 
 describe('Trait helpers', () => {
     it('isInlineTrait identifies inline traits', () => {
-        expect(isInlineTrait({ name: 'my-trait', scope: 'instance' })).toBe(true);
+        expect(isInlineTrait({ name: 'my-trait' })).toBe(true);
         expect(isInlineTrait({ ref: 'my-trait' })).toBe(false);
         expect(isInlineTrait('my-trait')).toBe(false);
     });
@@ -306,13 +323,13 @@ describe('Trait helpers', () => {
     it('getTraitName extracts name from all ref forms', () => {
         expect(getTraitName('ListBehavior')).toBe('ListBehavior');
         expect(getTraitName({ ref: 'ListBehavior' })).toBe('ListBehavior');
-        expect(getTraitName({ name: 'InlineTrait', scope: 'instance' })).toBe('InlineTrait');
+        expect(getTraitName({ name: 'InlineTrait' })).toBe('InlineTrait');
     });
 
     it('normalizeTraitRef converts all forms to object', () => {
         expect(normalizeTraitRef('List')).toEqual({ ref: 'List' });
         expect(normalizeTraitRef({ ref: 'List', config: { x: 1 } })).toEqual({ ref: 'List', config: { x: 1 } });
-        expect(normalizeTraitRef({ name: 'Inline', scope: 'instance' })).toEqual({ ref: 'Inline' });
+        expect(normalizeTraitRef({ name: 'Inline' })).toEqual({ ref: 'Inline' });
     });
 });
 
@@ -415,6 +432,51 @@ describe('PageSchema', () => {
         };
         const result = PageSchema.safeParse(page);
         expect(result.success).toBe(false);
+    });
+
+    it('parses a protocol page with an empty path and an address', () => {
+        const page = {
+            name: 'Api',
+            path: '',
+            protocol: 'http',
+            address: ['object', ['host', '@config.host'], ['port', 8080]],
+            traits: [{ ref: 'Http1' }],
+        };
+        const result = PageSchema.safeParse(page);
+        expect(result.success).toBe(true);
+        expect(isRoutePage(page)).toBe(false);
+        expect(protocolName(page)).toBe('http');
+    });
+
+    it('parses a protocol page with no address', () => {
+        expect(PageSchema.safeParse({ name: 'Mcp', path: '', protocol: 'stdio' }).success).toBe(true);
+    });
+
+    it('control: a route page is a route and has no protocol', () => {
+        const page = { name: 'Dash', path: '/dash' };
+        expect(isRoutePage(page)).toBe(true);
+        expect(protocolName(page)).toBe('route');
+    });
+
+    it('rejects a protocol page that also carries a route path', () => {
+        expect(PageSchema.safeParse({ name: 'Api', path: '/x', protocol: 'http' }).success).toBe(false);
+    });
+
+    it('rejects a route page with an empty path, a bad path, or an address', () => {
+        expect(PageSchema.safeParse({ name: 'A', path: '' }).success).toBe(false);
+        expect(PageSchema.safeParse({ name: 'A', path: 'dash' }).success).toBe(false);
+        expect(PageSchema.safeParse({ name: 'A', path: '/a', address: ['object'] }).success).toBe(false);
+    });
+});
+
+describe('ProtocolSpecSchema', () => {
+    it('reads a protocol table row', () => {
+        const row = { name: 'http', address: [{ name: 'host', ty: 'string', required: true }], viewer: false, grant: 'NetListen', side: 'server' };
+        expect(ProtocolSpecSchema.safeParse(row).success).toBe(true);
+    });
+
+    it('rejects an unknown side', () => {
+        expect(ProtocolSpecSchema.safeParse({ name: 'x', viewer: false, side: 'cloud' }).success).toBe(false);
     });
 });
 

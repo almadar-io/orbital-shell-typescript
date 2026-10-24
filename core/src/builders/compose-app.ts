@@ -11,7 +11,7 @@
 import { mergeExpectationShape } from '../expectation-shape.js';
 import type { DeclaredTraitConfig, Entity, EntityField, ExpectDeclaration, IdentityLedger, JsonObject, JsonValue, OrbitalDefinition, OrbitalSchema, Trait, TraitConfigValue } from '../types/index.js';
 import { entityRenameBlockers, renameEntity, renameEntityInSchema, type EntityRenameBlocker } from './rename-entity.js';
-import { isEntityReferenceAny, isJsonObject, isPageReference, ledgerRename, unionOsGrants } from '../types/index.js';
+import { isEntityReferenceAny, isJsonObject, isPageReference, isRoutePage, ledgerRename, unionOsGrants } from '../types/index.js';
 import { rewriteTraitRefsInTree } from '../factory-runtime/apply-params-to-orb.js';
 import { collectOrbitalForwardedConfigKeys, navItemHref, unionOrganismConfigs } from '../embedded-trait-config.js';
 import { humanizeKey } from '../factory/questions/generate.js';
@@ -814,7 +814,7 @@ function importedPagePaths(
   if (upstream === undefined) return [];
   const upstreamPaths: string[] = [];
   for (const page of upstream.pages ?? []) {
-    if (!isPageReference(page) && typeof page.path === 'string') upstreamPaths.push(page.path);
+    if (!isPageReference(page) && isRoutePage(page) && typeof page.path === 'string') upstreamPaths.push(page.path);
   }
   upstreamPaths.push(...importedPagePaths(upstream, importedOrbitalOf, seen));
   const omitted = new Set(reference.omit ?? []);
@@ -920,7 +920,7 @@ function collectLinkedPaths(node: unknown, out: Set<string>): void {
 /** An orbital's first inline page (a reference names no path of its own). */
 function firstInlinePage(orbital: OrbitalDefinition): { name: string; path: string } | undefined {
   for (const page of orbital.pages ?? []) {
-    if (isPageReference(page)) continue;
+    if (isPageReference(page) || !isRoutePage(page)) continue;
     if (typeof page.path === 'string' && typeof page.name === 'string') return { name: page.name, path: page.path };
   }
   return undefined;
@@ -955,7 +955,7 @@ function linkLandingPages(
   const ownerIndex = new Map<string, number>();
   orbitals.forEach((orbital, i) => {
     for (const page of orbital.pages ?? []) {
-      if (!isPageReference(page) && typeof page.path === 'string' && !ownerIndex.has(page.path)) ownerIndex.set(page.path, i);
+      if (!isPageReference(page) && isRoutePage(page) && typeof page.path === 'string' && !ownerIndex.has(page.path)) ownerIndex.set(page.path, i);
     }
   });
   const indexOf = (entry: TraitConfigValue): number => {
@@ -1325,7 +1325,7 @@ export function composeOrbitalSurface(
     for (const o of orbitals) {
       if (!ownNames.has(o.name)) continue;
       for (const page of o.pages ?? []) {
-        if (!isPageReference(page) && typeof page.path === 'string') ownPaths.add(page.path);
+        if (!isPageReference(page) && isRoutePage(page) && typeof page.path === 'string') ownPaths.add(page.path);
       }
     }
     let config = file.config;

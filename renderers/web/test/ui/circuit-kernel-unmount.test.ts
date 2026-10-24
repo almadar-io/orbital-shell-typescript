@@ -12,7 +12,6 @@ import type { KernelEngineValue } from '../../src/providers/KernelEngineContext'
 function trait(name: string): OrbitalSchema['orbitals'][number]['traits'][number] {
   return {
     name,
-    scope: 'instance',
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }],
       events: [],

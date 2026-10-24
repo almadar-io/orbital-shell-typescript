@@ -22,7 +22,7 @@ const schema = (name: string): OrbitalSchema => JSON.parse(JSON.stringify({
     name: 'Books',
     entity: { name: 'Invoice', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }] },
     traits: [{
-      name: 'Greeter', scope: 'instance', linkedEntity: 'Invoice',
+      name: 'Greeter', linkedEntity: 'Invoice',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],
         events: [],
@@ -56,17 +56,17 @@ const board = (name: string): OrbitalSchema => JSON.parse(JSON.stringify({
   orbitals: [{
     name: 'Board',
     entity: {
-      name: 'Task', persistence: 'persistent', collection: 'tasks', local: true,
+      name: 'Task', persistence: 'persistent', collection: 'tasks', browser: true,
       fields: [{ name: 'id', type: 'string', required: true }, { name: 'title', type: 'string' }, { name: 'owner', type: 'relation', relation: { entity: 'Person' } }],
       instances: [{ id: 't-1', title: 'Write the brief', owner: 'p-1' }],
     },
     auxiliaryEntities: [{
-      name: 'Person', persistence: 'persistent', collection: 'people', local: true,
+      name: 'Person', persistence: 'persistent', collection: 'people', browser: true,
       fields: [{ name: 'id', type: 'string', required: true }, { name: 'name', type: 'string' }],
       instances: [{ id: 'p-1', name: 'Maja' }],
     }],
     traits: [{
-      name: 'TaskGrid', scope: 'collection', linkedEntity: 'Task',
+      name: 'TaskGrid', linkedEntity: 'Task',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],
         events: [{ key: 'LOADED', name: 'LOADED', payloadSchema: [{ name: 'data', type: 'array' }] }],
@@ -105,7 +105,7 @@ const greeting = (name: string): OrbitalSchema => JSON.parse(JSON.stringify({
     name: 'Site',
     entity: { name: 'SiteView', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }] },
     traits: [{
-      name: 'Hero', scope: 'instance', linkedEntity: 'SiteView',
+      name: 'Hero', linkedEntity: 'SiteView',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],
         events: [],

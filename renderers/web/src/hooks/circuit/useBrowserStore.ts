@@ -1,5 +1,5 @@
 /**
- * Opens and seeds the browser store for a program's `[persistent: x, local]`
+ * Opens and seeds the browser store for a program's `[persistent: x, browser]`
  * entities, one database per app and viewer locale. `none` when the program declares none; a failure to open is a state
  * the host shows, never a silent fallback to another store.
  */

@@ -14,7 +14,7 @@
  * win; the IR only fills gaps.
  */
 
-import type { TraitRef } from '@almadar/core';
+import { isRoutePage, type TraitRef } from '@almadar/core';
 
 export interface ResolvedPageTraits {
   /** Page route path, matched against the source orbital's page paths. */
@@ -66,7 +66,7 @@ export function buildOrbitalsByTrait(
       if (traitName) map[traitName] = orb.name;
     }
     for (const pg of orb.pages ?? []) {
-      const path = typeof pg === 'string' ? pg : pg?.path;
+      const path = typeof pg === 'string' ? pg : isRoutePage(pg) ? pg.path : undefined;
       if (path) pagePathToOrbital[path] = orb.name;
     }
   }

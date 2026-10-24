@@ -7,7 +7,6 @@ import { JazariStateMachine } from '../JazariStateMachine';
 
 const trait: Trait = {
   name: 'DoorTrait',
-  scope: 'instance',
   stateMachine: {
     events: [{ key: 'OPEN', name: 'Open' }, { key: 'DONE', name: 'Done' }],
     states: [
@@ -46,7 +45,7 @@ describe('JazariStateMachine renders through the AVL state machine as gears', ()
   });
 
   it('shows the empty state when there is no state machine (control)', () => {
-    render(<JazariStateMachine trait={{ name: 'Empty', scope: 'instance' }} />);
+    render(<JazariStateMachine trait={{ name: 'Empty' }} />);
     expect(screen.queryAllByTestId('avl-sm-state')).toHaveLength(0);
   });
 });

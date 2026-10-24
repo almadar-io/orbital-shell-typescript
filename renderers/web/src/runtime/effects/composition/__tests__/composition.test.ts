@@ -24,8 +24,6 @@ function makeTrait(name: string, linkedEntity = 'TestEntity'): Trait {
     return {
         name,
         linkedEntity,
-        category: 'interaction',
-        scope: 'instance',
     };
 }
 

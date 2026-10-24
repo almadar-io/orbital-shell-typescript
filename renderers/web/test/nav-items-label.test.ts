@@ -29,3 +29,13 @@ describe('@pages nav entries', () => {
     expect(items[0].label).toBe('Home');
   });
 });
+
+describe('@pages nav entries skip protocol pages', () => {
+  it('a protocol page with a label is not a nav entry', () => {
+    expect(inlineNavItems([{ name: 'Api', path: '', protocol: 'http', label: 'Api' }])).toEqual([]);
+  });
+
+  it('control: a route page next to it still is', () => {
+    expect(inlineNavItems([{ name: 'Api', path: '', protocol: 'http', label: 'Api' }, { name: 'Home', path: '/', label: 'Home' }]).map((i) => i.href)).toEqual(['/']);
+  });
+});

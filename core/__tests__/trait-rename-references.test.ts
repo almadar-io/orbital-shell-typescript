@@ -34,7 +34,6 @@ function dashboardSchema(): OrbitalSchema {
           {
             name: 'DashboardLayout',
             id: asTraitId('trt_layout'),
-            scope: 'instance',
             linkedEntity: 'Revenue',
             config: {
               tile2Trait: { type: 'trait', default: '@trait.DefaultRevenueChart', refId: CHART_ID },

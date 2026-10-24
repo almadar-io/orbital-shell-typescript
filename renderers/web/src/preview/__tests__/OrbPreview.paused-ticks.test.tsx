@@ -20,7 +20,7 @@ function ticking(): OrbitalSchema {
       name: 'Lab',
       entity: { name: 'Counter', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'n', type: 'number', default: 0 }] },
       traits: [{
-        name: 'Clock', linkedEntity: 'Counter', category: 'interaction', scope: 'instance',
+        name: 'Clock', linkedEntity: 'Counter',
         stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [{ key: 'INIT', name: 'INIT' }], transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [show] }] },
         ticks: [{ name: 'count', interval: 30, effects: [['set', '@entity.n', ['+', '@entity.n', 1]], show] }],
       }],

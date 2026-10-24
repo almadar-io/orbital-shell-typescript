@@ -20,7 +20,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import type { OrbitalSchema, OrbitalPage, Orbital, FieldValue } from '@almadar/core';
-import { matchPath, comparePathSpecificity, matchPathAmong, defaultPage } from '@almadar/core';
+import { matchPath, comparePathSpecificity, matchPathAmong, defaultPage, isRoutePage } from '@almadar/core';
 
 export { matchPath, comparePathSpecificity, matchPathAmong };
 import { createLogger } from '@almadar/logger';
@@ -89,7 +89,7 @@ export function findPageByPath(
         if (!orbital.pages) continue;
 
         for (const pageRef of orbital.pages) {
-            if (!isInlinePage(pageRef)) continue;
+            if (!isInlinePage(pageRef) || !isRoutePage(pageRef)) continue;
             candidates.push({ page: pageRef, orbitalName: orbital.name });
         }
     }
@@ -118,7 +118,7 @@ export function findPageByName(
         if (!orbital.pages) continue;
 
         for (const pageRef of orbital.pages) {
-            if (!isInlinePage(pageRef)) continue;
+            if (!isInlinePage(pageRef) || !isRoutePage(pageRef)) continue;
             const page = pageRef;
 
             if (page.name === pageName) {
@@ -154,7 +154,7 @@ export function getAllPages(
         if (!orbital.pages) continue;
 
         for (const pageRef of orbital.pages) {
-            if (isInlinePage(pageRef)) {
+            if (isInlinePage(pageRef) && isRoutePage(pageRef)) {
                 pages.push({ page: pageRef, orbitalName: orbital.name });
             }
         }

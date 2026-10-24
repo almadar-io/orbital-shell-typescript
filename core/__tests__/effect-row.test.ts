@@ -12,7 +12,6 @@ describe('trait effectRow', () => {
   const traitWith = (effectRow?: unknown) => ({
     name: 'BoardPlay',
     linkedEntity: 'Board',
-    scope: 'instance' as const,
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }],
       events: [{ key: 'INIT', name: 'INIT' }],

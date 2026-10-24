@@ -1,5 +1,5 @@
 /**
- * The browser store of a program's `[persistent: x, local]` entities, opened and
+ * The browser store of a program's `[persistent: x, browser]` entities, opened and
  * seeded once, and the in-process transport its legs run through. The runtime
  * host (`useBrowserStore`) and compiled static clients both open it here.
  */

@@ -16,7 +16,6 @@ const guarded = (guard: SExpr, entityFields: EntityField[] = [{ name: 'id', type
   traits: [
     {
       name: 'PieceRules',
-      scope: 'instance',
       linkedEntity: 'Piece',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],

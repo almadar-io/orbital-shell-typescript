@@ -21,6 +21,7 @@ import type {
   SemanticSchemaChange,
 } from './types/changeset.js';
 import { isInlineTrait } from './types/trait.js';
+import { isRoutePage, protocolName } from './types/page.js';
 
 // ============================================================================
 // Schema Diffing
@@ -361,7 +362,8 @@ function inlinePageMap(refs: PageRef[]): Map<string, Page> {
     if (typeof r === 'string') continue;
     if ('ref' in r && !('name' in r)) continue;
     const page = r as Page;
-    if (page.path) map.set(page.path, page);
+    if (!isRoutePage(page)) map.set(`${protocolName(page)}:${page.name}`, page);
+    else if (page.path) map.set(page.path, page);
   }
   return map;
 }

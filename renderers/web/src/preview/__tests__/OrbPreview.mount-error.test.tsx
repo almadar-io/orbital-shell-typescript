@@ -10,7 +10,7 @@ import { TRAIT_MOUNT_ERROR_TESTID, type OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
 
 const footer = {
-  name: 'Footer', scope: 'instance', linkedEntity: 'Item',
+  name: 'Footer', linkedEntity: 'Item',
   stateMachine: {
     states: [{ name: 'idle', isInitial: true }], events: [],
     transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'typography', content: 'footer' }]] }],
@@ -26,7 +26,6 @@ function schemaWith(items: string | string[]): OrbitalSchema {
       entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       traits: [{
         name: 'Layout',
-        scope: 'instance',
         linkedEntity: 'Item',
         stateMachine: {
           states: [{ name: 'idle', isInitial: true }],

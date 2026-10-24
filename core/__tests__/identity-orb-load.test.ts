@@ -35,7 +35,6 @@ describe('V4 zod activation — dual-carry id fields survive parse', () => {
     const parsed = TraitSchema.parse({
       id: TRT,
       name: 'CartBrowse',
-      scope: 'collection',
       linkedEntity: 'Cart',
       linkedEntityId: ENT,
     });
@@ -123,7 +122,7 @@ describe('V4 zod activation — dual-carry id fields survive parse', () => {
   });
 
   it('rejects a prefix-mismatched id', () => {
-    const bad = TraitSchema.safeParse({ id: ENT, name: 'X', scope: 'instance' });
+    const bad = TraitSchema.safeParse({ id: ENT, name: 'X' });
     expect(bad.success).toBe(false);
   });
 });
@@ -156,7 +155,6 @@ describe('V4 zod activation — full id-carrying .orb round-trips through the lo
           {
             id: TRT,
             name: 'CartBrowse',
-            scope: 'collection',
             linkedEntity: 'Cart',
             linkedEntityId: ENT,
             stateMachine: {

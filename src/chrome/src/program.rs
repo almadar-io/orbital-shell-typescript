@@ -88,12 +88,12 @@ pub fn check_program(
         let orbital_name = string(orbital, "name");
         if let Some(entity) = orbital.get("entity") {
             if string(entity, "persistence") == "persistent"
-                && entity.get("local") != Some(&Value::Bool(true))
+                && entity.get("browser") != Some(&Value::Bool(true))
             {
                 errors.push(ProgramError {
                     code: "ORB_SHELL_SERVER_ENTITY_UNSUPPORTED",
                     message: format!(
-                        "{}.{} is a server-stored entity; a chrome extension has no server. Declare it `[persistent: …, local]` or `[runtime]`.",
+                        "{}.{} is a server-stored entity; a chrome extension has no server. Declare it `[persistent: …, browser]` or `[runtime]`.",
                         orbital_name,
                         string(entity, "name")
                     ),
@@ -273,7 +273,7 @@ mod tests {
     }
 
     fn local_entity() -> Value {
-        json!({ "name": "Item", "persistence": "persistent", "local": true })
+        json!({ "name": "Item", "persistence": "persistent", "browser": true })
     }
 
     fn trait_with(effects: Value, config: Value) -> Value {

@@ -38,7 +38,6 @@ export function writeHeavySchema(): OrbitalSchema {
       entity: { name: 'Item', persistence: 'persistent', collection: 'items', fields: [{ name: 'id', type: 'string', primaryKey: true }, { name: 'n', type: 'number' }] },
       traits: [{
         name: TRAIT,
-        scope: 'instance',
         linkedEntity: 'Item',
         stateMachine: {
           states: [{ name: 'idle', isInitial: true }],

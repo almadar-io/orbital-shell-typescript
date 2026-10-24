@@ -28,7 +28,6 @@ function mountedSchema(): OrbitalSchema {
         traits: [
           {
             name: 'MountedGreet',
-            scope: 'instance',
             linkedEntity: 'MountedGreeting',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }, { name: 'shown' }],

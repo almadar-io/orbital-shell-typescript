@@ -840,7 +840,7 @@
       {
         "name": "local",
         "type": "bool",
-        "doc": "`local` header tag — `[persistent: x, local]`: the rows live in the browser."
+        "doc": "`local` header tag — `[persistent: x, browser]`: the rows live in the browser."
       },
       {
         "name": "seed_mock",

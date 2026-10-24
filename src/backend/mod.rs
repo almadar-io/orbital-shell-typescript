@@ -5,9 +5,8 @@
 //! Output structure matches KFlow shell convention:
 //! - packages/shared/src/types/entities.ts - Entity interfaces
 //! - packages/shared/src/schemas/entities.ts - Zod schemas
-//! - packages/shared/src/program.json - the resolved program the embedded kernel runs
-//! - packages/client - the web client around `@almadar/kernel`; packages/server - the Node host running
-//!   `generated/program.json` (the app composed with `std-http-server`) on the native kernel add-on (`kernel/kernel.node`)
+//! - packages/client - the web client around `@almadar/kernel`, fetching `public/program.client.orb`; packages/server - the Node host running
+//!   `generated/program.orb` (the app composed with `std-http-server`) on the native kernel add-on (`kernel/kernel.node`)
 
 pub(crate) use orbital_core_base::generate::{Backend, GeneratedFile, GeneratedOutput};
 pub(crate) use orbital_core_base::ir::{
@@ -135,7 +134,7 @@ impl TypeScriptBackend {
         files.push(self.generate_shared_event_types(module));
         files.push(self.generate_shared_trait_configs(module));
         files.push(self.generate_shared_index_kernel(&module.named_types));
-        files.extend(self.generate_kernel_program());
+        files.extend(self.generate_shared_dispatch());
         files.push(self.generate_shared_package_json());
 
         if self.target == "client" || self.target == "full" {
@@ -391,8 +390,7 @@ mod tests {
         let entities = vec![OirEntity {
             shared: false,
             identity: false,
-            local: false,
-            seed_mock: false,
+            browser: false,
             id: None,
             name: "User".to_string(),
             description: Some("Represents a user account".to_string()),
@@ -431,8 +429,7 @@ mod tests {
         let entities = vec![OirEntity {
             shared: false,
             identity: false,
-            local: false,
-            seed_mock: false,
+            browser: false,
             id: None,
             name: "User".to_string(),
             description: None,
@@ -500,8 +497,7 @@ mod tests {
         let entities = vec![OirEntity {
             shared: false,
             identity: false,
-            local: false,
-            seed_mock: false,
+            browser: false,
             id: None,
             name: "ServiceEmail".to_string(),
             description: None,
@@ -541,8 +537,7 @@ mod tests {
         let entities = vec![OirEntity {
             shared: false,
             identity: false,
-            local: false,
-            seed_mock: false,
+            browser: false,
             id: None,
             name: "Task".to_string(),
             description: None,
@@ -575,8 +570,7 @@ mod tests {
         let entities = vec![OirEntity {
             shared: false,
             identity: false,
-            local: false,
-            seed_mock: false,
+            browser: false,
             id: None,
             name: "Task".to_string(),
             description: None,

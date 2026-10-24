@@ -28,7 +28,6 @@ function schema(): OrbitalSchema {
       entity: { name: 'Note', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       traits: [{
         name: 'Notifier',
-        scope: 'instance',
         linkedEntity: 'Note',
         stateMachine: {
           states: [{ name: 'idle', isInitial: true }],

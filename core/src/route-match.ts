@@ -1,4 +1,4 @@
-import { isPageReference, type OrbitalSchema, type Page } from './types/index.js';
+import { isPageReference, isRoutePage, type OrbitalSchema, type Page } from './types/index.js';
 /**
  * Route matching — the one resolver from a concrete path to a declared page
  * pattern (`/appointments/:id`), shared by the UI router, the verifiers and
@@ -119,7 +119,7 @@ export function defaultPage(schema: OrbitalSchema): { page: Page; orbitalName: s
   let first: { page: Page; orbitalName: string } | null = null;
   for (const orbital of schema.orbitals) {
     for (const page of orbital.pages ?? []) {
-      if (isPageReference(page)) continue;
+      if (isPageReference(page) || !isRoutePage(page)) continue;
       if (page.isInitial === true) return { page, orbitalName: orbital.name };
       first ??= { page, orbitalName: orbital.name };
     }

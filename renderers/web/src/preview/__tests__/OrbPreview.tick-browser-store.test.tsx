@@ -20,12 +20,12 @@ function schema(name: string, ticks: TraitTick[]): OrbitalSchema {
     orbitals: [{
       name: 'Books',
       entity: {
-        name: 'Invoice', persistence: 'persistent', collection: 'invoices', local: true,
+        name: 'Invoice', persistence: 'persistent', collection: 'invoices', browser: true,
         fields: [{ name: 'id', type: 'string', required: true }, { name: 'client', type: 'string' }],
         instances: [{ id: 'INV-1042', client: 'Noor Logistics' }],
       },
       traits: [{
-        name: 'InvoiceList', scope: 'collection', linkedEntity: 'Invoice',
+        name: 'InvoiceList', linkedEntity: 'Invoice',
         stateMachine: {
           states: [{ name: 'loading', isInitial: true }, { name: 'browsing' }],
           events: [],

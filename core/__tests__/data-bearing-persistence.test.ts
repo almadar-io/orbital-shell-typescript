@@ -9,7 +9,7 @@ const orbital = (effects: SExpr[]): OrbitalDefinition => parseOrbitalSchema({
   orbitals: [{
     name: 'RecipeOrbital',
     entity: { name: 'BrowseItem', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }] },
-    traits: [{ name: 'Browse', linkedEntity: 'BrowseItem', category: 'interaction', scope: 'instance', stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [{ key: 'INIT', name: 'INIT' }], transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects }] } }],
+    traits: [{ name: 'Browse', linkedEntity: 'BrowseItem', stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [{ key: 'INIT', name: 'INIT' }], transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects }] } }],
     pages: [],
   }],
 }).orbitals[0]!;

@@ -6,7 +6,6 @@ import { flowNeighbors, traitFlowCanvas, traitFlowGraph } from '../avl-trait-flo
 const listen = (event: string, trait: string): TraitEventListener => ({ event, triggers: event, source: { kind: 'trait', trait } });
 const trait = (name: string, o: Partial<Trait> = {}): Trait => ({
   name,
-  scope: 'instance',
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },
   ...o,
 });

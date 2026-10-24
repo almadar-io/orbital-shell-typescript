@@ -29,7 +29,6 @@ function schema(action: Record<string, string>): OrbitalSchema {
         traits: [
           {
             name: 'Home',
-            scope: 'instance',
             linkedEntity: 'Item',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],
@@ -41,7 +40,6 @@ function schema(action: Record<string, string>): OrbitalSchema {
           },
           {
             name: 'Start',
-            scope: 'instance',
             linkedEntity: 'Item',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],

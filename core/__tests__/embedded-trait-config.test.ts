@@ -3,7 +3,7 @@ import { collectForwardedConfigKeys, traitDeclaresConfigForward } from '../src/e
 import type { DeclaredTraitConfig, Trait } from '../src/types/index.js';
 
 describe('collectForwardedConfigKeys — nested reads', () => {
-  const trait = (config: DeclaredTraitConfig): Trait => ({ name: 'WeeklyStats', scope: 'instance', linkedEntity: 'Note', stateMachine: { states: [], events: [], transitions: [] }, config });
+  const trait = (config: DeclaredTraitConfig): Trait => ({ name: 'WeeklyStats', linkedEntity: 'Note', stateMachine: { states: [], events: [], transitions: [] }, config });
 
   it('publishes a knob whose token sits inside an array element', () => {
     const traits = [trait({ metrics: { type: 'array', default: [{ label: 'Wins', target: '@config.weeklyWinTarget' }] } })];
@@ -25,7 +25,7 @@ describe('collectForwardedConfigKeys — nested reads', () => {
 // forward or a nested token naming a knob the trait does NOT declare is a
 // forward; a nested read of its own knob is not.
 describe('traitDeclaresConfigForward — own-knob reads', () => {
-  const trait = (config: DeclaredTraitConfig): Trait => ({ name: 'Child', scope: 'instance', stateMachine: { states: [], events: [], transitions: [] }, config });
+  const trait = (config: DeclaredTraitConfig): Trait => ({ name: 'Child', stateMachine: { states: [], events: [], transitions: [] }, config });
 
   it('a whole-default forward is a forward, even under its own name', () => {
     expect(traitDeclaresConfigForward(trait({ title: { type: 'string', default: '@config.title' } }))).toBe(true);

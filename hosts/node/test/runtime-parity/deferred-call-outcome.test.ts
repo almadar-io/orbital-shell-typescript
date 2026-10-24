@@ -13,7 +13,7 @@ const render = (text: string): TypedEffect => ['render-ui', 'main', { type: 'typ
 const slowCall: TypedEffect = ['call-service', 'svc', 'work', {}, { emit: { success: 'ANSWERED', failure: 'ANSWER_FAILED' } }];
 
 const starter: Trait = {
-  name: 'Starter', scope: 'instance', linkedEntity: 'Job',
+  name: 'Starter', linkedEntity: 'Job',
   emits: [{ event: 'PING', scope: 'internal' }],
   stateMachine: {
     states: [{ name: 'idle', isInitial: true }, { name: 'started' }],
@@ -23,7 +23,7 @@ const starter: Trait = {
 };
 
 const helper: Trait = {
-  name: 'Helper', scope: 'instance', linkedEntity: 'Job',
+  name: 'Helper', linkedEntity: 'Job',
   listens: [{ event: 'PING', source: { kind: 'trait', trait: 'Starter' }, triggers: 'ASK' }],
   emits: [{ event: 'ANSWERED', scope: 'internal' }, { event: 'ANSWER_FAILED', scope: 'internal' }],
   stateMachine: {
@@ -40,7 +40,7 @@ const helper: Trait = {
 const keyedCall: TypedEffect = ['call-service', 'svc', 'work', {}, { key: 'job', emit: { success: 'ANSWERED', failure: 'ANSWER_FAILED', cancelled: 'STOPPED' } }];
 
 const keyed: Trait = {
-  name: 'Keyed', scope: 'instance', linkedEntity: 'Job',
+  name: 'Keyed', linkedEntity: 'Job',
   emits: [{ event: 'NEXT', scope: 'internal' }, { event: 'ANSWERED', scope: 'internal' }, { event: 'ANSWER_FAILED', scope: 'internal' }, { event: 'STOPPED', scope: 'internal' }],
   stateMachine: {
     states: [{ name: 'idle', isInitial: true }, { name: 'first' }, { name: 'building' }, { name: 'stopped' }],
@@ -55,7 +55,7 @@ const keyed: Trait = {
 };
 
 const chain: Trait = {
-  name: 'Chain', scope: 'instance', linkedEntity: 'Job',
+  name: 'Chain', linkedEntity: 'Job',
   emits: [{ event: 'NEXT', scope: 'internal' }, { event: 'ANSWERED', scope: 'internal' }, { event: 'ANSWER_FAILED', scope: 'internal' }],
   stateMachine: {
     states: [{ name: 'idle', isInitial: true }, { name: 'first' }, { name: 'building' }, { name: 'built' }],

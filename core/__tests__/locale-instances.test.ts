@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { EntitySchema, instancesForLocale, type OrbitalEntity } from '../src/types/entity';
 
 const invoice: OrbitalEntity = {
-  name: 'Invoice', persistence: 'persistent', collection: 'invoices', local: true,
+  name: 'Invoice', persistence: 'persistent', collection: 'invoices', browser: true,
   fields: [{ name: 'id', type: 'string', required: true }, { name: 'client', type: 'string' }],
   instances: [{ id: 'C-1', client: 'Noor Logistics' }],
   localeInstances: { ar: [{ id: 'C-1', client: 'نور للخدمات اللوجستية' }] },

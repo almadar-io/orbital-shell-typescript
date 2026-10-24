@@ -13,6 +13,7 @@ import { z } from 'zod';
 import type { PageId, TraitId, EntityId } from './identity.js';
 import { PageIdSchema, TraitIdSchema, EntityIdSchema } from './identity.js';
 import { TraitConfigSchema, type TraitConfig } from './trait.js';
+import { SExprSchema, type SExpr } from './expression.js';
 
 // ============================================================================
 // View Type
@@ -107,8 +108,14 @@ export type OrbitalPage = {
     /** Page name (PascalCase, e.g., "TasksPage") */
     name: string;
 
-    /** URL path (e.g., "/tasks", "/tasks/:id") */
+    /** URL path (e.g., "/tasks", "/tasks/:id"); "" on a protocol page, whose `address` says where it is reached. */
     path: string;
+
+    /** Protocol word of a non-route page (`page http { … }`, `page stdio`, `page boot`). Absent = route. */
+    protocol?: string;
+
+    /** The protocol's address record (`{ host, port, path }`), an expression typed against the protocol table row. Absent on a route and on a protocol row with no address. */
+    address?: SExpr;
 
     /** View type (optional in trait-driven mode) */
     viewType?: ViewType;
@@ -210,7 +217,9 @@ export const OrbitalPageStrictSchema = z.object({
 export const OrbitalPageSchema = z.object({
     id: PageIdSchema.optional(),
     name: z.string().min(1, 'Page name is required'),
-    path: z.string().min(1, 'Page path is required').startsWith('/', 'Path must start with /'),
+    path: z.string(),
+    protocol: z.string().min(1).optional(),
+    address: SExprSchema.optional(),
     viewType: ViewTypeSchema.optional(),
     title: PageMetaSchema.optional(),
     description: PageMetaSchema.optional(),
@@ -224,7 +233,15 @@ export const OrbitalPageSchema = z.object({
     icon: z.string().optional(),
     label: z.string().optional(),
     roles: z.array(z.string().min(1)).min(1).optional(),
-}).strict(); // Reject unknown keys like 'sections' - use traits with render_ui effects
+}).strict().superRefine((page, ctx) => {
+    if (page.protocol !== undefined) {
+        if (page.path !== '') ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['path'], message: 'A protocol page has an empty path; its address says where it is reached' });
+        return;
+    }
+    if (page.address !== undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['address'], message: 'A route page takes no address; its path is its address' });
+    if (page.path.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['path'], message: 'Page path is required' });
+    else if (!page.path.startsWith('/')) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['path'], message: 'Path must start with /' });
+}); // Rejects unknown keys like 'sections' - use traits with render_ui effects
 
 export type OrbitalPageInput = z.input<typeof OrbitalPageSchema>;
 export type OrbitalPageStrictInput = z.input<typeof OrbitalPageStrictSchema>;
@@ -238,3 +255,48 @@ export type Page = OrbitalPage;
 
 /** Alias for OrbitalPageSchema - preferred name */
 export const PageSchema = OrbitalPageSchema;
+
+// ============================================================================
+// Protocols (EXEC-ENDPOINT-1)
+// ============================================================================
+
+/** The side of the program that serves a protocol's endpoints. Mirrors Rust `ProtocolSide`. */
+export type ProtocolSide = 'client' | 'server' | 'process' | 'start';
+export const ProtocolSideSchema = z.enum(['client', 'server', 'process', 'start']);
+
+/** One field of a protocol's address record. `ty` is the lolo type text. */
+export interface ProtocolAddressField {
+    name: string;
+    ty: string;
+    required: boolean;
+}
+
+/** A row of the protocol table (`orb reference protocols`, orbital-core `lang/protocols.rs`). */
+export interface ProtocolSpec {
+    name: string;
+    address?: ProtocolAddressField[];
+    viewer: boolean;
+    grant?: string;
+    side: ProtocolSide;
+}
+
+export const ProtocolSpecSchema = z.object({
+    name: z.string().min(1),
+    address: z.array(z.object({ name: z.string().min(1), ty: z.string().min(1), required: z.boolean() }).strict()).optional(),
+    viewer: z.boolean(),
+    grant: z.string().min(1).optional(),
+    side: ProtocolSideSchema,
+}).strict();
+
+/** `route` is the protocol of a page that declares none. */
+export const ROUTE_PROTOCOL = 'route';
+
+/** A page reached by a path a client opens (no protocol word). */
+export function isRoutePage(page: Pick<OrbitalPage, 'protocol'> & object): boolean {
+    return page.protocol === undefined;
+}
+
+/** The protocol a page speaks: its protocol word, or `route`. */
+export function protocolName(page: Pick<OrbitalPage, 'protocol'> & object): string {
+    return page.protocol ?? ROUTE_PROTOCOL;
+}

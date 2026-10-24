@@ -174,9 +174,9 @@ type ExpectDeclarationShape =
       shape?: EntityField[];
       /** `[persistent]` / `[runtime]`: the storage mode the provider must declare. */
       persistence?: EntityPersistence;
-      /** `[shared]` / `[local]`: the provider must carry the same tag. */
+      /** `[shared]` / `[browser]`: the provider must carry the same tag. */
       shared?: boolean;
-      local?: boolean;
+      browser?: boolean;
       /** `@read|@create|@update|@delete <expr>`: the provider's policy must be this expression. */
       read_policy?: SExpr;
       create_policy?: SExpr;
@@ -273,7 +273,7 @@ export const ExpectDeclarationSchema = z.discriminatedUnion("kind", [
     shape: z.array(EntityFieldSchema).optional(),
     persistence: EntityPersistenceSchema.optional(),
     shared: z.boolean().optional(),
-    local: z.boolean().optional(),
+    browser: z.boolean().optional(),
     read_policy: SExprSchema.optional(),
     create_policy: SExprSchema.optional(),
     update_policy: SExprSchema.optional(),
@@ -818,9 +818,7 @@ export type OrbitalRefObject = {
   /** Entity-header flags of the `entity` line; each switches the flag ON. */
   shared?: boolean;
   identity?: boolean;
-  local?: boolean;
-  /** `[mock]` — seed an empty browser store from the shared mock seeder. */
-  seedMock?: boolean;
+  browser?: boolean;
 
   /**
    * `traits { UpstreamTrait { … } }` — per-imported-trait overrides keyed by the
@@ -889,8 +887,7 @@ export const OrbitalRefObjectSchema = z.object({
   collection: z.string().optional(),
   shared: z.boolean().optional(),
   identity: z.boolean().optional(),
-  local: z.boolean().optional(),
-  seedMock: z.boolean().optional(),
+  browser: z.boolean().optional(),
   traits: z
     .record(
       z.string(),

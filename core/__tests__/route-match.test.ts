@@ -79,3 +79,21 @@ describe('defaultPage — the page an app shows when no page matches its route',
     expect(defaultPage({ name: 'atom', orbitals: [orbital('Rules', [])] })).toBeNull();
   });
 });
+
+describe('defaultPage — protocol pages are not routes', () => {
+  const orbital = (pages: OrbitalDefinition['pages']): OrbitalDefinition => ({ name: 'O', entity: { name: 'Item', fields: [] }, traits: [], pages });
+  const api = { name: 'Api', path: '', protocol: 'http', traits: [{ ref: 'Http1' }] };
+  const home = { name: 'Home', path: '/', traits: [{ ref: 'HomeView' }] };
+
+  it('skips a protocol page declared before the first route', () => {
+    expect(defaultPage({ name: 'app', orbitals: [orbital([api, home])] })?.page.name).toBe('Home');
+  });
+
+  it('a protocol page marked initial is still not a default route', () => {
+    expect(defaultPage({ name: 'app', orbitals: [orbital([{ ...api, isInitial: true }, home])] })?.page.name).toBe('Home');
+  });
+
+  it('control: a program of protocol pages only has no default route', () => {
+    expect(defaultPage({ name: 'app', orbitals: [orbital([api])] })).toBeNull();
+  });
+});

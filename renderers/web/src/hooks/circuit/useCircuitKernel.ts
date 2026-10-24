@@ -67,7 +67,7 @@ export interface UseCircuitKernelOptions {
   awaitTopology?: boolean;
   /** Offline-preview persistence layer (plan G7). */
   persistence?: PersistenceAdapter;
-  /** The browser store for `[persistent: x, local]` entities: legs over their
+  /** The browser store for `[persistent: x, browser]` entities: legs over their
    *  data run in-process against it, every other leg goes to `transport`. */
   browserStore?: PersistenceAdapter;
   /** Consumer `call-service` hook for the offline in-process evaluator. */

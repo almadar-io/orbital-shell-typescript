@@ -63,17 +63,11 @@ export type OrbitalEntity = {
     identity?: boolean;
 
     /**
-     * `[persistent: x, local]` — the rows live in the browser (IndexedDB), so
+     * `[persistent: x, browser]` — the rows live in the browser (IndexedDB), so
      * `fetch`/`persist` on this entity run client-side on both paths. Orthogonal
      * like `shared`; meaningful only on a persistent entity.
      */
-    local?: boolean;
-
-    /**
-     * `[persistent: x, local, mock]` — on first open, an empty browser store is
-     * filled from the shared `@mock` seeder. The other seed source is `instances`.
-     */
-    seedMock?: boolean;
+    browser?: boolean;
 
     /**
      * `[store: Driver]` — the store-driver orbital that answers this entity's row
@@ -160,9 +154,8 @@ export const OrbitalEntitySchema = z.object({
     // than rejecting them, so a Rust-only field works on the compiled path and
     // silently vanishes on the interpreter path.
     identity: z.boolean().optional(),
-    // Rust twins: `EntityDefinition.{local,seed_mock}` (serde `seedMock`).
-    local: z.boolean().optional(),
-    seedMock: z.boolean().optional(),
+    // Rust twin: `EntityDefinition.browser`.
+    browser: z.boolean().optional(),
     // Rust twin: `EntityDefinition.store`.
     store: z.string().min(1).optional(),
     // Same "must stay in step with Rust serde" hazard as `identity` above —
@@ -259,20 +252,20 @@ export function isRuntimeEntity(entity: OrbitalEntity): boolean {
 
 /**
  * Whether an entity's rows live in the client: `[runtime]` (in memory) or
- * `[persistent: x, local]` (the browser's IndexedDB). Data effects on such an
+ * `[persistent: x, browser]` (the browser's IndexedDB). Data effects on such an
  * entity run in the client. Twin of Rust `EntityDefinition::is_client_resident`.
  */
-export function isClientResident(entity: Pick<OrbitalEntity, 'persistence' | 'local'>): boolean {
-    return entity.persistence === 'runtime' || entity.local === true;
+export function isClientResident(entity: Pick<OrbitalEntity, 'persistence' | 'browser'>): boolean {
+    return entity.persistence === 'runtime' || entity.browser === true;
 }
 
 /**
- * Whether an entity's ROWS live in the browser (`[persistent: x, local]`), so
+ * Whether an entity's ROWS live in the browser (`[persistent: x, browser]`), so
  * `fetch`/`persist` on it run client-side. A `[runtime]` entity's rows stay in
  * the server's per-session store. Twin of Rust `Residence` (`effects/runs_on.rs`).
  */
-export function storesRowsInBrowser(entity: Pick<OrbitalEntity, 'local'>): boolean {
-    return entity.local === true;
+export function storesRowsInBrowser(entity: Pick<OrbitalEntity, 'browser'>): boolean {
+    return entity.browser === true;
 }
 
 /**

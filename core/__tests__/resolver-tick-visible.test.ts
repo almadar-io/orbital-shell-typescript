@@ -13,7 +13,6 @@ const schema = parseOrbitalSchema({
     entity: { name: 'Clock', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }, { name: 'n', type: 'number' }] },
     traits: [{
       name: 'ClockTrait',
-      scope: 'instance',
       linkedEntity: 'Clock',
       stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },
       ticks: [
@@ -32,5 +31,27 @@ describe('schemaToIR carries a tick\'s visible tag', () => {
   });
   it('control: an untagged tick keeps running off screen', () => {
     expect(ticks.find((t) => t.name === 'paused')?.whileVisible).toBe(false);
+  });
+});
+
+describe('schemaToIR keeps only route pages in the client route table', () => {
+  const withPages = parseOrbitalSchema({
+    name: 'PagesApp',
+    orbitals: [{
+      name: 'O',
+      entity: { name: 'Clock', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }] },
+      traits: [{ name: 'T', linkedEntity: 'Clock', stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } }],
+      pages: [
+        { name: 'Home', path: '/', traits: [{ ref: 'T' }] },
+        { name: 'Api', path: '', protocol: 'http', address: ['object', ['port', 8080]], traits: [{ ref: 'T' }] },
+      ],
+    }],
+  });
+  const ir = schemaToIR(withPages, false);
+  it('a route page resolves', () => {
+    expect([...ir.pages.keys()]).toContain('Home');
+  });
+  it('control: a protocol page is not in the route table', () => {
+    expect([...ir.pages.keys()]).not.toContain('Api');
   });
 });

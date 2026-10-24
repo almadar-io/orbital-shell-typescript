@@ -42,7 +42,6 @@ describe('traitLevelFromDescription', () => {
   it('draws the same as the trait read from its schema', () => {
     const trait: Trait = {
       name: 'DoorLife',
-      scope: 'instance',
       stateMachine,
       emits: [{ event: 'DOOR_CLOSED' }],
       listens: [{ event: 'KNOCK', triggers: 'KNOCK' }],
@@ -71,7 +70,7 @@ describe('describedTransitionLines (the printed lines of the transition that fir
     machine: { linkedEntity: 'Door', stateMachine: twoArms },
     source: { text: 'trait DoorLife', transitions: [{ index: 0, start: 3, end: 4 }, { index: 1, start: 5, end: 5 }, { index: 2, start: 7, end: 8 }] },
   };
-  const drawn = traitLevelFromTrait({ name: 'HomeDoorLife', scope: 'instance', stateMachine: twoArms }, 'Door');
+  const drawn = traitLevelFromTrait({ name: 'HomeDoorLife', stateMachine: twoArms }, 'Door');
   if (!drawn) throw new Error('the running trait has a machine');
   const running = drawn;
 
@@ -95,8 +94,8 @@ describe('programTraits', () => {
         name: 'DoorOrbital',
         entity: { name: 'Door', fields: [{ name: 'open', type: 'boolean' }] },
         traits: [
-          { name: 'DoorLife', scope: 'instance', stateMachine },
-          { name: 'Plain', scope: 'instance' },
+          { name: 'DoorLife', stateMachine },
+          { name: 'Plain' },
         ],
         pages: [],
       }],

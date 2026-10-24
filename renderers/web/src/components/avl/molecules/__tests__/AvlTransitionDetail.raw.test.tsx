@@ -17,7 +17,6 @@ const schema: OrbitalSchema = {
       traits: [
         {
           name: 'Modes',
-          scope: 'instance',
           linkedEntity: 'Doc',
           stateMachine: {
             states: [{ name: 'NORMAL', isInitial: true }, { name: 'INSERT' }],

@@ -112,7 +112,6 @@ describe('clearBySource on a real UISlotManager — un-stacking a dropped trait'
 function wiringOrbitals(): OrbitalSchema['orbitals'] {
   const mkTrait = (name: string) => ({
     name,
-    scope: 'instance' as const,
     linkedEntity: 'Item',
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }],
@@ -135,7 +134,6 @@ function wiringOrbitals(): OrbitalSchema['orbitals'] {
 function wiringOrbitalsWithInit(): OrbitalSchema['orbitals'] {
   const mkTrait = (name: string, transitions: NonNullable<Trait['stateMachine']>['transitions']) => ({
     name,
-    scope: 'instance' as const,
     linkedEntity: 'Item',
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }],

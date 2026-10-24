@@ -3,11 +3,11 @@ import { createRoot } from 'react-dom/client';
 import { parseOrbitalSchema } from '@almadar/core';
 import { createChannelTransport } from '@almadar/shell-web';
 import { OrbPreview } from '@almadar/shell-web/runtime';
-import programJson from './generated/program.json';
+import programText from './generated/program.orb?raw';
 import { KEEP_ALIVE, KEEP_ALIVE_MS, portChannel, VIEW_PORT } from './channel';
 import './index.css';
 
-const schema = parseOrbitalSchema(programJson);
+const schema = parseOrbitalSchema(JSON.parse(programText));
 
 // The worker runs the whole program, browser-stored entities included; the panel only shows it.
 // If its port closes anyway (the worker stopped or updated), the panel connects again and shows the

@@ -36,7 +36,6 @@ const schema: OrbitalSchema = {
       traits: [
         {
           name: 'TaskList',
-          scope: 'collection',
           linkedEntity: 'Task',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }, { name: 'loaded' }],
@@ -340,9 +339,9 @@ describe('FlowCanvas flow lens driven from outside (the runtime debugger)', () =
       entity: { name: 'Order', fields: [] },
       pages: [],
       traits: [
-        { name: 'Persistor', scope: 'instance', emits: [{ event: 'SAVED' }], listens: [{ event: 'SAVE', triggers: 'SAVE', source: { kind: 'trait', trait: 'Form' } }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
-        { name: 'Form', scope: 'instance', sourceBehavior: { alias: 'Modal', behavior: 'std/behaviors/std-modal', originalName: 'Modal' }, emits: [{ event: 'SAVE' }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
-        { name: 'Grid', scope: 'instance', sourceBehavior: { alias: 'Browse', behavior: 'std/behaviors/std-browse', originalName: 'Browse' }, listens: [{ event: 'SAVED', triggers: 'SAVED', source: { kind: 'trait', trait: 'Persistor' } }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
+        { name: 'Persistor', emits: [{ event: 'SAVED' }], listens: [{ event: 'SAVE', triggers: 'SAVE', source: { kind: 'trait', trait: 'Form' } }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
+        { name: 'Form', sourceBehavior: { alias: 'Modal', behavior: 'std/behaviors/std-modal', originalName: 'Modal' }, emits: [{ event: 'SAVE' }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
+        { name: 'Grid', sourceBehavior: { alias: 'Browse', behavior: 'std/behaviors/std-browse', originalName: 'Browse' }, listens: [{ event: 'SAVED', triggers: 'SAVED', source: { kind: 'trait', trait: 'Persistor' } }], stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } },
       ],
     }],
   };

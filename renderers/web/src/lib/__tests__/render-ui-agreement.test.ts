@@ -18,7 +18,6 @@ const schema = {
       traits: [
         {
           name: 'Board',
-          scope: 'instance',
           linkedEntity: 'Task',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }, { name: 'open' }],

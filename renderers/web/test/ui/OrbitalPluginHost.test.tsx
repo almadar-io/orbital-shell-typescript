@@ -33,7 +33,6 @@ function pingSchema(): OrbitalSchema {
         traits: [
           {
             name: 'Pinger',
-            scope: 'instance',
             linkedEntity: 'PingerData',
             stateMachine: {
               states: [{ name: 'IDLE', isInitial: true }, { name: 'PONGED' }],
@@ -94,7 +93,6 @@ function cascadeSchema(): OrbitalSchema {
         traits: [
           {
             name: 'Emitter',
-            scope: 'instance',
             linkedEntity: 'CascadeData',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],
@@ -108,7 +106,6 @@ function cascadeSchema(): OrbitalSchema {
           },
           {
             name: 'Receiver',
-            scope: 'instance',
             linkedEntity: 'CascadeData',
             stateMachine: {
               states: [{ name: 'waiting', isInitial: true }, { name: 'received' }],
@@ -162,7 +159,6 @@ function relaySchema(): OrbitalSchema {
         traits: [
           {
             name: 'A',
-            scope: 'instance',
             linkedEntity: 'RelayData',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],
@@ -176,7 +172,6 @@ function relaySchema(): OrbitalSchema {
           },
           {
             name: 'B',
-            scope: 'instance',
             linkedEntity: 'RelayData',
             stateMachine: {
               states: [{ name: 'waiting', isInitial: true }, { name: 'ponged' }],
@@ -220,7 +215,6 @@ function sidebarPluginSchema(): OrbitalSchema {
         traits: [
           {
             name: 'SidebarPlugin',
-            scope: 'instance',
             linkedEntity: 'SidebarData',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }, { name: 'rendered' }],
@@ -560,7 +554,6 @@ function clockPlugin(withTicks: boolean): PluginHostPlugin {
         pages: [],
         traits: [{
           name: 'Clock',
-          scope: 'instance',
           linkedEntity: 'ClockData',
           stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },
           emits: [{ event: 'BEAT', scope: 'external' }],
@@ -619,7 +612,6 @@ function onlyMinePlugin(owner: string): PluginHostPlugin {
           pages: [],
           traits: [{
             name: 'MyNotes',
-            scope: 'collection',
             linkedEntity: 'Note',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],

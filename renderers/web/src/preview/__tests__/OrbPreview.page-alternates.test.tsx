@@ -24,7 +24,6 @@ function orbital(name: string, path: string, sourcePage?: string): OrbitalSchema
     entity: { name: `${name}State`, persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [{
       name: `${name}View`,
-      scope: 'instance',
       linkedEntity: `${name}State`,
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],

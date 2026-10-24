@@ -26,7 +26,6 @@ function program(): OrbitalSchema {
         traits: [
           {
             name: 'ShopHome',
-            scope: 'instance',
             linkedEntity: 'ShopView',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],

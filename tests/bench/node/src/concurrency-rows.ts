@@ -34,7 +34,6 @@ export function concCounterSchema(): OrbitalSchema {
       entity: { name: 'Counter', persistence: 'persistent', collection: 'counters', fields: [{ name: 'id', type: 'string', primaryKey: true }, { name: 'count', type: 'number' }] },
       traits: [{
         name: TRAIT,
-        scope: 'instance',
         linkedEntity: 'Counter',
         stateMachine: {
           states: [{ name: 'idle', isInitial: true }],

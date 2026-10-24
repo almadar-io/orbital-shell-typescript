@@ -421,7 +421,6 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
       pages: [],
       traits: [{
         name: 'Modes',
-        scope: 'instance',
         linkedEntity: 'Doc',
         stateMachine: {
           states: [{ name: 'NORMAL', isInitial: true }, { name: 'INSERT' }, { name: 'VISUAL' }],
@@ -473,7 +472,6 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
       pages: [],
       traits: [{
         name: 'G',
-        scope: 'instance',
         linkedEntity: 'Gate',
         stateMachine: {
           states: [{ name: 'ready', isInitial: true }, { name: 'open' }],
@@ -511,7 +509,6 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
       pages: [],
       traits: [{
         name: 'T',
-        scope: 'instance',
         linkedEntity: 'K',
         config: { mode: { type: 'string', default: 'off' } },
         stateMachine: {
@@ -536,7 +533,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     const OS = { name: 'OsApp', osGrants: { env: ['HOME'] }, orbitals: [{ name: 'Os',
       entity: { name: 'O', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       pages: [],
-      traits: [{ name: 'T', scope: 'instance', linkedEntity: 'O', stateMachine: {
+      traits: [{ name: 'T', linkedEntity: 'O', stateMachine: {
         states: [{ name: 'idle', isInitial: true }, { name: 'asking' }],
         events: [{ key: 'ASK', name: 'Ask' }, { key: 'GOT', name: 'Got' }, { key: 'NOGO', name: 'Nogo' }],
         transitions: [
@@ -557,7 +554,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     const SLEEP = (seconds: string) => ({ name: 'SleepApp', osGrants: { fs: [], exec: ['sleep'], net: [], env: [], stdio: [], sys: [], desktop: [] }, orbitals: [{ name: 'Sleep',
       entity: { name: 'S', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'done', type: 'boolean', default: false }] },
       pages: [],
-      traits: [{ name: 'T', scope: 'instance', linkedEntity: 'S', stateMachine: {
+      traits: [{ name: 'T', linkedEntity: 'S', stateMachine: {
         states: [{ name: 'idle', isInitial: true }, { name: 'running' }, { name: 'done' }],
         events: [{ key: 'RUN', name: 'Run' }, { key: 'SPAWNED', name: 'Spawned' }, { key: 'WAITED', name: 'Waited' }, { key: 'FAILED', name: 'Failed' }],
         transitions: [
@@ -584,7 +581,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     const SEE = { name: 'SeeApp', orbitals: [{ name: 'See',
       entity: { name: 'V', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       pages: [],
-      traits: [{ name: 'T', scope: 'instance', linkedEntity: 'V', stateMachine: {
+      traits: [{ name: 'T', linkedEntity: 'V', stateMachine: {
         states: [{ name: 'idle', isInitial: true }],
         events: [{ key: 'MINE', name: 'Mine' }],
         transitions: [{ from: 'idle', to: 'idle', event: 'MINE', guard: ['=', '@user.id', 'u1'] }] } }] }] };
@@ -597,7 +594,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     const ROW = { name: 'RowApp', orbitals: [{ name: 'Row',
       entity: { name: 'R', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'n', type: 'number', default: 0 }] },
       pages: [],
-      traits: [{ name: 'T', scope: 'instance', linkedEntity: 'R', stateMachine: {
+      traits: [{ name: 'T', linkedEntity: 'R', stateMachine: {
         states: [{ name: 'idle', isInitial: true }],
         events: [{ key: 'BUMP', name: 'Bump' }, { key: 'NOPE', name: 'Nope' }],
         transitions: [
@@ -622,12 +619,12 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
       entity: { name: 'Key', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       pages: [],
       traits: [
-        { name: 'ApiKeys', scope: 'instance', linkedEntity: 'Key', stateMachine: {
+        { name: 'ApiKeys', linkedEntity: 'Key', stateMachine: {
           states: [{ name: 'idle', isInitial: true }],
           events: [{ key: 'ISSUE', name: 'Issue' }],
           transitions: [{ from: 'idle', to: 'idle', event: 'ISSUE', effects: [['emit', 'ISSUED', {}]] }],
         } },
-        { name: 'ServerBearer', scope: 'instance', linkedEntity: 'Key',
+        { name: 'ServerBearer', linkedEntity: 'Key',
           listens: [{ event: 'ISSUED', triggers: 'ARM', source: { kind: 'trait', trait: 'ApiKeys' } }],
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }, { name: 'armed' }],

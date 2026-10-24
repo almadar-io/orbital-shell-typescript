@@ -27,7 +27,6 @@ function schemaOf(inbound: string[] | undefined, secondHandler = false): Orbital
         traits: [
           {
             name: 'Inbound',
-            scope: 'instance',
             linkedEntity: 'Req',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],

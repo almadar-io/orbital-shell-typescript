@@ -14,7 +14,6 @@ const orbitals: OrbitalSchema['orbitals'] = [{
   traits: [{
     name: 'Panel',
     linkedEntity: 'Board',
-    scope: 'instance',
     config: { panelSlot: { type: 'string', default: 'modal' } },
     stateMachine: {
       states: [{ name: 'closed', isInitial: true }, { name: 'open' }],

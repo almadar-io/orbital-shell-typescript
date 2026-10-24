@@ -29,12 +29,11 @@ function schema(): OrbitalSchema {
         traits: [
           {
             name: 'TaskPersistor',
-            scope: 'instance',
             linkedEntity: 'Task',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],
               events: [
-                { key: 'DO_CREATE', name: 'Do create', external: true, payloadSchema: [{ name: 'title', type: 'string', required: true }] },
+                { key: 'DO_CREATE', name: 'Do create', input: true, payloadSchema: [{ name: 'title', type: 'string', required: true }] },
                 { key: 'SAVE', name: 'Save' },
               ],
               transitions: [

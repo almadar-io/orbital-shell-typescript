@@ -35,6 +35,7 @@ export type TypeVariable = `$${string}`;
 export type FieldTag =
     | 'string'
     | 'number'
+    | 'int'
     | 'boolean'
     | 'date'
     | 'timestamp'
@@ -95,6 +96,7 @@ export type FieldTag =
 export const FIELD_TYPES = [
     'string',
     'number',
+    'int',
     'boolean',
     'date',
     'timestamp',
@@ -163,7 +165,6 @@ export const TYPE_POSITION_ONLY = [
     'entity',
     'float',
     'icon',
-    'int',
     'null',
     'secret',
     'void',
@@ -353,6 +354,7 @@ export function isSemanticStringValue(type: SemanticStringType, value: string): 
 type ScalarFieldType =
     | 'string'
     | 'number'
+    | 'int'
     | 'boolean'
     | 'date'
     | 'timestamp'
@@ -541,7 +543,6 @@ export type EntityField =
  */
 const FIELD_TYPE_ALIASES: Record<string, FieldType> = {
     text: 'string',
-    int: 'number',
     float: 'number',
     ts: 'timestamp',
 };
@@ -611,6 +612,7 @@ export const EntityFieldSchema: z.ZodType<EntityField, z.ZodTypeDef, unknown> = 
             z.discriminatedUnion('type', [
                 scalarVariant('string'),
                 scalarVariant('number'),
+                scalarVariant('int'),
                 scalarVariant('boolean'),
                 scalarVariant('date'),
                 scalarVariant('timestamp'),

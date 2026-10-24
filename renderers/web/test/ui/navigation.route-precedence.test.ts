@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import type { OrbitalSchema } from '@almadar/core';
 import { comparePathSpecificity, matchPathAmong } from '../../src/core';
-import { findPageByPath } from '../../src/core';
+import { findPageByPath, findPageByName, getAllPages } from '../../src/core';
 
 const pageEntry = (path: string, name: string) => ({ page: { name, path } });
 
@@ -115,5 +115,34 @@ describe('matchPathAmong — a static sibling wins whatever else the page list h
   it('edge: the order of the list never changes the winner', () => {
     const reversed = [...pages].reverse();
     expect(matchPathAmong(reversed, '/appointments/checkin', (e) => e.page.path)?.candidate.page.path).toBe('/appointments/checkin');
+  });
+});
+
+describe('navigation never opens a protocol page', () => {
+  const schema: OrbitalSchema = {
+    name: 'app',
+    orbitals: [{
+      name: 'O',
+      entity: { name: 'Item', fields: [] },
+      traits: [],
+      pages: [
+        { name: 'Api', path: '', protocol: 'http', traits: [{ ref: 'Http1' }] },
+        { name: 'Home', path: '/', traits: [{ ref: 'HomeView' }] },
+      ],
+    }],
+  };
+
+  it('getAllPages lists the route pages only', () => {
+    expect(getAllPages(schema).map((e) => e.page.name)).toEqual(['Home']);
+  });
+
+  it('findPageByPath resolves the route and never the protocol page', () => {
+    expect(findPageByPath(schema, '/')?.page.name).toBe('Home');
+    expect(findPageByPath(schema, '')?.page.name).not.toBe('Api');
+  });
+
+  it('findPageByName does not find a protocol page', () => {
+    expect(findPageByName(schema, 'Api')).toBeNull();
+    expect(findPageByName(schema, 'Home')?.page.name).toBe('Home');
   });
 });

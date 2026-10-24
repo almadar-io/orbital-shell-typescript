@@ -29,8 +29,6 @@ const crudOrbital: OrbitalDefinition = {
   },
   traits: [{
     name: 'InspectorManagement',
-    category: 'interaction',
-    scope: 'collection',
     linkedEntity: 'Inspector',
     stateMachine: {
       states: [
@@ -92,8 +90,6 @@ const wizardOrbital: OrbitalDefinition = {
   },
   traits: [{
     name: 'InspectionWorkflow',
-    category: 'interaction',
-    scope: 'instance',
     linkedEntity: 'Inspection',
     stateMachine: {
       states: [
@@ -190,7 +186,7 @@ describe('summarizeOrbital', () => {
     const withGuard: OrbitalDefinition = {
       ...crudOrbital,
       traits: [{
-        ...(crudOrbital.traits[0] as { name: string; category: 'interaction'; scope: 'instance' | 'collection'; linkedEntity: string; stateMachine: { states: State[]; events: { key: string; name: string }[]; transitions: { from: string; to: string; event: string; effects?: unknown[]; guard?: unknown }[] } }),
+        ...(crudOrbital.traits[0] as { name: string; linkedEntity: string; stateMachine: { states: State[]; events: { key: string; name: string }[]; transitions: { from: string; to: string; event: string; effects?: unknown[]; guard?: unknown }[] } }),
         stateMachine: {
           ...(crudOrbital.traits[0] as { stateMachine: { states: State[]; events: { key: string; name: string }[]; transitions: { from: string; to: string; event: string }[] } }).stateMachine,
           transitions: [

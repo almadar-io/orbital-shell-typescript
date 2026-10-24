@@ -21,7 +21,6 @@ describe('traitReferencesCallsitePayload', () => {
   it('is false for a trait with no config and no state machine capture', () => {
     const trait: Trait = {
       name: 'Plain',
-      scope: 'instance',
       config: { title: { type: 'string', default: 'Hello' } },
       stateMachine: { ...emptyStateMachine, transitions: [] },
     };
@@ -31,7 +30,6 @@ describe('traitReferencesCallsitePayload', () => {
   it('is true for a whole-value capture in a config default (InlineTypographyRender22 shape)', () => {
     const trait: Trait = {
       name: 'InlineTypographyRender22',
-      scope: 'instance',
       config: { content: { type: 'string', default: '@callsitePayload.error' } },
       stateMachine: { ...emptyStateMachine, transitions: [] },
     };
@@ -41,7 +39,6 @@ describe('traitReferencesCallsitePayload', () => {
   it('is true for a nested capture inside an S-expression config default (std-helpdesk disabled shape)', () => {
     const trait: Trait = {
       name: 'InlineButtonRender7',
-      scope: 'instance',
       config: {
         disabled: {
           type: 'boolean',
@@ -56,7 +53,6 @@ describe('traitReferencesCallsitePayload', () => {
   it('is true when the capture lives inside a state-machine render-ui effect instead of config', () => {
     const trait: Trait = {
       name: 'DirectRender',
-      scope: 'instance',
       stateMachine: {
         ...emptyStateMachine,
         transitions: [
@@ -92,7 +88,6 @@ describe('collectCallsiteCaptureChildren', () => {
     const orbital = orbitalWith([
       {
         name: 'Host',
-        scope: 'instance',
         stateMachine: {
           ...emptyStateMachine,
           transitions: [
@@ -102,7 +97,6 @@ describe('collectCallsiteCaptureChildren', () => {
       },
       {
         name: 'Child',
-        scope: 'instance',
         config: { content: { type: 'string', default: '@callsitePayload.error' } },
         stateMachine: { ...emptyStateMachine, transitions: [] },
       },
@@ -116,7 +110,6 @@ describe('collectCallsiteCaptureChildren', () => {
     const orbital = orbitalWith([
       {
         name: 'Host',
-        scope: 'instance',
         stateMachine: {
           ...emptyStateMachine,
           transitions: [
@@ -126,7 +119,6 @@ describe('collectCallsiteCaptureChildren', () => {
       },
       {
         name: 'Child',
-        scope: 'instance',
         config: { title: { type: 'string', default: 'Static' } },
         stateMachine: { ...emptyStateMachine, transitions: [] },
       },
@@ -140,7 +132,6 @@ describe('collectCallsiteCaptureChildren', () => {
     const orbital = orbitalWith([
       {
         name: 'Host',
-        scope: 'instance',
         stateMachine: {
           ...emptyStateMachine,
           transitions: [
@@ -150,7 +141,6 @@ describe('collectCallsiteCaptureChildren', () => {
       },
       {
         name: 'Middle',
-        scope: 'instance',
         config: { title: { type: 'string', default: 'Static' } },
         stateMachine: {
           ...emptyStateMachine,
@@ -161,7 +151,6 @@ describe('collectCallsiteCaptureChildren', () => {
       },
       {
         name: 'Grandchild',
-        scope: 'instance',
         config: { content: { type: 'string', default: '@callsitePayload.error' } },
         stateMachine: { ...emptyStateMachine, transitions: [] },
       },
@@ -177,7 +166,6 @@ describe('collectCallsiteCaptureChildren', () => {
     const orbital = orbitalWith([
       {
         name: 'Host',
-        scope: 'instance',
         stateMachine: {
           ...emptyStateMachine,
           transitions: [
@@ -187,7 +175,6 @@ describe('collectCallsiteCaptureChildren', () => {
       },
       {
         name: 'Child',
-        scope: 'instance',
         config: { title: { type: 'string', default: 'Static' } },
         stateMachine: { ...emptyStateMachine, transitions: [] },
       },

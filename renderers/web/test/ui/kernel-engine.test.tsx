@@ -25,7 +25,6 @@ const describeKernel = KERNEL_AVAILABLE ? describe : describe.skip;
 const driverTrait = (name: string, bump: unknown[]): OrbitalSchema['orbitals'][number]['traits'][number] => ({
   name,
   linkedEntity: 'Board',
-  scope: 'instance',
   stateMachine: {
     states: [{ name: 'idle', isInitial: true }, { name: 'busy' }],
     events: [],
@@ -289,7 +288,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
     const base = orbitals('runtime', []);
     const board = base[0]!;
     const listening = {
-      name: 'Driver', linkedEntity: 'Board', scope: 'instance' as const,
+      name: 'Driver', linkedEntity: 'Board',
       listens: [{ event: 'SURGE', source: { kind: 'any' as const }, triggers: 'SURGE_IN' }],
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],
@@ -302,7 +301,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
       ticks: [{ name: 'beat', interval: 1000, effects: [['set', '@entity.score', ['+', '@entity.score', 1]]] as never }],
     };
     const rival = {
-      name: 'Rival', linkedEntity: 'Board', scope: 'instance' as const,
+      name: 'Rival', linkedEntity: 'Board',
       emits: [{ event: 'SURGE', scope: 'external' as const }],
       stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },
       ticks: [{ name: 'surge', interval: 1000, effects: [['emit', 'SURGE', {}]] as never }],
@@ -392,7 +391,7 @@ describeKernel('kernel engine parity', () => {
         name: 'O', pages: [],
         entity: { name: 'E', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
         traits: [{
-          name: 'T', linkedEntity: 'E', scope: 'instance',
+          name: 'T', linkedEntity: 'E',
           config: { hint: { type: 'string' } },
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }], events: [],
@@ -416,7 +415,7 @@ describeKernel('kernel engine parity', () => {
             name: 'SearchOrbital', pages: [],
             entity: { name: 'Query', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
             traits: [{
-              name: 'Searcher', linkedEntity: 'Query', scope: 'instance',
+              name: 'Searcher', linkedEntity: 'Query',
               emits: [{ event: 'REQUESTED', scope: 'external' }],
               stateMachine: { states: [{ name: 'idle', isInitial: true }, { name: 'searching' }], events: [], transitions: [{ from: 'idle', to: 'searching', event: 'GO', effects: [['emit', 'REQUESTED', {}]] }] },
             }],
@@ -425,7 +424,7 @@ describeKernel('kernel engine parity', () => {
             name: 'TaskOrbital', pages: [],
             entity: { name: 'Task', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
             traits: [{
-              name: 'Responder', linkedEntity: 'Task', scope: 'instance',
+              name: 'Responder', linkedEntity: 'Task',
               listens: [{ event: 'REQUESTED', source: { kind: 'any' }, triggers: 'REQUESTED' }],
               stateMachine: { states: [{ name: 'idle', isInitial: true }, { name: 'answering' }], events: [], transitions: [{ from: 'idle', to: 'answering', event: 'REQUESTED', effects: [['fetch', 'Task', {}]] }] },
             }],
@@ -445,11 +444,11 @@ describeKernel('kernel engine parity', () => {
         entity: { name: 'S', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
         traits: [
           {
-            name: 'Play', linkedEntity: 'S', scope: 'instance',
+            name: 'Play', linkedEntity: 'S',
             stateMachine: { states: [{ name: 'on', isInitial: true }], events: [], transitions: [{ from: 'on', to: 'on', event: 'UP', effects: [['emit', 'TURN', { dir: 'up' }]] }] },
           },
           {
-            name: 'Mechanic', linkedEntity: 'S', scope: 'instance',
+            name: 'Mechanic', linkedEntity: 'S',
             listens: [{ event: 'Play.TURN', triggers: 'STEER' }],
             stateMachine: { states: [{ name: 'on', isInitial: true }], events: [], transitions: [{ from: 'on', to: 'on', event: 'STEER', effects: [['set', '@entity.dir', '@payload.dir']] }] },
           },

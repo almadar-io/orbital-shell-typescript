@@ -28,7 +28,6 @@ function notes(): OrbitalSchema {
       entity: { name: 'Note', persistence: 'persistent', collection: 'notes', fields: [{ name: 'id', type: 'string', primaryKey: true }, { name: 'title', type: 'string' }] },
       traits: [{
         name: 'Draft',
-        scope: 'instance',
         linkedEntity: 'Note',
         stateMachine: {
           states: [{ name: 'editing', isInitial: true }, { name: 'saving' }, { name: 'saved' }, { name: 'failed' }],
@@ -55,7 +54,6 @@ function fetcher(egress: string[]): OrbitalSchema {
       entity: { name: 'Run', fields: [{ name: 'id', type: 'string' }] },
       traits: [{
         name: 'Getter',
-        scope: 'instance',
         linkedEntity: 'Run',
         stateMachine: {
           states: [{ name: 'idle', isInitial: true }, { name: 'got' }, { name: 'missed' }],
@@ -82,7 +80,6 @@ function service(): OrbitalSchema {
       entity: { name: 'Run', fields: [{ name: 'id', type: 'string' }] },
       traits: [{
         name: 'Runner',
-        scope: 'instance',
         linkedEntity: 'Run',
         stateMachine: {
           states: [{ name: 'idle', isInitial: true }, { name: 'done' }, { name: 'failed' }],
@@ -195,7 +192,6 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
     const schema = notes();
     schema.orbitals[0].traits[0] = {
       name: 'Draft',
-      scope: 'instance',
       linkedEntity: 'Note',
       stateMachine: {
         states: [{ name: 'editing', isInitial: true }, { name: 'sent' }],

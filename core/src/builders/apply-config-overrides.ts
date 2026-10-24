@@ -16,11 +16,10 @@
 
 import type { OrbitalSchema } from '../types/schema.js';
 import type { TraitRef, TraitConfig, ConfigFieldDeclaration } from '../types/trait.js';
-import { mergeCallSiteConfigOverrides } from '../types/trait.js';
+import { isInlineTrait, mergeCallSiteConfigOverrides } from '../types/trait.js';
 
 function overrideTrait(trait: Exclude<TraitRef, string>, values: TraitConfig): Exclude<TraitRef, string> {
-  // `scope` is required on a full `Trait`; the `{ ref, config }` reference has none.
-  if ('scope' in trait) {
+  if (isInlineTrait(trait)) {
     // Inlined Trait: `config` is the DECLARED schema → patch each field's `default`.
     const config = trait.config;
     if (config === undefined) return trait;

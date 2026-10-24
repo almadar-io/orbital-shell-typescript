@@ -14,7 +14,6 @@ function orbitals(): OrbitalSchema['orbitals'] {
     entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [{
       name: 'Picker',
-      scope: 'instance',
       linkedEntity: 'Item',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],

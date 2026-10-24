@@ -22,9 +22,9 @@ function orbitals(routes: TraitEventListener[]): OrbitalSchema['orbitals'] {
     pages: [],
     entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [
-      { name: 'Child', scope: 'instance', linkedEntity: 'Item', stateMachine: { states: idle, events: [], transitions: [] } },
-      { name: 'Other', scope: 'instance', linkedEntity: 'Item', stateMachine: { states: idle, events: [], transitions: [] } },
-      { name: 'Host', scope: 'instance', linkedEntity: 'Item', listens: routes, stateMachine: { states: idle, events: [], transitions } },
+      { name: 'Child', linkedEntity: 'Item', stateMachine: { states: idle, events: [], transitions: [] } },
+      { name: 'Other', linkedEntity: 'Item', stateMachine: { states: idle, events: [], transitions: [] } },
+      { name: 'Host', linkedEntity: 'Item', listens: routes, stateMachine: { states: idle, events: [], transitions } },
     ],
   }];
 }

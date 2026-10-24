@@ -416,7 +416,7 @@ describe('compositionSpecOf — a factory-built page read back as a composition'
     expect(JSON.stringify(back.spec.layout)).not.toContain('ChatAppLayout');
   });
 
-  const handwritten = { name: 'Handwritten', scope: 'instance' as const, stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } };
+  const handwritten = { name: 'Handwritten', stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] } };
 
   it('an inline trait is carried as a kept part, in its page position', () => {
     const page = factoryPage();

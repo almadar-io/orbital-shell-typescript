@@ -11,12 +11,12 @@ import type { EventPayload, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trai
 import { createEmptyResolvedTrait } from '@almadar/core';
 
 const content: Trait = {
-  name: 'Content', scope: 'instance', linkedEntity: 'Deal',
+  name: 'Content', linkedEntity: 'Deal',
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [],
     transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'stack', children: ['@trait.Panel'] }]] }] },
 };
 const panel: Trait = {
-  name: 'Panel', scope: 'instance', linkedEntity: 'Deal',
+  name: 'Panel', linkedEntity: 'Deal',
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [],
     transitions: [
       { from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'stack', children: [] }]] },
@@ -25,7 +25,7 @@ const panel: Trait = {
     ] },
 };
 const won: Trait = {
-  name: 'Won', scope: 'instance', linkedEntity: 'Deal',
+  name: 'Won', linkedEntity: 'Deal',
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [],
     transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', {
       type: 'stat-display', label: 'Won',
@@ -33,12 +33,12 @@ const won: Trait = {
     }]] }] },
 };
 const title: Trait = {
-  name: 'Title', scope: 'instance', linkedEntity: 'Deal',
+  name: 'Title', linkedEntity: 'Deal',
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [],
     transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'typography', content: 'Deals' }]] }] },
 };
 const reloader: Trait = {
-  name: 'Reloader', scope: 'instance', linkedEntity: 'Deal',
+  name: 'Reloader', linkedEntity: 'Deal',
   stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [],
     transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['set', '@entity.id', 'r'], ['render-ui', 'main', { type: 'typography', content: '@callsitePayload.label' }]] }] },
 };

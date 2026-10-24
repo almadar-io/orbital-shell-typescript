@@ -1,8 +1,8 @@
 /**
- * Declared external inputs — the events a client outside the program (an API
+ * Declared inputs — the events a client outside the program (an API
  * caller, an agent acting as the user, an MCP client) may send a trait. Authored
- * as `listens { EVENT -> external { … } }`, lowered onto the trait's own
- * `stateMachine.events[]` entry as `external: true`. The one owner of that list:
+ * as `listens { EVENT -> input { … } }`, lowered onto the trait's own
+ * `stateMachine.events[]` entry as `input: true`. The one owner of that list:
  * hosts gate their input channel with it, and clients build their tool lists
  * from it. Mirrors `orbital-core/src/runtime/external_inputs.rs`.
  *
@@ -40,7 +40,7 @@ export function externalInputsOf(schema: OrbitalSchema): ExternalInput[] {
     for (const traitRef of orbital.traits ?? []) {
       if (!isInlineTrait(traitRef)) continue;
       for (const ev of traitRef.stateMachine?.events ?? []) {
-        if (ev.external !== true) continue;
+        if (ev.input !== true) continue;
         out.push({
           orbital: orbital.name,
           trait: traitRef.name,

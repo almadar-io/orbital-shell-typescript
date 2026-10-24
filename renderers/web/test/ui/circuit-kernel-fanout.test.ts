@@ -42,7 +42,6 @@ function fixtureOrbitals(): OrbitalSchema['orbitals'] {
         {
           name: 'Writer',
           linkedEntity: 'Board',
-          scope: 'instance',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }],
             events: [],
@@ -62,7 +61,6 @@ function fixtureOrbitals(): OrbitalSchema['orbitals'] {
         {
           name: 'Chart',
           linkedEntity: 'Board',
-          scope: 'instance',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }, { name: 'listened' }],
             events: [],

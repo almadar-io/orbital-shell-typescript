@@ -26,7 +26,6 @@ function orbital(name: string, path: string, content: string | string[], access?
     entity: { name: `${name}State`, persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [{
       name: `${name}View`,
-      scope: 'instance',
       linkedEntity: `${name}State`,
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],

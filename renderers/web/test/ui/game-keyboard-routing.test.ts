@@ -32,7 +32,6 @@ import type { UISlotManager } from '../../src/hooks/useUISlots';
 function snakeOrbitals(): OrbitalSchema['orbitals'] {
   const mk = (name: string, transitions: NonNullable<Trait['stateMachine']>['transitions']) => ({
     name,
-    scope: 'instance' as const,
     linkedEntity: 'Snake',
     stateMachine: {
       states: [{ name: 'playing', isInitial: true }],

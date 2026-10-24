@@ -106,7 +106,7 @@ export interface UseTraitStateMachineOptions {
   /** Hold every dispatch until the transport's topology is known. */
   awaitTopology?: boolean;
   persistence?: PersistenceAdapter;
-  /** The browser store for `[persistent: x, local]` entities (see `useCircuitKernel`). */
+  /** The browser store for `[persistent: x, browser]` entities (see `useCircuitKernel`). */
   browserStore?: PersistenceAdapter;
   callService?: (service: string, action: string, params?: ServiceParams) => Promise<EventPayload>;
   embeddedTraits?: ReadonlySet<string>;

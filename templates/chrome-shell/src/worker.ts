@@ -5,11 +5,11 @@
  * At start it mounts the program's `/` page, as a view would, so its traits run with no view open;
  * the side panel connects over a port and renders the same running program.
  */
-import { getTraitName, parseOrbitalSchema } from '@almadar/core';
+import { getTraitName, isRoutePage, parseOrbitalSchema } from '@almadar/core';
 import { holdUntilServed, serveChannel, type EventTransport } from '@almadar/shell-web';
 import { browserStoreName, openBrowserHost, type BrowserHost } from '@almadar/shell-web';
 import { chromePromptModel, chromeTabPort, type ChromeLanguageModel } from '@almadar/shell-chrome';
-import programJson from './generated/program.json';
+import programText from './generated/program.orb?raw';
 import { portChannel, VIEW_PORT } from './channel';
 import { embedder } from './generated/embedder';
 import { http } from './generated/http';
@@ -19,7 +19,7 @@ declare const LanguageModel: ChromeLanguageModel | undefined;
 
 const promptModel = chromePromptModel(() => (typeof LanguageModel === 'undefined' ? undefined : LanguageModel));
 
-const schema = parseOrbitalSchema(programJson);
+const schema = parseOrbitalSchema(JSON.parse(programText));
 
 // The tab port listens for its content scripts now: Chrome wakes a stopped worker only for listeners added in its first turn.
 let loadedKernel: Awaited<typeof kernelReady> | undefined;
@@ -43,7 +43,7 @@ const hostReady: Promise<BrowserHost> = kernelReady.then((kernel) => {
 async function mountRootPage(host: EventTransport): Promise<void> {
   for (const orbital of schema.orbitals) {
     for (const page of orbital.pages ?? []) {
-      if (typeof page === 'string' || page.path !== '/') continue;
+      if (typeof page === 'string' || !isRoutePage(page) || page.path !== '/') continue;
       for (const ref of page.traits ?? []) {
         await host.send(orbital.name, { event: 'INIT', targetTrait: getTraitName(ref), payload: {} });
       }

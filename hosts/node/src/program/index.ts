@@ -50,6 +50,7 @@ import {
   type TraitValueMountResult,
   type BehaviorRef,
   type BehaviorValueMountResult,
+  isRoutePage,
 } from '@almadar/core';
 import {
   atomTraitResolver,
@@ -466,7 +467,7 @@ export async function mountTraitValue(value: TraitValue, opts: ProgramHostOption
   const { behavior, trait, config, ...rest } = value;
   const overrides = config !== undefined ? { ...rest, config: mergeCallSiteConfigOverrides({}, config) } : rest;
   const projectRelative = behavior.startsWith('./');
-  const page = (owner.pages ?? []).find((p) => typeof p === 'object' && 'path' in p && (p.traits ?? []).some((t) => (typeof t === 'string' ? t : 'ref' in t ? t.ref : t.name) === trait));
+  const page = (owner.pages ?? []).find((p) => typeof p === 'object' && 'path' in p && isRoutePage(p) && (p.traits ?? []).some((t) => (typeof t === 'string' ? t : 'ref' in t ? t.ref : t.name) === trait));
   const wrapper = {
     name: `Mount${trait}`,
     orbitals: [

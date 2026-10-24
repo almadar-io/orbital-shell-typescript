@@ -875,9 +875,9 @@ export class OrbitalServerRuntime {
     }
     const local: Entity[] = [];
     for (const registered of this.orbitals.values()) {
-      if (registered.entity.local === true) local.push(registered.entity);
+      if (registered.entity.browser === true) local.push(registered.entity);
       for (const aux of registered.schema.auxiliaryEntities ?? []) {
-        if (typeof aux !== 'string' && !isEntityCall(aux) && aux.local === true) local.push(aux);
+        if (typeof aux !== 'string' && !isEntityCall(aux) && aux.browser === true) local.push(aux);
       }
     }
     if (local.length === 0) return;

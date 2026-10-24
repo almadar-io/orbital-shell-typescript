@@ -1,5 +1,5 @@
 /**
- * A browser-stored entity (`[persistent: x, local]`) on the runtime path with no
+ * A browser-stored entity (`[persistent: x, browser]`) on the runtime path with no
  * server: the written-out rows load from IndexedDB, an added row is stored
  * there, and it is still there when the preview mounts again.
  */
@@ -27,13 +27,13 @@ function schema(name: string): OrbitalSchema {
     orbitals: [{
       name: 'Books',
       entity: {
-        name: 'Invoice', persistence: 'persistent', collection: 'invoices', local: true,
+        name: 'Invoice', persistence: 'persistent', collection: 'invoices', browser: true,
         fields: [{ name: 'id', type: 'string', required: true }, { name: 'client', type: 'string' }],
         instances: [{ id: 'INV-1042', client: 'Noor Logistics' }, { id: 'INV-1043', client: 'Bled Studio' }],
         localeInstances: { ar: [{ id: 'INV-1042', client: 'نور للخدمات اللوجستية' }, { id: 'INV-1043', client: 'استوديو بليد' }] },
       },
       traits: [{
-        name: 'InvoiceList', scope: 'collection', linkedEntity: 'Invoice',
+        name: 'InvoiceList', linkedEntity: 'Invoice',
         stateMachine: {
           states: [{ name: 'loading', isInitial: true }, { name: 'browsing' }],
           events: [],

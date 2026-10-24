@@ -32,18 +32,16 @@ const program: OrbitalSchema = {
   version: '1.0.0',
   orbitals: [{
     name: 'Feed',
-    entity: { name: 'Seen', persistence: 'persistent', collection: 'seen', local: true, fields: [{ name: 'id', type: 'string' }, { name: 'title', type: 'string' }] },
+    entity: { name: 'Seen', persistence: 'persistent', collection: 'seen', browser: true, fields: [{ name: 'id', type: 'string' }, { name: 'title', type: 'string' }] },
     traits: [{
       name: 'Watch',
       linkedEntity: 'Seen',
-      category: 'interaction',
-      scope: 'collection',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],
         events: [
           { key: 'INIT', name: 'INIT' },
           { key: 'WATCHING', name: 'WATCHING' },
-          { key: 'ITEM_SEEN', name: 'ITEM_SEEN', external: true, payloadSchema: [{ name: 'title', type: 'string' }] },
+          { key: 'ITEM_SEEN', name: 'ITEM_SEEN', input: true, payloadSchema: [{ name: 'title', type: 'string' }] },
         ],
         transitions: [
           { from: 'idle', to: 'idle', event: 'INIT', effects: [
@@ -60,8 +58,6 @@ const program: OrbitalSchema = {
     }, {
       name: 'SeenList',
       linkedEntity: 'Seen',
-      category: 'interaction',
-      scope: 'collection',
       stateMachine: {
         states: [{ name: 'ready', isInitial: true }],
         events: [{ key: 'INIT', name: 'INIT' }, { key: 'LIST_LOADED', name: 'LIST_LOADED' }],
@@ -119,7 +115,7 @@ describe('a view of a program its host runs entirely', () => {
         name: 'Pulse',
         entity: { name: 'Beat', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
         traits: [{
-          name: 'Beater', linkedEntity: 'Beat', category: 'interaction', scope: 'instance',
+          name: 'Beater', linkedEntity: 'Beat',
           stateMachine: {
             states: [{ name: 'idle', isInitial: true }],
             events: [{ key: 'INIT', name: 'INIT' }, { key: 'PULSE', name: 'PULSE' }],

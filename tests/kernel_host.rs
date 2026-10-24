@@ -67,9 +67,10 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
 }
 
 /// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the server became the
-/// template's native host (2026-10-20: no server TypeScript is generated). The client source is the template's, and the
-/// compile emits only the program's runtime files (`public/client.json`, `public/themes.css`, `public/program.client.json`).
-const KERNEL_OUTPUT_DIGEST: u64 = 16_515_912_613_707_617_332;
+/// template's native host (2026-10-20: no server TypeScript is generated), re-recorded 2026-10-24 when the programs became
+/// `.orb` files and the unread shared copy was retired. The client source is the template's, and the compile emits only
+/// the program's runtime files (`public/client.json`, `public/themes.css`, `public/program.client.orb`).
+const KERNEL_OUTPUT_DIGEST: u64 = 8_716_758_803_243_522_726;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -134,7 +135,7 @@ fn the_client_hosts_the_kernel_through_the_ui_engine_provider() {
 
 fn browser_stored_module() -> OirModule {
     let mut module = module();
-    module.entities[0].local = true;
+    module.entities[0].browser = true;
     module
 }
 
@@ -237,13 +238,26 @@ fn the_client_loader_hands_the_renderer_the_whole_kernel_module_its_evaluator_re
 }
 
 #[test]
-fn the_resolved_schema_ships_as_the_apps_data() {
+fn every_program_a_compile_ships_is_an_orb_file() {
+    let backend = TypeScriptBackend { served_schema: Some(served()), ..kernel_backend() };
+    let programs: Vec<String> = files_of(&backend)
+        .into_iter()
+        .map(|(path, _)| path)
+        .filter(|path| path.rsplit('/').next().is_some_and(|name| name.starts_with("program.") && !name.ends_with(".ts")))
+        .collect();
+    assert_eq!(programs.len(), 2, "{programs:?}");
+    for path in &programs {
+        assert!(path.ends_with(".orb"), "{path}");
+    }
+}
+
+#[test]
+fn the_shared_package_embeds_no_copy_of_the_program() {
     let files = files_of(&kernel_backend());
-    let embedded: serde_json::Value =
-        serde_json::from_str(file(&files, "packages/shared/src/program.json")).unwrap();
-    assert_eq!(embedded, serde_json::to_value(schema()).unwrap());
+    assert!(!files.iter().any(|(path, _)| path.starts_with("packages/shared/src/program.")), "no client or server source reads it");
     let barrel = file(&files, "packages/shared/src/index.ts");
-    assert!(barrel.contains("./program.js"), "{barrel}");
+    assert!(!barrel.contains("./program.js"), "{barrel}");
+    assert!(barrel.contains("./dispatch.js"), "control: {barrel}");
 }
 
 #[test]
@@ -302,7 +316,7 @@ fn edge_without_a_resolved_schema_nothing_is_embedded_and_the_output_says_so() {
     assert!(!output
         .files
         .iter()
-        .any(|f| f.path.ends_with("program.json")));
+        .any(|f| f.path.ends_with(".orb")));
     assert!(
         output
             .warnings
@@ -378,10 +392,9 @@ fn the_production_client_build_ships_no_source_maps_and_splits_the_kernel_and_re
 #[test]
 fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_one() {
     let files = files_of(&kernel_backend());
-    let full: serde_json::Value =
-        serde_json::from_str(file(&files, "packages/shared/src/program.json")).unwrap();
+    let full = serde_json::to_value(schema()).unwrap();
     let client: serde_json::Value =
-        serde_json::from_str(file(&files, "packages/client/public/program.client.json")).unwrap();
+        serde_json::from_str(file(&files, "packages/client/public/program.client.orb")).unwrap();
     for key in ["_metadata", "ledger"] {
         assert!(client.get(key).is_none(), "{key}");
     }
@@ -399,10 +412,10 @@ fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_on
     }
     let app = &template("packages/client/src/App.tsx");
     assert!(app.contains("from './client-program'"), "{app}");
-    assert!(!app.contains("program.client.json") && !app.contains("program.json"), "{app}");
+    assert!(!app.contains("program.client.orb") && !app.contains("program.orb"), "{app}");
     assert!(!app.contains("from '@app/shared'"), "{app}");
     let module = &template("packages/client/src/client-program.ts");
-    assert!(module.contains("fetch(`${import.meta.env.BASE_URL}program.client.json`)"), "{module}");
+    assert!(module.contains("fetch(`${import.meta.env.BASE_URL}program.client.orb`)"), "{module}");
     assert!(!module.contains("import programJson"), "{module}");
 }
 
@@ -410,9 +423,8 @@ fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_on
 fn the_client_asset_omits_what_the_client_never_reads_while_the_server_copy_keeps_it() {
     let files = files_of(&kernel_backend());
     let asset: serde_json::Value =
-        serde_json::from_str(file(&files, "packages/client/public/program.client.json")).unwrap();
-    let server: serde_json::Value =
-        serde_json::from_str(file(&files, "packages/shared/src/program.json")).unwrap();
+        serde_json::from_str(file(&files, "packages/client/public/program.client.orb")).unwrap();
+    let server = serde_json::to_value(schema()).unwrap();
     assert!(asset.get("_metadata").is_none() && asset.get("ledger").is_none());
     assert_eq!(server["_metadata"]["version"], 1, "control: {server}");
 }
@@ -422,8 +434,8 @@ fn control_the_client_entry_fetches_the_program_and_no_client_source_imports_it(
     let files = files_of(&kernel_backend());
     for (path, content) in &files {
         if path.starts_with("packages/client/src/") && (path.ends_with(".ts") || path.ends_with(".tsx")) {
-            assert!(!content.contains("program.client.json'"), "{path} imports the program");
-            assert!(!content.contains("program.json'"), "{path} imports the program");
+            assert!(!content.contains("program.client.orb'"), "{path} imports the program");
+            assert!(!content.contains("program.orb'"), "{path} imports the program");
         }
     }
     let module = &template("packages/client/src/client-program.ts");
@@ -437,10 +449,10 @@ fn control_a_server_only_compile_ships_no_client_projection() {
     assert!(!server
         .files
         .iter()
-        .any(|f| f.path.contains("program.client.json")));
+        .any(|f| f.path.contains("program.client.orb")));
 }
 
-const SERVED_PROGRAM: &str = "packages/server/generated/program.json";
+const SERVED_PROGRAM: &str = "packages/server/generated/program.orb";
 
 fn served() -> orbital_core_base::schema::types::OrbitalSchema {
     orbital_core_base::schema::types::OrbitalSchema { name: "BooksServed".to_string(), ..schema() }
@@ -469,4 +481,54 @@ fn edge_a_server_compile_given_no_served_program_ships_none_and_says_so() {
     let output = kernel_backend().generate_with_mode(&module(), orbital_core_base::generate::ShellMode::Server);
     assert!(!output.files.iter().any(|f| f.path == SERVED_PROGRAM));
     assert!(output.warnings.iter().any(|w| w.contains("no served program")), "{:?}", output.warnings);
+}
+
+fn schema_with_pages(pages: serde_json::Value) -> orbital_core_base::schema::types::OrbitalSchema {
+    serde_json::from_value(serde_json::json!({
+        "name": "Books",
+        "orbitals": [
+            { "name": "Books", "entity": { "name": "Invoice", "persistence": "persistent", "collection": "invoices", "fields": [{ "name": "id", "type": "string" }] }, "traits": [], "pages": pages }
+        ]
+    }))
+    .expect("schema fixture")
+}
+
+fn client_page_names(schema: &orbital_core_base::schema::types::OrbitalSchema) -> Vec<String> {
+    let projected: serde_json::Value =
+        serde_json::from_str(&orbital_shell_typescript::client_program_orb(schema).expect("projects")).expect("JSON");
+    projected["orbitals"][0]["pages"]
+        .as_array()
+        .expect("pages")
+        .iter()
+        .map(|p| p["name"].as_str().expect("name").to_string())
+        .collect()
+}
+
+#[test]
+fn the_client_projection_keeps_route_pages_and_drops_protocol_pages() {
+    let schema = schema_with_pages(serde_json::json!([
+        { "name": "Home", "path": "/", "traits": [] },
+        { "name": "Api", "path": "", "protocol": "http", "address": ["host", "0.0.0.0"], "traits": [] },
+        { "name": "Mcp", "path": "", "protocol": "stdio", "traits": [] },
+        { "name": "Background", "path": "", "protocol": "boot", "traits": [] },
+        { "name": "Detail", "path": "/detail", "traits": [] }
+    ]));
+    assert_eq!(client_page_names(&schema), vec!["Home", "Detail"]);
+}
+
+#[test]
+fn control_a_program_of_routes_only_projects_every_page() {
+    let schema = schema_with_pages(serde_json::json!([
+        { "name": "Home", "path": "/", "traits": [] },
+        { "name": "Detail", "path": "/detail", "traits": [] }
+    ]));
+    assert_eq!(client_page_names(&schema), vec!["Home", "Detail"]);
+}
+
+#[test]
+fn edge_a_program_of_protocol_pages_only_projects_an_empty_page_list() {
+    let schema = schema_with_pages(serde_json::json!([
+        { "name": "Api", "path": "", "protocol": "http", "address": ["host", "0.0.0.0"], "traits": [] }
+    ]));
+    assert!(client_page_names(&schema).is_empty());
 }

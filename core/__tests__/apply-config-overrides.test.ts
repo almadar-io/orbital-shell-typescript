@@ -14,7 +14,6 @@ const SCHEMA: OrbitalSchema = {
             traits: [
                 {
                     name: 'HealthBarRender',
-                    scope: 'instance',
                     config: {
                         current: { type: 'number', default: 0, label: 'Current', tier: 'presentation' },
                         max: { type: 'number', default: 0 },
@@ -36,7 +35,7 @@ describe('applyTraitConfigOverrides', () => {
     it('patches the default of declared config fields on the matching trait', () => {
         const out = applyTraitConfigOverrides(SCHEMA, { HealthBarRender: { current: 72, format: 'bar' } });
         const trait = out.orbitals[0]?.traits[0];
-        if (typeof trait !== 'object' || trait === null || !('scope' in trait) || trait.config === undefined) {
+        if (typeof trait !== 'object' || trait === null || !('name' in trait && !('ref' in trait)) || trait.config === undefined) {
             throw new Error('expected an inlined trait with declared config');
         }
         const config = trait.config;
@@ -54,7 +53,7 @@ describe('applyTraitConfigOverrides', () => {
     it('ignores override fields not declared on the trait', () => {
         const out = applyTraitConfigOverrides(SCHEMA, { HealthBarRender: { nope: 5 } });
         const trait = out.orbitals[0]?.traits[0];
-        if (typeof trait !== 'object' || trait === null || !('scope' in trait) || trait.config === undefined) {
+        if (typeof trait !== 'object' || trait === null || !('name' in trait && !('ref' in trait)) || trait.config === undefined) {
             throw new Error('config');
         }
         expect('nope' in trait.config).toBe(false);
@@ -114,7 +113,7 @@ describe('applyTraitConfigOverrides — default-less declarations on a trait ref
         };
         const out = applyTraitConfigOverrides(schema, { AppLayout: { contentTrait: '@trait.Board' } });
         const trait = out.orbitals[0]?.traits[0];
-        if (typeof trait !== 'object' || trait === null || 'scope' in trait) throw new Error('expected a trait reference');
+        if (typeof trait !== 'object' || trait === null || !('ref' in trait)) throw new Error('expected a trait reference');
         expect(trait.config?.['contentTrait']).toEqual({ type: 'trait', label: 'Content', default: '@trait.Board' });
         expect(trait.config?.['sidebarTrait']).toEqual({ type: 'trait', label: 'Sidebar' });
     });

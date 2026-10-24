@@ -59,7 +59,6 @@ function oldAppSchema(): OrbitalSchema {
         traits: [
           {
             name: 'OldHome',
-            scope: 'instance',
             linkedEntity: 'OldItem',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],
@@ -77,7 +76,6 @@ function oldAppSchema(): OrbitalSchema {
 function accountingSchema(): OrbitalSchema {
   const mk = (name: string): Trait => ({
     name,
-    scope: 'instance' as const,
     linkedEntity: 'Journal',
     stateMachine: {
       states: [{ name: 'idle', isInitial: true }],

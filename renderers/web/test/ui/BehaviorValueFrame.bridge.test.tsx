@@ -27,7 +27,6 @@ function plugin(): OrbitalSchema {
         traits: [
           {
             name: 'Echo',
-            scope: 'instance',
             linkedEntity: 'EchoView',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }],

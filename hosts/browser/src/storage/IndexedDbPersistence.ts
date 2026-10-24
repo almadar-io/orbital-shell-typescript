@@ -1,5 +1,5 @@
 /**
- * IndexedDbPersistence — the browser store for `[persistent: x, local]` entities.
+ * IndexedDbPersistence — the browser store for `[persistent: x, browser]` entities.
  *
  * Implements the shared `PersistenceAdapter` contract, so the effect stage runs
  * `fetch`/`persist` against it exactly as a server runs them against Firestore

@@ -28,7 +28,6 @@ const schema: OrbitalSchema = {
     pages: [{ name: 'TasksPage', path: '/tasks' }],
     traits: [{
       name: 'TaskList',
-      scope: 'collection',
       linkedEntity: 'Task',
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }, { name: 'loaded' }, { name: 'editing' }],
