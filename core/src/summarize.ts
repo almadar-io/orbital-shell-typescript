@@ -153,6 +153,15 @@ function summarizeField(f: EntityField): EntityField {
       ...(f.required ? { required: true } : {}),
     };
   }
+  if (f.type === 'field') {
+    return {
+      ...(f.name !== undefined ? { name: f.name } : {}),
+      type: 'field',
+      ...(f.record !== undefined ? { record: f.record } : {}),
+      ...(f.items !== undefined ? { items: summarizeField(f.items) } : {}),
+      ...(f.required ? { required: true } : {}),
+    };
+  }
   if (isTypeVariableField(f)) {
     return {
       ...(f.name !== undefined ? { name: f.name } : {}),

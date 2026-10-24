@@ -391,6 +391,8 @@ export type ConfigFieldDeclaration = {
     readonly payloadFor?: string;
     /** `.lolo` `T.f`: the declared field this knob's type was projected from. */
     readonly projectedFrom?: FieldProjection;
+    /** `field R T`: the record `R` as a type string (`@entity`, `@payload(knob)`, an entity or alias name, `$r`). */
+    readonly record?: string;
 };
 
 export type ConfigFieldItemsDeclaration = {
@@ -434,6 +436,7 @@ export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration, z.Z
     nestedForwardedFrom: z.array(z.string()).optional(),
     payloadFor: z.string().optional(),
     projectedFrom: FieldProjectionSchema.optional(),
+    record: z.string().optional(),
 });
 
 /**
@@ -459,7 +462,7 @@ export const DeclaredTraitConfigSchema: z.ZodType<DeclaredTraitConfig, z.ZodType
 // embed slot, a UI slot name, a pattern type name.
 // `union` is the closed variant type — a real .lolo/.orb type, so the
 // trait-side mirror must carry it or generated factories fail DTS.
-export type TraitFieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object' | 'timestamp' | 'datetime' | 'enum' | 'email' | 'url' | 'phone' | 'uuid' | 'image' | 'bytes' | 'trait' | 'slot' | 'pattern' | 'node' | 'event' | 'EventAddress' | 'CallKey' | 'SExpr' | 'union' | 'tuple' | TypeVariable;
+export type TraitFieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object' | 'timestamp' | 'datetime' | 'enum' | 'email' | 'url' | 'phone' | 'uuid' | 'image' | 'bytes' | 'trait' | 'slot' | 'pattern' | 'node' | 'event' | 'EventAddress' | 'CallKey' | 'SExpr' | 'union' | 'tuple' | 'field' | TypeVariable;
 
 /** Every `TraitFieldType`, as a runtime array — the ONE list `TraitEntityFieldSchema`
  *  and `RequiredFieldSchema` both read. Two separate inline copies of this enum had
@@ -491,6 +494,7 @@ export const TRAIT_FIELD_TYPES = [
     'SExpr',
     'union',
     'tuple',
+    'field',
 ] as const satisfies readonly TraitFieldType[];
 
 /**

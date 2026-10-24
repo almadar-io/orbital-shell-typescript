@@ -890,7 +890,11 @@ export type Viewer = {
 /**
  * Stable subject identifier: the ownership key.
  */
-id: string, email?: string, name?: string, 
+id: string, 
+/**
+ * A token may carry no email or name, or carry it as null (owner ruling 2026-10-24).
+ */
+email?: string | null, name?: string | null, 
 /**
  * Compared against a policy's allowed roles.
  */

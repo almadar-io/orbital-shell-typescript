@@ -1200,7 +1200,7 @@ export type { UserContext } from '@almadar/core';
             }
             OirType::Money => "z.number()".to_string(),
             OirType::Bytes => "z.string()".to_string(),
-            OirType::CallKey => "z.string()".to_string(),
+            OirType::CallKey | OirType::FieldRef { .. } => "z.string()".to_string(),
             OirType::File => "z.object({ name: z.string(), url: z.string(), mimeType: z.string(), sizeBytes: z.number() })".to_string(),
             // The zod twin of the declared TS type
             // (`Record<string, FieldValue | undefined>`, `types.rs::json`).

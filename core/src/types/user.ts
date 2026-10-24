@@ -44,8 +44,8 @@ const ClaimSchema: z.ZodType<Claim> = z.object({ name: z.string(), value: JsonVa
 /** Zod twin of the generated {@link Viewer}: the record a `.lolo` program names as `Viewer`. */
 export const ViewerSchema: z.ZodType<Viewer> = z.object({
   id: z.string(),
-  email: z.string().optional(),
-  name: z.string().optional(),
+  email: z.string().nullish(),
+  name: z.string().nullish(),
   role: z.string().optional(),
   permissions: z.array(z.string()).optional(),
   claims: z.array(ClaimSchema),

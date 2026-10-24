@@ -668,6 +668,16 @@
         "doc": ""
       },
       {
+        "name": "dispatch",
+        "type": "Option<TraitDispatch>",
+        "doc": "`UpstreamTrait [optimistic]`: replaces the imported trait's dispatch mode."
+      },
+      {
+        "name": "retired_words",
+        "type": "Vec<RetiredWord>",
+        "doc": "Bracket words outside the dispatch modes; lowering rejects each."
+      },
+      {
         "name": "body",
         "type": "TraitRefBody",
         "doc": ""
@@ -782,8 +792,8 @@
       },
       {
         "name": "Page",
-        "type": "String, Vec<String>",
-        "doc": "`expects page \"/articles/:slug\"` — a route a sibling orbital declares and this one navigates to. The provider's PATTERN, which a navigate effect's static prefix cannot supply."
+        "type": "String, Option<String>, Vec<String>",
+        "doc": "`expects page \"/articles/:slug\"` — a route a sibling orbital declares and this one navigates to. The provider's PATTERN, which a navigate effect's static prefix cannot supply. `expects page boot -> A, B` names a protocol endpoint instead (`path` empty, `protocol` the word)."
       },
       {
         "name": "State",
@@ -1076,6 +1086,11 @@
         "doc": "`@entity <knob>` — the row type of the entity that the named config knob resolves to. The unary sibling of `BoundEntityRow`: same sigil, arity distinguishes \"the bound entity\" from \"the entity that knob names\"."
       },
       {
+        "name": "FieldRef",
+        "type": "Box<TypeExpr>, Option<Box<TypeExpr>>",
+        "doc": "`field R T` — the name of a field of the record `R` whose value is a `T`; `field R` names a field of any type. `R` is one type atom (`@entity`, a record alias, an entity name, a type variable, or a parenthesised sigil form). Config-only."
+      },
+      {
         "name": "ExpectedIdentityRow",
         "type": "",
         "doc": "`@user` — the row type of the identity this orbital `expects`. The identity axis's counterpart to `BoundEntityRow`: lets a reusable atom say \"the acting user\" without naming whose identity entity that is."
@@ -1253,7 +1268,7 @@
   {
     "name": "TraitDispatch",
     "kind": "enum",
-    "doc": "The dispatch mode a trait header declares: `[client]` or `[optimistic]`. No header word means server dispatch.",
+    "doc": "The dispatch mode a trait header declares: `[client]`, `[optimistic]` or `[server]`. No header word means server dispatch that a call site may not distinguish from an atom's own mode; `[server]` is the explicit override.",
     "fields": [
       {
         "name": "Client",
@@ -1262,6 +1277,11 @@
       },
       {
         "name": "Optimistic",
+        "type": "",
+        "doc": ""
+      },
+      {
+        "name": "Server",
         "type": "",
         "doc": ""
       }
@@ -1315,7 +1335,7 @@
       {
         "name": "dispatch",
         "type": "Option<TraitDispatch>",
-        "doc": "`[client]` / `[optimistic]` header word; `None` is server dispatch."
+        "doc": "`[client]` / `[optimistic]` / `[server]` header word; `None` is undeclared (server)."
       },
       {
         "name": "retired_words",

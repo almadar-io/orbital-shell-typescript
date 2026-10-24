@@ -8,7 +8,9 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 - **Close by deleting.** Remove the entry in the same commit as the fix. There is no "closed" section; git history is the record.
 - **Cross-repo gaps don't go here.** If fixing it needs another repo, describe it in your report or PR body; the monorepo coordinator files it.
 
-Next code: `G-CORE-032`
+Next code: `G-CORE-033`
+
+- **G-CORE-032** — core `tsc` fails: `__tests__/{entity-map-contract,file-money-types,node-field-type,semantic-field-types}.test.ts` import `sampleFieldValue` / `SampleStrategy` from `../src/mock/index.js`, whose `sampleValue.ts` (with `random.ts`, `relationForest.ts`, `serviceAnswer.ts`) checkpoint 04acc0a (P-008 mock seed in std-mock-seed) deleted. Fix: move each test's sampling cases to std-mock-seed goldens (or delete them naming the pinning golden) and keep the field-schema cases. @almadar/core tests [mechanical] — rung: core `tsc` (already catches it).
 
 
 ## Open gaps

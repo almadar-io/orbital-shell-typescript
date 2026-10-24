@@ -14,7 +14,7 @@ export type FieldTypeShape = 'circle' | 'triangle' | 'square' | 'diamond' | 'rin
 
 /** Every @almadar/core field type drawn as the shape of its data family. */
 export const FIELD_TYPE_SHAPES: Record<FieldTag, FieldTypeShape> = {
-  string: 'circle', email: 'circle', url: 'circle', phone: 'circle', uuid: 'circle',
+  string: 'circle', email: 'circle', url: 'circle', phone: 'circle', uuid: 'circle', field: 'circle',
   number: 'triangle', int: 'triangle', money: 'triangle',
   boolean: 'square',
   date: 'diamond', timestamp: 'diamond', datetime: 'diamond',

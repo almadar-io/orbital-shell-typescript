@@ -605,11 +605,6 @@
     "description": "Invalid slot nesting (e.g., modal in modal)"
   },
   {
-    "code": "ORB_SLOT_HUD_NON_GAME",
-    "category": "slot",
-    "description": "HUD slot used in non-game context"
-  },
-  {
     "code": "ORB_RUI_INVALID_SLOT",
     "category": "render_ui",
     "description": "Invalid slot in render_ui effect"
@@ -1308,6 +1303,16 @@
     "code": "ORB_CONFIG_DANGLING_REF",
     "category": "binding",
     "description": "`@config.<key>` literal whose key no reachable config schema declares"
+  },
+  {
+    "code": "ORB_CONFIG_FIELD_REF_UNKNOWN",
+    "category": "binding",
+    "description": "A `field @entity` config knob names something that is not a field of the trait's bound entity"
+  },
+  {
+    "code": "ORB_CONFIG_FIELD_REF_TYPE_MISMATCH",
+    "category": "binding",
+    "description": "A `field @entity T` config knob names a field whose type is not `T`"
   },
   {
     "code": "ORB_BINDING_INVALID_PATH",

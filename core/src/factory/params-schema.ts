@@ -538,6 +538,7 @@ function mapKnobType(knobType: string): JsonSchemaType | null {
     case 'event':
     case 'EventAddress':
     case 'CallKey':
+    case 'field':
     case 'date':
       return 'string';
     case 'render-ui':
@@ -605,6 +606,7 @@ export function mapEntityFieldType(fieldType: string): JsonSchemaType | null {
     case 'event':
     case 'EventAddress':
     case 'CallKey':
+    case 'field':
       return 'string';
     // Polymorphic renderable content: a node accepts a string leaf OR a
     // render-ui tree — no JSON-Schema `type` constraint, mirroring

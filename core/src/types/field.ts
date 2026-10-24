@@ -89,7 +89,10 @@ export type FieldTag =
     // or generated factories fail DTS (docs/Almadar_LOLO_Gaps.md L-6).
     | 'union'
     // Fixed-length tuple (`.lolo` `[T1, T2, …]`); slots ride `properties`, keyed by index.
-    | 'tuple';
+    | 'tuple'
+    // The name of a field of a record (`.lolo` `field R T`); a string at rest. `record` is `R`, `items` the type
+    // the named field must have, absent for any field. Config-only.
+    | 'field';
 
 /** Every `FieldType`, as a runtime array. Downstream imports this instead of
  *  re-listing the union — five copies had already drifted apart. */
@@ -125,6 +128,7 @@ export const FIELD_TYPES = [
     'SExpr',
     'union',
     'tuple',
+    'field',
 ] as const satisfies readonly FieldTag[];
 
 /** The semantic string domains — constrained strings, validatable by value. */
@@ -493,6 +497,15 @@ export type TupleEntityField = EntityFieldBase & {
     properties: Record<string, EntityField>;
 };
 
+/** `type: 'field'` — the name of a field of the record `record` (`.lolo` `field R T`); `items` is the type that field
+ *  must have (absent: any field). `record` is `R` as a type string: `@entity`, `@entity(knob)`, `@payload(knob)`, an
+ *  entity or alias name, or `$r`; an alias's shape rides `properties`. Mirrors Rust's `FieldType::Field`. */
+export type FieldRefEntityField = EntityFieldBase & {
+    type: 'field';
+    record?: string;
+    items?: EntityField;
+};
+
 /**
  * `type: 'object'` — a fixed-key struct (fields in `properties`) OR a
  * dynamic-key map (`Map K V` in `.lolo`; the uniform value schema lives in
@@ -533,6 +546,7 @@ export type EntityField =
     | UnionEntityField
     | ArrayEntityField
     | TupleEntityField
+    | FieldRefEntityField
     | ObjectEntityField;
 
 /**
@@ -658,6 +672,13 @@ export const EntityFieldSchema: z.ZodType<EntityField, z.ZodTypeDef, unknown> = 
                 z.object({
                     ...baseFieldShape,
                     type: z.literal('array'),
+                    items: EntityFieldSchema.optional(),
+                }),
+                // Field-reference variant — `items` is the type the named field must have.
+                z.object({
+                    ...baseFieldShape,
+                    type: z.literal('field'),
+                    record: z.string().optional(),
                     items: EntityFieldSchema.optional(),
                 }),
                 // Tuple variant — slots in `properties`, keyed by index (at least one).

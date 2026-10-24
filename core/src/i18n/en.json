@@ -233,6 +233,7 @@
     "event": "event",
     "EventAddress": "EventAddress",
     "CallKey": "CallKey",
+    "field": "field",
     "slot": "slot",
     "pattern": "pattern",
     "Map": "Map",
