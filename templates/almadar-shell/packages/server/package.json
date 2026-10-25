@@ -13,7 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@almadar/core": "^10.128.0",
+    "@almadar/core": "^10.129.0",
     "@almadar/shell-node": "^0.1.0",
     "@almadar/std": "^16.255.0",
     "dotenv": "^16.4.7"
