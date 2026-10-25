@@ -103,28 +103,6 @@ export {
 } from './src/kernel-row-access';
 export type { KernelMemoryStoreWire, KernelMemoryStoreExports } from './src/kernel-memory-store';
 
-// ML contract validation — one pure implementation for the runtime path
-// (`@almadar/evaluator` contract/* operators) and the compiled TS shell.
-export {
-  validateContract,
-  isTensorValue,
-  describeTensorMismatch,
-  tensorShape,
-  tensorLastDimSize,
-  gatherTensorLastDim,
-  mapTensorLastDim,
-  contractFieldName,
-} from './src/ml-contract';
-export type {
-  TensorValue,
-  ContractRange,
-  ContractFieldSpec,
-  ContractFieldEntry,
-  ContractSpec,
-  ContractViolation,
-  ContractValidationResult,
-} from './src/ml-contract';
-
 // Export schema diffing & protection functions
 export {
   diffSchemas,

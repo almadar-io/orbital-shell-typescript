@@ -49,6 +49,8 @@ function scripted(log: string[], service = false): KernelModule {
       return JSON.stringify({ status: 'done', rows: rows.filter((r) => reference.ids.includes(String(r.id))), total: rows.length });
     }
     abandon(flight: number): boolean { log.push(`abandon ${flight}`); return true; }
+    bootMounts(): string { return '[]'; }
+    routeMounts(_routePath: string): string { return '[]'; }
     start(_orbital: string, request: string): string {
       log.push(`start ${JSON.parse(request).event}`);
       if (service) return JSON.stringify({ status: 'await', flight: 1, requests: [{ id: 0, request: { kind: 'callService', service: 'test', method: 'again', args: {}, site: { orbital: 'Main', trait: 'Worker', followOn: false, emit: {} } } }] });

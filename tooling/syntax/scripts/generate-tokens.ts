@@ -27,8 +27,7 @@ const patterns = JSON.parse(readFileSync(patternsPath, 'utf-8'));
 // color namespace. Any category NOT listed here keeps its own name as the
 // namespace (fallback below) — never silently bucket an unrecognized
 // category into an unrelated one (this previously dumped every operator
-// from any category the map hadn't caught up with, e.g. std-nn/std-tensor/
-// std-train/std-agent/std-vec/std-geo/..., into 'control' alongside genuine
+// from any category the map hadn't caught up with, e.g. std-agent/std-vec/std-geo/..., into 'control' alongside genuine
 // control-flow keywords like `let`/`do`/`fn`).
 const categoryToColorNamespace: Record<string, string> = {
   'std-math': 'arithmetic',

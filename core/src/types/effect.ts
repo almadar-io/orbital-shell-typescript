@@ -1117,92 +1117,6 @@ export type WatchEffect =
 export type AtomicEffect = ['atomic', ...SExpr[]];
 
 // ============================================================================
-// ML Effects (from almadar-std/modules/nn, tensor, train)
-// ============================================================================
-
-/**
- * One layer in an NN architecture description. The set of valid layer kinds
- * lives in `almadar-std/modules/nn`; here we keep the wire shape generic
- * enough for the cross-package runtime + Python bridge to round-trip.
- */
-export type NnLayer = {
-    type: string;
-    [key: string]: string | number | boolean | number[] | string[] | undefined;
-};
-
-/**
- * Hyperparameters for `train` and `evaluate`. Recursive to allow nested
- * optimizer / scheduler config blocks without falling back to `unknown`.
- */
-export type NnConfig = {
-    [key: string]: string | number | boolean | string[] | number[] | NnConfig | undefined;
-};
-
-/**
- * Forward-pass config: `input` is a binding string (`@payload.input`), and
- * `on-complete` names the event to fire when the prediction lands.
- */
-export type ForwardConfig = {
-    architecture: NnLayer[];
-    input: string;
-    'on-complete'?: string;
-    config?: NnConfig;
-};
-
-/**
- * Training-loop config. `dataset` is a binding string referencing the rows
- * to train on. Optimizer / loss / scheduler land inside `config`.
- */
-export type TrainConfig = {
-    architecture: NnLayer[];
-    dataset: string;
-    config?: NnConfig;
-    'on-complete'?: string;
-};
-
-/**
- * Evaluation config. `metrics` lists named metrics the Python backend
- * computes (`accuracy`, `precision`, ...).
- */
-export type EvaluateConfig = {
-    architecture: NnLayer[];
-    dataset: string;
-    metrics: string[];
-    config?: NnConfig;
-    'on-complete'?: string;
-};
-
-/**
- * Forward effect - runs a neural network forward pass (Python backend).
- * @example ['forward', 'primary', { architecture: [...], input: '@payload.input', 'on-complete': 'PREDICTION_READY' }]
- */
-export type ForwardEffect = ['forward', string, ForwardConfig];
-
-/**
- * Train effect - runs a training loop (Python backend).
- * @example ['train', { architecture: [...], dataset: '@entity.data', config: { epochs: 10 }, 'on-complete': 'TRAINING_DONE' }]
- */
-export type TrainEffect = ['train', TrainConfig];
-
-/**
- * Evaluate effect - runs model evaluation (Python backend).
- * @example ['evaluate', { architecture: [...], dataset: '@entity.testData', metrics: ['accuracy'], 'on-complete': 'EVAL_DONE' }]
- */
-export type EvaluateEffect = ['evaluate', EvaluateConfig];
-
-/**
- * Checkpoint save effect - saves model weights.
- * @example ['checkpoint/save', '/path/to/model.pt', '@entity.weights']
- */
-export type CheckpointSaveEffect = ['checkpoint/save', string, SExpr];
-
-/**
- * Checkpoint load effect - loads model weights.
- * @example ['checkpoint/load', '/path/to/model.pt']
- */
-export type CheckpointLoadEffect = ['checkpoint/load', string];
-
-// ============================================================================
 // Agent Effects (from agent/* operator namespace)
 // ============================================================================
 
@@ -1280,13 +1194,6 @@ export type ApplicationEffect = [`application/${string}`, ...SExpr[]];
 /** Effect operators the std registry declares that had no typed tuple (arity from the registry). */
 export type NotifyEffect = ['notify', SExpr] | ['notify', SExpr, SExpr];
 export type SendServerEffect = ['send-server', SExpr] | ['send-server', SExpr, SExpr];
-export type NnSetWeightsEffect = ['nn/setWeights', SExpr, SExpr];
-export type TrainLoopEffect = ['train/loop', SExpr, SExpr, SExpr];
-export type TrainStepEffect = ['train/step', SExpr, SExpr, SExpr, SExpr];
-export type TrainClipGradientsEffect = ['train/clipGradients', SExpr, SExpr];
-export type TrainClipWeightsEffect = ['train/clipWeights', SExpr, SExpr];
-export type TrainSgdEffect = ['train/sgd', SExpr, SExpr] | ['train/sgd', SExpr, SExpr, SExpr];
-export type TrainAdamEffect = ['train/adam', SExpr, SExpr] | ['train/adam', SExpr, SExpr, SExpr] | ['train/adam', SExpr, SExpr, SExpr, SExpr];
 export type ProbSeedEffect = ['prob/seed', SExpr];
 export type ProbConditionEffect = ['prob/condition', SExpr];
 export type WorkspaceWriteOrbitalEffect = ['workspace/write-orbital', SExpr, SExpr];
@@ -1334,11 +1241,6 @@ export type TypedEffect =
     | SwapEffect
     | WatchEffect
     | AtomicEffect
-    | ForwardEffect
-    | TrainEffect
-    | EvaluateEffect
-    | CheckpointSaveEffect
-    | CheckpointLoadEffect
     | AgentEffect
     | OsEffect
     | BrowserEffect
@@ -1352,13 +1254,6 @@ export type TypedEffect =
     | ApplicationEffect
     | NotifyEffect
     | SendServerEffect
-    | NnSetWeightsEffect
-    | TrainLoopEffect
-    | TrainStepEffect
-    | TrainClipGradientsEffect
-    | TrainClipWeightsEffect
-    | TrainSgdEffect
-    | TrainAdamEffect
     | ProbSeedEffect
     | ProbConditionEffect
     | WorkspaceWriteOrbitalEffect
@@ -1402,10 +1297,8 @@ export type Effect = TypedEffect;
 export const EFFECT_OPERATORS = [
   'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'random-bytes', 'credential-status', 'credential-forget', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'oauth-authorize', 'oauth-connection-status', 'oauth-connection-forget', 'http', 'redis', 'postgres', 'spawn',
   'despawn', 'do', 'fetch', 'fetch-stream', 'if', 'when', 'let', 'log', 'wait', 'ref', 'deref',
-  'swap', 'watch', 'atomic', 'forward', 'train', 'evaluate', 'checkpoint/save',
-  'checkpoint/load', 'notify', 'send-server', 'nn/setWeights',
-  'train/loop', 'train/step', 'train/clipGradients', 'train/clipWeights', 'train/sgd',
-  'train/adam', 'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
+  'swap', 'watch', 'atomic', 'notify', 'send-server',
+  'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
   'workspace/write-schema', 'workspace/write-plan', 'workspace/archive-orbital', 'behavior/catalog',
   'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/compose', 'program/step',
   'program/inputs', 'program/dispatch', 'program/live', 'persist/read-named',

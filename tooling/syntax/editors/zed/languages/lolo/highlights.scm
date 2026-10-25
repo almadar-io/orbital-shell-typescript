@@ -82,11 +82,18 @@
 ; render as keywords, matching .orb's Zed highlighting.
 ((sexpr . (identifier) @keyword)
   (#any-of? @keyword
+    "access-check"
     "atomic"
     "call-service"
     "cancel-call"
     "credential-forget"
+    "credential-list"
+    "credential-mode"
+    "credential-remove"
+    "credential-rotate"
+    "credential-set"
     "credential-status"
+    "credential-test"
     "deref"
     "despawn"
     "emit"
@@ -101,6 +108,7 @@
     "oauth-connection-forget"
     "oauth-connection-status"
     "persist"
+    "postgres"
     "random-bytes"
     "redis"
     "ref"
@@ -126,6 +134,7 @@
     "or"
     "quasiquote"
     "quote"
+    "typed"
     "unquote"
     "when"))
 

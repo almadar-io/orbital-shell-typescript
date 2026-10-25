@@ -63,9 +63,6 @@ const CATEGORY_SCOPES: Record<string, string> = {
     'std-time': 'support.function.time.sexpr',
     'std-validate': 'support.function.validate.sexpr',
     'std-format': 'support.function.format.sexpr',
-    'std-nn': 'support.function.nn.sexpr',
-    'std-tensor': 'support.function.tensor.sexpr',
-    'std-train': 'support.function.train.sexpr',
     'std-prob': 'support.function.prob.sexpr',
     'std-os': 'support.function.os.sexpr',
     'std-agent': 'support.function.agent.sexpr',
@@ -77,14 +74,6 @@ const CATEGORY_SCOPES: Record<string, string> = {
     'std-ease': 'support.function.ease.sexpr',
     'std-noise': 'support.function.noise.sexpr',
     'std-path': 'support.function.path.sexpr',
-
-    // Machine-learning library
-    'ml-arch': 'support.function.ml-arch.sexpr',
-    'ml-effect': 'support.function.ml-effect.sexpr',
-    'ml-tensor': 'support.function.ml-tensor.sexpr',
-    'ml-graph': 'support.function.ml-graph.sexpr',
-    'ml-contract': 'support.function.ml-contract.sexpr',
-    'ml-data': 'support.function.ml-data.sexpr',
 };
 
 // ============================================================================

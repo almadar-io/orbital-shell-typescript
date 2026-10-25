@@ -12,6 +12,7 @@ import type {
   EntityField,
   FactoryParamValue,
 } from '@almadar/core';
+import { isTypeVariable } from '@almadar/core';
 import { Accordion, type AccordionItem } from '../../core/molecules/Accordion';
 import { Button } from '../../../core';
 import { Checkbox } from '../../../core';
@@ -581,7 +582,10 @@ function fieldOfType(type: EntityField['type']): Partial<EntityField> {
       return { type };
     case 'tuple':
       return { type, properties: {} };
+    case 'field':
+      return { type };
     default:
+      if (isTypeVariable(type)) return { type };
       return { type };
   }
 }

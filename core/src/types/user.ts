@@ -67,7 +67,7 @@ export interface RawUserClaims {
   id?: string;
   uid?: string;
   email?: string | null;
-  name?: string;
+  name?: string | null;
   displayName?: string | null;
   /** Absent or `null` when the token carries none, as the kernel's `Viewer.role` (`Option`). */
   role?: string | null;
@@ -81,7 +81,7 @@ export const RawUserClaimsSchema: z.ZodType<RawUserClaims> = z
     id: z.string().optional(),
     uid: z.string().optional(),
     email: z.string().nullable().optional(),
-    name: z.string().optional(),
+    name: z.string().nullable().optional(),
     displayName: z.string().nullable().optional(),
     role: z.string().nullable().optional(),
     permissions: z.array(z.string()).nullable().optional(),

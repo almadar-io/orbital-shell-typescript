@@ -12,7 +12,7 @@
     },
     {
       "name": "keyword.operator.logical.sexpr",
-      "match": "(?<=\")(and|not|or|if)(?=\")"
+      "match": "(?<=\")(typed|and|not|or|if|as)(?=\")"
     },
     {
       "name": "keyword.control.sexpr",
@@ -20,15 +20,15 @@
     },
     {
       "name": "keyword.other.effect.sexpr",
-      "match": "(?<=\")(oauth-connection-status|oauth-connection-forget|credential-status|credential-forget|oauth-authorize|navigate-back|fetch-stream|call-service|random-bytes|send-server|cancel-call|render-ui|navigate|persist|despawn|notify|atomic|spawn|fetch|deref|watch|emit|swap|http|set|log|ref)(?=\")"
+      "match": "(?<=\")(oauth-connection-status|oauth-connection-forget|credential-status|credential-forget|credential-remove|credential-rotate|credential-list|credential-test|credential-mode|oauth-authorize|credential-set|navigate-back|fetch-stream|call-service|random-bytes|access-check|send-server|cancel-call|render-ui|navigate|postgres|persist|despawn|notify|atomic|spawn|fetch|deref|watch|redis|emit|swap|http|set|log|ref)(?=\")"
     },
     {
       "name": "support.function.math.sexpr",
-      "match": "(?<=\")(math/randomInt|math/approach|math/default|math/deg-rad|math/rad-deg|math/random|math/clamp|math/floor|math/round|math/log10|math/atan2|math/hypot|math/ceil|math/sqrt|math/sign|math/lerp|math/asin|math/acos|math/atan|math/wrap|math/abs|math/min|math/max|math/pow|math/mod|math/map|math/sin|math/cos|math/tan|math/ln)(?=\")"
+      "match": "(?<=\")(math/randomInt|math/approach|math/default|math/deg-rad|math/rad-deg|math/random|math/clamp|math/floor|math/round|math/log10|math/atan2|math/hypot|math/ceil|math/sqrt|math/sign|math/lerp|math/asin|math/acos|math/atan|math/wrap|math/abs|math/min|math/max|math/pow|math/mod|math/map|math/sin|math/cos|math/tan|bit/rotl|bit/rotr|math/ln|bit/and|bit/xor|bit/not|bit/shl|bit/shr|bit/or)(?=\")"
     },
     {
       "name": "support.function.string.sexpr",
-      "match": "(?<=\")(str/encode-uri-component|str/decode-uri-component|str/uri-component-valid|str/replace-pattern|str/replaceAll|str/startsWith|str/capitalize|str/to-number|str/trimStart|str/titleCase|str/camelCase|str/kebabCase|str/snakeCase|str/includes|str/endsWith|str/padStart|str/template|str/truncate|str/trimEnd|str/replace|str/reverse|str/default|str/concat|str/padEnd|str/repeat|str/upper|str/lower|str/split|str/slice|str/trim|str/join|str/len)(?=\")"
+      "match": "(?<=\")(str/encode-uri-component|str/decode-uri-component|str/uri-component-valid|str/replace-pattern|str/collate-key|str/replaceAll|str/startsWith|str/capitalize|str/to-number|str/trimStart|str/titleCase|str/camelCase|str/kebabCase|str/snakeCase|str/includes|str/endsWith|str/padStart|str/template|str/truncate|str/trimEnd|str/replace|str/reverse|str/default|str/collate|str/to-int|str/concat|str/padEnd|str/repeat|str/upper|str/lower|str/split|str/slice|str/trim|str/join|str/len)(?=\")"
     },
     {
       "name": "support.function.array.sexpr",
@@ -36,11 +36,11 @@
     },
     {
       "name": "support.function.object.sexpr",
-      "match": "(?<=\")(object/fromEntries|object/deepMerge|object/mapValues|object/deepClone|object/entries|object/mapKeys|object/values|object/filter|object/equals|object/merge|object/clone|object/keys|object/pick|object/omit|object/get|object/set|object/has|path)(?=\")"
+      "match": "(?<=\")(object/fromEntries|object/deepMerge|object/mapValues|object/deepClone|object/entries|object/mapKeys|object/values|object/filter|object/equals|object/merge|object/clone|object/keys|object/pick|object/omit|row/matches|object/get|object/set|object/has|path)(?=\")"
     },
     {
       "name": "keyword.other.sexpr",
-      "match": "(?<=\")(browser/geolocation-current|workspace/archive-orbital|browser/open-file-picker|browser/clipboard-write|workspace/write-orbital|workspace/list-orbitals|browser/clipboard-read|browser/push-subscribe|workspace/read-orbital|workspace/write-schema|session/append-history|workspace/read-schema|session/read-analysis|behavior/dependencies|workspace/write-file|workspace/write-plan|session/write-memory|session/read-history|session/write-errors|workspace/read-file|workspace/read-plan|session/read-memory|session/read-errors|browser/page-facts|session/write-spec|persist/read-named|session/read-spec|behavior/describe|bytes/from-string|workspace/exists|behavior/catalog|behavior/resolve|program/dispatch|llm/token-count|behavior/source|program/compose|bytes/to-string|json/stringify|browser/beacon|browser/prompt|llm/call-tools|behavior/apply|program/inputs|browser/embed|memory/recall|program/print|base64/encode|base64/decode|llm/generate|memory/store|behavior/ref|program/read|program/eval|program/step|bytes/length|bytes/concat|bytes/equals|base64/valid|llm/compact|memory/list|bytes/slice|hash/sha256|hmac/sha256|json/valid|json/parse|llm/switch|trace/emit|csv/parse|llm/embed|trace/log|xml/valid|xml/parse|hash/md5|i18n/t)(?=\")"
+      "match": "(?<=\")(browser/geolocation-current|workspace/archive-orbital|browser/open-file-picker|browser/clipboard-write|workspace/write-orbital|workspace/list-orbitals|browser/clipboard-read|browser/push-subscribe|browser/tab-apply-many|workspace/read-orbital|workspace/write-schema|session/append-history|workspace/read-schema|session/read-analysis|behavior/dependencies|browser/tab-navigate|workspace/write-file|workspace/write-plan|session/write-memory|session/read-history|session/write-errors|program/resolve-rows|browser/tab-unwatch|browser/tab-capture|workspace/read-file|workspace/read-plan|session/read-memory|session/read-errors|browser/page-facts|session/write-spec|persist/read-named|browser/tab-close|browser/tab-query|browser/tab-watch|browser/tab-apply|session/read-spec|behavior/describe|behavior/packages|bytes/from-string|bytes/from-base64|brotli/decompress|browser/tab-list|browser/tab-open|workspace/exists|behavior/catalog|behavior/resolve|program/validate|program/dispatch|bytes/write-uint|browser/tab-act|llm/token-count|behavior/source|program/compose|bytes/to-string|bytes/to-base64|bytes/read-uint|gzip/decompress|brotli/compress|json/stringify|browser/beacon|browser/prompt|llm/call-tools|behavior/apply|behavior/texts|program/inputs|bytes/index-of|browser/embed|memory/recall|program/print|base64/encode|base64/decode|gzip/compress|llm/generate|memory/store|behavior/ref|program/read|program/eval|program/step|program/self|program/tick|program/live|bytes/length|bytes/concat|bytes/equals|base64/valid|llm/compact|memory/list|bytes/slice|hash/sha256|hash/scrypt|hash/pbkdf2|hmac/sha256|json/valid|json/parse|json/nodes|llm/switch|trace/emit|tree/fold|csv/parse|kv/delete|llm/embed|trace/log|xml/valid|xml/parse|kv/batch|bytes/at|hash/md5|kv/scan|i18n/t|kv/get|kv/put)(?=\")"
     },
     {
       "name": "support.function.time.sexpr",
@@ -55,36 +55,12 @@
       "match": "(?<=\")(format/creditCard|format/currency|format/percent|format/ordinal|format/number|format/plural|format/bytes|format/phone|format/list)(?=\")"
     },
     {
-      "name": "support.function.ml-arch.sexpr",
-      "match": "(?<=\")(nn/sequential|nn/getWeights|nn/setWeights|nn/paramCount|nn/batchnorm|nn/layernorm|nn/sigmoid|nn/softmax|nn/dropout|nn/linear|nn/clone|nn/relu|nn/tanh)(?=\")"
-    },
-    {
-      "name": "support.function.ml-effect.sexpr",
-      "match": "(?<=\")(train/checkForbiddenOutputs|train/getMaxWeightMagnitude|train/checkWeightMagnitude|train/computeAdvantages|train/checkConstraints|train/checkRegression|train/getGradientNorm|train/computeReturns|train/clipGradients|train/crossEntropy|train/clipWeights|train/sampleBatch|checkpoint/save|checkpoint/load|train/validate|train/huber|nn/forward|train/loop|train/step|train/adam|train/mse|train/sgd|evaluate|forward|train)(?=\")"
-    },
-    {
-      "name": "support.function.ml-tensor.sexpr",
-      "match": "(?<=\")(tensor/outOfRangeIndices|tensor/outOfRangeDims|tensor/clampPerDim|tensor/allInRange|tensor/transpose|tensor/unsqueeze|tensor/reshape|tensor/flatten|tensor/toArray|tensor/squeeze|tensor/matmul|tensor/argmax|tensor/toList|tensor/zeros|tensor/randn|tensor/shape|tensor/slice|tensor/clamp|tensor/stack|tensor/from|tensor/ones|tensor/rand|tensor/mean|tensor/norm|tensor/get|tensor/add|tensor/sub|tensor/mul|tensor/div|tensor/dot|tensor/sum|tensor/max|tensor/min|tensor/cat)(?=\")"
-    },
-    {
-      "name": "support.function.ml-graph.sexpr",
-      "match": "(?<=\")(graph/from-adjacency|graph/from-edge-list|graph/add-self-loops|graph/from-entities|graph/to-undirected|graph/node-features|graph/edge-features|graph/edge-index|graph/num-nodes|graph/num-edges|graph/subgraph|graph/degree|graph/k-hop|graph/batch)(?=\")"
-    },
-    {
-      "name": "support.function.ml-contract.sexpr",
-      "match": "(?<=\")(contract/tensor-to-payload|contract/entity-to-tensor|contract/validate-output|contract/validate-input|contract/clamp-output|contract/violations)(?=\")"
-    },
-    {
-      "name": "support.function.ml-data.sexpr",
-      "match": "(?<=\")(data/dataloader|data/normalize|data/tokenize|data/dataset|data/augment|data/split|data/pad)(?=\")"
-    },
-    {
       "name": "support.function.prob.sexpr",
       "match": "(?<=\")(prob/credible-interval|prob/expected-value|prob/categorical|prob/percentile|prob/condition|prob/posterior|prob/histogram|prob/gaussian|prob/variance|prob/uniform|prob/poisson|prob/sample|prob/infer|prob/seed|prob/flip|prob/beta)(?=\")"
     },
     {
       "name": "support.function.os.sexpr",
-      "match": "(?<=\")(os/network-interfaces|os/network-connected|os/path-is-absolute|os/clock-monotonic|os/default-gateway|os/path-normalize|os/battery-status|os/brightness-get|os/brightness-set|os/path-relative|os/watch-process|os/network-stats|os/thermal-zones|os/watch-signal|os/stdout-write|os/stderr-write|os/append-file|os/watch-files|os/tcp-connect|os/dns-resolve|os/memory-info|os/volume-mute|os/write-file|os/stdin-read|os/tcp-listen|os/watch-port|os/watch-http|os/watch-cron|os/disk-usage|os/volume-get|os/volume-set|os/read-file|os/path-join|os/path-base|os/watch-env|os/cpu-usage|os/hibernate|os/truncate|os/readlink|os/list-dir|os/realpath|os/path-dir|os/path-ext|os/unsetenv|os/tty-size|os/udp-bind|os/recvfrom|os/shutdown|os/username|os/group-of|os/load-avg|os/hostname|os/ac-power|os/symlink|os/environ|os/disk-io|os/suspend|os/rename|os/remove|os/mktemp|os/access|os/exists|os/utimes|os/getenv|os/setenv|os/isatty|os/sendto|os/uptime|os/mounts|os/notify|os/close|os/write|os/fsync|os/mkdir|os/rmdir|os/chdir|os/lstat|os/chmod|os/chown|os/spawn|os/uname|os/speak|os/open|os/read|os/seek|os/copy|os/link|os/glob|os/stat|os/wait|os/kill|os/ppid|os/send|os/recv|os/cwd|os/pid|os/uid|os/gid)(?=\")"
+      "match": "(?<=\")(os/network-interfaces|os/network-connected|os/path-is-absolute|os/clock-monotonic|os/default-gateway|os/path-normalize|os/battery-status|os/brightness-get|os/brightness-set|os/path-relative|os/watch-process|os/network-stats|os/thermal-zones|os/watch-signal|os/stdout-write|os/stderr-write|os/append-file|os/watch-files|os/current-exe|os/tcp-connect|os/dns-resolve|os/memory-info|os/volume-mute|os/write-file|os/stdin-read|os/tcp-listen|os/watch-port|os/watch-http|os/watch-cron|os/disk-usage|os/volume-get|os/volume-set|os/read-file|os/path-join|os/path-base|os/watch-env|os/cpu-usage|os/hibernate|os/truncate|os/readlink|os/list-dir|os/realpath|os/path-dir|os/path-ext|os/unsetenv|os/tty-size|os/udp-bind|os/recvfrom|os/shutdown|os/username|os/group-of|os/load-avg|os/hostname|os/ac-power|os/symlink|os/environ|os/disk-io|os/suspend|os/rename|os/remove|os/mktemp|os/access|os/exists|os/utimes|os/getenv|os/setenv|os/isatty|os/sendto|os/uptime|os/mounts|os/notify|os/close|os/write|os/fsync|os/mkdir|os/rmdir|os/chdir|os/lstat|os/chmod|os/chown|os/spawn|os/uname|os/speak|os/open|os/read|os/seek|os/copy|os/link|os/glob|os/stat|os/wait|os/kill|os/ppid|os/send|os/recv|os/cwd|os/pid|os/uid|os/gid)(?=\")"
     },
     {
       "name": "support.function.composition.sexpr",
