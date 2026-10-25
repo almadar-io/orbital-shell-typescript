@@ -1,4 +1,5 @@
 export * from './host-ports.js';
+export * from './credential-rows.js';
 export * from './dev-master-key.js';
 export * from './os-node.js';
 export * from './kv-node.js';

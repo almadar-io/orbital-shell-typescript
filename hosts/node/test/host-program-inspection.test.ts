@@ -18,7 +18,7 @@ orbital Hello {
   entity Greeting [runtime] {
     id : string!
   }
-  trait Greet -> Greeting [interaction] {
+  trait Greet -> Greeting {
     initial: idle
     state idle {
       INIT -> idle
@@ -42,7 +42,7 @@ orbital Mechanism {
   entity Row [runtime] {
     id : string!
   }
-  trait Cycle -> @rebindable Row [interaction] {
+  trait Cycle -> @rebindable Row {
     initial: idle
     state idle { NEXT -> done }
     state done { RESET -> idle }

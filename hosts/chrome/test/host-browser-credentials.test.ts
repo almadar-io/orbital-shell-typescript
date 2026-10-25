@@ -123,6 +123,20 @@ describe('chrome credential rows: a pending OAuth grant survives a worker restar
     expect(await again.oauth?.answer({ ask: 'pendingTake', state: 'never' }, undefined)).toEqual({ reply: 'taken', taken: { found: 'missing' } });
   });
 
+  it('two instances on one storage taking one held grant: exactly one gets it, and a lone taker gets it', async () => {
+    const storage = storageArea();
+    const first = await createChromeCredentialVault(storage, kernel);
+    const second = await createChromeCredentialVault(storage, kernel);
+    await first.hold('oauth:grant:RACE', 'GRANT', Date.now() + 60_000, Date.now());
+    const taken = await Promise.all([first.take('oauth:grant:RACE', Date.now()), second.take('oauth:grant:RACE', Date.now())]);
+    expect(taken.filter((value) => value !== undefined)).toEqual(['GRANT']);
+    expect(storedRows(storage)).toEqual([]);
+
+    await first.hold('oauth:grant:LONE', 'ONE', Date.now() + 60_000, Date.now());
+    expect(await second.take('oauth:grant:LONE', Date.now())).toBe('ONE');
+    expect(await first.take('oauth:grant:LONE', Date.now())).toBeUndefined();
+  });
+
   it('a held grant is a derived row beside the credentials: it is not a credential, and taking it leaves no row', async () => {
     const storage = storageArea();
     const vault = await createChromeCredentialVault(storage, kernel);

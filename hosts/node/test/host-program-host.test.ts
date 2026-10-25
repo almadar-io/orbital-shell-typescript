@@ -29,7 +29,7 @@ const VALID = `orbital Hello {
     id : string!
   }
 
-  trait Greet -> Greeting [interaction] {
+  trait Greet -> Greeting {
     initial: idle
 
     state idle {
@@ -441,12 +441,12 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     ]], { cwd: project(), orbBin: ORB });
     expect(out).toEqual({ ok: true, result: [
       { orbital: 'Editor', trait: 'Modes', from: 'NORMAL', event: 'KEY', payload: { key: 'i' }, result:
-        { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 0, state: { before: 'NORMAL', after: 'INSERT' },
+        { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 0, entityAfter: { mode: 'insert' }, state: { before: 'NORMAL', after: 'INSERT' },
           effects: [{ type: 'set', args: ['@entity.mode', 'insert'], status: 'executed' }], emitted: [],
           guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: true, trace: [] }],
           outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'INSERT', arm: 0, fired: true, effects: [{ type: 'set', args: ['@entity.mode', 'insert'], status: 'executed' }], emitted: [] }] } },
       { orbital: 'Editor', trait: 'Modes', from: 'NORMAL', event: 'KEY', payload: { key: 'v' }, result:
-        { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 1, state: { before: 'NORMAL', after: 'VISUAL' },
+        { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 1, entityAfter: { mode: 'insert' }, state: { before: 'NORMAL', after: 'VISUAL' },
           effects: [], emitted: [],
           guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: false, trace: [] }, { arm: 1, guard: ['=', '@payload.key', 'v'], passed: true, trace: [] }],
           outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'VISUAL', arm: 1, fired: true, effects: [], emitted: [] }] } },

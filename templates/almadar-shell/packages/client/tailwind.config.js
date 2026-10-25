@@ -19,7 +19,7 @@ export default {
   // stale silently and breaks look variants without any build error.
   presets: [require('@almadar/shell-web/tailwind-preset')],
   // `tailwind-content.txt` is every className token of the installed behaviors, written by
-  // `almadar-sync renderer-css` (tools/almadar-pattern-sync): the program's classes arrive at runtime,
+  // `orb tailwind-content` (std-orb-tailwind-content): the program's classes arrive at runtime,
   // so the utilities they use must already be in the stylesheet.
   content: [
     "./index.html",

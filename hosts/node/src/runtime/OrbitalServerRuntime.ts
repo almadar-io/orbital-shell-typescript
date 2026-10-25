@@ -731,7 +731,7 @@ export class OrbitalServerRuntime {
       },
       servicePorts: (caller, user, message, assertReentry) => this.servicePorts(caller, user, message, assertReentry),
       deliverLive: (site, payload, originClientId) => this.deliverLiveMessage(site, payload, originClientId),
-      deferCallOutcome: () => (call) => this.runDeferredOutcome(call.orbital, {
+      deferCallOutcome: () => this.hostDispatchSink === null ? undefined : (call) => this.runDeferredOutcome(call.orbital, {
         event: call.event,
         ...(call.payload !== undefined ? { payload: call.payload } : {}),
         targetTrait: call.traitName,
