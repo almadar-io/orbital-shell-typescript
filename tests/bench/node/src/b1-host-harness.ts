@@ -57,7 +57,7 @@ class HostSession implements ScenarioSession {
  * B1-host: the native `orb serve` server as its own process, driven over a loopback HTTP socket by this Node process. The only
  * Node in the loop is the driver, so the row prices the server and the socket, not an interpreter. `ORB_BIN` names the binary;
  * `ALMADAR_HOST_CWD` is where it resolves the language packages (a monorepo checkout). The store is the in-memory one with no
- * sample rows (`DATA_BACKEND=mock`) and no emulators start.
+ * sample rows and no emulators start.
  */
 export class B1HostHarness implements ScenarioHarness {
   readonly id = 'B1-host';
@@ -82,7 +82,7 @@ export class B1HostHarness implements ScenarioHarness {
     const port = await freePort();
     const child = spawn(this.orbBin, ['serve', program, '--port', String(port), '--no-mock', '--no-emulators'], {
       cwd: this.cwd,
-      env: { ...process.env, ORB_NO_AUTO_SETUP: '1', DATA_BACKEND: 'mock', NODE_ENV: 'development' },
+      env: { ...process.env, ORB_NO_AUTO_SETUP: '1', NODE_ENV: 'development' },
       stdio: 'ignore',
     });
     const base = `http://127.0.0.1:${port}`;

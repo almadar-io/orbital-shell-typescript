@@ -342,7 +342,7 @@ export type ExpectationDiagnostic = z.infer<typeof ExpectationDiagnosticSchema>;
  * What `orb behaviors expects <organism>` prints: every orbital's derived `expects`
  * (docs/Almadar_LOLO_Expects_Proposal.md §7; the derivation lives in `orbital-core`).
  */
-export const OrganismExpectationsSchema = z.record(
+export const OrganismExpectationsSchema = z.record(z.string(),
   z.object({ expectations: z.array(ExpectDeclarationSchema), diagnostics: z.array(ExpectationDiagnosticSchema) }).strict(),
 );
 export type OrganismExpectations = z.infer<typeof OrganismExpectationsSchema>;
@@ -874,13 +874,13 @@ export const OrbitalRefObjectSchema = z.object({
   ref: OrbitalRefStringSchema,
   refId: OrbitalIdSchema.optional(),
   entity: z.string().optional(),
-  fields: z.record(z.string()).optional(),
-  pages: z.record(z.string()).optional(),
+  fields: z.record(z.string(), z.string()).optional(),
+  pages: z.record(z.string(), z.string()).optional(),
   pageModifiers: z.record(z.string(), PageModifiersSchema).optional(),
   omit: z.array(z.string()).optional(),
   only: z.array(z.string()).optional(),
   config: DeclaredTraitConfigSchema.optional(),
-  events: z.record(z.string()).optional(),
+  events: z.record(z.string(), z.string()).optional(),
   roles: z.record(z.string(), z.array(z.string())).optional(),
   entities: z.record(z.string(), z.string()).optional(),
   mounts: z.record(z.string(), z.array(z.string())).optional(),
@@ -898,8 +898,8 @@ export const OrbitalRefObjectSchema = z.object({
       z.object({
         linkedEntity: z.string().optional(),
         config: DeclaredTraitConfigSchema.optional(),
-        events: z.record(z.string()).optional(),
-        fields: z.record(z.string()).optional(),
+        events: z.record(z.string(), z.string()).optional(),
+        fields: z.record(z.string(), z.string()).optional(),
         listens: z.array(TraitEventListenerSchema).optional(),
         emitsScope: EventScopeSchema.optional(),
         dispatch: TraitDispatchModeSchema.optional(),
@@ -1124,7 +1124,7 @@ export const ComputedEventListenerSchema = z.object({
   source: EventSourceSchema,
   triggers: z.string().min(1),
   guard: ExpressionSchema.optional(),
-  payloadMapping: z.record(SExprSchema).optional(),
+  payloadMapping: z.record(z.string(), SExprSchema).optional(),
 });
 
 // ============================================================================
@@ -1413,7 +1413,7 @@ export const OrbitalDefinitionSchema = z.object({
   const entities: Array<[EntityRef, (string | number)[]]> = [[orbital.entity, ['entity']], ...(orbital.auxiliaryEntities ?? []).map((e, i): [EntityRef, (string | number)[]] => [e, ['auxiliaryEntities', i]])];
   for (const [entity, path] of entities) {
     if (!isEntityReferenceAny(entity) && entity.fields.length === 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.too_small, minimum: 1, type: 'array', inclusive: true, path: [...path, 'fields'], message: 'At least one field is required' });
+      ctx.addIssue({ code: 'too_small', minimum: 1, origin: 'array', inclusive: true, path: [...path, 'fields'], message: 'At least one field is required' });
     }
   }
 });

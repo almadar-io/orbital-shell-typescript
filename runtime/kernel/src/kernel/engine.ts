@@ -26,7 +26,6 @@ export class KernelEngine {
     private readonly schemaJson: string,
     private readonly ports: KernelHostPorts,
     private readonly entityTypes: readonly string[] = [],
-    private readonly store?: Readonly<Record<string, string>>,
     forkedFrom?: KernelServerHandle,
     providedHandle?: KernelServerHandle,
     private readonly preserveProgramContext = false,
@@ -47,7 +46,7 @@ export class KernelEngine {
    * fork (EXEC-DIST-5), `ports` answering it.
    */
   fork(ports: KernelHostPorts = this.ports): KernelEngine {
-    const forked = new KernelEngine(this.kernel, this.schemaJson, ports, this.entityTypes, this.store, this.handle, undefined, this.preserveProgramContext);
+    const forked = new KernelEngine(this.kernel, this.schemaJson, ports, this.entityTypes, this.handle, undefined, this.preserveProgramContext);
     forked.tickMount = this.tickMount;
     forked.messages = this.messages;
     return forked;
@@ -59,25 +58,21 @@ export class KernelEngine {
       ...this.entityTypes,
       ...declaredEntityTypes(program),
     ])];
-    return new KernelEngine(this.kernel, schemaJson, ports, entityTypes, this.store, undefined, this.handle.forkProgram(schemaJson), true);
+    return new KernelEngine(this.kernel, schemaJson, ports, entityTypes, undefined, this.handle.forkProgram(schemaJson), true);
   }
 
-  /** A server over the host's ports, or over the kernel's own store when `store` selects one (native add-on only). */
+  /** A server over the host's ports. */
   private openServer(): KernelServerHandle {
-    if (this.store === undefined) return new this.kernel.Server(this.schemaJson);
-    const withStore = this.kernel.Server.withStore;
-    if (withStore === undefined) throw new Error("a kernel store needs the native add-on (engine: 'native'); this kernel module has none");
-    return withStore.call(this.kernel.Server, this.schemaJson, JSON.stringify(this.store));
+    return new this.kernel.Server(this.schemaJson);
   }
 
   private declare(): void {
-    if (this.store !== undefined) return;
     const handle = this.handle;
     declareCapabilities(this.ports.persistence, (entityType, queryJson, writeJson) => handle.setCapabilities(entityType, queryJson, writeJson), this.entityTypes);
   }
 
-  static open(kernel: KernelModule, schema: OrbitalSchema, ports: KernelHostPorts, store?: Readonly<Record<string, string>>): KernelEngine {
-    return new KernelEngine(kernel, JSON.stringify(schema), ports, declaredEntityTypes(schema), store);
+  static open(kernel: KernelModule, schema: OrbitalSchema, ports: KernelHostPorts): KernelEngine {
+    return new KernelEngine(kernel, JSON.stringify(schema), ports, declaredEntityTypes(schema));
   }
 
   /** A fresh kernel on the same program: every trait back at its initial state. */

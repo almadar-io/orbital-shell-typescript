@@ -654,7 +654,7 @@ const FontStackSchema = z.string().refine(isWellFormedFontStack, {
 const LegacyTypographySchema = z.record(z.string(), z.string()).superRefine((map, ctx) => {
   for (const [key, value] of Object.entries(map)) {
     if (key.startsWith('font-family') && !isWellFormedFontStack(value)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `Malformed CSS font-family stack: ${value}` });
+      ctx.addIssue({ code: 'custom', path: [key], message: `Malformed CSS font-family stack: ${value}` });
     }
   }
 });

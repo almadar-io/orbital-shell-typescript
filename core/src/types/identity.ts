@@ -376,5 +376,5 @@ export const LedgerEntrySchema = z.object({
 
 export const IdentityLedgerSchema = z.object({
   schemaVersion: z.literal(1),
-  entries: z.record(LedgerEntrySchema),
+  entries: z.record(z.string(), LedgerEntrySchema),
 });

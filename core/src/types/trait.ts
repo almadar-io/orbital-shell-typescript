@@ -56,11 +56,11 @@ export const TraitConfigValueSchema: z.ZodType<TraitConfigValue> = z.lazy(() =>
         z.boolean(),
         z.null(),
         z.array(TraitConfigValueSchema),
-        z.record(TraitConfigValueSchema),
+        z.record(z.string(), TraitConfigValueSchema),
     ])
 );
 
-export const TraitConfigSchema: z.ZodType<TraitConfig> = z.record(TraitConfigValueSchema);
+export const TraitConfigSchema: z.ZodType<TraitConfig> = z.record(z.string(), TraitConfigValueSchema);
 
 /**
  * A single entry in a call-site `config { }` override block. Either a plain
@@ -407,18 +407,18 @@ export type ConfigFieldItemsDeclaration = {
     readonly values?: ReadonlyArray<string>;
 };
 
-export const ConfigFieldItemsDeclarationSchema: z.ZodType<ConfigFieldItemsDeclaration, z.ZodTypeDef, object> = z.lazy(() =>
+export const ConfigFieldItemsDeclarationSchema: z.ZodType<ConfigFieldItemsDeclaration, object> = z.lazy(() =>
     z.object({
     nullable: z.boolean().optional(),
     additionalProperties: EntityFieldSchema.optional(),
         type: z.string().optional(),
-        properties: z.record(TraitEntityFieldSchema).optional(),
+        properties: z.record(z.string(), TraitEntityFieldSchema).optional(),
         items: ConfigFieldItemsDeclarationSchema.optional(),
         values: z.array(z.string()).optional(),
     }),
 );
 
-export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration, z.ZodTypeDef, object> = z.object({
+export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration, object> = z.object({
     nullable: z.boolean().optional(),
     additionalProperties: EntityFieldSchema.optional(),
     type: z.string(),
@@ -431,7 +431,7 @@ export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration, z.Z
     values: z.array(z.string()).optional(),
     synonyms: z.string().optional(),
     items: ConfigFieldItemsDeclarationSchema.optional(),
-    properties: z.lazy(() => z.record(TraitEntityFieldSchema)).optional(),
+    properties: z.lazy(() => z.record(z.string(), TraitEntityFieldSchema)).optional(),
     forwardedFrom: z.string().optional(),
     nestedForwardedFrom: z.array(z.string()).optional(),
     payloadFor: z.string().optional(),
@@ -446,7 +446,7 @@ export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration, z.Z
  */
 export type DeclaredTraitConfig = Readonly<Record<string, ConfigFieldDeclaration>>;
 
-export const DeclaredTraitConfigSchema: z.ZodType<DeclaredTraitConfig, z.ZodTypeDef, Record<string, object>> = z.record(
+export const DeclaredTraitConfigSchema: z.ZodType<DeclaredTraitConfig, Record<string, object>> = z.record(z.string(),
     ConfigFieldDeclarationSchema,
 );
 
@@ -516,7 +516,7 @@ export type TraitEntityField = {
     properties?: Readonly<Record<string, TraitEntityField>>;
 };
 
-export const TraitEntityFieldSchema: z.ZodType<TraitEntityField, z.ZodTypeDef, object> = z.object({
+export const TraitEntityFieldSchema: z.ZodType<TraitEntityField, object> = z.object({
     nullable: z.boolean().optional(),
     additionalProperties: EntityFieldSchema.optional(),
     name: z.string().min(1),
@@ -525,7 +525,7 @@ export const TraitEntityFieldSchema: z.ZodType<TraitEntityField, z.ZodTypeDef, o
     default: TraitConfigValueSchema.optional(),
     values: z.array(z.string()).optional(),
     items: ConfigFieldItemsDeclarationSchema.optional(),
-    properties: z.lazy(() => z.record(TraitEntityFieldSchema)).optional(),
+    properties: z.lazy(() => z.record(z.string(), TraitEntityFieldSchema)).optional(),
 });
 
 // ============================================================================
@@ -998,7 +998,7 @@ export const TraitEventListenerSchema = z.object({
     tier: z.string().optional(),
     guard: ExpressionSchema.optional(),
     scope: EventScopeSchema.optional(),
-    payloadMapping: z.record(SExprSchema).optional(),
+    payloadMapping: z.record(z.string(), SExprSchema).optional(),
     source: ListenSourceSchema.optional(),
 });
 
@@ -1174,7 +1174,7 @@ export const TraitReferenceObjectSchema = z
         // annotated ConfigFieldDeclaration. Declaration form is tried first
         // (it's more specific — has a `"type"` string key); plain values fall
         // through to the recursive TraitConfigValue union.
-        config: z.record(z.union([ConfigFieldDeclarationSchema, TraitConfigValueSchema])).optional(),
+        config: z.record(z.string(), z.union([ConfigFieldDeclarationSchema, TraitConfigValueSchema])).optional(),
         appliesTo: z.array(z.string()).optional(),
         // Phase F.7: caller-supplied listen entries are already-resolved
         // structured definitions (see `TraitReference.listens`).
@@ -1255,7 +1255,7 @@ export type TraitUIBinding = {
  * list of them), validated as pattern objects by {@link PatternObjectSchema}
  * (the registry checks props at validate time).
  */
-export const TraitUIBindingSchema = z.record(
+export const TraitUIBindingSchema = z.record(z.string(),
     z.object({
         presentation: z.enum(['modal', 'drawer', 'popover', 'inline', 'confirm-dialog']),
         content: z.union([PatternObjectSchema, z.array(PatternObjectSchema)]),

@@ -399,8 +399,8 @@ export class HttpLoader implements SchemaLoader {
         // Validate with Zod
         const parseResult = OrbitalSchemaSchema.safeParse(data);
         if (!parseResult.success) {
-          const errors = parseResult.error.errors
-            .map((e) => `  - ${e.path.join(".")}: ${e.message}`)
+          const errors = parseResult.error.issues
+            .map((e) => `  - ${e.path.map(String).join(".")}: ${e.message}`)
             .join("\n");
           return {
             success: false,

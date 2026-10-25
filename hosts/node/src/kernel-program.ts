@@ -18,12 +18,6 @@ export interface KernelProgramOptions {
   engine?: 'wasm' | 'native';
   /** The native kernel add-on (`kernel.node`); absent, `resolveNativeAddon(options.languageFrom)`. Used only by `engine: 'native'`. */
   nativeAddon?: string;
-  /**
-   * Environment variables selecting the store the native kernel answers its own row asks from (`DATA_BACKEND`,
-   * `NODE_ENV`, `DATABASE_URL`, `COUCHDB_URL`, the Firebase variables); the host's in-memory store is then never asked.
-   * Needs `engine: 'native'`; absent, the host's in-memory store answers.
-   */
-  store?: Readonly<Record<string, string>>;
   /** The directory of the built `@almadar/kernel` package (the one holding `pkg/`); absent, `resolveKernelDir()`. */
   kernelDir?: string;
   /** Where the installed `@almadar/core` and `@almadar/std` are found, node-style. */
@@ -95,8 +89,6 @@ export class KernelProgram {
   static async open(schema: OrbitalSchema, options: KernelProgramOptions): Promise<KernelProgram> {
     const languageFrom = { languageFrom: options.languageFrom };
     const native = options.engine === 'native';
-    if (options.store !== undefined && !native) throw new Error("KernelProgram: `store` needs engine: 'native'");
-    if (options.store !== undefined && options.seed !== undefined) throw new Error('KernelProgram: `seed` fills the host store, which `store` replaces');
     const addon: LoadedKernel | undefined = native ? await loadNativeKernelModule(options.nativeAddon ?? resolveNativeAddon(options.languageFrom), languageFrom) : undefined;
     const kernelDir = addon === undefined ? (options.kernelDir ?? resolveKernelDir()) : '';
     const kernel: KernelModule & KernelMemoryStoreExports = addon ?? (await loadKernelModule(kernelDir, languageFrom));
@@ -127,7 +119,7 @@ export class KernelProgram {
       http,
       ...(os !== undefined ? { os } : {}),
     };
-    engine = KernelEngine.open(kernel, schema, ports, options.store);
+    engine = KernelEngine.open(kernel, schema, ports);
     return new KernelProgram(engine, os, schema, http, persistence);
   }
 

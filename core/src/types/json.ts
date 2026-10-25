@@ -43,7 +43,7 @@ export type JsonObject = { [key: string]: JsonValue };
 
 /** Zod schema for JsonValue — the one boundary validator for parsed-JSON slots. */
 export const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(JsonValueSchema), z.record(JsonValueSchema)]),
+  z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(JsonValueSchema), z.record(z.string(), JsonValueSchema)]),
 );
 
 /**

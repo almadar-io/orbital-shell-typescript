@@ -21,7 +21,7 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "tsup",
+    "build": "NODE_OPTIONS=--max-old-space-size=8192 tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest --run"
   },
@@ -33,9 +33,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "tsup": "^8.0.0",
+    "tsup": "^9.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^2.1.0"
+    "vitest": "^4.1.12"
   },
   "repository": {
     "type": "git",

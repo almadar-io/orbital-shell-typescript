@@ -133,7 +133,7 @@ export const OrbitalValueSiblingSchema = z
     name: z.string().regex(PASCAL),
     ref: z.string(),
     linkedEntity: z.string().optional(),
-    config: z.record(TraitConfigValueSchema).optional(),
+    config: z.record(z.string(), TraitConfigValueSchema).optional(),
   })
   .strict();
 export type OrbitalValueSibling = z.infer<typeof OrbitalValueSiblingSchema>;
@@ -142,9 +142,9 @@ export type OrbitalValueSibling = z.infer<typeof OrbitalValueSiblingSchema>;
 export const OrbitalOverridesSchema = OrbitalRefObjectSchema.omit({ ref: true, refId: true, config: true, traits: true })
   .extend({
     name: z.string().regex(PASCAL).optional(),
-    app: z.record(TraitConfigValueSchema).optional(),
-    config: z.record(TraitConfigValueSchema).optional(),
-    traits: z.record(TraitOverridesSchema).optional(),
+    app: z.record(z.string(), TraitConfigValueSchema).optional(),
+    config: z.record(z.string(), TraitConfigValueSchema).optional(),
+    traits: z.record(z.string(), TraitOverridesSchema).optional(),
     uses: z.array(OrbitalValueUseSchema).optional(),
     siblings: z.array(OrbitalValueSiblingSchema).optional(),
   })
@@ -300,8 +300,12 @@ export const BehaviorBridgeSchema = z.object({
 }).strict();
 export type BehaviorBridge = z.infer<typeof BehaviorBridgeSchema>;
 
-/** A behavior named by itself, with no trait or orbital picked (what `behavior/describe` takes for a whole behavior), and the bridge its embed declares, if any. */
-export const BehaviorRefSchema = z.object({ behavior: z.string().regex(SPECIFIER), bridge: BehaviorBridgeSchema.optional() }).strict();
+/**
+ * A behavior named by itself, with no trait or orbital picked (what `behavior/describe` takes for a whole behavior), the
+ * bridge its embed declares, if any, and optionally `resolved`: the behavior's resolved program as JSON, validated by
+ * whoever set it, which an embed runs as it is instead of asking the host to mount the behavior.
+ */
+export const BehaviorRefSchema = z.object({ behavior: z.string().regex(SPECIFIER), bridge: BehaviorBridgeSchema.optional(), resolved: z.string().min(1).optional() }).strict();
 export type BehaviorRef = z.infer<typeof BehaviorRefSchema>;
 
 /** The overrides `behavior/apply` takes for a whole behavior value: its bridge. */
@@ -330,7 +334,7 @@ export const CatalogEntrySchema = z.object({
   /** The behavior as a value (`.lolo` type `behavior`), ready to embed or store. */
   value: BehaviorRefSchema,
   /** Shipped embedding vectors, keyed by facet (`description`, `capabilities`). */
-  vectors: z.record(VectorSchema),
+  vectors: z.record(z.string(), VectorSchema),
   /** The embedding model the vectors were stamped with. */
   model: z.string(),
 }).strict();
@@ -380,7 +384,7 @@ const TraitMachineObject = z.object({
   linkedEntity: z.string().optional(),
   stateMachine: StateMachineSchema,
 }).strict();
-export const TraitMachineSchema: z.ZodType<TraitMachine, z.ZodTypeDef, z.input<typeof TraitMachineObject>> = TraitMachineObject;
+export const TraitMachineSchema: z.ZodType<TraitMachine, z.input<typeof TraitMachineObject>> = TraitMachineObject;
 
 /** A described trait printed as `.lolo` by orb's formatter, with the 1-based lines each transition (by its index in the machine) spans. */
 export type TraitSource = {
@@ -411,7 +415,7 @@ const TraitDescriptionObject = z.object({
   source: TraitSourceSchema.optional(),
   model: z.string(),
 }).strict();
-export const TraitDescriptionSchema: z.ZodType<TraitDescription, z.ZodTypeDef, z.input<typeof TraitDescriptionObject>> = TraitDescriptionObject;
+export const TraitDescriptionSchema: z.ZodType<TraitDescription, z.input<typeof TraitDescriptionObject>> = TraitDescriptionObject;
 
 
 /** What `behavior/describe` accepts: a trait value, an orbital value, or a whole behavior. */

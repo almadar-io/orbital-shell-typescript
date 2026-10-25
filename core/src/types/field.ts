@@ -572,9 +572,9 @@ const FIELD_TYPE_ALIASES: Record<string, FieldType> = {
  * Branches on `type` so TS narrows the parsed output to the matching
  * discriminated-union variant.
  */
-// The third type param stays `unknown`: zod v3 bakes `unknown` into
-// `z.preprocess`'s input type, and the recursion needs the explicit annotation.
-export const EntityFieldSchema: z.ZodType<EntityField, z.ZodTypeDef, unknown> = z.lazy(() => {
+// The input type param stays `unknown`: `z.preprocess` bakes `unknown` into
+// its input type, and the recursion needs the explicit annotation.
+export const EntityFieldSchema: z.ZodType<EntityField, unknown> = z.lazy(() => {
     const baseFieldShape = {
         name: z.string().min(1, 'Field name is required').optional(),
         required: z.boolean().optional(),
@@ -584,7 +584,7 @@ export const EntityFieldSchema: z.ZodType<EntityField, z.ZodTypeDef, unknown> = 
         default: JsonValueSchema.optional(),
         min: z.number().optional(),
         max: z.number().optional(),
-        properties: z.record(EntityFieldSchema).optional(),
+        properties: z.record(z.string(), EntityFieldSchema).optional(),
         intrinsic: z.boolean().optional(),
         description: z.string().optional(),
         synonyms: z.string().optional(),
@@ -689,7 +689,7 @@ export const EntityFieldSchema: z.ZodType<EntityField, z.ZodTypeDef, unknown> = 
                 z.object({
                     ...baseFieldShape,
                     type: z.literal('tuple'),
-                    properties: z.record(EntityFieldSchema).refine((p) => Object.keys(p).length > 0, 'Tuple field requires slots in `properties`'),
+                    properties: z.record(z.string(), EntityFieldSchema).refine((p) => Object.keys(p).length > 0, 'Tuple field requires slots in `properties`'),
                 }),
                 // Object variant — fixed-key struct (`properties`) or dynamic-key
                 // map (`Map K V`, uniform value schema in `items`).

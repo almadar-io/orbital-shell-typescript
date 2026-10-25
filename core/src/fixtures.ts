@@ -99,7 +99,7 @@ function readJsonIfExists(path: string): JsonValue | undefined {
 
 /** Reads `<caseDir>/<file>` and validates it through its schema — the load is
  *  typed by the parse, never by a cast. */
-function loadValidated<T>(caseDir: string, file: string, schema: z.ZodType<T, z.ZodTypeDef, object>): T | undefined {
+function loadValidated<T>(caseDir: string, file: string, schema: z.ZodType<T, object>): T | undefined {
   const json = readJsonIfExists(join(caseDir, file));
   return json === undefined ? undefined : schema.parse(json);
 }

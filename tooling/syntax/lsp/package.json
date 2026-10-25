@@ -27,7 +27,7 @@
     "@almadar/shell-web": "^0.1.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",
-    "tsup": "^8.5.1",
+    "tsup": "^9.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "overrides": {

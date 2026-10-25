@@ -18,7 +18,7 @@
  * (the 910be296 refactor kept both helpers but deleted the call site, so
  * only a hook-level test catches that class of regression).
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, type Mock } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { diffDroppedTraitNames } from '../../src/hooks/useTraitStateMachine';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
@@ -159,7 +159,7 @@ function wiringBinding(name: string): ResolvedTraitBinding {
   return { trait, linkedEntity: 'Item' };
 }
 
-function stubSlots(): UISlotManager & { clearBySource: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> } {
+function stubSlots(): UISlotManager & { clearBySource: Mock<UISlotManager['clearBySource']>; render: Mock<UISlotManager['render']> } {
   return {
     slots: {},
     render: vi.fn(() => 'id'),

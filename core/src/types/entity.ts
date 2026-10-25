@@ -180,8 +180,8 @@ export const OrbitalEntitySchema = z.object({
     invariants: SExprListSchema.optional(),
     collection: z.string().optional(),
     fields: z.array(EntityFieldSchema),
-    instances: z.array(z.record(JsonValueSchema)).optional(),
-    localeInstances: z.record(z.array(z.record(JsonValueSchema))).optional(),
+    instances: z.array(z.record(z.string(), JsonValueSchema)).optional(),
+    localeInstances: z.record(z.string(), z.array(z.record(z.string(), JsonValueSchema))).optional(),
     timestamps: z.boolean().optional(),
     softDelete: z.boolean().optional(),
     description: z.string().optional(),
@@ -309,7 +309,7 @@ export type FieldValue = string | number | boolean | Date | null | string[] | Fi
 
 /** Zod twin of `FieldValue` — the one runtime validator for a stored field slot. */
 export const FieldValueSchema: z.ZodType<FieldValue> = z.lazy(() =>
-  z.union([z.string(), z.number(), z.boolean(), z.date(), z.null(), z.array(FieldValueSchema), z.record(FieldValueSchema.optional())]),
+  z.union([z.string(), z.number(), z.boolean(), z.date(), z.null(), z.array(FieldValueSchema), z.record(z.string(), FieldValueSchema.optional())]),
 );
 
 /**

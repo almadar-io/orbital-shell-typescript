@@ -43,16 +43,16 @@
     "@almadar/core": "^10.128.0",
     "@almadar/kernel": "^18.0.0",
     "@almadar/logger": "^1.18.0",
-    "undici": "^6.27.0",
-    "zod": "^3.23.0",
+    "undici": "^6.29.1",
+    "zod": "^4.6.7",
     "@almadar/std": "^16.255.0",
     "@almadar/shell-runtime": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "tsup": "^8.0.0",
+    "tsup": "^9.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^2.1.0"
+    "vitest": "^4.1.12"
   },
   "repository": {
     "type": "git",

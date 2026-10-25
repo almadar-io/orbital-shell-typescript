@@ -235,12 +235,12 @@ export const OrbitalPageSchema = z.object({
     roles: z.array(z.string().min(1)).min(1).optional(),
 }).strict().superRefine((page, ctx) => {
     if (page.protocol !== undefined) {
-        if (page.path !== '') ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['path'], message: 'A protocol page has an empty path; its address says where it is reached' });
+        if (page.path !== '') ctx.addIssue({ code: 'custom', path: ['path'], message: 'A protocol page has an empty path; its address says where it is reached' });
         return;
     }
-    if (page.address !== undefined) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['address'], message: 'A route page takes no address; its path is its address' });
-    if (page.path.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['path'], message: 'Page path is required' });
-    else if (!page.path.startsWith('/')) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['path'], message: 'Path must start with /' });
+    if (page.address !== undefined) ctx.addIssue({ code: 'custom', path: ['address'], message: 'A route page takes no address; its path is its address' });
+    if (page.path.length === 0) ctx.addIssue({ code: 'custom', path: ['path'], message: 'Page path is required' });
+    else if (!page.path.startsWith('/')) ctx.addIssue({ code: 'custom', path: ['path'], message: 'Path must start with /' });
 }); // Rejects unknown keys like 'sections' - use traits with render_ui effects
 
 export type OrbitalPageInput = z.input<typeof OrbitalPageSchema>;

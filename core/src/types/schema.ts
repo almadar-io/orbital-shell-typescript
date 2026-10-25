@@ -256,14 +256,14 @@ export const SchemaMetadataSchema = z.object({
   createdAt: z.number().optional(),
   source: z.string().optional(),
   updatedAt: z.number().optional(),
-  configProvenance: z.record(z.array(ConfigProvenanceRecordSchema)).optional(),
-  messageSources: z.record(z.string()).optional(),
-  operatorSites: z.record(z.enum(['client', 'server', 'any'])).optional(),
+  configProvenance: z.record(z.string(), z.array(ConfigProvenanceRecordSchema)).optional(),
+  messageSources: z.record(z.string(), z.string()).optional(),
+  operatorSites: z.record(z.string(), z.enum(['client', 'server', 'any'])).optional(),
   dispatchFacts: z.object({ busExcluded: z.array(z.string()), targetOptions: z.array(z.string()) }).optional(),
 });
 
-export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, z.ZodTypeDef, object> = z.object({
-  types: z.record(TypeAliasMembersSchema).optional(),
+export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, object> = z.object({
+  types: z.record(z.string(), TypeAliasMembersSchema).optional(),
   typeContractVersion: z.literal(1).optional(),
   name: z.string().min(1, "Schema name is required"),
   description: z.string().optional(),
@@ -360,7 +360,7 @@ export function parseOrbitalSchema(data: RuntimeValue): OrbitalSchema {
  * user input handling where you want to gracefully handle invalid data.
  * 
  * @param {unknown} data - Raw data to parse (typically JSON)
- * @returns {z.SafeParseReturnType<OrbitalSchema, OrbitalSchema>} Parse result with success/status
+ * @returns {z.ZodSafeParseResult<OrbitalSchema>} Parse result with success/status
  * 
  * @example
  * ```typescript

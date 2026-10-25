@@ -209,11 +209,11 @@ export const SpriteSheetAtlasSchema = z.object({
     columns: z.number().int().positive(),
     rows: z.number().int().positive(),
     directions: z.array(SpriteDirectionSchema),
-    sheets: z.record(SpriteDirectionSchema, z.string()),
+    sheets: z.partialRecord(SpriteDirectionSchema, z.string()),
     animations: z.record(z.string(), AnimationDefSchema),
     projections: z
         .object({
-            iso: z.record(SpriteDirectionSchema, z.string()).optional(),
+            iso: z.partialRecord(SpriteDirectionSchema, z.string()).optional(),
             front: z.string().optional(),
             back: z.string().optional(),
             top: z.string().optional(),

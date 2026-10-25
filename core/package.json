@@ -1,6 +1,6 @@
 {
   "name": "@almadar/core",
-  "version": "10.128.0",
+  "version": "10.129.0",
   "description": "Core schema types and definitions for Almadar",
   "type": "module",
   "sideEffects": false,
@@ -130,7 +130,7 @@
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",
-    "zod": "^3.22.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@almadar/eslint-plugin": "^2.22.0",
@@ -140,11 +140,11 @@
     "@typescript-eslint/parser": "8.65.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "10.0.0",
-    "tsup": "^8.0.0",
+    "tsup": "^9.0.0",
     "tsx": "^4.22.4",
     "turbo": "^2.8.17",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^1.4.0"
+    "vitest": "^4.1.12"
   },
   "repository": {
     "type": "git",

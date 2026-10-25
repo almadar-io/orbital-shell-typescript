@@ -63,7 +63,7 @@ export interface BrowserAuth {
   signOut(): Promise<void>;
 }
 
-const ClaimsSchema = z.record(JsonValueSchema);
+const ClaimsSchema = z.record(z.string(), JsonValueSchema);
 
 async function signedIn(user: User): Promise<SignedInUser> {
   const { claims } = await user.getIdTokenResult();

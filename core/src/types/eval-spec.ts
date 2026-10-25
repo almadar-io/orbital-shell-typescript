@@ -148,7 +148,7 @@ export const EvalSpecSchema: z.ZodType<EvalSpec> = z
   .superRefine((spec, ctx) => {
     for (const [i, check] of spec.checks.entries()) {
       if (check.introducedTurn >= spec.turns.length) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['checks', i, 'introducedTurn'], message: `introducedTurn ${check.introducedTurn} is past the spec's ${spec.turns.length} turns` });
+        ctx.addIssue({ code: 'custom', path: ['checks', i, 'introducedTurn'], message: `introducedTurn ${check.introducedTurn} is past the spec's ${spec.turns.length} turns` });
       }
     }
   });

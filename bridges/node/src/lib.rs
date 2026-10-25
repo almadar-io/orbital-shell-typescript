@@ -39,17 +39,6 @@ impl Server {
         })
     }
 
-    /// A server that answers its own row asks from the store `present_json` selects (`DATA_BACKEND`, `DATABASE_URL`,
-    /// `COUCHDB_URL`, the Firebase variables); the host answers the rest. The plain constructor is unchanged.
-    #[napi(factory)]
-    pub fn with_store(resolved_schema_json: String, present_json: String) -> napi::Result<Self> {
-        let env: std::collections::HashMap<String, String> =
-            serde_json::from_str(&present_json).map_err(|e| js(format!("parse present_json: {e}")))?;
-        Ok(Self {
-            api: Slot::new(ServerHandle::from_env(&resolved_schema_json, &env).map_err(js)?),
-        })
-    }
-
     #[napi]
     pub fn free(&self) {
         self.api.take();

@@ -41,7 +41,7 @@ const WriteFixtureSchema = z.object({
       name: z.string(),
       op: RowWriteOpSchema.optional(),
       batch: RowWriteBatchSchema.optional(),
-      expect: z.object({ outcomes: z.array(z.record(z.union([z.string(), EntityRowSchema]))), rows: z.array(EntityRowSchema) }),
+      expect: z.object({ outcomes: z.array(z.record(z.string(), z.union([z.string(), EntityRowSchema]))), rows: z.array(EntityRowSchema) }),
     }),
   ),
 });

@@ -12,7 +12,8 @@
  */
 
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { BehaviorRef, MountedBehaviorValue } from '@almadar/core';
+import type { BehaviorRef, BehaviorValueMountResult, MountedBehaviorValue } from '@almadar/core';
+import { OrbitalSchemaSchema, defaultPage } from '@almadar/core';
 import { OrbPreview } from './OrbPreview';
 import { MountedInit, TraitValueMountContext } from './TraitValueFrame';
 import { OrbitalPluginHost } from './OrbitalPluginHost';
@@ -27,6 +28,21 @@ type FrameState =
   | { readonly status: 'ready'; readonly mounted: MountedBehaviorValue }
   | { readonly status: 'error'; readonly message: string };
 
+/** A value carrying its resolved program runs it as it is: parsed against the program schema, opened on its default page. */
+function mountCarried(behavior: string, resolved: string): BehaviorValueMountResult {
+  let json: unknown;
+  try {
+    json = JSON.parse(resolved);
+  } catch (error) {
+    return { ok: false, error: `behavior ${behavior}: its resolved program is not JSON: ${String(error)}` };
+  }
+  const parsed = OrbitalSchemaSchema.safeParse(json);
+  if (!parsed.success) return { ok: false, error: `behavior ${behavior}: its resolved program is not a program: ${parsed.error.message}` };
+  const first = defaultPage(parsed.data)?.page.path;
+  if (first === undefined) return { ok: false, error: `behavior ${behavior} has no page to open` };
+  return { ok: true, mounted: { schema: parsed.data, firstPage: first } };
+}
+
 export function BehaviorValueFrame({ value }: { value: BehaviorRef }): React.ReactElement {
   const host = useContext(TraitValueMountContext);
   const key = useMemo(() => JSON.stringify(value), [value]);
@@ -36,6 +52,11 @@ export function BehaviorValueFrame({ value }: { value: BehaviorRef }): React.Rea
 
   useEffect(() => {
     const current = latest.current;
+    if (current.resolved !== undefined) {
+      const carried = mountCarried(current.behavior, current.resolved);
+      setState(carried.ok ? { status: 'ready', mounted: carried.mounted } : { status: 'error', message: carried.error });
+      return;
+    }
     const mountBehavior = host?.mountBehavior;
     if (mountBehavior === undefined) {
       setState({ status: 'error', message: `This host cannot run behavior ${current.behavior}` });

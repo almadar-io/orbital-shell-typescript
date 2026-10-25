@@ -215,7 +215,7 @@ export function deliveryRecordValue(record: DeliveryRecord): EventPayload {
 }
 
 /** Zod twin of `BusEventSource`. */
-export const BusEventSourceSchema: z.ZodType<BusEventSource, z.ZodTypeDef, object> = z.object({
+export const BusEventSourceSchema: z.ZodType<BusEventSource, object> = z.object({
   orbital: z.string().optional(),
   orbitalId: OrbitalIdSchema.optional(),
   trait: z.string().optional(),
@@ -231,14 +231,14 @@ export const BusEventSourceSchema: z.ZodType<BusEventSource, z.ZodTypeDef, objec
 });
 
 /** Zod twin of `DeliveryRecord`. */
-export const DeliveryRecordSchema: z.ZodType<DeliveryRecord, z.ZodTypeDef, object> = z.object({
+export const DeliveryRecordSchema: z.ZodType<DeliveryRecord, object> = z.object({
   event: z.string(),
   payload: EventPayloadSchema.optional(),
   source: BusEventSourceSchema,
 });
 
 /** Zod twin of `DispatchLog`. */
-export const DispatchLogSchema: z.ZodType<DispatchLog, z.ZodTypeDef, object> = z.object({
+export const DispatchLogSchema: z.ZodType<DispatchLog, object> = z.object({
   prevEvents: z.array(DeliveryRecordSchema),
   prevStates: z.array(z.string()),
 });
@@ -281,7 +281,7 @@ export interface EmittedEvent {
 }
 
 /** Zod twin of `EmittedEvent`. Third type param `object`, see `BusEventSourceSchema`. */
-export const EmittedEventSchema: z.ZodType<EmittedEvent, z.ZodTypeDef, object> = z.object({
+export const EmittedEventSchema: z.ZodType<EmittedEvent, object> = z.object({
   event: z.string(),
   payload: EventPayloadSchema.optional(),
   source: BusEventSourceSchema.optional(),
@@ -329,11 +329,11 @@ export const ClientRenderUITupleSchema = z.tuple([z.literal('render-ui'), z.stri
 /** Zod twin of `ClientNavigateTuple` — one variant per fixed arity (2/3/4), unioned. */
 export const ClientNavigateTupleSchema = z.union([
   z.tuple([z.literal('navigate'), z.string()]),
-  z.tuple([z.literal('navigate'), z.string(), z.record(z.string()).nullable()]),
+  z.tuple([z.literal('navigate'), z.string(), z.record(z.string(), z.string()).nullable()]),
   z.tuple([
     z.literal('navigate'),
     z.string(),
-    z.record(z.string()).nullable(),
+    z.record(z.string(), z.string()).nullable(),
     z.object({ crumb: z.string().optional() }),
   ]),
 ]);
@@ -691,7 +691,7 @@ export interface OrbitalEventResponse {
 }
 
 /** Zod twin of `OrbitalEventRequest`. Third type param `object`, see `BusEventSourceSchema`. */
-export const OrbitalEventRequestSchema: z.ZodType<OrbitalEventRequest, z.ZodTypeDef, object> = z.object({
+export const OrbitalEventRequestSchema: z.ZodType<OrbitalEventRequest, object> = z.object({
   event: z.string(),
   eventId: EventIdSchema.optional(),
   payload: EventPayloadSchema.optional(),
@@ -704,7 +704,7 @@ export const OrbitalEventRequestSchema: z.ZodType<OrbitalEventRequest, z.ZodType
   sourceTrait: z.string().optional(),
   runTick: z.object({ trait: z.string(), tick: z.string() }).optional(),
   traits: z.array(z.object({ trait: z.string(), from: z.string() })).optional(),
-  entityByTrait: z.record(EntityRowSchema).optional(),
+  entityByTrait: z.record(z.string(), EntityRowSchema).optional(),
   behavior: z.string().optional(),
   delivery: DeliveryRecordSchema.optional(),
   dispatchLog: DispatchLogSchema.optional(),
@@ -712,14 +712,14 @@ export const OrbitalEventRequestSchema: z.ZodType<OrbitalEventRequest, z.ZodType
 });
 
 /** Zod twin of `OrbitalEventResponse`. Third type param `object`, see `BusEventSourceSchema`. */
-export const OrbitalEventResponseSchema: z.ZodType<OrbitalEventResponse, z.ZodTypeDef, object> = z.object({
+export const OrbitalEventResponseSchema: z.ZodType<OrbitalEventResponse, object> = z.object({
   success: z.boolean(),
   transitioned: z.boolean(),
-  states: z.record(z.string()),
+  states: z.record(z.string(), z.string()),
   emittedEvents: z.array(EmittedEventSchema),
-  data: z.record(z.array(EntityRowSchema)).optional(),
-  dataRefs: z.record(RowSetRefSchema).optional(),
-  entityByTrait: z.record(EntityRowSchema).optional(),
+  data: z.record(z.string(), z.array(EntityRowSchema)).optional(),
+  dataRefs: z.record(z.string(), RowSetRefSchema).optional(),
+  entityByTrait: z.record(z.string(), EntityRowSchema).optional(),
   clientEffects: z.array(ClientEffectTupleSchema).optional(),
   clientEffectsByTrait: z
     .array(z.object({
@@ -791,7 +791,7 @@ export interface OrbitalRegisterResponse {
   error?: string;
 }
 
-export const OrbitalRegisterResponseSchema: z.ZodType<OrbitalRegisterResponse, z.ZodTypeDef, object> = z.object({
+export const OrbitalRegisterResponseSchema: z.ZodType<OrbitalRegisterResponse, object> = z.object({
   success: z.boolean(),
   topology: ServerTopologySchema.optional(),
   message: z.string().optional(),
@@ -822,7 +822,7 @@ export interface LiveBroadcastItem {
 }
 
 /** Zod twin of `LiveBroadcastItem`. Third type param `object`, see `BusEventSourceSchema`. */
-export const LiveBroadcastItemSchema: z.ZodType<LiveBroadcastItem, z.ZodTypeDef, object> = z.object({
+export const LiveBroadcastItemSchema: z.ZodType<LiveBroadcastItem, object> = z.object({
   event: z.string(),
   payload: EventPayloadSchema.optional(),
   source: BusEventSourceSchema,

@@ -99,7 +99,7 @@ export const RestServiceDefSchema = z.object({
   type: z.literal("rest"),
   description: z.string().optional(),
   baseUrl: z.string().url("Base URL must be a valid URL"),
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
   auth: RestAuthConfigSchema.optional(),
   timeout: z.number().positive().optional(),
 });
@@ -227,7 +227,7 @@ export const McpServiceDefSchema = z.object({
   capabilities: z
     .array(z.string())
     .min(1, "At least one capability is required"),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
 });
 
 // ============================================================================
@@ -343,7 +343,7 @@ export const ServiceRefObjectSchema = z.object({
   ref: ServiceRefStringSchema,
   description: z.string().optional(),
   baseUrl: z.string().url("baseUrl override must be a valid URL").optional(),
-  headers: z.record(z.string()).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
   url: z.string().url("url override must be a valid URL").optional(),
   serverPath: z.string().optional(),
 });

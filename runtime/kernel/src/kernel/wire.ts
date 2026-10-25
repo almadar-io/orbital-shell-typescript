@@ -61,15 +61,9 @@ export interface KernelServerHandle {
   free(): void;
 }
 
-/** The `Server` constructor of a kernel module. `withStore` exists on the native add-on only. */
+/** The `Server` constructor of a kernel module. */
 export interface KernelServerClass {
   new (resolvedSchemaJson: string): KernelServerHandle;
-  /**
-   * A server that answers its own row asks from the store `envJson` (a JSON object of environment variables:
-   * `DATA_BACKEND`, `NODE_ENV`, `DATABASE_URL`, `COUCHDB_URL`, the Firebase variables) selects, so the host is asked
-   * only for the rest. Absent on the wasm module, which has no sockets.
-   */
-  withStore?(resolvedSchemaJson: string, envJson: string): KernelServerHandle;
 }
 
 /** An initialised `@almadar/kernel` module: what `OrbitalServerRuntime({ engine: 'kernel' })` is handed. */

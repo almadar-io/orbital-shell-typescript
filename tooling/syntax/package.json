@@ -54,10 +54,10 @@
     "@types/node": "^22.0.0",
     "@typescript-eslint/parser": "8.65.0",
     "eslint": "10.0.0",
-    "tsup": "^8.0.0",
+    "tsup": "^9.0.0",
     "tsx": "^4.7.0",
     "turbo": "^2.8.17",
-    "vitest": "^1.6.1",
+    "vitest": "^4.1.12",
     "@typescript/native": "npm:typescript@^7.0.2",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },

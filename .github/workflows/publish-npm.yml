@@ -1,0 +1,93 @@
+name: Publish npm package
+
+# One tag per package: <key>-v<version> publishes that package's directory to npm.
+# The bare v* tag stays the orb-shell-typescript program release (release.yml).
+on:
+  push:
+    tags:
+      - 'core-v*'
+      - 'logger-v*'
+      - 'syntax-v*'
+      - 'eslint-plugin-v*'
+      - 'shell-runtime-v*'
+      - 'shell-browser-v*'
+      - 'shell-chrome-v*'
+      - 'shell-node-v*'
+      - 'shell-web-v*'
+
+concurrency:
+  group: publish-npm-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Tag pushes need write access, so this never runs fork code on the self-hosted fleet.
+    runs-on: ${{ vars.ALMADAR_RUNNER || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the package for this tag
+        id: pkg
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          key="${tag%-v*}"
+          version="${tag##*-v}"
+          case "$key" in
+            core) dir=core ;;
+            logger) dir=runtime/logger ;;
+            syntax) dir=tooling/syntax ;;
+            eslint-plugin) dir=tooling/eslint ;;
+            shell-runtime) dir=runtime/kernel ;;
+            shell-browser) dir=hosts/browser ;;
+            shell-chrome) dir=hosts/chrome ;;
+            shell-node) dir=hosts/node ;;
+            shell-web) dir=renderers/web ;;
+            *) echo "::error::tag $tag names no package"; exit 1 ;;
+          esac
+          name=$(node -p "require('./$dir/package.json').name")
+          declared=$(node -p "require('./$dir/package.json').version")
+          if [ "$declared" != "$version" ]; then
+            echo "::error::tag $tag says $version but $dir/package.json declares $declared"; exit 1
+          fi
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "$name@$version is already on npm"; echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        if: steps.pkg.outputs.published == 'false'
+        with:
+          node-version: 22
+
+      - name: Install pnpm 10.30.3
+        if: steps.pkg.outputs.published == 'false'
+        run: npm install -g pnpm@10.30.3
+
+      - name: Install
+        if: steps.pkg.outputs.published == 'false'
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile --ignore-workspace
+          else
+            pnpm install --no-frozen-lockfile --ignore-workspace
+          fi
+
+      - name: Build
+        if: steps.pkg.outputs.published == 'false'
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: pnpm build
+
+      - name: Publish
+        if: steps.pkg.outputs.published == 'false'
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          pnpm publish --access public --no-git-checks
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

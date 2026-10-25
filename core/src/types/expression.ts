@@ -69,7 +69,7 @@ export const SExprAtomSchema: z.ZodType<SExprAtom> = z.union([
   z.number(),
   z.boolean(),
   z.null(),
-  z.record(SExprDataSchema), // Objects for payload data
+  z.record(z.string(), SExprDataSchema), // Objects for payload data
 ]);
 
 /**
@@ -479,7 +479,7 @@ export const EventPayloadValueSchema: z.ZodType<EventPayloadValue> = z.lazy(() =
 );
 
 /** Zod twin of `EventPayload` — the wire shape of a bus event's `payload`. */
-export const EventPayloadSchema: z.ZodType<EventPayload> = z.lazy(() => z.record(EventPayloadValueSchema));
+export const EventPayloadSchema: z.ZodType<EventPayload> = z.lazy(() => z.record(z.string(), EventPayloadValueSchema));
 
 /**
  * Allowed leaf value for `LogMeta`. Mirrors `EventPayloadValue` shape so

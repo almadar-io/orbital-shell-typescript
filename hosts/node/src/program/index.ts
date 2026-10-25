@@ -674,8 +674,8 @@ function fail(error: string): ProgramEffectOutcome {
   return { ok: false, error };
 }
 
-function issuesOf(error: { issues: ReadonlyArray<{ path: ReadonlyArray<string | number>; message: string }> }): string {
-  return error.issues.map((i) => (i.path.length > 0 ? `${i.path.join('.')}: ${i.message}` : i.message)).join('; ');
+function issuesOf(error: z.ZodError): string {
+  return error.issues.map((i) => (i.path.length > 0 ? `${i.path.map(String).join('.')}: ${i.message}` : i.message)).join('; ');
 }
 
 function programArg(op: string, value: EffectArg): OrbitalSchema | string {

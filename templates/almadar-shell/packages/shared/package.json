@@ -6,6 +6,6 @@
   "types": "src/index.ts",
   "dependencies": {
     "@almadar/core": "^10.128.0",
-    "zod": "^3.22.0"
+    "zod": "^4.6.7"
   }
 }

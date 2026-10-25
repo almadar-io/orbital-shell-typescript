@@ -1,5 +1,6 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll, type Mock } from 'vitest';
+import type { BusEventListener } from '@almadar/core';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MarkdownContent } from '../MarkdownContent';
 import { SegmentRenderer } from '../../../organisms/SegmentRenderer';
@@ -12,7 +13,7 @@ beforeAll(() => {
   });
 });
 
-function withBus(ui: React.ReactNode, events: Record<string, ReturnType<typeof vi.fn>>) {
+function withBus(ui: React.ReactNode, events: Record<string, Mock<BusEventListener>>) {
   const Listener: React.FC = () => {
     const bus = useEventBus();
     React.useEffect(() => {
