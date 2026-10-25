@@ -27,6 +27,7 @@ import type {
   MountSeed,
   OrbitalDefinition,
   ResolvedTraitBinding,
+  SchemaMetadata,
   ServiceParams,
   UserContext,
 } from '@almadar/core';
@@ -100,6 +101,8 @@ export interface UseTraitStateMachineOptions {
   routePath?: string;
   /** The resolved schema's full orbital set — `buildTraitIndex`'s one input. */
   orbitals: readonly OrbitalDefinition[];
+  /** The program's `_metadata` (a compiled client program's operator sites and dispatch facts), handed to the kernel. */
+  metadata?: SchemaMetadata;
   /** Caller-owned transport (server bridge). Omitted + `persistence` set =
    *  offline preview (plan G7); omitted + no `persistence` = fully local,
    *  nothing ever posts. */
@@ -136,6 +139,7 @@ export function useTraitStateMachine(
   const engine = useKernelEngine();
   const { kernel, store, traitIndex, appTraitNames, transport, engine: kernelClient } = useCircuitKernel(traitBindings, {
     orbitals: options.orbitals,
+    ...(options.metadata !== undefined ? { metadata: options.metadata } : {}),
     engine,
     ...(options.transport !== undefined ? { transport: options.transport } : {}),
     ...(options.carriesCircuitState !== undefined ? { carriesCircuitState: options.carriesCircuitState } : {}),

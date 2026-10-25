@@ -39,7 +39,7 @@ import type { ClientKernel, ClientKernelOutcome } from '@almadar/shell-runtime/c
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import type { TransitionObserver } from '@almadar/shell-runtime/client/trait-types';
 import { buildTraitIndex, collectListenerTargets, createLocalStoreTransport, createResidenceTransport, localStorePersistence, nativeMemoryPersistence, openLocalKernel } from '../../runtime';
-import type { IndexedTrait, TraitIndex } from '@almadar/core';
+import type { IndexedTrait, TraitIndex, SchemaMetadata } from '@almadar/core';
 import { UNMOUNT_EVENT, type OrbitalSchema, type PersistenceAdapter } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { recordingTransport, verifierAttached } from '../../lib/verificationRegistry';
@@ -55,6 +55,9 @@ export interface UseCircuitKernelOptions {
    *  the one input `buildTraitIndex` needs; the trait index is then
    *  restricted to the traits `traitBindings` actually mounts. */
   orbitals: readonly OrbitalDefinition[];
+  /** The program's `_metadata`: a compiled client program carries its operator sites and dispatch facts there, which a
+   *  browser kernel (no operator table) needs to register the program. */
+  metadata?: SchemaMetadata;
   /** Caller-owned transport (server bridge, or a custom in-process one). */
   transport?: EventTransport;
   /** From the transport's `register()` result — `true` = the stateless
@@ -192,10 +195,11 @@ export function useCircuitKernel(
   const loadModule = options.engine.loadModule;
   const loadLanguage = options.engine.loadLanguage;
   const orbitalName = orbitals[0]?.name ?? '';
+  const metadata = options.metadata;
   // A local leg runs on a kernel of its own over its store, with the viewer's catalog for `i18n/t`.
   const localTransport = useCallback(
     (store: PersistenceAdapter): EventTransport => {
-      const schema: OrbitalSchema = { name: orbitalName, orbitals: [...orbitals] };
+      const schema: OrbitalSchema = { name: orbitalName, orbitals: [...orbitals], ...(metadata !== undefined ? { _metadata: metadata } : {}) };
       const language = loadLanguage !== undefined ? loadLanguage() : Promise.reject(new LanguageLoaderMissingError());
       const kernelEngine = Promise.all([loadModule(), language]).then(([kernel, bundle]) => openLocalKernel({
           kernel,
@@ -213,7 +217,7 @@ export function useCircuitKernel(
         ...(options.user !== undefined ? { user: options.user } : {}),
       });
     },
-    [loadModule, loadLanguage, orbitalName, orbitals, options.callService, options.user, i18n],
+    [loadModule, loadLanguage, orbitalName, orbitals, metadata, options.callService, options.user, i18n],
   );
   const offlineTransport = useMemo(
     () => (options.transport !== undefined || options.persistence === undefined ? undefined : localTransport(options.persistence)),
@@ -247,7 +251,7 @@ export function useCircuitKernel(
 
   const kernelInstance = useMemo<Promise<KernelInstance>>(() => {
     const instance = loadModule().then((mod) => {
-      const kernel = new mod.Kernel(JSON.stringify({ name: orbitalName, orbitals: kernelOrbitals(orbitals) }), getTabClientId());
+      const kernel = new mod.Kernel(JSON.stringify({ name: orbitalName, orbitals: kernelOrbitals(orbitals), ...(metadata !== undefined ? { _metadata: metadata } : {}) }), getTabClientId());
       // Every host this view posts to runs the whole worklist, listeners of a dispatched emit included.
       kernel.setHostFansOut(true);
       // A verifier judges each hop's `@ensures` on the entity before and after it; the kernel records them only then.
@@ -257,7 +261,7 @@ export function useCircuitKernel(
     // A failure surfaces on the first dispatch that awaits it; a circuit with nothing to run never does.
     instance.catch((err) => log.error('kernel-load-failed', { error: String(err) }));
     return instance;
-  }, [loadModule, orbitalName, orbitals]);
+  }, [loadModule, orbitalName, orbitals, metadata]);
   // A transition the client paints locally resolves `i18n/t` against the viewer's catalog, as the server leg does.
   useEffect(() => {
     if (i18n === undefined) return;

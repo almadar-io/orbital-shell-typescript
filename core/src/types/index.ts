@@ -85,6 +85,7 @@ export {
   type OrbitalSchemaWithTraits,
   type OrbitalSchemaInput,
   type SchemaMetadata,
+  type DispatchFacts,
   type MessageCatalogs,
   type ConfigProvenanceRecord,
   OrbitalSchemaSchema,

@@ -27,7 +27,7 @@ import { UISlotProvider, useUISlots } from '../providers/UISlotContext';
 import { UISlotRenderer } from '../components/core/organisms/UISlotRenderer';
 import { useEventBus } from '../core';
 import { useTranslate } from '../core';
-import type { OrbitalSchema, EntityData, ResolvedTraitBinding, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority } from '@almadar/core';
+import type { OrbitalSchema, EntityData, ResolvedTraitBinding, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
 import { orbitalInlineEntities, storesRowsInBrowser, collectCallsiteCaptureChildren, isHostSignInRoute, localeAlternates } from '@almadar/core';
 import { useResolvedSchema } from '../hooks/useResolvedSchema';
 import { matchPathAmong } from '../core';
@@ -114,7 +114,7 @@ function appPathFromHref(href: string, hostHrefBase: string): string | null {
  * its own `sendEvent`/mount-time dispatch resolves — this component only
  * decides WHICH transport (or none) the kernel dispatches through.
  */
-function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, persistence, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
+function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, metadata, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, persistence, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
   traits: ResolvedTraitBinding[];
   /** Route params from a parameterized page path — merged into every INIT payload. */
   routeParams?: Record<string, string>;
@@ -123,6 +123,8 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
   routePath?: string;
   /** The resolved schema's full orbital set — `useCircuitKernel`'s one input. */
   orbitals: readonly OrbitalDefinition[];
+  /** The program's `_metadata`: a compiled client program's operator sites and dispatch facts ride it into the kernel. */
+  metadata?: SchemaMetadata;
   onNavigate?: (path: string, params?: Record<string, string>, crumb?: string) => void;
   /** navigate-back effect handler: pop the orbital's navigation stack. */
   onNavigateBack?: () => void;
@@ -184,6 +186,7 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
 
   const { entityBindingSource, awaitingSkeletonSource } = useTraitStateMachine(traits, uiSlots, {
     orbitals,
+    ...(metadata !== undefined ? { metadata } : {}),
     ...(onNavigate !== undefined ? { navigate: onNavigate } : {}),
     ...(onNavigateBack !== undefined ? { navigateBack: onNavigateBack } : {}),
     ...(embeddedTraits !== undefined ? { embeddedTraits } : {}),
@@ -586,6 +589,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
           mountKey={pageName}
           {...(mountRoute !== undefined ? { routePath: mountRoute } : {})}
           orbitals={schema.orbitals}
+          {...(schema._metadata !== undefined ? { metadata: schema._metadata } : {})}
           hasBridge={Boolean(serverUrl || transport)}
           embeddedTraits={embeddedTraits}
           callsiteCaptureChildrenByTrait={callsiteCaptureChildrenByTrait}

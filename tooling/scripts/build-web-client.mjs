@@ -32,6 +32,9 @@ const WORKSPACE_PACKAGES = {
   '@almadar/shell-browser': 'orbital-rust/crates/orbital-shell-typescript/hosts/browser',
   '@almadar/shell-runtime': 'orbital-rust/crates/orbital-shell-typescript/runtime/kernel',
   '@almadar/shell-web': 'orbital-rust/crates/orbital-shell-typescript/renderers/web',
+  '@almadar/shell-node': 'orbital-rust/crates/orbital-shell-typescript/hosts/node',
+  '@almadar/std': 'packages/almadar-std',
+  '@almadar/eslint-plugin': 'orbital-rust/crates/orbital-shell-typescript/tooling/eslint',
 };
 
 const run = (cmd, argv, cwd, env = {}) => execFileSync(cmd, argv, { cwd, stdio: 'inherit', env: { ...process.env, ...env } });

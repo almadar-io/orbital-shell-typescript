@@ -1699,7 +1699,7 @@ export class OrbitalServerRuntime {
       entityId: request.entityId,
       traitStates: JSON.stringify(registered.traits.map((trait) => ({ traitName: trait.name, currentState: this.kernelEngine?.stateOf(trait.name) ?? '' }))),
     }));
-    xOrbitalLog.info('processOrbitalEvent:enter', () => ({
+    xOrbitalLog.debug('processOrbitalEvent:enter', () => ({
       orbital: orbitalName,
       event: request.event,
       traitsInOrbital: registered.traits.map((t) => t.name).join(','),

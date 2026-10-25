@@ -1,7 +1,7 @@
 /**
  * The app's server: the served program (the app composed with `std-http-server` by `orb compile`) running on the Node
- * host. The program listens, routes, serves the client and streams live events itself; this module only loads it,
- * mounts `INIT` on every trait and closes it on SIGINT/SIGTERM.
+ * host. The program listens, routes, serves the client and streams live events itself; this module only loads it and
+ * closes it on SIGINT/SIGTERM. What mounts at boot is the kernel's (EXEC-ENDPOINT-3), run by `register`.
  */
 
 import 'dotenv/config';
@@ -33,14 +33,6 @@ const runtime = new OrbitalServerRuntime({
   osHost: (grants) => createNodeOsHost(grants, { anchors: { ...processAnchors(), start: project } }),
 });
 await runtime.register(program, { messages: catalogsOf(program) });
-
-for (const orbital of runtime.listOrbitals()) {
-  const traits = (await runtime.describeOrbital(orbital))?.traits ?? [];
-  if (traits.length === 0) continue;
-  const mount = traits.map((t) => ({ trait: t.name, event: 'INIT' as const }));
-  const answer = await runtime.processOrbitalEvent(orbital, { event: 'INIT', mount });
-  if (!answer.success) throw new Error(`INIT of ${orbital}: ${answer.error ?? 'the kernel refused the mount'}`);
-}
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {

@@ -103,6 +103,11 @@ pub(crate) fn client_program(program: &serde_json::Value) -> serde_json::Value {
         .get_mut("orbitals")
         .and_then(serde_json::Value::as_array_mut)
     {
+        // The client serves routes only (EXEC-ENDPOINT-5): an orbital whose every page is a protocol endpoint is the server's.
+        orbitals.retain(|orbital| {
+            let pages = orbital.get("pages").and_then(serde_json::Value::as_array);
+            !pages.is_some_and(|pages| !pages.is_empty() && pages.iter().all(|page| page.get("protocol").is_some()))
+        });
         for orbital in orbitals {
             if let Some(pages) = orbital
                 .get_mut("pages")
@@ -122,7 +127,35 @@ pub(crate) fn client_program(program: &serde_json::Value) -> serde_json::Value {
             }
         }
     }
+    // A browser kernel has no operator table: the sites of the effects its traits run travel with the program.
+    let mut heads = std::collections::BTreeSet::new();
+    collect_call_heads(root.get("orbitals").unwrap_or(&serde_json::Value::Null), &mut heads);
+    let sites = orbital_core_base::runs_on::operator_sites(heads.iter().map(String::as_str));
+    let mut metadata = serde_json::Map::new();
+    if !sites.is_empty() {
+        metadata.insert("operatorSites".to_string(), serde_json::json!(sites));
+    }
+    if let Some(facts) = orbital_core_base::language::registry::table_dispatch_facts() {
+        metadata.insert("dispatchFacts".to_string(), serde_json::json!(facts));
+    }
+    if !metadata.is_empty() {
+        root.insert("_metadata".to_string(), serde_json::Value::Object(metadata));
+    }
     projected
+}
+
+/// Every string at the head of a JSON array under `value`: the operator of each call the program spells.
+fn collect_call_heads(value: &serde_json::Value, heads: &mut std::collections::BTreeSet<String>) {
+    match value {
+        serde_json::Value::Array(items) => {
+            if let Some(serde_json::Value::String(head)) = items.first() {
+                heads.insert(head.clone());
+            }
+            items.iter().for_each(|item| collect_call_heads(item, heads));
+        }
+        serde_json::Value::Object(map) => map.values().for_each(|item| collect_call_heads(item, heads)),
+        _ => {}
+    }
 }
 
 impl TypeScriptBackend {
@@ -248,7 +281,9 @@ mod client_program_tests {
     #[test]
     fn the_unread_keys_are_dropped_everywhere_they_occur() {
         let out = client_program(&program());
-        assert!(out.get("_metadata").is_none() && out.get("ledger").is_none());
+        let metadata: Vec<&String> = out["_metadata"].as_object().map(|m| m.keys().collect()).unwrap_or_default();
+        assert_eq!(metadata, ["dispatchFacts"], "the authored _metadata is dropped; only what a client kernel reads is written");
+        assert!(out.get("ledger").is_none());
         let t = &out["orbitals"][0]["traits"][0];
         assert!(t.get("effectRow").is_none() && t.get("sourceEntityDefinition").is_none());
     }
@@ -262,6 +297,54 @@ mod client_program_tests {
         assert_eq!(t["stateMachine"]["transitions"][0]["eventId"], "evt_1");
         assert_eq!(out["orbitals"][0]["traits"][1]["ref"], "Imported");
         assert_eq!(out["orbitals"][0]["entity"]["name"], "E");
+    }
+
+    #[test]
+    fn an_orbital_reached_only_through_protocol_endpoints_is_not_projected() {
+        let out = client_program(&json!({ "orbitals": [
+            { "name": "Api", "pages": [{ "name": "Api", "protocol": "http" }], "traits": [{ "name": "Http1" }] },
+            { "name": "Web", "pages": [{ "name": "Home", "path": "/" }], "traits": [{ "name": "Home" }] },
+            { "name": "Lib", "traits": [{ "name": "Shared" }] },
+            { "name": "Mixed", "pages": [{ "name": "Boot", "protocol": "boot" }, { "name": "Demo", "path": "/demo" }], "traits": [] }
+        ] }));
+        let names: Vec<&str> = out["orbitals"].as_array().unwrap().iter().map(|o| o["name"].as_str().unwrap()).collect();
+        assert_eq!(names, ["Web", "Lib", "Mixed"], "control: route, page-less and mixed orbitals stay");
+        assert_eq!(out["orbitals"][2]["pages"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn the_sites_of_the_table_routed_effects_a_client_runs_travel_with_the_program() {
+        let out = client_program(&json!({ "_metadata": { "configProvenance": {} }, "orbitals": [
+            { "name": "Web", "pages": [{ "name": "Home", "path": "/" }], "traits": [{ "name": "Home", "stateMachine": { "transitions": [
+                { "from": "a", "to": "a", "event": "INIT", "effects": [["behavior/catalog", { "paths": ["x"] }, { "emit": { "success": "LISTED" } }], ["when", true, ["program/print", "@payload.result"]], ["set", "@entity.x", 1]] }
+            ] } }] }
+        ] }));
+        let sites = &out["_metadata"]["operatorSites"];
+        assert_eq!(sites["behavior/catalog"], "server");
+        assert_eq!(sites["program/print"], "server");
+        assert!(sites.get("when").is_none(), "control: a pure form carries no site");
+        assert!(out["_metadata"].get("configProvenance").is_none(), "the rest of _metadata stays unread");
+    }
+
+    #[test]
+    fn control_a_client_running_only_kernel_built_in_effects_carries_no_site_table() {
+        let out = client_program(&json!({ "orbitals": [
+            { "name": "Web", "pages": [{ "name": "Home", "path": "/" }], "traits": [{ "name": "Home", "stateMachine": { "transitions": [
+                { "from": "a", "to": "a", "event": "INIT", "effects": [["fetch", "Task", {}], ["navigate", "/x"]] }
+            ] } }] }
+        ] }));
+        assert!(out["_metadata"].get("operatorSites").is_none(), "{out}");
+    }
+
+    #[test]
+    fn the_dispatch_facts_a_browser_kernel_reads_travel_with_every_client_program() {
+        let out = client_program(&json!({ "orbitals": [
+            { "name": "Web", "pages": [{ "name": "Home", "path": "/" }], "traits": [{ "name": "Home" }] }
+        ] }));
+        let facts = orbital_core_base::language::registry::table_dispatch_facts().expect("the installed operator table");
+        assert_eq!(out["_metadata"]["dispatchFacts"], serde_json::to_value(facts).unwrap());
+        assert_eq!(out["_metadata"]["dispatchFacts"]["busExcluded"], json!(["INIT", "LOAD", "$MOUNT"]));
+        assert_eq!(out["_metadata"]["dispatchFacts"]["targetOptions"], json!(["orbital", "targetTrait", "event"]));
     }
 
     #[test]

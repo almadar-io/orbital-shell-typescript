@@ -17,7 +17,7 @@ export const FIELD_TYPE_SHAPES: Record<FieldTag, FieldTypeShape> = {
   string: 'circle', email: 'circle', url: 'circle', phone: 'circle', uuid: 'circle', field: 'circle',
   number: 'triangle', int: 'triangle', money: 'triangle',
   boolean: 'square',
-  date: 'diamond', timestamp: 'diamond', datetime: 'diamond',
+  date: 'diamond', timestamp: 'diamond', datetime: 'diamond', instant: 'diamond',
   enum: 'ring', union: 'ring',
   object: 'hexagon', image: 'hexagon', file: 'hexagon', bytes: 'hexagon', trait: 'hexagon', orbital: 'hexagon', behavior: 'hexagon', slot: 'hexagon', pattern: 'hexagon', node: 'hexagon', event: 'hexagon', EventAddress: 'hexagon', CallKey: 'hexagon', SExpr: 'hexagon',
   array: 'bars', tuple: 'bars',

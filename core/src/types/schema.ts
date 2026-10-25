@@ -76,6 +76,16 @@ export interface SchemaMetadata {
   configProvenance?: Record<string, ConfigProvenanceRecord[]>;
   /** For a program with `locales`: each loaded behavior → its source folder, relative to the program's (catalogs at `<folder>/locales/<locale>/<name>.json`). */
   messageSources?: Record<string, string>;
+  /** Compiled client programs: where each effect operator the client's traits run executes, for a kernel with no operator table. */
+  operatorSites?: Record<string, 'client' | 'server' | 'any'>;
+  /** Compiled client programs: the operator-table facts a kernel reads at dispatch. */
+  dispatchFacts?: DispatchFacts;
+}
+
+/** The operator-table facts a browser kernel reads at dispatch (`emit` busExcluded, `program/dispatch` targetOptions). */
+export interface DispatchFacts {
+  busExcluded: string[];
+  targetOptions: string[];
 }
 
 /** App-level site modifiers: `origin`, `icon`, `siteName` (→ `name`), `signIn`. */
@@ -248,6 +258,8 @@ export const SchemaMetadataSchema = z.object({
   updatedAt: z.number().optional(),
   configProvenance: z.record(z.array(ConfigProvenanceRecordSchema)).optional(),
   messageSources: z.record(z.string()).optional(),
+  operatorSites: z.record(z.enum(['client', 'server', 'any'])).optional(),
+  dispatchFacts: z.object({ busExcluded: z.array(z.string()), targetOptions: z.array(z.string()) }).optional(),
 });
 
 export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, z.ZodTypeDef, object> = z.object({

@@ -21,7 +21,7 @@ syn match loloBinding "[@?]\a[a-zA-Z0-9_.]*"
 
 " ── Keywords always outrank matches at the same position ────────────────────
 syn keyword loloKeyword app config derived emits entity expects extends for from initial listens orbital page state ticks trait type uses with as when every
-syn keyword loloType boolean bytes date datetime email image int number phone string timestamp url uuid
+syn keyword loloType boolean bytes date datetime email image instant int number phone string timestamp url uuid
 syn keyword loloTypeConstructor Map Entity Event Orbital Page Trait
 syn keyword loloPersistence external internal persistent runtime
 syn keyword loloCategory agent game-ai game-board game-cards game-character game-combat game-core game-items game-puzzle integration interaction lifecycle notification temporal validation
