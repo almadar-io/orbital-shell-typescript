@@ -24,7 +24,7 @@ it('defers keyed substrate answers, preserves context and suppresses cancelled c
     substrateCompletion: (site, key, op, args, outcome) => {
       expect(site.trait).toBe('Worker');
       expect(op).toBe('program/read');
-      expect(args).toEqual(request().args);
+      expect(args).toEqual([]);
       expect(outcome).toEqual({ ok: 'value' });
       return { event: 'CANONICAL', payload: { key, result: 1 } };
     },

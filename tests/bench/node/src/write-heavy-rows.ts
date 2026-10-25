@@ -140,7 +140,7 @@ async function runRow(options: WriteHeavyOptions): Promise<Omit<WriteHeavyResult
   for (let n = 1; n <= options.tableRows; n++) await memory.create('Item', { id: itemId(n), n: 0 });
   const counting = new CountingPersistence(options.pushdown === false ? new PlainPersistence(memory) : memory);
   // No kernel given: the installed one, which also holds the table.
-  const runtime = new OrbitalServerRuntime({ debug: false, mode: 'real', persistence: counting, kernel });
+  const runtime = new OrbitalServerRuntime({ debug: false, persistence: counting, kernel });
   await runtime.register(writeHeavySchema());
 
   const plan = planWriteMix(options.ops, options.tableRows, options.seed);

@@ -46,9 +46,6 @@ const renderLog = createLogger("almadar:runtime:render-ui");
 const xOrbitalLog = createLogger("almadar:runtime:cross-orbital");
 const persistLog = createLogger("almadar:runtime:persist");
 
-/** The installed std behavior that decides mock rows and owners; the kernel runs it, the host only applies its answers. */
-const STD_MOCK_SEED = 'std/behaviors/std-mock-seed';
-
 const registerLog = createLogger("almadar:runtime:register");
 
 import type { TraitState, TransitionObserver } from "@almadar/shell-runtime";
@@ -112,11 +109,11 @@ import { kernelOsCompletions, kernelOsGrants, type OsGrantPort, type OsHostPort 
 import { createHttpPorts, createHttpSecrets, InFlightCalls, type HttpPorts, type HttpPortsOptions, type KernelModule } from "@almadar/shell-runtime";
 import { installNodeHostPorts } from "../host-ports.js";
 import { nativeMemoryOf } from "../kernel-loader.js";
-import { StdMockSeed, bindDeclaredCollections, declaredSeedConfig, restampMockOwner, seedBrowserStore, seedMockStore, type MockSeedHost, type SeedOwnerJournal } from "@almadar/shell-runtime";
+import { bindDeclaredCollections } from "@almadar/shell-runtime";
 // Node-detection helper. Used to guard call sites of express, fs/path/net,
 // and child_process — those modules are stubbed by the package.json `browser`
 // field in browser bundles, so calling them would crash. Browser consumers
-// (e.g. `<BrowserPlayground>` from @almadar/ui in mock mode) skip these
+// (e.g. `<BrowserPlayground>` from @almadar/ui) skip these
 // paths entirely.
 function isNodeEnv(): boolean {
   return typeof process !== "undefined" && Boolean(process.versions?.node);
@@ -243,13 +240,6 @@ export interface OrbitalServerRuntimeConfig {
   effectHandlers?: Partial<EffectHandlers>;
   /** Persistence adapter for entity data */
   persistence?: PersistenceAdapter;
-  /**
-   * Data mode:
-   * - 'mock': mock service answers and the std mock-seed dataset
-   * - 'real': the actual persistence layer and services
-   * Required: whoever starts the runtime states it; there is no default (EXEC-BOUND-2).
-   */
-  mode: 'mock' | 'real';
   /** Where a registered program with imports is resolved from (`orb resolve`). */
   loaderConfig?: LoaderConfig;
   /**
@@ -274,7 +264,7 @@ export interface OrbitalServerRuntimeConfig {
    *
    * Never an HTTP request's identity: `router()` resolves every request from
    * its verified token (or anonymous). It is the viewer for in-process calls,
-   * ticks and the mock seeder's owner stamps.
+   * and ticks.
    */
   defaultUser?: UserContext;
   /**
@@ -412,13 +402,6 @@ export class OrbitalServerRuntime {
   private config: OrbitalServerRuntimeConfig;
   /** The row store a host-supplied `persistence` replaces: the kernel's own `MemoryStore`, opened by the first `register()`. */
   private ownedStore: ReturnType<typeof nativeMemoryOf> | undefined;
-  /** The owner cells the mock seed stamped, kept for a persona restamp. */
-  private mockJournal: SeedOwnerJournal | undefined;
-  /** The std seed program resolved from the installed packages, once per runtime. */
-  private seedProgram: OrbitalSchema | undefined;
-  /** Store writes (seed, reseed, restamp) run one after another. */
-  private storeOps: Promise<void> = Promise.resolve();
-
   /**
    * The bound persistence adapter (host-supplied, else the kernel's own memory store). Public so a test can
    * inspect committed rows honestly. A runtime that owns its store has one from the first `register()`.
@@ -429,10 +412,6 @@ export class OrbitalServerRuntime {
     return store;
   }
 
-  /** Whether this runtime seeds generated mock rows: mock mode over the store it owns. */
-  private seedsMock(): boolean {
-    return this.config.mode === 'mock' && this.config.persistence === undefined;
-  }
   private tickBindings: TickBinding[] = [];
   /** The kernel running the registered program; null before a program is registered. */
   private kernelEngine: KernelEngine | null = null;
@@ -475,7 +454,6 @@ export class OrbitalServerRuntime {
       // `@user` is never Null: a host that named no viewer and has no sign-in serves the unauthenticated viewer.
       defaultUser: config.defaultUser ?? ANONYMOUS_USER,
     };
-    this.viewerNamedByHost = config.defaultUser !== undefined;
     this.eventBus = new EventBus();
 
 
@@ -567,7 +545,6 @@ export class OrbitalServerRuntime {
   }
 
   private async doRegister(schema: OrbitalSchema, options: RegisterOptions): Promise<void> {
-    // The policy gates the mock seeder installs evaluate on the kernel from the first seeded row.
     const kernel = await this.kernelModule();
     installKernelEvaluator(kernel);
     this.openOwnedStore(kernel);
@@ -599,7 +576,6 @@ export class OrbitalServerRuntime {
     // server's /api/schema handler) can serve the fully-resolved copy instead
     // of re-reading the raw .orb from disk. See getResolvedSchema().
     this.resolvedSchema = schema;
-    await this.flushPendingOwnerRestamp();
   }
 
   /** The kernel's own row store, opened once in the register phase when the host supplied none. */
@@ -814,8 +790,6 @@ export class OrbitalServerRuntime {
     this.kernelEngine = KernelEngine.open(kernel, schema, this.kernelPorts(registered.egress ?? []));
     this.kernelEngine.setMessages(this.appLocales, this.messages);
     if (this.managedProgram !== undefined) this.kernelEngine.setManagedProgram(this.managedProgram);
-    await this.seedStores(registered);
-    this.seedKernelRuntimeMock();
     this.syncTickMount();
     await this.mountBootEndpoints();
   }
@@ -844,72 +818,6 @@ export class OrbitalServerRuntime {
     }
   }
 
-  /** The program whose rows the store holds, once seeded; absent before the first seed and after `unregisterAll`. */
-  private seededProgram: OrbitalSchema | undefined;
-
-  /** The std mock-seed program, resolved by `orb` from the installed packages. */
-  private async resolveSeedProgram(): Promise<OrbitalSchema> {
-    if (this.seedProgram !== undefined) return this.seedProgram;
-    const { behaviorResolve } = await import('../program/index.js');
-    const resolved = await behaviorResolve(
-      { behavior: STD_MOCK_SEED },
-      { cwd: this.programRoot(), ...(this.config.programHost?.orbBin !== undefined ? { orbBin: this.config.programHost.orbBin } : {}) },
-    );
-    if (!('orbitals' in resolved)) throw new Error(`OrbitalServerRuntime: the mock seed program ${STD_MOCK_SEED} did not resolve: ${resolved.error}`);
-    this.seedProgram = resolved;
-    return resolved;
-  }
-
-  /** Run `use` with the seed program forked off the kernel just opened; the fork is released after. */
-  private async withSeeder<T>(user: UserContext | undefined, use: (host: MockSeedHost) => Promise<T>): Promise<T> {
-    const program = await this.resolveSeedProgram();
-    const seedEngine = this.requireKernelEngine().forkProgram(program);
-    try {
-      return await use({
-        seeder: new StdMockSeed(seedEngine, declaredSeedConfig(program, this.resolvedSchema ?? undefined), user),
-        persistence: this.persistence,
-        nowMs: this.config.clock?.() ?? Date.now(),
-      });
-    } finally {
-      seedEngine.dispose();
-    }
-  }
-
-  /** Store writes (seed, reseed, restamp) run one after another, so a persona switch never interleaves a reseed. */
-  private enqueueStoreOp(op: () => Promise<void>): Promise<void> {
-    const run = this.storeOps.then(op, op);
-    this.storeOps = run.catch(() => undefined);
-    return run;
-  }
-
-  /**
-   * Fill the store from the program, in the register phase: a mock runtime seeds every entity for the viewer, any
-   * other runtime seeds the rows the program writes out and its browser-stored entities.
-   */
-  private async seedStores(program: OrbitalSchema): Promise<void> {
-    if (this.seedsMock()) {
-      const named = this.viewerNamedByHost ? this.config.defaultUser : undefined;
-      const seeded = await this.withSeeder(named, (host) => seedMockStore(host, program, {
-        namedByHost: this.viewerNamedByHost,
-        current: () => this.config.defaultUser,
-        seedIdentity: true,
-      }));
-      this.mockJournal = seeded.journal;
-      if (!this.viewerNamedByHost) this.config.defaultUser = seeded.viewer;
-      this.seededProgram = program;
-      return;
-    }
-    const local: Entity[] = [];
-    for (const registered of this.orbitals.values()) {
-      if (registered.entity.browser === true) local.push(registered.entity);
-      for (const aux of registered.schema.auxiliaryEntities ?? []) {
-        if (typeof aux !== 'string' && !isEntityCall(aux) && aux.browser === true) local.push(aux);
-      }
-    }
-    if (local.length === 0) return;
-    await this.withSeeder(undefined, (host) => seedBrowserStore(host.persistence, local, undefined, host));
-  }
-
   private managedProgram: OrbitalSchema | undefined;
 
   /**
@@ -919,12 +827,6 @@ export class OrbitalServerRuntime {
   manageCredentialsOf(program: OrbitalSchema): void {
     this.managedProgram = program;
     this.kernelEngine?.setManagedProgram(program);
-  }
-
-  /** A mock store seeds every entity; the `[runtime]` rows the kernel holds itself are seeded in the kernel. */
-  private seedKernelRuntimeMock(): void {
-    if (!this.seedsMock()) return;
-    this.kernelEngine?.seedRuntimeMock(this.config.defaultUser?.id);
   }
 
   private requireKernelEngine(): KernelEngine {
@@ -1100,16 +1002,6 @@ export class OrbitalServerRuntime {
     this.messages = {};
     this.appLocales = [];
 
-    // Clear mock persistence so the next registerFromFile re-seeds from
-    // the schema instead of inheriting rows the previous walk created.
-    // Without this, runtime-verify's state walk keeps every SAVE's
-    // persist-create row across test sessions — the grid accumulates
-    // "Mock name" rows that are never pruned, and empty cards from
-    // partial walk-step payloads stay visible forever.
-    if (this.seedsMock()) this.ownedStore?.clear();
-    this.mockJournal = undefined;
-    this.seededProgram = undefined;
-
     this.programHandlersPromise = null;
 
     // Stamp the mutation epoch AFTER the clear completes: a concurrent
@@ -1200,36 +1092,13 @@ export class OrbitalServerRuntime {
   }
 
   /**
-   * Reset the mock persistence store to a clean-slate re-seed without
-   * unregistering orbitals. Exposed for verifier tools that want to
-   * start each test with deterministic seeded rows, not the residue of
-   * the previous walk's persist-creates. No-op when the runtime does not
-   * seed a mock store of its own.
-   */
-  resetMockPersistence(): Promise<void> {
-    const store = this.ownedStore;
-    if (!this.seedsMock() || store === undefined) return Promise.resolve();
-    busLog.debug('mock:reset:enter', {
-      orbitalCount: this.orbitals.size,
-      timestamp: new Date().toISOString(),
-    });
-    return this.enqueueStoreOp(async () => {
-      store.clear();
-      if (this.seededProgram !== undefined) await this.seedStores(this.seededProgram);
-    });
-  }
-
-  /**
    * Return every registered orbital's circuit to boot: trait states to their
    * initial states, frames and row cache emptied, and a fresh mount (no trait
-   * awaiting INIT, nothing held). The hermetic-reset twin of
-   * `resetMockPersistence`: a reset walk must not inherit the previous walk's
-   * circuit any more than its rows.
+   * awaiting INIT, nothing held).
    */
   resetCircuitState(): void {
     this.inFlightCalls.cancelAll();
     this.kernelEngine?.reset();
-    this.seedKernelRuntimeMock();
     this.kernelOs?.close();
   }
 
@@ -1267,54 +1136,9 @@ export class OrbitalServerRuntime {
    * `OrbitalServerRuntimeConfig.defaultUser`. Pass `undefined` for an
    * unauthenticated viewer. Takes effect on the next event; an authenticated
    * request still overrides it.
-   *
-   * Mock mode stamps the seeded owner columns for whichever id was `defaultUser`
-   * at register time. Switching to a different id re-points those cells with
-   * `restampMockOwner` instead of re-seeding, so an ownership-scoped view for
-   * the new viewer has rows. The returned promise settles when the restamp has
-   * landed (immediately when there is nothing seeded yet; register flushes it).
    */
-  setDefaultUser(user: UserContext | undefined): Promise<void> {
-    const previousId = this.config.defaultUser?.id;
+  setDefaultUser(user: UserContext | undefined): void {
     this.config.defaultUser = user;
-    this.viewerNamedByHost = true;
-    if (this.seedsMock() && user?.id !== undefined && user.id !== previousId) return this.restampOwnerGated(user);
-    return Promise.resolve();
-  }
-
-  /** Whether the host named the viewer (constructor or `setDefaultUser`). If not, the viewer is
-   *  the app's first declared persona, resolved as soon as its roster is seeded. */
-  private viewerNamedByHost = false;
-
-  /** setDefaultUser can land before register() finishes resolving the schema
-   *  (a dev host pins a persona right after boot). An ungated restamp there
-   *  would hand a read-only persona authorship of drafts, so the restamp is
-   *  DEFERRED until the schema exists — register()/registerSync() flush it. */
-  private pendingOwnerRestamp = false;
-
-  /**
-   * Re-point the seeded owner cells at `user` (a persona switch never reseeds). The seed program's policy gates decide
-   * per row whether the persona could have created it. Deferred when the program is not seeded yet.
-   */
-  private restampOwnerGated(user: UserContext): Promise<void> {
-    if (this.seededProgram === undefined) {
-      this.pendingOwnerRestamp = true;
-      return Promise.resolve();
-    }
-    return this.enqueueStoreOp(async () => {
-      const program = this.seededProgram;
-      const journal = this.mockJournal;
-      if (program === undefined || journal === undefined) return;
-      this.mockJournal = await this.withSeeder(user, (host) => restampMockOwner(host, program, journal, user));
-    });
-  }
-
-  /** Flush a persona switch that arrived before the schema was resolved. */
-  private async flushPendingOwnerRestamp(): Promise<void> {
-    if (!this.pendingOwnerRestamp) return;
-    this.pendingOwnerRestamp = false;
-    const user = this.config.defaultUser;
-    if (user?.id !== undefined) await this.restampOwnerGated(user);
   }
 
   /** The viewer a dev host is currently presenting the app as. */

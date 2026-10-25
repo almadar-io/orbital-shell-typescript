@@ -1,5 +1,5 @@
 /**
- * Opens and seeds the browser store for a program's `[persistent: x, browser]`
+ * Opens the browser store for a program's `[persistent: x, browser]`
  * entities, one database per app and viewer locale. `none` when the program declares none; a failure to open is a state
  * the host shows, never a silent fallback to another store.
  */
@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from 'react';
 import type { OrbitalDefinition } from '@almadar/core';
 import { orbitalInlineEntities, storesRowsInBrowser } from '@almadar/core';
 import { browserStoreName, openBrowserStore } from '../../runtime';
-import { KernelLoaderMissingError, LanguageLoaderMissingError, SeedProgramLoaderMissingError, useKernelEngine } from '../../providers/KernelEngineContext';
 import type { IndexedDbPersistence } from '@almadar/shell-browser/storage';
 import type { PersistenceAdapter } from '@almadar/core';
 
@@ -18,7 +17,6 @@ export type BrowserStoreState =
   | { status: 'failed'; error: Error };
 
 export function useBrowserStore(appName: string, orbitals: readonly OrbitalDefinition[], locale?: string): BrowserStoreState {
-  const engine = useKernelEngine();
   const entities = useMemo(() => orbitals.flatMap(orbitalInlineEntities).filter(storesRowsInBrowser), [orbitals]);
   const [state, setState] = useState<BrowserStoreState>(() => (entities.length === 0 ? { status: 'none' } : { status: 'opening' }));
 
@@ -32,11 +30,7 @@ export function useBrowserStore(appName: string, orbitals: readonly OrbitalDefin
     setState({ status: 'opening' });
     const open = async (): Promise<void> => {
       try {
-        if (engine === null) throw new KernelLoaderMissingError();
-        if (engine.loadLanguage === undefined) throw new LanguageLoaderMissingError();
-        if (engine.loadSeedProgram === undefined) throw new SeedProgramLoaderMissingError();
-        const [kernel, language] = await Promise.all([engine.loadModule(), engine.loadLanguage()]);
-        const store = await openBrowserStore(browserStoreName(appName, locale), orbitals, { kernel, language, loadSeedProgram: engine.loadSeedProgram, app: { name: appName, orbitals: [...orbitals] } }, undefined, locale);
+        const store = await openBrowserStore(browserStoreName(appName, locale), orbitals);
         if (store === null) return;
         opened = store;
         if (!cancelled) setState({ status: 'ready', store });
@@ -49,7 +43,7 @@ export function useBrowserStore(appName: string, orbitals: readonly OrbitalDefin
       cancelled = true;
       opened?.close();
     };
-  }, [appName, locale, entities, orbitals, engine]);
+  }, [appName, locale, entities, orbitals]);
 
   return state;
 }

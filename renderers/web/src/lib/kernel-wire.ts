@@ -5,7 +5,6 @@
  * @packageDocumentation
  */
 
-import type { OrbitalSchema } from '@almadar/core';
 import type { KernelModule as RuntimeKernelModule } from '../index';
 
 /** The `Kernel` class `@almadar/kernel` exports: JSON strings in, JSON strings out. */
@@ -62,5 +61,3 @@ export type KernelLoader = () => Promise<KernelModule>;
 /** Resolves the language bundle (`@almadar/core/language-data` `LanguageBundle`) as JSON text, for a kernel a browser opens over a local store. */
 export type LanguageLoader = () => Promise<string>;
 
-/** Resolves the std `std-mock-seed` program (an already-resolved schema) that seeds a mock or browser store. */
-export type SeedProgramLoader = () => Promise<OrbitalSchema>;

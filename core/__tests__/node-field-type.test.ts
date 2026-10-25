@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EntityFieldSchema, FIELD_TYPES, FieldTypeSchema } from '../src/types/field';
 import { inferTsType } from '../src/types/ir';
-import { sampleFieldValue } from '../src/mock/sampleValue';
 
 describe('node field type', () => {
     it('is a member of the FieldType vocabulary', () => {
@@ -28,13 +27,5 @@ describe('node field type', () => {
 
     it('infers the canonical PatternNode TS type', () => {
         expect(inferTsType('node')).toBe('PatternNode | PatternNode[]');
-    });
-
-    it('is never seeded with sample data', () => {
-        const value = sampleFieldValue(
-            { name: 'view', type: 'node' },
-            { entityName: 'Scene', index: 1, strategy: 'index' },
-        );
-        expect(value).toBeUndefined();
     });
 });

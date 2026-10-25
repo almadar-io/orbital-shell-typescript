@@ -6,7 +6,7 @@
 import { credentialStatusConnected, credentialStorageKey, resolveCredentialStatusIdentity, isJsonObject, type CredentialPayload, type HttpCall, type HttpFailurePayload, type HttpOAuthFailureCode, type HttpOAuthFailureReason, type HttpStreamEvent, type JsonObject, type JsonValue, type RuntimeValue } from '@almadar/core';
 import { deliverBeacon, type BeaconDeliveryPorts } from './beacon.js';
 import { getEffectiveCredentialStore, getModeControl, resolveCredentialRef } from '../credentials/scope.js';
-import type { CredentialStore } from '../credentials/store.js';
+import type { CredentialVault } from '../credentials/vault.js';
 import { untilAborted } from '../effects/in-flight-calls.js';
 import { decodeHttpRequest, decodeOAuthAsk } from './decode.js';
 import type { HttpBody, HttpFailureWire, HttpRequestWire, HttpResponseWire, IoRequestWire } from './wire.js';
@@ -65,9 +65,9 @@ export interface HttpSecrets {
   persist?(name: string, value: string, principal?: string, label?: string): Promise<void>;
   /** The non-secret account label stored beside the credential; absent when its row carries none. */
   label?(name: string, principal?: string): Promise<string | undefined>;
-  /** Keep a one-use value (a pending OAuth grant) where every instance of the deployment can take it: the credential store's adapter when it shares one-use values, else the minted tier. */
+  /** Keep a one-use value (a pending OAuth grant) sealed in the credential store's rows, so it outlives the process and every instance on the same rows can take it; a host with no enabled store keeps it in memory. */
   hold?(name: string, value: string, ttlMs: number, principal?: string): Promise<void>;
-  /** Remove and return a held or minted value in one step, the single read of a one-use value. */
+  /** Remove and return a held value in one step, the single read of a one-use value; an expired one is consumed and not returned. */
   take?(name: string, principal?: string): Promise<string | undefined>;
   /** Whether `persist` keeps a value on this host. */
   durable?(): Promise<boolean>;
@@ -193,12 +193,9 @@ export class HttpEffectFailure extends Error {
   }
 }
 
-/** The service label a kernel-persisted credential (an OAuth connection) carries in the credential store. */
-const PERSISTED_SERVICE = 'kernel';
-
 /** Where the secrets' durable credentials live: the store a host installed, and how a name resolves through it. */
 export interface HttpSecretsHost {
-  store(): Promise<CredentialStore | null>;
+  store(): Promise<CredentialVault | null>;
   resolve(name: string, principal: string | undefined): Promise<string | undefined>;
 }
 
@@ -212,12 +209,17 @@ const installedSecretsHost: HttpSecretsHost = {
   },
 };
 
-/** In-process secrets: minted values with an expiry, then the credential store the host holds (by default the one the host installed). */
+/**
+ * The secrets of a host: minted values with an expiry (a memory tier that never reaches the rows), then the credential vault
+ * the host holds (by default the one the host installed). Everything durable is the kernel's: `rotate`, `persist`, `label`,
+ * `forget`, and a one-use value held sealed in the rows (`hold`, `take`). A host with no enabled vault holds a one-use value
+ * in memory, as the native host does.
+ */
 export function createHttpSecrets(now: () => number = Date.now, host: HttpSecretsHost = installedSecretsHost): HttpSecrets {
   type Minted = Map<string, { value: string; expiresAt: number }>;
   const environmentMinted: Minted = new Map();
-  const storeMinted = new WeakMap<CredentialStore, Minted>();
-  const cacheFor = (store: CredentialStore | null): Minted => {
+  const storeMinted = new WeakMap<CredentialVault, Minted>();
+  const cacheFor = (store: CredentialVault | null): Minted => {
     if (store === null) return environmentMinted;
     const held = storeMinted.get(store);
     if (held !== undefined) return held;
@@ -226,6 +228,12 @@ export function createHttpSecrets(now: () => number = Date.now, host: HttpSecret
     return cache;
   };
   const slot = (name: string, principal: string | undefined): string => credentialStorageKey({ name, ...(principal !== undefined ? { principal } : {}) });
+  const takeMinted = (minted: Minted, key: string): string | undefined => {
+    const held = minted.get(key);
+    if (held === undefined) return undefined;
+    minted.delete(key);
+    return held.expiresAt > now() ? held.value : undefined;
+  };
   return {
     async get(name, principal) {
       const minted = cacheFor(await host.store());
@@ -246,24 +254,23 @@ export function createHttpSecrets(now: () => number = Date.now, host: HttpSecret
     async rotate(name, value, principal) {
       const store = await host.store();
       if (store === null) throw new Error('this host keeps no credential store to rotate into');
-      const stored = store.entries(principal).find((entry) => entry.envVar === name);
-      if (stored === undefined) throw new Error(`credential ${name} is not in the credential store`);
       cacheFor(store).delete(slot(name, principal));
-      await store.set(stored.service, name, value, principal);
+      await store.replace(name, value, principal);
     },
     async persist(name, value, principal, label) {
       const store = await host.store();
       if (store === null || !store.enabled) throw new Error('this host keeps no credential store to persist into');
       cacheFor(store).delete(slot(name, principal));
-      await store.set(PERSISTED_SERVICE, name, value, principal, label);
+      await store.persist(name, value, principal, label);
     },
     async hold(name, value, ttlMs, principal) {
       const store = await host.store();
       const minted = cacheFor(store);
       const key = slot(name, principal);
-      if (store !== null && store.sharesDerived) {
+      if (store !== null && store.enabled) {
         minted.delete(key);
-        if (ttlMs > 0) await store.holdDerived(name, value, now() + ttlMs, principal);
+        if (ttlMs > 0) await store.hold(name, value, now() + ttlMs, now(), principal);
+        else await store.take(name, now(), principal);
         return;
       }
       if (ttlMs <= 0) minted.delete(key);
@@ -271,16 +278,11 @@ export function createHttpSecrets(now: () => number = Date.now, host: HttpSecret
     },
     async take(name, principal) {
       const store = await host.store();
-      if (store !== null && store.sharesDerived) {
-        const shared = await store.takeDerived(name, principal, now());
+      if (store !== null && store.enabled) {
+        const shared = await store.take(name, now(), principal);
         if (shared !== undefined) return shared;
       }
-      const minted = cacheFor(store);
-      const key = slot(name, principal);
-      const held = minted.get(key);
-      if (held === undefined) return undefined;
-      minted.delete(key);
-      return held.expiresAt > now() ? held.value : undefined;
+      return takeMinted(cacheFor(store), slot(name, principal));
     },
     async label(name, principal) {
       return (await host.store())?.label(name, principal);
@@ -301,29 +303,26 @@ export function createHttpSecrets(now: () => number = Date.now, host: HttpSecret
 
 /** The credential store and mode flag the host installed, as the kernel's raw asks. */
 export function createCredentialAdminPort(): CredentialAdminPort {
+  const installed = (): CredentialVault => {
+    const store = getEffectiveCredentialStore();
+    if (store === null) throw new Error('this host keeps no credential store');
+    return store;
+  };
   return {
     async list() {
-      const store = getEffectiveCredentialStore();
-      if (store === null) return null;
-      return { enabled: store.enabled, entries: store.entries().map((entry) => ({ service: entry.service, name: entry.envVar })) };
+      return getEffectiveCredentialStore()?.listing() ?? null;
     },
     async read(name) {
       return getEffectiveCredentialStore()?.resolve(name) ?? null;
     },
     async write(service, name, value) {
-      const store = getEffectiveCredentialStore();
-      if (store === null) throw new Error('this host keeps no credential store');
-      await store.set(service, name, value);
+      await installed().set(service, name, value);
     },
     async remove(name) {
-      const store = getEffectiveCredentialStore();
-      if (store === null) throw new Error('this host keeps no credential store');
-      return store.remove(name);
+      return installed().remove(name);
     },
     async rotate() {
-      const store = getEffectiveCredentialStore();
-      if (store === null) throw new Error('this host keeps no credential store');
-      return store.rotate();
+      return installed().rotate();
     },
     async mode() {
       return getModeControl()?.mode ?? null;

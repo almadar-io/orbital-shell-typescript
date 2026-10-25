@@ -58,7 +58,7 @@ const ALICE: UserContext = { id: 'alice', role: 'member' };
 const VIEWER: UserContext = { id: 'vic', role: 'viewer' };
 
 async function setup() {
-  const runtime = new OrbitalServerRuntime({ mode: 'real', kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
+  const runtime = new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
   await runtime.register(schema());
   return runtime;
 }

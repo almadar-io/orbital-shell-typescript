@@ -1,6 +1,5 @@
 /**
- * The browser store of a program's `[persistent: x, browser]` entities, opened and
- * seeded once, and the in-process transport its legs run through. The runtime
+ * The browser store of a program's `[persistent: x, browser]` entities, opened once, and the in-process transport its legs run through. The runtime
  * host (`useBrowserStore`) and compiled static clients both open it here.
  */
 import type { BrowserTabPort, MessageCatalogs, MountSeed, OnDeviceModelPorts, OrbitalDefinition, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema, RuntimeValue } from '@almadar/core';
@@ -8,13 +7,11 @@ import { applyRowAccess, externalInputsOf, orbitalInlineEntities, parseOrbitalSc
 import { entityAccessPolicies } from '@almadar/core/mock';
 import type { KernelHostPorts } from '../../kernel/host.js';
 import type { HttpPorts } from '../../kernel/http.js';
-import type { KernelModule, SeedProgramLoader } from '../../lib/kernel-wire.js';
+import type { KernelModule } from '../../lib/kernel-wire.js';
 import { dispatchDeclaredInput } from '@almadar/shell-runtime/client/declared-input-dispatch';
 import { IndexedDbPersistence } from '@almadar/shell-browser/storage';
 import type { EffectHandlers } from '../types.js';
 import type { DeferredCallOutcome } from '../../kernel/host.js';
-import { seedBrowserStore } from '../entities/seedBrowserStore.js';
-import { withBrowserSeeder, type BrowserStoreSeeding } from '../entities/seed-host.js';
 import { nativeMemoryPersistence } from './native-memory.js';
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import { buildTraitIndex } from '../traits/trait-index.js';
@@ -30,23 +27,19 @@ export function browserStoreName(appName: string, locale: string | undefined): s
   return locale !== undefined ? `almadar:${appName}:${locale}` : `almadar:${appName}`;
 }
 
-/** Open and seed the store; `null` when no entity is browser-stored. */
+/** Open the store; `null` when no entity is browser-stored. */
 export async function openBrowserStore(
   databaseName: string,
   orbitals: readonly OrbitalDefinition[],
-  seeding: BrowserStoreSeeding,
   factory?: IDBFactory,
-  locale?: string,
 ): Promise<IndexedDbPersistence | null> {
   const entities = orbitals.flatMap(orbitalInlineEntities).filter(storesRowsInBrowser);
   if (entities.length === 0) return null;
-  const store = await IndexedDbPersistence.open({
+  return IndexedDbPersistence.open({
     databaseName,
     entityTypes: entities.map((e) => e.name),
     ...(factory !== undefined ? { factory } : {}),
   });
-  await withBrowserSeeder(seeding, (host) => seedBrowserStore(store, entities, locale, host));
-  return store;
 }
 
 export interface BrowserStoreTransportOptions {
@@ -56,11 +49,7 @@ export interface BrowserStoreTransportOptions {
   kernel: KernelModule;
   /** The language bundle as JSON (`LanguageBundle`) the kernel is opened with: a browser has no `node_modules` to read it from. */
   language: string;
-  /** Resolves the std mock-seed program that seeds the store when it is first opened. */
-  loadSeedProgram: SeedProgramLoader;
   factory?: IDBFactory;
-  /** The viewer's locale: picks the entity's rows for it when the store is first seeded. */
-  locale?: string;
   /** Answers the program's calls to browser-only services (the client's web-hosted integrations). */
   callService?: EffectHandlers['callService'];
   /** What a leg's client-site `http` runs on (`createBrowserHttpPorts`). */
@@ -70,7 +59,7 @@ export interface BrowserStoreTransportOptions {
 }
 
 export async function openBrowserStoreTransport(options: BrowserStoreTransportOptions): Promise<EventTransport> {
-  const stored = await openBrowserStore(options.databaseName, options.schema.orbitals, { kernel: options.kernel, language: options.language, loadSeedProgram: options.loadSeedProgram, app: options.schema }, options.factory, options.locale);
+  const stored = await openBrowserStore(options.databaseName, options.schema.orbitals, options.factory);
   if (stored === null && options.callService === undefined) {
     throw new Error(`openBrowserStoreTransport: schema "${options.schema.name}" declares no browser-stored entity`);
   }
@@ -94,15 +83,13 @@ export async function openBrowserStoreTransport(options: BrowserStoreTransportOp
  * A compiled client's bundled `browserSchema.json`, parsed by this runtime's own core (the client's core may predate
  * the browser-storage fields), served on the kernel like any local host.
  */
-export function openBundledBrowserStore(bundled: RuntimeValue, kernel: KernelModule, language: string, loadSeedProgram: SeedProgramLoader, locale?: string, callService?: EffectHandlers['callService'], messages?: MessageCatalogs, http?: HttpPorts): Promise<EventTransport> {
+export function openBundledBrowserStore(bundled: RuntimeValue, kernel: KernelModule, language: string, locale?: string, callService?: EffectHandlers['callService'], messages?: MessageCatalogs, http?: HttpPorts): Promise<EventTransport> {
   const schema = parseOrbitalSchema(bundled);
   return openBrowserStoreTransport({
     databaseName: browserStoreName(schema.name, locale),
     schema,
     kernel,
     language,
-    loadSeedProgram,
-    ...(locale !== undefined ? { locale } : {}),
     ...(callService !== undefined ? { callService } : {}),
     ...(http !== undefined ? { http } : {}),
     ...(messages !== undefined ? { messages } : {}),
@@ -122,12 +109,9 @@ export interface BrowserHostOptions {
   kernel: KernelModule;
   /** The language bundle as JSON (`LanguageBundle`) the kernel is opened with: a browser has no `node_modules` to read it from. */
   language: string;
-  /** Resolves the std mock-seed program that seeds the store when it is first opened. */
-  loadSeedProgram: SeedProgramLoader;
   /** The browser's tabs for the `browser/tab-*` effects; absent, a tab ask fails `unavailable`. */
   tabs?: BrowserTabPort;
   factory?: IDBFactory;
-  locale?: string;
 }
 
 /** A declared input the host ran, with its result; no view asked for it. */
@@ -162,7 +146,7 @@ function refuseUnhostedTicks(traitIndex: ReturnType<typeof buildTraitIndex>): vo
  * by `callService`. The host holds the circuit state itself.
  */
 export async function openBrowserHost(options: BrowserHostOptions): Promise<BrowserHost> {
-  const browserStore = await openBrowserStore(options.databaseName, options.schema.orbitals, { kernel: options.kernel, language: options.language, loadSeedProgram: options.loadSeedProgram, app: options.schema }, options.factory, options.locale);
+  const browserStore = await openBrowserStore(options.databaseName, options.schema.orbitals, options.factory);
   const memory = nativeMemoryPersistence(options.kernel);
   const persistence = localStorePersistence(options.schema, browserStore ?? memory, memory);
   const traitIndex = buildTraitIndex(options.schema.orbitals);

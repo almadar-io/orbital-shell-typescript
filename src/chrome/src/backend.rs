@@ -115,7 +115,7 @@ fn kernel_loader() -> String {
 /// The worker's `http` ports: the kernel's request driver and the browser's own `fetch` — a browser cannot resolve a
 /// name, so only the program's `egress` (and the extension's `host_permissions`, derived from it) bound what the call reaches.
 /// A program that names a credential (an `http` with `auth`, `credential-*`, an OAuth effect) also gets the profile's credential
-/// store, so the kernel's secret asks are answered here and the program never receives a value; `oauth-authorize` further gets
+/// vault (the kernel's encrypted store over `chrome.storage` rows), so the kernel's secret asks are answered here and the program never receives a value; `oauth-authorize` further gets
 /// the host's own Google sign-in (`chrome.identity`, no client secret).
 fn http_ports(program: &ChromeProgram) -> String {
     let egress: Vec<String> = program.egress_origins.iter().map(|o| format!("'{o}'")).collect();
@@ -127,7 +127,7 @@ fn http_ports(program: &ChromeProgram) -> String {
     }
     let sign_in = if program.uses_identity { "  signIn: extensionHost.signIn,\n" } else { "" };
     format!(
-        "import {{ createChromeCredentialStore, createExtensionHttpPorts }} from '@almadar/shell-chrome';\nimport type {{ HttpPorts }} from '@almadar/shell-web';\nimport {{ extensionHost }} from '../config';\nimport {{ kernelReady }} from './kernel';\n\nexport const http: HttpPorts | undefined = createExtensionHttpPorts({{\n  kernel: () => kernelReady,\n  egress: [{egress}],\n  credentials: createChromeCredentialStore(chrome.storage.local),\n  provisioned: extensionHost.provisioned,\n  fetch: extensionHost.fetch,\n{sign_in}}});\n"
+        "import {{ createChromeCredentialVault, createExtensionHttpPorts }} from '@almadar/shell-chrome';\nimport type {{ HttpPorts }} from '@almadar/shell-web';\nimport {{ extensionHost }} from '../config';\nimport {{ kernelReady }} from './kernel';\n\nexport const http: HttpPorts | undefined = createExtensionHttpPorts({{\n  kernel: () => kernelReady,\n  egress: [{egress}],\n  credentials: kernelReady.then((kernel) => createChromeCredentialVault(chrome.storage.local, kernel)),\n  provisioned: extensionHost.provisioned,\n  fetch: extensionHost.fetch,\n{sign_in}}});\n"
     )
 }
 
@@ -328,7 +328,7 @@ mod tests {
         let http = &files[2].content;
         assert!(http.contains("createExtensionHttpPorts"), "{http}");
         assert!(http.contains("import type { HttpPorts } from '@almadar/shell-web'"), "{http}");
-        assert!(http.contains("createChromeCredentialStore(chrome.storage.local)"), "{http}");
+        assert!(http.contains("createChromeCredentialVault(chrome.storage.local, kernel)"), "{http}");
         assert!(http.contains("fetch: extensionHost.fetch"), "Firebase requests carry the project key through the host fetch: {http}");
         assert!(http.contains("from '../config'"), "http.ts lives in generated/, config.ts one level up: {http}");
         assert!(http.contains("egress: ['https://api.example.com']"), "{http}");

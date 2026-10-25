@@ -7,9 +7,9 @@
  * chooses to run on a kernel of its own, wired to the SAME bus and slots every
  * other UI component uses. `mode: 'mock'` runs each plugin as an offline
  * `OrbPreview` circuit does: a client-role kernel (which also runs the plugin's
- * `ticks {}` on the one browser tick driver) over a local kernel whose mock
- * store is seeded by `seedMockStore` (persona roster, owner columns stamped for
- * the dev viewer, the `@create` owner gate); `mode: 'server'` dispatches
+ * `ticks {}` on the one browser tick driver) over a local kernel with an empty
+ * in-memory store, no viewer, and no host seeding (a program seeds itself by
+ * composing `std-mock-seed`); `mode: 'server'` dispatches
  * through the host's transport. Default policy denies nothing — a plugin has the full
  * behavior power a preview has (in-memory persist, default services); `deny`
  * is an opt-in host policy, never a default sandbox.
@@ -43,7 +43,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import type { EffectHandlers } from '../runtime';
-import { buildTraitIndex, createLocalStoreTransport, nativeMemoryPersistence, openLocalKernel, seedMockStore, withForkedSeeder } from '../runtime';
+import { buildTraitIndex, createLocalStoreTransport, nativeMemoryPersistence, openLocalKernel } from '../runtime';
 import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import type { ClientKernelOutcome } from '@almadar/shell-runtime/client/client-kernel';
 import type { TraitState } from '@almadar/shell-runtime/client/trait-types';
@@ -75,7 +75,7 @@ import { useTranslate } from '../core';
 import { useUISlots, type UISlotManager, type SlotProps } from '../providers/UISlotContext';
 import type { EventTransport } from '../index';
 import type { KeyCaptureEntry, KeyCaptureTable } from '../hooks/useKeyboardRouter';
-import { KernelLoaderMissingError, LanguageLoaderMissingError, SeedProgramLoaderMissingError, useKernelEngine, type KernelEngineValue } from '../providers/KernelEngineContext';
+import { KernelLoaderMissingError, LanguageLoaderMissingError, useKernelEngine, type KernelEngineValue } from '../providers/KernelEngineContext';
 
 const log = createLogger('almadar:ui:plugin-host');
 
@@ -105,7 +105,7 @@ export interface PluginHostPlugin {
 
 export interface OrbitalPluginHostProps {
   plugins: PluginHostPlugin[];
-  /** 'mock' (default): a local kernel over in-memory mock rows — full behavior power, as any preview.
+  /** 'mock' (default): a local kernel over an in-memory store — full behavior power, as any preview.
    *  'server': dispatch through `transport` instead of a local kernel, as `AlmadarApp`. */
   mode?: 'mock' | 'server';
   /** Required when `mode === 'server'`. */
@@ -287,7 +287,7 @@ function buildMockEffectHandlers(opts: {
   return handlers;
 }
 
-/** A store whose writes are denied: each one is logged and dropped, reads see the seeded rows. */
+/** A store whose writes are denied: each one is logged and dropped, reads see the store's rows. */
 function writeDeniedStore(pluginId: string, store: PersistenceAdapter): PersistenceAdapter {
   return {
     create: async (entityType: string, _data: EntityRow) => {
@@ -305,7 +305,7 @@ function writeDeniedStore(pluginId: string, store: PersistenceAdapter): Persiste
   };
 }
 
-/** One plugin's mock circuit: the local kernel over its seeded mock store, and the client kernel dispatching to it. */
+/** One plugin's mock circuit: the local kernel over its in-memory store, and the client kernel dispatching to it. */
 interface PluginLocalKernel {
   /** The local kernel answering the client's posted legs. */
   kernelEngine: Promise<KernelEngine>;
@@ -316,7 +316,7 @@ interface PluginLocalKernel {
 }
 
 /**
- * One plugin's local kernel: its schema over a mock store seeded for the dev viewer (`seedMockStore`), the denied
+ * One plugin's local kernel: its schema over an in-memory store, the denied
  * verbs answered by the host's ports, and a client-role kernel over it, as an offline `OrbPreview` circuit runs.
  */
 function openPluginKernel(
@@ -326,9 +326,8 @@ function openPluginKernel(
 ): PluginLocalKernel {
   if (engine === null) throw new KernelLoaderMissingError();
   const language = engine.loadLanguage !== undefined ? engine.loadLanguage() : Promise.reject(new LanguageLoaderMissingError());
-  const loadSeedProgram = engine.loadSeedProgram;
   const schema = plugin.schema;
-  const opened = Promise.all([engine.loadModule(), language]).then(async ([kernel, bundle]) => {
+  const opened = Promise.all([engine.loadModule(), language]).then(([kernel, bundle]) => {
     const rows = nativeMemoryPersistence(kernel);
     const persistence = denySet.has('persist') ? writeDeniedStore(plugin.id, rows) : rows;
     const server = openLocalKernel({
@@ -345,24 +344,17 @@ function openPluginKernel(
           }
         : {}),
     });
-    // The owner gates evaluate on the kernel, so the store seeds once its language is installed.
-    if (loadSeedProgram === undefined) throw new SeedProgramLoaderMissingError();
-    const { viewer } = await withForkedSeeder(server, schema, loadSeedProgram, rows, undefined, (host) =>
-      seedMockStore(host, schema, { namedByHost: false, current: () => undefined, seedIdentity: true }),
-    );
-    server.seedRuntimeMock(viewer?.id);
-    return { kernel, server, viewer };
+    return { kernel, server };
   });
   // The failure reaches the first dispatch through the transport (and the registration below).
   opened.catch(() => undefined);
   const kernelEngine = opened.then((o) => o.server);
   kernelEngine.catch(() => undefined);
-  const transport = createLocalStoreTransport({ kernelEngine, user: opened.then((o) => o.viewer) });
-  const instance = opened.then(({ kernel, viewer }) => {
+  const transport = createLocalStoreTransport({ kernelEngine });
+  const instance = opened.then(({ kernel }) => {
     const k = new kernel.Kernel(JSON.stringify({ name: schema.name, orbitals: kernelOrbitals(schema.orbitals), ...(schema._metadata !== undefined ? { _metadata: schema._metadata } : {}) }), getTabClientId());
     // The local kernel runs the whole worklist of every leg it is posted, listeners of a dispatched emit included.
     k.setHostFansOut(true);
-    if (viewer !== undefined) k.setCurrentUser(JSON.stringify(viewer));
     return k;
   });
   instance.catch(() => undefined);

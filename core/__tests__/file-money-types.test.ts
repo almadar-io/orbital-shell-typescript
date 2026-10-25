@@ -12,10 +12,8 @@ import {
   FIELD_TYPES,
   FieldTypeSchema,
   isFileValue,
-  FileValueSchema,
 } from '../index.js';
 import { EntityFieldSchema } from '../src/types/field.js';
-import { sampleFieldValue } from '../src/mock/index.js';
 
 describe('the promoted value types', () => {
   it('are first-class field types', () => {
@@ -34,21 +32,11 @@ describe('the promoted value types', () => {
     expect(isFileValue({ name: 'a.pdf' })).toBe(false);
   });
 
-  it('seeds values that satisfy their own contracts', () => {
-    const money = sampleFieldValue({ name: 'amount', type: 'money' }, { entityName: 'Invoice', index: 3, strategy: 'index' });
-    expect(typeof money).toBe('number');
-    const file = sampleFieldValue({ name: 'attachment', type: 'file' }, { entityName: 'Invoice', index: 3, strategy: 'index' });
-    expect(FileValueSchema.safeParse(file).success).toBe(true);
-  });
-
   it('bytes is a first-class type that is not a string-domain type; unknown names stay rejected', () => {
     expect(FIELD_TYPES).toContain('bytes');
     expect(FieldTypeSchema.safeParse('bytes').success).toBe(true);
     expect(EntityFieldSchema.safeParse({ name: 'x', type: 'bytes' }).success).toBe(true);
     expect(EntityFieldSchema.safeParse({ name: 'x', type: 'bytez' }).success).toBe(false);
     expect(FieldTypeSchema.safeParse('bytez').success).toBe(false);
-    const sample = sampleFieldValue({ name: 'blob', type: 'bytes' }, { entityName: 'Doc', index: 1, strategy: 'index' });
-    expect(typeof sample).toBe('string');
-    expect(Buffer.from(String(sample), 'base64').toString('base64')).toBe(sample);
   });
 });

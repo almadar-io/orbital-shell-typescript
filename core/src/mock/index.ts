@@ -1,5 +1,5 @@
 /**
- * Identity and owner facts a mock store's seeding and policies read; sampling is the std-mock-seed program's.
+ * Identity and owner facts that access policies read.
  *
  * @packageDocumentation
  */

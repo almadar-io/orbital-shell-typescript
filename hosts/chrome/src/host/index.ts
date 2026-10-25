@@ -3,7 +3,7 @@ export { createPageExecutor, PageCommandError, type PageExecutor, type TabElemen
 export { chromeTabPort } from './tabs/port.js';
 export { runPageContentScript } from './tabs/content.js';
 export type { ChromeRuntimeApi, ChromeTabsApi, PageMessage, PageReply } from './tabs/messages.js';
-export { CHROME_CREDENTIAL_MASTER_KEY, CHROME_CREDENTIAL_ROWS_KEY, chromeCredentialRows, createChromeCredentialStore, type ChromeStorageArea } from './credentials.js';
+export { CHROME_CREDENTIAL_MASTER_KEY, CHROME_CREDENTIAL_ROWS_KEY, chromeCredentialRows, createChromeCredentialVault, type ChromeStorageArea } from './credentials.js';
 export { ChromePortError, type ChromePortErrorCode } from './errors.js';
 export { chromePromptModel, PROMPT_TIMEOUT_MS, type ChromeLanguageModel, type ChromeModelSession, type ChromePromptModelOptions } from './prompt.js';
 export { transformersEmbedder, type FeatureExtractor, type OnDeviceEmbedderPort, type TransformersEmbedderOptions } from './embedder.js';

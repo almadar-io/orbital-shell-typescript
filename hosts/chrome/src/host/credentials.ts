@@ -1,6 +1,6 @@
-/** The credential store of a browser host: the server host's encrypted rows over `chrome.storage`, never a second store. */
-import { EntityRowSchema, FULL_WRITE_CAPABILITIES, runRowWrite, type EntityRow } from '@almadar/core';
-import { CREDENTIAL_ENTITY_TYPE, CredentialStore, DERIVED_ENTITY_TYPE, type CredentialPersistence, type DerivedPersistence } from '@almadar/shell-web';
+/** The credential rows of a browser host over `chrome.storage`, and the master key it hands the kernel's vault. */
+import { EntityRowSchema, runRowWrite, type EntityRow } from '@almadar/core';
+import { CredentialVault, type CredentialRowsPort, type CredentialVaultModule } from '@almadar/shell-web';
 
 /** The slice of `chrome.storage` a browser host keeps its rows in. */
 export interface ChromeStorageArea {
@@ -9,64 +9,60 @@ export interface ChromeStorageArea {
   remove(key: string): Promise<void>;
 }
 
+const CREDENTIAL_ROWS_ENTITY = 'AlmadarIntegrationCredential';
+
 export const CHROME_CREDENTIAL_ROWS_KEY = 'almadar.credentials.rows';
-export const CHROME_DERIVED_ROWS_KEY = 'almadar.credentials.derived';
 export const CHROME_CREDENTIAL_MASTER_KEY = 'almadar.credentials.masterKey';
 
-/** The store's rows kept as one array per entity type under one `chrome.storage` key each; writes are applied one after another. */
-export function chromeCredentialRows(storage: ChromeStorageArea): CredentialPersistence & DerivedPersistence {
-  let queue: Promise<unknown> = Promise.resolve();
-  const keyOf = (entityType: string): string => {
-    if (entityType === CREDENTIAL_ENTITY_TYPE) return CHROME_CREDENTIAL_ROWS_KEY;
-    if (entityType === DERIVED_ENTITY_TYPE) return CHROME_DERIVED_ROWS_KEY;
-    throw new Error(`the chrome credential store holds no ${entityType} rows`);
-  };
-  const read = async (key: string): Promise<EntityRow[]> => {
+/** The writes to one storage area, in order: every rows port over the same area in this context shares one. */
+const gates = new WeakMap<ChromeStorageArea, { tail: Promise<void> }>();
+
+function gateOf(storage: ChromeStorageArea): { tail: Promise<void> } {
+  const held = gates.get(storage);
+  if (held !== undefined) return held;
+  const gate = { tail: Promise.resolve() };
+  gates.set(storage, gate);
+  return gate;
+}
+
+/**
+ * The kernel's rows kept as one array under one `chrome.storage` key; reads and writes are applied one after another, so a
+ * conditional delete (`runRowWrite`) is atomic against every other rows port over the same area in this context.
+ * `chrome.storage` has no compare-and-set, so another extension context (a popup, a second worker) is not covered.
+ */
+export function chromeCredentialRows(storage: ChromeStorageArea): CredentialRowsPort {
+  const gate = gateOf(storage);
+  const key = CHROME_CREDENTIAL_ROWS_KEY;
+  const read = async (): Promise<EntityRow[]> => {
     const held = (await storage.get(key))[key];
     if (held === undefined) return [];
     const rows = EntityRowSchema.array().safeParse(held);
     if (!rows.success) throw new Error(`the credential rows under ${key} are unreadable: ${rows.error.message}`);
     return rows.data;
   };
-  const write = (key: string, rows: EntityRow[]): Promise<void> => storage.set({ [key]: rows });
-  const change = <T>(entityType: string, work: (rows: EntityRow[], key: string) => Promise<T> | T): Promise<T> => {
-    const key = keyOf(entityType);
-    const next = queue.then(async () => work(await read(key), key));
-    queue = next.catch(() => undefined);
+  const change = <T>(work: (rows: EntityRow[]) => { rows: EntityRow[]; result: T }): Promise<T> => {
+    const next = gate.tail.then(async () => {
+      const { rows, result } = work(await read());
+      await storage.set({ [key]: rows });
+      return result;
+    });
+    gate.tail = next.then(
+      () => undefined,
+      () => undefined,
+    );
     return next;
   };
   return {
-    async list(entityType) {
-      const key = keyOf(entityType);
-      await queue;
-      return read(key);
+    async list() {
+      await gate.tail;
+      return read();
     },
-    async getById(entityType, id) {
-      const key = keyOf(entityType);
-      await queue;
-      return (await read(key)).find((row) => row.id === id) ?? null;
-    },
-    create: (entityType, data) =>
-      change(entityType, async (rows, key) => {
-        const id = typeof data.id === 'string' ? data.id : globalThis.crypto.randomUUID();
-        await write(key, [...rows, { ...data, id }]);
-        return { id };
-      }),
-    update: (entityType, id, data) =>
-      change(entityType, async (rows, key) => {
-        await write(key, rows.map((row) => (row.id === id ? { ...row, ...data, id } : row)));
-      }),
-    delete: (entityType, id) =>
-      change(entityType, async (rows, key) => {
-        await write(key, rows.filter((row) => row.id !== id));
-      }),
-    writeCapabilities: () => FULL_WRITE_CAPABILITIES,
-    writeWhere: (op) =>
-      change(op.entityType, async (rows, key) => {
-        const result = runRowWrite(rows, op);
-        const { kind } = result.outcome;
-        if (kind === 'created' || kind === 'updated' || kind === 'deleted') await write(key, result.rows);
-        return result.outcome;
+    create: (row) => change((rows) => ({ rows: [...rows, row], result: undefined })),
+    update: (id, data) => change((rows) => ({ rows: rows.map((row) => (row.id === id ? { ...row, ...data, id } : row)), result: undefined })),
+    delete: (id) =>
+      change((rows) => {
+        const written = runRowWrite(rows, { kind: 'delete', entityType: CREDENTIAL_ROWS_ENTITY, id });
+        return { rows: written.rows, result: written.outcome.kind === 'deleted' };
       }),
   };
 }
@@ -76,17 +72,15 @@ function randomMasterKey(): string {
 }
 
 /**
- * The warmed credential store of this browser profile. Its master key is minted on first use and kept in the same
- * extension storage, so the rows stay in the server host's format while the browser's own storage isolation is what protects them.
+ * The credential vault of this browser profile. Its master key is minted on first use and kept in the same extension
+ * storage, so the browser's own storage isolation is what protects the rows; the kernel encrypts and reads them.
  */
-export async function createChromeCredentialStore(storage: ChromeStorageArea): Promise<CredentialStore> {
+export async function createChromeCredentialVault(storage: ChromeStorageArea, kernel: CredentialVaultModule): Promise<CredentialVault> {
   const held = (await storage.get(CHROME_CREDENTIAL_MASTER_KEY))[CHROME_CREDENTIAL_MASTER_KEY];
   let masterKey = typeof held === 'object' && 'key' in held && typeof held.key === 'string' ? held.key : undefined;
   if (masterKey === undefined) {
     masterKey = randomMasterKey();
     await storage.set({ [CHROME_CREDENTIAL_MASTER_KEY]: { key: masterKey } });
   }
-  const store = new CredentialStore(chromeCredentialRows(storage), masterKey);
-  await store.warm();
-  return store;
+  return CredentialVault.open(new kernel.CredentialVault(masterKey), chromeCredentialRows(storage));
 }

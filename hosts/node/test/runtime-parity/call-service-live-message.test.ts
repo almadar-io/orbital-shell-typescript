@@ -46,7 +46,7 @@ function schema(emit: Record<string, string>): OrbitalSchema {
 async function setup(emit: Record<string, string>) {
   const items: LiveBroadcastItem[] = [];
   let itemsBeforeReturn = -1;
-  const runtime = new OrbitalServerRuntime({ mode: 'real',
+  const runtime = new OrbitalServerRuntime({
     kernel: await memoryKernel(), persistence: await nativeMemory(),
     debug: false,
     effectHandlers: {
@@ -102,7 +102,7 @@ function crossOrbitalSchema(): OrbitalSchema {
 describeWithMemoryKernel('call-service live messages', () => {
   it('a cross-orbital relay hop runs as the requesting viewer, not the default user', async () => {
     const principals: Array<string | undefined> = [];
-    const runtime = new OrbitalServerRuntime({ mode: 'real',
+    const runtime = new OrbitalServerRuntime({
       kernel: await memoryKernel(), persistence: await nativeMemory(),
       debug: false,
       defaultUser: { id: 'default', role: 'member' },
@@ -120,7 +120,7 @@ describeWithMemoryKernel('call-service live messages', () => {
 
   it('a call reached through a cross-orbital relay hop still delivers to the requesting tab', async () => {
     const items: LiveBroadcastItem[] = [];
-    const runtime = new OrbitalServerRuntime({ mode: 'real',
+    const runtime = new OrbitalServerRuntime({
       kernel: await memoryKernel(), persistence: await nativeMemory(),
       debug: false,
       effectHandlers: {

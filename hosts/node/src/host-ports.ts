@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { isIP } from 'node:net';
 import { lookup } from 'node:dns/promises';
-import { installCredentialScopeStorage, installNetPort, type CredentialScopeStorage, type CredentialStore, type NetPort, type ResolvedHost } from '@almadar/shell-runtime';
+import { installCredentialScopeStorage, installNetPort, type CredentialScopeStorage, type CredentialVault, type NetPort, type ResolvedHost } from '@almadar/shell-runtime';
 import { pinnedFetchNode } from './pinned-fetch.js';
 
 export { pinnedFetchNode };
@@ -15,7 +15,7 @@ export async function resolveHostNode(host: string): Promise<ResolvedHost> {
 export const nodeNetPort: NetPort = { resolve: resolveHostNode, fetch: pinnedFetchNode };
 
 export function nodeCredentialScope(): CredentialScopeStorage {
-  return new AsyncLocalStorage<CredentialStore>();
+  return new AsyncLocalStorage<CredentialVault>();
 }
 
 let installed = false;

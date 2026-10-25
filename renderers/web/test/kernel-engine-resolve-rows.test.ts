@@ -77,7 +77,6 @@ function scripted(log: string[], service = false): KernelModule {
     mount(): void {}
     remount(): void {}
     setTickMount(): void {}
-    seedRuntimeMock(): void {}
     setCapabilities(): void {}
     setMessages(): void {}
     setManagedProgram(): void {}

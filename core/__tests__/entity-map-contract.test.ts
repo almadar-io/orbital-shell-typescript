@@ -4,8 +4,6 @@ import { EntityFieldSchema, type EntityField } from '../src/types/field.js';
 import { createResolvedField } from '../src/types/ir.js';
 import type { OrbitalSchema } from '../src/types/schema.js';
 import { ownerFieldsFromSchema } from '../src/mock/identityOwners.js';
-import { isRelationPlaceholder } from '../src/mock/relationForest.js';
-import { sampleFieldValue } from '../src/mock/sampleValue.js';
 
 const embeddedAsset: EntityField = {
   type: 'relation', intrinsic: true, relation: { entity: 'Asset', cardinality: 'one' },
@@ -48,14 +46,5 @@ describe('embedded entity map contract', () => {
 
   it('classifies only the direct foreign key as an owner column', () => {
     expect(ownerFieldsFromSchema(schema)).toEqual(['Board.owner']);
-    expect(isRelationPlaceholder(assets.default)).toBe(false);
-    expect(isRelationPlaceholder('')).toBe(true);
-  });
-
-  it.each(['index', 'seeded'] as const)('preserves declared embedded rows when sampling with %s', (strategy) => {
-    expect(sampleFieldValue(assets, { entityName: 'Board', index: 1, strategy })).toEqual(assets.default);
-    expect(sampleFieldValue({ type: 'relation', relation: { entity: 'Asset', cardinality: 'one' } }, {
-      entityName: 'Board', index: 1, strategy,
-    })).toBe('');
   });
 });

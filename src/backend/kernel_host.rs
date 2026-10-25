@@ -29,8 +29,7 @@ export interface DispatchPushItem {
 const CLIENT_UNREAD_PROGRAM_KEYS: [&str; 2] = ["_metadata", "ledger"];
 
 /// Per-trait keys the client never reads: the wasm kernel's schema types carry them but no kernel
-/// code reads them, and `sourceEntityDefinition` is read only by the `autoMock` preview path, which a
-/// transport-backed `OrbPreview` skips.
+/// code reads them, and no client path reads `sourceEntityDefinition`.
 const CLIENT_UNREAD_TRAIT_KEYS: [&str; 2] = ["effectRow", "sourceEntityDefinition"];
 
 /// The resolved program as the browser receives it: route pages only (the client takes the routes, EXEC-ENDPOINT-5). The server keeps the whole program.

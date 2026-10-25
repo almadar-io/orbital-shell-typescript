@@ -1,5 +1,5 @@
 import { isJsonObject, type JsonValue } from '@almadar/core';
-import type { CredentialStore } from './store.js';
+import type { CredentialVault } from './vault.js';
 
 /** One credential the app declares: the service group it belongs to and the env var / credential name. */
 export interface DeclaredCredential {
@@ -29,7 +29,7 @@ function planRows(json: string): DeclaredCredential[] {
  * declared twice seeds once, a held row is never overwritten. Returns the count.
  */
 export async function seedCredentialStore(
-  store: CredentialStore,
+  store: CredentialVault,
   declared: readonly DeclaredCredential[],
   env: Record<string, string | undefined>,
   kernel: CredentialSeedKernel,

@@ -1,4 +1,4 @@
-import type { CredentialStore } from './store.js';
+import type { CredentialVault } from './vault.js';
 
 /** Whether integrations answer with mock data or call their real backends. */
 export type CredentialMode = 'mock' | 'real';
@@ -14,13 +14,13 @@ export interface CredentialModeControl {
   setMode(mode: CredentialMode): void;
 }
 
-let installedStore: CredentialStore | null = null;
+let installedStore: CredentialVault | null = null;
 let modeControl: CredentialModeControl | null = null;
 
 /** The per-tenant credential scope: a Node host installs AsyncLocalStorage (`@almadar/shell-node`); a browser has none. */
 export interface CredentialScopeStorage {
-  run<T>(store: CredentialStore, fn: () => T): T;
-  getStore(): CredentialStore | undefined;
+  run<T>(store: CredentialVault, fn: () => T): T;
+  getStore(): CredentialVault | undefined;
 }
 
 let tenantScope: CredentialScopeStorage | undefined;
@@ -33,7 +33,7 @@ export function installCredentialScopeStorage(storage: CredentialScopeStorage): 
  * Run `fn` as one tenant of a multi-tenant host: every credential reference resolved inside it
  * (across awaits) comes from `store` alone, never from the host's env or installed store.
  */
-export function runWithCredentialScope<T>(store: CredentialStore, fn: () => T): T {
+export function runWithCredentialScope<T>(store: CredentialVault, fn: () => T): T {
   if (tenantScope === undefined) throw new Error('runWithCredentialScope needs an installed CredentialScopeStorage (a Node host installs it through @almadar/shell-node)');
   return tenantScope.run(store, fn);
 }
@@ -52,16 +52,16 @@ export function getModeControl(): CredentialModeControl | null {
  * Called once at boot (playground / generated server) after the store is
  * constructed over the host's persistence adapter.
  */
-export function installCredentialStore(store: CredentialStore): void {
+export function installCredentialStore(store: CredentialVault): void {
   installedStore = store;
 }
 
 /** The installed store, for the credentials admin service. */
-export function getInstalledCredentialStore(): CredentialStore | null {
+export function getInstalledCredentialStore(): CredentialVault | null {
   return installedStore;
 }
 
-export function getEffectiveCredentialStore(): CredentialStore | null {
+export function getEffectiveCredentialStore(): CredentialVault | null {
   return tenantScope?.getStore() ?? installedStore;
 }
 

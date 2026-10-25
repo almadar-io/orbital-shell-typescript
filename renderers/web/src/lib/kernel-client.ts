@@ -11,10 +11,8 @@
 import type { EventPayload, MountSeed, OrbitalEventRequest, OrbitalEventResponse, TraitConfig, TransitionRejection, UserContext } from '@almadar/core';
 import {
   createLocalFold,
-  createTickDriver,
   DispatchLane,
   mirrorResponse,
-  runTickFrame,
   traceResponse,
   type CircuitStore,
   type ClientDispatchHooks,
@@ -22,11 +20,15 @@ import {
   type ClientKernelOutcome,
   type EventTransport,
   type FramePostPort,
+  type TransitionObserver,
+} from '@almadar/shell-runtime';
+import {
+  createTickDriver,
+  runTickFrame,
   type TickDriver,
   type TickFramePorts,
-  type TransitionObserver,
   type VisibilityPort,
-} from '../index';
+} from '../kernel/tick-driver';
 import type { TraitIndex } from '@almadar/core';
 import { TraitMountError } from '@almadar/shell-runtime/client/trait-mount-error';
 import { createLogger } from '@almadar/logger';

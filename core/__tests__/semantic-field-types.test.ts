@@ -4,10 +4,6 @@
  * These replaced the optional `format` property, which had zero producers
  * anywhere in the repo and no Rust counterpart at all — so it was unreachable
  * from `.lolo` and every consumer fell back to guessing from field names.
- *
- * The load-bearing property asserted here is that the SEEDER's output satisfies
- * the VALIDATOR's rule. That is what keeps the two from drifting: a generated
- * value that its own validator would reject is the failure mode this locks out.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -22,11 +18,8 @@ import {
   isSemanticStringValue,
   isUrlValue,
   isUuidValue,
-  type EntityField,
-  type SemanticStringType,
 } from '../index.js';
 import { EntityFieldSchema } from '../src/types/field.js';
-import { sampleFieldValue, type SampleStrategy } from '../src/mock/index.js';
 
 describe('the type vocabulary', () => {
   it('carries the five semantic domains', () => {
@@ -96,28 +89,3 @@ describe('value validators', () => {
     expect(isSemanticStringValue('image', 'Cover Image')).toBe(false);
   });
 });
-
-describe.each<SampleStrategy>(['seeded', 'index'])(
-  'the seeder satisfies its own validator [%s]',
-  (strategy) => {
-    it.each(SEMANTIC_STRING_TYPES)('synthesizes a valid %s', (type) => {
-      for (const index of [1, 2, 3, 7, 12]) {
-        // `required: true` so the undefaulted-optional-field omission gate
-        // (Gate 3 in `sampleValue.ts`, seeded strategy, even index) never
-        // suppresses the value this test asserts on — that gate is a
-        // separate, already-covered concern from validator/seeder parity.
-        const field: EntityField = { name: `contact${type}`, type, required: true };
-        const value = sampleFieldValue(field, {
-          entityName: 'Member',
-          index,
-          strategy,
-        });
-        expect(typeof value).toBe('string');
-        expect(
-          isSemanticStringValue(type as SemanticStringType, value as string),
-          `${type} row ${index} produced ${String(value)}, which its own validator rejects`,
-        ).toBe(true);
-      }
-    });
-  },
-);

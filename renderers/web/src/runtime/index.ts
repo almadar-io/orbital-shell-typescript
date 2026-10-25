@@ -47,10 +47,6 @@ export { collectListenerTargets, type CollectedListenerTarget } from './traits/l
 export { parseOrbitalTraits, type ParsedOrbitalTraits } from './traits/OrbitalTraitParsing.js';
 
 
-export { seedBrowserStore } from './entities/seedBrowserStore.js';
-export { bindDeclaredCollections, restampMockOwner, seedMockStore, type MockSeeded, type MockSeedHost, type MockSeedViewer } from './entities/mockStoreSeed.js';
-export { StdMockSeed, readSeededStores, type MockSeedEngine, type SeedOwnerJournal } from './entities/std-mock-seed.js';
-export { withBrowserSeeder, withForkedSeeder, type BrowserStoreSeeding } from './entities/seed-host.js';
 export { nativeMemoryPersistence } from './evaluation/native-memory.js';
 export { createLocalStoreTransport, localStorePersistence, openLocalKernel, resolveLocalRows, type LocalKernelOptions } from './evaluation/local-store-transport.js';
 export type { LocalStoreTransportOptions } from './evaluation/local-store-transport.js';

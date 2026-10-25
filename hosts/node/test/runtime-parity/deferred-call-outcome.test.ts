@@ -83,7 +83,6 @@ function gatedRuntime(outcome: 'resolve' | 'reject' = 'resolve') {
   let release: () => void = () => {};
   const gate = new Promise<void>((r) => { release = r; });
   const runtime = new OrbitalServerRuntime({
-    mode: 'real',
     debug: false,
     effectHandlers: {
       callService: async () => {
@@ -164,7 +163,7 @@ describe('a call in a follow-on step', () => {
   it('control: a host with no host-dispatch sink keeps the call in the request (nowhere to deliver its outcome)', async () => {
     let release: () => void = () => {};
     const gate = new Promise<void>((r) => { release = r; });
-    const runtime = new OrbitalServerRuntime({ mode: 'real', debug: false, effectHandlers: { callService: async () => { await gate; return { answer: 1 }; } } });
+    const runtime = new OrbitalServerRuntime({ debug: false, effectHandlers: { callService: async () => { await gate; return { answer: 1 }; } } });
     await runtime.register(schema());
     let answered = false;
     const pending = runtime.processOrbitalEvent('App', { event: 'SUBMIT', targetTrait: 'Starter', clientId: 'tab-1' }).then((r) => { answered = true; return r; });

@@ -127,7 +127,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
   });
 
   const open = async (schema: OrbitalSchema, config: ConstructorParameters<typeof OrbitalServerRuntime>[0] = {}): Promise<OrbitalServerRuntime> => {
-    const runtime = new OrbitalServerRuntime({ mode: 'real', kernel, ...config });
+    const runtime = new OrbitalServerRuntime({ kernel, ...config });
     await runtime.register(schema);
     return runtime;
   };
@@ -151,7 +151,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
 
   it('control: the JS engine, unselected, gives the same states and leaves the kernel unopened', async () => {
     const persistence = await nativeMemory();
-    const runtime = new OrbitalServerRuntime({ mode: 'real', kernel, persistence });
+    const runtime = new OrbitalServerRuntime({ kernel, persistence });
     await runtime.register(notes());
     const response = await runtime.processOrbitalEvent('Main', { event: 'SAVE', targetTrait: 'Draft' });
     expect(response.states).toEqual({ Draft: 'saved' });
@@ -191,13 +191,6 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
     const runtime = await open(service(), { effectHandlers: { callService: () => Promise.reject(new Error('rate limited')) } });
     const response = await runtime.processOrbitalEvent('Main', { event: 'GO', targetTrait: 'Runner' });
     expect(response.states).toEqual({ Runner: 'failed' });
-  });
-
-  it('mock mode answers call-service with the registry-shaped mock', async () => {
-    const runtime = await open(service(), { mode: 'mock' });
-    const response = await runtime.processOrbitalEvent('Main', { event: 'GO', targetTrait: 'Runner' });
-    expect(response.success).toBe(true);
-    expect(['done', 'failed']).toContain(response.states?.Runner);
   });
 
   it('an unknown locale is refused by the kernel', async () => {
@@ -271,12 +264,12 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
   it('refuses a program whose traits are still references (the kernel takes an orb-resolved program)', async () => {
     const schema = notes();
     schema.orbitals[0].traits.push({ ref: 'Elsewhere.traits.Other' });
-    const runtime = new OrbitalServerRuntime({ mode: 'real', kernel });
+    const runtime = new OrbitalServerRuntime({ kernel });
     await expect(runtime.register(schema)).rejects.toThrow(/orb-resolved program.*"Elsewhere.traits.Other"/);
   });
 
   it('loads the installed @almadar/kernel itself when the host passes no module', async () => {
-    const runtime = new OrbitalServerRuntime({ mode: 'real' });
+    const runtime = new OrbitalServerRuntime({});
     await runtime.register(notes());
     const response = await runtime.processOrbitalEvent('Main', { event: 'SAVE', targetTrait: 'Draft' });
     expect(response.success).toBe(true);

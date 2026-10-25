@@ -27,7 +27,6 @@ function catalogsOf(program: OrbitalSchema): MessageCatalogs {
 const program: OrbitalSchema = JSON.parse(readFileSync(join(server, 'generated', 'program.orb'), 'utf8'));
 const kernel = await loadNativeKernelModule(join(process.env[KERNEL_DIR_ENV] || join(project, 'kernel'), 'kernel.node'), { languageFrom: server });
 const runtime = new OrbitalServerRuntime({
-  mode: 'real',
   kernel,
   http: { kernel: async () => kernel },
   osHost: (grants) => createNodeOsHost(grants, { anchors: { ...processAnchors(), start: project } }),

@@ -55,47 +55,6 @@ const implementations = [
 
 for (const implementation of implementations) {
   describe.skipIf(!implementation.path)(`KernelEngine.forkProgram (${implementation.name})`, () => {
-    it('keeps the runtime singleton address separate from its seeded domain ID through reads and writes', async () => {
-      if (!implementation.path) throw new Error('a real kernel module path is required');
-      const kernel = loadRealKernel(implementation.path);
-      const schema = OrbitalSchemaSchema.parse({ name: 'AddressedRuntime', orbitals: [{
-        name: 'Main',
-        entity: { name: 'Counter', persistence: 'runtime', fields: [
-          { name: 'id', type: 'string' }, { name: 'count', type: 'number', default: 0 },
-        ] },
-        traits: [{ name: 'CounterTrait', linkedEntity: 'Counter', stateMachine: {
-          events: ['READ', 'UPDATE', 'FETCH', 'DELETE'].map((name) => ({ key: name, name })),
-          states: [{ name: 'idle', isInitial: true }],
-          transitions: [
-            { from: 'idle', to: 'idle', event: 'READ', effects: [['emit', 'OBSERVED', { id: '@entity.id', count: '@entity.count' }]] },
-            { from: 'idle', to: 'idle', event: 'UPDATE', effects: [['persist', 'update', 'Counter', '@entity.id', { count: 7 }]] },
-            { from: 'idle', to: 'idle', event: 'FETCH', effects: [['fetch', 'Counter', { emit: { success: 'LOADED' } }]] },
-            { from: 'idle', to: 'idle', event: 'DELETE', effects: [['persist', 'delete', 'Counter', '@entity.id']] },
-          ],
-        } }],
-      }] });
-      const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
-      const app = KernelEngine.open(kernel, schema, ports(persistence));
-      try {
-        app.seedRuntimeMock('viewer');
-        const dispatch = (event: string) => app.evaluate('Main', { event, targetTrait: 'CounterTrait', payload: {} }, { orbital: 'Main' });
-        const observed = await dispatch('READ');
-        expect(observed.emittedEvents.find((event) => event.event === 'OBSERVED')?.payload).toEqual({ id: 'Counter Id 1', count: 0 });
-        await dispatch('UPDATE');
-        const updated = await dispatch('FETCH');
-        const updatedPayload = JsonValueSchema.parse(updated.emittedEvents.find((event) => event.event === 'LOADED')?.payload);
-        if (!isJsonObject(updatedPayload)) throw new Error('runtime fetch must return a payload record');
-        expect(EntityRowSchema.array().parse(updatedPayload.data)).toEqual([expect.objectContaining({ id: 'Counter Id 1', count: 7 })]);
-        await dispatch('DELETE');
-        const deleted = await dispatch('FETCH');
-        const deletedPayload = JsonValueSchema.parse(deleted.emittedEvents.find((event) => event.event === 'LOADED')?.payload);
-        if (!isJsonObject(deletedPayload)) throw new Error('runtime fetch must return a payload record');
-        expect(EntityRowSchema.array().parse(deletedPayload.data)).toEqual([]);
-        expect(await persistence.list('Counter')).toEqual([]);
-      } finally {
-        app.dispose();
-      }
-    });
     it('retains app policy context through child fork/reset and isolates routes and grants', async () => {
       if (!implementation.path) throw new Error('a real kernel module path is required');
       const kernel = loadRealKernel(implementation.path);

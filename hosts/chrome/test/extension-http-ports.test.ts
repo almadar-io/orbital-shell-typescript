@@ -1,37 +1,35 @@
-// The credential-holding `http` ports of a browser-extension host: the profile's encrypted credential store answers every
+// The credential-holding `http` ports of a browser-extension host: the profile's credential vault (the kernel's encrypted store) answers every
 // secret ask, the build's provisioned credentials back it up for the app-wide slot only, a Google connection keeps the
 // host's Firebase credential with its account label, and a program is only ever told whether a credential is held and as whom.
 import { describe, expect, it } from 'vitest';
-import { CredentialStore, credentialForgetPayload, credentialStatusPayload, type CredentialPersistence } from '@almadar/shell-web';
+import { CredentialVault, credentialForgetPayload, credentialStatusPayload, type CredentialRowsPort } from '@almadar/shell-web';
 import type { EntityRow } from '@almadar/core';
 import { createExtensionHttpPorts } from '../src/kernel/extension-ports.js';
+import { kernel } from './helpers/kernel.js';
 
 const MASTER_KEY = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
 
-class Rows implements CredentialPersistence {
+class Rows implements CredentialRowsPort {
   readonly rows: EntityRow[] = [];
-  async create(_type: string, data: EntityRow): Promise<{ id: string }> {
-    const id = String(this.rows.length + 1);
-    this.rows.push({ id, ...data });
-    return { id };
+  async list(): Promise<EntityRow[]> {
+    return [...this.rows];
   }
-  async update(_type: string, id: string, data: EntityRow): Promise<void> {
+  async create(row: EntityRow & { id: string }): Promise<void> {
+    this.rows.push(row);
+  }
+  async update(id: string, data: EntityRow): Promise<void> {
     const at = this.rows.findIndex((row) => row.id === id);
-    if (at >= 0) this.rows[at] = { ...this.rows[at], ...data };
+    if (at >= 0) this.rows[at] = { ...this.rows[at], ...data, id };
   }
-  async delete(_type: string, id: string): Promise<void> {
+  async delete(id: string): Promise<void> {
     const at = this.rows.findIndex((row) => row.id === id);
     if (at >= 0) this.rows.splice(at, 1);
-  }
-  async list(): Promise<EntityRow[]> {
-    return this.rows;
   }
 }
 
 async function ports(options: Partial<Parameters<typeof createExtensionHttpPorts>[0]> = {}) {
   const rows = new Rows();
-  const store = new CredentialStore(rows, MASTER_KEY);
-  await store.warm();
+  const store = await CredentialVault.open(new kernel.CredentialVault(MASTER_KEY), rows);
   const http = createExtensionHttpPorts({ kernel: () => Promise.reject(new Error('these asks never reach the kernel')), egress: [], credentials: Promise.resolve(store), ...options });
   return { http, store, rows };
 }

@@ -21,7 +21,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import type { OrbitalSchema } from '@almadar/core';
-import { type EventTransport, type AccessTokenProvider } from '../index';
+import type { EventTransport, AccessTokenProvider } from '../index';
 import { createHttpTransport as createRuntimeHttpTransport } from '@almadar/shell-runtime/client/EventTransport';
 
 // `EventTransport` (plan P5, `docs/Almadar_Runtime_Stateless_Stateful_PLAN.md`

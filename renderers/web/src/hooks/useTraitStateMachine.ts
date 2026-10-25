@@ -32,7 +32,7 @@ import type {
   UserContext,
 } from '@almadar/core';
 import { TraitMountError } from '@almadar/shell-runtime/client/trait-mount-error';
-import { type EventTransport } from '../index';
+import type { EventTransport } from '../index';
 import { collectListenerTargets } from '../runtime';
 import type { ClientKernelOutcome, TraitState } from '../index';
 import { createLogger } from '@almadar/logger';

@@ -1,4 +1,8 @@
-import { CREDENTIAL_MASTER_KEY_ENV, CREDENTIAL_PREVIOUS_MASTER_KEY_ENV } from './store.js';
+/** Env var holding the 64-char-hex AES-256 master key (Secret Manager in production). */
+export const CREDENTIAL_MASTER_KEY_ENV = 'ALMADAR_CREDENTIAL_MASTER_KEY';
+
+/** Env var holding the PREVIOUS master key during a rotation window: `rotate` re-encrypts every row under the current key, then the previous key is retired. */
+export const CREDENTIAL_PREVIOUS_MASTER_KEY_ENV = 'ALMADAR_CREDENTIAL_MASTER_KEY_PREVIOUS';
 
 /**
  * Bootstrap secrets that must NEVER enter store custody: the master key(s)

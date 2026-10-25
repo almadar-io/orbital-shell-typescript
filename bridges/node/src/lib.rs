@@ -237,12 +237,6 @@ impl Server {
     }
 
     #[napi]
-    pub fn seed_runtime_mock(&self, viewer_id: Option<String>) -> napi::Result<()> {
-        self.api.get().map_err(js)?.api().seed_runtime_mock(viewer_id);
-        Ok(())
-    }
-
-    #[napi]
     pub fn last_error(&self) -> napi::Result<String> {
         Ok(self.api.get().map_err(js)?.api().last_error())
     }

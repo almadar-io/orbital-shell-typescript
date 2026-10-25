@@ -11,7 +11,7 @@
 import { createContext, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { installKernelEvaluator } from '@almadar/core';
-import type { KernelLoader, KernelModule, LanguageLoader, SeedProgramLoader } from '../lib/kernel-wire';
+import type { KernelLoader, KernelModule, LanguageLoader } from '../lib/kernel-wire';
 import type { FrameScheduler } from '../lib/kernel-frames';
 
 export interface KernelEngineValue {
@@ -19,8 +19,6 @@ export interface KernelEngineValue {
   loadModule: () => Promise<KernelModule>;
   /** Resolves the language bundle a local-store kernel is opened with; fetched once, on the first such kernel. */
   loadLanguage?: LanguageLoader;
-  /** Resolves the std mock-seed program a mock or browser store is seeded by; fetched once, on the first such seed. */
-  loadSeedProgram?: SeedProgramLoader;
   /** Supplies the frame clock the kernel's ticks run on; absent = `requestAnimationFrame`. */
   scheduleFrame?: FrameScheduler;
 }
@@ -46,22 +44,14 @@ export class LanguageLoaderMissingError extends Error {
   }
 }
 
-/** A program seeding a mock or browser store opened a seeder, and no `seedProgramLoader` supplies the std seed program. */
-export class SeedProgramLoaderMissingError extends Error {
-  constructor() {
-    super('No seed program loader: seeding a mock or browser store runs the std mock-seed program; pass seedProgramLoader to <KernelEngineProvider> (or OrbPreview)');
-  }
-}
-
 export interface KernelEngineProviderProps {
   loader: KernelLoader;
   languageLoader?: LanguageLoader;
-  seedProgramLoader?: SeedProgramLoader;
   scheduleFrame?: FrameScheduler;
   children?: ReactNode;
 }
 
-export function KernelEngineProvider({ loader, languageLoader, seedProgramLoader, scheduleFrame, children }: KernelEngineProviderProps): React.ReactElement {
+export function KernelEngineProvider({ loader, languageLoader, scheduleFrame, children }: KernelEngineProviderProps): React.ReactElement {
   const value = useMemo<KernelEngineValue>(() => {
     let module: Promise<KernelModule> | undefined;
     const load = (): Promise<KernelModule> =>
@@ -70,13 +60,11 @@ export function KernelEngineProvider({ loader, languageLoader, seedProgramLoader
         return loaded;
       });
     let language: Promise<string> | undefined;
-    let seedProgram: ReturnType<SeedProgramLoader> | undefined;
     return {
       loadModule: () => (module ??= load()),
       ...(languageLoader !== undefined ? { loadLanguage: () => (language ??= languageLoader()) } : {}),
-      ...(seedProgramLoader !== undefined ? { loadSeedProgram: () => (seedProgram ??= seedProgramLoader()) } : {}),
       ...(scheduleFrame !== undefined ? { scheduleFrame } : {}),
     };
-  }, [loader, languageLoader, seedProgramLoader, scheduleFrame]);
+  }, [loader, languageLoader, scheduleFrame]);
   return <KernelEngineContext.Provider value={value}>{children}</KernelEngineContext.Provider>;
 }

@@ -99,7 +99,7 @@ function accountingSchema(): OrbitalSchema {
 
 describeWithMemoryKernel('OrbitalServerRuntime — registration-mutation bracket', () => {
   it('negative control: the unbracketed unregister→resolve→register window still 404s', async () => {
-    const rt = new OrbitalServerRuntime({ mode: 'real', debug: false, kernel: await memoryKernel(), persistence: await nativeMemory() });
+    const rt = new OrbitalServerRuntime({ debug: false, kernel: await memoryKernel(), persistence: await nativeMemory() });
     await rt.register(oldAppSchema());
 
     // The exact host sequence WITHOUT the bracket: unregister, then the
@@ -122,7 +122,7 @@ describeWithMemoryKernel('OrbitalServerRuntime — registration-mutation bracket
   });
 
   it('a dispatch landing in the resolve window is served when the swap is bracketed', async () => {
-    const rt = new OrbitalServerRuntime({ mode: 'real', debug: false, kernel: await memoryKernel(), persistence: await nativeMemory() });
+    const rt = new OrbitalServerRuntime({ debug: false, kernel: await memoryKernel(), persistence: await nativeMemory() });
     await rt.register(oldAppSchema());
 
     // The bracketed swap: the epoch stays pending for the WHOLE callback, so
@@ -145,7 +145,7 @@ describeWithMemoryKernel('OrbitalServerRuntime — registration-mutation bracket
   });
 
   it('concurrent swap brackets serialize — the second swap starts only after the first fully completes', async () => {
-    const rt = new OrbitalServerRuntime({ mode: 'real', debug: false, kernel: await memoryKernel(), persistence: await slowPersistence(50) });
+    const rt = new OrbitalServerRuntime({ debug: false, kernel: await memoryKernel(), persistence: await slowPersistence(50) });
     await rt.register(oldAppSchema());
 
     // Two hosts swapping at once (e.g. a catalog select racing a preview
@@ -172,7 +172,7 @@ describeWithMemoryKernel('OrbitalServerRuntime — registration-mutation bracket
   });
 
   it('negative control: two unbracketed register routes interleaving mix both apps', async () => {
-    const rt = new OrbitalServerRuntime({ mode: 'real', debug: false, kernel: await memoryKernel(), persistence: await slowPersistence(50) });
+    const rt = new OrbitalServerRuntime({ debug: false, kernel: await memoryKernel(), persistence: await slowPersistence(50) });
     await rt.register(oldAppSchema());
 
     // The builder POST /register body, twice, as two tabs hit it at once:
@@ -193,7 +193,7 @@ describeWithMemoryKernel('OrbitalServerRuntime — registration-mutation bracket
   });
 
   it('a failed swap releases the epoch — later dispatches get the honest 404, and the next register is not wedged', async () => {
-    const rt = new OrbitalServerRuntime({ mode: 'real', debug: false, kernel: await memoryKernel(), persistence: await nativeMemory() });
+    const rt = new OrbitalServerRuntime({ debug: false, kernel: await memoryKernel(), persistence: await nativeMemory() });
     await rt.register(oldAppSchema());
 
     const failed = rt.withRegistrationMutation(async () => {

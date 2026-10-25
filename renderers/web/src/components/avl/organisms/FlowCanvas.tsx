@@ -895,7 +895,7 @@ function FlowCanvasInner({
           if (!found) return null;
           return (
             <Box data-testid="avl-system-preview-screen" className="w-80 h-48 overflow-hidden rounded-container border border-border">
-              <OrbPreview schema={{ ...parsedSchema, orbitals: [found] }} autoMock isolated height="100%" fit />
+              <OrbPreview schema={{ ...parsedSchema, orbitals: [found] }} isolated height="100%" fit />
             </Box>
           );
         }

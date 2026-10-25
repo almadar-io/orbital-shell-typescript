@@ -32,7 +32,7 @@ const schema: OrbitalSchema = {
 };
 
 async function runtimeWith(signals: Array<AbortSignal | undefined>, finishers: Array<(v: EventPayload) => void>) {
-  return new OrbitalServerRuntime({ mode: 'real',
+  return new OrbitalServerRuntime({
     kernel: await memoryKernel(), persistence: await nativeMemory(),
     debug: false,
     effectHandlers: {

@@ -1938,7 +1938,6 @@ const OrbPreviewNodeInner: React.FC<NodeProps> = (props) => {
           <Box style={{ minHeight: preset.minHeight }}>
             <OrbPreview
               schema={orbitalSchema}
-              autoMock
               isolated
               height="auto"
               paused={!playing}

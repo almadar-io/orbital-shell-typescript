@@ -116,11 +116,6 @@ export class KernelEngine {
     return MountSeedSchema.array().parse(JSON.parse(this.handle.routeMounts(routePath)));
   }
 
-  /** Mock-seed the `[runtime]` entities the kernel holds itself, owner columns stamped with `viewerId`. */
-  seedRuntimeMock(viewerId: string | undefined): void {
-    this.handle.seedRuntimeMock(viewerId);
-  }
-
   dispose(): void {
     this.handle.free();
   }

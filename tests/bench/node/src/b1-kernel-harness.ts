@@ -99,7 +99,7 @@ export class B1KernelHarness implements ScenarioHarness {
     if (this.loaded === null && !(await this.isAvailable())) throw new Error(`${this.id}: the kernel is not available (ALMADAR_KERNEL_DIR, or ALMADAR_KERNEL_NODE for the native add-on)`);
     const loaded = this.loaded;
     if (loaded === null) throw new Error(`${this.id}: the kernel is not available (ALMADAR_KERNEL_DIR, or ALMADAR_KERNEL_NODE for the native add-on)`);
-    const runtime = new loaded.runtime.OrbitalServerRuntime({ debug: false, mode: 'real', kernel: loaded.kernel });
+    const runtime = new loaded.runtime.OrbitalServerRuntime({ debug: false, kernel: loaded.kernel });
     await runtime.register(fixture.schema);
     return new B1KernelSession(runtime, scenario.orbital);
   }
