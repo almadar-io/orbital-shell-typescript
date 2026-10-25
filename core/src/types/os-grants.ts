@@ -10,12 +10,14 @@ export const NET_KINDS = ["tcp", "udp", "listen"] as const;
 export const STDIO_KINDS = ["in", "out", "err"] as const;
 export const SYS_KINDS = ["cpu", "memory", "disk", "network", "power-state", "identity"] as const;
 export const DESKTOP_KINDS = ["notify", "speak", "brightness", "volume", "power"] as const;
+export const DEV_KINDS = ["read", "write", "wait", "ack"] as const;
 
 export type FsMode = (typeof FS_MODES)[number];
 export type NetKind = (typeof NET_KINDS)[number];
 export type StdioKind = (typeof STDIO_KINDS)[number];
 export type SysKind = (typeof SYS_KINDS)[number];
 export type DesktopKind = (typeof DESKTOP_KINDS)[number];
+export type DevKind = (typeof DEV_KINDS)[number];
 
 /** A path glob and the modes it grants. */
 export interface FsGrant {
@@ -29,6 +31,12 @@ export interface NetGrant {
   kinds: NetKind[];
 }
 
+/** A device resource (`mmio:<base>+<length>` or `irq:<line>`) and the kinds of access it grants. */
+export interface DevGrant {
+  target: string;
+  kinds: DevKind[];
+}
+
 /** Every grant a program or orbital declares; an omitted family grants nothing. */
 export interface OsGrants {
   fs?: FsGrant[];
@@ -38,6 +46,7 @@ export interface OsGrants {
   stdio?: StdioKind[];
   sys?: SysKind[];
   desktop?: DesktopKind[];
+  dev?: DevGrant[];
 }
 
 /** Every grant either declares: lists deduplicated in first-seen order, an fs glob or net target named by both with its modes or kinds unioned. */
@@ -56,6 +65,8 @@ export function unionOsGrants(a: OsGrants | undefined, b: OsGrants | undefined):
   const net = keyed(a?.net, b?.net, (g) => g.target, (g) => g.kinds, (g, kinds) => ({ ...g, kinds }));
   if (fs.length > 0) out.fs = fs;
   if (net.length > 0) out.net = net;
+  const dev = keyed(a?.dev, b?.dev, (g) => g.target, (g) => g.kinds, (g, kinds) => ({ ...g, kinds }));
+  if (dev.length > 0) out.dev = dev;
   const exec = list(a?.exec, b?.exec);
   const env = list(a?.env, b?.env);
   const stdio = list(a?.stdio, b?.stdio);
@@ -74,6 +85,7 @@ export const NetKindSchema = z.enum(NET_KINDS);
 export const StdioKindSchema = z.enum(STDIO_KINDS);
 export const SysKindSchema = z.enum(SYS_KINDS);
 export const DesktopKindSchema = z.enum(DESKTOP_KINDS);
+export const DevKindSchema = z.enum(DEV_KINDS);
 
 export const FsGrantSchema = z.object({
   glob: z.string(),
@@ -85,6 +97,11 @@ export const NetGrantSchema = z.object({
   kinds: z.array(NetKindSchema),
 });
 
+export const DevGrantSchema = z.object({
+  target: z.string(),
+  kinds: z.array(DevKindSchema),
+});
+
 export const OsGrantsSchema = z.object({
   fs: z.array(FsGrantSchema).optional(),
   exec: z.array(z.string()).optional(),
@@ -93,6 +110,7 @@ export const OsGrantsSchema = z.object({
   stdio: z.array(StdioKindSchema).optional(),
   sys: z.array(SysKindSchema).optional(),
   desktop: z.array(DesktopKindSchema).optional(),
+  dev: z.array(DevGrantSchema).optional(),
 });
 
 /** `deployment` — target name to the orbital names deployed there. */

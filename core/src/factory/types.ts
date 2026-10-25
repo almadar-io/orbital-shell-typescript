@@ -93,6 +93,7 @@ export type SchemaFieldType =
   | 'date'
   | 'timestamp'
   | 'datetime'
+  | 'instant'
   | 'email'
   | 'url'
   | 'phone'

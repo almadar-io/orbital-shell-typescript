@@ -582,6 +582,7 @@ export function mapEntityFieldType(fieldType: string): JsonSchemaType | null {
     case 'bytes':
       return 'string';
     case 'number':
+    case 'instant':
       return 'number';
     case 'boolean':
       return 'boolean';
@@ -692,7 +693,7 @@ const ENTITY_FIELD_BASE_PROPS = {
 // Includes the semantic domains: without them an L1 factory HIT cannot express
 // an email field at all, so `fill_params` could never produce one.
 const SCALAR_FIELD_TYPES: ReadonlyArray<string> = [
-  'string', 'number', 'int', 'boolean', 'date', 'timestamp', 'datetime',
+  'string', 'number', 'int', 'boolean', 'date', 'timestamp', 'datetime', 'instant',
   'email', 'url', 'phone', 'uuid', 'image', 'money',
   'file', 'bytes', 'trait', 'slot', 'pattern', 'node', 'event', 'EventAddress', 'CallKey', 'SExpr',
 ];

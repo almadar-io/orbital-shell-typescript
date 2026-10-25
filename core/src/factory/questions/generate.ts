@@ -425,6 +425,7 @@ function signatureFieldToEntityField(f: FactorySignatureEntityField): EntityFiel
       // posture as `node`.
       return { ...base, type: 'event' };
     case 'money':
+    case 'instant':
     case 'file':
     case 'bytes':
       // No type-dependent payload — same posture as the semantic string

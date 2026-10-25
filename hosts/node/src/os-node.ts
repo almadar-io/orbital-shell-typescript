@@ -19,6 +19,7 @@ import { anchoredGrants, type OsAnchors, type OsGrantPort, type OsHostPort } fro
 
 
 const log = createLogger('almadar:host:os');
+const DEVICE_OPS: ReadonlySet<OsOp> = new Set<OsOp>(['os/mmio-read', 'os/mmio-write', 'os/irq-wait', 'os/irq-ack']);
 
 function failureOf(op: OsOp, raised: unknown): OsError {
   if (raised instanceof OsFailure) return raised.error;
@@ -65,6 +66,7 @@ class NodeOsHost implements OsHostPort {
     if (isProcessOp(op)) return this.process.run(op, args);
     if (isNetOp(op)) return this.net.run(op, args);
     if (isSysOp(op)) return this.sys.run(op);
+    if (DEVICE_OPS.has(op)) throw osFailure('unsupported', op, 'this host has no devices');
     throw osFailure('unsupported', op, 'this host does not implement the operation yet');
   }
 

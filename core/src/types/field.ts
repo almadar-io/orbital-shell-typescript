@@ -40,6 +40,7 @@ export type FieldTag =
     | 'date'
     | 'timestamp'
     | 'datetime'
+    | 'instant'
     // Semantic string domains. `.lolo` already types `date`/`datetime` rather
     // than annotating them, so these belong in the type system for the same
     // reason: a field's domain is a declared fact, not a decoration. They
@@ -104,6 +105,7 @@ export const FIELD_TYPES = [
     'date',
     'timestamp',
     'datetime',
+    'instant',
     'email',
     'url',
     'phone',
@@ -363,6 +365,7 @@ type ScalarFieldType =
     | 'date'
     | 'timestamp'
     | 'datetime'
+    | 'instant'
     | 'email'
     | 'url'
     | 'phone'
@@ -631,6 +634,7 @@ export const EntityFieldSchema: z.ZodType<EntityField, z.ZodTypeDef, unknown> = 
                 scalarVariant('date'),
                 scalarVariant('timestamp'),
                 scalarVariant('datetime'),
+                scalarVariant('instant'),
                 scalarVariant('email'),
                 scalarVariant('url'),
                 scalarVariant('phone'),
