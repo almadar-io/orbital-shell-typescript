@@ -4,6 +4,7 @@ import path from 'node:path';
 import { BINDING_CONTEXT_RULES } from './src/types/bindings';
 import { buildProgramTypes } from './src/program-types';
 import { PROTOCOLS } from './src/protocols';
+import { buildUiVocabulary, type ThemePresetKeys } from './src/ui-vocabulary';
 
 export default defineConfig({
   entry: {
@@ -62,6 +63,13 @@ export default defineConfig({
     fs.writeFileSync('dist/language/binding-rules.json', `${JSON.stringify(BINDING_CONTEXT_RULES, null, 2)}\n`);
     fs.writeFileSync('dist/language/program-types.json', `${JSON.stringify(buildProgramTypes(), null, 2)}\n`);
     fs.writeFileSync('dist/language/protocols.json', `${JSON.stringify(PROTOCOLS, null, 2)}\n`);
+    const presets = fs
+      .readdirSync('themes')
+      .filter((f) => f.endsWith('.json'))
+      .sort()
+      .map((f) => JSON.parse(fs.readFileSync(path.join('themes', f), 'utf8')) as ThemePresetKeys);
+    const uiVocabulary = buildUiVocabulary(presets, fs.readFileSync('src/lucide-icons.txt', 'utf8'));
+    fs.writeFileSync('dist/language/ui-vocabulary.json', `${JSON.stringify(uiVocabulary, null, 2)}\n`);
     for (const file of ['vocabulary.json', 'constructs.json', 'validation-codes.json']) {
       fs.copyFileSync(path.join('src/generated/language', file), path.join('dist/language', file));
     }

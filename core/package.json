@@ -104,6 +104,7 @@
     "bindingRules": "dist/language/binding-rules.json",
     "programTypes": "dist/language/program-types.json",
     "protocols": "dist/language/protocols.json",
+    "uiVocabulary": "dist/language/ui-vocabulary.json",
     "vocabulary": "dist/language/vocabulary.json",
     "constructs": "dist/language/constructs.json",
     "validationCodes": "dist/language/validation-codes.json",

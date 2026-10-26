@@ -68,9 +68,11 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
 
 /// The digest of the default (kernel-hosted) output for `module()` and `schema()`, recorded when the server became the
 /// template's native host (2026-10-20: no server TypeScript is generated), re-recorded 2026-10-24 when the programs became
-/// `.orb` files and the unread shared copy was retired. The client source is the template's, and the compile emits only
-/// the program's runtime files (`public/client.json`, `public/themes.css`, `public/program.client.orb`).
-const KERNEL_OUTPUT_DIGEST: u64 = 8_716_758_803_243_522_726;
+/// `.orb` files and the unread shared copy was retired, and re-recorded 2026-10-26 for the `_metadata` (dispatch facts and
+/// protocol table) the client program carries since 2026-10-25: without that key the output is the 2026-10-24 digest
+/// exactly. The client source is the template's, and the compile emits only the program's runtime files
+/// (`public/client.json`, `public/themes.css`, `public/program.client.orb`).
+const KERNEL_OUTPUT_DIGEST: u64 = 8_562_774_747_595_289_353;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -532,10 +534,27 @@ fn control_a_program_of_routes_only_projects_every_page() {
     assert_eq!(client_page_names(&schema), vec!["Home", "Detail"]);
 }
 
+fn client_orbital_names(schema: &orbital_core_base::schema::types::OrbitalSchema) -> Vec<String> {
+    let projected: serde_json::Value =
+        serde_json::from_str(&orbital_shell_typescript::client_program_orb(schema).expect("projects")).expect("JSON");
+    projected["orbitals"]
+        .as_array()
+        .expect("orbitals")
+        .iter()
+        .map(|o| o["name"].as_str().expect("name").to_string())
+        .collect()
+}
+
+/// EXEC-ENDPOINT-5: an orbital whose every page is a protocol endpoint is the server's, so the client carries none of it.
 #[test]
-fn edge_a_program_of_protocol_pages_only_projects_an_empty_page_list() {
+fn edge_an_orbital_of_protocol_pages_only_is_not_projected() {
     let schema = schema_with_pages(serde_json::json!([
         { "name": "Api", "path": "", "protocol": "http", "address": ["host", "0.0.0.0"], "traits": [] }
     ]));
-    assert!(client_page_names(&schema).is_empty());
+    assert!(client_orbital_names(&schema).is_empty());
+}
+
+#[test]
+fn control_an_orbital_without_pages_is_projected() {
+    assert_eq!(client_orbital_names(&schema_with_pages(serde_json::json!([]))), vec!["Books"]);
 }
