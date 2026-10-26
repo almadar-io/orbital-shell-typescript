@@ -103,6 +103,7 @@
     "services": "dist/patterns/services-registry.json",
     "bindingRules": "dist/language/binding-rules.json",
     "programTypes": "dist/language/program-types.json",
+    "protocols": "dist/language/protocols.json",
     "vocabulary": "dist/language/vocabulary.json",
     "constructs": "dist/language/constructs.json",
     "validationCodes": "dist/language/validation-codes.json",

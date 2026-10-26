@@ -137,6 +137,9 @@ pub(crate) fn client_program(program: &serde_json::Value) -> serde_json::Value {
     if let Some(facts) = orbital_core_base::language::registry::table_dispatch_facts() {
         metadata.insert("dispatchFacts".to_string(), serde_json::json!(facts));
     }
+    if let Ok(rows) = orbital_core_base::protocols::table() {
+        metadata.insert("protocols".to_string(), serde_json::json!(rows));
+    }
     if !metadata.is_empty() {
         root.insert("_metadata".to_string(), serde_json::Value::Object(metadata));
     }
@@ -281,7 +284,7 @@ mod client_program_tests {
     fn the_unread_keys_are_dropped_everywhere_they_occur() {
         let out = client_program(&program());
         let metadata: Vec<&String> = out["_metadata"].as_object().map(|m| m.keys().collect()).unwrap_or_default();
-        assert_eq!(metadata, ["dispatchFacts"], "the authored _metadata is dropped; only what a client kernel reads is written");
+        assert_eq!(metadata, ["dispatchFacts", "protocols"], "the authored _metadata is dropped; only what a client kernel reads is written");
         assert!(out.get("ledger").is_none());
         let t = &out["orbitals"][0]["traits"][0];
         assert!(t.get("effectRow").is_none() && t.get("sourceEntityDefinition").is_none());
@@ -344,6 +347,17 @@ mod client_program_tests {
         assert_eq!(out["_metadata"]["dispatchFacts"], serde_json::to_value(facts).unwrap());
         assert_eq!(out["_metadata"]["dispatchFacts"]["busExcluded"], json!(["INIT", "LOAD", "$MOUNT"]));
         assert_eq!(out["_metadata"]["dispatchFacts"]["targetOptions"], json!(["orbital", "targetTrait", "event"]));
+    }
+
+    #[test]
+    fn the_protocol_table_a_browser_kernel_reads_travels_with_every_client_program() {
+        let out = client_program(&json!({ "orbitals": [
+            { "name": "Web", "pages": [{ "name": "Home", "path": "/" }], "traits": [{ "name": "Home" }] }
+        ] }));
+        let rows = orbital_core_base::protocols::table().expect("the installed protocol table");
+        assert_eq!(out["_metadata"]["protocols"], serde_json::to_value(rows).unwrap());
+        assert_eq!(out["_metadata"]["protocols"][1]["name"], "http");
+        assert_eq!(out["_metadata"]["protocols"][1]["grant"], "net-listen");
     }
 
     #[test]

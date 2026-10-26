@@ -1682,7 +1682,7 @@
   {
     "code": "ORB_RENDER_ACTION_LIFECYCLE_EVENT",
     "category": "circuit",
-    "description": "A rendered affordance's event-bearing prop (`action`, `itemActions[].event`, `submitEvent`, `onChange`, …) targets a lifecycle event (`orbital_core::events::BUS_EXCLUDED_EVENTS`). The bus never re-delivers `INIT`/`LOAD`/`$MOUNT`, so the control is dead on click."
+    "description": "A rendered affordance's event-bearing prop (`action`, `itemActions[].event`, `submitEvent`, `onChange`, …) targets a lifecycle event (the operator table's `emit` `busExcluded`). The bus never re-delivers `INIT`/`LOAD`/`$MOUNT`, so the control is dead on click."
   },
   {
     "code": "ORB_CIRCUIT_FAILURE_ARM_MISSING",
@@ -1707,7 +1707,7 @@
   {
     "code": "ORB_CIRCUIT_LIFECYCLE_EMIT_UNDELIVERED",
     "category": "circuit",
-    "description": "A transition's own effects list contains a top-level `(emit <event>)` naming a lifecycle event (`orbital_core::events::BUS_EXCLUDED_EVENTS`) — the bus never re-delivers it, so this half of the closed circuit is written but can never run. Sibling production site to [`RenderActionLifecycleEvent`](ErrorCode::RenderActionLifecycleEvent) (an explicit effect instead of a rendered affordance prop). Ported from the JS wiring lint's `dead-lifecycle-emit`. Error severity."
+    "description": "A transition's own effects list contains a top-level `(emit <event>)` naming a lifecycle event (the operator table's `emit` `busExcluded`) — the bus never re-delivers it, so this half of the closed circuit is written but can never run. Sibling production site to [`RenderActionLifecycleEvent`](ErrorCode::RenderActionLifecycleEvent) (an explicit effect instead of a rendered affordance prop). Ported from the JS wiring lint's `dead-lifecycle-emit`. Error severity."
   },
   {
     "code": "ORB_CIRCUIT_SELF_EMIT_LOOP",

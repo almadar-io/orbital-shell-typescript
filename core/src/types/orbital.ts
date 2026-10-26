@@ -133,12 +133,15 @@ export type LazyPage = {
   path: string;
   orbital: string;
   orbRef: string;
+  /** The link and navigate targets inside the page's behavior, sorted and unique; page reachability follows them between lazy pages. */
+  links?: string[];
 };
 
 export const LazyPageSchema = z.object({
   path: z.string().min(1),
   orbital: z.string().min(1),
   orbRef: z.string().min(1),
+  links: z.array(z.string()).optional(),
 });
 
 // ============================================================================

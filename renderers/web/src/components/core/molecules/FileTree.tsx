@@ -597,6 +597,7 @@ function ancestorsOf(id: string | undefined, byId: Map<string, FileTreeItem>): S
 const FlatFileTree: React.FC<Omit<FileTreeProps, 'tree' | 'selectedPath' | 'onFileSelect'> & { items: FileTreeItem[] }> = ({
   items,
   selectedId,
+  expandedPaths,
   look = 'files',
   onNodeSelect,
   onNodeAction,
@@ -608,27 +609,31 @@ const FlatFileTree: React.FC<Omit<FileTreeProps, 'tree' | 'selectedPath' | 'onFi
   ...rest
 }) => {
   // Fold state: explicit per-node overrides on top of the derived default
-  // (roots open, deeper closed, the selection's ancestors open). A changed
-  // selection clears overrides on its new ancestors so "where am I" always
-  // wins over a stale manual collapse.
+  // (roots open, deeper closed, the selection's ancestors and the listed
+  // expandedPaths open). A changed selection or list clears overrides on what
+  // it newly opens so "where am I" always wins over a stale manual collapse.
   const [overrides, setOverrides] = useState<Map<string, boolean>>(() => new Map());
   const byId = React.useMemo(() => new Map(items.map(node => [node.id, node])), [items]);
   const selectedAncestors = React.useMemo(() => ancestorsOf(selectedId, byId), [selectedId, byId]);
-  const lastSelectedRef = React.useRef(selectedId);
+  const listedKey = (expandedPaths ?? []).join('\n');
+  const listed = React.useMemo(() => new Set(expandedPaths ?? []), [listedKey]);
+  const lastRevealRef = React.useRef(`${selectedId ?? ''}\u0000${listedKey}`);
   React.useEffect(() => {
-    if (selectedId === lastSelectedRef.current) return;
-    lastSelectedRef.current = selectedId;
+    const reveal = `${selectedId ?? ''}\u0000${listedKey}`;
+    if (reveal === lastRevealRef.current) return;
+    lastRevealRef.current = reveal;
+    const opened = [...selectedAncestors, ...listed];
     setOverrides(prev => {
-      if (![...selectedAncestors].some(a => prev.get(a) === false)) return prev;
+      if (!opened.some(a => prev.get(a) === false)) return prev;
       const next = new Map(prev);
-      for (const a of selectedAncestors) if (next.get(a) === false) next.delete(a);
+      for (const a of opened) if (next.get(a) === false) next.delete(a);
       return next;
     });
-  }, [selectedId, selectedAncestors]);
+  }, [selectedId, selectedAncestors, listedKey, listed]);
 
   const isExpanded = useCallback(
-    (id: string, depth: number) => overrides.get(id) ?? (depth < 1 || selectedAncestors.has(id)),
-    [overrides, selectedAncestors],
+    (id: string, depth: number) => overrides.get(id) ?? (depth < 1 || selectedAncestors.has(id) || listed.has(id)),
+    [overrides, selectedAncestors, listed],
   );
   const onToggle = useCallback((id: string, effective: boolean) => {
     setOverrides(prev => {
@@ -704,6 +709,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
         {...rest}
         items={items}
         selectedId={selectedId}
+        expandedPaths={expandedPaths}
         look={look}
         onNodeSelect={onNodeSelect}
         onNodeAction={onNodeAction}

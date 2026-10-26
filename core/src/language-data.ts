@@ -38,6 +38,7 @@ export interface LanguageBundle {
     services: JsonValue;
     bindingRules: JsonValue;
     programTypes: JsonValue;
+    protocols: JsonValue;
     themes: ThemeDefinition[];
   };
   std: {
@@ -165,6 +166,7 @@ export function readLanguageBundle(fromDir: string, userStore: string = userStor
       services: readJson(declared(core, 'services')),
       bindingRules: readJson(declared(core, 'bindingRules')),
       programTypes: readJson(declared(core, 'programTypes')),
+      protocols: readJson(declared(core, 'protocols')),
       themes,
     },
     std: {

@@ -248,26 +248,6 @@ pub fn install_language(bundle_json: String) -> napi::Result<()> {
 }
 
 #[napi]
-pub fn verify_plan(resolved_schema_json: String, options_json: String) -> String {
-    api::verify_plan(&resolved_schema_json, &options_json)
-}
-
-#[napi]
-pub fn verify_expect(step_json: String) -> napi::Result<String> {
-    api::verify_expect(&step_json).map_err(js)
-}
-
-#[napi]
-pub fn verify_judge(expectation_json: String, observation_json: String) -> napi::Result<String> {
-    api::verify_judge(&expectation_json, &observation_json).map_err(js)
-}
-
-#[napi]
-pub fn verify_proposition(ensures_json: String, observation_json: String) -> napi::Result<String> {
-    api::verify_proposition(&ensures_json, &observation_json).map_err(js)
-}
-
-#[napi]
 pub fn http_driver_start(call_json: String, egress_json: String) -> napi::Result<String> {
     http::http_driver_start(&call_json, &egress_json).map_err(js)
 }

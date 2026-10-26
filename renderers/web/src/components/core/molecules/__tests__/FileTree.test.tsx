@@ -210,3 +210,29 @@ describe('FileTree — expandedPaths (reveal)', () => {
     expect(onNodeExpand).not.toHaveBeenCalled();
   });
 });
+
+describe('FileTree — expandedPaths in items mode', () => {
+  const pkg: FileTreeItem = { id: 'pkg', label: 'Package' };
+  const topic: FileTreeItem = { id: 'pkg dev', label: 'dev', parentId: 'pkg' };
+  const leaf: FileTreeItem = { id: 'pkg/std-x', label: 'std-x', parentId: 'pkg dev' };
+
+  it('a listed node opens, also when its children arrive after it was listed', () => {
+    const { rerender } = render(<FileTree items={[pkg, topic]} selectedId="pkg dev" onNodeSelect={() => {}} expandedPaths={['pkg dev']} />);
+    rerender(<FileTree items={[pkg, topic, leaf]} selectedId="pkg dev" onNodeSelect={() => {}} expandedPaths={['pkg dev']} />);
+    expect(screen.getByText('std-x')).toBeTruthy();
+  });
+
+  it('control: an unlisted, unselected-ancestor node stays closed', () => {
+    render(<FileTree items={[pkg, topic, leaf]} selectedId="pkg dev" onNodeSelect={() => {}} />);
+    expect(screen.queryByText('std-x')).toBeNull();
+  });
+
+  it('edge: the chevron still folds a listed node', () => {
+    render(<FileTree items={[pkg, topic, leaf]} selectedId="pkg dev" onNodeSelect={() => {}} expandedPaths={['pkg dev']} />);
+    const row = screen.getByText('dev').closest('[role="treeitem"]');
+    const chevron = row?.querySelector('[aria-label]');
+    if (!chevron) throw new Error('no chevron on the topic row');
+    fireEvent.click(chevron);
+    expect(screen.queryByText('std-x')).toBeNull();
+  });
+});

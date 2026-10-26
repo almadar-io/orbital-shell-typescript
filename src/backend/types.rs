@@ -60,8 +60,7 @@ pub(crate) fn struct_fields_ts(
 /// this one struct — the recursion now lives once in `orbital-core`, so a new
 /// `OirType` variant forces an explicit decision here (and in every other
 /// backend) at compile time. The two axes: `catalog` (a `Row` of an entity the
-/// catalog lacks widens to `EntityRow`) and `payload` (bus-payload dates as `Date | string`, optionals
-/// unwrapped, struct fields un-enumed). Enum values ride the `enum_values`
+/// catalog lacks widens to `EntityRow`) and `payload` (bus-payload dates as `Date | string`). Enum values ride the `enum_values`
 /// sidecar (a lolo `format:` union lowers to `String` + `enum_values`, so they
 /// can't live on `OirType::Enum`).
 pub(crate) struct TsRenderer<'a> {

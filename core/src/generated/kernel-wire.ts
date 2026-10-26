@@ -19,14 +19,6 @@ import type {
 
 export type Accepted = null;
 
-export type AffordanceQuery = { trait: string, from: string, event: string, };
-
-export type AffordanceStep = { trait: string, from: string, event: string, 
-/**
- * The declared target; `from` when the trait declares no such transition (a dead affordance).
- */
-to: string, declared: boolean, navigates: boolean, instanceId: string, seedRowId?: string, role?: RoleWire, preamble?: Array<PreambleEvent>, precondition?: Precondition, coverageKey: string, };
-
 export type AmbiguousTrait = { trait: string, orbitals: Array<string>, };
 
 export type AppliedWire = { applied: Array<[string, string]>, response: EventResponse, 
@@ -35,13 +27,9 @@ export type AppliedWire = { applied: Array<[string, string]>, response: EventRes
  */
 serverLegs: Array<RoutedLeg>, };
 
-export type ArmConflict = { "kind": "earlier-arm-first", arm: number, to: string, } | { "kind": "guard-unmet" } | { "kind": "own-guard-passes" } | { "kind": "guard-unevaluable", arm: number, message: string, };
-
 export type AwaitingTrait = { trait: string, event: string, from: string }
 
 export type BeaconOutcomeWire = { "via": "queue" } | { "via": "fetch", status: number, } | { "via": "unavailable", message: string, };
-
-export type BindRowFrom = { entity: string, payloadField: string, };
 
 export type BusEventSource = { orbital?: string, orbitalId?: OrbitalId, trait?: string, traitId?: TraitId, eventId?: EventId, transition?: string, tick?: string, fromBridge?: boolean, dispatched?: boolean, originClientId?: string, 
 /**
@@ -93,76 +81,7 @@ callsitePayload?: EventPayload,
  */
 repaint?: RepaintReason, };
 
-export type ConfigVariant = { 
-/**
- * `knob = value`.
- */
-label: string, field: string, 
-/**
- * The baseline defaults with `field` changed.
- */
-config: JsonObject, };
-
-export type ContractEvents = { 
-/**
- * False when no language data is installed: the table cannot be read, so nothing is planned.
- */
-available: boolean, steps: Array<ContractStep>, };
-
-export type ContractStep = { trait: string, from: string, event: string, pattern: string, coverageKey: string, };
-
 export type CredentialStanding = { connected: boolean, label?: string | null, };
-
-export type Credit = { index: number, stateBefore: string, stateAfter: string, };
-
-export type CreditStep = { trait: string, from: string, event: string, arm?: number, reply?: ReplyRoute, fired: Array<FiredHop>, };
-
-export type CrudChain = { kind: CrudKind, entity: string, persistor: string, sourceTrait: string, openFrom: string, openEvent: string, openTo: string, submitEvent: string, successEvent: string, rowDelta: number, 
-/**
- * The event the rendered button carries when the open event reaches the overlay through a listener.
- */
-openAffordanceEvent: string, 
-/**
- * The open transition renders into a portal slot or a self-overlay pattern.
- */
-opensOverlay: boolean, requiresRowContext: boolean, payloadRowShape: Array<RowShapeField>, 
-/**
- * The payload the submit event carries, built from its declared schema.
- */
-submitPayload: JsonValue, 
-/**
- * A minimal row of the linked entity: the values a form's fields are filled with.
- */
-entityRow: JsonValue, 
-/**
- * The same row with every non-id value changed, so an edit has something to change.
- */
-editEntityRow: JsonValue, 
-/**
- * Entity fields restricted to declared values: a changed value would leave the vocabulary, so a row-content
- * assertion skips them.
- */
-enumFields: Array<string>, viewer?: ViewerRequirement, precondition?: Precondition, 
-/**
- * Delete only: self-relation fields (restrict rule) a deletable row must not be referenced through.
- */
-avoidReferencedVia: Array<string>, 
-/**
- * Delete only: fields of OTHER entities (restrict rule) that reference this entity.
- */
-avoidReferencedByOtherEntities: Array<InboundRelation>, 
-/**
- * Delete only: when the entity can run out of unreferenced rows, the create to dispatch first.
- */
-deleteEstablishFallback?: EstablishFallback, coverageKey: string, };
-
-export type CrudKind = "create" | "edit" | "delete";
-
-export type DataMutation = { trait: string, from: string, event: string, to: string, payload: JsonValue, entity: string, kind: MutationKind, rowDelta: number, successEvent?: string, viewer?: ViewerRequirement, 
-/**
- * Update or delete whose own persist argument names the target row: the host binds a real row there.
- */
-bindRow?: PersistBinding, avoidReferencedVia: Array<string>, avoidReferencedByOtherEntities: Array<InboundRelation>, rowEstablish?: RowEstablish, precondition?: Precondition, coverageKey: string, };
 
 export type DeliverRefusal = { kind: DeliverRefusalKind, id: string, };
 
@@ -187,18 +106,6 @@ foldSeeded: Array<string>, };
 export type EffectStatusWire = "executed" | "failed" | "skipped";
 
 export type EffectTraceWire = { type: string, args: Array<JsonValue>, status: EffectStatusWire, error?: string, evalTrace?: Array<EvalStepWire>, };
-
-export type EmitRowBinding = { entity: string, payloadField: string, wholeRow: boolean, 
-/**
- * A delete's restrict relations: the host binds a row nothing references.
- */
-avoidReferencedVia: Array<string>, avoidReferencedByOtherEntities: Array<InboundRelation>, };
-
-export type EmitStep = { trait: string, from: string, event: string, payload: JsonValue, navigates: boolean, coverageKey: string, 
-/**
- * A listener persists an update or delete keyed by this emit's payload: the host binds a real row there.
- */
-bindRow?: EmitRowBinding, };
 
 export type EmittedEffectWire = { event: string, payload?: JsonValue, };
 
@@ -226,8 +133,6 @@ export type EntityBindingKind = "none" | "absent" | "malformed" | "inline" | "na
 export type EntityWriteWire = { field: string, value: JsonValue, };
 
 export type Envelope = { id: string, from: InstanceRef, to: InstanceRef, event: string, payload: JsonValue, causalId: string, hop: number, };
-
-export type EstablishFallback = { event: string, payload: JsonValue, trait: string, viewer?: ViewerRequirement, };
 
 export type EvalContextWire = { entity?: JsonValue, payload?: JsonValue, config?: JsonValue, user?: JsonValue, callsitePayload?: JsonValue, currentTheme?: JsonValue, pages?: JsonValue, state?: string, 
 /**
@@ -311,18 +216,6 @@ cascadeTruncated?: Array<string>,
  */
 transitions?: Array<TransitionHop>, error?: string, };
 
-export type Expectation = { trait: string, from: string, event: string, toStates: Array<string>, guarded: boolean, arm?: number, solved: boolean, reply?: ReplyRoute, payloadCase: PayloadCase, guardCase?: GuardCase, guardSteerable?: boolean, acceptStates: Array<string>, 
-/**
- * The step's precondition is not shown to hold; a failure is then inconclusive.
- */
-preconditionGap?: UnprovenReason, };
-
-export type FiredHop = { trait: string, from: string, event: string, to: string, 
-/**
- * Position of the arm among the state's `from --event-->` arms.
- */
-arm?: number, };
-
 export type FiredTick = { trait: string, tick: string, };
 
 export type FrameDispatch = { trait: string, orbital: string, seed: SeedWire, response: EventResponse, serverLegs: Array<RoutedLeg>, mode: DispatchMode, snapshot: TraitSnapshot | null, alreadyDelivered: Array<[string, string]>, awaiting: Array<AwaitingTrait>, 
@@ -335,19 +228,13 @@ statefulLeg: StatefulLegWire | null,
  */
 foldSeeded: Array<string>, };
 
-export type FrameStatus = "pass" | "fail" | "inconclusive" | "gap";
-
 export type FrameWire = { fired: Array<FiredTick>, response: EventResponse, dispatches: Array<FrameDispatch>, 
 /**
  * The `runTick` legs of fired ticks that write browser-stored data, for the host that owns the store.
  */
 browserLegs: Array<RoutedLeg>, droppedServerEffects: number, errors: Array<string>, };
 
-export type GapReason = "not-reachable-without-network" | "delivered-only-by-remount";
-
 export type GuardCapabilities = { leaves: Array<RowLeafKind>, combinators: Array<RowCombinator>, compareOps: Array<RowCompareOp>, };
-
-export type GuardCase = "pass" | "fail";
 
 export type GuardOutcomeWire = { "kind": "value", value: boolean, } | { "kind": "error", message: string, };
 
@@ -366,10 +253,6 @@ export type HttpFailureWire = { "kind": "timedOut" } | { "kind": "failed", messa
 export type HttpRequestWire = { method: string, url: string, headers: Array<[string, string]>, body: HttpBody, timeoutMs?: number, };
 
 export type HttpResponseWire = { status: number, headers: Array<[string, string]>, body: HttpBody, };
-
-export type InboundRelation = { entity: string, field: string, };
-
-export type InitCredit = { trait: string, state: string, coverageKey: string, };
 
 export type InstanceRef = { instance: string, orbital: string, trait?: string, };
 
@@ -421,8 +304,6 @@ statefulLegs: Array<MountLegWire>,
  */
 failed: MountFailure | null, };
 
-export type MutationKind = "create" | "update" | "delete";
-
 export type MutationOpWire = "create" | "update" | "delete";
 
 export type MutationVerdictWire = { allowed: boolean, message?: string, };
@@ -443,20 +324,6 @@ export type OAuthReply = { reply: "done" } | { reply: "flag", value: boolean } |
 
 export type OAuthTokenGrant = { accessToken: string, refreshToken: string | null, expiresIn: number, tokenType: string, scope: Array<string> | null, subject: string | null }
 
-export type Observation = { stateBefore: string, stateAfter: string, 
-/**
- * The arm the kernel selected among the `from --event-->` arms.
- */
-firedArm?: number, effects: Array<ObservedEffect>, };
-
-export type ObservedEffect = { outcome: ObservedOutcome, 
-/**
- * The declared `emit.failure` event the program routed this failure to.
- */
-routed?: string, };
-
-export type ObservedOutcome = "executed" | "noop" | "delegated" | "failed";
-
 export type OperatorValueKinds = { operator: RowOperator, valueKinds: Array<RowValueKind>, };
 
 export type OsError = { kind: OsErrorKind, message: string, };
@@ -465,13 +332,9 @@ export type OsErrorKind = "denied" | "not-found" | "exists" | "invalid" | "io" |
 
 export type OsOp = "os/read-file" | "os/write-file" | "os/append-file" | "os/open" | "os/close" | "os/read" | "os/write" | "os/seek" | "os/truncate" | "os/fsync" | "os/copy" | "os/rename" | "os/remove" | "os/link" | "os/symlink" | "os/readlink" | "os/watch-files" | "os/mkdir" | "os/rmdir" | "os/list-dir" | "os/glob" | "os/mktemp" | "os/realpath" | "os/cwd" | "os/chdir" | "os/stat" | "os/lstat" | "os/access" | "os/exists" | "os/chmod" | "os/chown" | "os/utimes" | "os/spawn" | "os/wait" | "os/kill" | "os/pid" | "os/ppid" | "os/current-exe" | "os/watch-process" | "os/watch-signal" | "os/getenv" | "os/setenv" | "os/unsetenv" | "os/environ" | "os/watch-env" | "os/stdin-read" | "os/stdout-write" | "os/stderr-write" | "os/isatty" | "os/tty-size" | "os/tcp-connect" | "os/tcp-listen" | "os/send" | "os/recv" | "os/udp-bind" | "os/sendto" | "os/recvfrom" | "os/dns-resolve" | "os/shutdown" | "os/watch-port" | "os/clock-monotonic" | "os/uid" | "os/gid" | "os/username" | "os/group-of" | "os/watch-cron" | "os/cpu-usage" | "os/memory-info" | "os/uptime" | "os/load-avg" | "os/hostname" | "os/uname" | "os/disk-usage" | "os/mounts" | "os/disk-io" | "os/network-interfaces" | "os/network-stats" | "os/network-connected" | "os/default-gateway" | "os/battery-status" | "os/ac-power" | "os/thermal-zones" | "os/notify" | "os/speak" | "os/brightness-get" | "os/brightness-set" | "os/volume-get" | "os/volume-set" | "os/volume-mute" | "os/suspend" | "os/hibernate" | "os/mmio-read" | "os/mmio-write" | "os/irq-wait" | "os/irq-ack" | "kv/get" | "kv/put" | "kv/delete" | "kv/scan" | "kv/batch";
 
-export type OwnerRequirement = { sourceEntity: string, sourceField: string, useDefaultId?: boolean, payloadOwnerField?: string, };
-
 export type PageFactFieldWire = "hostname" | "referrer" | "screenWidth";
 
 export type PageFactsWire = { available: boolean, hostname: string, referrer: string, screenWidth: number | null, };
-
-export type PayloadCase = "success" | "malformed" | "guard-fail";
 
 export type PayloadSlot = { name: string, type: string, required: boolean, 
 /**
@@ -484,26 +347,6 @@ values?: Array<string>,
 entity?: string, };
 
 export type PendingRequestWire = { id: number, request: IoRequestWire, };
-
-export type PersistBinding = { payloadField: string, wholeRow: boolean, };
-
-export type PlanFailure = { "kind": "invalid-program", message: string, } | { "kind": "invalid-input", message: string, } | { "kind": "unknown-trait", name: string, available: string, };
-
-export type PlanOptions = { 
-/**
- * Restrict the plan to these traits (either name spelling a trait carries after resolve).
- */
-traits?: Array<string>, 
-/**
- * The bound viewer's id; shapes the seed row id and ownership-stamped payloads.
- */
-viewerId?: string, 
-/**
- * Events the caller already covers; the contract plan skips them.
- */
-coveredEvents?: Array<string>, };
-
-export type PlanOutcome = { "outcome": "planned", steps: Array<StepWire>, configVariants: Array<TraitConfigVariants>, initCredits: Array<InitCredit>, emitSweep: Array<EmitStep>, contractEvents: ContractEvents, crudChains: Array<CrudChain>, tickSteps: Array<TickStep>, dataMutations: Array<DataMutation>, } | { "outcome": "refused", failure: PlanFailure, };
 
 export type PlayedEffect = { type: string, args: Array<JsonValue>, status: PlayedEffectStatus, error?: string, 
 /**
@@ -544,28 +387,6 @@ rendered?: Array<RenderedSlot>, };
 export type PlayedState = { before: string | null, after: string | null, };
 
 export type PlayedStep = { orbital: string, trait: string, from: string, event: string, payload: EventPayload, result: PlayedResult, };
-
-export type PreambleEvent = { event: string, payload: JsonValue, 
-/**
- * The state the machine stands in when this hop is fired, and where the declared transition leads.
- */
-from: string, to: string, 
-/**
- * States the machine may settle in beyond `to`, because an effect-emitted event advances it on its own.
- */
-acceptStates?: Array<string>, 
-/**
- * Firing the hop can change the route.
- */
-navigates: boolean, };
-
-export type Precondition = { "kind": "established", trait: string, event: string, payload: JsonValue, establishAtState: string, bindRowFrom?: BindRowFrom, role?: RoleWire, 
-/**
- * Further unestablished guard fields this preamble does not cover.
- */
-unplannedFields: Array<string>, proof: Proof, } | { "kind": "same-trait-setter", fields: Array<string>, proof: Proof, } | { "kind": "unreachable", fields: Array<string>, };
-
-export type Proof = { "kind": "proven" } | { "kind": "unproven", reason: UnprovenReason, };
 
 export type PropositionBindings = { entity: JsonValue, fromEntity: JsonValue, payload: JsonValue, };
 
@@ -626,17 +447,11 @@ nodes: Array<RenderedNode>, };
 
 export type RepaintReason = "rows-changed";
 
-export type ReplayQuery = { trait: string, state: string, };
-
-export type ReplyRoute = "other" | "failure";
-
 export type ResolveProgressWire = { "status": "done", rows: Array<EntityRow>, total: number, } | { "status": "await", flight: number, requests: Array<PendingRequestWire>, };
 
 export type ResolvedMotion = JsonObject
 
 export type ResolvedTheme = { key: string, base: string, mode: "light" | "dark", tokens: JsonObject }
-
-export type RoleWire = { field: string, value: string, };
 
 export type RotateCounts = { rotated: number, alreadyCurrent: number, unreadable: number, };
 
@@ -653,12 +468,6 @@ export type RowCommitWrite = { "kind": "keep" } | { "kind": "put", row: EntityRo
 export type RowCompareOp = "==" | "!=" | "<" | "<=" | ">" | ">=";
 
 export type RowDirection = "asc" | "desc";
-
-export type RowEstablish = { "kind": "established", event: string, payload: JsonValue, viewer?: ViewerRequirement, bindRowFrom?: BindRowFrom, 
-/**
- * Dispatched before the replay path rather than inline with the step.
- */
-beforeReplay: boolean, } | { "kind": "unreachable", trait: string, entity: string, atState: string, };
 
 export type RowIdPage = { ids: Array<string>, total: number, };
 
@@ -686,8 +495,6 @@ export type RowQuery = { policy?: RowPredicate, filter?: RowPredicate, order?: R
 nearest?: RowNearest, };
 
 export type RowSetRef = { entityType: string, ids: Array<string>, total: number, query: RowQuery, };
-
-export type RowShapeField = { name: string, wholeRow: boolean, };
 
 export type RowTotalMode = "exact" | "none";
 
@@ -740,53 +547,6 @@ export type SnapshotWire = { states: JsonObject, ambiguousTraits: Array<Ambiguou
 
 export type StatefulLegWire = { orbital: string, leg: EventRequest, awaiting: Array<AwaitingTrait>, };
 
-export type StepWire = { trait: string, linkedEntity?: string, 
-/**
- * The instance the step fires on: the seed row id of the linked entity, or the verifier's fixed id.
- */
-instanceId: string, 
-/**
- * The id of the row to seed before the step; absent when the step's own create makes that row.
- */
-seedRowId?: string, 
-/**
- * The role a role-only persist policy needs the viewer to carry for this step.
- */
-role?: RoleWire, from: string, event: string, to: string, toStates: Array<string>, variant: Variant, payload: JsonValue, guarded: boolean, arm?: number, solved: boolean, reply?: ReplyRoute, 
-/**
- * The events (with payloads) that place a fresh machine in `from`; absent when `from` is unreachable.
- * Each is a repositioning step: it moves the machine, it is not under test.
- */
-preamble?: Array<PreambleEvent>, payloadCase: PayloadCase, guardCase?: GuardCase, 
-/**
- * The payload can steer the arm's guard; absent on an unguarded step.
- */
-guardSteerable?: boolean, 
-/**
- * On a `guard-fail` step: the targets of the sibling arms that may fire in its place.
- */
-guardSiblingTargets: Array<string>, 
-/**
- * Why the planned payload does not exercise this arm; the step is then unsolved.
- */
-armConflict?: ArmConflict, 
-/**
- * What must be dispatched first for a guard reading `@entity` fields this trait does not set.
- */
-precondition?: Precondition, 
-/**
- * States beyond `toStates` the machine may settle in, because an effect-emitted event advances it on its own.
- */
-acceptStates: Array<string>, 
-/**
- * Firing the event can change the route, so the trait may unmount.
- */
-navigates: boolean, 
-/**
- * `trait:from+event->to` plus `[payloadCase]` (`[guardCase]` without one); the boot INIT carries no suffix.
- */
-coverageKey: string, };
-
 export type StoreListing = { enabled: boolean, entries: Array<StoredName>, };
 
 export type StoredName = { service: string, name: string, };
@@ -815,19 +575,7 @@ export type TabImageFormat = "png" | "jpeg";
 
 export type TabStyle = { property: string, value: string, };
 
-export type TickStep = { trait: string, from: string, 
-/**
- * The tick's name, fired as the step's event.
- */
-event: string, waitMs: number, 
-/**
- * A tick's effects may move the trait anywhere in its declared topology: any declared state is a landing.
- */
-acceptStates: Array<string>, coverageKey: string, };
-
 export type TraceEffectsWire = { effects: Array<EffectTraceWire>, emitted: Array<EmittedEffectWire>, writes: Array<EntityWriteWire>, entity: JsonValue, };
-
-export type TraitConfigVariants = { trait: string, baseline: JsonObject, variants: Array<ConfigVariant>, noDeclaredValues: Array<string>, };
 
 export type TraitFrom = { trait: string, from: string, event?: string, };
 
@@ -842,18 +590,6 @@ resolved: boolean,
 overlayOnly: boolean, };
 
 export type TraitSnapshot = { state: string, entity: JsonValue }
-
-export type TransientFinding = { "kind": "no-entering-persist", event: string, } | { "kind": "no-denying-viewer", entity: string, operation: string, };
-
-export type TransientOutcome = { "outcome": "not-transient" } | { "outcome": "probe", step: TransientProbe, } | { "outcome": "finding", finding: TransientFinding, };
-
-export type TransientProbe = { trait: string, from: string, event: string, to: string, payload: JsonValue, acceptStates: Array<string>, role: RoleWire, 
-/**
- * The nominal failure arm the cascade is expected to prove.
- */
-verifiesPortalFor: TransientQuery, instanceId: string, seedRowId?: string, preamble?: Array<PreambleEvent>, coverageKey: string, };
-
-export type TransientQuery = { trait: string, from: string, event: string, to: string, };
 
 export type TransitionHop = { trait: string, from: string, to: string, event: string, 
 /**
@@ -878,14 +614,6 @@ error?: string, };
 
 export type TransitionRejectionCode = "no-matching-transition" | "guard-rejected" | "no-dispatchable-traits" | "not-an-external-input" | "inbound-only-event" | "effect-failed";
 
-export type UnprovenReason = "setter-value-unresolved" | "setter-not-on-replay-path" | "multiple-preconditions-unplanned" | "unreachable";
-
-export type Variant = "auto-init" | "success";
-
-export type VerdictReason = { "kind": "reached" } | { "kind": "held-under-guard" } | { "kind": "not-driven" } | { "kind": "preamble-missed", actual: string, } | { "kind": "arm-unsolved" } | { "kind": "guard-rejected" } | { "kind": "guard-accepted" } | { "kind": "guard-unsteerable" } | { "kind": "payload-validator-not-run" } | { "kind": "arm-not-fired", fired: number | null, } | { "kind": "wrong-state", actual: string, } | { "kind": "effect-failed" } | { "kind": "mutation-landed" } | { "kind": "mutation-refused", outcome: string, error: string | null, } | { "kind": "success-not-emitted", expected: string, emitted: Array<string>, } | { "kind": "row-delta-mismatch", expected: number, actual: number | null, } | { "kind": "precondition-unproven", reason: UnprovenReason, } | { "kind": "produced-by-effect", failed: string, };
-
-export type VerdictWire = { status: FrameStatus, gap?: GapReason, reason: VerdictReason, };
-
 export type Viewer = { 
 /**
  * Stable subject identifier: the ownership key.
@@ -899,8 +627,6 @@ email?: string | null, name?: string | null,
  * Compared against a policy's allowed roles.
  */
 role?: string, permissions?: Array<string>, claims: Array<Claim>, };
-
-export type ViewerRequirement = { role?: RoleWire, owner?: OwnerRequirement, };
 
 export type WriteCapabilities = { guards: GuardCapabilities, conditional: boolean, returnsRow: boolean, stopRuns: boolean, atomicBatch: boolean, rekey?: boolean, 
 /**

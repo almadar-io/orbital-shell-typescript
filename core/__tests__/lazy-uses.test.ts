@@ -36,6 +36,25 @@ describe('lazy uses survive the zod parse', () => {
     expect(parsed.lazyPages).toEqual(lazyPages);
   });
 
+  it('keeps the links a lazy page carries, and a page without links stays without', () => {
+    const lazyPages = [
+      { path: '/docs', orbital: 'Docs', orbRef: 'lazy/Docs.orb', links: ['/docs/intro', '/docs/traits'] },
+      { path: '/blog/why', orbital: 'BlogWhy', orbRef: 'lazy/BlogWhy.orb' },
+    ];
+    const parsed = OrbitalSchemaSchema.parse({ name: 'Site', orbitals: [orbital], lazyPages });
+    expect(parsed.lazyPages).toEqual(lazyPages);
+    expect(parsed.lazyPages?.[1]).not.toHaveProperty('links');
+  });
+
+  it('edge: a lazy page whose links are not strings is rejected', () => {
+    const result = OrbitalSchemaSchema.safeParse({
+      name: 'Site',
+      orbitals: [orbital],
+      lazyPages: [{ path: '/docs', orbital: 'Docs', orbRef: 'lazy/Docs.orb', links: [1] }],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('edge: a lazy page without its orbRef is rejected', () => {
     const result = OrbitalSchemaSchema.safeParse({
       name: 'Site',

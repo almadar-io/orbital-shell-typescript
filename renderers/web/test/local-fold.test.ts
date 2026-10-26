@@ -51,4 +51,19 @@ describe('local fold', () => {
     await applyFrame(JSON.stringify(frame), fold, undefined);
     expect(notified).toBe(1);
   });
+
+  it('a delta row folded over an existing frame keeps the fields it does not name', async () => {
+    const store = createMemoryCircuitStore();
+    store.frames.set('T-frame', { id: 'r1', n: 1, items: ['a', 'b'] });
+    const fold = createLocalFold({ store, frameKeyOf: (trait) => (trait === 'T' ? 'T-frame' : undefined) });
+    await fold.foldLocalResponse({ ...response, entityByTrait: { T: { id: 'r1', n: 2 } } }, false, true);
+    expect(store.frames.get('T-frame')).toEqual({ id: 'r1', n: 2, items: ['a', 'b'] });
+  });
+
+  it('control: a delta for a trait never seen creates a frame of just those fields', async () => {
+    const store = createMemoryCircuitStore();
+    const fold = createLocalFold({ store, frameKeyOf: (trait) => (trait === 'T' ? 'T-frame' : undefined) });
+    await fold.foldLocalResponse({ ...response, entityByTrait: { T: { id: 'r1', n: 2 } } }, false, true);
+    expect(store.frames.get('T-frame')).toEqual({ id: 'r1', n: 2 });
+  });
 });

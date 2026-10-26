@@ -31,7 +31,7 @@ function inlineEntities(schema: OrbitalSchema): OrbitalEntity[] {
  * Every `[identity]`-tagged entity, primaries first, paired with whether it is
  * an orbital's PRIMARY entity or an auxiliary copy an import brought along.
  *
- * Compiled-path twin: `identity_entities_tagged` in
+ * Compiled-path twin: `identity_entities_tagged_of` in
  * `orbital-compiler/src/phases/validation/identity/user_identity.rs` (L57-76).
  */
 function identityEntitiesTaggedOf(

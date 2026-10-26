@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { BINDING_CONTEXT_RULES } from './src/types/bindings';
 import { buildProgramTypes } from './src/program-types';
+import { PROTOCOLS } from './src/protocols';
 
 export default defineConfig({
   entry: {
@@ -60,6 +61,7 @@ export default defineConfig({
     fs.mkdirSync('dist/language', { recursive: true });
     fs.writeFileSync('dist/language/binding-rules.json', `${JSON.stringify(BINDING_CONTEXT_RULES, null, 2)}\n`);
     fs.writeFileSync('dist/language/program-types.json', `${JSON.stringify(buildProgramTypes(), null, 2)}\n`);
+    fs.writeFileSync('dist/language/protocols.json', `${JSON.stringify(PROTOCOLS, null, 2)}\n`);
     for (const file of ['vocabulary.json', 'constructs.json', 'validation-codes.json']) {
       fs.copyFileSync(path.join('src/generated/language', file), path.join('dist/language', file));
     }

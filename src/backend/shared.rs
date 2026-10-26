@@ -1,6 +1,14 @@
 use crate::backend::*;
 use crate::codegen::handler_header::named_struct_type_import_line;
 
+/// Peels the one `Optional` layer that carries nullability; presence is `required`, not the type.
+fn split_nullable(ty: &OirType) -> (&OirType, bool) {
+    match ty {
+        OirType::Optional { inner } => (inner.as_ref(), true),
+        t => (t, false),
+    }
+}
+
 /// Emit one declaration per registered named type (`OirModule::named_types`)
 /// — an `export interface <Name> { ... }` per Struct entry, an
 /// `export type <Name> = …` alias per Union entry (Phase-3D nominalization
@@ -243,19 +251,19 @@ impl TypeScriptBackend {
                 } else if let Some(ref desc) = field.description {
                     code.push_str(&format!("  /** {} */\n", desc));
                 }
-                let effective_field_type = &field.field_type;
+                let (value_type, nullable) = split_nullable(&field.field_type);
                 let is_optional = !field.required;
                 let base_type = if let Some(ref values) = field.enum_values {
                     if !values.is_empty() {
                         format!("{}{}", entity.name, capitalize_first(&field.name))
                     } else {
-                        self.map_type_with_enum(effective_field_type, field.enum_values.as_ref())
+                        self.map_type_with_enum(value_type, field.enum_values.as_ref())
                     }
                 } else {
-                    self.map_type_with_enum(effective_field_type, field.enum_values.as_ref())
+                    self.map_type_with_enum(value_type, field.enum_values.as_ref())
                 };
                 // A to-many relation's type is already the array (ids, or rows when intrinsic).
-                let ts_type = match (&field.relation, effective_field_type) {
+                let ts_type = match (&field.relation, value_type) {
                     (_, OirType::Array { .. }) => base_type,
                     (Some(rel), _)
                         if matches!(
@@ -267,6 +275,7 @@ impl TypeScriptBackend {
                     }
                     _ => base_type,
                 };
+                let ts_type = if nullable { format!("{ts_type} | null") } else { ts_type };
                 let optional = if is_optional { "?" } else { "" };
                 code.push_str(&format!("  {}{}: {};\n", field.name, optional, ts_type));
             }
@@ -415,14 +424,13 @@ impl TypeScriptBackend {
                 if field.name == "id" {
                     continue;
                 }
-                let effective_field_type = &field.field_type;
+                let (value_type, nullable) = split_nullable(&field.field_type);
                 let is_optional = !field.required;
-                let base_zod =
-                    self.map_type_to_zod(effective_field_type, field.enum_values.as_ref());
+                let base_zod = self.map_type_to_zod(value_type, field.enum_values.as_ref());
                 // Apply OirConstraint refinements
                 let constrained = self.apply_constraints_to_zod(&base_zod, &field.constraints);
                 // Wrap with z.array() for to-many relation cardinalities not already typed as one
-                let with_cardinality = match (&field.relation, effective_field_type) {
+                let with_cardinality = match (&field.relation, value_type) {
                     (Some(rel), ty)
                         if !matches!(ty, OirType::Array { .. })
                             && matches!(
@@ -433,6 +441,11 @@ impl TypeScriptBackend {
                         format!("z.array({})", constrained)
                     }
                     _ => constrained,
+                };
+                let with_cardinality = if nullable {
+                    format!("{with_cardinality}.nullable()")
+                } else {
+                    with_cardinality
                 };
                 let schema = if is_optional {
                     format!("{}.optional()", with_cardinality)
@@ -1374,7 +1387,8 @@ mod to_many_relation_field_tests {
     use orbital_core_base::ir::{OirEntity, OirField, OirRelation};
 
     fn revision_entity(cardinality: OirCardinality, field_type: OirType) -> OirEntity {
-        let mut field = OirField::optional("revisions", field_type);
+        let mut field = OirField::new("revisions", field_type);
+        field.required = false;
         field.relation = Some(OirRelation {
             target_entity: "Revision".to_string(),
             target_entity_id: None,
@@ -1417,6 +1431,21 @@ mod to_many_relation_field_tests {
         assert!(types.contains("revisions?: string[];"), "{types}");
         assert!(!types.contains("Revision[]"), "{types}");
         assert!(schemas.contains("z.array(z.string())"), "{schemas}");
+    }
+
+    /// Presence and nullability are independent (docs/Almadar_Orbital_Lolo.md): a nullable to-many
+    /// relation is one nullable array, never an array of nullable arrays.
+    #[test]
+    fn a_nullable_to_many_relation_is_one_nullable_array_not_wrapped_again() {
+        let mut entity = revision_entity(
+            OirCardinality::OneToMany,
+            OirType::optional(OirType::array(OirType::reference("Revision"))),
+        );
+        entity.fields[0].required = true;
+        let (types, schemas) = generated(entity);
+        assert!(types.contains("revisions: string[] | null;"), "{types}");
+        assert!(schemas.contains("revisions: z.array(z.string()).nullable(),"), "{schemas}");
+        assert!(!schemas.contains("z.array(z.array("), "{schemas}");
     }
 
     #[test]
@@ -1509,11 +1538,7 @@ mod named_type_schema_import_tests {
                         declared: None,
                         merged_from: None,
                         name: "badge".to_string(),
-                        // `OirField::optional` both sets `required: false` AND
-                        // wraps the type in `Optional` — the doubling repro.
-                        field_type: OirType::Optional {
-                            inner: Box::new(OirType::String),
-                        },
+                        field_type: OirType::String,
                         description: None,
                         required: false,
                         default: None,
@@ -1557,9 +1582,7 @@ mod named_type_schema_import_tests {
                         // `render_type`'s `r.string(enum_values)`, the same
                         // encoding the TS interface emitter reads to
                         // produce `'default' | 'danger'`).
-                        field_type: OirType::Optional {
-                            inner: Box::new(OirType::String),
-                        },
+                        field_type: OirType::String,
                         description: None,
                         required: false,
                         default: None,
@@ -1591,12 +1614,9 @@ mod named_type_schema_import_tests {
         );
     }
 
-    /// An `Optional`-typed field on a named struct must emit exactly one
-    /// `.optional()` in the generated zod schema, never
-    /// `.optional().optional()` (the doubling came from
-    /// `map_type_to_zod`'s `OirType::Optional` arm ALSO appending
-    /// `.optional()` on top of the `Struct` field loop's own `!f.required`
-    /// arm — both read the same `OirField::optional()` signal).
+    /// An absent-allowed (`required: false`) field on a named struct emits exactly one
+    /// `.optional()`; nullability is a separate `.nullable()` from the `T?` type
+    /// (presence and nullability are independent, docs/Almadar_Orbital_Lolo.md).
     #[test]
     fn optional_named_type_field_emits_exactly_one_optional_call() {
         let backend = TypeScriptBackend::new();
@@ -1609,6 +1629,21 @@ mod named_type_schema_import_tests {
         assert!(
             file.content.contains("badge: z.string().optional()"),
             "expected exactly one .optional() on the badge field, got: {}",
+            file.content
+        );
+    }
+
+    #[test]
+    fn control_a_nullable_optional_named_type_field_emits_nullable_then_one_optional() {
+        let backend = TypeScriptBackend::new();
+        let mut named = nav_item_with_optional_field();
+        if let Some(OirType::Struct { fields, .. }) = named.get_mut("NavItem") {
+            fields[1].field_type = OirType::optional(OirType::String);
+        }
+        let file = backend.generate_shared_schemas(&[], &named);
+        assert!(
+            file.content.contains("badge: z.string().nullable().optional()"),
+            "{}",
             file.content
         );
     }

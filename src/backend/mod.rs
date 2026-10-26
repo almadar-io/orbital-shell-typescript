@@ -329,12 +329,17 @@ mod tests {
             additional: None,
             fields: vec![
                 OirField::new("title", OirType::String),
-                OirField::optional("count", OirType::Number),
+                {
+                    let mut count = OirField::new("count", OirType::Number);
+                    count.required = false;
+                    count
+                },
+                OirField::optional("note", OirType::Number),
             ],
         };
         assert_eq!(
             b.map_type_with_enum(&st, None),
-            "{ title: string; count?: number }"
+            "{ title: string; count?: number; note?: number | null }"
         );
         let mut enum_field = OirField::new("kind", OirType::String);
         enum_field.enum_values = Some(ev(&["x", "y"]));
@@ -346,7 +351,7 @@ mod tests {
     }
 
     #[test]
-    fn char_payload_wrapper_date_optional_and_unenumed_struct() {
+    fn char_payload_wrapper_date_optional_and_enum_struct() {
         let b = TypeScriptBackend::new();
         // Payload dates accept the live `Date` too.
         assert_eq!(
@@ -354,10 +359,10 @@ mod tests {
             "Date | string | number"
         );
         assert_eq!(b.payload_struct_ts(&OirType::Number), "number");
-        // Payload unwraps optionality with no `| null` suffix.
+        // Nullability is the value type's `| null` in every position; presence is `required`.
         assert_eq!(
             b.payload_struct_ts(&OirType::optional(OirType::Number)),
-            "number"
+            "number | null"
         );
         // A payload reference carries the ROW, not an id — so it must NOT
         // render as `string`. That is the entity relation-FIELD rule (a
@@ -374,14 +379,14 @@ mod tests {
         );
         assert_eq!(b.payload_struct_ts(&OirType::Trait), "TraitFieldRef");
         assert_eq!(b.payload_struct_ts(&OirType::Node), "PatternValue");
-        // Payload structs DROP the per-field enum sidecar (never emitted unions).
+        // Payload structs keep a field's declared enum as its literal union (native record shapes, 4ea7817).
         let mut enum_field = OirField::new("kind", OirType::String);
         enum_field.enum_values = Some(ev(&["x", "y"]));
         let st = OirType::Struct {
             additional: None,
             fields: vec![enum_field],
         };
-        assert_eq!(b.payload_struct_ts(&st), "{ kind: string }");
+        assert_eq!(b.payload_struct_ts(&st), "{ kind: 'x' | 'y' }");
     }
 
     #[test]
@@ -483,14 +488,9 @@ mod tests {
         );
     }
 
-    /// `field.required = false` (no `!` in the `.lolo`) wraps `field_type` in
-    /// `OirType::Optional` (`OirField::optional`) — `map_type_to_zod` must
-    /// unwrap that BEFORE `apply_constraints_to_zod` chains `.email()`/
-    /// `.regex()`/etc. onto the base type, or the constraint lands on
-    /// `ZodOptional<ZodString>` (`.optional()` already baked in), which zod
-    /// doesn't expose those methods on — `z.string().optional().email()` is
-    /// not valid zod chaining (TS2339). The single correct `.optional()` is
-    /// the one this loop appends itself, after constraints.
+    /// A `required: false` field is absent-allowed; a `T?` type is nullable. Constraints chain
+    /// onto the base type BEFORE `.nullable()`/`.optional()`, since zod's wrapper types carry no
+    /// `.email()`/`.regex()` refinements.
     #[test]
     fn test_generate_shared_schemas_optional_field_with_constraint() {
         let backend = TypeScriptBackend::new();
@@ -504,7 +504,8 @@ mod tests {
             collection: "service_emails".to_string(),
             persistence: OirPersistence::Runtime,
             fields: vec![OirField::new("id", OirType::String), {
-                let mut f = OirField::optional("htmlBody", OirType::String);
+                let mut f = OirField::new("htmlBody", OirType::String);
+                f.required = false;
                 f.constraints = vec![OirConstraint::Email];
                 f
             }],
@@ -528,6 +529,23 @@ mod tests {
             !content.contains(".optional().email()"),
             "must never chain a refinement method onto an already-optional zod type, got: {}",
             content
+        );
+    }
+
+    #[test]
+    fn control_a_nullable_optional_constrained_field_refines_before_nullable() {
+        let backend = TypeScriptBackend::new();
+        let mut f = OirField::optional("htmlBody", OirType::String);
+        f.constraints = vec![OirConstraint::Email];
+        let mut entity = OirEntity::new("ServiceEmail");
+        entity.fields = vec![OirField::new("id", OirType::String), f];
+        let content = backend
+            .generate_shared_schemas(&[entity], &Default::default())
+            .into_generated_file()
+            .content;
+        assert!(
+            content.contains("htmlBody: z.string().email().nullable().optional()"),
+            "{content}"
         );
     }
 

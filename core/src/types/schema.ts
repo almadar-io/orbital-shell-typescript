@@ -8,6 +8,7 @@
  */
 
 import { z } from "zod";
+import { ProtocolSpecSchema, type ProtocolSpec } from "../protocols.js";
 import type { EventPayloadField } from "./trait.js";
 import type { Orbital, LazyPage } from "./orbital.js";
 import { OrbitalSchema as OrbitalZodSchema, LazyPageSchema, TypeAliasMembersSchema } from "./orbital.js";
@@ -80,6 +81,8 @@ export interface SchemaMetadata {
   operatorSites?: Record<string, 'client' | 'server' | 'any'>;
   /** Compiled client programs: the operator-table facts a kernel reads at dispatch. */
   dispatchFacts?: DispatchFacts;
+  /** Compiled client programs: the endpoint protocol table, for a kernel with no installed core. */
+  protocols?: ProtocolSpec[];
 }
 
 /** The operator-table facts a browser kernel reads at dispatch (`emit` busExcluded, `program/dispatch` targetOptions). */
@@ -260,6 +263,7 @@ export const SchemaMetadataSchema = z.object({
   messageSources: z.record(z.string(), z.string()).optional(),
   operatorSites: z.record(z.string(), z.enum(['client', 'server', 'any'])).optional(),
   dispatchFacts: z.object({ busExcluded: z.array(z.string()), targetOptions: z.array(z.string()) }).optional(),
+  protocols: z.array(ProtocolSpecSchema).optional(),
 });
 
 export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, object> = z.object({

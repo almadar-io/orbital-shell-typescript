@@ -30,6 +30,14 @@ describe('hostDispatchInView', () => {
     expect(hostDispatchInView(request('GeneratorTools'), response({ entityByTrait: { PageBuilder: { id: '1' } } }), owns)).toBe(true);
   });
 
+  it('an off-view target whose only owned row is an id-only delta is in view', () => {
+    expect(hostDispatchInView(request('GeneratorTools'), response({ entityByTrait: { PageBuilder: { id: '1' } } }), owns)).toBe(true);
+  });
+
+  it('control: an off-view target with no row, state or paint for an owned trait is not in view', () => {
+    expect(hostDispatchInView(request('GeneratorTools'), response({ entityByTrait: {} }), owns)).toBe(false);
+  });
+
   it('control: an off-view target touching only off-view traits is not in view', () => {
     expect(hostDispatchInView(request('GeneratorTools'), response({ states: { GeneratorTools: 'idle', OtherPage: 'idle' }, entityByTrait: { OtherPage: { id: '1' } } }), owns)).toBe(false);
   });
