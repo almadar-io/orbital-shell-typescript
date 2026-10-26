@@ -395,9 +395,8 @@ fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_on
     let full = serde_json::to_value(schema()).unwrap();
     let client: serde_json::Value =
         serde_json::from_str(file(&files, "packages/client/public/program.client.orb")).unwrap();
-    for key in ["_metadata", "ledger"] {
-        assert!(client.get(key).is_none(), "{key}");
-    }
+    assert!(client.get("ledger").is_none(), "ledger");
+    assert_client_metadata_only(&client);
     assert_eq!(
         client["orbitals"].as_array().map(Vec::len),
         full["orbitals"].as_array().map(Vec::len)
@@ -425,8 +424,16 @@ fn the_client_asset_omits_what_the_client_never_reads_while_the_server_copy_keep
     let asset: serde_json::Value =
         serde_json::from_str(file(&files, "packages/client/public/program.client.orb")).unwrap();
     let server = serde_json::to_value(schema()).unwrap();
-    assert!(asset.get("_metadata").is_none() && asset.get("ledger").is_none());
+    assert!(asset.get("ledger").is_none());
+    assert_client_metadata_only(&asset);
     assert_eq!(server["_metadata"]["version"], 1, "control: {server}");
+}
+
+/// A client program's `_metadata` is only what a browser kernel registers it with, never the server copy's provenance.
+fn assert_client_metadata_only(client: &serde_json::Value) {
+    let keys: Vec<&str> = client["_metadata"].as_object().map(|m| m.keys().map(String::as_str).collect()).unwrap_or_default();
+    assert!(keys.iter().all(|k| ["operatorSites", "dispatchFacts", "protocols"].contains(k)), "{keys:?}");
+    assert!(client["_metadata"].get("version").is_none(), "the provenance stays on the server copy");
 }
 
 #[test]

@@ -127,37 +127,11 @@ pub(crate) fn client_program(program: &serde_json::Value) -> serde_json::Value {
         }
     }
     // A browser kernel has no operator table: the sites of the effects its traits run travel with the program.
-    let mut heads = std::collections::BTreeSet::new();
-    collect_call_heads(root.get("orbitals").unwrap_or(&serde_json::Value::Null), &mut heads);
-    let sites = orbital_core_base::runs_on::operator_sites(heads.iter().map(String::as_str));
-    let mut metadata = serde_json::Map::new();
-    if !sites.is_empty() {
-        metadata.insert("operatorSites".to_string(), serde_json::json!(sites));
-    }
-    if let Some(facts) = orbital_core_base::language::registry::table_dispatch_facts() {
-        metadata.insert("dispatchFacts".to_string(), serde_json::json!(facts));
-    }
-    if let Ok(rows) = orbital_core_base::protocols::table() {
-        metadata.insert("protocols".to_string(), serde_json::json!(rows));
-    }
+    let metadata = orbital_core_base::runs_on::client_program_metadata(root.get("orbitals").unwrap_or(&serde_json::Value::Null));
     if !metadata.is_empty() {
         root.insert("_metadata".to_string(), serde_json::Value::Object(metadata));
     }
     projected
-}
-
-/// Every string at the head of a JSON array under `value`: the operator of each call the program spells.
-fn collect_call_heads(value: &serde_json::Value, heads: &mut std::collections::BTreeSet<String>) {
-    match value {
-        serde_json::Value::Array(items) => {
-            if let Some(serde_json::Value::String(head)) = items.first() {
-                heads.insert(head.clone());
-            }
-            items.iter().for_each(|item| collect_call_heads(item, heads));
-        }
-        serde_json::Value::Object(map) => map.values().for_each(|item| collect_call_heads(item, heads)),
-        _ => {}
-    }
 }
 
 impl TypeScriptBackend {

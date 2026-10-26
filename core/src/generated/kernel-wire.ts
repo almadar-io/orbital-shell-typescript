@@ -518,7 +518,7 @@ export type RunTick = { trait: string, tick: string, };
 
 export type SeedWire = { trait: string, event: string, };
 
-export type ServerEffectCode = "not-found" | "no-row-key" | "duplicate-id" | "denied";
+export type ServerEffectCode = "not-found" | "no-row-key" | "duplicate-id" | "denied" | "derived-failed";
 
 export type ServerEffectKind = "set" | "persist" | "call-service" | "http" | "fetch" | "fetch-stream" | "ref" | "deref" | "swap" | "atomic" | "emit" | "substrate";
 
@@ -716,7 +716,7 @@ function checkRowTotalMode(v: JsonValue | undefined): boolean {
 }
 
 function checkServerEffectCode(v: JsonValue | undefined): boolean {
-  return (v === "not-found" || v === "no-row-key" || v === "duplicate-id" || v === "denied");
+  return (v === "not-found" || v === "no-row-key" || v === "duplicate-id" || v === "denied" || v === "derived-failed");
 }
 
 function checkServerEffectKind(v: JsonValue | undefined): boolean {
