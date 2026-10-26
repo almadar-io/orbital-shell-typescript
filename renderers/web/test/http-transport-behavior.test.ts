@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { OrbitalSchema } from '@almadar/core';
-import { createHttpTransport } from '@almadar/shell-runtime/client/EventTransport';
+import { createHttpTransport, SessionEndedError } from '@almadar/shell-runtime/client/EventTransport';
 
 describe('createHttpTransport — behavior addressing', () => {
   it('stamps the registered schema name on every posted event', async () => {
@@ -23,5 +23,26 @@ describe('createHttpTransport — behavior addressing', () => {
     await transport.register({ name: 'project-friday', orbitals: [] } as OrbitalSchema);
     await transport.send('GlobalSearchOrbital', { event: 'SEARCH', targetTrait: 'GlobalSearchAll' });
     expect(bodies[0]?.['behavior']).toBe('project-friday');
+  });
+});
+
+describe('createHttpTransport — an ended session', () => {
+  const transportAnswering = (status: number, body: Record<string, unknown>) => {
+    const fetchStub = (async (url: string | URL | Request) => {
+      if (String(url).endsWith('/register')) return new Response(JSON.stringify({ success: true, topology: 'stateful' }));
+      return new Response(JSON.stringify(body), { status });
+    }) as typeof fetch;
+    return createHttpTransport({ serverUrl: 'http://x/api/orbitals', fetch: fetchStub });
+  };
+
+  it('throws SessionEndedError when the host answers SESSION_ENDED, so the client re-mounts with its frames', async () => {
+    const transport = transportAnswering(409, { error: 'the session ended', code: 'SESSION_ENDED' });
+    await expect(transport.send('Main', { event: 'READ_BACK', targetTrait: 'Viewer' })).rejects.toBeInstanceOf(SessionEndedError);
+  });
+
+  it('control: any other refusal answers as it does today', async () => {
+    const transport = transportAnswering(404, { error: 'Orbital not found', code: 'ORBITAL_NOT_FOUND' });
+    const answered = await transport.send('Main', { event: 'READ_BACK', targetTrait: 'Viewer' });
+    expect((answered as unknown as { code: string }).code).toBe('ORBITAL_NOT_FOUND');
   });
 });

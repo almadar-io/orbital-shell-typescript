@@ -415,6 +415,8 @@ type EntityFieldBase = {
     /** Runtime-managed widget state (authored `@intrinsic` in `.lolo`). Exempt
      *  from the explicit-binding rule and never a domain-data bind target. */
     intrinsic?: boolean;
+    /** Stored computed field (authored `@derived <expr>` in `.lolo`): the kernel evaluates the expression on every write. */
+    derived?: JsonValue;
     /** Human/semantic description (authored `@description "..."` in `.lolo`).
      *  Authoring/build-time metadata — factory-signature catalog, embeddings,
      *  curation field-matching; the runtime ignores it. */
@@ -586,6 +588,7 @@ export const EntityFieldSchema: z.ZodType<EntityField, unknown> = z.lazy(() => {
         max: z.number().optional(),
         properties: z.record(z.string(), EntityFieldSchema).optional(),
         intrinsic: z.boolean().optional(),
+        derived: JsonValueSchema.optional(),
         description: z.string().optional(),
         synonyms: z.string().optional(),
         mock: z.string().optional(),

@@ -260,6 +260,19 @@ function acquirePushChannel(
   };
 }
 
+/** The host freed this client's session after its live stream dropped: mount again with the frames the client holds (EXEC-DIST-9). */
+export class SessionEndedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SessionEndedError';
+  }
+}
+
+interface RefusalBody {
+  code?: string;
+  error?: string;
+}
+
 export interface HttpTransportOptions {
   serverUrl: string;
   getAccessToken?: AccessTokenProvider;
@@ -374,7 +387,9 @@ export function createHttpTransport(options: HttpTransportOptions): EventTranspo
         getAccessToken,
         compress,
       );
-      return (await res.json()) as OrbitalEventResponse;
+      const body: OrbitalEventResponse & RefusalBody = await res.json();
+      if (res.status === 409 && body.code === 'SESSION_ENDED') throw new SessionEndedError(body.error ?? 'the session ended');
+      return body;
     },
 
     async resolveRows(reference) {

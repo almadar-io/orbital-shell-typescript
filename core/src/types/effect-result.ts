@@ -57,8 +57,8 @@ export interface ServerEffectResult {
    */
   denied?: true;
   error?: string;
-  /** Coded failure reason for a persist that resolved no target row (`not-found`, `no-row-key`), created on a taken id (`duplicate-id`), or was refused by a declared policy (`denied`, EXEC-STEP-8). */
-  code?: "not-found" | "no-row-key" | "duplicate-id" | "denied";
+  /** Coded failure reason for a persist that resolved no target row (`not-found`, `no-row-key`), created on a taken id (`duplicate-id`), or was refused by a declared policy (`denied`), or a `@derived` field could not be computed (`derived-failed`, EXEC-STEP-8). */
+  code?: "not-found" | "no-row-key" | "duplicate-id" | "denied" | "derived-failed";
   /** What the effect addressed: an `http` effect's `<METHOD> <origin><path>`, an `emit` entry's event name. */
   target?: string;
   /** The declared `emit.failure` event the program routed this effect's failure to; absent when it declares none. */
@@ -75,7 +75,7 @@ export const ServerEffectResultSchema: z.ZodType<ServerEffectResult> = z.object(
   success: z.boolean(),
   denied: z.literal(true).optional(),
   error: z.string().optional(),
-  code: z.enum(["not-found", "no-row-key", "duplicate-id", "denied"]).optional(),
+  code: z.enum(["not-found", "no-row-key", "duplicate-id", "denied", "derived-failed"]).optional(),
   target: z.string().optional(),
   routed: z.string().optional(),
 });

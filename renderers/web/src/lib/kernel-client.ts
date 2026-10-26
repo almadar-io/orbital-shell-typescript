@@ -31,6 +31,7 @@ import {
 } from '../kernel/tick-driver';
 import type { TraitIndex } from '@almadar/core';
 import { TraitMountError } from '@almadar/shell-runtime/client/trait-mount-error';
+import { SessionEndedError } from '@almadar/shell-runtime/client/EventTransport';
 import { createLogger } from '@almadar/logger';
 import type { FrameScheduler } from './kernel-frames';
 import { getTraitPresence, presenceGroup } from '../core';
@@ -204,6 +205,30 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     return { legs: [], awaiting: [] };
   };
 
+  // The mount seeds this client ran, per orbital: what a reconnect mounts again.
+  const mountedSeeds = new Map<string, MountSeed[]>();
+
+  /** Send `sent`; when the host freed this client's session, mount again with the frames the client holds, then send it once more. */
+  const sendReseeding = async (
+    k: KernelInstance,
+    orbital: string,
+    sent: OrbitalEventRequest,
+    request: Pick<OrbitalEventRequest, 'locale' | 'entityId'>,
+  ): Promise<OrbitalEventResponse> => {
+    if (transport === undefined) throw new Error('no transport');
+    try {
+      return await transport.send(orbital, sent);
+    } catch (err) {
+      const seeds = mountedSeeds.get(orbital);
+      if (!(err instanceof SessionEndedError) || seeds === undefined || seeds.length === 0) throw err;
+      const reseed: OrbitalEventRequest = JSON.parse(k.reseedLeg(JSON.stringify(seeds), request.entityId));
+      const mounted = await transport.send(orbital, request.locale !== undefined ? { ...reseed, locale: request.locale } : reseed);
+      mirror(mounted);
+      store.notify();
+      return transport.send(orbital, sent);
+    }
+  };
+
   /** Send each planned leg and fold each answer through the kernel. */
   const sendLegs = async (
     k: KernelInstance,
@@ -228,7 +253,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       const base = k.foldBase(sent.entityByTrait !== undefined ? JSON.stringify(sent.entityByTrait) : undefined, JSON.stringify(planned.foldSeeded), sent.entityId);
       let posted: OrbitalEventResponse;
       try {
-        posted = await transport.send(planned.orbital, sent);
+        posted = await sendReseeding(k, planned.orbital, sent, request);
       } catch (err) {
         if (flags.rollback || flags.mount) for (const wire of planned.wires) restore(k, wire, request.entityId);
         throw err instanceof Error ? err : new Error(String(err));
@@ -387,6 +412,10 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         throw new TraitMountError(failed.trait, failed.event, new Error(failed.message));
       }
       const wires = mount.seeds;
+      for (const wire of wires) {
+        const kept = mountedSeeds.get(wire.orbital) ?? [];
+        if (!kept.some((s) => s.trait === wire.seed.trait)) mountedSeeds.set(wire.orbital, [...kept, { trait: wire.seed.trait, event: seeds.find((s) => s.trait === wire.seed.trait)?.event ?? 'INIT' }]);
+      }
       for (const wire of wires) {
         log.debug('mount', { trait: wire.seed.trait, event: wire.seed.event, mode: wire.mode, legs: wire.serverLegs.length, success: wire.response.success });
         trace(wire.response);

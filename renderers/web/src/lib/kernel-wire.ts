@@ -14,6 +14,8 @@ export interface KernelInstance {
   /** The rows a posted leg's answer is folded against; `undefined` when the leg carried none. */
   /** The leg as a host that holds the circuit state takes it: only the `[shared]` frame rows its traits read. */
   statefulLeg(legJson: string): string;
+  /** The mount a reconnecting client posts to rebuild its session: the seeds with the state and frame this client holds for each. */
+  reseedLeg(seedsJson: string, entityId?: string): string;
   foldBase(carriedJson: string | undefined, seededJson: string, entityId?: string): string | undefined;
   dispatchMount(seedsJson: string, entityId?: string, payloadJson?: string): string;
   restore(traitName: string, entityId: string | undefined, snapshotJson: string): string;

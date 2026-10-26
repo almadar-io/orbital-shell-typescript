@@ -254,6 +254,8 @@ export type HttpRequestWire = { method: string, url: string, headers: Array<[str
 
 export type HttpResponseWire = { status: number, headers: Array<[string, string]>, body: HttpBody, };
 
+export type IndexRealization = "runtime" | "deploy" | "none";
+
 export type InstanceRef = { instance: string, orbital: string, trait?: string, };
 
 export type IoAnswerWire = { "kind": "row", result: Settled<EntityRow | null, string>, } | { "kind": "rows", result: Settled<Array<EntityRow>, string>, } | { "kind": "page", result: Settled<RowPage, string>, } | { "kind": "idPage", result: Settled<RowIdPage, string>, } | { "kind": "queryUnsupported", reason: string, } | { "kind": "wrote", result: Settled<Array<RowWriteOutcome>, string>, } | { "kind": "writeUnsupported", reason: string, } | { "kind": "committed", result: Settled<boolean, string>, } | { "kind": "deleted", result: Settled<null, string>, } | { "kind": "service", result: Settled<JsonValue, string>, } | { "kind": "serviceCancelled" } | { "kind": "serviceDeferred" } | { "kind": "cancelled", result: Settled<null, string>, } | { "kind": "substrate", result: Settled<JsonValue, SubstrateFailureWire>, } | { "kind": "http", result: Settled<HttpResponseWire, HttpFailureWire>, } | { "kind": "httpBeacon", result: Settled<BeaconOutcomeWire, HttpFailureWire>, } | { "kind": "pageFacts", result: Settled<PageFactsWire, string>, } | { "kind": "prompt", result: Settled<string, ModelFailureWire>, } | { "kind": "embed", result: Settled<Array<Array<number>>, ModelFailureWire>, } | { "kind": "tab", result: Settled<JsonValue, TabFailure>, } | { "kind": "secret", result: Settled<string | null, string>, } | { "kind": "secretSet", result: Settled<null, string>, } | { "kind": "secretRotate", result: Settled<null, string>, } | { "kind": "random", result: Settled<string, string>, } | { "kind": "clock", result: Settled<number, string>, } | { "kind": "os", result: Settled<JsonValue, OsError>, } | { "kind": "credentialStatus", result: Settled<CredentialStanding, string>, } | { "kind": "credentialForget", result: Settled<null, string>, } | { "kind": "credentialStoreList", result: Settled<StoreListing | null, string>, } | { "kind": "credentialStoreRead", result: Settled<string | null, string>, } | { "kind": "credentialStoreWrite", result: Settled<null, string>, } | { "kind": "credentialStoreRemove", result: Settled<boolean, string>, } | { "kind": "credentialStoreRotate", result: Settled<RotateCounts, string>, } | { "kind": "credentialModeRead", result: Settled<string | null, string>, } | { "kind": "credentialModeWrite", result: Settled<string, string>, } | { "kind": "oauth", result: Settled<OAuthReply, string>, } | { "kind": "deliver", result: Settled<Accepted, DeliverRefusal>, };
@@ -407,7 +409,11 @@ export type QueryCapabilities = { leaves: Array<RowLeafKind>, combinators: Array
 /**
  * `nearest` is pushed down: the store ranks by cosine similarity itself (EXEC-FETCH-2).
  */
-nearest?: boolean, };
+nearest?: boolean, 
+/**
+ * How the driver realizes the entity's declared `@index` paths; absent is `none`.
+ */
+indexes?: IndexRealization, };
 
 export type RenderedNode = { 
 /**
