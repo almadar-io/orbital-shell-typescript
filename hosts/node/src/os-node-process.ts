@@ -101,7 +101,9 @@ export class ProcessOps {
       case 'os/getenv': {
         const name = argStr(args, 0, op);
         this.envGranted(op, name);
-        return { value: this.lookupEnv(name) };
+        // An unset variable has no `value` key, as the operator table declares (`{ value? }`).
+        const value = this.lookupEnv(name);
+        return value === null ? {} : { value };
       }
       case 'os/setenv':
       case 'os/unsetenv':

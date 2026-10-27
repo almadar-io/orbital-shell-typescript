@@ -77,6 +77,14 @@ describe('node host ports', () => {
 
 
 describe('raw Node network asks', () => {
+  it('os/getenv answers no value key for an unset variable, as the table declares { value? } (twin of the Rust os host)', async () => {
+    const host = createNodeOsHost({ allows: () => true, globMatches: () => false, isPublicAddress: () => false, anchor: () => [], resolveArgs: (_op, args) => ({ ok: args }) });
+    try {
+      expect(await host.answer('os/getenv', ['ZZ_NEVER_SET_X'])).toEqual({ ok: {} });
+      expect(await host.answer('os/getenv', ['PATH'])).toEqual({ ok: { value: process.env.PATH } });
+    } finally { host.close(); }
+  });
+
   it('refuses tcp-listen without stream context using the shared canonical host fixture', async () => {
     const fixture: { steps: Array<{ op?: string; key?: string; args?: JsonValue[]; expect?: JsonValue }> } = JSON.parse(readFileSync(new URL('./fixtures/os-asks.json', import.meta.url), 'utf8'));
     const step = fixture.steps.find((entry) => entry.op === 'os/tcp-listen' && entry.key === undefined);
