@@ -46,7 +46,7 @@ window.__r3 = {
     if (!(trait in states)) throw new Error('trait "' + trait + '" has no state after the dispatch');
     const response = wire.response;
     const emits = ((response && response.emittedEvents) || []).map((e) => ({ event: e.event, payload: e.payload === undefined ? null : e.payload }));
-    const step = { trait, event, states, effects: (response && response.clientEffects) || [], emits };
+    const step = { trait, event, states, effects: ((response && response.clientEffectsByTrait) || []).map((frame) => frame.effect), emits };
     return JSON.stringify({ step, ms: performance.now() - t0 });
   },
   close(id) {

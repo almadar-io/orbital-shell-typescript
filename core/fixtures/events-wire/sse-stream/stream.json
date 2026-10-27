@@ -41,26 +41,6 @@
   },
   {
     "data": {
-      "clientEffects": [
-        [
-          "render-ui",
-          "toolbar",
-          {
-            "disabled": true,
-            "label": "Saving…",
-            "type": "button"
-          }
-        ],
-        [
-          "render-ui",
-          "toast",
-          {
-            "title": "Note saved",
-            "type": "toast-slot",
-            "variant": "success"
-          }
-        ]
-      ],
       "clientEffectsByTrait": [
         {
           "effect": [

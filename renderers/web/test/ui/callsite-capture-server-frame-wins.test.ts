@@ -56,7 +56,6 @@ const loaded: OrbitalEventResponse = {
     { traitName: 'Feed', event: 'LOADED', fromState: 'loading', effect: ['render-ui', 'main', { type: 'stack', children: ['@trait.Body'] }] },
     { traitName: 'Body', effect: ['render-ui', 'main', { type: 'timeline', entity: rows, fields: ['title'] }], callsitePayload: { data: rows } },
   ],
-  clientEffects: [],
 };
 
 class Server implements EventTransport {

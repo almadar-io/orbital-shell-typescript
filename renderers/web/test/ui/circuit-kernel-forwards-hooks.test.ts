@@ -50,7 +50,7 @@ describe.each(ENGINES)('useCircuitKernel [%s engine] forwards dispatch hooks', (
     const { result } = renderHook(() => useCircuitKernel([binding], { orbitals, transport: server, carriesCircuitState: true, engine }));
     const painted: string[] = [];
     const done = result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Notes' }, {
-      onLocal: (local) => { painted.push(...(local.clientEffects ?? []).map((e) => String(e[0]))); },
+      onLocal: (local) => { painted.push(...(local.clientEffectsByTrait ?? []).map((e) => String(e.effect[0]))); },
     });
     await new Promise((r) => setTimeout(r, 0));
     expect(painted).toEqual(['render-ui']);

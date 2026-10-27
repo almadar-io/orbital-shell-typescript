@@ -30,7 +30,7 @@ const bindings: ResolvedTraitBinding[] = [{ trait: createEmptyResolvedTrait('Pan
 async function renderedSlot(engine: typeof KERNEL_ENGINE): Promise<string | undefined> {
   const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals, engine }));
   const outcome = await act(async () => result.current.kernel.dispatch({ event: 'OPEN', targetTrait: 'Panel' }));
-  const render = (outcome.response.clientEffects ?? []).find((effect) => effect[0] === 'render-ui');
+  const render = (outcome.response.clientEffectsByTrait ?? []).map((e) => e.effect).find((effect) => effect[0] === 'render-ui');
   return render?.[1];
 }
 

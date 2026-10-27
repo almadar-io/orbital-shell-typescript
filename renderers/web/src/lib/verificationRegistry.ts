@@ -329,7 +329,7 @@ export function recordOrbitalResponse(orbitalName: string, request: OrbitalEvent
     transitioned: response.transitioned,
     emitted: response.emittedEvents.map((e) => ({ event: e.event, ...(e.payload !== undefined ? { payload: e.payload } : {}) })),
     emittedEvents: response.emittedEvents.map((e) => e.event),
-    clientEffects: response.clientEffects?.length ?? 0,
+    clientEffects: response.clientEffectsByTrait?.length ?? 0,
     dataEntities: Object.fromEntries(Object.entries(response.data ?? {}).map(([name, rows]) => [name, rows.length])),
     ...(response.error !== undefined ? { error: response.error } : {}),
     effectResults: serverEffectTraces(response.effectResults),

@@ -50,7 +50,7 @@ import type { TraitState } from '@almadar/shell-runtime/client/trait-types';
 import type { KernelEngine } from '../index';
 import type {
   BusEventSource,
-  ClientEffectTuple,
+  ClientEffectByTrait,
   EntityRow,
   EventPayload,
   OrbitalEventResponse,
@@ -224,8 +224,8 @@ export function useOrbitalPluginHost(): {
 }
 
 /** A dispatch's client effects, painted through the plugin's handlers in order. */
-function paintClientEffects(id: string, effects: readonly ClientEffectTuple[], handlers: Partial<EffectHandlers>): void {
-  for (const effect of effects) {
+function paintClientEffects(id: string, effects: readonly ClientEffectByTrait[], handlers: Partial<EffectHandlers>): void {
+  for (const { effect } of effects) {
     switch (effect[0]) {
       case 'render-ui':
         void handlers.renderUI?.(effect[1], effect[2]);
@@ -546,7 +546,7 @@ function PluginRuntimeMount({
         onError(plugin.id, response.error ?? `${plugin.id}: ${trigger ?? 'tick'} failed`);
       }
       // The kernel answers a dispatch with its client effects; they paint through this plugin's own handlers.
-      if (mockHandlers !== undefined) paintClientEffects(plugin.id, response.clientEffects ?? [], mockHandlers);
+      if (mockHandlers !== undefined) paintClientEffects(plugin.id, response.clientEffectsByTrait ?? [], mockHandlers);
 
       // Outbound: every emit of the run reaches the host bus once, except the
       // plugin's own inbound vocabulary (RELAY RULE), anything outside a
@@ -594,7 +594,7 @@ function PluginRuntimeMount({
       for (const outcome of outcomes) {
         settle(null, outcome.response, undefined);
         void outcome.tickSettled?.then((added) => {
-          if (added !== undefined && mockHandlers !== undefined) paintClientEffects(plugin.id, added.clientEffects ?? [], mockHandlers);
+          if (added !== undefined && mockHandlers !== undefined) paintClientEffects(plugin.id, added.clientEffectsByTrait ?? [], mockHandlers);
         });
       }
     },

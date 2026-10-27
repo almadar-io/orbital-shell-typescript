@@ -69,7 +69,7 @@ describe('recordDispatchVerdict', () => {
     recordDispatchVerdict('Board', 'END_TURN', {
       response: response({
         emittedEvents: [{ event: 'AI_TURN', payload: { turn: 1 } }],
-        clientEffects: [['render-ui', 'main', { type: 'game-shell' }]],
+        clientEffectsByTrait: [{ traitName: 'Board', effect: ['render-ui', 'main', { type: 'game-shell' }] }],
       }),
     });
     const verdict = verdictFor('END_TURN');

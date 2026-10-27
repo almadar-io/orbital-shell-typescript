@@ -7,7 +7,7 @@
  * Key components:
  * - Types: Shared type definitions for effects, patterns, responses
  * - Pattern Resolver: Pattern → Component resolution
- * - Client Effect Executor: Execute clientEffects from server
+ * - Client Effect Executor: Execute clientEffectsByTrait from server
  * - useClientEffects: React hook for effect execution
  * - Data Resolver: Entity data resolution with filtering
  * - Slot Definitions: Inline vs portal slot configuration

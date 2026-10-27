@@ -42,7 +42,7 @@ class HostSession implements ScenarioSession {
     const states: Record<string, string> = { ...(response.states ?? {}) };
     if (!(step.trait in states)) throw new Error(`B1-host: trait "${step.trait}" has no state in the response`);
     const emits: EmitRecord[] = response.emittedEvents.map((e) => ({ event: e.event, payload: toJson(e.payload ?? null) }));
-    const effects: JsonValue[] = (response.clientEffects ?? []).map((tuple) => toJson(tuple));
+    const effects: JsonValue[] = (response.clientEffectsByTrait ?? []).map((frame) => toJson(frame.effect));
     return { trait: step.trait, event: step.event, states, effects, emits };
   }
 

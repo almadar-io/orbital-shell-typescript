@@ -81,7 +81,7 @@ export function recordDispatchVerdict(orbitalName: string, event: string, verdic
   recordServerResponse(orbitalName, event, {
     success: response.success && effectFailures.length === 0,
     transitioned: response.transitioned,
-    clientEffects: response.clientEffects?.length ?? 0,
+    clientEffects: response.clientEffectsByTrait?.length ?? 0,
     dataEntities,
     emittedEvents: response.emittedEvents.map((e) => e.event),
     emitted: response.emittedEvents.map((e) => (e.payload !== undefined ? { event: e.event, payload: e.payload } : { event: e.event })),

@@ -194,8 +194,8 @@ export function VerificationProvider({
         const newState = (payload['newState'] ?? payload['state'] ?? 'unknown') as string;
 
         // Extract client effects from payload
-        const clientEffectsArr = Array.isArray(payload['clientEffects'])
-          ? payload['clientEffects'] as Array<EventPayload>
+        const clientEffectsArr = Array.isArray(payload['clientEffectsByTrait'])
+          ? payload['clientEffectsByTrait'] as Array<EventPayload>
           : [];
         const effects: EffectTrace[] = clientEffectsArr.map((e) => ({
           type: String(e['type'] ?? 'unknown'),

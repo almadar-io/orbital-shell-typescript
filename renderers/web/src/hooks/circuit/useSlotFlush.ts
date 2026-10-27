@@ -11,16 +11,16 @@
  * - `flushSlot` — a GROUPED per-(trait, slot) pattern list, for a caller
  *   that already has one (`useClientTicks`, `useCallsiteCapture`, and the
  *   composer's own per-dispatch flush of `ClientKernelOutcome.response`).
- * - `applyClientEffects` — a FLAT `ClientEffectTuple[]` (optionally
- *   per-trait via `clientEffectsByTrait`), the shape `OrbitalEventResponse`
- *   itself carries; used directly for every kernel dispatch outcome.
+ * - `applyClientEffects` — the per-trait `clientEffectsByTrait` list
+ *   `OrbitalEventResponse` itself carries; used directly for every kernel
+ *   dispatch outcome.
  *
  * @packageDocumentation
  */
 import { useRowSetResolverHandle } from '../../providers/RowSetResolverContext';
 import { notifyRowsChanged } from '../../lib/rows-changed';
 import { useCallback, useMemo, useRef } from 'react';
-import type { ClientEffectByTrait, ClientEffectTuple, EventPayload, PatternNode } from '@almadar/core';
+import type { ClientEffectByTrait, EventPayload, PatternNode } from '@almadar/core';
 import { isNotificationSlot } from '../../lib/slot-definitions';
 import { createLogger } from '@almadar/logger';
 import { convertFnFormLambdasInProps } from '../../lib/fn-form-lambda';
@@ -55,7 +55,6 @@ export interface SlotFlushHandle {
   rollback: (checkpoint: SlotCheckpoint) => void;
   flushSlot: (traitName: string, slot: string, patterns: SlotPatternEntry[], source?: FlushSlotSource) => void;
   applyClientEffects: (
-    clientEffects: readonly ClientEffectTuple[],
     clientEffectsByTrait: ReadonlyArray<ClientEffectByTrait> | undefined,
     onNavigate?: (path: string, params?: Record<string, string>, crumb?: string) => void,
     onNavigateBack?: () => void,
@@ -136,14 +135,13 @@ export function useSlotFlush(
   }, []);
 
   const applyClientEffects = useCallback((
-    clientEffects: readonly ClientEffectTuple[],
     clientEffectsByTrait: ReadonlyArray<ClientEffectByTrait> | undefined,
     onNavigate?: (path: string, params?: Record<string, string>, crumb?: string) => void,
     onNavigateBack?: () => void,
     /**
      * Traits mounted on THIS page (`useCircuitKernel`'s restricted
      * `TraitIndex`). `applyOrbitalEventResponse`'s fold returns
-     * `clientEffects`/`clientEffectsByTrait` verbatim off the server's
+     * `clientEffectsByTrait` verbatim off the server's
      * response with no page filter of its own (a REAL multi-page stateful
      * server initializes every trait it holds, not just this page's) — this
      * is the client-side half of that scoping (Gap #11's "orbital-granular
@@ -155,11 +153,7 @@ export function useSlotFlush(
   ): void => {
     const slots = uiSlotsRef.current;
     const embedded = embeddedTraitsRef.current;
-    const tuples: Array<Partial<ClientEffectByTrait> & { effect: ClientEffectTuple }> = clientEffectsByTrait
-      ? [...clientEffectsByTrait]
-      : clientEffects.map((effect) => ({ effect }));
-
-    for (const { effect, traitName, event, fromState, repaint } of tuples) {
+    for (const { effect, traitName, event, fromState, repaint } of clientEffectsByTrait ?? []) {
       if (traitName !== undefined && activeTraits !== undefined && !activeTraits.has(traitName)) continue;
       const kind = effect[0];
       if (kind === 'render-ui') {

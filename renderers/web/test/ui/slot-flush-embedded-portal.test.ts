@@ -40,7 +40,7 @@ describe('embedded trait rendering to the toast notification slot', () => {
   it('renders in that slot, not in the trait frame (applyClientEffects)', () => {
     const slots = stubSlots();
     const { result } = renderHook(() => useSlotFlush(slots, new Set(['SmsNotify'])));
-    result.current.applyClientEffects([], [effect('toast')]);
+    result.current.applyClientEffects([effect('toast')]);
     expect(slots.updateTraitContent).not.toHaveBeenCalled();
     expect(slots.render).toHaveBeenCalledWith(expect.objectContaining({ target: 'toast', sourceTrait: 'SmsNotify' }));
   });
@@ -60,7 +60,7 @@ describe.each(['center', 'overlay', 'modal', 'drawer'])('embedded trait renderin
   it('fills the trait frame (applyClientEffects)', () => {
     const slots = stubSlots();
     const { result } = renderHook(() => useSlotFlush(slots, new Set(['SmsNotify'])));
-    result.current.applyClientEffects([], [effect(slot)]);
+    result.current.applyClientEffects([effect(slot)]);
     expect(slots.updateTraitContent).toHaveBeenCalledWith('SmsNotify', expect.objectContaining({ pattern: 'alert' }));
     expect(slots.render).not.toHaveBeenCalled();
   });
@@ -78,7 +78,7 @@ describe('control: an embedded trait inline render', () => {
   it('main still fills the trait frame', () => {
     const slots = stubSlots();
     const { result } = renderHook(() => useSlotFlush(slots, new Set(['SmsNotify'])));
-    result.current.applyClientEffects([], [effect('main')]);
+    result.current.applyClientEffects([effect('main')]);
     expect(slots.updateTraitContent).toHaveBeenCalledWith('SmsNotify', expect.objectContaining({ pattern: 'alert' }));
     expect(slots.render).not.toHaveBeenCalled();
   });

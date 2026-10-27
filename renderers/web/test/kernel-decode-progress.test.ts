@@ -32,8 +32,8 @@ describe('decodeProgress on a done response', () => {
       { ...response, emittedEvents: [{ event: 'X', source: { trait: 3 } }] },
       { ...response, transitions: [{ trait: 'a', from: 'x', to: 'y', event: 'e', effects: [{ type: 1, args: [], status: 'executed' }] }] },
       { ...response, transitions: [{ trait: 'a', from: 'x', to: 'y', event: 'e', effects: [{ type: 'set', args: [], status: 'maybe' }] }] },
-      { ...response, clientEffects: [['navigate', 5]] },
-      { ...response, clientEffects: [['render-ui', 'main']] },
+      { ...response, clientEffectsByTrait: [{ traitName: 'a', effect: ['navigate', 5] }] },
+      { ...response, clientEffectsByTrait: [{ traitName: 'a', effect: ['render-ui', 'main'] }] },
       { ...response, rejections: [{ code: 'not-a-code' }] },
       { ...response, states: { Src: 5 } },
       { ...response, dataRefs: { Item: { entityType: 'Item', ids: [1], total: 1, query: {} } } },
@@ -47,7 +47,11 @@ describe('decodeProgress on a done response', () => {
   it('a well-formed response with every nested kind passes', () => {
     const full = {
       ...response,
-      clientEffects: [['render-ui', 'main', { type: 'stack' }], ['navigate', '/a'], ['navigate-back']],
+      clientEffectsByTrait: [
+        { traitName: 'a', effect: ['render-ui', 'main', { type: 'stack' }] },
+        { traitName: 'a', effect: ['navigate', '/a'] },
+        { traitName: 'a', effect: ['navigate-back'] },
+      ],
       transitions: [{ trait: 'a', from: 'x', to: 'y', event: 'e', guardResult: true, effects: [{ type: 'set', args: [1, 'a'], status: 'executed' }] }],
       rejections: [{ code: 'guard-rejected', trait: 'a' }],
       dataRefs: { Item: { entityType: 'Item', ids: ['1'], total: 1, query: { limit: 3 } } },

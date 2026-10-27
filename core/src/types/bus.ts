@@ -292,7 +292,7 @@ export const EmittedEventSchema: z.ZodType<EmittedEvent, object> = z.object({
 // ============================================================================
 
 /**
- * Client-side effect tuple shipped in `OrbitalEventResponse.clientEffects`.
+ * Client-side effect tuple shipped in `OrbitalEventResponse.clientEffectsByTrait`.
  * Restricted to the effect kinds the client knows how to apply to the
  * UI: render-ui (slot mutation, including the `toast` slot that carries
  * what used to be the separate notify effect) and navigate (route change).
@@ -655,16 +655,7 @@ export interface OrbitalEventResponse {
    * results (server wins).
    */
   entityByTrait?: Record<string, EntityRow>;
-  /** Client-side effects to execute (render-ui, navigate). */
-  clientEffects?: ClientEffectTuple[];
-  /**
-   * Same effects as `clientEffects`, paired with the producing trait name.
-   * Consumers that need per-trait attribution (e.g. `<TraitFrame>` resolving
-   * `@trait.X` bindings) read from this field; legacy consumers ignore it
-   * and continue with the flat `clientEffects` array unchanged.
-   *
-   * Same length and ordering as `clientEffects`; entries are 1:1 by index.
-   */
+  /** Client-side effects to execute (render-ui, navigate), each paired with the producing trait name so consumers resolve `@trait.X` bindings. */
   clientEffectsByTrait?: ClientEffectByTrait[];
   /** Results from server-side effects (persist, call-service, set). */
   effectResults?: ServerEffectResult[];
@@ -720,7 +711,6 @@ export const OrbitalEventResponseSchema: z.ZodType<OrbitalEventResponse, object>
   data: z.record(z.string(), z.array(EntityRowSchema)).optional(),
   dataRefs: z.record(z.string(), RowSetRefSchema).optional(),
   entityByTrait: z.record(z.string(), EntityRowSchema).optional(),
-  clientEffects: z.array(ClientEffectTupleSchema).optional(),
   clientEffectsByTrait: z
     .array(z.object({
       traitName: z.string(),

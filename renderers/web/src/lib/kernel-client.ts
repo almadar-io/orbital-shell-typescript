@@ -146,7 +146,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
 
   const restore = (k: KernelInstance, wire: DispatchWire, entityId: string | undefined): ServerEffects => {
     const snapshot: TraitSnapshot | null = wire.snapshot;
-    if (snapshot === null) return { clientEffects: [], clientEffectsByTrait: [] };
+    if (snapshot === null) return { clientEffectsByTrait: [] };
     const trait = wire.seed.trait;
     const repaint = parse<OrbitalEventResponse>(k.restore(trait, entityId, JSON.stringify(snapshot)));
     const frameKey = traitIndex.byName.get(trait)?.frameKey ?? trait;
@@ -156,7 +156,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     else store.frames.delete(frameKey);
     mirror(repaint);
     store.notify();
-    return { clientEffects: repaint.clientEffects ?? [], clientEffectsByTrait: repaint.clientEffectsByTrait ?? [] };
+    return { clientEffectsByTrait: repaint.clientEffectsByTrait ?? [] };
   };
 
   interface Posted {
@@ -239,7 +239,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   ): Promise<Posted> => {
     const out: Posted = {
       response: initial,
-      serverEffects: { clientEffects: [], clientEffectsByTrait: [] },
+      serverEffects: { clientEffectsByTrait: [] },
       success: true,
       rejections: [],
       foldedEmits: [],
@@ -280,15 +280,12 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       const fold = applied.response;
       const delivered = new Set(planned.alreadyDelivered.map(([trait, event]) => `${trait}\u0000${event}`));
       const serverEmits = posted.emittedEvents.filter((e) => !delivered.has(`${e.source?.trait ?? ''}\u0000${e.event}`));
-      const effects = [...(posted.clientEffects ?? []), ...(fold.clientEffects ?? [])];
       const byTrait = [...(posted.clientEffectsByTrait ?? []), ...(fold.clientEffectsByTrait ?? [])];
-      out.serverEffects.clientEffects?.push(...effects);
       out.serverEffects.clientEffectsByTrait?.push(...byTrait);
       out.foldedEmits.push(...serverEmits, ...fold.emittedEvents);
       out.response = {
         ...out.response,
         emittedEvents: [...out.response.emittedEvents, ...serverEmits, ...fold.emittedEvents],
-        clientEffects: [...(out.response.clientEffects ?? []), ...effects],
         clientEffectsByTrait: [...(out.response.clientEffectsByTrait ?? []), ...byTrait],
         effectResults: [...(out.response.effectResults ?? []), ...(fold.effectResults ?? [])],
       };
@@ -385,7 +382,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       const k = await ready;
       if (request.targetTrait === undefined) throw new Error('foldHostDispatch requires request.targetTrait (the seed trait)');
       const mode = parse<DispatchMode>(k.dispatchMode(request.targetTrait));
-      if (!response.success) return { response: { ...response, clientEffects: [], clientEffectsByTrait: [] }, mode };
+      if (!response.success) return { response: { ...response, clientEffectsByTrait: [] }, mode };
       const applied = parse<AppliedWire>(k.applyServerResponse(JSON.stringify(response), '[]'));
       trace(applied.response);
       mirror(response);
@@ -395,7 +392,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       return {
         response: {
           ...response,
-          clientEffects: [...(response.clientEffects ?? []), ...(applied.response.clientEffects ?? [])],
           clientEffectsByTrait: [...(response.clientEffectsByTrait ?? []), ...(applied.response.clientEffectsByTrait ?? [])],
         },
         mode,
@@ -428,7 +424,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         posted: false,
         success: true,
         rejections: [],
-        serverEffects: { clientEffects: [], clientEffectsByTrait: [] },
+        serverEffects: { clientEffectsByTrait: [] },
         emittedEvents: [],
       };
       if (transport === undefined) return outcome;
@@ -447,7 +443,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         outcome.success = outcome.success && posted.success;
         if (posted.error !== undefined) outcome.error = posted.error;
         outcome.rejections.push(...posted.rejections);
-        outcome.serverEffects.clientEffects?.push(...(posted.serverEffects.clientEffects ?? []));
         outcome.serverEffects.clientEffectsByTrait?.push(...(posted.serverEffects.clientEffectsByTrait ?? []));
         outcome.emittedEvents.push(...posted.foldedEmits);
       }

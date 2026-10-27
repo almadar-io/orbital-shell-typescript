@@ -466,16 +466,6 @@ function decodePending(value: JsonValue): PendingRequestWire {
   return { id: whole(value, 'id'), request: decodeRequest(field(value, 'request')) };
 }
 
-/**
- * `clientEffects` and `clientEffectsByTrait` are one list seen twice (same length and order, 1:1 by index):
- * the flat array holds the very effect each frame carries, as the JS runtime builds them.
- */
-function withSharedEffects(response: OrbitalEventResponse): OrbitalEventResponse {
-  const frames = response.clientEffectsByTrait;
-  if (frames === undefined || response.clientEffects?.length !== frames.length) return response;
-  return { ...response, clientEffects: frames.map((frame) => frame.effect) };
-}
-
 export function decodeProgress(json: string): ServerProgressWire {
   const value: JsonValue = JSON.parse(json);
   if (!isRecord(value)) throw new Error('kernel wire: progress is not an object');
@@ -483,7 +473,7 @@ export function decodeProgress(json: string): ServerProgressWire {
   if (status === 'done') {
     const response = field(value, 'response');
     if (!isEventResponse(response)) throw new Error('kernel wire: "response" is not an event response');
-    return { status, response: withSharedEffects(response) };
+    return { status, response };
   }
   if (status === 'await') {
     return { status, flight: whole(value, 'flight'), requests: list(value, 'requests').map(decodePending) };

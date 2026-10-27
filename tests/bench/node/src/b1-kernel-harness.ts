@@ -25,7 +25,7 @@ function toPayload(value: JsonValue | undefined): EventPayload {
 
 function toTraceStep(step: ScenarioStep, response: OrbitalEventResponse, states: Record<string, string>): TraceStep {
   const emits: EmitRecord[] = response.emittedEvents.map((e) => ({ event: e.event, payload: toJson(e.payload ?? null) }));
-  const effects: JsonValue[] = (response.clientEffects ?? []).map((tuple) => toJson(tuple));
+  const effects: JsonValue[] = (response.clientEffectsByTrait ?? []).map((frame) => toJson(frame.effect));
   return { trait: step.trait, event: step.event, states, effects, emits };
 }
 

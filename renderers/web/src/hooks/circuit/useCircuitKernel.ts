@@ -255,7 +255,10 @@ export function useCircuitKernel(
       // Every host this view posts to runs the whole worklist, listeners of a dispatched emit included.
       kernel.setHostFansOut(true);
       // A verifier judges each hop's `@ensures` on the entity before and after it; the kernel records them only then.
-      if (verifierAttached()) kernel.setRecordEntityAfter(true);
+      if (verifierAttached()) {
+        kernel.setRecordEntityAfter(true);
+        kernel.setFrameEffectResults(true);
+      }
       return kernel;
     });
     // A failure surfaces on the first dispatch that awaits it; a circuit with nothing to run never does.

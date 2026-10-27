@@ -38,7 +38,7 @@ describe('useSlotFlush.applyClientEffects — sexpr-typed props', () => {
       fields: ['name'],
       actions: [{ label: 'Submit', event: 'SUBMIT', when }],
     }];
-    result.current.applyClientEffects([], [{ traitName: 'Ledger', effect }]);
+    result.current.applyClientEffects([{ traitName: 'Ledger', effect }]);
     const props = slots.render.mock.calls[0][0].props;
     expect(props.actions[0].when).toEqual(when);
   });
@@ -50,7 +50,7 @@ describe('useSlotFlush.applyClientEffects — sexpr-typed props', () => {
     const effect: ClientEffectTuple = JSON.parse(
       '["render-ui","main",{"type":"data-grid","fields":["name"],"renderItem":["fn","item",{"type":"typography","content":"@item.name"}]}]',
     );
-    result.current.applyClientEffects([], [{ traitName: 'Grid', effect }]);
+    result.current.applyClientEffects([{ traitName: 'Grid', effect }]);
     expect(typeof slots.render.mock.calls[0][0].props.renderItem).toBe('function');
   });
 });

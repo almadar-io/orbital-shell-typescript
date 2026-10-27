@@ -1,11 +1,4 @@
 {
-  "clientEffects": [
-    [
-      "render-ui",
-      "modal",
-      null
-    ]
-  ],
   "clientEffectsByTrait": [
     {
       "effect": [

@@ -70,7 +70,6 @@ describe('useSlotFlush.applyClientEffects — off-page trait filter', () => {
     const slots = stubSlots();
     const { result } = renderHook(() => useSlotFlush(slots, undefined));
     result.current.applyClientEffects(
-      [],
       [renderEffect('OnPageComposer'), renderEffect('OffPageComposer')],
       undefined,
       undefined,
@@ -84,7 +83,6 @@ describe('useSlotFlush.applyClientEffects — off-page trait filter', () => {
     const slots = stubSlots();
     const { result } = renderHook(() => useSlotFlush(slots, undefined));
     result.current.applyClientEffects(
-      [],
       [renderEffect('Anything'), renderEffect('AnythingElse')],
     );
     expect(slots.render).toHaveBeenCalledTimes(2);
@@ -94,7 +92,6 @@ describe('useSlotFlush.applyClientEffects — off-page trait filter', () => {
     const slots = stubSlots();
     const { result } = renderHook(() => useSlotFlush(slots, new Set(['EmbeddedAtom'])));
     result.current.applyClientEffects(
-      [],
       [renderEffect('EmbeddedAtom')],
       undefined,
       undefined,

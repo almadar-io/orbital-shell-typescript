@@ -112,7 +112,7 @@ describe('a call in a follow-on step', () => {
     await arrived;
     expect(dispatched[0]).toMatchObject({ orbitalName: 'App', originClientId: 'tab-1', request: { event: 'ANSWERED', targetTrait: 'Helper' } });
     expect(dispatched[0]?.response.states).toMatchObject({ Helper: 'done' });
-    expect(rendered(dispatched[0]?.response.clientEffects)).toContain('done');
+    expect(rendered(dispatched[0]?.response.clientEffectsByTrait?.map((e) => e.effect))).toContain('done');
   });
 
   it('the calling trait\'s own next step is a follow-on too', async () => {
@@ -120,7 +120,7 @@ describe('a call in a follow-on step', () => {
     await runtime.register(schema());
     const response = await runtime.processOrbitalEvent('App', { event: 'GO', targetTrait: 'Chain', clientId: 'tab-1' });
     expect(response.states).toMatchObject({ Chain: 'building' });
-    expect(rendered(response.clientEffects)).toContain('building');
+    expect(rendered(response.clientEffectsByTrait?.map((e) => e.effect))).toContain('building');
     release();
     await arrived;
     expect(dispatched[0]?.response.states).toMatchObject({ Chain: 'built' });

@@ -1,15 +1,18 @@
 {
-  "clientEffects": [
-    [
-      "navigate",
-      "/notes/:id",
-      {
-        "id": "note-1"
-      },
-      {
-        "crumb": "Grocery list"
-      }
-    ]
+  "clientEffectsByTrait": [
+    {
+      "effect": [
+        "navigate",
+        "/notes/:id",
+        {
+          "id": "note-1"
+        },
+        {
+          "crumb": "Grocery list"
+        }
+      ],
+      "traitName": "NoteCatalog"
+    }
   ],
   "emittedEvents": [],
   "states": {

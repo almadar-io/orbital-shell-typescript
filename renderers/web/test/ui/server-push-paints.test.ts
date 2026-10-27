@@ -186,7 +186,7 @@ describe('a host-run dispatch (a follow-on call\'s outcome)', () => {
     const effect: ClientEffectTuple = ['render-ui', 'main', { type: 'typography', content: 'Built' }];
     server.dispatch?.('BuildOrbital', { event: 'BUILD_DONE', targetTrait: 'Builder' }, {
       success: true, transitioned: true, states: { Builder: 'built' }, emittedEvents: [],
-      clientEffects: [effect], clientEffectsByTrait: [{ traitName: 'Builder', effect, event: 'BUILD_DONE', fromState: 'building' }],
+      clientEffectsByTrait: [{ traitName: 'Builder', effect, event: 'BUILD_DONE', fromState: 'building' }],
     });
     for (let i = 0; i < 10; i += 1) await settle();
     expect(slots.render.mock.calls.map(([arg]) => (arg as { props?: { content?: string } }).props?.content)).toContain('Built');

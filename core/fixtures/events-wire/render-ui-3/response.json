@@ -1,13 +1,16 @@
 {
-  "clientEffects": [
-    [
-      "render-ui",
-      "main",
-      {
-        "direction": "vertical",
-        "type": "stack"
-      }
-    ]
+  "clientEffectsByTrait": [
+    {
+      "effect": [
+        "render-ui",
+        "main",
+        {
+          "direction": "vertical",
+          "type": "stack"
+        }
+      ],
+      "traitName": "NoteCatalog"
+    }
   ],
   "emittedEvents": [],
   "states": {

@@ -63,8 +63,6 @@ export interface EventResponse {
   newState?: string;
   /** Data fetched by server effects (e.g., { Task: [...] }) */
   data?: Record<string, EntityRow[]>;
-  /** Client effects to execute (render-ui, navigate, emit) */
-  clientEffects?: ClientEffect[];
   /** Results of individual effect executions (for debugging) */
   effectResults?: Array<{
     effect: string;

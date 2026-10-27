@@ -1,8 +1,11 @@
 {
-  "clientEffects": [
-    [
-      "navigate-back"
-    ]
+  "clientEffectsByTrait": [
+    {
+      "effect": [
+        "navigate-back"
+      ],
+      "traitName": "NoteCatalog"
+    }
   ],
   "emittedEvents": [],
   "states": {

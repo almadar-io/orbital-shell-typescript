@@ -14,7 +14,7 @@ export interface KernelHandle {
 
 interface WireResponse {
   emittedEvents?: { event: string; payload?: JsonValue }[];
-  clientEffects?: JsonValue[];
+  clientEffectsByTrait?: { effect: JsonValue }[];
 }
 
 interface DispatchWire {
@@ -44,5 +44,5 @@ export function dispatchTraceStep(handle: KernelHandle, traitNames: readonly str
   if (!(step.trait in states)) throw new Error(`trait "${step.trait}" has no state after the dispatch`);
   const response = wire.response;
   const emits: EmitRecord[] = (response?.emittedEvents ?? []).map((e) => ({ event: e.event, payload: e.payload ?? null }));
-  return { trait: step.trait, event: step.event, states, effects: response?.clientEffects ?? [], emits };
+  return { trait: step.trait, event: step.event, states, effects: (response?.clientEffectsByTrait ?? []).map((frame) => frame.effect), emits };
 }

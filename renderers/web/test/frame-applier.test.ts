@@ -52,8 +52,8 @@ function fakePost() {
   const posted: string[] = [];
   const sent: RoutedLeg[] = [];
   const post: FramePostPort = {
-    postDispatch: async (d) => { posted.push(d.trait); return { clientEffects: [], clientEffectsByTrait: [] }; },
-    sendBrowserLeg: async (l) => { sent.push(l); return { clientEffects: [], clientEffectsByTrait: [] }; },
+    postDispatch: async (d) => { posted.push(d.trait); return { clientEffectsByTrait: [] }; },
+    sendBrowserLeg: async (l) => { sent.push(l); return { clientEffectsByTrait: [] }; },
   };
   return { post, posted, sent };
 }
@@ -119,7 +119,7 @@ describe('frame applier', () => {
     const { post, posted } = fakePost();
     const result = await applyFrame(JSON.stringify(owing), kernel, post);
     expect(posted).toEqual(['Editor']);
-    await expect(result.outcomes[1]?.tickSettled).resolves.toEqual({ clientEffects: [], clientEffectsByTrait: [] });
+    await expect(result.outcomes[1]?.tickSettled).resolves.toEqual({ clientEffectsByTrait: [] });
   });
 
   it('a failed post settles to undefined and does not fail the frame', async () => {

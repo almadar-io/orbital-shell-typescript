@@ -69,7 +69,6 @@ const saveResponse: OrbitalEventResponse = {
   transitioned: true,
   states: { ...IDLE_STATES, NotePersistor: 'saved' },
   emittedEvents: [noteSavedEmit],
-  clientEffects: [savingButtonEffect, savedToastEffect],
   clientEffectsByTrait: [
     { traitName: 'NotePersistor', effect: savingButtonEffect },
     { traitName: 'NotePersistor', effect: savedToastEffect },
@@ -84,9 +83,7 @@ const CASES: Record<string, EventWireFixture> = {
       transitioned: true,
       states: IDLE_STATES,
       emittedEvents: [],
-      // Legacy consumers that only read `clientEffects` (no `clientEffectsByTrait`) — attribution omitted on
-      // purpose to fixture that path too.
-      clientEffects: [['render-ui', 'main', { type: 'stack', direction: 'vertical' }]],
+      clientEffectsByTrait: [{ traitName: 'NoteCatalog', effect: ['render-ui', 'main', { type: 'stack', direction: 'vertical' }] }],
     },
   },
 
@@ -97,7 +94,6 @@ const CASES: Record<string, EventWireFixture> = {
       transitioned: true,
       states: IDLE_STATES,
       emittedEvents: [],
-      clientEffects: [['render-ui', 'modal', null]],
       clientEffectsByTrait: [{ traitName: 'NoteCatalog', effect: ['render-ui', 'modal', null] }],
     },
   },
@@ -109,7 +105,7 @@ const CASES: Record<string, EventWireFixture> = {
       transitioned: true,
       states: IDLE_STATES,
       emittedEvents: [],
-      clientEffects: [['navigate', '/notes']],
+      clientEffectsByTrait: [{ traitName: 'NoteCatalog', effect: ['navigate', '/notes'] }],
     },
   },
 
@@ -120,7 +116,7 @@ const CASES: Record<string, EventWireFixture> = {
       transitioned: true,
       states: IDLE_STATES,
       emittedEvents: [],
-      clientEffects: [['navigate', '/notes/:id', { id: 'note-1' }]],
+      clientEffectsByTrait: [{ traitName: 'NoteCatalog', effect: ['navigate', '/notes/:id', { id: 'note-1' }] }],
     },
   },
 
@@ -131,7 +127,7 @@ const CASES: Record<string, EventWireFixture> = {
       transitioned: true,
       states: IDLE_STATES,
       emittedEvents: [],
-      clientEffects: [['navigate', '/notes/:id', { id: 'note-1' }, { crumb: 'Grocery list' }]],
+      clientEffectsByTrait: [{ traitName: 'NoteCatalog', effect: ['navigate', '/notes/:id', { id: 'note-1' }, { crumb: 'Grocery list' }] }],
     },
   },
 
@@ -142,7 +138,7 @@ const CASES: Record<string, EventWireFixture> = {
       transitioned: true,
       states: IDLE_STATES,
       emittedEvents: [],
-      clientEffects: [['navigate-back']],
+      clientEffectsByTrait: [{ traitName: 'NoteCatalog', effect: ['navigate-back'] }],
     },
   },
 
@@ -238,10 +234,6 @@ const CASES: Record<string, EventWireFixture> = {
       transitioned: true,
       states: IDLE_STATES,
       emittedEvents: [],
-      clientEffects: [
-        ['render-ui', 'main', { type: 'data-list', entity: 'Note' }],
-        ['render-ui', 'toolbar', { type: 'button', label: 'New Note' }],
-      ],
       clientEffectsByTrait: [
         { traitName: 'NoteCatalog', effect: ['render-ui', 'main', { type: 'data-list', entity: 'Note' }] },
         { traitName: 'InlineButtonRender3', effect: ['render-ui', 'toolbar', { type: 'button', label: 'New Note' }] },
@@ -256,10 +248,6 @@ const CASES: Record<string, EventWireFixture> = {
       transitioned: true,
       states: { ...IDLE_STATES, NoteForm: 'saved' },
       emittedEvents: [],
-      clientEffects: [
-        ['render-ui', 'main', { type: 'alert', message: 'Saved' }],
-        ['render-ui', 'sidebar', { type: 'data-list', entity: 'Note' }],
-      ],
       clientEffectsByTrait: [
         { traitName: 'NoteForm', effect: ['render-ui', 'main', { type: 'alert', message: 'Saved' }], event: 'SAVE', fromState: 'editing' },
         { traitName: 'NoteCatalog', effect: ['render-ui', 'sidebar', { type: 'data-list', entity: 'Note' }], event: 'REFRESH', fromState: 'idle' },

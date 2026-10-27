@@ -1,22 +1,4 @@
 {
-  "clientEffects": [
-    [
-      "render-ui",
-      "main",
-      {
-        "message": "Saved",
-        "type": "alert"
-      }
-    ],
-    [
-      "render-ui",
-      "sidebar",
-      {
-        "entity": "Note",
-        "type": "data-list"
-      }
-    ]
-  ],
   "clientEffectsByTrait": [
     {
       "effect": [

@@ -1,9 +1,12 @@
 {
-  "clientEffects": [
-    [
-      "navigate",
-      "/notes"
-    ]
+  "clientEffectsByTrait": [
+    {
+      "effect": [
+        "navigate",
+        "/notes"
+      ],
+      "traitName": "NoteCatalog"
+    }
   ],
   "emittedEvents": [],
   "states": {

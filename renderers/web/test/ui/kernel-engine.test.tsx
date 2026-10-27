@@ -119,7 +119,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
   it('posts the kernel leg and paints the server render after the local arm', async () => {
     const server = new Server({
       success: true, transitioned: true, states: { Driver: 'busy' }, emittedEvents: [],
-      clientEffects: [['render-ui', 'main', { type: 'box', className: 'server' }]],
+      clientEffectsByTrait: [{ traitName: 'Driver', effect: ['render-ui', 'main', { type: 'box', className: 'server' }] }],
     });
     const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('persistent', persistBump), transport: server, engine: KERNEL_ENGINE }));
     const painted: string[] = [];
@@ -129,7 +129,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
     expect(server.sent[0]?.traits).toBeUndefined();
     expect(painted).toEqual(['local']);
     expect(outcome.localPainted).toBe(true);
-    expect(outcome.serverEffects?.clientEffects).toEqual([['render-ui', 'main', { type: 'box', className: 'server' }]]);
+    expect(outcome.serverEffects?.clientEffectsByTrait?.map((e) => e.effect)).toEqual([['render-ui', 'main', { type: 'box', className: 'server' }]]);
     expect(result.current.store.states.getState('Driver')?.currentState).toBe('busy');
   });
 
@@ -402,7 +402,7 @@ describeKernel('kernel engine parity', () => {
       const trait: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('T', 'schema'), linkedEntity: 'E' };
       const { result } = renderHook(() => useCircuitKernel([trait], { orbitals: unset, engine }));
       const outcome = await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'T' });
-      const rendered = outcome.response.clientEffects?.[0];
+      const rendered = outcome.response.clientEffectsByTrait?.[0]?.effect;
       const pattern = rendered?.[0] === 'render-ui' ? rendered[2] : null;
       expect(pattern).not.toBeNull();
       expect(pattern !== null && pattern.type === 'input-group' ? pattern.placeholder : 'not an input-group').toBeUndefined();

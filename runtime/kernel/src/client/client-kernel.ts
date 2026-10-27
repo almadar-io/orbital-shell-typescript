@@ -15,13 +15,13 @@ export interface ClientKernelOutcome {
    * added — the local ones were painted before the round trip.
    */
   localPainted?: boolean;
-  serverEffects?: Pick<OrbitalEventResponse, 'clientEffects' | 'clientEffectsByTrait'>;
+  serverEffects?: Pick<OrbitalEventResponse, 'clientEffectsByTrait'>;
   /**
    * A tick-lane dispatch: what its post's fold added on top of the local run,
    * once the post settles (undefined when a newer firing superseded it). The
    * drain never waits on it; the caller paints it when it lands.
    */
-  tickSettled?: Promise<Pick<OrbitalEventResponse, 'clientEffects' | 'clientEffectsByTrait'> | undefined>;
+  tickSettled?: Promise<Pick<OrbitalEventResponse, 'clientEffectsByTrait'> | undefined>;
 }
 
 /** Per-dispatch hooks: `onLocal` sees the locally-evaluated response before its server leg is sent. */
@@ -45,7 +45,7 @@ export interface ClientMountOutcome {
   /** Per-trait effect failures the posted legs reported (`effect-failed`). */
   rejections: TransitionRejection[];
   /** What the posted legs added: the server's effects and the emits the client had not run. */
-  serverEffects: Pick<OrbitalEventResponse, 'clientEffects' | 'clientEffectsByTrait'>;
+  serverEffects: Pick<OrbitalEventResponse, 'clientEffectsByTrait'>;
   emittedEvents: OrbitalEventResponse['emittedEvents'];
 }
 

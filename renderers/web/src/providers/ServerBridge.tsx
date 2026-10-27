@@ -6,12 +6,12 @@
  * When OrbPreview is given a `serverUrl`, this provider:
  * 1. Registers the schema with the server on mount
  * 2. Forwards trait events to the server after local processing
- * 3. Applies server clientEffects (render-ui with entity data) to slots via event bus
+ * 3. Applies server clientEffectsByTrait (render-ui with entity data) to slots via event bus
  * 4. Propagates server-emitted events through the local EventBus
  * 5. Unregisters on unmount
  *
  * Entity data flows through EntityStore. The server response contains
- * both `data` (entity records) and `clientEffects` (render-ui patterns).
+ * both `data` (entity records) and `clientEffectsByTrait` (render-ui patterns).
  * OrbPreview advances EntityStore from response data; SlotContentRenderer
  * subscribes via useEntityRef for reactive resolution.
  *

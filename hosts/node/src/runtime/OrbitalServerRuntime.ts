@@ -1596,7 +1596,7 @@ export class OrbitalServerRuntime {
       }
       onPush?.({ type: 'event', data: emitted });
     }
-    for (const effect of response.clientEffects ?? []) onPush?.({ type: 'effect', data: effect });
+    for (const { effect } of response.clientEffectsByTrait ?? []) onPush?.({ type: 'effect', data: effect });
   }
 
   /**

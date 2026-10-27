@@ -94,28 +94,25 @@ describe('every fixture file parses and validates', () => {
     expect(response?.entityByTrait).toBeDefined();
   });
 
-  it('client-effects-by-trait pairs clientEffects 1:1 with clientEffectsByTrait, same order', () => {
+  it('client-effects-by-trait attributes each effect to its producing trait, in order', () => {
     const { response } = loadEventWireFixture('client-effects-by-trait');
-    expect(response?.clientEffects?.length).toBe(response?.clientEffectsByTrait?.length);
-    response?.clientEffects?.forEach((effect, index) => {
-      expect(response.clientEffectsByTrait?.[index]?.effect).toEqual(effect);
-    });
+    expect(response?.clientEffectsByTrait?.map((frame) => frame.traitName)).toEqual(['NoteCatalog', 'InlineButtonRender3']);
   });
 
   it('render-ui-3 is the one render-ui arity: a slot and a pattern', () => {
-    expect(loadEventWireFixture('render-ui-3').response?.clientEffects?.[0]).toHaveLength(3);
+    expect(loadEventWireFixture('render-ui-3').response?.clientEffectsByTrait?.[0]?.effect).toHaveLength(3);
   });
 
   it('render-ui-clear clears a slot with a null pattern config', () => {
     const { response } = loadEventWireFixture('render-ui-clear');
-    expect(response?.clientEffects?.[0]).toEqual(['render-ui', 'modal', null]);
+    expect(response?.clientEffectsByTrait?.[0]?.effect).toEqual(['render-ui', 'modal', null]);
   });
 
   it('navigate-1/2/3 use the navigate tuple arities 2, 3 and 4; navigate-back is a bare tuple', () => {
-    expect(loadEventWireFixture('navigate-1').response?.clientEffects?.[0]).toHaveLength(2);
-    expect(loadEventWireFixture('navigate-2').response?.clientEffects?.[0]).toHaveLength(3);
-    expect(loadEventWireFixture('navigate-3').response?.clientEffects?.[0]).toHaveLength(4);
-    expect(loadEventWireFixture('navigate-back').response?.clientEffects?.[0]).toEqual(['navigate-back']);
+    expect(loadEventWireFixture('navigate-1').response?.clientEffectsByTrait?.[0]?.effect).toHaveLength(2);
+    expect(loadEventWireFixture('navigate-2').response?.clientEffectsByTrait?.[0]?.effect).toHaveLength(3);
+    expect(loadEventWireFixture('navigate-3').response?.clientEffectsByTrait?.[0]?.effect).toHaveLength(4);
+    expect(loadEventWireFixture('navigate-back').response?.clientEffectsByTrait?.[0]?.effect).toEqual(['navigate-back']);
   });
 
   it('effect-results carries persist + fetch ServerEffectResults', () => {

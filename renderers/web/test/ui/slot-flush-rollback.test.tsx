@@ -45,9 +45,9 @@ const renderMain = (type: 'typography' | 'skeleton', trait = 'Browse'): Array<{ 
 describe('useSlotFlush checkpoint / rollback', () => {
   it('rolls a locally-painted skeleton back to the content the slot held before', () => {
     const h = harness();
-    act(() => { h.flush().applyClientEffects([], renderMain('typography')); });
+    act(() => { h.flush().applyClientEffects(renderMain('typography')); });
     const cp = h.flush().checkpoint();
-    act(() => { h.flush().applyClientEffects([], renderMain('skeleton')); });
+    act(() => { h.flush().applyClientEffects(renderMain('skeleton')); });
     expect(h.slots().slots.main?.pattern).toBe('skeleton');
     act(() => { h.flush().rollback(cp); });
     expect(h.slots().slots.main?.pattern).toBe('typography');
@@ -56,14 +56,14 @@ describe('useSlotFlush checkpoint / rollback', () => {
   it('a slot that held nothing before the paint is cleared on rollback', () => {
     const h = harness();
     const cp = h.flush().checkpoint();
-    act(() => { h.flush().applyClientEffects([], renderMain('skeleton')); });
+    act(() => { h.flush().applyClientEffects(renderMain('skeleton')); });
     act(() => { h.flush().rollback(cp); });
     expect(h.slots().slots.main ?? null).toBeNull();
   });
 
   it('control: rolling back to a checkpoint with no writes since changes nothing', () => {
     const h = harness();
-    act(() => { h.flush().applyClientEffects([], renderMain('typography')); });
+    act(() => { h.flush().applyClientEffects(renderMain('typography')); });
     const cp = h.flush().checkpoint();
     act(() => { h.flush().rollback(cp); });
     expect(h.slots().slots.main?.pattern).toBe('typography');
@@ -71,9 +71,9 @@ describe('useSlotFlush checkpoint / rollback', () => {
 
   it('edge: another trait\'s write in the same slot is restored independently', () => {
     const h = harness();
-    act(() => { h.flush().applyClientEffects([], renderMain('typography', 'Header')); });
+    act(() => { h.flush().applyClientEffects(renderMain('typography', 'Header')); });
     const cp = h.flush().checkpoint();
-    act(() => { h.flush().applyClientEffects([], renderMain('skeleton', 'Browse')); });
+    act(() => { h.flush().applyClientEffects(renderMain('skeleton', 'Browse')); });
     act(() => { h.flush().rollback(cp); });
     expect(h.slots().slots.main?.pattern).toBe('typography');
     expect(h.slots().slots.main?.sourceTrait).toBe('Header');

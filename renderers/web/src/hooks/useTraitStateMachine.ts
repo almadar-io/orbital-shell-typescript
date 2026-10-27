@@ -234,7 +234,6 @@ export function useTraitStateMachine(
     recordDispatchVerdict(traitIndex.byName.get(traitName)?.orbitalName ?? traitName, eventKey, { response: outcome.response });
     const settledEffects = outcome.localPainted && outcome.serverEffects !== undefined ? outcome.serverEffects : outcome.response;
     slotFlush.applyClientEffects(
-      settledEffects.clientEffects ?? [],
       settledEffects.clientEffectsByTrait,
       options.navigate,
       options.navigateBack,
@@ -244,7 +243,7 @@ export function useTraitStateMachine(
     // refetch's render) paints when the post lands.
     void outcome.tickSettled?.then((later) => {
       if (later === undefined) return;
-      slotFlush.applyClientEffects(later.clientEffects ?? [], later.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+      slotFlush.applyClientEffects(later.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
     });
     // The kernel already delivered these to its own listeners; republish for
     // bus subscribers outside it (providers, components, other hook instances).
@@ -273,7 +272,6 @@ export function useTraitStateMachine(
         onLocal: (local) => {
           beforeLocalPaint = slotFlush.checkpoint();
           slotFlush.applyClientEffects(
-            local.clientEffects ?? [],
             local.clientEffectsByTrait,
             options.navigate,
             options.navigateBack,
@@ -296,13 +294,13 @@ export function useTraitStateMachine(
   // listener cascade (its server legs settle on their own and paint when they land).
   const settleFrame = useCallback((outcomes: ClientKernelOutcome[]): void => {
     for (const outcome of outcomes) {
-      slotFlush.applyClientEffects(outcome.response.clientEffects ?? [], outcome.response.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+      slotFlush.applyClientEffects(outcome.response.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
       for (const emitted of outcome.response.emittedEvents) {
         eventBus.emit(`UI:${emitted.event}`, emitted.payload, { ...(emitted.source ?? {}), dispatched: true });
       }
       void outcome.tickSettled?.then((later) => {
         if (later === undefined) return;
-        slotFlush.applyClientEffects(later.clientEffects ?? [], later.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+        slotFlush.applyClientEffects(later.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
       });
     }
   }, [slotFlush, eventBus, options.navigate, options.navigateBack]);
@@ -371,7 +369,7 @@ export function useTraitStateMachine(
       outcome = await kernel.dispatchMount(seeds, {
         onLocal: (_trait, local) => {
           if (beforeLocalPaint === undefined) beforeLocalPaint = slotFlush.checkpoint();
-          slotFlush.applyClientEffects(local.clientEffects ?? [], local.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+          slotFlush.applyClientEffects(local.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
         },
       }, { payload });
     } catch (err: unknown) {
@@ -382,7 +380,7 @@ export function useTraitStateMachine(
       throw err;
     }
     if (!outcome.success && beforeLocalPaint !== undefined) slotFlush.rollback(beforeLocalPaint);
-    slotFlush.applyClientEffects(outcome.serverEffects.clientEffects ?? [], outcome.serverEffects.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+    slotFlush.applyClientEffects(outcome.serverEffects.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
     const emitted = [...outcome.seeds.flatMap((seed) => seed.local.emittedEvents), ...outcome.emittedEvents];
     for (const e of emitted) {
       eventBus.emit(`UI:${e.event}`, e.payload, { ...(e.source ?? {}), dispatched: true });

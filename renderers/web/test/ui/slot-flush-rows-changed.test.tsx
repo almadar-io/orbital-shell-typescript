@@ -30,13 +30,13 @@ function setup() {
 describe('applyClientEffects and rows-changed', () => {
   it('a flagged repaint re-resolves the entity type its content references', () => {
     const { rowsChanged, apply } = setup();
-    apply([], [effect('rows-changed')]);
+    apply([effect('rows-changed')]);
     expect(rowsChanged).toHaveBeenCalledWith('Task');
   });
 
   it('control: the same content painted without the flag re-resolves nothing', () => {
     const { rowsChanged, apply } = setup();
-    apply([], [effect()]);
+    apply([effect()]);
     expect(rowsChanged).not.toHaveBeenCalled();
   });
 });

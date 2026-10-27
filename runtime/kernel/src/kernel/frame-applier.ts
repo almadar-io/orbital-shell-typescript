@@ -75,7 +75,7 @@ export function decodeFrame(json: string | undefined): FrameWire | undefined {
   return value;
 }
 
-export type TickEffects = Pick<OrbitalEventResponse, 'clientEffects' | 'clientEffectsByTrait'>;
+export type TickEffects = Pick<OrbitalEventResponse, 'clientEffectsByTrait'>;
 
 export type FrameDispatch = FrameWire['dispatches'][number];
 
