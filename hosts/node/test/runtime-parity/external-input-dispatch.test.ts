@@ -126,7 +126,8 @@ describeWithMemoryKernel('OrbitalServerRuntime.dispatchEventRequest (program/dis
     const answered = await runtime.dispatchEventRequest('TaskOrbital', { event: 'SAVE', targetTrait: 'TaskPersistor', payload: { title: 'by alice' }, user: ALICE }, false, VIEWER);
     expect(answered.ok && answered.response.success).toBe(true);
     const control = await runtime.dispatchEventRequest('TaskOrbital', { event: 'SAVE', targetTrait: 'TaskPersistor', payload: { title: 'by vic' } }, false, VIEWER);
-    expect(control.ok && control.response.success).toBe(false);
+    expect(control.ok && control.response.success).toBe(true);
+    expect(control.ok && control.response.effectResults?.some((r) => r.denied === true)).toBe(true);
     expect(await tasks(runtime)).toEqual(['by alice']);
   });
 

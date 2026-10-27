@@ -55,13 +55,13 @@ function isDeclaredSExpr(def: PropSchemaNode | undefined): boolean {
 /**
  * Operator-call predicate for substituted arrays, mirroring
  * `BindingResolver.isSExpression` in @almadar/runtime: a string head that is
- * a known std operator, a namespaced `topic/op`, or `lambda`/`let`. Literal
+ * a known std operator (`fn` and `let` included) or a namespaced `topic/op`. Literal
  * data arrays (`["static", ...]`) fail this and pass through raw.
  */
 function isOperatorCall(value: ReadonlyArray<SlotPropValue>): boolean {
   const first = value[0];
   if (typeof first !== "string") return false;
-  return isKnownStdOperator(first) || first.includes("/") || first === "lambda" || first === "let";
+  return isKnownStdOperator(first) || first.includes("/");
 }
 
 export function isFnFormLambda(value: SlotPropValue): value is RenderItemLambda {

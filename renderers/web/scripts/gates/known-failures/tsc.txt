@@ -1,0 +1,2 @@
+# Known H5 failures recorded 2026-10-27 (P-017 step 0). Delete a line when its failure is fixed; the gate fails on any new failure.
+test/helpers/persistence.ts#TS18046#'kernel.MemoryStore' is of type 'unknown'.

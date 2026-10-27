@@ -335,7 +335,7 @@ mod tests {
                     count
                 },
                 OirField::optional("note", OirType::Number),
-            ],
+            ].into(),
         };
         assert_eq!(
             b.map_type_with_enum(&st, None),
@@ -345,7 +345,7 @@ mod tests {
         enum_field.enum_values = Some(ev(&["x", "y"]));
         let st2 = OirType::Struct {
             additional: None,
-            fields: vec![enum_field],
+            fields: vec![enum_field].into(),
         };
         assert_eq!(b.map_type_with_enum(&st2, None), "{ kind: 'x' | 'y' }");
     }
@@ -384,7 +384,7 @@ mod tests {
         enum_field.enum_values = Some(ev(&["x", "y"]));
         let st = OirType::Struct {
             additional: None,
-            fields: vec![enum_field],
+            fields: vec![enum_field].into(),
         };
         assert_eq!(b.payload_struct_ts(&st), "{ kind: 'x' | 'y' }");
     }
@@ -406,7 +406,7 @@ mod tests {
                 f.description = Some("User's email address".to_string());
                 f.constraints = vec![OirConstraint::Email];
                 f
-            }],
+            }].into(),
             defaults: None,
             instances: vec![],
             used_by_traits: vec![],
@@ -458,7 +458,7 @@ mod tests {
                     ];
                     f
                 },
-            ],
+            ].into(),
             defaults: None,
             instances: vec![],
             used_by_traits: vec![],
@@ -508,7 +508,7 @@ mod tests {
                 f.required = false;
                 f.constraints = vec![OirConstraint::Email];
                 f
-            }],
+            }].into(),
             defaults: None,
             instances: vec![],
             used_by_traits: vec![],
@@ -564,7 +564,7 @@ mod tests {
             fields: vec![
                 OirField::new("id", OirType::String),
                 OirField::new("title", OirType::String),
-            ],
+            ].into(),
             defaults: None,
             instances: vec![],
             used_by_traits: vec![],
@@ -599,7 +599,7 @@ mod tests {
                 OirField::new("title", OirType::String),
                 OirField::new("createdAt", OirType::DateTime),
                 OirField::new("updatedAt", OirType::DateTime),
-            ],
+            ].into(),
             defaults: None,
             instances: vec![],
             used_by_traits: vec![],

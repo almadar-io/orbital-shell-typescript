@@ -132,6 +132,83 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
     return runtime;
   };
 
+  // Twin of orbital-core `exec_conc_2_the_kernel_queues_a_request_behind_a_dispatch_parked_on_an_unkeyed_ask`.
+  describe('the kernel orders requests (EXEC-CONC-2)', () => {
+    const laned = (): OrbitalSchema => ({
+      name: 'laned',
+      version: '1.0.0',
+      orbitals: [{
+        name: 'Main',
+        pages: [],
+        entity: { name: 'Job', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+        traits: [
+          { name: 'Asker', linkedEntity: 'Job', stateMachine: {
+            states: [{ name: 'idle', isInitial: true }, { name: 'asked' }],
+            events: [{ key: 'ASK', name: 'ASK' }],
+            transitions: [{ from: 'idle', to: 'asked', event: 'ASK', effects: [['call-service', 'svc', 'work', {}]] }],
+          } },
+          { name: 'Counter', linkedEntity: 'Job', stateMachine: {
+            states: [{ name: 'zero', isInitial: true }, { name: 'one' }],
+            events: [{ key: 'TOUCH', name: 'TOUCH' }],
+            transitions: [{ from: 'zero', to: 'one', event: 'TOUCH' }],
+          } },
+        ],
+      }],
+    });
+
+    it('a request arriving while an unkeyed service call holds the lane runs after that dispatch commits', async () => {
+      let answer: (value: EventPayload) => void = () => undefined;
+      const order: string[] = [];
+      const runtime = await open(laned(), { effectHandlers: { callService: () => new Promise<EventPayload>((resolve) => { answer = resolve; }) } });
+      const asking = runtime.processOrbitalEvent('Main', { event: 'ASK', targetTrait: 'Asker' }).then((r) => { order.push('ASK'); return r; });
+      await new Promise((r) => setTimeout(r, 5));
+      const touching = runtime.processOrbitalEvent('Main', { event: 'TOUCH', targetTrait: 'Counter' }).then((r) => { order.push('TOUCH'); return r; });
+      await new Promise((r) => setTimeout(r, 5));
+      expect(runtime.getState('Main', 'Counter')).toMatchObject({ currentState: 'zero' });
+      answer({ ok: true });
+      const [asked, touched] = await Promise.all([asking, touching]);
+      expect(asked.states).toMatchObject({ Asker: 'asked' });
+      expect(touched.states).toMatchObject({ Counter: 'one' });
+      expect(order).toEqual(['ASK', 'TOUCH']);
+    });
+
+    it('control: with the lane free a request runs at once', async () => {
+      const runtime = await open(laned());
+      const touched = await runtime.processOrbitalEvent('Main', { event: 'TOUCH', targetTrait: 'Counter' });
+      expect(touched.states).toMatchObject({ Counter: 'one' });
+    });
+  });
+
+  // Twin of orbital-core `exec_dist_9_a_clients_frame_is_its_own_session_and_another_client_does_not_overwrite_it`.
+  describe('a client session owns its frames (EXEC-DIST-9)', () => {
+    const drafts = (): OrbitalSchema => ({
+      name: 'drafts',
+      version: '1.0.0',
+      orbitals: [{
+        name: 'Main',
+        pages: [],
+        entity: { name: 'Draft', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'name', type: 'string' }, { name: 'seen', type: 'string' }] },
+        traits: [{ name: 'Editor', linkedEntity: 'Draft', stateMachine: {
+          states: [{ name: 'idle', isInitial: true }],
+          events: [{ key: 'SET', name: 'SET' }, { key: 'LOOK', name: 'LOOK' }],
+          transitions: [
+            { from: 'idle', to: 'idle', event: 'SET', effects: [['set', '@entity.name', '@payload.name']] },
+            { from: 'idle', to: 'idle', event: 'LOOK', effects: [['set', '@entity.seen', '@entity.name']] },
+          ],
+        } }],
+      }],
+    });
+    const seen = (response: { entityByTrait?: Record<string, EventPayload> }): EventPayload[string] | undefined => response.entityByTrait?.['Editor']?.['seen'];
+
+    it('another client\'s dispatch does not overwrite a client\'s frame', async () => {
+      const runtime = await open(drafts());
+      await runtime.processOrbitalEvent('Main', { event: 'SET', targetTrait: 'Editor', clientId: 'tab-a', payload: { name: 'app' } });
+      await runtime.processOrbitalEvent('Main', { event: 'SET', targetTrait: 'Editor', clientId: 'tab-b', payload: { name: 'cli' } });
+      expect(seen(await runtime.processOrbitalEvent('Main', { event: 'LOOK', targetTrait: 'Editor', clientId: 'tab-a' }))).toBe('app');
+      expect(seen(await runtime.processOrbitalEvent('Main', { event: 'LOOK', targetTrait: 'Editor', clientId: 'tab-b' }))).toBe('cli');
+    });
+  });
+
   it('runs a persisting dispatch through the persistence adapter', async () => {
     const persistence = await nativeMemory();
     const runtime = await open(notes(), { persistence });
@@ -385,15 +462,6 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
       inFlightCalls.cancel('job');
       await new Promise((r) => setTimeout(r, 5));
       expect(outcomes.map((o) => [o.event, o.payload])).toEqual([['FAILED', { error: 'model down' }], ['STOPPED', { key: 'job' }]]);
-    });
-
-    it('a service call releases the event queue around the provider', async () => {
-      const order: string[] = [];
-      const p = ports({ callService: async () => { order.push('call'); return { ok: true }; } });
-      await answerRequest(p, { kind: 'callService', service: 's', method: 'm', args: {} }, scope({
-        outsideEventQueue: async (work) => { order.push('release'); const v = await work(); order.push('reacquire'); return v; },
-      }));
-      expect(order).toEqual(['release', 'call', 'reacquire']);
     });
 
     it('a substrate operator is refused without a program host, and carries issues when it fails', async () => {

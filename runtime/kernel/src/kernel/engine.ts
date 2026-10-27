@@ -4,11 +4,21 @@
  * and nothing else. The continuation of a stopped dispatch never leaves the wasm instance.
  */
 import { installKernelEvaluator, isEntityReferenceAny, EventStreamItemSchema, MountSeedSchema, type MountSeed, type EventPayload, type EventStreamItem, type MessageCatalogs, type OrbitalEventRequest, type OrbitalEventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext } from '@almadar/core';
-import { DispatchLane } from './lane.js';
-import { decodeProgress, decodeResolveProgress } from './decode.js';
+import { LaneHeldByParkedDispatch } from './lane.js';
+import { decodeNext, decodeProgress, decodeResolveProgress } from './decode.js';
 import { answerRequest, declareCapabilities, type KernelAnswerScope, type KernelHostPorts } from './host.js';
 import type { OsCompletionEvent } from './os-port.js';
-import type { IoReplyWire, KernelModule, KernelServerHandle } from './wire.js';
+import type { IoReplyWire, KernelModule, KernelServerHandle, ServerProgressWire } from './wire.js';
+
+/** Where a dispatch stands once the kernel runs it, with the stream of a finished one read the moment it finished. */
+type Running = { progress: Exclude<ServerProgressWire, { status: 'queued' }>; stream: string | undefined };
+
+/** Work the kernel queued behind the lane: settled when the kernel runs it (`next`). */
+interface Turn {
+  readonly streams: boolean;
+  readonly ran: (running: Running) => void;
+  readonly failed: (error: Error) => void;
+}
 
 function declaredEntityTypes(schema: OrbitalSchema): string[] {
   return schema.orbitals.flatMap((orbital) =>
@@ -17,7 +27,7 @@ function declaredEntityTypes(schema: OrbitalSchema): string[] {
 
 export class KernelEngine {
   private handle: KernelServerHandle;
-  private readonly lane = new DispatchLane();
+  private readonly turns = new Map<number, Turn>();
   private tickMount: string[] = [];
   private messages: { locales: readonly string[]; catalogs: MessageCatalogs } = { locales: [], catalogs: {} };
 
@@ -139,6 +149,16 @@ export class KernelEngine {
     return this.handle.osResolveArgs(op, argsJson);
   }
 
+  /** A live stream of `client`'s session opened (EXEC-DIST-9); the id closes it. */
+  openSessionStream(client: string): number {
+    return this.handle.openSessionStream(client);
+  }
+
+  /** The live stream `id` dropped: the kernel frees the session once its streams have all dropped and it is quiet. */
+  closeSessionStream(id: number): boolean {
+    return this.handle.closeSessionStream(id);
+  }
+
   /** The current state of a trait instance, `''` when it has none. */
   stateOf(traitName: string, entityId?: string): string {
     return this.handle.getState(traitName, entityId);
@@ -169,33 +189,73 @@ export class KernelEngine {
     return { rows: progress.rows, total: progress.total };
   }
 
-  /** Run `request` against `orbital`: start it, answer every request the kernel asks for, resume until done. */
+  /**
+   * Run `request` against `orbital`. The kernel orders every start and every resumption (EXEC-CONC-2): while another
+   * dispatch holds the lane it answers `queued` and runs the work itself once the lane frees; this host only answers
+   * what each dispatch asks.
+   */
   async evaluate(orbital: string, request: OrbitalEventRequest, scope: KernelAnswerScope): Promise<OrbitalEventResponse> {
-    const guard = await this.lane.enter();
+    const handle = this.handle;
+    const streams = scope.onStream !== undefined;
+    let running = await this.ran(handle.start(orbital, JSON.stringify(request)), streams);
     try {
-      const handle = this.handle;
-      let progress = decodeProgress(handle.start(orbital, JSON.stringify(request)));
-      while (progress.status === 'await') {
-        const { flight, requests } = progress;
+      while (running.progress.status === 'await') {
+        const { flight, requests } = running.progress;
+        const assertReentry = (): void => {
+          if (handle.holdsLane(flight)) throw new LaneHeldByParkedDispatch(flight, request.event);
+        };
         let replies: IoReplyWire[];
-        guard.park(request.event);
         try {
           replies = await Promise.all(
-            requests.map(async (pending) => ({ id: pending.id, answer: await answerRequest(this.ports, pending.request, { ...scope, assertReentry: () => this.lane.assertCanReenter(guard.turn) }) })),
+            requests.map(async (pending) => ({ id: pending.id, answer: await answerRequest(this.ports, pending.request, { ...scope, assertReentry }) })),
           );
         } catch (error) {
           handle.abandon(flight);
           throw error;
         }
-        guard.resume();
-        progress = decodeProgress(handle.resume(flight, JSON.stringify(replies)));
+        running = await this.ran(handle.resume(flight, JSON.stringify(replies)), streams);
       }
-      if (scope.onStream !== undefined) {
-        const items = EventStreamItemSchema.array().parse(JSON.parse(handle.dispatchStream()));
-        for (const item of items) scope.onStream(item);
+    } finally {
+      this.runQueued();
+    }
+    if (scope.onStream !== undefined && running.stream !== undefined) {
+      const items = EventStreamItemSchema.array().parse(JSON.parse(running.stream));
+      for (const item of items) scope.onStream(item);
+    }
+    return running.progress.response;
+  }
+
+  /** The kernel's answer to a start or resume, once it has run: at once, or when the kernel takes it from its queue. */
+  private ran(json: string, streams: boolean): Running | Promise<Running> {
+    const progress = decodeProgress(json);
+    if (progress.status !== 'queued') return this.running(progress, streams);
+    const turn = new Promise<Running>((ran, failed) => {
+      this.turns.set(progress.ticket, { streams, ran, failed });
+    });
+    // A waiter never relies on one holder's `finally` alone: if the lane is already free, its turn runs now.
+    queueMicrotask(() => this.runQueued());
+    return turn;
+  }
+
+  private running(progress: Exclude<ServerProgressWire, { status: 'queued' }>, streams: boolean): Running {
+    return { progress, stream: streams && progress.status === 'done' ? this.handle.dispatchStream() : undefined };
+  }
+
+  /** Run each piece of queued work that can run now, in the kernel's order, handing each to the dispatch it continues. */
+  private runQueued(): void {
+    for (;;) {
+      const next = decodeNext(this.handle.next());
+      if (next === null) return;
+      const turn = this.turns.get(next.ticket);
+      if (turn === undefined) throw new Error(`kernel wire: the kernel ran ticket ${next.ticket}, which nothing waits on`);
+      this.turns.delete(next.ticket);
+      if (next.outcome === 'failed') {
+        turn.failed(new Error(next.error));
+        continue;
       }
-      return progress.response;
-    } finally { guard.release(); }
+      if (next.progress.status === 'queued') throw new Error('kernel wire: the kernel queued work it was running');
+      turn.ran(this.running(next.progress, turn.streams));
+    }
   }
 }
 
@@ -204,7 +264,6 @@ export interface KernelEvaluation {
   engine: KernelEngine;
   /** The orbital the request is addressed to. */
   orbital: string;
-  outsideEventQueue?: <T>(work: () => Promise<T>) => Promise<T>;
   onStream?: (item: EventStreamItem) => void;
 }
 
@@ -256,6 +315,5 @@ export async function evaluateOnKernel(
         kernel.onStream?.({ ...item, data: withOriginClient(item.data, request.clientId) });
       } else kernel.onStream?.(item);
     } } : {}),
-    ...(kernel.outsideEventQueue !== undefined ? { outsideEventQueue: kernel.outsideEventQueue } : {}),
   }), request.clientId);
 }

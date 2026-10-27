@@ -155,72 +155,8 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
   let transport: EventTransport | undefined;
   const listeners = new Set<InputDispatchListener>();
 
-  // The host holds one circuit, so it runs one request at a time, in arrival order (EXEC-CONC-1: the lane is a FIFO
-  // ticket queue); the request that is running is never interrupted.
-  // The host's one running slot. The turn that holds it may release it while it awaits something
-  // outside the host (`outsideEventQueue`) and takes a new slot, at the back of the lane, afterwards.
-  interface Turn { id: number; lane: Array<(free: () => void) => void>; held: boolean; done: boolean; release: () => void }
-  let turns = 0;
-  type Lane = Turn['lane'];
-  const lane: Lane = [];
-  let pumping = false;
-  let running: Turn | undefined;
-  const pump = async (): Promise<void> => {
-    if (pumping) return;
-    pumping = true;
-    for (let grant = lane.shift(); grant !== undefined; grant = lane.shift()) {
-      await new Promise<void>(grant);
-    }
-    pumping = false;
-  };
-  const take = (turn: Turn): Promise<void> =>
-    new Promise<void>((taken) => {
-      queueLog.debug('queue:wait', { turn: turn.id, running: running?.id });
-      turn.lane.push((free) => {
-        turn.held = true;
-        running = turn;
-        queueLog.debug('queue:take', { turn: turn.id });
-        turn.release = () => {
-          queueLog.debug('queue:release', { turn: turn.id });
-          turn.held = false;
-          if (running === turn) running = undefined;
-          free();
-        };
-        taken();
-      });
-      void pump();
-    });
-  const enqueue = async <T>(lane: Lane, work: () => Promise<T>): Promise<T> => {
-    const turn: Turn = { id: ++turns, lane, held: false, done: false, release: () => undefined };
-    await take(turn);
-    try {
-      return await work();
-    } finally {
-      turn.done = true;
-      if (turn.held) turn.release();
-    }
-  };
-  const serially = <T>(work: () => Promise<T>): Promise<T> => enqueue(lane, work);
-
-  // A call-service awaits its provider with the slot released, so a slow service never stalls a view's
-  // request and a provider may dispatch into the app; the slot is re-taken, in the turn's own lane, before
-  // the transition continues.
-  const outsideEventQueue = async <T>(work: () => Promise<T>): Promise<T> => {
-    const turn = running;
-    queueLog.debug('queue:outside', { turn: turn?.id, held: turn?.held });
-    if (turn === undefined || !turn.held) return work();
-    turn.release();
-    try {
-      return await work();
-    } finally {
-      await take(turn);
-    }
-  };
-
-  const servicePorts: KernelHostPorts['servicePorts'] = (caller, user, message) => {
-    // A dispatch made while the lending request still runs is part of that request (a tool loop);
-    // one made after it finished (a watch reporting later) is a new request and takes its turn.
-    const lentBy = running;
+  // The kernel orders every request (EXEC-CONC-2): this host sends each as it arrives and never holds a turn.
+  const servicePorts: KernelHostPorts['servicePorts'] = (caller, user, message, assertReentry) => {
     return {
       caller,
       inputs: () => externalInputsOf(schema),
@@ -228,9 +164,9 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
       dispatchInput: (orbital, request) => {
         const host = transport;
         if (!host) return Promise.reject(new Error('openBrowserHost: the host is not open yet'));
-        const send = (o: string, r: OrbitalEventRequest) => (lentBy !== undefined && lentBy.held && !lentBy.done ? host.send(o, r) : serially(() => host.send(o, r)));
+        assertReentry?.();
         return dispatchDeclaredInput(schema, orbital, { ...request, ...(user !== undefined ? { user } : {}) }, async (o, r) => {
-          const response = await send(o, r);
+          const response = await host.send(o, r);
           for (const listener of listeners) listener(o, r, response);
           return response;
         });
@@ -252,9 +188,9 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
     ...(options.onDevice !== undefined ? { onDevice: options.onDevice } : {}),
     ...(options.tabs !== undefined ? { tabs: options.tabs } : {}),
   });
-  const local = createLocalStoreTransport({ kernelEngine, outsideEventQueue });
+  const local = createLocalStoreTransport({ kernelEngine });
   transport = local;
-  // A follow-on call's outcome runs as a dispatch of its own, at the back of the lane, and shows in open views.
+  // A follow-on call's outcome runs as a dispatch of its own, which the kernel queues behind the lane, and shows in open views.
   deferred = (call) => {
     const request: OrbitalEventRequest = {
       event: call.event,
@@ -265,8 +201,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
       ...(call.user !== undefined ? { user: call.user } : {}),
       ...(call.locale !== undefined ? { locale: call.locale } : {}),
     };
-    void serially(async () => {
-      const response = await local.send(call.orbital, request);
+    void local.send(call.orbital, request).then((response) => {
       for (const listener of listeners) listener(call.orbital, request, response);
     }).catch((error: Error) => {
       queueLog.error('deferred-outcome:failed', { orbital: call.orbital, event: call.event, trait: call.traitName, error: error.message });
@@ -290,8 +225,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
           targetTrait: entry.traitDef.name,
           tick: tick.name,
         };
-        void serially(async () => {
-          const response = await local.send(entry.orbitalName, request);
+        void local.send(entry.orbitalName, request).then((response) => {
           if (response.transitioned) for (const listener of listeners) listener(entry.orbitalName, request, response);
         }).catch((error: Error) => {
           tickLog.error('tick:failed', { orbital: entry.orbitalName, trait: entry.traitDef.name, tick: tick.name, error: error.message });
@@ -309,7 +243,6 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
 
   return {
     ...local,
-    send: (orbitalName, request) => serially(() => local.send(orbitalName, request)),
     onInputDispatched(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

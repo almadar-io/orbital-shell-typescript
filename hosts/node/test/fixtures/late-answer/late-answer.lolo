@@ -10,7 +10,7 @@ orbital LateOrbital {
     id : string!
   }
 
-  trait Late -> LateRun [integration] {
+  trait Late -> LateRun {
     initial: ready
 
     state ready {

@@ -81,8 +81,6 @@ export interface LocalStoreTransportOptions {
   kernelEngine: KernelEngine | Promise<KernelEngine>;
   /** The viewer every request runs as, or its promise while the host resolves it. */
   user?: UserContext | Promise<UserContext | undefined>;
-  /** Releases the host's request queue while a `call-service` awaits its provider. */
-  outsideEventQueue?: <T>(work: () => Promise<T>) => Promise<T>;
   /** The program the kernel runs; given, the transport resolves row-set references on that kernel. */
   schema?: OrbitalSchema;
 }
@@ -90,11 +88,7 @@ export interface LocalStoreTransportOptions {
 export function createLocalStoreTransport(options: LocalStoreTransportOptions): EventTransport {
   return createInProcessTransport(
     async (orbital: string, request: OrbitalEventRequest) => evaluateOnKernel(
-      {
-        engine: await options.kernelEngine,
-        orbital,
-        ...(options.outsideEventQueue !== undefined ? { outsideEventQueue: options.outsideEventQueue } : {}),
-      },
+      { engine: await options.kernelEngine, orbital },
       request,
       await options.user,
       request.locale,

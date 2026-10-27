@@ -105,8 +105,6 @@ export interface KernelAnswerScope {
   originClientId?: string;
   locale?: string;
   entityId?: string;
-  /** Runs `work` with the host's event queue released (a service call must not hold the next event). */
-  outsideEventQueue?: <T>(work: () => Promise<T>) => Promise<T>;
   onStream?: (item: EventStreamItem) => void;
   assertReentry?: () => void;
 }
@@ -166,7 +164,7 @@ async function callService(
     return outcome.cancelled ? { kind: 'serviceCancelled' } : { kind: 'service', result: { ok: outcome.value } };
   };
   try {
-    return await (scope.outsideEventQueue !== undefined ? scope.outsideEventQueue(run) : run());
+    return await run();
   } catch (error) {
     return { kind: 'service', result: { error: failureMessage(error) } };
   }
@@ -383,7 +381,7 @@ async function http(ports: KernelHostPorts, request: HttpAsk, scope: KernelAnswe
     return outcome.cancelled ? { kind: 'serviceCancelled' } : httpAnswer(outcome.value);
   };
   try {
-    return await (scope.outsideEventQueue !== undefined ? scope.outsideEventQueue(run) : run());
+    return await run();
   } catch (error) {
     return { kind: 'http', result: { error: { kind: 'failed', message: failureMessage(error) } } };
   }
@@ -401,7 +399,7 @@ async function httpBeacon(ports: KernelHostPorts, request: Extract<IoRequestWire
     return outcome.cancelled ? { kind: 'serviceCancelled' } : outcome.value;
   };
   try {
-    return await (scope.outsideEventQueue !== undefined ? scope.outsideEventQueue(run) : run());
+    return await run();
   } catch (error) {
     return { kind: 'httpBeacon', result: { error: { kind: 'failed', message: failureMessage(error) } } };
   }
@@ -420,7 +418,7 @@ async function onDeviceModel(ports: KernelHostPorts, request: Extract<IoRequestW
     return outcome.cancelled ? { kind: 'serviceCancelled' } : outcome.value;
   };
   try {
-    return await (scope.outsideEventQueue !== undefined ? scope.outsideEventQueue(run) : run());
+    return await run();
   } catch (error) {
     const failure = error instanceof OnDeviceModelFailure ? { kind: error.kind, message: error.message } : { kind: 'failed' as const, message: failureMessage(error) };
     return request.kind === 'prompt' ? { kind: 'prompt', result: { error: failure } } : { kind: 'embed', result: { error: failure } };
@@ -457,7 +455,7 @@ async function tab(ports: KernelHostPorts, request: Extract<IoRequestWire, { kin
     const outcome = await ports.inFlightCalls.run(key, (signal) => untilAborted(signal, perform(signal)));
     return outcome.cancelled ? { kind: 'serviceCancelled' } : outcome.value;
   };
-  return scope.outsideEventQueue !== undefined ? scope.outsideEventQueue(run) : run();
+  return run();
 }
 
 /** `pageFacts`: the requested facts read from the page this host runs in; no window or document is `available: false`. */

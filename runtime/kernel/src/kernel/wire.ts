@@ -15,6 +15,7 @@ export type {
   IoAnswerWire,
   IoReplyWire,
   IoRequestWire,
+  NextWire,
   PendingRequestWire,
   ResolveProgressWire,
   ServerProgressWire,
@@ -26,6 +27,14 @@ export type {
 export interface KernelServerHandle {
   start(orbital: string, requestJson: string): string;
   resume(flight: number, repliesJson: string): string;
+  /** The oldest request the kernel queued, started now the lane is free: a `NextWire` as JSON, or `null`. */
+  next(): string;
+  /** Whether `flight` is a dispatch parked holding the lane. */
+  holdsLane(flight: number): boolean;
+  /** A live stream of `client`'s session opened (EXEC-DIST-9); answers the id that closes it. */
+  openSessionStream(client: string): number;
+  /** The live stream `id` dropped; the kernel frees its session once all have dropped and it is quiet. */
+  closeSessionStream(id: number): boolean;
   dispatchStream(): string;
   liveItemDelivered(itemJson: string, viewerJson: string, clientId?: string): boolean;
   /** A row-set reference resolved for a viewer through the host-answered store; a `ResolveProgressWire` as JSON. */

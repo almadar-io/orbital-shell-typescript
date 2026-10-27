@@ -10,12 +10,6 @@
 // via dynamic import — same keep-it-out-of-the-browser-bundle idiom as
 // `@almadar/server` below.
 import type { AsyncLocalStorage as BracketAsyncLocalStorage } from "node:async_hooks";
-
-/** One context's hold on the runtime event queue; released while it awaits a service. */
-interface EventQueueHold {
-  held: boolean;
-  release: () => void;
-}
 import { EventBus } from "@almadar/shell-runtime";
 import { eventRouteKey } from "@almadar/shell-runtime";
 import { stampEmitSource } from "@almadar/shell-runtime";
@@ -721,11 +715,16 @@ export class OrbitalServerRuntime {
         const clientId = typeof options['clientId'] === 'string' ? options['clientId'] : undefined;
         return {
           subscribe: (message) => {
+            const engine = this.requireKernelEngine();
+            const stream = clientId !== undefined ? engine.openSessionStream(clientId) : undefined;
             const receive = (item: LiveBroadcastItem): void => {
-              if (this.requireKernelEngine().liveItemDelivered(item, viewer, clientId)) message(JSON.parse(JSON.stringify({ event: item.event, ...(item.payload !== undefined ? { payload: item.payload } : {}), source: item.source })));
+              if (engine.liveItemDelivered(item, viewer, clientId)) message(JSON.parse(JSON.stringify({ event: item.event, ...(item.payload !== undefined ? { payload: item.payload } : {}), source: item.source })));
             };
             this.liveSubscribers.add(receive);
-            return () => { this.liveSubscribers.delete(receive); };
+            return () => {
+              this.liveSubscribers.delete(receive);
+              if (stream !== undefined) engine.closeSessionStream(stream);
+            };
           },
         };
       },
@@ -809,9 +808,7 @@ export class OrbitalServerRuntime {
     for (const [registered, mount] of batches) {
       const first = mount[0];
       if (first === undefined) continue;
-      const response = await this.enqueueEvent((hold) =>
-        this.evaluateForOrbital(registered, { event: first.event, mount, payload: {} }, undefined, hold),
-      );
+      const response = await this.evaluateForOrbital(registered, { event: first.event, mount, payload: {} });
       if (!response.success) {
         throw new Error(`OrbitalServerRuntime: the boot mount of orbital "${registered.schema.name}" failed: ${response.error ?? 'the kernel refused it'}`);
       }
@@ -1452,9 +1449,7 @@ export class OrbitalServerRuntime {
       this.recordMount(orbitalName, request, true);
     }
 
-    const response = await this.enqueueEvent((queueHold) =>
-      this.evaluateForOrbital(registered, request, onPush, queueHold),
-    );
+    const response = await this.evaluateForOrbital(registered, request, onPush);
 
     // T6: a tick-stamped dispatch is a latest-state broadcast — queue it for
     // coalesced snapshot relay to other tabs. Local processing above is
@@ -1484,15 +1479,13 @@ export class OrbitalServerRuntime {
   }
 
   /**
-   * The enqueued critical section behind `processOrbitalEvent`: evaluate
-   * one request through the composition, then relay its emits to
-   * cross-orbital listeners. MUST only run holding the event queue.
+   * One request evaluated on the kernel, which orders it among every other (EXEC-CONC-2), then its emits relayed
+   * to the host sinks.
    */
   private async evaluateForOrbital(
     registered: RegisteredOrbital,
     request: OrbitalEventRequest,
     onPush?: (item: PushItem) => void,
-    queueHold?: EventQueueHold,
   ): Promise<OrbitalEventResponse> {
     const orbitalName = registered.schema.name;
     // Trace every server-side event entry. If the runtime path is
@@ -1569,7 +1562,7 @@ export class OrbitalServerRuntime {
     // composition). Leaving on-page listeners to the client left this
     // host's held state stale (G-RUNTIME-042).
     const response = await evaluateOnKernel(
-      { engine: this.requireKernelEngine(), orbital: registered.schema.name, ...(onPush !== undefined ? { onStream: (item: EventStreamItem): void => { if (item.type === 'event' || item.type === 'effect') onPush(item); } } : {}), outsideEventQueue: <T,>(work: () => Promise<T>): Promise<T> => this.outsideEventQueue(queueHold, work) },
+      { engine: this.requireKernelEngine(), orbital: registered.schema.name, ...(onPush !== undefined ? { onStream: (item: EventStreamItem): void => { if (item.type === 'event' || item.type === 'effect') onPush(item); } } : {}) },
       serverRequest,
       viewer,
       request.locale,
@@ -1599,65 +1592,8 @@ export class OrbitalServerRuntime {
     for (const { effect } of response.clientEffectsByTrait ?? []) onPush?.({ type: 'effect', data: effect });
   }
 
-  /**
-   * The runtime-wide event queue — ONE async serialization point for every
-   * composition run (requests, cross-orbital relays, external emits, tick
-   * relays). The composition commits manager state directly rather than
-   * through the manager's per-(trait, entityId) actor queues, so without
-   * this, two concurrent requests against the session manager could both
-   * evaluate from the same held state and lose a transition. `run` sees
-   * the caller's result (or throw); the queue itself never wedges on a
-   * failure.
-   */
-  private eventQueue: Promise<void> = Promise.resolve();
-
   /** This app's in-flight keyed `call-service`s, shared by every transition it runs (`cancel-call`). */
   private readonly inFlightCalls = new InFlightCalls();
-
-  /** Wait for the queue, then hold it until the returned release is called. FIFO. */
-  private acquireEventQueue(): Promise<() => void> {
-    const previous = this.eventQueue;
-    let release: () => void = () => undefined;
-    const held = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    this.eventQueue = previous.then(() => held);
-    return previous.then(() => release);
-  }
-
-  /**
-   * Hold the queue for `run`, handing it the hold so the work it reaches can
-   * release it (`outsideEventQueue`). The hold is passed explicitly rather than
-   * carried in async context: this runtime also runs in the browser (the orb
-   * website), which has no AsyncLocalStorage.
-   */
-  private async enqueueEvent<T>(run: (hold: EventQueueHold) => Promise<T>): Promise<T> {
-    const hold: EventQueueHold = { held: true, release: await this.acquireEventQueue() };
-    try {
-      return await run(hold);
-    } finally {
-      if (hold.held) hold.release();
-    }
-  }
-
-  /**
-   * Run `work` with this context's queue hold released, then re-acquire it (in
-   * FIFO order behind whatever queued meanwhile). Dispatches that land while
-   * released run as their own dispatches; their commits and the held run's
-   * later commit follow server-arrival last-write-wins. Outside a hold, `work`
-   * just runs.
-   */
-  private async outsideEventQueue<T>(hold: EventQueueHold | undefined, work: () => Promise<T>): Promise<T> {
-    if (hold === undefined || !hold.held) return work();
-    hold.held = false;
-    hold.release();
-    try {
-      return await work();
-    } finally {
-      hold.release = await this.acquireEventQueue();
-      hold.held = true;
-    }
-  }
 
   // ==========================================================================
   // Direct API (for programmatic use)

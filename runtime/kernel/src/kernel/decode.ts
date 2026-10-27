@@ -1,7 +1,7 @@
 /** Decoders for what the kernel hands back as JSON: narrowed by checks, never cast. */
 import { isEventResponse, type Envelope, type InstanceRef, type OAuthAsk, type OsOp, type PageFactFieldWire, type TabAction, type TabApply, type TabAsk, type TabCommand, type TabField } from '@almadar/core/kernel-wire';
 import { isJsonObject, type JsonObject, RowCommitSchema, RowQuerySchema, RowWriteBatchSchema, type EntityRow, type JsonValue, type OrbitalEventResponse } from '@almadar/core';
-import type { CallSiteWire, HttpBody, HttpRequestWire, HttpResponseWire, IoRequestWire, PendingRequestWire, ResolveProgressWire, ServerProgressWire } from './wire.js';
+import type { CallSiteWire, HttpBody, HttpRequestWire, HttpResponseWire, IoRequestWire, NextWire, PendingRequestWire, ResolveProgressWire, ServerProgressWire } from './wire.js';
 
 type JsonRecord = { [key: string]: JsonValue };
 
@@ -467,7 +467,10 @@ function decodePending(value: JsonValue): PendingRequestWire {
 }
 
 export function decodeProgress(json: string): ServerProgressWire {
-  const value: JsonValue = JSON.parse(json);
+  return progressOf(JSON.parse(json));
+}
+
+function progressOf(value: JsonValue): ServerProgressWire {
   if (!isRecord(value)) throw new Error('kernel wire: progress is not an object');
   const status = text(value, 'status');
   if (status === 'done') {
@@ -478,7 +481,21 @@ export function decodeProgress(json: string): ServerProgressWire {
   if (status === 'await') {
     return { status, flight: whole(value, 'flight'), requests: list(value, 'requests').map(decodePending) };
   }
+  if (status === 'queued') {
+    return { status, ticket: whole(value, 'ticket') };
+  }
   throw new Error(`kernel wire: unknown status "${status}"`);
+}
+
+export function decodeNext(json: string): NextWire | null {
+  const value: JsonValue = JSON.parse(json);
+  if (value === null) return null;
+  if (!isRecord(value)) throw new Error('kernel wire: next is not an object');
+  const outcome = text(value, 'outcome');
+  const ticket = whole(value, 'ticket');
+  if (outcome === 'started') return { outcome, ticket, progress: progressOf(field(value, 'progress')) };
+  if (outcome === 'failed') return { outcome, ticket, error: text(value, 'error') };
+  throw new Error(`kernel wire: unknown next outcome "${outcome}"`);
 }
 
 export function decodeResolveProgress(json: string): ResolveProgressWire {

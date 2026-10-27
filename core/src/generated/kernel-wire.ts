@@ -312,6 +312,8 @@ export type MutationVerdictWire = { allowed: boolean, message?: string, };
 
 export type NavigateOptions = { crumb?: string, };
 
+export type NextWire = { "outcome": "started", ticket: number, progress: ServerProgressWire, } | { "outcome": "failed", ticket: number, error: string, };
+
 export type OAuthAsk = { ask: "pendingPut", state: string, grant: OAuthPendingGrant, ttlMs: number } | { ask: "pendingTake", state: string } | { ask: "connectionAvailable" } | { ask: "connectionSave", provider: OAuthProvider, grant: OAuthTokenGrant } | { ask: "connectionStatus", provider: OAuthProvider } | { ask: "connectionRemove", provider: OAuthProvider } | { ask: "subjectRemember", accessToken: string, subject: string } | { ask: "subjectLookup", accessToken: string } | { ask: "subjectForget", accessToken: string } | { ask: "metadataGet", issuer: string } | { ask: "metadataPut", issuer: string, metadata: { [key in string]: JsonValue } } | { ask: "clock" } | { ask: "mockTokenPut", accessToken: string, refreshToken: string, expiresAtMs: number, provider: OAuthProvider } | { ask: "mockTokenRefresh", refreshToken: string, newAccessToken: string, expiresAtMs: number } | { ask: "mockTokenRevoke", token: string } | { ask: "mockTokenCheck", accessToken: string } | { ask: "consent", authUrl: string, state: string, redirectUri: string }
 
 export type OAuthConnectionRow = { provider: OAuthProvider, connected: boolean, account: string, avatarUrl: string, scope: Array<string>, connectedAt: string }
@@ -545,7 +547,7 @@ target?: string,
  */
 routed?: string, };
 
-export type ServerProgressWire = { "status": "done", response: EventResponse, } | { "status": "await", flight: number, requests: Array<PendingRequestWire>, };
+export type ServerProgressWire = { "status": "done", response: EventResponse, } | { "status": "await", flight: number, requests: Array<PendingRequestWire>, } | { "status": "queued", ticket: number, };
 
 export type Settled<T, E> = { "ok": T } | { "error": E };
 

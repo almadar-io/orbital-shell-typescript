@@ -225,7 +225,7 @@ mod tests {
                         },
                     ),
                 ),
-            ],
+            ].into(),
         };
         let local: std::collections::HashSet<String> =
             ["Note", "Author"].iter().map(|s| s.to_string()).collect();

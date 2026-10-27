@@ -35,8 +35,12 @@ const ports = (persistence: PersistenceAdapter): KernelHostPorts => ({
 
 /** A kernel that resolves by asking for two reads and folding the answers, as the Rust resolve does. */
 function scripted(log: string[], service = false): KernelModule {
+  // Models the kernel's lane: its one flight parks holding it, and a request arriving meanwhile is queued.
   class Handle implements KernelServerHandle {
     private answers: string[] = [];
+    private held = false;
+    private readonly queued: Array<{ ticket: number; request: string }> = [];
+    private tickets = 100;
     resolveRows(_ref: string, _viewer: string): string {
       log.push('resolveRows');
       return JSON.stringify({ status: 'await', flight: 7, requests: [{ id: 0, request: { kind: 'listRows', entityType: 'Ticket' } }] });
@@ -52,12 +56,31 @@ function scripted(log: string[], service = false): KernelModule {
     bootMounts(): string { return '[]'; }
     routeMounts(_routePath: string): string { return '[]'; }
     start(_orbital: string, request: string): string {
+      if (this.held) {
+        log.push(`queue ${JSON.parse(request).event}`);
+        const ticket = this.tickets++;
+        this.queued.push({ ticket, request });
+        return JSON.stringify({ status: 'queued', ticket });
+      }
+      return this.startNow(request);
+    }
+    private startNow(request: string): string {
       log.push(`start ${JSON.parse(request).event}`);
+      this.held = true;
       if (service) return JSON.stringify({ status: 'await', flight: 1, requests: [{ id: 0, request: { kind: 'callService', service: 'test', method: 'again', args: {}, site: { orbital: 'Main', trait: 'Worker', followOn: false, emit: {} } } }] });
       return JSON.stringify({ status: 'await', flight: 1, requests: [{ id: 0, request: { kind: 'listRows', entityType: 'Ticket' } }] });
     }
+    next(): string {
+      const waiting = this.held ? undefined : this.queued.shift();
+      if (waiting === undefined) return 'null';
+      return JSON.stringify({ outcome: 'started', ticket: waiting.ticket, progress: JSON.parse(this.startNow(waiting.request)) });
+    }
+    holdsLane(flight: number): boolean { return this.held && flight === 1; }
+    openSessionStream(): number { return 0; }
+    closeSessionStream(): boolean { return true; }
     resume(_flight: number, replies: string): string {
       log.push('resume');
+      this.held = false;
       if (service) log.push(JSON.parse(replies)[0].answer.result.error);
       return JSON.stringify({ status: 'done', response: { success: true, transitioned: true, states: {}, emittedEvents: [] } });
     }
@@ -122,7 +145,7 @@ it('reads the canonical ordered stream before another dispatch starts; plain cal
     engine.evaluate('Main', { event: 'SECOND' }, { orbital: 'Main' }),
   ]);
   expect(items.map((item) => item.type)).toEqual(['event', 'effect', 'event', 'complete']);
-  expect(log).toEqual(['start FIRST', 'resume', 'stream', 'item event', 'item effect', 'item event', 'item complete', 'start SECOND', 'resume']);
+  expect(log).toEqual(['start FIRST', 'queue SECOND', 'resume', 'stream', 'start SECOND', 'item event', 'item effect', 'item event', 'item complete', 'resume']);
 });
 
 
@@ -139,5 +162,5 @@ it('refuses a service reentering its parked turn instead of waiting on itself', 
   };
   const engine = new KernelEngine(scripted(log, true), '{}', host);
   await engine.evaluate('Main', { event: 'ASK' }, { orbital: 'Main' });
-  expect(log).toEqual(['start ASK', 'resume', 'dispatch #0 (ASK) is parked holding the dispatch lane on this thread; resume or drop it before starting another dispatch']);
+  expect(log).toEqual(['start ASK', 'resume', 'dispatch #1 (ASK) is parked holding the dispatch lane on this thread; resume or drop it before starting another dispatch']);
 });

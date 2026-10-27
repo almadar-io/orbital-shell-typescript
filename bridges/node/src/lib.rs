@@ -114,6 +114,26 @@ impl Server {
     }
 
     #[napi]
+    pub fn next(&self) -> napi::Result<String> {
+        self.api.get().map_err(js)?.next().map_err(js)
+    }
+
+    #[napi]
+    pub fn holds_lane(&self, flight: f64) -> napi::Result<bool> {
+        Ok(self.api.get().map_err(js)?.holds_lane(flight_id(flight)?))
+    }
+
+    #[napi]
+    pub fn open_session_stream(&self, client: String) -> napi::Result<f64> {
+        Ok(self.api.get().map_err(js)?.open_session_stream(&client) as f64)
+    }
+
+    #[napi]
+    pub fn close_session_stream(&self, id: f64) -> napi::Result<bool> {
+        Ok(self.api.get().map_err(js)?.close_session_stream(flight_id(id)?))
+    }
+
+    #[napi]
     pub fn resolve_rows(&self, ref_json: String, viewer_json: String) -> napi::Result<String> {
         self.api
             .get()

@@ -1481,7 +1481,7 @@ mod named_type_schema_import_tests {
                     enum_values: None,
                     relation: None,
                     intrinsic: false,
-                }],
+                }].into(),
             },
         );
         named_types
@@ -1547,7 +1547,7 @@ mod named_type_schema_import_tests {
                         relation: None,
                         intrinsic: false,
                     },
-                ],
+                ].into(),
             },
         );
         named_types
@@ -1591,7 +1591,7 @@ mod named_type_schema_import_tests {
                         relation: None,
                         intrinsic: false,
                     },
-                ],
+                ].into(),
             },
         );
         named_types
@@ -1907,7 +1907,7 @@ mod nested_named_type_import_tests {
                         }),
                     },
                 ),
-            ],
+            ].into(),
         }
     }
 
@@ -1931,7 +1931,7 @@ mod nested_named_type_import_tests {
                         inner: Box::new(knob()),
                     },
                 ),
-            ],
+            ].into(),
             defaults: None,
             instances: vec![],
             used_by_traits: vec![],
@@ -2031,7 +2031,7 @@ mod native_open_record_tests {
         let mut id = OirField::new("id", OirType::String);
         id.required = false;
         std::collections::BTreeMap::from([("OpenRow".to_string(), OirType::Struct {
-            fields: vec![id, OirField::new("maybe", OirType::optional(OirType::String))],
+            fields: vec![id, OirField::new("maybe", OirType::optional(OirType::String))].into(),
             additional: Some(Box::new(OirType::optional(OirType::String))),
         })])
     }
@@ -2074,7 +2074,7 @@ mod native_open_record_tests {
     fn native_contract_names_do_not_shadow_imported_core_contracts() {
         let types = std::collections::BTreeMap::from([
             ("FieldValue".to_string(), OirType::String),
-            ("EntityRow".to_string(), OirType::Struct { fields: vec![], additional: Some(Box::new(OirType::TypeRef { name: "FieldValue".to_string() })) }),
+            ("EntityRow".to_string(), OirType::Struct { fields: Default::default(), additional: Some(Box::new(OirType::TypeRef { name: "FieldValue".to_string() })) }),
         ]);
         let backend = TypeScriptBackend::new();
         let declarations = backend.generate_shared_entities(&[], &types).content;
@@ -2094,7 +2094,7 @@ mod native_open_record_tests {
                     OirField::new("value", OirType::TypeRef { name: "Contract.FieldValue".to_string() }),
                     OirField::new("children", OirType::array(OirType::TypeRef { name: "Contract.Row".to_string() })),
                     OirField::new("dates", OirType::map(OirType::String, OirType::Date)),
-                ],
+                ].into(),
                 additional: None,
             }),
             ("Second.Contract.FieldValue".to_string(), OirType::Boolean),
@@ -2102,7 +2102,7 @@ mod native_open_record_tests {
                 fields: vec![
                     OirField::new("value", OirType::TypeRef { name: "Second.Contract.FieldValue".to_string() }),
                     OirField::new("peer", OirType::TypeRef { name: "Contract.Row".to_string() }),
-                ],
+                ].into(),
                 additional: None,
             }),
         ])

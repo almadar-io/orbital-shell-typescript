@@ -493,7 +493,7 @@ mod array_of_union_tests {
             tag,
             OirType::Struct {
                 additional: None,
-                fields: vec![OirField::new("type", OirType::String)],
+                fields: vec![OirField::new("type", OirType::String)].into(),
             },
         )
     }
@@ -503,7 +503,7 @@ mod array_of_union_tests {
     fn an_array_of_a_union_parenthesizes_the_union() {
         let ty = OirType::Array {
             inner: Box::new(OirType::Union {
-                variants: vec![tagged("A"), tagged("B")],
+                variants: vec![tagged("A"), tagged("B")].into(),
             }),
         };
         let declared = map_type_ts(&ty, None, None);
