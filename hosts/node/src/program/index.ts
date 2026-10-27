@@ -20,6 +20,7 @@ import { createLogger } from '@almadar/logger';
 import { discoverBehaviorPackages, resolveOrbBinary } from '@almadar/core/behavior-package';
 import {
   CatalogEntrySchema,
+  CatalogTopicSchema,
   ProgramInspectionSchema,
   CatalogScopeSchema,
   TraitValueSchema,
@@ -38,6 +39,7 @@ import {
   EventPayloadSchema,
   mergeCallSiteConfigOverrides,
   type CatalogEntry,
+  type CatalogTopic,
   type CatalogScope,
   type EvaluatedProgram,
   type JsonValue,
@@ -140,11 +142,19 @@ function withProjectFile<T>(cwd: string, name: string, content: string, use: (pa
   return use(path).finally(() => rmSync(path, { force: true }));
 }
 
-/** `behavior/catalog`: installed behaviors under registry folders; `vectors: false` omits the vectors (`--no-vectors`). */
-export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions, options: { readonly vectors?: boolean } = {}): Promise<CatalogEntry[]> {
+/** `behavior/catalog`: installed behaviors under registry folders; `vectors: false` omits the vectors (`--no-vectors`),
+ * `traits: false` each entry's traits (`--no-traits`); `topics: true` answers each package and topic with its count. */
+export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions, options: { readonly vectors?: boolean; readonly topics: true }): Promise<CatalogTopic[]>;
+export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions, options?: { readonly vectors?: boolean; readonly traits?: boolean }): Promise<CatalogEntry[]>;
+export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions, options: { readonly vectors?: boolean; readonly traits?: boolean; readonly topics?: true } = {}): Promise<CatalogEntry[] | CatalogTopic[]> {
   const exposure = (scope.exposure ?? []).flatMap((e) => ['--exposure', e]);
   const noVectors = options.vectors === false ? ['--no-vectors'] : [];
-  const run = await runOrb(['behaviors', 'catalog', '--json', ...noVectors, ...scope.paths, ...exposure], opts);
+  if (options.topics === true) {
+    const run = await runOrb(['behaviors', 'catalog', '--json', '--topics', ...noVectors, ...scope.paths, ...exposure], opts);
+    return parseJson(CatalogTopicSchema.array(), run, 'behavior/catalog');
+  }
+  const noTraits = options.traits === false ? ['--no-traits'] : [];
+  const run = await runOrb(['behaviors', 'catalog', '--json', ...noVectors, ...noTraits, ...scope.paths, ...exposure], opts);
   return parseJson(CatalogEntrySchema.array(), run, 'behavior/catalog');
 }
 
@@ -179,6 +189,20 @@ function booleanOption(op: string, raw: JsonValue | undefined, key: string): { r
     value = v;
   }
   return value === undefined ? {} : { value };
+}
+
+/** {@link booleanOption} over a set of keys: each present key must be one of `keys` and a boolean. */
+function booleanOptions<K extends string>(op: string, raw: JsonValue | undefined, keys: readonly K[]): Partial<Record<K, boolean>> | string {
+  const options = raw ?? {};
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) return `${op}: options must be an object`;
+  const out: Partial<Record<K, boolean>> = {};
+  for (const [k, v] of Object.entries(options)) {
+    const key = keys.find((known) => known === k);
+    if (key === undefined) return `${op}: unsupported option "${k}"`;
+    if (typeof v !== 'boolean') return `${op}: ${k} must be a boolean`;
+    out[key] = v;
+  }
+  return out;
 }
 
 /** `behavior/source`: the behavior a value belongs to, as a program (`.orb` IR). */
@@ -696,9 +720,11 @@ export async function runProgramEffect(op: ProgramEffectName, args: readonly Eff
       case 'behavior/catalog': {
         const scope = CatalogScopeSchema.safeParse(args[0]);
         if (!scope.success) return fail(`behavior/catalog: ${issuesOf(scope.error)}`);
-        const vectors = booleanOption(op, args[1], 'vectors');
-        if (typeof vectors === 'string') return fail(vectors);
-        return { ok: true, result: await behaviorCatalog(scope.data, opts, vectors.value === undefined ? {} : { vectors: vectors.value }) };
+        const options = booleanOptions(op, args[1], ['vectors', 'traits', 'topics'] as const);
+        if (typeof options === 'string') return fail(options);
+        const vectorOption = options.vectors === undefined ? {} : { vectors: options.vectors };
+        if (options.topics === true) return { ok: true, result: await behaviorCatalog(scope.data, opts, { ...vectorOption, topics: true }) };
+        return { ok: true, result: await behaviorCatalog(scope.data, opts, { ...vectorOption, ...(options.traits === undefined ? {} : { traits: options.traits }) }) };
       }
       case 'behavior/describe': {
         const value = DescribeTargetSchema.safeParse(args[0]);

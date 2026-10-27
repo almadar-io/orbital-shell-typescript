@@ -329,8 +329,8 @@ export const CatalogEntrySchema = z.object({
   pattern: z.string().optional(),
   description: z.string(),
   capabilities: z.array(z.string()),
-  /** The behavior's traits as ready-to-bind values. */
-  traits: z.array(TraitValueSchema),
+  /** The behavior's traits as ready-to-bind values; absent in a listing asked for without traits (`traits: false`). */
+  traits: z.array(TraitValueSchema).optional(),
   /** The behavior as a value (`.lolo` type `behavior`), ready to embed or store. */
   value: BehaviorRefSchema,
   /** Shipped embedding vectors, keyed by facet (`description`, `capabilities`). */
@@ -339,6 +339,16 @@ export const CatalogEntrySchema = z.object({
   model: z.string(),
 }).strict();
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
+
+/** One package and topic of a `behavior/catalog` listing with how many entries it holds (`topics: true`). */
+export const CatalogTopicSchema = z.object({
+  package: z.string(),
+  /** The registry prefix; the topic's folder is `<prefix>/<topic>`. */
+  prefix: z.string(),
+  topic: z.string(),
+  count: z.number().int().nonnegative(),
+}).strict();
+export type CatalogTopic = z.infer<typeof CatalogTopicSchema>;
 
 /** One knob of a described trait, with its shipped embedding vector. */
 export type TraitKnob = {

@@ -85,7 +85,7 @@ export type CredentialStanding = { connected: boolean, label?: string | null, };
 
 export type DeliverRefusal = { kind: DeliverRefusalKind, id: string, };
 
-export type DeliverRefusalKind = "mailbox-full" | "hop-cap" | "unknown-instance" | "denied" | "down";
+export type DeliverRefusalKind = "mailbox-full" | "hop-cap" | "unknown-instance" | "denied" | "down" | "payload-invalid";
 
 export type DeliveryRecord = { event: string, payload?: EventPayload, source: BusEventSource, };
 

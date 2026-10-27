@@ -805,6 +805,12 @@ describe('runProgramEffect — argument validation (no orb needed)', () => {
     expect(argv()).toEqual(['behaviors', 'catalog', '--json', '--no-vectors', 'almadar-std/ml']);
     await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }], stubbed);
     expect(argv()).toEqual(['behaviors', 'catalog', '--json', 'almadar-std/ml']);
+    await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { vectors: false, traits: false }], stubbed);
+    expect(argv()).toEqual(['behaviors', 'catalog', '--json', '--no-vectors', '--no-traits', 'almadar-std/ml']);
+    await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { traits: true }], stubbed);
+    expect(argv()).toEqual(['behaviors', 'catalog', '--json', 'almadar-std/ml']);
+    await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { topics: true, traits: false }], stubbed);
+    expect(argv()).toEqual(['behaviors', 'catalog', '--json', '--topics', 'almadar-std/ml']);
 
     expect(await runProgramEffect('behavior/describe', [trait, { knobVectors: 'yes' }], stubbed)).toEqual({ ok: false, error: 'behavior/describe: knobVectors must be a boolean' });
     expect(await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { vector: false }], stubbed)).toEqual({ ok: false, error: 'behavior/catalog: unsupported option "vector"' });

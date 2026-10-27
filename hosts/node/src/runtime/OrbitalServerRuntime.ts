@@ -150,7 +150,7 @@ export type PushItem =
 /** One registered orbital as the API lists it. */
 export interface OrbitalSummary {
   name: string;
-  entity: string | undefined;
+  entityName: string | undefined;
   traits: string[];
 }
 
@@ -1263,7 +1263,7 @@ export class OrbitalServerRuntime {
   listOrbitalSummaries(): OrbitalSummary[] {
     return Array.from(this.orbitals.entries()).map(([name, reg]) => ({
       name,
-      entity: reg.entity?.name,
+      entityName: reg.entity?.name,
       traits: (reg.traits || []).map((t) => t.name),
     }));
   }

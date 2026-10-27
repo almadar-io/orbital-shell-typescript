@@ -1,6 +1,7 @@
 import type {
   BehaviorDescription,
   CatalogEntry,
+  CatalogTopic,
   CircuitStepResult,
   DependencyGraph,
   EvaluatedProgram,
@@ -79,5 +80,5 @@ export type PlayedStep = StepRequest & { result: CircuitStepResult & { outcomes:
 
 /** The outcome of one program effect: the value for `{ result }`, or the failure (`errors` for eval's validator issues). */
 export type ProgramEffectOutcome =
-  | { readonly ok: true; readonly result: ProgramInspection | CatalogEntry[] | TraitDescription | BehaviorDescription | OrbitalSchema | string | EvaluatedProgram | ProgramValidationReport | DependencyGraph | PlayedStep[] }
+  | { readonly ok: true; readonly result: ProgramInspection | CatalogEntry[] | CatalogTopic[] | TraitDescription | BehaviorDescription | OrbitalSchema | string | EvaluatedProgram | ProgramValidationReport | DependencyGraph | PlayedStep[] }
   | { readonly ok: false; readonly error: string; readonly errors?: readonly ProgramValidationIssue[] };
