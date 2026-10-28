@@ -9,8 +9,8 @@ use orbital_wasm::api;
 use orbital_wasm::stored::{ServerHandle, Slot};
 use orbital_wasm::{http, oauth};
 
-fn js(message: String) -> Error {
-    Error::from_reason(message)
+fn js(error: impl std::fmt::Display) -> Error {
+    Error::from_reason(error.to_string())
 }
 
 fn flight_id(flight: f64) -> napi::Result<u64> {

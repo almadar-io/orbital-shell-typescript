@@ -2,7 +2,7 @@
  * The browser store of a program's `[persistent: x, browser]` entities, opened once, and the in-process transport its legs run through. The runtime
  * host (`useBrowserStore`) and compiled static clients both open it here.
  */
-import type { BrowserTabPort, MessageCatalogs, MountSeed, OnDeviceModelPorts, OrbitalDefinition, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema, RuntimeValue } from '@almadar/core';
+import type { BrowserTabPort, MessageCatalogs, MountSeed, OnDeviceModelPorts, OrbitalEntity, OrbitalDefinition, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema, RuntimeValue } from '@almadar/core';
 import { applyRowAccess, externalInputsOf, orbitalInlineEntities, parseOrbitalSchema, readableEntitiesOf, storesRowsInBrowser } from '@almadar/core';
 import { entityAccessPolicies } from '@almadar/core/mock';
 import type { KernelHostPorts } from '../../kernel/host.js';
@@ -13,6 +13,7 @@ import { IndexedDbPersistence } from '@almadar/shell-browser/storage';
 import type { EffectHandlers } from '../types.js';
 import type { DeferredCallOutcome } from '../../kernel/host.js';
 import { nativeMemoryPersistence } from './native-memory.js';
+import { persistedMemory } from './persisted-memory.js';
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import { buildTraitIndex } from '../traits/trait-index.js';
 import { createLocalStoreTransport, localStorePersistence, openLocalKernel } from './local-store-transport.js';
@@ -42,6 +43,10 @@ export async function openBrowserStore(
   });
 }
 
+function browserEntities(orbitals: readonly OrbitalDefinition[]): OrbitalEntity[] {
+  return orbitals.flatMap(orbitalInlineEntities).filter(storesRowsInBrowser);
+}
+
 export interface BrowserStoreTransportOptions {
   databaseName: string;
   schema: OrbitalSchema;
@@ -50,6 +55,8 @@ export interface BrowserStoreTransportOptions {
   /** The language bundle as JSON (`LanguageBundle`) the kernel is opened with: a browser has no `node_modules` to read it from. */
   language: string;
   factory?: IDBFactory;
+  /** The viewer's locale: a first visit starts with the entity's `instances` written for it. */
+  locale?: string;
   /** Answers the program's calls to browser-only services (the client's web-hosted integrations). */
   callService?: EffectHandlers['callService'];
   /** What a leg's client-site `http` runs on (`createBrowserHttpPorts`). */
@@ -65,7 +72,7 @@ export async function openBrowserStoreTransport(options: BrowserStoreTransportOp
   }
   // Legs that only call browser-only services keep no rows of their own.
   const memory = nativeMemoryPersistence(options.kernel);
-  const persistence = localStorePersistence(options.schema, stored ?? memory, memory);
+  const persistence = localStorePersistence(options.schema, stored === null ? memory : await persistedMemory(options.kernel, stored, browserEntities(options.schema.orbitals), options.locale), memory);
   return createLocalStoreTransport({
     kernelEngine: openLocalKernel({
       kernel: options.kernel,
@@ -88,6 +95,7 @@ export function openBundledBrowserStore(bundled: RuntimeValue, kernel: KernelMod
   return openBrowserStoreTransport({
     databaseName: browserStoreName(schema.name, locale),
     schema,
+    ...(locale !== undefined ? { locale } : {}),
     kernel,
     language,
     ...(callService !== undefined ? { callService } : {}),
@@ -112,6 +120,8 @@ export interface BrowserHostOptions {
   /** The browser's tabs for the `browser/tab-*` effects; absent, a tab ask fails `unavailable`. */
   tabs?: BrowserTabPort;
   factory?: IDBFactory;
+  /** The viewer's locale: a first visit starts with the entity's `instances` written for it. */
+  locale?: string;
 }
 
 /** A declared input the host ran, with its result; no view asked for it. */
@@ -148,7 +158,7 @@ function refuseUnhostedTicks(traitIndex: ReturnType<typeof buildTraitIndex>): vo
 export async function openBrowserHost(options: BrowserHostOptions): Promise<BrowserHost> {
   const browserStore = await openBrowserStore(options.databaseName, options.schema.orbitals, options.factory);
   const memory = nativeMemoryPersistence(options.kernel);
-  const persistence = localStorePersistence(options.schema, browserStore ?? memory, memory);
+  const persistence = localStorePersistence(options.schema, browserStore === null ? memory : await persistedMemory(options.kernel, browserStore, browserEntities(options.schema.orbitals), options.locale), memory);
   const traitIndex = buildTraitIndex(options.schema.orbitals);
   refuseUnhostedTicks(traitIndex);
   const { schema } = options;

@@ -10,29 +10,35 @@ import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
 import { I18nProvider, createTranslate } from '../../core';
 import { KernelLoaderMissingError } from '../../providers/KernelEngineContext';
+import { clientProgram } from '../../test-support/lolo-program';
 import { KERNEL_AVAILABLE, TEST_LANGUAGE, loadFreshClientKernel, loadTestKernel } from '../../test-support/kernel-engine';
 
 // The provider's own contract: the shared setup's test kernel is not used here.
 vi.unmock('../../providers/KernelEngineContext');
 
-const schema = (name: string): OrbitalSchema => JSON.parse(JSON.stringify({
-  name,
-  version: '1.0.0',
-  typeContractVersion: 1,
-  orbitals: [{
-    name: 'Books',
-    entity: { name: 'Invoice', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }] },
-    traits: [{
-      name: 'Greeter', linkedEntity: 'Invoice',
-      stateMachine: {
-        states: [{ name: 'idle', isInitial: true }],
-        events: [],
-        transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'typography', content: 'hello kernel' }]] }],
-      },
-    }],
-    pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Greeter' }] }],
-  }],
-}));
+const greeterProgram = `app books [
+  version: "1.0.0"
+]
+
+orbital Books {
+  entity Invoice [runtime] {
+    id : string!
+  }
+
+  trait Greeter -> Invoice {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui main { type: "typography", content: "hello kernel" })
+    }
+  }
+
+  page "/" as Home -> Greeter
+}
+`;
+
+const schema = (name: string): OrbitalSchema => ({ ...clientProgram(greeterProgram), name });
 
 const describeKernel = KERNEL_AVAILABLE ? describe : describe.skip;
 
@@ -51,39 +57,53 @@ describeKernel('OrbPreview — kernelLoader', () => {
   });
 });
 
-const board = (name: string): OrbitalSchema => JSON.parse(JSON.stringify({
-  name,
-  version: '1.0.0',
-  typeContractVersion: 1,
-  orbitals: [{
-    name: 'Board',
-    entity: {
-      name: 'Task', persistence: 'persistent', collection: 'tasks', browser: true,
-      fields: [{ name: 'id', type: 'string', required: true }, { name: 'title', type: 'string' }, { name: 'owner', type: 'relation', relation: { entity: 'Person' } }],
-      instances: [{ id: 't-1', title: 'Write the brief', owner: 'p-1' }],
-    },
-    auxiliaryEntities: [{
-      name: 'Person', persistence: 'persistent', collection: 'people', browser: true,
-      fields: [{ name: 'id', type: 'string', required: true }, { name: 'name', type: 'string' }],
-      instances: [{ id: 'p-1', name: 'Maja' }],
-    }],
-    traits: [{
-      name: 'TaskGrid', linkedEntity: 'Task',
-      stateMachine: {
-        states: [{ name: 'idle', isInitial: true }],
-        events: [{ key: 'LOADED', name: 'LOADED', payloadSchema: [{ name: 'data', type: 'array' }] }],
-        transitions: [
-          { from: 'idle', to: 'idle', event: 'INIT', effects: [['fetch', 'Task', { emit: { success: 'LOADED' } }]] },
-          { from: 'idle', to: 'idle', event: 'LOADED', effects: [['render-ui', 'main', { type: 'stack', children: [
-            { type: 'typography', content: 'board ready' },
-            { type: 'data-grid', entity: '@payload.data', fields: ['title', 'owner'] },
-          ] }]] },
-        ],
-      },
-    }],
-    pages: [{ name: 'Home', path: '/', traits: [{ ref: 'TaskGrid' }] }],
-  }],
-}));
+const boardProgram = `app board [
+  version: "1.0.0"
+]
+
+orbital Board {
+  entity Task [persistent: tasks, browser] {
+    id : string!
+    title : string = ""
+    owner : Person
+    instances [
+      { id: "t-1", title: "Write the brief", owner: "p-1" }
+    ]
+  }
+
+  entity Person [persistent: people, browser] {
+    id : string!
+    name : string = ""
+    instances [
+      { id: "p-1", name: "Maja" }
+    ]
+  }
+
+  trait TaskGrid -> Task {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (fetch Task { emit: { success: LOADED } })
+      LOADED -> idle
+        (render-ui main { type: "stack", children: [
+          { type: "typography", content: "board ready" },
+          { type: "data-grid", entity: @payload.data, fields: ["title", "owner"] }
+        ] })
+    }
+
+    emits {
+      LOADED -> internal {
+        data : [Task]
+      }
+    }
+  }
+
+  page "/" as Home -> TaskGrid
+}
+`;
+
+const board = (name: string): OrbitalSchema => ({ ...clientProgram(boardProgram), name });
 
 describeKernel('OrbPreview — languageLoader', () => {
   it('opens the kernel over browser-stored rows with the language the host loads', async () => {
@@ -100,24 +120,30 @@ describeKernel('OrbPreview — languageLoader', () => {
   }, 20_000);
 });
 
-const greeting = (name: string): OrbitalSchema => JSON.parse(JSON.stringify({
-  name,
-  version: '1.0.0',
-  typeContractVersion: 1,
-  orbitals: [{
-    name: 'Site',
-    entity: { name: 'SiteView', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }] },
-    traits: [{
-      name: 'Hero', linkedEntity: 'SiteView',
-      stateMachine: {
-        states: [{ name: 'idle', isInitial: true }],
-        events: [],
-        transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'typography', content: ['i18n/t', 'site:hero.title'] }]] }],
-      },
-    }],
-    pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Hero' }] }],
-  }],
-}));
+const greetingProgram = `app site [
+  version: "1.0.0",
+  locales: [en]
+]
+
+orbital Site {
+  entity SiteView [runtime] {
+    id : string!
+  }
+
+  trait Hero -> SiteView {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui main { type: "typography", content: (i18n/t "hero.title") })
+    }
+  }
+
+  page "/" as Home -> Hero
+}
+`;
+
+const greeting = (name: string): OrbitalSchema => ({ ...clientProgram(greetingProgram, { 'locales/en/site.json': JSON.stringify({ 'hero.title': 'Hello' }) }), name });
 
 describeKernel('OrbPreview — the client kernel paints i18n/t', () => {
   it('from the catalog of the viewer the host provides', async () => {
@@ -130,9 +156,11 @@ describeKernel('OrbPreview — the client kernel paints i18n/t', () => {
     expect(await screen.findByText('Hello from the catalog', undefined, { timeout: 15_000 })).toBeTruthy();
   }, 20_000);
 
-  it('control: with no catalog the paint fails, naming the message it lacks', async () => {
-    render(<OrbPreview schema={greeting(`i18n-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} />);
-    expect(await screen.findByText(/no `null` message for `site:hero\.title`/, undefined, { timeout: 15_000 })).toBeTruthy();
+  it('control: with no catalog the message paints empty, never the declared key or another locale', async () => {
+    render(<OrbPreview schema={greeting(`i18n-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} languageLoader={() => Promise.resolve(TEST_LANGUAGE)} />);
+    const main = await screen.findByTestId('ui-slot-main', undefined, { timeout: 15_000 });
+    await waitFor(() => expect(main.getAttribute('data-slot-mode')).toBe('content'));
+    expect(main.textContent).toBe('');
     expect(screen.queryByText('Hello from the catalog')).toBeNull();
   }, 20_000);
 });

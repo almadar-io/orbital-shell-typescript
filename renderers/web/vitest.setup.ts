@@ -5,5 +5,9 @@
 // wrong expect and every `toBeInTheDocument` throws "Invalid Chai property".
 import * as matchers from '@testing-library/jest-dom/matchers';
 import { expect } from 'vitest';
+import { configure } from '@testing-library/react';
 
 expect.extend(matchers);
+
+// A test kernel is WebAssembly compiled in the test process: under a parallel run its first paint outlasts the 1 s default.
+configure({ asyncUtilTimeout: 5000 });

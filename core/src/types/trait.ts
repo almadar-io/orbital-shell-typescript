@@ -115,6 +115,7 @@ export function isCallSiteConfigDeclaration(
  */
 export function isConfigRedeclaration(entry: CallSiteConfigEntry): boolean {
     if (!isCallSiteConfigDeclaration(entry)) return false;
+    if (entry.wired === true) return false;
     return (
         entry.type !== 'unknown' ||
         entry.label !== undefined ||
@@ -393,6 +394,8 @@ export type ConfigFieldDeclaration = {
     readonly projectedFrom?: FieldProjection;
     /** `field R T`: the record `R` as a type string (`@entity`, `@payload(knob)`, an entity or alias name, `$r`). */
     readonly record?: string;
+    /** A call-site entry that wires a value into a knob the trait declares; `type` then carries the SOURCE knob's type (`unknown` for a literal). */
+    readonly wired?: boolean;
 };
 
 export type ConfigFieldItemsDeclaration = {
@@ -437,6 +440,7 @@ export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration, obj
     payloadFor: z.string().optional(),
     projectedFrom: FieldProjectionSchema.optional(),
     record: z.string().optional(),
+    wired: z.boolean().optional(),
 });
 
 /**
@@ -514,6 +518,8 @@ export type TraitEntityField = {
     items?: ConfigFieldItemsDeclaration;
     /** Structured property schema for object-typed entity fields. */
     properties?: Readonly<Record<string, TraitEntityField>>;
+    /** `@payload(.<sibling>)`: an `object` with no `properties` is the declared payload of the event its sibling member names. */
+    record?: string;
 };
 
 export const TraitEntityFieldSchema: z.ZodType<TraitEntityField, object> = z.object({
@@ -526,6 +532,7 @@ export const TraitEntityFieldSchema: z.ZodType<TraitEntityField, object> = z.obj
     values: z.array(z.string()).optional(),
     items: ConfigFieldItemsDeclarationSchema.optional(),
     properties: z.lazy(() => z.record(z.string(), TraitEntityFieldSchema)).optional(),
+    record: z.string().optional(),
 });
 
 // ============================================================================

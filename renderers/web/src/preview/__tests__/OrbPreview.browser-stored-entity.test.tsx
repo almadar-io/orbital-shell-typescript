@@ -10,45 +10,66 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
 import { I18nProvider, createTranslate } from '../../core';
+import { clientProgram } from '../../test-support/lolo-program';
 
-const fetchInvoices = ['fetch', 'Invoice', { emit: { success: 'LOADED' } }];
-const list = ['render-ui', 'main', {
-  type: 'stack', direction: 'vertical', gap: 'md',
-  children: [
-    { type: 'button', label: 'Add invoice', action: 'ADD' },
-    { type: 'data-grid', entity: '@payload.data', fields: [{ name: 'client', label: 'Client' }] },
-  ],
-}];
+const books = `
+app books [
+  version: "1.0.0",
+  locales: [en, ar]
+]
+
+orbital Books {
+  entity Invoice [persistent: invoices, browser] {
+    id : string!
+    client : string = ""
+    instances [
+      { id: "INV-1042", client: "Noor Logistics" },
+      { id: "INV-1043", client: "Bled Studio" }
+    ]
+    instances ar [
+      { id: "INV-1042", client: "نور للخدمات اللوجستية" },
+      { id: "INV-1043", client: "استوديو بليد" }
+    ]
+  }
+
+  trait InvoiceList -> Invoice {
+    initial: loading
+
+    state loading {
+      INIT -> loading
+        (fetch Invoice { emit: { success: LOADED } })
+      LOADED -> browsing
+        (render-ui main { type: "stack", direction: "vertical", gap: "md", children: [
+          { type: "button", label: "Add invoice", action: "ADD" },
+          { type: "data-grid", entity: @payload.data, fields: [{ name: "client", label: "Client" }] }
+        ] })
+    }
+
+    state browsing {
+      INIT -> loading
+        (fetch Invoice { emit: { success: LOADED } })
+      ADD -> browsing
+        (persist create Invoice { client: "Kozolec d.o.o." } { emit: { success: ADDED } })
+      ADDED -> loading
+        (fetch Invoice { emit: { success: LOADED } })
+    }
+
+    emits {
+      LOADED -> internal {
+        data : [Invoice]
+      }
+      ADDED -> internal {
+        id : string
+      }
+    }
+  }
+
+  page "/" as Home -> InvoiceList
+}
+`;
 
 function schema(name: string): OrbitalSchema {
-  return JSON.parse(JSON.stringify({
-    name,
-    version: '1.0.0',
-    typeContractVersion: 1,
-    orbitals: [{
-      name: 'Books',
-      entity: {
-        name: 'Invoice', persistence: 'persistent', collection: 'invoices', browser: true,
-        fields: [{ name: 'id', type: 'string', required: true }, { name: 'client', type: 'string' }],
-        instances: [{ id: 'INV-1042', client: 'Noor Logistics' }, { id: 'INV-1043', client: 'Bled Studio' }],
-        localeInstances: { ar: [{ id: 'INV-1042', client: 'نور للخدمات اللوجستية' }, { id: 'INV-1043', client: 'استوديو بليد' }] },
-      },
-      traits: [{
-        name: 'InvoiceList', linkedEntity: 'Invoice',
-        stateMachine: {
-          states: [{ name: 'loading', isInitial: true }, { name: 'browsing' }],
-          events: [],
-          transitions: [
-            { from: 'loading', to: 'loading', event: 'INIT', effects: [fetchInvoices] },
-            { from: 'loading', to: 'browsing', event: 'LOADED', effects: [list] },
-            { from: 'browsing', to: 'browsing', event: 'ADD', effects: [['persist', 'create', 'Invoice', { client: 'Kozolec d.o.o.' }, { emit: { success: 'ADDED' } }]] },
-            { from: 'browsing', to: 'loading', event: 'ADDED', effects: [fetchInvoices] },
-          ],
-        },
-      }],
-      pages: [{ name: 'Home', path: '/', traits: [{ ref: 'InvoiceList' }] }],
-    }],
-  }));
+  return { ...clientProgram(books), name };
 }
 
 describe('OrbPreview — browser-stored entity, no server', () => {
@@ -63,7 +84,7 @@ describe('OrbPreview — browser-stored entity, no server', () => {
     render(<OrbPreview schema={app} isolated />);
     expect(await screen.findByText('Kozolec d.o.o.')).toBeTruthy();
     expect(screen.getByText('Bled Studio')).toBeTruthy();
-  });
+  }, 20_000);
 
   it('an Arabic viewer gets the Arabic rows, in its own store', async () => {
     const app = schema(`books-${Math.random()}`);

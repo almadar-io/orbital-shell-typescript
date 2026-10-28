@@ -67,7 +67,7 @@ import type { KernelInstance } from '../lib/kernel-wire';
 import { kernelOrbitals } from '../lib/kernel-schema';
 import { getTabClientId } from '../hooks/circuit/useCircuitKernel';
 import { useClientTicks } from '../hooks/circuit/useClientTicks';
-import { PatternConfigSchema, UI_SLOTS } from '@almadar/core';
+import { PatternConfigSchema, UI_SLOTS, isRoutePage } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { useEventBus, useRootEventBus } from '../core';
 import { useTraitScopeChain } from '../core';
@@ -554,9 +554,10 @@ function PluginRuntimeMount({
       for (const entry of response.emittedEvents ?? []) {
         if (inboundVocabulary.has(entry.event)) continue;
         if (plugin.outbound !== undefined && !plugin.outbound.includes(entry.event)) continue;
-        const sourceOrbital = entry.source?.orbital;
+        const trait = entry.source?.trait;
+        const sourceOrbital = entry.source?.orbital ?? (trait !== undefined ? orbitalOfTrait.get(trait) : undefined);
         if (sourceOrbital === undefined || !ownOrbitals.has(sourceOrbital)) continue;
-        relay(entry.event, entry.payload, entry.source);
+        relay(entry.event, entry.payload, { ...entry.source, orbital: sourceOrbital });
       }
 
       // A cascade moves sibling traits the response does not name: a local kernel reports every trait it holds.
@@ -573,9 +574,25 @@ function PluginRuntimeMount({
     [local, mockHandlers, plugin, ownOrbitals, orbitalOfTrait, inboundVocabulary, relay, snapshotAllStates, onError, onTransition, onDispatched],
   );
 
+  // The plugin program's own route pages say what mounts: for each one the kernel names the seeds, which run in its lifecycle
+  // order (EXEC-ENDPOINT-3). A server-mode plugin is mounted by the host that serves it.
+  const settleRef = useRef(settle);
+  settleRef.current = settle;
+  const mounted = useMemo(async () => {
+    await registrationReady;
+    if (local === undefined) return;
+    const paths = [...new Set(plugin.schema.orbitals.flatMap((orbital) => (orbital.pages ?? []).flatMap((page) => (typeof page !== 'string' && isRoutePage(page) && page.path !== undefined ? [page.path] : []))))];
+    for (const path of paths) {
+      const seeds = await local.client.routeMounts(path);
+      if (seeds.length === 0) continue;
+      const outcome = await local.client.dispatchMount(seeds);
+      for (const seed of outcome.seeds) settleRef.current(seed.event, seed.local, orbitalOfTrait.get(seed.trait));
+    }
+  }, [registrationReady, local, plugin.schema, orbitalOfTrait]);
+
   const dispatch = useCallback(
     async (row: PluginHostInbound, payload: EventPayload | undefined) => {
-      await registrationReady;
+      await mounted;
       const request = { event: row.trigger, payload, targetTrait: row.trait, locale };
       if (local !== undefined) {
         settle(row.trigger, (await local.client.dispatch(request)).response, row.orbital);
@@ -584,7 +601,7 @@ function PluginRuntimeMount({
       if (activeTransport === undefined) return;
       settle(row.trigger, await activeTransport.send(row.orbital, request), row.orbital);
     },
-    [registrationReady, activeTransport, local, locale, settle],
+    [mounted, activeTransport, local, locale, settle],
   );
 
   // The plugin's `ticks {}` run on its client kernel's tick clock (the one browser tick driver); a server-mode
@@ -600,6 +617,10 @@ function PluginRuntimeMount({
     },
     [settle, mockHandlers, plugin.id],
   );
+  useEffect(() => {
+    mounted.catch((err) => onError(plugin.id, err instanceof Error ? err.message : String(err)));
+  }, [mounted, plugin.id, onError]);
+
   useClientTicks({
     kernelClient: local?.client ?? HOST_TICKS,
     onKernelFrame,

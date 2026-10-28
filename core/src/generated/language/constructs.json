@@ -782,8 +782,8 @@
       },
       {
         "name": "Entity",
-        "type": "String, Option<Vec<EntityField>>, Option<Persistence>, bool, bool, ExpectedAccess, Vec<SExpression>",
-        "doc": "`expects entity Name [persistent, shared] [{ fields, @read … }]` — shape omitted = opaque reference."
+        "type": "String, Option<Vec<EntityField>>, Option<Persistence>, bool, bool, bool, ExpectedAccess, Vec<SExpression>",
+        "doc": "`expects entity Name [persistent, shared, self] [{ fields, @read … }]` — shape omitted = opaque reference."
       },
       {
         "name": "Event",

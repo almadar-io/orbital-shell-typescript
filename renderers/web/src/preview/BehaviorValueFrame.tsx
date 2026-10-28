@@ -12,10 +12,10 @@
  */
 
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { BehaviorRef, BehaviorValueMountResult, MountedBehaviorValue } from '@almadar/core';
+import type { BehaviorRef, BehaviorValueMountResult, MountedBehaviorValue, RuntimeValue } from '@almadar/core';
 import { OrbitalSchemaSchema, defaultPage } from '@almadar/core';
 import { OrbPreview } from './OrbPreview';
-import { MountedInit, TraitValueMountContext } from './TraitValueFrame';
+import { TraitValueMountContext } from './TraitValueFrame';
 import { OrbitalPluginHost } from './OrbitalPluginHost';
 import { bridgeInbound } from './bridgeInbound';
 import { UISlotProvider } from '../providers/UISlotContext';
@@ -30,7 +30,7 @@ type FrameState =
 
 /** A value carrying its resolved program runs it as it is: parsed against the program schema, opened on its default page. */
 function mountCarried(behavior: string, resolved: string): BehaviorValueMountResult {
-  let json: unknown;
+  let json: RuntimeValue;
   try {
     json = JSON.parse(resolved);
   } catch (error) {
@@ -81,17 +81,15 @@ export function BehaviorValueFrame({ value }: { value: BehaviorRef }): React.Rea
   if (state.status === 'loading') return <LoadingState />;
   if (state.status === 'error') return <ErrorState message={state.message} />;
   if (value.bridge !== undefined) {
-    const initEvent = `BEHAVIOR_VALUE_MOUNTED:${key}`;
     const plugin = {
       id: key,
       schema: state.mounted.schema,
-      inbound: [...bridgeInbound(state.mounted.schema, value.bridge.listens), ...bridgeInbound(state.mounted.schema, ['INIT'], () => initEvent)],
+      inbound: bridgeInbound(state.mounted.schema, value.bridge.listens),
       outbound: value.bridge.emits,
     };
     return (
       <UISlotProvider>
         <OrbitalPluginHost plugins={[plugin]} mode={host?.mode ?? 'mock'} transport={host?.transport}>
-          <MountedInit event={initEvent} />
           <UISlotComponent slot="main" />
         </OrbitalPluginHost>
       </UISlotProvider>

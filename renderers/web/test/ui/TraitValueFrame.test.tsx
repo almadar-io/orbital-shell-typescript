@@ -6,52 +6,55 @@
  * its `main` slot inline, and bridges its emits to the ambient bus. A refused
  * mount or a missing host is an explicit error, never silence.
  */
-import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import React, { useEffect } from 'react';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import type { OrbitalSchema, TraitValue, TraitValueMountResult } from '@almadar/core';
 import { EventBusProvider } from '../../src/core';
-import { useEventBus, type EventBusContextType } from '../../src/core';
+import { useEventBus } from '../../src/core';
 import { UISlotProvider } from '../../src/providers/UISlotContext';
+import { clientProgram } from '../../src/test-support/lolo-program';
 import { TraitValueFrame, TraitValueMountProvider, type TraitValueMountHost } from '../../src/preview/TraitValueFrame';
 
 const WIDGET: TraitValue = { behavior: 'almadar-std/std-greeting', trait: 'Greet', config: { title: 'Hello' } };
 
+const mountedProgram = `app mount-greet [
+  version: "1.0.0"
+]
+
+orbital Mounted {
+  entity MountedGreeting [runtime] {
+    id : string!
+  }
+
+  trait MountedGreet -> MountedGreeting [client] {
+    initial: idle
+
+    state idle {
+      INIT -> shown
+        (render-ui main { type: "typography", content: "Hello from the bound widget" })
+        (emit GREETED {})
+    }
+
+    state shown {
+      INIT -> shown
+        (render-ui main { type: "typography", content: "Hello from the bound widget" })
+    }
+
+    emits {
+      GREETED -> external {
+      }
+    }
+  }
+
+  page "/" as MountedPage -> MountedGreet
+}
+`;
+
+const mountedSchemaValue: OrbitalSchema = clientProgram(mountedProgram);
+
 function mountedSchema(): OrbitalSchema {
-  return {
-    name: 'MountGreet',
-    typeContractVersion: 1,
-    orbitals: [
-      {
-        name: 'Mounted',
-        entity: { name: 'MountedGreeting', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-        pages: [],
-        traits: [
-          {
-            name: 'MountedGreet',
-            linkedEntity: 'MountedGreeting',
-            dispatch: 'client',
-            stateMachine: {
-              states: [{ name: 'idle', isInitial: true }, { name: 'shown' }],
-              events: [{ key: 'INIT', name: 'INIT' }],
-              transitions: [
-                {
-                  from: 'idle',
-                  to: 'shown',
-                  event: 'INIT',
-                  effects: [
-                    ['render-ui', 'main', { type: 'typography', content: 'Hello from the bound widget' }],
-                    ['emit', 'GREETED', {}],
-                  ],
-                },
-              ],
-            },
-            emits: [{ event: 'GREETED', scope: 'external' }],
-          },
-        ],
-      },
-    ],
-  };
+  return structuredClone(mountedSchemaValue);
 }
 
 function okHost(): TraitValueMountHost {
@@ -63,9 +66,10 @@ function okHost(): TraitValueMountHost {
   };
 }
 
-let captured: EventBusContextType | null = null;
+const greeted = vi.fn();
 function BusProbe(): null {
-  captured = useEventBus();
+  const bus = useEventBus();
+  useEffect(() => bus.on('UI:GREETED', greeted), [bus]);
   return null;
 }
 
@@ -82,6 +86,8 @@ function shell(host: TraitValueMountHost | null, value: TraitValue = WIDGET): Re
 }
 
 describe('TraitValueFrame', () => {
+  beforeEach(() => { greeted.mockClear(); });
+
   it('mounts the value, starts it with INIT and paints its main slot inline', async () => {
     const host = okHost();
     render(shell(host));
@@ -90,13 +96,9 @@ describe('TraitValueFrame', () => {
   });
 
   it("bridges the bound trait's emits to the ambient bus", async () => {
-    const seen = vi.fn();
     render(shell(okHost()));
-    await waitFor(() => expect(captured).not.toBeNull());
-    const off = captured?.on('UI:GREETED', seen);
     await waitFor(() => expect(screen.getByText('Hello from the bound widget')).toBeTruthy());
-    off?.();
-    await waitFor(() => expect(seen).toHaveBeenCalled());
+    await waitFor(() => expect(greeted).toHaveBeenCalled());
   });
 
   it('shows the validator issues when the value does not validate where it is bound', async () => {
@@ -109,13 +111,9 @@ describe('TraitValueFrame', () => {
 
   it("runs a playground host's value in-browser on its own kernel (mode: 'mock', no transport)", async () => {
     const host: TraitValueMountHost = { ...okHost(), mode: 'mock' };
-    const seen = vi.fn();
     render(shell(host));
-    await waitFor(() => expect(captured).not.toBeNull());
-    const off = captured?.on('UI:GREETED', seen);
     await waitFor(() => expect(screen.getByText('Hello from the bound widget')).toBeTruthy());
-    await waitFor(() => expect(seen).toHaveBeenCalledTimes(1));
-    off?.();
+    await waitFor(() => expect(greeted).toHaveBeenCalledTimes(1));
   });
 
   it('control: without a host the frame says so explicitly', async () => {

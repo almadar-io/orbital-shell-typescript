@@ -96,6 +96,7 @@
     "server",
     "browser",
     "identity",
+    "self",
     "background",
     "visible",
     "store"
@@ -576,6 +577,7 @@
     "viewType": "viewType",
     "visual_prompt": "visual_prompt",
     "vocabulary": "vocabulary",
-    "whileVisible": "whileVisible"
+    "whileVisible": "whileVisible",
+    "wired": "wired"
   }
 }

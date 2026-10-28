@@ -16,34 +16,56 @@ import { TraitValueMountProvider, type TraitValueMountHost } from '../../src/pre
 import { BehaviorValueFrame } from '../../src/preview/BehaviorValueFrame';
 import { bridgeInbound } from '../../src/preview/bridgeInbound';
 import { TraitScopeProvider } from '../../src/core';
+import { clientProgram } from '../../src/test-support/lolo-program';
+
+const echoProgram = `app echo [
+  version: "1.0.0"
+]
+
+orbital EchoOrbital {
+  entity EchoView [runtime] {
+    id : string!
+  }
+
+  trait Echo -> EchoView [client] {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui main { type: "typography", content: "echo" })
+        (emit STATUS { text: "ready" })
+      KEY -> idle
+        (emit STATUS { text: ?key })
+        (emit HIDDEN {})
+      OTHER -> idle
+        (emit STATUS { text: "other" })
+    }
+
+    listens {
+      KEY -> input {
+        key : string
+      }
+      OTHER -> input {
+      }
+    }
+
+    emits {
+      STATUS -> external {
+        text : string
+      }
+      HIDDEN -> external {
+      }
+    }
+  }
+
+  page "/echo" as EchoPage -> Echo
+}
+`;
+
+const echoSchema: OrbitalSchema = clientProgram(echoProgram);
 
 function plugin(): OrbitalSchema {
-  return {
-    name: 'Echo',
-    orbitals: [
-      {
-        name: 'EchoOrbital',
-        entity: { name: 'EchoView', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-        traits: [
-          {
-            name: 'Echo',
-            linkedEntity: 'EchoView',
-            stateMachine: {
-              states: [{ name: 'idle', isInitial: true }],
-              events: [{ key: 'INIT', name: 'INIT' }, { key: 'KEY', name: 'KEY' }, { key: 'OTHER', name: 'OTHER' }],
-              transitions: [
-                { from: 'idle', to: 'idle', event: 'INIT', effects: [['emit', 'STATUS', { text: 'ready' }]] },
-                { from: 'idle', to: 'idle', event: 'KEY', effects: [['emit', 'STATUS', { text: '@payload.key' }], ['emit', 'HIDDEN', {}]] },
-                { from: 'idle', to: 'idle', event: 'OTHER', effects: [['emit', 'STATUS', { text: 'other' }]] },
-              ],
-            },
-            emits: [{ event: 'STATUS', scope: 'external' }, { event: 'HIDDEN', scope: 'external' }],
-          },
-        ],
-        pages: [{ name: 'EchoPage', path: '/echo', traits: [{ ref: 'Echo' }] }],
-      },
-    ],
-  };
+  return structuredClone(echoSchema);
 }
 
 const VALUE: BehaviorRef = { behavior: 'almadar-behaviors/echo', bridge: { listens: ['KEY'], emits: ['STATUS'] } };

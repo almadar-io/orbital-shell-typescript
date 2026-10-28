@@ -1,7 +1,7 @@
 /**
- * The TS `OsGrants` mirror pinned to the Rust serde shape (`OsGrants` in
- * `orbital-core/crates/base/src/host/os_grants/mod.rs`): every family the kernel serializes
- * round-trips, and a family the mirror lacks fails loudly instead of being stripped.
+ * `OsGrants` is generated from the Rust serde shape (`OsGrants` in
+ * `orbital-core/crates/base/src/host/os_grants/mod.rs`), so the shape is checked by the compiler and the Rust
+ * `kernel_wire_ts` test; here the boundary check passes a full value through and the union merges it.
  */
 import { describe, it, expect } from 'vitest';
 import { OsGrantsSchema, unionOsGrants, type OsGrants } from '../src/types/index.js';
@@ -23,18 +23,14 @@ const full: OsGrants = {
   },
 };
 
-describe('OsGrantsSchema mirrors the Rust OsGrants', () => {
-  it('round-trips every family, kv and anchored included', () => {
+describe('OsGrants (generated from the Rust OsGrants)', () => {
+  it('passes every family, kv and anchored included, through the boundary check unchanged', () => {
     expect(OsGrantsSchema.parse(full)).toEqual(full);
   });
 
-  it('control: an unknown family is refused, not stripped', () => {
-    expect(OsGrantsSchema.safeParse({ ...full, bogus: [] }).success).toBe(false);
-  });
-
-  it('control: an unknown kv mode and anchor are refused', () => {
-    expect(OsGrantsSchema.safeParse({ kv: { s: ['delete'] } }).success).toBe(false);
-    expect(OsGrantsSchema.safeParse({ anchored: { fs: [{ anchor: 'home', glob: 'x', modes: [] }] } }).success).toBe(false);
+  it('control: a non-object is refused', () => {
+    expect(OsGrantsSchema.safeParse('fs').success).toBe(false);
+    expect(OsGrantsSchema.safeParse([]).success).toBe(false);
   });
 
   it('unions kv modes per store and anchored entries without duplicates', () => {

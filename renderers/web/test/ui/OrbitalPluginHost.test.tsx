@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * OrbitalPluginHost — a real local kernel end to end (Almadar Studio
- * V4 §14 plan, P2 F1/F5). A minimal 2-state `PingOrbital` schema stands in
- * for a `.lolo` plugin: `IDLE --PING--> PONGED` echoes both its own trigger
+ * V4 §14 plan, P2 F1/F5). A minimal 2-state `PingOrbital` `.lolo` program, lowered by the installed
+ * `orb`, stands in for a plugin; its route page is the mount the host runs: `IDLE --PING--> PONGED` echoes both its own trigger
  * (dropped by the echo guard) and `PONG` (re-emitted), and persists a
  * `PingRecord` row so the default-vs-`deny:['persist']` behavior is real.
  */
@@ -10,7 +10,6 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import type { OrbitalSchema } from '@almadar/core';
-import { asEventId } from '@almadar/core';
 import { EventBusProvider } from '../../src/core';
 import { useEventBus, type EventBusContextType } from '../../src/core';
 import { UISlotProvider, useUISlots } from '../../src/providers/UISlotContext';
@@ -21,46 +20,69 @@ import {
   useDeclaredCaptureTable,
   type PluginHostPlugin,
 } from '../../src/preview/OrbitalPluginHost';
+import { clientProgram } from '../../src/test-support/lolo-program';
+
+const pingProgram = `app ping-plugin [
+  version: "1.0.0"
+]
+
+orbital PingOrbital {
+  entity PingerData [runtime] {
+    id : string!
+  }
+
+  entity PingRecord [runtime] {
+    id : string!
+  }
+
+  trait Pinger -> PingerData {
+    initial: IDLE
+
+    state IDLE {
+      INIT -> IDLE
+        (render-ui main { type: "typography", content: (str/join (object/get @config.keymap "IDLE" []) ",") })
+      RESET -> IDLE
+        (render-ui main { type: "typography", content: (str/join (object/get @config.keymap "IDLE" []) ",") })
+      PING -> PONGED
+        (emit PING {})
+        (emit PONG {})
+        (persist create PingRecord {})
+    }
+
+    state PONGED {
+      INIT -> PONGED
+        (render-ui main { type: "typography", content: (str/join (object/get @config.keymap "PONGED" []) ",") })
+      RESET -> IDLE
+        (render-ui main { type: "typography", content: (str/join (object/get @config.keymap "IDLE" []) ",") })
+    }
+
+    listens {
+      PING -> input {
+      }
+      RESET -> input {
+      }
+    }
+
+    emits {
+      PING -> external {
+      }
+      PONG -> external {
+      }
+    }
+
+    config {
+      keymap : Map string [string] = { IDLE: ["p"], PONGED: ["r"] }
+    }
+  }
+
+  page "/" as PingPage -> Pinger
+}
+`;
+
+const pingSchemaValue: OrbitalSchema = clientProgram(pingProgram);
 
 function pingSchema(): OrbitalSchema {
-  return {
-    name: 'ping-plugin',
-    orbitals: [
-      {
-        name: 'PingOrbital',
-        entity: { name: 'PingerData', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-        pages: [],
-        traits: [
-          {
-            name: 'Pinger',
-            linkedEntity: 'PingerData',
-            stateMachine: {
-              states: [{ name: 'IDLE', isInitial: true }, { name: 'PONGED' }],
-              events: [{ key: 'PING', name: 'PING' }, { key: 'RESET', name: 'RESET' }],
-              transitions: [
-                {
-                  from: 'IDLE',
-                  to: 'PONGED',
-                  event: 'PING',
-                  effects: [
-                    ['emit', 'PING', {}],
-                    ['emit', 'PONG', {}],
-                    ['persist', 'create', 'PingRecord', {}],
-                  ],
-                },
-                { from: 'PONGED', to: 'IDLE', event: 'RESET', effects: [] },
-              ],
-            },
-            emits: [{ event: 'PONG', scope: 'external' }],
-            listens: [{ event: 'PING', triggers: 'PING' }, { event: 'RESET', triggers: 'RESET' }],
-            config: {
-              keymap: { type: 'map', default: { IDLE: ['p'], PONGED: ['r'] } },
-            },
-          },
-        ],
-      },
-    ],
-  };
+  return structuredClone(pingSchemaValue);
 }
 
 function pingPlugin(): PluginHostPlugin {
@@ -82,50 +104,67 @@ function pingPlugin(): PluginHostPlugin {
  * cascade must still fire even though only one side of the listen/emit
  * pair carries an id.
  */
+const cascadeProgram = `app cascade-plugin [
+  version: "1.0.0"
+]
+
+orbital CascadeOrbital {
+  entity CascadeData [runtime] {
+    id : string!
+  }
+
+  trait Emitter -> CascadeData [client] {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui main { type: "typography", content: "emitter" })
+      FIRE -> idle
+        (emit PING {})
+    }
+
+    listens {
+      FIRE -> input {
+      }
+    }
+
+    emits {
+      PING -> external {
+      }
+    }
+  }
+
+  trait Receiver -> CascadeData [client] {
+    initial: waiting
+
+    state waiting {
+      INIT -> waiting
+      RECV -> received
+        (emit ACK {})
+    }
+
+    state received {
+      INIT -> received
+    }
+
+    listens {
+      Emitter.PING -> RECV
+    }
+
+    emits {
+      ACK -> external {
+      }
+    }
+  }
+
+  page "/" as CascadePage -> Emitter, Receiver
+}
+`;
+
+const cascadeSchemaValue: OrbitalSchema = clientProgram(cascadeProgram);
+
 function cascadeSchema(): OrbitalSchema {
-  return {
-    name: 'cascade-plugin',
-    orbitals: [
-      {
-        name: 'CascadeOrbital',
-        entity: { name: 'CascadeData', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-        pages: [],
-        traits: [
-          {
-            name: 'Emitter',
-            linkedEntity: 'CascadeData',
-            stateMachine: {
-              states: [{ name: 'idle', isInitial: true }],
-              events: [{ key: 'FIRE', name: 'FIRE' }],
-              transitions: [
-                { from: 'idle', to: 'idle', event: 'FIRE', effects: [['emit', 'PING', {}]] },
-              ],
-            },
-            emits: [{ event: 'PING', eventId: asEventId('evt_cascade_ping'), scope: 'external' }],
-            listens: [{ event: 'FIRE', triggers: 'FIRE' }],
-          },
-          {
-            name: 'Receiver',
-            linkedEntity: 'CascadeData',
-            stateMachine: {
-              states: [{ name: 'waiting', isInitial: true }, { name: 'received' }],
-              events: [{ key: 'RECV', name: 'RECV' }],
-              transitions: [
-                // The cascade-fired sibling's OWN outbound emit — the shape
-                // the vim-mode repro actually hit (`VimStudioBridge`'s
-                // `ENABLED` arm emitting `STATUS` after being cascaded into
-                // by `Shell`'s relay, never the directly-dispatched trait).
-                { from: 'waiting', to: 'received', event: 'RECV', effects: [['emit', 'ACK', {}]] },
-              ],
-            },
-            emits: [{ event: 'ACK', scope: 'external' }],
-            // Source-qualified, no `eventId` of its own — only `source`.
-            listens: [{ event: 'PING', triggers: 'RECV', source: { kind: 'trait', trait: 'Emitter' } }],
-          },
-        ],
-      },
-    ],
-  };
+  return structuredClone(cascadeSchemaValue);
 }
 
 function cascadePlugin(): PluginHostPlugin {
@@ -148,45 +187,67 @@ function cascadePlugin(): PluginHostPlugin {
  * its own `bus.on('UI:PING', …)` listener is armed for — an infinite
  * synchronous loop.
  */
+const relayProgram = `app relay-plugin [
+  version: "1.0.0"
+]
+
+orbital RelayOrbital {
+  entity RelayData [runtime] {
+    id : string!
+  }
+
+  trait A -> RelayData [client] {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui main { type: "typography", content: "relay" })
+      HOST_PING -> idle
+        (emit PING {})
+    }
+
+    listens {
+      HOST_PING -> input {
+      }
+    }
+
+    emits {
+      PING -> external {
+      }
+    }
+  }
+
+  trait B -> RelayData [client] {
+    initial: waiting
+
+    state waiting {
+      INIT -> waiting
+      PONGED -> ponged
+        (emit PONG {})
+    }
+
+    state ponged {
+      INIT -> ponged
+    }
+
+    listens {
+      A.PING -> PONGED
+    }
+
+    emits {
+      PONG -> external {
+      }
+    }
+  }
+
+  page "/" as RelayPage -> A, B
+}
+`;
+
+const relaySchemaValue: OrbitalSchema = clientProgram(relayProgram);
+
 function relaySchema(): OrbitalSchema {
-  return {
-    name: 'relay-plugin',
-    orbitals: [
-      {
-        name: 'RelayOrbital',
-        entity: { name: 'RelayData', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-        pages: [],
-        traits: [
-          {
-            name: 'A',
-            linkedEntity: 'RelayData',
-            stateMachine: {
-              states: [{ name: 'idle', isInitial: true }],
-              events: [{ key: 'HOST_PING', name: 'HOST_PING' }],
-              transitions: [
-                { from: 'idle', to: 'idle', event: 'HOST_PING', effects: [['emit', 'PING', {}]] },
-              ],
-            },
-            emits: [{ event: 'PING', scope: 'external' }],
-            listens: [{ event: 'HOST_PING', triggers: 'HOST_PING' }],
-          },
-          {
-            name: 'B',
-            linkedEntity: 'RelayData',
-            stateMachine: {
-              states: [{ name: 'waiting', isInitial: true }, { name: 'ponged' }],
-              events: [{ key: 'PONGED', name: 'PONGED' }],
-              transitions: [
-                { from: 'waiting', to: 'ponged', event: 'PONGED', effects: [['emit', 'PONG', {}]] },
-              ],
-            },
-            emits: [{ event: 'PONG', scope: 'external' }],
-            listens: [{ event: 'PING', triggers: 'PONGED', source: { kind: 'trait', trait: 'A' } }],
-          },
-        ],
-      },
-    ],
-  };
+  return structuredClone(relaySchemaValue);
 }
 
 function relayPlugin(): PluginHostPlugin {
@@ -204,43 +265,48 @@ function relayPlugin(): PluginHostPlugin {
  * `render-ui`, exercising the source-scoped `pattern === null` branch
  * directly rather than only through unmount teardown.
  */
+const sidebarProgram = `app sidebar-plugin [
+  version: "1.0.0"
+]
+
+orbital SidebarOrbital {
+  entity SidebarData [runtime] {
+    id : string!
+  }
+
+  trait SidebarPlugin -> SidebarData [client] {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+      PING -> rendered
+        (render-ui sidebar { type: "typography", content: "plugin" })
+      CLEAR -> idle
+    }
+
+    state rendered {
+      INIT -> rendered
+      CLEAR -> idle
+        (render-ui sidebar null)
+      PING -> rendered
+    }
+
+    listens {
+      PING -> input {
+      }
+      CLEAR -> input {
+      }
+    }
+  }
+
+  page "/" as SidebarPage -> SidebarPlugin
+}
+`;
+
+const sidebarSchemaValue: OrbitalSchema = clientProgram(sidebarProgram);
+
 function sidebarPluginSchema(): OrbitalSchema {
-  return {
-    name: 'sidebar-plugin',
-    orbitals: [
-      {
-        name: 'SidebarOrbital',
-        entity: { name: 'SidebarData', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-        pages: [],
-        traits: [
-          {
-            name: 'SidebarPlugin',
-            linkedEntity: 'SidebarData',
-            stateMachine: {
-              states: [{ name: 'idle', isInitial: true }, { name: 'rendered' }],
-              events: [{ key: 'PING', name: 'PING' }, { key: 'CLEAR', name: 'CLEAR' }],
-              transitions: [
-                {
-                  from: 'idle',
-                  to: 'rendered',
-                  event: 'PING',
-                  effects: [['render-ui', 'sidebar', { type: 'typography', content: 'plugin' }]],
-                },
-                {
-                  from: 'rendered',
-                  to: 'idle',
-                  event: 'CLEAR',
-                  effects: [['render-ui', 'sidebar', null]],
-                },
-              ],
-            },
-            emits: [],
-            listens: [{ event: 'PING', triggers: 'PING' }, { event: 'CLEAR', triggers: 'CLEAR' }],
-          },
-        ],
-      },
-    ],
-  };
+  return structuredClone(sidebarSchemaValue);
 }
 
 function sidebarPlugin(): PluginHostPlugin {
@@ -542,25 +608,48 @@ describe('OrbitalPluginHost — slot cleanup by SOURCE (U-PLUGIN-SLOT-RESTORE-ON
   });
 });
 
+const clockProgram = (ticks: string) => `app clock-plugin [
+  version: "1.0.0"
+]
+
+orbital ClockOrbital {
+  entity ClockData [runtime] {
+    id : string!
+  }
+
+  trait Clock -> ClockData [client] {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui main { type: "typography", content: "clock" })
+    }
+
+${ticks}    emits {
+      BEAT -> external {
+      }
+    }
+  }
+
+  page "/" as ClockPage -> Clock
+}
+`;
+
+const beatingTicks = `    ticks {
+      beat every 30ms
+        (emit BEAT {})
+    }
+
+`;
+
+const tickingClock: OrbitalSchema = clientProgram(clockProgram(beatingTicks));
+const stillClock: OrbitalSchema = clientProgram(clockProgram(''));
+
 /** A plugin whose `Clock` trait declares `ticks {}` emitting `BEAT`; `withTicks: false` is the same trait without them. */
 function clockPlugin(withTicks: boolean): PluginHostPlugin {
   return {
     id: `clock-${withTicks ? 'ticking' : 'still'}`,
-    schema: {
-      name: 'clock-plugin',
-      orbitals: [{
-        name: 'ClockOrbital',
-        entity: { name: 'ClockData', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-        pages: [],
-        traits: [{
-          name: 'Clock',
-          linkedEntity: 'ClockData',
-          stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },
-          emits: [{ event: 'BEAT', scope: 'external' }],
-          ...(withTicks ? { ticks: [{ name: 'beat', interval: 30, effects: [['emit', 'BEAT', {}]] }] } : {}),
-        }],
-      }],
-    },
+    schema: structuredClone(withTicks ? tickingClock : stillClock),
     inbound: [],
   };
 }

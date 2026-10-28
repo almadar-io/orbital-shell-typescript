@@ -24,6 +24,14 @@ export type Accepted = null;
 
 export type AmbiguousTrait = { trait: string, orbitals: Array<string>, };
 
+export type AnchoredExec = { anchor: GrantAnchor, path?: string, };
+
+export type AnchoredFsGrant = { anchor: GrantAnchor, glob: string, modes: Array<FsMode>, };
+
+export type AnchoredGrants = { fs?: Array<AnchoredFsGrant>, exec?: Array<AnchoredExec>, net?: Array<AnchoredNetGrant>, };
+
+export type AnchoredNetGrant = { host: NetPart, port: NetPart, kinds: Array<NetKind>, };
+
 export type AppliedWire = { applied: Array<[string, string]>, response: EventResponse, 
 /**
  * The legs the fold's own arms owe the host (a refetch after a browser-stored write), to post and fold in turn.
@@ -91,6 +99,12 @@ export type DeliverRefusal = { kind: DeliverRefusalKind, id: string, };
 export type DeliverRefusalKind = "mailbox-full" | "hop-cap" | "unknown-instance" | "denied" | "down" | "payload-invalid";
 
 export type DeliveryRecord = { event: string, payload?: EventPayload, source: BusEventSource, };
+
+export type DesktopKind = "notify" | "speak" | "brightness" | "volume" | "power";
+
+export type DevGrant = { target: string, kinds: Array<DevKind>, };
+
+export type DevKind = "read" | "write" | "wait" | "ack";
 
 export type DispatchLog = { prevEvents: Array<DeliveryRecord>, prevStates: Array<string>, };
 
@@ -237,6 +251,12 @@ export type FrameWire = { fired: Array<FiredTick>, response: EventResponse, disp
  */
 browserLegs: Array<RoutedLeg>, droppedServerEffects: number, errors: Array<string>, };
 
+export type FsGrant = { glob: string, modes: Array<FsMode>, };
+
+export type FsMode = "read" | "write" | "create" | "remove" | "meta";
+
+export type GrantAnchor = "exe-dir" | "cwd" | { "env": string };
+
 export type GuardCapabilities = { leaves: Array<RowLeafKind>, combinators: Array<RowCombinator>, compareOps: Array<RowCompareOp>, };
 
 export type GuardOutcomeWire = { "kind": "value", value: boolean, } | { "kind": "error", message: string, };
@@ -266,6 +286,8 @@ export type IoAnswerWire = { "kind": "row", result: Settled<EntityRow | null, st
 export type IoReplyWire = { id: number, answer: IoAnswerWire, };
 
 export type IoRequestWire = { "kind": "readRow", entityType: string, id: string, } | { "kind": "listRows", entityType: string, } | { "kind": "queryRows", entityType: string, query: RowQuery, project: RowProjection, } | { "kind": "writeRows", batch: RowWriteBatch, } | { "kind": "commitRows", rows: Array<RowCommit>, } | { "kind": "createRow", entityType: string, data: JsonValue, } | { "kind": "writeRow", entityType: string, id: string, data: JsonValue, } | { "kind": "deleteRow", entityType: string, id: string, } | { "kind": "callService", service: string, method: string, args: JsonValue, key?: string, caller?: CallerWire, site?: CallSiteWire, } | { "kind": "cancelCall", key: string, } | { "kind": "substrate", op: string, args: Array<JsonValue>, key?: string, site?: CallSiteWire, } | { "kind": "http", request: HttpRequestWire, key?: string, delayMs?: number, site?: CallSiteWire, } | { "kind": "httpStream", request: HttpRequestWire, key?: string, framing: StreamFramingWire, site?: CallSiteWire, } | { "kind": "httpBeacon", request: HttpRequestWire, key?: string, site?: CallSiteWire, } | { "kind": "pageFacts", fields: Array<PageFactFieldWire>, } | { "kind": "prompt", text: string, schema: string, key?: string, } | { "kind": "embed", texts: Array<string>, key?: string, } | { "kind": "tab", ask: TabAsk, key?: string, } | { "kind": "secret", name: string, principal?: string, } | { "kind": "secretSet", name: string, value: string, ttlMs: number, principal?: string, } | { "kind": "secretRotate", name: string, value: string, principal?: string, } | { "kind": "oauth", ask: OAuthAsk, principal?: string, } | { "kind": "deliver", envelope: Envelope, key?: string, site: CallSiteWire, } | { "kind": "random", bytes: number, } | { "kind": "clock" } | { "kind": "os", op: OsOp, args: Array<JsonValue>, key?: string, site?: CallSiteWire, } | { "kind": "credentialStatus", name: string, principal?: string, } | { "kind": "credentialForget", name: string, principal?: string, } | { "kind": "credentialStoreList" } | { "kind": "credentialStoreRead", name: string, } | { "kind": "credentialStoreWrite", service: string, name: string, value: string, } | { "kind": "credentialStoreRemove", name: string, } | { "kind": "credentialStoreRotate" } | { "kind": "credentialModeRead" } | { "kind": "credentialModeWrite", mode: string, };
+
+export type KvMode = "read" | "write";
 
 export type LegResidence = "browser" | "server";
 
@@ -315,6 +337,12 @@ export type MutationVerdictWire = { allowed: boolean, message?: string, };
 
 export type NavigateOptions = { crumb?: string, };
 
+export type NetGrant = { target: string, kinds: Array<NetKind>, };
+
+export type NetKind = "tcp" | "udp" | "listen";
+
+export type NetPart = { "literal": string } | { "anchor": GrantAnchor };
+
 export type NextWire = { "outcome": "started", ticket: number, progress: ServerProgressWire, } | { "outcome": "failed", ticket: number, error: string, };
 
 export type OAuthAsk = { ask: "pendingPut", state: string, grant: OAuthPendingGrant, ttlMs: number } | { ask: "pendingTake", state: string } | { ask: "connectionAvailable" } | { ask: "connectionSave", provider: OAuthProvider, grant: OAuthTokenGrant } | { ask: "connectionStatus", provider: OAuthProvider } | { ask: "connectionRemove", provider: OAuthProvider } | { ask: "subjectRemember", accessToken: string, subject: string } | { ask: "subjectLookup", accessToken: string } | { ask: "subjectForget", accessToken: string } | { ask: "metadataGet", issuer: string } | { ask: "metadataPut", issuer: string, metadata: { [key in string]: JsonValue } } | { ask: "clock" } | { ask: "mockTokenPut", accessToken: string, refreshToken: string, expiresAtMs: number, provider: OAuthProvider } | { ask: "mockTokenRefresh", refreshToken: string, newAccessToken: string, expiresAtMs: number } | { ask: "mockTokenRevoke", token: string } | { ask: "mockTokenCheck", accessToken: string } | { ask: "consent", authUrl: string, state: string, redirectUri: string }
@@ -336,6 +364,12 @@ export type OperatorValueKinds = { operator: RowOperator, valueKinds: Array<RowV
 export type OsError = { kind: OsErrorKind, message: string, };
 
 export type OsErrorKind = "denied" | "not-found" | "exists" | "invalid" | "io" | "timeout" | "unsupported" | "closed";
+
+export type OsGrants = { fs?: Array<FsGrant>, exec?: Array<string>, net?: Array<NetGrant>, env?: Array<string>, stdio?: Array<StdioKind>, sys?: Array<SysKind>, desktop?: Array<DesktopKind>, dev?: Array<DevGrant>, 
+/**
+ * `kv: { <store>: [read, write] }`: a store name, or a `*`/`?` glob over one, and the modes it grants.
+ */
+kv?: { [key in string]: Array<KvMode> }, anchored?: AnchoredGrants, };
 
 export type OsOp = "os/read-file" | "os/write-file" | "os/append-file" | "os/open" | "os/close" | "os/read" | "os/write" | "os/seek" | "os/truncate" | "os/fsync" | "os/copy" | "os/rename" | "os/remove" | "os/link" | "os/symlink" | "os/readlink" | "os/watch-files" | "os/mkdir" | "os/rmdir" | "os/list-dir" | "os/glob" | "os/mktemp" | "os/realpath" | "os/cwd" | "os/chdir" | "os/stat" | "os/lstat" | "os/access" | "os/exists" | "os/chmod" | "os/chown" | "os/utimes" | "os/spawn" | "os/wait" | "os/kill" | "os/pid" | "os/ppid" | "os/current-exe" | "os/watch-process" | "os/watch-signal" | "os/getenv" | "os/setenv" | "os/unsetenv" | "os/environ" | "os/watch-env" | "os/stdin-read" | "os/stdout-write" | "os/stderr-write" | "os/isatty" | "os/tty-size" | "os/tcp-connect" | "os/tcp-listen" | "os/send" | "os/recv" | "os/udp-bind" | "os/sendto" | "os/recvfrom" | "os/dns-resolve" | "os/shutdown" | "os/watch-port" | "os/clock-monotonic" | "os/uid" | "os/gid" | "os/username" | "os/group-of" | "os/watch-cron" | "os/cpu-usage" | "os/memory-info" | "os/uptime" | "os/load-avg" | "os/hostname" | "os/uname" | "os/disk-usage" | "os/mounts" | "os/disk-io" | "os/network-interfaces" | "os/network-stats" | "os/network-connected" | "os/default-gateway" | "os/battery-status" | "os/ac-power" | "os/thermal-zones" | "os/notify" | "os/speak" | "os/brightness-get" | "os/brightness-set" | "os/volume-get" | "os/volume-set" | "os/volume-mute" | "os/suspend" | "os/hibernate" | "os/mmio-read" | "os/mmio-write" | "os/irq-wait" | "os/irq-ack" | "kv/get" | "kv/put" | "kv/delete" | "kv/scan" | "kv/batch";
 
@@ -558,6 +592,8 @@ export type SnapshotWire = { states: JsonObject, ambiguousTraits: Array<Ambiguou
 
 export type StatefulLegWire = { orbital: string, leg: EventRequest, awaiting: Array<AwaitingTrait>, };
 
+export type StdioKind = "in" | "out" | "err";
+
 export type StoreListing = { enabled: boolean, entries: Array<StoredName>, };
 
 export type StoredName = { service: string, name: string, };
@@ -565,6 +601,8 @@ export type StoredName = { service: string, name: string, };
 export type StreamFramingWire = "sse" | "jsonLines";
 
 export type SubstrateFailureWire = { message: string, errors: Array<JsonValue>, };
+
+export type SysKind = "cpu" | "memory" | "disk" | "network" | "power-state" | "identity";
 
 export type TabAction = "click" | "focus" | "type";
 

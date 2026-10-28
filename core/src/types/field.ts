@@ -521,6 +521,9 @@ export type ObjectEntityField = EntityFieldBase & {
     type: 'object';
     /** Uniform value schema for a dynamic-key map (`Map K V`). */
     items?: EntityField;
+    /** `@payload(.<sibling>)`: with no `properties`, the object is the declared payload of the event the sibling member
+     *  of the same struct names (`.lolo` `payload : @payload event`). Mirrors Rust `FieldDefinition.record`. */
+    record?: string;
 };
 
 /**
@@ -700,6 +703,7 @@ export const EntityFieldSchema: z.ZodType<EntityField, unknown> = z.lazy(() => {
                     ...baseFieldShape,
                     type: z.literal('object'),
                     items: EntityFieldSchema.optional(),
+                    record: z.string().optional(),
                     values: z.array(z.string()).optional(),
                 }),
             ]),

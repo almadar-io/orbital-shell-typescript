@@ -13,6 +13,7 @@ import { createChannelTransport, serveChannel, type ChannelMessage, type Transpo
 import { openBrowserHost } from '../../runtime';
 import { OrbPreview } from '../OrbPreview';
 import { TEST_LANGUAGE, loadTestKernel } from '../../test-support/kernel-engine';
+import { clientProgram } from '../../test-support/lolo-program';
 
 function pair(): [TransportChannel, TransportChannel] {
   const a: Array<(m: ChannelMessage) => void> = [];
@@ -27,50 +28,94 @@ function pair(): [TransportChannel, TransportChannel] {
   return [make(a, b), make(b, a)];
 }
 
-const program: OrbitalSchema = {
-  name: 'host-runs-program',
-  version: '1.0.0',
-  typeContractVersion: 1,
-  orbitals: [{
-    name: 'Feed',
-    entity: { name: 'Seen', persistence: 'persistent', collection: 'seen', browser: true, fields: [{ name: 'id', type: 'string' }, { name: 'title', type: 'string' }] },
-    traits: [{
-      name: 'Watch',
-      linkedEntity: 'Seen',
-      stateMachine: {
-        states: [{ name: 'idle', isInitial: true }],
-        events: [
-          { key: 'INIT', name: 'INIT' },
-          { key: 'WATCHING', name: 'WATCHING' },
-          { key: 'ITEM_SEEN', name: 'ITEM_SEEN', input: true, payloadSchema: [{ name: 'title', type: 'string' }] },
-        ],
-        transitions: [
-          { from: 'idle', to: 'idle', event: 'INIT', effects: [
-            ['call-service', 'test-svc', 'watch', { match: 'https://example.com/*', selector: '.i', fields: {}, event: 'ITEM_SEEN' }, { emit: { success: 'WATCHING' } }],
-            ['render-ui', 'main', { type: 'typography', variant: 'body', content: 'Watching' }],
-          ] },
-          { from: 'idle', to: 'idle', event: 'WATCHING', effects: [] },
-          { from: 'idle', to: 'idle', event: 'ITEM_SEEN', effects: [
-            ['persist', 'create', 'Seen', { title: '@payload.title' }],
-            ['render-ui', 'main', { type: 'typography', variant: 'body', content: 'Seen an item' }],
-          ] },
-        ],
-      },
-    }, {
-      name: 'SeenList',
-      linkedEntity: 'Seen',
-      stateMachine: {
-        states: [{ name: 'ready', isInitial: true }],
-        events: [{ key: 'INIT', name: 'INIT' }, { key: 'LIST_LOADED', name: 'LIST_LOADED' }],
-        transitions: [
-          { from: 'ready', to: 'ready', event: 'INIT', effects: [['fetch', 'Seen', { emit: { success: 'LIST_LOADED' } }]] },
-          { from: 'ready', to: 'ready', event: 'LIST_LOADED', effects: [['render-ui', 'main', { type: 'typography', variant: 'body', content: 'The list the host loaded' }]] },
-        ],
-      },
-    }],
-    pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Watch' }, { ref: 'SeenList' }] }],
-  }],
-};
+const program: OrbitalSchema = clientProgram(`app host-runs-program [
+  version: "1.0.0"
+]
+
+orbital Feed {
+  entity Seen [persistent: seen, browser] {
+    id : string!
+    title : string = ""
+  }
+
+  trait Watch -> Seen {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (call-service registry handles {} { emit: { success: WATCHING } })
+        (render-ui main { type: "typography", variant: "body", content: "Watching" })
+      WATCHING -> idle
+      ITEM_SEEN -> idle
+        (persist create Seen { title: ?title })
+        (render-ui main { type: "typography", variant: "body", content: "Seen an item" })
+    }
+
+    listens {
+      ITEM_SEEN -> input {
+        title : string
+      }
+    }
+
+    emits {
+      WATCHING -> internal {
+        watchId : string
+      }
+    }
+  }
+
+  trait SeenList -> Seen {
+    initial: ready
+
+    state ready {
+      INIT -> ready
+        (fetch Seen { emit: { success: LIST_LOADED } })
+      LIST_LOADED -> ready
+        (render-ui main { type: "typography", variant: "body", content: "The list the host loaded" })
+    }
+
+    emits {
+      LIST_LOADED -> internal {
+        data : [Seen]
+      }
+    }
+  }
+
+  page "/" as Home -> Watch, SeenList
+}
+`);
+
+const ticking: OrbitalSchema = clientProgram(`app host-runs-ticks [
+  version: "1.0.0"
+]
+
+orbital Pulse {
+  entity Beat [runtime] {
+    id : string!
+  }
+
+  trait Beater -> Beat [client] {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui main { type: "typography", variant: "body", content: "Beating" })
+      PULSE -> idle
+    }
+
+    ticks {
+      pulse every 30ms
+        (emit PULSE)
+    }
+
+    emits {
+      PULSE -> internal
+    }
+  }
+
+  page "/" as Home -> Beater
+}
+`);
 
 describe('a view of a program its host runs entirely', () => {
   it('shows a declared input the host ran, opens no store of its own, and saves the row once', async () => {
@@ -106,31 +151,9 @@ describe('a view of a program its host runs entirely', () => {
       };
     });
     expect(rows).toBe(1);
-  });
+  }, 20_000);
 
   it('leaves the program\'s ticks to the host: the view sends none, and the host fires them once', async () => {
-    const ticking: OrbitalSchema = {
-      name: 'host-runs-ticks',
-      version: '1.0.0',
-      typeContractVersion: 1,
-      orbitals: [{
-        name: 'Pulse',
-        entity: { name: 'Beat', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-        traits: [{
-          name: 'Beater', linkedEntity: 'Beat',
-          stateMachine: {
-            states: [{ name: 'idle', isInitial: true }],
-            events: [{ key: 'INIT', name: 'INIT' }, { key: 'PULSE', name: 'PULSE' }],
-            transitions: [
-              { from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'typography', variant: 'body', content: 'Beating' }]] },
-              { from: 'idle', to: 'idle', event: 'PULSE', effects: [] },
-            ],
-          },
-          ticks: [{ name: 'pulse', interval: 30, effects: [['emit', 'PULSE']] }],
-        }],
-        pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Beater' }] }],
-      }],
-    };
     const host = await openBrowserHost({ kernel: await loadTestKernel(), language: TEST_LANGUAGE, databaseName: 'almadar:host-runs-ticks', schema: ticking, callService: async () => ({}) });
     const [viewEnd, hostEnd] = pair();
     const fromView: string[] = [];
@@ -147,7 +170,7 @@ describe('a view of a program its host runs entirely', () => {
     host.close();
     expect(fromView.filter((e) => e === 'PULSE')).toEqual([]);
     expect(hostPulses).toBeGreaterThan(2);
-  });
+  }, 20_000);
 
   it('control: a view whose host does not keep the browser store opens its own', async () => {
     const schema: OrbitalSchema = { ...program, name: 'view-keeps-store' };
@@ -159,5 +182,5 @@ describe('a view of a program its host runs entirely', () => {
       const names = (await indexedDB.databases()).map((d) => d.name ?? '');
       expect(names.some((n) => n.startsWith('almadar:view-keeps-store:') && n !== 'almadar:view-keeps-store:host')).toBe(true);
     });
-  });
+  }, 20_000);
 });
