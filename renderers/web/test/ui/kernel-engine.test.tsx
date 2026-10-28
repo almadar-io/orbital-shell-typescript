@@ -22,8 +22,11 @@ import { KERNEL_AVAILABLE, KERNEL_ENGINE, warmKernel } from '../../src/test-supp
 
 const describeKernel = KERNEL_AVAILABLE ? describe : describe.skip;
 
-const driverTrait = (name: string, bump: unknown[]): OrbitalSchema['orbitals'][number]['traits'][number] => ({
+type Dispatch = 'client' | 'optimistic' | 'server';
+
+const driverTrait = (name: string, bump: unknown[], dispatch: Dispatch | undefined): OrbitalSchema['orbitals'][number]['traits'][number] => ({
   name,
+  ...(dispatch !== undefined ? { dispatch } : {}),
   linkedEntity: 'Board',
   stateMachine: {
     states: [{ name: 'idle', isInitial: true }, { name: 'busy' }],
@@ -36,11 +39,12 @@ const driverTrait = (name: string, bump: unknown[]): OrbitalSchema['orbitals'][n
   ticks: [{ name: 'beat', interval: 1000, effects: [['set', '@entity.score', ['+', '@entity.score', 1]]] }],
 });
 
-const orbitals = (persistence: 'runtime' | 'persistent', bump: unknown[], traits: readonly string[] = ['Driver']): OrbitalSchema['orbitals'] => [{
+/** The mode is only the trait's declared `dispatch`: a runtime entity is client-only here because its traits say `client`. */
+const orbitals = (persistence: 'runtime' | 'persistent', bump: unknown[], traits: readonly string[] = ['Driver'], dispatch: Dispatch | undefined = persistence === 'runtime' ? 'client' : undefined): OrbitalSchema['orbitals'] => [{
   name: 'Main',
-  pages: [],
+  pages: [{ name: 'Home', path: '/', traits: traits.map((name) => ({ ref: name })) }],
   entity: { name: 'Board', persistence, fields: [{ name: 'id', type: 'string' }, { name: 'score', type: 'number', default: 0 }] },
-  traits: traits.map((name) => driverTrait(name, bump)),
+  traits: traits.map((name) => driverTrait(name, bump, dispatch)),
 }];
 
 const bindings: ResolvedTraitBinding[] = [{ trait: createEmptyResolvedTrait('Driver', 'schema'), linkedEntity: 'Board' }];
@@ -193,7 +197,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
 
   it('rolls an optimistic dispatch back when the server rejects it', async () => {
     const server = new Server({ success: false, transitioned: false, states: {}, emittedEvents: [], error: 'no' });
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', persistBump), transport: server, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', persistBump, ['Driver'], 'optimistic'), transport: server, engine: KERNEL_ENGINE }));
     await act(async () => { await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Driver' }); });
     const outcome = await act(async () => result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' }));
     expect(outcome.mode).toBe('runtimeOptimistic');
@@ -204,7 +208,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
 
   it('rolls back and rejects when the transport fails', async () => {
     const server = new Server(new Error('offline'));
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', persistBump), transport: server, carriesCircuitState: true, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', persistBump, ['Driver'], 'optimistic'), transport: server, carriesCircuitState: true, engine: KERNEL_ENGINE }));
     await act(async () => { await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Driver' }); });
     await expect(result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' })).rejects.toThrow('offline');
     expect(result.current.store.states.getState('Driver')?.currentState).toBe('idle');
@@ -240,7 +244,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <KernelEngineProvider loader={() => KERNEL_ENGINE.loadModule!()} scheduleFrame={frames.schedule}>{children}</KernelEngineProvider>
     );
-    return renderHook(() => useTraitStateMachine(bindings, stubSlots(), { orbitals: orbitals('runtime', []) }), { wrapper });
+    return renderHook(() => useTraitStateMachine(bindings, stubSlots(), { orbitals: orbitals('runtime', []), routePath: '/' }), { wrapper });
   };
 
   it('runs a declared tick from the kernel frame and shows its row to the binding source', async () => {
@@ -248,7 +252,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
     const { result } = mountWith(frames);
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     await frames.step(0);
-    expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBe(0);
+    expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBeUndefined();
     await frames.step(1000);
     expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBe(1);
     await frames.step(2000);
@@ -261,7 +265,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     await frames.step(0);
     await frames.step(400);
-    expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBe(0);
+    expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBeUndefined();
   });
 
   it('pauses the frame clock while the document is hidden', async () => {
@@ -273,11 +277,11 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
     visibility.mockReturnValue('hidden');
     await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
     await frames.step(5000);
-    expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBe(0);
+    expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBeUndefined();
     visibility.mockReturnValue('visible');
     await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
     await frames.step(6000);
-    expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBe(0);
+    expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBeUndefined();
     visibility.mockRestore();
     await frames.step(7000);
     expect(result.current.entityBindingSource.getEntitySnapshot('Driver').score).toBe(1);
@@ -288,7 +292,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
     const base = orbitals('runtime', []);
     const board = base[0]!;
     const listening = {
-      name: 'Driver', linkedEntity: 'Board',
+      name: 'Driver', linkedEntity: 'Board', dispatch: 'client' as const,
       listens: [{ event: 'SURGE', source: { kind: 'any' as const }, triggers: 'SURGE_IN' }],
       stateMachine: {
         states: [{ name: 'idle', isInitial: true }],
@@ -301,12 +305,12 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
       ticks: [{ name: 'beat', interval: 1000, effects: [['set', '@entity.score', ['+', '@entity.score', 1]]] as never }],
     };
     const rival = {
-      name: 'Rival', linkedEntity: 'Board',
+      name: 'Rival', linkedEntity: 'Board', dispatch: 'client' as const,
       emits: [{ event: 'SURGE', scope: 'external' as const }],
       stateMachine: { states: [{ name: 'idle', isInitial: true }], events: [], transitions: [] },
       ticks: [{ name: 'surge', interval: 1000, effects: [['emit', 'SURGE', {}]] as never }],
     };
-    return [{ ...board, traits: [listening, rival] }];
+    return [{ ...board, pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Driver' }, { ref: 'Rival' }] }], traits: [listening, rival] }];
   };
   const rivalBinding: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('Rival', 'schema'), linkedEntity: 'Board' };
 
@@ -315,7 +319,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
       <KernelEngineProvider loader={() => KERNEL_ENGINE.loadModule!()} scheduleFrame={frames.schedule}>{children}</KernelEngineProvider>
     );
     const orbs = rivalOrbitals(withInit);
-    return renderHook(({ traits }: { traits: ResolvedTraitBinding[] }) => useTraitStateMachine(traits, stubSlots(), { orbitals: orbs }), { wrapper, initialProps: { traits: initial } });
+    return renderHook(({ traits }: { traits: ResolvedTraitBinding[] }) => useTraitStateMachine(traits, stubSlots(), { orbitals: orbs, routePath: '/' }), { wrapper, initialProps: { traits: initial } });
   };
 
   const settle = async (frames: ReturnType<typeof clock>): Promise<void> => {
@@ -415,7 +419,7 @@ describeKernel('kernel engine parity', () => {
             name: 'SearchOrbital', pages: [],
             entity: { name: 'Query', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
             traits: [{
-              name: 'Searcher', linkedEntity: 'Query',
+              name: 'Searcher', linkedEntity: 'Query', dispatch: 'client',
               emits: [{ event: 'REQUESTED', scope: 'external' }],
               stateMachine: { states: [{ name: 'idle', isInitial: true }, { name: 'searching' }], events: [], transitions: [{ from: 'idle', to: 'searching', event: 'GO', effects: [['emit', 'REQUESTED', {}]] }] },
             }],

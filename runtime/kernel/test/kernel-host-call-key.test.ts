@@ -63,7 +63,7 @@ describe('kernelEventRequestParser', () => {
     parseEventRequest: (payloadJson, optionsJson) => {
       const options: { event?: string } = JSON.parse(optionsJson);
       if (options.event === undefined) throw new Error('program/dispatch: not an event request: missing field `event`');
-      return JSON.stringify({ event: options.event, payload: JSON.parse(payloadJson) });
+      return { event: options.event, payload: JSON.parse(payloadJson) };
     },
   });
 

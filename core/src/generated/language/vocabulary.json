@@ -421,6 +421,7 @@
     "onExit": "onExit",
     "only": "only",
     "operatorSites": "operatorSites",
+    "orb": "orb",
     "orbRef": "orbRef",
     "orbital": "orbital",
     "orbitalId": "orbitalId",

@@ -3,6 +3,7 @@
 //! decision is `orbital_core::embed`'s.
 
 use napi::bindgen_prelude::Error;
+use napi::Env;
 use napi_derive::napi;
 use orbital_wasm::api;
 use orbital_wasm::stored::{ServerHandle, Slot};
@@ -287,9 +288,13 @@ pub fn os_glob_matches(glob: String, path: String) -> bool {
     api::os_glob_matches(&glob, &path)
 }
 
-#[napi]
-pub fn parse_event_request(payload_json: String, options_json: String) -> napi::Result<String> {
-    api::parse_event_request(&payload_json, &options_json).map_err(js)
+/// The typed event request a `program/dispatch` call names, as an object; a record that is no event request throws the reason.
+#[napi(ts_return_type = "EventRequest")]
+pub fn parse_event_request(env: Env, payload_json: String, options_json: String) -> napi::Result<napi::JsUnknown> {
+    let request = api::parse_event_request(&payload_json, &options_json).map_err(js)?;
+    let json: napi::JsObject = env.get_global()?.get_named_property("JSON")?;
+    let parse: napi::JsFunction = json.get_named_property("parse")?;
+    parse.call(Some(&json), &[env.create_string(&request)?])
 }
 
 #[napi]

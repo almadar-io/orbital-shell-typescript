@@ -70,6 +70,7 @@ const chain: Trait = {
 
 const schema = (): OrbitalSchema => ({
   name: 'deferred',
+  typeContractVersion: 1,
   version: '1.0.0',
   orbitals: [{
     name: 'App',

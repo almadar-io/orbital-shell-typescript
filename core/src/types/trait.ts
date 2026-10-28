@@ -11,8 +11,8 @@ import { z } from 'zod';
 import { FieldProjectionSchema, type FieldProjection } from './projection.js';
 import type { TraitId, EntityId, EventId, PageId, OrbitalId } from './identity.js';
 import { TraitIdSchema, EntityIdSchema, EventIdSchema, PageIdSchema, OrbitalIdSchema } from './identity.js';
-import type { StateMachine, PayloadTypeWhen } from './state-machine.js';
-import { StateMachineSchema, PayloadTypeWhenSchema } from './state-machine.js';
+import type { StateMachine, PayloadField } from './state-machine.js';
+import { StateMachineSchema, PayloadFieldSchema, PayloadFieldDescriptorSchema } from './state-machine.js';
 import type { Effect } from './effect.js';
 import { EffectSchema, PatternObjectSchema } from './effect.js';
 import type { Entity } from './entity.js';
@@ -653,82 +653,14 @@ export const EventScopeSchema = z.enum(['internal', 'external']);
 // ============================================================================
 
 /**
- * Payload field definition for events.
- * Defines the structure of data carried by events.
+ * Payload field definition for events: the one {@link PayloadField} (Rust `PayloadField`),
+ * re-exported under the event-contract name.
  */
-export type EventPayloadField = {
-    /** Field name */
-    name: string;
-    /**
-     * Field type. Any non-empty string, mirroring the Rust validator's
-     * acceptance (Zod schema below uses `z.string().min(1)`). Well-known
-     * values include the primitives (`string`, `number`, `boolean`,
-     * `object`, `array`, `entity`), date variants (`date`, `datetime`,
-     * `timestamp`), entity-name references (`User`), and array-of-entity
-     * shorthand (`[User]`). Narrowing happens at the call sites that care
-     * (e.g. `orbital-compiler/phases/validation/emit_payload.rs`), not at
-     * the structural type level — this keeps `.orb`-emitted payloads
-     * round-trippable through TypeScript without losing precision.
-     */
-    type: string;
-    /** Whether field is required in payload */
-    required?: boolean;
-    nullable?: boolean;
-    additionalProperties?: EventPayloadField;
-    /** Closed value set (`"a" | "b"`) — element-wise for an array type. */
-    values?: ReadonlyArray<string>;
-    /** Human-readable description */
-    description?: string;
-    /** For 'entity' type: the entity type name */
-    entity?: string;
-    /** Structured property schema for object-typed payload fields (recursive). */
-    properties?: ReadonlyArray<EventPayloadField>;
-    /**
-     * Declared knob-conditional type list (`match` in `.lolo`, §25 —
-     * REPLACED the `@typeWhen` annotation spelling outright) — see
-     * `PayloadTypeWhen` in `state-machine.ts`. Resolved and cleared once
-     * composed; the emitted `.orb` carries only the resolved truth.
-     */
-    typeWhen?: ReadonlyArray<PayloadTypeWhen>;
-    /** `.lolo` `T.f` / `[T.f]`: the declared field this value — each element's, for an array — was projected from. */
-    projectedFrom?: FieldProjection;
-    /** The element type of an `array` field whose element is itself a typed field (`[(Adv | string)]`). */
-    items?: EventPayloadField;
-};
+export type EventPayloadField = PayloadField;
 
-const eventPayloadFieldShape = {
-    /**
-     * Field type. Mirrors the Rust validator's acceptance: any non-empty
-     * string. Primitives ('string' | 'number' | 'boolean' | 'object' |
-     * 'array') are the canonical values; entity-name references like
-     * 'ModalRecord' and array-of-entity references like '[ModalRecord]'
-     * are also valid because the Rust IR's PayloadField.field_type is
-     * just a String. Only enforced narrowly at the call site (e.g.
-     * emit-literal type-mismatch warnings in
-     * orbital-compiler/phases/validation/emit_payload.rs) — not here.
-     */
-    type: z.string().min(1),
-    required: z.boolean().optional(),
-    nullable: z.boolean().optional(),
-    additionalProperties: z.lazy(() => EventPayloadTypeMemberSchema).optional(),
-    values: z.array(z.string()).optional(),
-    description: z.string().optional(),
-    entity: z.string().optional(),
-    properties: z.lazy(() => z.array(EventPayloadFieldSchema)).optional(),
-    typeWhen: z.array(PayloadTypeWhenSchema).optional(),
-    projectedFrom: FieldProjectionSchema.optional(),
-    items: z.lazy(() => EventPayloadTypeMemberSchema).optional(),
-};
+export const EventPayloadTypeMemberSchema: z.ZodType<EventPayloadField> = PayloadFieldDescriptorSchema;
 
-export const EventPayloadTypeMemberSchema: z.ZodType<EventPayloadField> = z.object({
-    name: z.string(),
-    ...eventPayloadFieldShape,
-});
-
-export const EventPayloadFieldSchema: z.ZodType<EventPayloadField> = z.object({
-    name: z.string().min(1),
-    ...eventPayloadFieldShape,
-});
+export const EventPayloadFieldSchema: z.ZodType<EventPayloadField> = PayloadFieldSchema;
 
 // ============================================================================
 // Trait Event Contract

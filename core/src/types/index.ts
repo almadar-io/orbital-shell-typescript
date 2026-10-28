@@ -980,6 +980,10 @@ export {
   type FsGrant,
   type NetGrant,
   type OsGrants,
+  type KvMode,
+  type GrantAnchor,
+  type NetPart,
+  type AnchoredGrants,
   type Deployment,
   FsModeSchema,
   NetKindSchema,
@@ -991,6 +995,10 @@ export {
   OsGrantsSchema,
   DeploymentSchema,
   unionOsGrants,
+  KvModeSchema,
+  GrantAnchorSchema,
+  NetPartSchema,
+  AnchoredGrantsSchema,
 } from "./os-grants.js";
 
 // ============================================================================

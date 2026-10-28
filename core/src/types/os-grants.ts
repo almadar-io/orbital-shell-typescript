@@ -11,6 +11,7 @@ export const STDIO_KINDS = ["in", "out", "err"] as const;
 export const SYS_KINDS = ["cpu", "memory", "disk", "network", "power-state", "identity"] as const;
 export const DESKTOP_KINDS = ["notify", "speak", "brightness", "volume", "power"] as const;
 export const DEV_KINDS = ["read", "write", "wait", "ack"] as const;
+export const KV_MODES = ["read", "write"] as const;
 
 export type FsMode = (typeof FS_MODES)[number];
 export type NetKind = (typeof NET_KINDS)[number];
@@ -18,6 +19,37 @@ export type StdioKind = (typeof STDIO_KINDS)[number];
 export type SysKind = (typeof SYS_KINDS)[number];
 export type DesktopKind = (typeof DESKTOP_KINDS)[number];
 export type DevKind = (typeof DEV_KINDS)[number];
+export type KvMode = (typeof KV_MODES)[number];
+
+/** Where an anchored grant is rooted: serde's externally tagged `GrantAnchor`. */
+export type GrantAnchor = "exe-dir" | "cwd" | { env: string };
+
+/** One half of an anchored `net` target: serde's externally tagged `NetPart`. */
+export type NetPart = { literal: string } | { anchor: GrantAnchor };
+
+export interface AnchoredFsGrant {
+  anchor: GrantAnchor;
+  glob: string;
+  modes: FsMode[];
+}
+
+export interface AnchoredExec {
+  anchor: GrantAnchor;
+  path?: string;
+}
+
+export interface AnchoredNetGrant {
+  host: NetPart;
+  port: NetPart;
+  kinds: NetKind[];
+}
+
+/** The `fs`, `exec` and `net` entries rooted at an anchor; an empty family is omitted. */
+export interface AnchoredGrants {
+  fs?: AnchoredFsGrant[];
+  exec?: AnchoredExec[];
+  net?: AnchoredNetGrant[];
+}
 
 /** A path glob and the modes it grants. */
 export interface FsGrant {
@@ -47,6 +79,8 @@ export interface OsGrants {
   sys?: SysKind[];
   desktop?: DesktopKind[];
   dev?: DevGrant[];
+  kv?: Record<string, KvMode[]>;
+  anchored?: AnchoredGrants;
 }
 
 /** Every grant either declares: lists deduplicated in first-seen order, an fs glob or net target named by both with its modes or kinds unioned. */
@@ -67,6 +101,24 @@ export function unionOsGrants(a: OsGrants | undefined, b: OsGrants | undefined):
   if (net.length > 0) out.net = net;
   const dev = keyed(a?.dev, b?.dev, (g) => g.target, (g) => g.kinds, (g, kinds) => ({ ...g, kinds }));
   if (dev.length > 0) out.dev = dev;
+  const kv: Record<string, KvMode[]> = {};
+  for (const store of [...Object.keys(a?.kv ?? {}), ...Object.keys(b?.kv ?? {})]) {
+    kv[store] = list(a?.kv?.[store], b?.kv?.[store]);
+  }
+  if (Object.keys(kv).length > 0) out.kv = kv;
+  const anchored: AnchoredGrants = {};
+  const distinct = <T>(x: readonly T[] | undefined, y: readonly T[] | undefined): T[] => {
+    const out = new Map<string, T>();
+    for (const g of [...(x ?? []), ...(y ?? [])]) out.set(JSON.stringify(g), g);
+    return [...out.values()];
+  };
+  const anchoredFs = distinct(a?.anchored?.fs, b?.anchored?.fs);
+  const anchoredExec = distinct(a?.anchored?.exec, b?.anchored?.exec);
+  const anchoredNet = distinct(a?.anchored?.net, b?.anchored?.net);
+  if (anchoredFs.length > 0) anchored.fs = anchoredFs;
+  if (anchoredExec.length > 0) anchored.exec = anchoredExec;
+  if (anchoredNet.length > 0) anchored.net = anchoredNet;
+  if (Object.keys(anchored).length > 0) out.anchored = anchored;
   const exec = list(a?.exec, b?.exec);
   const env = list(a?.env, b?.env);
   const stdio = list(a?.stdio, b?.stdio);
@@ -97,12 +149,35 @@ export const NetGrantSchema = z.object({
   kinds: z.array(NetKindSchema),
 });
 
+export const KvModeSchema = z.enum(KV_MODES);
+
+export const GrantAnchorSchema = z.union([
+  z.enum(["exe-dir", "cwd"]),
+  z.object({ env: z.string() }).strict(),
+]);
+
+export const NetPartSchema = z.union([
+  z.object({ literal: z.string() }).strict(),
+  z.object({ anchor: GrantAnchorSchema }).strict(),
+]);
+
+export const AnchoredGrantsSchema = z
+  .object({
+    fs: z.array(z.object({ anchor: GrantAnchorSchema, glob: z.string(), modes: z.array(FsModeSchema) }).strict()).optional(),
+    exec: z.array(z.object({ anchor: GrantAnchorSchema, path: z.string().optional() }).strict()).optional(),
+    net: z
+      .array(z.object({ host: NetPartSchema, port: NetPartSchema, kinds: z.array(NetKindSchema) }).strict())
+      .optional(),
+  })
+  .strict();
+
 export const DevGrantSchema = z.object({
   target: z.string(),
   kinds: z.array(DevKindSchema),
 });
 
-export const OsGrantsSchema = z.object({
+export const OsGrantsSchema = z
+  .object({
   fs: z.array(FsGrantSchema).optional(),
   exec: z.array(z.string()).optional(),
   net: z.array(NetGrantSchema).optional(),
@@ -111,7 +186,10 @@ export const OsGrantsSchema = z.object({
   sys: z.array(SysKindSchema).optional(),
   desktop: z.array(DesktopKindSchema).optional(),
   dev: z.array(DevGrantSchema).optional(),
-});
+  kv: z.record(z.string(), z.array(KvModeSchema)).optional(),
+  anchored: AnchoredGrantsSchema.optional(),
+  })
+  .strict();
 
 /** `deployment` — target name to the orbital names deployed there. */
 export const DeploymentSchema = z.record(z.string(), z.array(z.string()));

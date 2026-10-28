@@ -352,7 +352,7 @@ function openPluginKernel(
   kernelEngine.catch(() => undefined);
   const transport = createLocalStoreTransport({ kernelEngine });
   const instance = opened.then(({ kernel }) => {
-    const k = new kernel.Kernel(JSON.stringify({ name: schema.name, orbitals: kernelOrbitals(schema.orbitals), ...(schema._metadata !== undefined ? { _metadata: schema._metadata } : {}) }), getTabClientId());
+    const k = new kernel.Kernel(JSON.stringify({ name: schema.name, orbitals: kernelOrbitals(schema.orbitals), ...(schema.typeContractVersion !== undefined ? { typeContractVersion: schema.typeContractVersion } : {}), ...(schema._metadata !== undefined ? { _metadata: schema._metadata } : {}) }), getTabClientId());
     // The local kernel runs the whole worklist of every leg it is posted, listeners of a dispatched emit included.
     k.setHostFansOut(true);
     return k;

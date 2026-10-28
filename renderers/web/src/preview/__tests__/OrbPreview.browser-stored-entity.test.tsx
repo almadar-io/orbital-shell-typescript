@@ -24,6 +24,7 @@ function schema(name: string): OrbitalSchema {
   return JSON.parse(JSON.stringify({
     name,
     version: '1.0.0',
+    typeContractVersion: 1,
     orbitals: [{
       name: 'Books',
       entity: {

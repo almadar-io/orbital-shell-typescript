@@ -7,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { startsWithUseClient } from './lib/ensure-use-client.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
@@ -22,6 +23,7 @@ const failures = [];
 for (const entry of [...entries].sort()) {
   try {
     await import(pathToFileURL(resolve(root, entry)).href);
+    if (entry.startsWith('./dist/') && !entry.startsWith('./dist/design-classes/') && !startsWithUseClient(readFileSync(resolve(root, entry), 'utf8'))) throw new Error('the "use client" directive is not the first statement');
     console.log(`  ok  ${entry}`);
   } catch (err) {
     failures.push(entry);

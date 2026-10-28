@@ -18,6 +18,7 @@ vi.unmock('../../providers/KernelEngineContext');
 const schema = (name: string): OrbitalSchema => JSON.parse(JSON.stringify({
   name,
   version: '1.0.0',
+  typeContractVersion: 1,
   orbitals: [{
     name: 'Books',
     entity: { name: 'Invoice', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }] },
@@ -53,6 +54,7 @@ describeKernel('OrbPreview — kernelLoader', () => {
 const board = (name: string): OrbitalSchema => JSON.parse(JSON.stringify({
   name,
   version: '1.0.0',
+  typeContractVersion: 1,
   orbitals: [{
     name: 'Board',
     entity: {
@@ -101,6 +103,7 @@ describeKernel('OrbPreview — languageLoader', () => {
 const greeting = (name: string): OrbitalSchema => JSON.parse(JSON.stringify({
   name,
   version: '1.0.0',
+  typeContractVersion: 1,
   orbitals: [{
     name: 'Site',
     entity: { name: 'SiteView', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }] },

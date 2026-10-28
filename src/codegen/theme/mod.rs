@@ -33,7 +33,6 @@ mod tests {
         TypeIntentMap, TypeScale, TypeScaleEntry, TypeScaleTokens, TypeSizeKey, TypeSlot,
         TypeWeight,
     };
-    use std::collections::HashMap;
 
     fn create_test_theme() -> ThemeDefinition {
         let mut colors = orbital_core_base::schema::ThemeMap::new();
@@ -46,7 +45,7 @@ mod tests {
         let mut dark_colors = orbital_core_base::schema::ThemeMap::new();
         dark_colors.insert("background".to_string(), "#0c4a6e".to_string());
 
-        let mut variants = HashMap::new();
+        let mut variants = orbital_core_base::collections::IndexMap::new();
         variants.insert(
             "dark".to_string(),
             ThemeVariant {

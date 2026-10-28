@@ -103,6 +103,8 @@ export interface UseTraitStateMachineOptions {
   orbitals: readonly OrbitalDefinition[];
   /** The program's `_metadata` (a compiled client program's operator sites and dispatch facts), handed to the kernel. */
   metadata?: SchemaMetadata;
+  /** The program's type-contract stamp, carried into the browser kernel's registration. */
+  typeContractVersion?: 1;
   /** Caller-owned transport (server bridge). Omitted + `persistence` set =
    *  offline preview (plan G7); omitted + no `persistence` = fully local,
    *  nothing ever posts. */
@@ -140,6 +142,7 @@ export function useTraitStateMachine(
   const { kernel, store, traitIndex, appTraitNames, transport, engine: kernelClient } = useCircuitKernel(traitBindings, {
     orbitals: options.orbitals,
     ...(options.metadata !== undefined ? { metadata: options.metadata } : {}),
+    ...(options.typeContractVersion !== undefined ? { typeContractVersion: options.typeContractVersion } : {}),
     engine,
     ...(options.transport !== undefined ? { transport: options.transport } : {}),
     ...(options.carriesCircuitState !== undefined ? { carriesCircuitState: options.carriesCircuitState } : {}),

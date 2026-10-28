@@ -1,12 +1,12 @@
 import type { EntityRow, PersistenceAdapter } from '@almadar/core';
 import { NativeMemoryPersistenceAdapter } from '@almadar/shell-runtime/persistence/native-memory';
+import { nativeMemoryPersistence } from '../../src/runtime/evaluation/native-memory.js';
 import { loadTestKernel } from '../../src/test-support/kernel-engine.js';
 
 /** A row store the kernel holds itself (its native `MemoryStore`), as a host keeps rows with no database. */
 export async function nativeMemory(): Promise<NativeMemoryPersistenceAdapter> {
   const kernel = await loadTestKernel();
-  if (!('MemoryStore' in kernel)) throw new Error('the installed @almadar/kernel exports no MemoryStore; point ALMADAR_KERNEL_DIR at a build that carries it');
-  return new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
+  return nativeMemoryPersistence(kernel);
 }
 
 const unused = (method: string) => (): never => { throw new Error(`the host store was not expected to be asked: ${method}`); };

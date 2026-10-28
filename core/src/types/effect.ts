@@ -1097,14 +1097,14 @@ export type LlmEffect = [`llm/${string}`, ...SExpr[]];
  * installed packages through `orb`, so they run on the server.
  * @example ['behavior/catalog', { paths: ['std/ui/core/molecules'] }, { emit: { success: 'LISTED', failure: 'LIST_FAILED' } }]
  */
-export type BehaviorReflectionEffect = ['behavior/catalog' | 'behavior/describe' | 'behavior/source' | 'behavior/resolve' | 'behavior/dependencies', ...SExpr[]];
+export type BehaviorReflectionEffect = ['behavior/catalog' | 'behavior/describe' | 'behavior/source' | 'behavior/resolve' | 'behavior/dependencies' | 'behavior/packages' | 'behavior/texts', ...SExpr[]];
 
 /**
  * Program effects: read `.lolo` text into a quoted program, print one back,
  * evaluate one (validate, then instantiate). Run `orb` on the server.
  * @example ['program/eval', '@entity.program', { emit: { success: 'BUILT', failure: 'BUILD_FAILED' } }]
  */
-export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/compose' | 'program/step' | 'program/live', ...SExpr[]];
+export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/compose' | 'program/step' | 'program/live' | 'program/self' | 'program/tick' | 'program/resolve-rows', ...SExpr[]];
 
 /**
  * Agent-port effects, the three abilities an LLM tool loop is written with: `program/inputs` lists the
@@ -1125,6 +1125,7 @@ export type AgentPortEffect = ['program/inputs' | 'program/dispatch' | 'persist/
 export type SessionEffect = [`session/${string}`, ...SExpr[]];
 export type TraceEffect = [`trace/${string}`, ...SExpr[]];
 export type MemoryEffect = [`memory/${string}`, ...SExpr[]];
+export type KvEffect = [`kv/${string}`, ...SExpr[]];
 export type ApplicationEffect = [`application/${string}`, ...SExpr[]];
 
 /** Effect operators the std registry declares that had no typed tuple (arity from the registry). */
@@ -1182,6 +1183,7 @@ export type TypedEffect =
     | SessionEffect
     | TraceEffect
     | MemoryEffect
+    | KvEffect
     | ApplicationEffect
     | NotifyEffect
     | SendServerEffect
@@ -1231,13 +1233,13 @@ export const EFFECT_OPERATORS = [
   'notify', 'send-server',
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
   'workspace/write-schema', 'workspace/write-plan', 'workspace/archive-orbital', 'behavior/catalog',
-  'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/compose', 'program/step',
-  'program/inputs', 'program/dispatch', 'program/live', 'persist/read-named',
+  'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'behavior/packages', 'behavior/texts', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/compose', 'program/step',
+  'program/inputs', 'program/dispatch', 'program/live', 'program/self', 'program/tick', 'program/resolve-rows', 'persist/read-named',
 ] as const;
 
 /** Namespaced effect families (`<family>/<name>`, e.g. `llm/generate`) the {@link Effect} union declares. */
 export const EFFECT_OPERATOR_FAMILIES = [
-  'agent', 'os', 'browser', 'llm', 'session', 'trace', 'memory',
+  'agent', 'os', 'browser', 'llm', 'session', 'trace', 'memory', 'kv',
   'application',
 ] as const;
 

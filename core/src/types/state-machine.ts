@@ -94,6 +94,8 @@ export type PayloadField = {
   type: string;
   required?: boolean;
   nullable?: boolean;
+  /** Human-readable description. Mirrors Rust `PayloadField.description`. */
+  description?: string;
   additionalProperties?: PayloadField;
   /** Closed value set (`"a" | "b"`) — element-wise for an array type. Mirrors Rust `PayloadField.values`. */
   values?: ReadonlyArray<string>;
@@ -160,6 +162,7 @@ const payloadFieldShape = {
   type: z.string().min(1),
   required: z.boolean().optional(),
   nullable: z.boolean().optional(),
+  description: z.string().optional(),
   additionalProperties: z.lazy(() => PayloadFieldDescriptorSchema).optional(),
   values: z.array(z.string()).optional(),
   properties: z.lazy(() => z.array(PayloadFieldSchema)).optional(),
@@ -169,7 +172,8 @@ const payloadFieldShape = {
   items: z.lazy(() => PayloadFieldDescriptorSchema).optional(),
 };
 
-const PayloadFieldDescriptorSchema: z.ZodType<PayloadField> = z.object({
+/** A payload field as a nested member (`additionalProperties`, `items`): the name may be empty. */
+export const PayloadFieldDescriptorSchema: z.ZodType<PayloadField> = z.object({
   name: z.string(),
   ...payloadFieldShape,
 });

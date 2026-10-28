@@ -117,9 +117,9 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
   'prob/seed': 'compute', 'prob/condition': 'compute',
   'workspace/write-orbital': 'system', 'workspace/write-file': 'system', 'workspace/write-schema': 'system',
   'workspace/write-plan': 'system', 'workspace/archive-orbital': 'system',
-  'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
+  'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/packages': 'system', 'behavior/texts': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/compose': 'system', 'program/step': 'system',
-  'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
+  'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
   'http': 'communication', 'redis': 'communication', 'postgres': 'communication', 'oauth-authorize': 'communication', 'oauth-connection-status': 'communication', 'oauth-connection-forget': 'communication',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'compute',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system',
@@ -127,7 +127,7 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
 
 const EFFECT_FAMILY_CATEGORY: Record<EffectOperatorFamily, EffectCategory> = {
   agent: 'system', os: 'system', browser: 'system', llm: 'system',
-  session: 'system', trace: 'control', memory: 'data', application: 'system',
+  session: 'system', trace: 'control', memory: 'data', kv: 'data', application: 'system',
 };
 
 /** Where in the world an effect lands — drawn as the actuator's target. */
@@ -145,9 +145,9 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
   'prob/seed': 'model', 'prob/condition': 'model',
   'workspace/write-orbital': 'system', 'workspace/write-file': 'system', 'workspace/write-schema': 'system',
   'workspace/write-plan': 'system', 'workspace/archive-orbital': 'system',
-  'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
+  'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/packages': 'system', 'behavior/texts': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/compose': 'system', 'program/step': 'system',
-  'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
+  'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
   'http': 'remote', 'redis': 'remote', 'postgres': 'remote', 'oauth-authorize': 'remote', 'oauth-connection-status': 'remote', 'oauth-connection-forget': 'remote',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'system',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system',
@@ -155,7 +155,7 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
 
 const EFFECT_FAMILY_ZONE: Record<EffectOperatorFamily, EffectZone> = {
   agent: 'system', os: 'system', browser: 'system', llm: 'remote',
-  session: 'system', trace: 'flow', memory: 'store', application: 'system',
+  session: 'system', trace: 'flow', memory: 'store', kv: 'store', application: 'system',
 };
 
 function isEffectOperator(head: string): head is EffectOperator {

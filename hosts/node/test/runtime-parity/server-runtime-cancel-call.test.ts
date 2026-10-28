@@ -9,6 +9,7 @@ import type { ServiceCallContext } from '@almadar/shell-runtime';
 
 const schema: OrbitalSchema = {
   name: 'cancel-app',
+  typeContractVersion: 1,
   version: '1.0.0',
   orbitals: [{
     name: 'JobOrbital',

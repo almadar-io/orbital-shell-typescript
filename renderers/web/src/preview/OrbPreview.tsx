@@ -114,7 +114,7 @@ function appPathFromHref(href: string, hostHrefBase: string): string | null {
  * its own `sendEvent`/mount-time dispatch resolves — this component only
  * decides WHICH transport (or none) the kernel dispatches through.
  */
-function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, metadata, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
+function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, metadata, typeContractVersion, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
   traits: ResolvedTraitBinding[];
   /** Route params from a parameterized page path — merged into every INIT payload. */
   routeParams?: Record<string, string>;
@@ -125,6 +125,8 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
   orbitals: readonly OrbitalDefinition[];
   /** The program's `_metadata`: a compiled client program's operator sites and dispatch facts ride it into the kernel. */
   metadata?: SchemaMetadata;
+  /** The program's type-contract stamp: the kernel refuses to register a program without it. */
+  typeContractVersion?: 1;
   onNavigate?: (path: string, params?: Record<string, string>, crumb?: string) => void;
   /** navigate-back effect handler: pop the orbital's navigation stack. */
   onNavigateBack?: () => void;
@@ -180,6 +182,7 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
   const { entityBindingSource, awaitingSkeletonSource } = useTraitStateMachine(traits, uiSlots, {
     orbitals,
     ...(metadata !== undefined ? { metadata } : {}),
+    ...(typeContractVersion !== undefined ? { typeContractVersion } : {}),
     ...(onNavigate !== undefined ? { navigate: onNavigate } : {}),
     ...(onNavigateBack !== undefined ? { navigateBack: onNavigateBack } : {}),
     ...(embeddedTraits !== undefined ? { embeddedTraits } : {}),
@@ -505,7 +508,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   const kernelEngine = useKernelEngine();
   const browserRows = useMemo(
     () => (browserStore.status === 'ready' && kernelEngine !== null
-      ? browserRowSets(kernelEngine, { name: schema.name ?? 'app', orbitals: schema.orbitals }, browserStore.store, viewer.user ?? undefined)
+      ? browserRowSets(kernelEngine, { name: schema.name ?? 'app', orbitals: schema.orbitals, ...(schema.typeContractVersion !== undefined ? { typeContractVersion: schema.typeContractVersion } : {}) }, browserStore.store, viewer.user ?? undefined)
       : undefined),
     [browserStore, kernelEngine, schema.name, schema.orbitals, viewer.user],
   );
@@ -535,6 +538,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
           {...(mountRoute !== undefined ? { routePath: mountRoute } : {})}
           orbitals={schema.orbitals}
           {...(schema._metadata !== undefined ? { metadata: schema._metadata } : {})}
+          {...(schema.typeContractVersion !== undefined ? { typeContractVersion: schema.typeContractVersion } : {})}
           hasBridge={Boolean(serverUrl || transport)}
           embeddedTraits={embeddedTraits}
           callsiteCaptureChildrenByTrait={callsiteCaptureChildrenByTrait}

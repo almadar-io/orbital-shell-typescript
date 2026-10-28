@@ -44,7 +44,8 @@ const reloader: Trait = {
 };
 
 const orbitals: OrbitalSchema['orbitals'] = [{
-  name: 'DealOrbital', id: 'orb_deal' as OrbitalId, pages: [],
+  name: 'DealOrbital', id: 'orb_deal' as OrbitalId,
+  pages: [{ name: 'Deals', path: '/deals', traits: ['Content', 'Panel', 'Won', 'Title', 'Reloader'].map((ref) => ({ ref })) }],
   entity: { name: 'Deal', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'status', type: 'string' }] },
   traits: [content, panel, won, title, reloader],
 }];
@@ -63,6 +64,7 @@ async function mounted() {
   const slots = stubSlots();
   const hook = renderHook(() => useTraitStateMachine(['Content', 'Panel', 'Won', 'Title', 'Reloader'].map(binding), slots, {
     orbitals,
+    routePath: '/deals',
     callsiteCaptureChildrenByTrait: new Map([['Content', new Set(['Panel'])], ['Panel', new Set(['Won', 'Title', 'Reloader'])]]),
   }));
   await act(async () => undefined);

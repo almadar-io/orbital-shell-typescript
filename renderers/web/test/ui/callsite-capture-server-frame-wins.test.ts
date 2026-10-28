@@ -42,7 +42,7 @@ const body: Trait = {
 const orbitals: OrbitalSchema['orbitals'] = [{
   name: 'DiaryOrbital',
   id: 'orb_diary' as OrbitalId,
-  pages: [],
+  pages: [{ name: 'Diary', path: '/diary', traits: [{ ref: 'Feed' }, { ref: 'Body' }] }],
   entity: { name: 'Entry', persistence: 'persistent', collection: 'entries', fields: [{ name: 'id', type: 'string' }, { name: 'title', type: 'string' }] },
   traits: [feed, body],
 }];
@@ -93,6 +93,7 @@ async function mounted() {
   const slots = stubSlots();
   const hook = renderHook(() => useTraitStateMachine(['Feed', 'Body'].map(binding), slots, {
     orbitals,
+    routePath: '/diary',
     transport: new Server(),
     callsiteCaptureChildrenByTrait: new Map([['Feed', new Set(['Body'])]]),
   }));

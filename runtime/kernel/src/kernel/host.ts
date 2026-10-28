@@ -31,6 +31,7 @@ import { isProgramEffect, type ProgramEffectName, type ProgramEffectOutcome } fr
 type ProgramEffectResult = Extract<ProgramEffectOutcome, { ok: true }>['result'];
 import { embedOnDevice, OnDeviceModelFailure, promptOnDevice } from '../effects/on-device-model.js';
 import { base64Standard, checkOAuthReply, sendBeaconRequest, sendHttp, streamHttp, systemRandom, type CredentialAdminPort, type Exchange, type HttpPorts } from './http.js';
+import type { EventRequest } from '@almadar/core/kernel-wire';
 import type { CallSiteWire, IoAnswerWire, IoRequestWire, KernelModule, Settled, SubstrateFailureWire } from './wire.js';
 import type { OsCompletionEvent, OsCompletionPort, OsHostPort } from './os-port.js';
 import { TabHostFailure, type BrowserTabPort } from '@almadar/core';
@@ -118,15 +119,14 @@ function programDocumentJson(document: ProgramEffectResult): JsonValue {
   return JSON.parse(JSON.stringify(document));
 }
 
-/** The kernel's typed parse of a `program/dispatch` event request: the request as JSON, or the reason it is none. */
-export type EventRequestParser = (payload: JsonObject, options: JsonObject) => Settled<JsonObject, string>;
+/** The kernel's typed parse of a `program/dispatch` event request: the request, or the reason it is none. */
+export type EventRequestParser = (payload: JsonObject, options: JsonObject) => Settled<EventRequest, string>;
 
 /** The request parser over the kernel module: `EventRequest::from_dispatch`, not copied. */
 export function kernelEventRequestParser(kernel: Pick<KernelModule, 'parseEventRequest'>): EventRequestParser {
   return (payload, options) => {
     try {
-      const parsed: JsonValue = JSON.parse(kernel.parseEventRequest(JSON.stringify(payload), JSON.stringify(options)));
-      return isJsonObject(parsed) ? { ok: parsed } : { error: 'program/dispatch: the kernel parsed no event request' };
+      return { ok: kernel.parseEventRequest(JSON.stringify(payload), JSON.stringify(options)) };
     } catch (error) {
       return { error: error instanceof Error ? error.message : String(error) };
     }

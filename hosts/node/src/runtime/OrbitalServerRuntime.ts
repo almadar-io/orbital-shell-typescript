@@ -64,8 +64,8 @@ import type {
   EventStreamItem,
 } from "@almadar/core";
 import { entityAccessPolicies } from "@almadar/core/mock";
-import { entityOwnerOrbital, RowSetRefSchema, type JsonObject, type RowQueryPage } from "@almadar/core";
-import { isEventRequest } from "@almadar/core/kernel-wire";
+import { entityOwnerOrbital, RowSetRefSchema, type RowQueryPage } from "@almadar/core";
+import type { EventRequest } from "@almadar/core/kernel-wire";
 
 // Single upstream owner (`@almadar/core`'s `types/bus.ts`) — both execution
 // paths (this runtime and orbital-shell-typescript's generated handlers,
@@ -1347,14 +1347,11 @@ export class OrbitalServerRuntime {
    */
   async dispatchEventRequest(
     orbital: string,
-    parsed: JsonObject,
+    parsed: EventRequest,
     input: boolean,
     caller: UserContext | undefined,
     stream = false,
   ): Promise<DispatchRequestOutcome> {
-    if (!isEventRequest(parsed)) {
-      return { ok: false, error: 'program/dispatch: the kernel parsed no event request', code: 'INVALID_REQUEST', status: 400 };
-    }
     const request: OrbitalEventRequest = parsed;
     const streamItems: EventStreamItem[] = [];
     const onPush = stream ? (item: PushItem): void => { streamItems.push({ ...item, timestamp: item.timestamp ?? Date.now() }); } : undefined;

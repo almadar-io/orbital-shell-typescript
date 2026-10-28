@@ -30,6 +30,7 @@ function pair(): [TransportChannel, TransportChannel] {
 const program: OrbitalSchema = {
   name: 'host-runs-program',
   version: '1.0.0',
+  typeContractVersion: 1,
   orbitals: [{
     name: 'Feed',
     entity: { name: 'Seen', persistence: 'persistent', collection: 'seen', browser: true, fields: [{ name: 'id', type: 'string' }, { name: 'title', type: 'string' }] },
@@ -111,6 +112,7 @@ describe('a view of a program its host runs entirely', () => {
     const ticking: OrbitalSchema = {
       name: 'host-runs-ticks',
       version: '1.0.0',
+      typeContractVersion: 1,
       orbitals: [{
         name: 'Pulse',
         entity: { name: 'Beat', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },

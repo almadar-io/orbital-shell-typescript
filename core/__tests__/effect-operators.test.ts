@@ -10,4 +10,11 @@ describe('EFFECT_OPERATORS', () => {
     const families = new Set<string>(EFFECT_OPERATOR_FAMILIES);
     expect(EFFECT_OPERATORS.filter((op) => families.has(op.split('/')[0]) && op.includes('/'))).toEqual([]);
   });
+
+  it('declares the std-table effects kv/*, behavior/packages|texts and program/self|tick|resolve-rows', () => {
+    const literals = new Set<string>(EFFECT_OPERATORS);
+    for (const op of ['behavior/packages', 'behavior/texts', 'program/self', 'program/tick', 'program/resolve-rows']) expect(literals.has(op), op).toBe(true);
+    expect((EFFECT_OPERATOR_FAMILIES as readonly string[]).includes('kv')).toBe(true);
+    expect(literals.has('kv/get')).toBe(false);
+  });
 });

@@ -11,6 +11,7 @@ const MEMBERS_ONLY: SExpr = ['=', '@user.role', 'member'];
 function schema(): OrbitalSchema {
   return {
     name: 'external-input-app',
+    typeContractVersion: 1,
     version: '1.0.0',
     orbitals: [
       {

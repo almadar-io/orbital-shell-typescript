@@ -51,6 +51,7 @@ async function slowPersistence(delayMs: number): Promise<NativeMemoryPersistence
 function oldAppSchema(): OrbitalSchema {
   return {
     name: 'OldApp',
+    typeContractVersion: 1,
     schemaVersion: 4,
     orbitals: [
       {
@@ -85,6 +86,7 @@ function accountingSchema(): OrbitalSchema {
   });
   return {
     name: 'AccountingApp',
+    typeContractVersion: 1,
     schemaVersion: 4,
     orbitals: [
       {

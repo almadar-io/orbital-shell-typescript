@@ -12,6 +12,7 @@ const ALICE: UserContext = { id: 'alice', role: 'member' };
 function schema(emit: Record<string, string>): OrbitalSchema {
   return {
     name: 'live-message-app',
+    typeContractVersion: 1,
     version: '1.0.0',
     orbitals: [
       {

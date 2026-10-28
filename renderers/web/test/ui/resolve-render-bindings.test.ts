@@ -180,7 +180,9 @@ describe('resolveRenderBindingMarkers — i18n/t in a deferred expression', () =
     expect(second.content).toBe('2 منشورات');
   });
 
-  it('control: without a catalog the evaluator reports the missing message', () => {
-    expect(() => resolveRenderBindingMarkers(props(), 'Blog', { count: 1 }, undefined, 'idle')).toThrow('message for `site:posts.count`');
+  it('control: without a catalog the kernel answers null for the missing message, with no fallback text', () => {
+    const out = resolveRenderBindingMarkers(props(), 'Blog', { count: 1 }, undefined, 'idle');
+    if (typeof out === 'string') throw new Error('expected object props');
+    expect(out.content).toBeNull();
   });
 });

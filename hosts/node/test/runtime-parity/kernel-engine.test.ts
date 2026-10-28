@@ -21,6 +21,7 @@ const emit = { emit: { success: 'SAVED', failure: 'SAVE_FAILED' } };
 function notes(): OrbitalSchema {
   return {
     name: 'notes',
+    typeContractVersion: 1,
     version: '1.0.0',
     orbitals: [{
       name: 'Main',
@@ -55,6 +56,7 @@ function endpoints(): OrbitalSchema {
   });
   return {
     name: 'endpoints',
+    typeContractVersion: 1,
     version: '1.0.0',
     orbitals: [{
       name: 'Main',
@@ -71,6 +73,7 @@ function endpoints(): OrbitalSchema {
 function fetcher(egress: string[]): OrbitalSchema {
   return {
     name: 'fetcher',
+    typeContractVersion: 1,
     version: '1.0.0',
     egress,
     orbitals: [{
@@ -98,6 +101,7 @@ function service(): OrbitalSchema {
   const options = { emit: { success: 'DONE', failure: 'FAILED' } };
   return {
     name: 'svc',
+    typeContractVersion: 1,
     version: '1.0.0',
     orbitals: [{
       name: 'Main',
@@ -136,6 +140,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
   describe('the kernel orders requests (EXEC-CONC-2)', () => {
     const laned = (): OrbitalSchema => ({
       name: 'laned',
+      typeContractVersion: 1,
       version: '1.0.0',
       orbitals: [{
         name: 'Main',
@@ -183,6 +188,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
   describe('a client session owns its frames (EXEC-DIST-9)', () => {
     const drafts = (): OrbitalSchema => ({
       name: 'drafts',
+      typeContractVersion: 1,
       version: '1.0.0',
       orbitals: [{
         name: 'Main',

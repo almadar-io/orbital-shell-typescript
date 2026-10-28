@@ -144,7 +144,7 @@ function wiringOrbitalsWithInit(): OrbitalSchema['orbitals'] {
   return [{
     name: 'NavOrbital',
     id: 'orb_nav' as OrbitalId,
-    pages: [],
+    pages: [{ name: 'NewPage', path: '/new', traits: [{ ref: 'NewPageLayout' }] }],
     entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [
       mkTrait('OldPageLayout', [{ from: 'idle', to: 'idle', event: 'PING', effects: [] }]),
@@ -233,7 +233,7 @@ describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
 
     const { rerender } = renderHook(
       ({ bindings }: { bindings: ResolvedTraitBinding[] }) =>
-        useTraitStateMachine(bindings, slots, { orbitals }),
+        useTraitStateMachine(bindings, slots, { orbitals, routePath: '/new' }),
       { initialProps: { bindings: pageA } },
     );
 

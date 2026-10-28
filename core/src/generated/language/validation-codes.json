@@ -1390,6 +1390,21 @@
     "description": "`(set @entity.X literal)` assigns a string literal that is not a member of the target field's declared enum (`values: [...]`). The declared union was previously validated + emitted but never enforced — an out-of-set value passed silently. The lolo crate catches this at author time for `.lolo`; this is the raw-`.orb` defense-in-depth backstop."
   },
   {
+    "code": "ORB_X_ROW_LITERAL_UNKNOWN_FIELD",
+    "category": "effect",
+    "description": "A record literal written into an entity (a `persist` data literal, or a `set` into a relation field) names a key the entity does not declare."
+  },
+  {
+    "code": "ORB_X_ROW_LITERAL_FIELD_TYPE_MISMATCH",
+    "category": "effect",
+    "description": "A record literal written into an entity carries a value whose type the declared field does not admit."
+  },
+  {
+    "code": "ORB_X_ROW_LITERAL_MISSING_REQUIRED",
+    "category": "effect",
+    "description": "A `persist create` data literal omits a column the entity requires (no default, not framework-stamped)."
+  },
+  {
     "code": "ORB_X_SET_RETURN_TYPE_MISMATCH",
     "category": "effect",
     "description": "`(set @entity.X (op …))` assigns an operator/expression value whose inferred result type is incompatible with the target field's declared type (e.g. `(set @entity.count (str/concat …))` into a `number` field). The value's type is inferred *through* the S-expression via the canonical operator `return_semantics` lattice; an unknowable result (`Json`) never rejects (Gap G-LOLO-SET-OP-RETURN)."

@@ -20,6 +20,7 @@ const WIDGET: TraitValue = { behavior: 'almadar-std/std-greeting', trait: 'Greet
 function mountedSchema(): OrbitalSchema {
   return {
     name: 'MountGreet',
+    typeContractVersion: 1,
     orbitals: [
       {
         name: 'Mounted',
@@ -29,6 +30,7 @@ function mountedSchema(): OrbitalSchema {
           {
             name: 'MountedGreet',
             linkedEntity: 'MountedGreeting',
+            dispatch: 'client',
             stateMachine: {
               states: [{ name: 'idle', isInitial: true }, { name: 'shown' }],
               events: [{ key: 'INIT', name: 'INIT' }],

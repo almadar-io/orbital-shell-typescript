@@ -18,7 +18,7 @@ import { RawUserClaimsSchema, type RawUserClaims } from "./user.js";
 import { ServerEffectResultSchema, type ServerEffectResult } from "./effect-result.js";
 import type { ExternalInput } from "../access/externalInputs.js";
 import { JsonValueSchema, type JsonObject, type JsonValue } from "./json.js";
-import type { HopObservation, RepaintReason } from "../generated/kernel-wire.js";
+import type { EventRequest, HopObservation, RepaintReason } from "../generated/kernel-wire.js";
 
 /**
  * Declared event key. A trait's event names (INIT, SAVE, CLOSE,
@@ -537,12 +537,12 @@ export interface ServiceHostPorts {
   read(entity: string): Promise<EntityRow[]>;
   /**
    * A `program/dispatch` event request (owner, 2026-10-21): dispatch `request` on `orbital` as the HTTP events
-   * route does (`input: true` admits only a declared external input, as the inputs route). `request` is the raw JSON
-   * the kernel parsed (`EventRequest::from_dispatch`); its `user` is the dispatch's viewer when the call names one.
+   * route does (`input: true` admits only a declared external input, as the inputs route). `request` is what the kernel
+   * parsed (`EventRequest::from_dispatch`); its `user` is the dispatch's viewer when the call names one.
    * A host that does not serve event requests leaves it out.
    */
   supportsDispatchStream?: true;
-  dispatchRequest?(orbital: string, request: JsonObject, input: boolean, stream?: boolean): Promise<DispatchRequestOutcome>;
+  dispatchRequest?(orbital: string, request: EventRequest, input: boolean, stream?: boolean): Promise<DispatchRequestOutcome>;
   /** A `program/dispatch { inbound }` delivery through the inbound route, credential check and answer path. */
   deliverInbound?(name: string, delivery: { headers: Readonly<Record<string, string>>; rawBody: string }): Promise<{ status: number; body: string }>;
   /** The host's last `steps` traced dispatch steps, oldest first; a host that keeps no trace leaves it out. */

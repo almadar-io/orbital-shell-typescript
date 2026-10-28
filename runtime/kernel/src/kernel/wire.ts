@@ -1,4 +1,5 @@
 import type { KernelEvaluatorExports } from '@almadar/core';
+import type { EventRequest } from '@almadar/core/kernel-wire';
 
 /**
  * The server-role kernel's wire is `@almadar/core/kernel-wire` (generated from orbital-core `embed::wire`);
@@ -89,8 +90,8 @@ export interface KernelModule extends KernelEvaluatorExports {
   substrateCompletionEvent(siteJson: string, key: string, op: string, argsJson: string, outcomeJson: string): string;
   /** Whether the Chrome match pattern matches the URL: the one rule a browser-tab host filters tabs with. */
   tabUrlMatches(pattern: string, url: string): boolean;
-  /** The typed event request a `program/dispatch` call names (`EventRequest::from_dispatch`) as JSON; a record that is no event request throws the reason. */
-  parseEventRequest(payloadJson: string, optionsJson: string): string;
+  /** The typed event request a `program/dispatch` call names (`EventRequest::from_dispatch`); a record that is no event request throws the reason. */
+  parseEventRequest(payloadJson: string, optionsJson: string): EventRequest;
   /** Installs the language data (`@almadar/core/language-data` `LanguageBundle` as JSON) for a host with no `node_modules`; the first install wins. */
   installLanguage(bundleJson: string): void;
 }
