@@ -532,7 +532,7 @@ export interface MakeAtomOrbitalOpts {
  * {@link makeTraitRef}, {@link makePageRef}, and {@link makeOrbitalWithUses}.
  *
  * The trait reference is linkedEntity-bound to `entity.name` by default so
- * that the inliner's entity-substitution pass rewrites every `["ref", X]`
+ * that the inliner's entity-substitution pass rewrites every `["fetch", X]`
  * and `@X.path` reference inside the atom.
  */
 export function makeAtomOrbital(opts: MakeAtomOrbitalOpts): OrbitalDefinition {

@@ -522,7 +522,7 @@ export type SeedWire = { trait: string, event: string, };
 
 export type ServerEffectCode = "not-found" | "no-row-key" | "duplicate-id" | "denied" | "derived-failed";
 
-export type ServerEffectKind = "set" | "persist" | "call-service" | "http" | "fetch" | "fetch-stream" | "ref" | "deref" | "swap" | "atomic" | "emit" | "substrate";
+export type ServerEffectKind = "set" | "persist" | "call-service" | "http" | "fetch" | "fetch-stream" | "emit" | "substrate";
 
 export type ServerEffectResult = { effect: ServerEffectKind, action?: string, entityType?: string, 
 /**
@@ -722,7 +722,7 @@ function checkServerEffectCode(v: JsonValue | undefined): boolean {
 }
 
 function checkServerEffectKind(v: JsonValue | undefined): boolean {
-  return (v === "set" || v === "persist" || v === "call-service" || v === "http" || v === "fetch" || v === "fetch-stream" || v === "ref" || v === "deref" || v === "swap" || v === "atomic" || v === "emit" || v === "substrate");
+  return (v === "set" || v === "persist" || v === "call-service" || v === "http" || v === "fetch" || v === "fetch-stream" || v === "emit" || v === "substrate");
 }
 
 function checkServerEffectResult(v: JsonValue | undefined): boolean {

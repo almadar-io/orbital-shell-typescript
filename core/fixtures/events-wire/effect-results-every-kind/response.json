@@ -31,26 +31,6 @@
       "success": true
     },
     {
-      "effect": "ref",
-      "entityType": "Note",
-      "success": true
-    },
-    {
-      "effect": "deref",
-      "entityType": "Note",
-      "success": true
-    },
-    {
-      "effect": "swap",
-      "entityType": "Note",
-      "success": true
-    },
-    {
-      "effect": "atomic",
-      "entityType": "Note",
-      "success": true
-    },
-    {
       "effect": "emit",
       "entityType": "Note",
       "success": true

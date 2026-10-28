@@ -91,7 +91,6 @@ function scripted(log: string[], service = false): KernelModule {
         { type: 'event', data: { event: 'FIRST' }, timestamp: 1 },
         { type: 'effect', data: ['navigate', '/next'], timestamp: 2 },
         { type: 'event', data: { event: 'LAST' }, timestamp: 3 },
-        { type: 'complete', data: { success: true, transitioned: true, states: {}, emittedEvents: [] }, timestamp: 4 },
       ]);
     }
     inFlight(): number { return 0; }

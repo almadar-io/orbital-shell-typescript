@@ -268,7 +268,6 @@ const ENTITY_POSITIONAL_OPS: ReadonlyArray<{
   readonly entityIndex: number;
 }> = [
   { op: 'fetch', entityIndex: 1 },
-  { op: 'ref', entityIndex: 1 },
   { op: 'spawn', entityIndex: 1 },
   { op: 'persist', actionGuard: new Set(['create', 'update', 'delete']), entityIndex: 2 },
 ];

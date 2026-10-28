@@ -83,7 +83,6 @@
 ((sexpr . (identifier) @keyword)
   (#any-of? @keyword
     "access-check"
-    "atomic"
     "call-service"
     "cancel-call"
     "credential-forget"
@@ -94,7 +93,6 @@
     "credential-set"
     "credential-status"
     "credential-test"
-    "deref"
     "despawn"
     "emit"
     "fetch"
@@ -111,13 +109,10 @@
     "postgres"
     "random-bytes"
     "redis"
-    "ref"
     "render-ui"
     "send-server"
     "set"
-    "spawn"
-    "swap"
-    "watch"))
+    "spawn"))
 
 ; Control-flow / logic s-expr operators (if, and, or, not, let, do, fn, ...)
 ; also render as keywords.

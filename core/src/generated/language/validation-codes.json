@@ -337,7 +337,7 @@
   {
     "code": "ORB_T_LOCAL_TRAIT_TOUCHES_SERVER",
     "category": "trait",
-    "description": "A `[client]` trait's transitions contain a server-bound effect (`fetch`/`persist`/`call-service`/`ref`/`deref`/`swap`/`watch`/ `atomic`/`fetch-stream`), or a guard reading `@user.*`. `[client]` declares client-only dispatch (`OirTrait::dispatch_mode`) — a trait that actually touches the server or reads viewer identity is mis-tagged; its transitions would never await the round trip they depend on. Wave 2. Error severity."
+    "description": "A `[client]` trait's transitions contain a server-bound effect (`fetch`/`persist`/`call-service`/ `fetch-stream`), or a guard reading `@user.*`. `[client]` declares client-only dispatch (`OirTrait::dispatch_mode`) — a trait that actually touches the server or reads viewer identity is mis-tagged; its transitions would never await the round trip they depend on. Wave 2. Error severity."
   },
   {
     "code": "ORB_T_CLIENT_TICK_SERVER_EFFECT",
@@ -1122,7 +1122,7 @@
   {
     "code": "ORB_EFF_MISSING_REQUIRED_EMIT",
     "category": "effect",
-    "description": "Operator declares `requiresEmitSuccess: true` in canonical-operators.json but the effect call site is missing the trailing options object or its `emit.success` event key. Applies to fetch / persist / call-service / ref by default; any future operator can opt in via the same JSON flag."
+    "description": "Operator declares `requiresEmitSuccess: true` in canonical-operators.json but the effect call site is missing the trailing options object or its `emit.success` event key. Applies to fetch / persist / call-service by default; any future operator can opt in via the same JSON flag."
   },
   {
     "code": "ORB_EFF_FETCH_BY_ID_PAYLOAD_LIST",
@@ -1857,7 +1857,7 @@
   {
     "code": "ORB_STORE_DRIVER_CONTRACT",
     "category": "entity",
-    "description": "A store driver orbital has no trait handling one of ROW_READ / ROW_LIST / ROWS_QUERY / ROWS_WRITE (`spec/store/row-store.lolo`). Error severity."
+    "description": "A store driver orbital has no trait handling one of ROW_READ / ROW_LIST / ROWS_QUERY / ROWS_WRITE (`spec/store/row-store.lolo`), or ROWS_ENSURE_INDEXES when it declares `queryCapabilities.indexes` runtime or deploy. Error severity."
   },
   {
     "code": "ORB_STORE_ON_NON_PERSISTENT",
@@ -1873,6 +1873,36 @@
     "code": "ORB_STORE_DRIVER_NOT_CONDITIONAL",
     "category": "entity",
     "description": "A single `persist delete|update` on an entity whose driver declares `writeCapabilities.conditional` false: the take is one conditional op (EXEC-STEP-8). Error severity."
+  },
+  {
+    "code": "ORB_INDEX_PATH_INVALID",
+    "category": "entity",
+    "description": "An entity `@index` path names a field the entity does not declare (`id`, `createdAt` and `updatedAt` always exist) or a non-scalar field (array, object, file). Error severity."
+  },
+  {
+    "code": "ORB_INDEX_PATH_DUPLICATE",
+    "category": "entity",
+    "description": "An entity declares the same `@index` path twice (`orderBy: \"f\"` and `\"f:asc\"` are one order). Error severity."
+  },
+  {
+    "code": "ORB_FETCH_NEEDS_COMPOSITE_INDEX",
+    "category": "entity",
+    "description": "A conjunctive `fetch` of an entity whose store driver declares `queryCapabilities.indexes: \"deploy\"` needs a composite index (two or more equality fields, or an equality with a range or an order on another field) and no declared `@index` path covers it. Error severity."
+  },
+  {
+    "code": "ORB_FETCH_UNINDEXED",
+    "category": "entity",
+    "description": "A `fetch` with an equality or range filter on an entity whose store driver declares `queryCapabilities.indexes: \"none\"` (no push-down, the kernel scans) and no declared `@index` path covers it. Warning severity."
+  },
+  {
+    "code": "ORB_FETCH_UNBOUNDED",
+    "category": "entity",
+    "description": "A `fetch` of a persistent entity names no `limit` (and is not by `id` or `nearest`), so it reads every row. The cap is the fetch's own `limit`. Warning severity."
+  },
+  {
+    "code": "ORB_DERIVED_FIELD_WRITTEN",
+    "category": "entity",
+    "description": "A `set @entity.<field>` or a `persist create|update|upsert` payload writes a field declared `@derived`: the kernel computes it on every write. Error severity."
   },
   {
     "code": "ORB_RENDER_GROUPBY_ENUM_COLUMN_GAP",

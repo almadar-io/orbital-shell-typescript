@@ -236,11 +236,10 @@ export type EmitEffect = ['emit', string] | ['emit', string, EventPayload | stri
  * | `persist`        | `success`, `failure`      |
  * | `call-service`   | `success`, `failure`, `cancelled` |
  * | `set`            | `success`                 |
- * | `ref`            | `on_change`, `failure`    |
  * | `fetch-stream`   | `on_message`, `success`, `failure` |
  *
  * Payload convention:
- * - `success` / `on_change` → the effect's result (fetched entity, new value)
+ * - `success`             → the effect's result (fetched entity, new value)
  * - `failure`               → `{ error: string, code?: string }`
  * - `on_message`            → the incoming chunk (`fetch-stream`)
  *
@@ -253,8 +252,6 @@ export interface EmitConfig {
     failure?: string;
     /** `call-service` only: fires when `cancel-call` aborts the call; payload is `{ key }`. */
     cancelled?: string;
-    /** Reactive-subscription event (per update for `ref`). */
-    on_change?: string;
     /** Per-chunk fire for `fetch-stream`. */
     on_message?: string;
 }
@@ -954,7 +951,7 @@ export type DespawnEffect = ['despawn', string];
 export type DoEffect = ['do', ...SExpr[]];
 
 /**
- * Options accepted by `fetch` / `ref` / `deref` effects. Mirrors what
+ * Options accepted by `fetch` effects. Mirrors what
  * `OrbitalServerRuntime`'s fetch handler reads at runtime: `id`, `filter`,
  * `limit`, `offset`, `include`, plus the trailing `emit:` map for
  * success/failure event names.
@@ -1008,7 +1005,7 @@ export type FetchStreamOptions = {
 export type FetchStreamEffect = ['fetch-stream', string] | ['fetch-stream', string, FetchStreamOptions];
 
 /**
- * Result returned by a fetch / ref / deref handler.
+ * Result returned by a fetch handler.
  *
  * `rows` carries the entity (or entities) that survived `filter` AND
  * pagination (`offset`/`limit`). `total` is the count of rows that
@@ -1054,67 +1051,6 @@ export type LogEffect = ['log', ...SExpr[]];
  * @example ['wait', 1000] - wait 1 second
  */
 export type WaitEffect = ['wait', number];
-
-// ============================================================================
-// Resource Effects (reactive entity subscriptions and atomic operations)
-// ============================================================================
-
-/**
- * Ref effect - creates a reactive entity subscription.
- * Returns a reactive reference that auto-updates when the entity changes.
- * @example ['ref', '@entity.health'] - reactive subscription to health
- * @example ['ref', 'User', { id: '@payload.userId' }] - reactive ref to specific user
- */
-export type RefEffect =
-    | ['ref', string]
-    | ['ref', string, FetchOptions];
-
-/**
- * Deref effect - snapshot read of an entity value.
- * Returns the current value without subscribing to changes.
- * @example ['deref', '@entity.health'] - read current health value
- * @example ['deref', 'User', { id: '@payload.userId' }] - read specific user snapshot
- */
-export type DerefEffect =
-    | ['deref', string]
-    | ['deref', string, FetchOptions];
-
-/**
- * Swap! effect - atomic compare-and-swap on an entity field.
- * Only updates if the current value matches the expected value.
- * @example ['swap', '@entity.health', ['fn', ['old'], ['-', 'old', '@payload.damage']]]
- * @example ['swap', '@entity.counter', ['+', '@entity.counter', 1]]
- */
-export type SwapEffect = ['swap', string, SExpr];
-
-/**
- * Options accepted by `watch` effects. Mirrors what the runtime reads when
- * registering the change callback: `debounce` and the trailing `emit:` map.
- */
-export type WatchOptions = {
-    /** Debounce duration in milliseconds */
-    debounce?: number;
-    /** Lifecycle events to emit on update / failure */
-    emit?: { on_message?: string; failure?: string };
-};
-
-/**
- * Watch effect - registers a callback for entity changes.
- * Emits an event whenever the watched binding changes.
- * @example ['watch', '@entity.health', 'HEALTH_CHANGED']
- * @example ['watch', '@entity.status', 'STATUS_UPDATED', { debounce: 100 }]
- */
-export type WatchEffect =
-    | ['watch', string, string]
-    | ['watch', string, string, WatchOptions];
-
-/**
- * Atomic effect - groups multiple effects into an atomic transaction.
- * All effects either succeed together or are rolled back.
- * @example ['atomic', ['set', '@entity.x', 10], ['set', '@entity.y', 20]]
- * @example ['atomic', ['persist', 'update', 'User', { balance: 100 }], ['emit', 'BALANCE_UPDATED']]
- */
-export type AtomicEffect = ['atomic', ...SExpr[]];
 
 // ============================================================================
 // Agent Effects (from agent/* operator namespace)
@@ -1236,11 +1172,6 @@ export type TypedEffect =
     | LetEffect
     | LogEffect
     | WaitEffect
-    | RefEffect
-    | DerefEffect
-    | SwapEffect
-    | WatchEffect
-    | AtomicEffect
     | AgentEffect
     | OsEffect
     | BrowserEffect
@@ -1296,8 +1227,8 @@ export type Effect = TypedEffect;
 /** Every literal effect operator the {@link Effect} union declares, as runtime data. */
 export const EFFECT_OPERATORS = [
   'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'random-bytes', 'credential-status', 'credential-forget', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'oauth-authorize', 'oauth-connection-status', 'oauth-connection-forget', 'http', 'redis', 'postgres', 'spawn',
-  'despawn', 'do', 'fetch', 'fetch-stream', 'if', 'when', 'let', 'log', 'wait', 'ref', 'deref',
-  'swap', 'watch', 'atomic', 'notify', 'send-server',
+  'despawn', 'do', 'fetch', 'fetch-stream', 'if', 'when', 'let', 'log', 'wait',
+  'notify', 'send-server',
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
   'workspace/write-schema', 'workspace/write-plan', 'workspace/archive-orbital', 'behavior/catalog',
   'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/compose', 'program/step',
@@ -1339,10 +1270,6 @@ export const SERVER_REPORTED_EFFECTS = [
     'http',
     'fetch',
     'fetch-stream',
-    'ref',
-    'deref',
-    'swap',
-    'atomic',
     'emit',
 ] as const satisfies readonly Effect[0][];
 
@@ -1554,88 +1481,6 @@ export function fetch(entity: string): FetchEffect;
 export function fetch(entity: string, options: FetchOptions): FetchEffect;
 export function fetch(entity: string, options?: FetchOptions): FetchEffect {
     return options ? ['fetch', entity, options] : ['fetch', entity];
-}
-
-// ============================================================================
-// Resource Effect Builder Helpers
-// ============================================================================
-
-/**
- * Create a ref effect (reactive entity subscription).
- *
- * @param {string} binding - Binding or entity name to subscribe to
- * @param {FetchOptions} [selector] - Optional selector for specific entity
- * @returns {RefEffect} Ref effect array
- *
- * @example
- * ref('@entity.health'); // returns ["ref", "@entity.health"]
- * ref('User', { id: '@payload.userId' }); // returns ["ref", "User", { id: "@payload.userId" }]
- */
-export function ref(binding: string): RefEffect;
-export function ref(binding: string, selector: FetchOptions): RefEffect;
-export function ref(binding: string, selector?: FetchOptions): RefEffect {
-    return selector ? ['ref', binding, selector] : ['ref', binding];
-}
-
-/**
- * Create a deref effect (snapshot read).
- *
- * @param {string} binding - Binding or entity name to read
- * @param {FetchOptions} [selector] - Optional selector for specific entity
- * @returns {DerefEffect} Deref effect array
- *
- * @example
- * deref('@entity.health'); // returns ["deref", "@entity.health"]
- * deref('User', { id: '@payload.userId' }); // returns ["deref", "User", { id: "@payload.userId" }]
- */
-export function deref(binding: string): DerefEffect;
-export function deref(binding: string, selector: FetchOptions): DerefEffect;
-export function deref(binding: string, selector?: FetchOptions): DerefEffect {
-    return selector ? ['deref', binding, selector] : ['deref', binding];
-}
-
-/**
- * Create a swap effect (atomic compare-and-swap).
- *
- * @param {string} binding - Binding to atomically update
- * @param {SExpr} transform - Transformation expression applied to the current value
- * @returns {SwapEffect} Swap effect array
- *
- * @example
- * swap('@entity.counter', ['+', '@entity.counter', 1]);
- * // returns ["swap", "@entity.counter", ["+", "@entity.counter", 1]]
- */
-export function swap(binding: string, transform: SExpr): SwapEffect {
-    return ['swap', binding, transform];
-}
-
-/**
- * Create a watch effect (entity change callback).
- *
- * @example
- * watch('@entity.health', 'HEALTH_CHANGED');
- * watch('@entity.status', 'STATUS_UPDATED', { debounce: 100 });
- */
-export function watch(binding: string, event: string): WatchEffect;
-export function watch(binding: string, event: string, options: WatchOptions): WatchEffect;
-export function watch(binding: string, event: string, options?: WatchOptions): WatchEffect {
-    return options
-        ? ['watch', binding, event, options]
-        : ['watch', binding, event];
-}
-
-/**
- * Create an atomic effect (transaction group).
- *
- * @param {...SExpr[]} effects - Effects to execute atomically
- * @returns {AtomicEffect} Atomic effect array
- *
- * @example
- * atomic(['set', '@entity.x', 10], ['set', '@entity.y', 20]);
- * // returns ["atomic", ["set", "@entity.x", 10], ["set", "@entity.y", 20]]
- */
-export function atomic(...effects: SExpr[]): AtomicEffect {
-    return ['atomic', ...effects];
 }
 
 // ============================================================================

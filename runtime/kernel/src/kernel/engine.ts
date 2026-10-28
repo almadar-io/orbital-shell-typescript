@@ -3,7 +3,7 @@
  * (`@almadar/kernel`, WebAssembly) decides every execution step; this host answers the I/O it asks for
  * and nothing else. The continuation of a stopped dispatch never leaves the wasm instance.
  */
-import { installKernelEvaluator, isEntityReferenceAny, EventStreamItemSchema, MountSeedSchema, type MountSeed, type EventPayload, type EventStreamItem, type MessageCatalogs, type OrbitalEventRequest, type OrbitalEventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext } from '@almadar/core';
+import { installKernelEvaluator, isEntityReferenceAny, MountSeedSchema, type MountSeed, type EventPayload, type EventStreamItem, type MessageCatalogs, type OrbitalEventRequest, type OrbitalEventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext } from '@almadar/core';
 import { LaneHeldByParkedDispatch } from './lane.js';
 import { decodeNext, decodeProgress, decodeResolveProgress } from './decode.js';
 import { answerRequest, declareCapabilities, type KernelAnswerScope, type KernelHostPorts } from './host.js';
@@ -11,6 +11,9 @@ import type { OsCompletionEvent } from './os-port.js';
 import type { IoReplyWire, KernelModule, KernelServerHandle, ServerProgressWire } from './wire.js';
 
 /** Where a dispatch stands once the kernel runs it, with the stream of a finished one read the moment it finished. */
+/** What the kernel's dispatch stream carries: event and effect items; the response comes in the dispatch's own answer. */
+type KernelStreamItem = Extract<EventStreamItem, { type: 'event' | 'effect' }>;
+
 type Running = { progress: Exclude<ServerProgressWire, { status: 'queued' }>; stream: string | undefined };
 
 /** Work the kernel queued behind the lane: settled when the kernel runs it (`next`). */
@@ -219,8 +222,9 @@ export class KernelEngine {
       this.runQueued();
     }
     if (scope.onStream !== undefined && running.stream !== undefined) {
-      const items = EventStreamItemSchema.array().parse(JSON.parse(running.stream));
+      const items: KernelStreamItem[] = JSON.parse(running.stream);
       for (const item of items) scope.onStream(item);
+      scope.onStream({ type: 'complete', data: running.progress.response, timestamp: Date.now() });
     }
     return running.progress.response;
   }

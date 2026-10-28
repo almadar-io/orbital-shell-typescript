@@ -43,7 +43,6 @@ function roster(): OrbitalDefinition[] {
             effects: [
               ['fetch', 'Staff', { id: '@payload.id' }],
               ['persist', 'update', 'Staff', { name: '@payload.name' }],
-              ['ref', 'Staff'],
               ['spawn', 'Staff', {}],
               ['render-ui', 'main', { type: 'data-list', entity: 'Staff', title: 'Staff' }],
             ],
@@ -82,11 +81,10 @@ describe('renameEntity', () => {
     expect(text).toContain('@HrPortalStaff.status');
   });
 
-  it('rewrites the entity slot of fetch, persist, ref and spawn', () => {
+  it('rewrites the entity slot of fetch, persist and spawn', () => {
     const effects = json(t.stateMachine!.transitions[0]!.effects);
     expect(effects).toContain('["fetch","HrPortalStaff"');
     expect(effects).toContain('["persist","update","HrPortalStaff"');
-    expect(effects).toContain('["ref","HrPortalStaff"]');
     expect(effects).toContain('["spawn","HrPortalStaff"');
   });
 

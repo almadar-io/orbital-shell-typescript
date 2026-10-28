@@ -903,6 +903,11 @@
         "doc": "`@invariant <expr>` lines: propositions every stored row satisfies, proved by `orb validate`."
       },
       {
+        "name": "indexes",
+        "type": "Vec<orbital_core_base::schema::EntityIndex>",
+        "doc": "`@index { fields, orderBy? }` lines: declared access paths, in declaration order."
+      },
+      {
         "name": "fields",
         "type": "Vec<EntityField>",
         "doc": ""

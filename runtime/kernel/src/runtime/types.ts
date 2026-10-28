@@ -367,47 +367,6 @@ export interface EffectHandlers {
     /** Log a message */
     log?: (message: string, level?: 'log' | 'warn' | 'error', data?: RuntimeValue) => void;
 
-    // Resource operators (ref/deref/swap/watch/atomic)
-
-    /** Ref: declarative data subscription (server: same as fetch) */
-    ref?: (
-        entityType: string,
-        options?: {
-            id?: string;
-            filter?: SExpr | Record<string, RuntimeValue>;
-            limit?: number;
-            offset?: number;
-            include?: string[];
-        }
-    ) => Promise<FetchResult | null>;
-
-    /** Deref: one-shot data read (server: same as fetch) */
-    deref?: (
-        entityType: string,
-        options?: {
-            id?: string;
-            filter?: SExpr | Record<string, RuntimeValue>;
-        }
-    ) => Promise<FetchResult | null>;
-
-    /** Swap!: atomic read-modify-write on an entity */
-    swap?: (
-        entityType: string,
-        entityId: string,
-        transform: SExpr,
-    ) => Promise<EntityRow | null>;
-
-    /** Watch: client-side reactive subscription (no-op on server) */
-    watch?: (
-        entityType: string,
-        options?: { id?: string; filter?: SExpr | Record<string, RuntimeValue>; limit?: number },
-    ) => void;
-
-    /** Atomic: execute inner effects as a transaction */
-    atomic?: (
-        effects: SExpr[],
-    ) => Promise<void>;
-
     // === Composition handlers (compile-time, optional) ===
     /** Compose multiple orbitals into one schema. Compile-time only. */
     composeBehaviors?: (input: ComposeBehaviorsInput) => ComposeBehaviorsResult;

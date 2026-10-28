@@ -7,8 +7,8 @@
  * - declarations: an object carrying `name` + `fields` (primary/auxiliary entities, a trait's
  *   `sourceEntityDefinition` and `dataEntities`), optionally given a new `collection`;
  * - `@Name` / `@Name.<path>` tokens anywhere (guards, effects, ticks, listens, policies, config);
- * - the entity slot of `["fetch", N]`, `["persist", create|update|delete, N]`, `["ref", N]`
- *   (exactly two elements) and `["spawn", N]`;
+ * - the entity slot of `["fetch", N]`, `["persist", create|update|delete, N]`
+ *   and `["spawn", N]`;
  * - entity-valued keys (`entity`, `source`, `entityType`, `linkedEntity`, `primaryEntity`,
  *   `payloadEntity`, `extends`) and payload `type` references (`N`, `[N]`, `projectedFrom.type`);
  * - config fields typed `entity`, `expects` entries, and the `entityRefIds` key (its id stays);
@@ -75,7 +75,6 @@ function walk(node: JsonValue, from: string, to: string, options: RenameEntityOp
     const out = node.map((item) => walk(item, from, to, options));
     const op = node[0];
     if ((op === 'fetch' || op === 'spawn') && node[1] === from) out[1] = to;
-    if (op === 'ref' && node.length === 2 && node[1] === from) out[1] = to;
     if (op === 'persist' && typeof node[1] === 'string' && PERSIST_ACTIONS.has(node[1]) && node[2] === from) out[2] = to;
     return out;
   }

@@ -530,12 +530,6 @@ export {
   type RenderItemLambda,
   type RenderChildrenMap,
   // Resource effect types
-  type RefEffect,
-  type DerefEffect,
-  type SwapEffect,
-  type WatchEffect,
-  type AtomicEffect,
-  type WatchOptions,
   type FetchOptions,
   type FetchResult,
   type PersistEmitConfig,
@@ -587,12 +581,6 @@ export {
   spawn,
   despawn,
   doEffects,
-  // Resource effect builders
-  ref,
-  deref,
-  swap,
-  watch,
-  atomic,
   // Runtime pattern types
   type ResolvedPatternProps,
   ResolvedPatternPropsSchema,
