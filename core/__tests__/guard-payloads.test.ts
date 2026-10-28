@@ -127,8 +127,8 @@ describe('buildGuardPayloads — array/len comparisons (RV-53)', () => {
   });
 });
 
-describe('buildGuardPayloads through str/default', () => {
-  const sd = (field: string, dflt: string) => ['str/default', `@payload.${field}`, dflt];
+describe('buildGuardPayloads through default', () => {
+  const sd = (field: string, dflt: string) => ['default', `@payload.${field}`, dflt];
 
   it('= against the default: pass sends the default, fail anything else', () => {
     expect(buildGuardPayloads(['=', sd('id', ''), ''])).toEqual({ pass: { id: '' }, fail: { id: 'not-' } });

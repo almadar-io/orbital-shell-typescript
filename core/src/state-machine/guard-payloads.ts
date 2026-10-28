@@ -48,9 +48,9 @@ export function extractPayloadFieldPath(ref: unknown): string[] | null {
   return match ? match[1].split('.') : null;
 }
 
-/** `(str/default @payload.x <string>)` → `['x']`: a payload field read with a fallback. */
-function strDefaultPayloadPath(ref: unknown): string[] | null {
-  if (!Array.isArray(ref) || ref[0] !== 'str/default' || typeof ref[2] !== 'string') return null;
+/** `(default @payload.x <string>)` → `['x']`: a payload field read with a fallback. */
+function defaultPayloadPath(ref: unknown): string[] | null {
+  if (!Array.isArray(ref) || ref[0] !== 'default' || typeof ref[2] !== 'string') return null;
   return extractPayloadFieldPath(ref[1]);
 }
 
@@ -60,14 +60,14 @@ function isComparedLiteral(x: unknown): x is string | number | boolean | null {
 
 /**
  * The payload field a `=`/`!=` compares and the value it is compared with: `@payload.x` or
- * `(str/default @payload.x "…")` on either side, against a literal on the other (the plain field
+ * `(default @payload.x "…")` on either side, against a literal on the other (the plain field
  * on the left keeps accepting any value there, as before).
  */
 function payloadComparison(a: EventPayloadValue, b: EventPayloadValue): { path: string[]; val: EventPayloadValue } | null {
   const plain = extractPayloadFieldPath(a);
   if (plain && b !== undefined) return { path: plain, val: b };
   for (const [side, other] of [[a, b], [b, a]] as const) {
-    const path = extractPayloadFieldPath(side) ?? strDefaultPayloadPath(side);
+    const path = extractPayloadFieldPath(side) ?? defaultPayloadPath(side);
     if (path && isComparedLiteral(other)) return { path, val: other };
   }
   return null;

@@ -179,7 +179,6 @@
     "math/ceil"
     "math/clamp"
     "math/cos"
-    "math/default"
     "math/deg-rad"
     "math/floor"
     "math/hypot"
@@ -373,7 +372,6 @@
     "str/collate-key"
     "str/concat"
     "str/decode-uri-component"
-    "str/default"
     "str/encode-uri-component"
     "str/endsWith"
     "str/includes"
@@ -503,6 +501,7 @@
   (#any-of? @keyword.conditional
     "and"
     "as"
+    "default"
     "do"
     "fn"
     "if"

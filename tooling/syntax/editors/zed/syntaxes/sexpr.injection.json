@@ -12,7 +12,7 @@
     },
     {
       "name": "keyword.operator.logical.sexpr",
-      "match": "(?<=\")(typed|and|not|or|if|as)(?=\")"
+      "match": "(?<=\")(default|typed|and|not|or|if|as)(?=\")"
     },
     {
       "name": "keyword.control.sexpr",
@@ -24,11 +24,11 @@
     },
     {
       "name": "support.function.math.sexpr",
-      "match": "(?<=\")(math/randomInt|math/approach|math/default|math/deg-rad|math/rad-deg|math/random|math/clamp|math/floor|math/round|math/log10|math/atan2|math/hypot|math/ceil|math/sqrt|math/sign|math/lerp|math/asin|math/acos|math/atan|math/wrap|math/abs|math/min|math/max|math/pow|math/mod|math/map|math/sin|math/cos|math/tan|bit/rotl|bit/rotr|math/ln|bit/and|bit/xor|bit/not|bit/shl|bit/shr|bit/or)(?=\")"
+      "match": "(?<=\")(math/randomInt|math/approach|math/deg-rad|math/rad-deg|math/random|math/clamp|math/floor|math/round|math/log10|math/atan2|math/hypot|math/ceil|math/sqrt|math/sign|math/lerp|math/asin|math/acos|math/atan|math/wrap|math/abs|math/min|math/max|math/pow|math/mod|math/map|math/sin|math/cos|math/tan|bit/rotl|bit/rotr|math/ln|bit/and|bit/xor|bit/not|bit/shl|bit/shr|bit/or)(?=\")"
     },
     {
       "name": "support.function.string.sexpr",
-      "match": "(?<=\")(str/encode-uri-component|str/decode-uri-component|str/uri-component-valid|str/replace-pattern|str/collate-key|str/replaceAll|str/startsWith|str/capitalize|str/to-number|str/trimStart|str/titleCase|str/camelCase|str/kebabCase|str/snakeCase|str/includes|str/endsWith|str/padStart|str/template|str/truncate|str/trimEnd|str/replace|str/reverse|str/default|str/collate|str/to-int|str/concat|str/padEnd|str/repeat|str/upper|str/lower|str/split|str/slice|str/trim|str/join|str/len)(?=\")"
+      "match": "(?<=\")(str/encode-uri-component|str/decode-uri-component|str/uri-component-valid|str/replace-pattern|str/collate-key|str/replaceAll|str/startsWith|str/capitalize|str/to-number|str/trimStart|str/titleCase|str/camelCase|str/kebabCase|str/snakeCase|str/includes|str/endsWith|str/padStart|str/template|str/truncate|str/trimEnd|str/replace|str/reverse|str/collate|str/to-int|str/concat|str/padEnd|str/repeat|str/upper|str/lower|str/split|str/slice|str/trim|str/join|str/len)(?=\")"
     },
     {
       "name": "support.function.array.sexpr",
