@@ -129,7 +129,6 @@
     "or"
     "quasiquote"
     "quote"
-    "typed"
     "unquote"
     "when"))
 

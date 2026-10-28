@@ -9,7 +9,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import type { EventEmit, OrbitalSchema, SExpr, TraitConfigObject, TraitConfigValue } from '@almadar/core';
+import { isJsonObject, JsonValueSchema, type EventEmit, type EventPayload, type OrbitalSchema, type SExpr } from '@almadar/core';
 import { Card } from '../../../core';
 import { Box } from '../../../core';
 import { HStack, VStack } from '../../../core';
@@ -62,9 +62,6 @@ export interface AvlTransitionDetailProps {
   className?: string;
 }
 
-const isConfigObject = (v: TraitConfigValue): v is TraitConfigObject =>
-  typeof v === 'object' && v !== null && !Array.isArray(v);
-
 const EffectHeader: React.FC<{ type: string; failed: boolean; failedLabel: string; note?: AvlNote }> = ({ type, failed, failedLabel, note }) => (
   <HStack gap="sm" align="center">
     <AvlEffectChip effectType={type} size={18} note={note} />
@@ -93,7 +90,7 @@ export const AvlTransitionDetail: React.FC<AvlTransitionDetailProps> = ({ schema
 
 const TransitionDetailBody: React.FC<ResolvedDetailProps> = ({ orbital, trait, transition, annotations, playback, stepEvent, className }) => {
   const { t } = useTranslate();
-  const [payload, setPayload] = useState<TraitConfigObject>({});
+  const [payload, setPayload] = useState<EventPayload>({});
 
   const guard = transition.guard ?? null;
   const guardRun = playback?.guard;
@@ -153,7 +150,10 @@ const TransitionDetailBody: React.FC<ResolvedDetailProps> = ({ orbital, trait, t
               <Typography variant="overline" color="muted">{t('avl.play.payload')}</Typography>
               <HStack gap="sm" align="start">
                 <Box className="flex-1 min-w-0">
-                  <JsonTreeEditor value={payload} onChange={(next) => setPayload(isConfigObject(next) ? next : {})} />
+                  <JsonTreeEditor value={payload} onChange={(next) => {
+                    const json = JsonValueSchema.safeParse(next);
+                    setPayload(json.success && isJsonObject(json.data) ? json.data : {});
+                  }} />
                 </Box>
                 <Button variant="primary" size="sm" action={stepEvent} actionPayload={request} leftIcon="skip-forward">
                   {t('avl.play.step')}

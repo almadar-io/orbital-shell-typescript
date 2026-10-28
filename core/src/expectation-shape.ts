@@ -20,7 +20,7 @@ export function mergeExpectationShape(existing: readonly EntityField[] | undefin
     if (priorType !== fieldType) return fail();
     if (prior.type === 'relation' && field.type === 'relation') {
       if (prior.relation.entityId !== undefined && field.relation.entityId !== undefined && prior.relation.entityId !== field.relation.entityId) return fail();
-      const relation = (value: typeof prior.relation): EventPayloadValue => ({ entity: value.entity, cardinality: value.cardinality, field: value.field, onDelete: value.onDelete });
+      const relation = (value: typeof prior.relation): EventPayloadValue => ({ entity: value.entity, cardinality: value.cardinality ?? null, field: value.field ?? null, onDelete: value.onDelete ?? null });
       if (canonicalJson(relation(prior.relation)) !== canonicalJson(relation(field.relation))) return fail();
     }
     if (prior.type === 'tuple' && field.type === 'tuple' && canonicalJson(Object.keys(prior.properties).sort()) !== canonicalJson(Object.keys(field.properties).sort())) return fail();

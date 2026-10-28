@@ -89,6 +89,8 @@ export interface KernelModule extends KernelEvaluatorExports {
   substrateCompletionEvent(siteJson: string, key: string, op: string, argsJson: string, outcomeJson: string): string;
   /** Whether the Chrome match pattern matches the URL: the one rule a browser-tab host filters tabs with. */
   tabUrlMatches(pattern: string, url: string): boolean;
+  /** The typed event request a `program/dispatch` call names (`EventRequest::from_dispatch`) as JSON; a record that is no event request throws the reason. */
+  parseEventRequest(payloadJson: string, optionsJson: string): string;
   /** Installs the language data (`@almadar/core/language-data` `LanguageBundle` as JSON) for a host with no `node_modules`; the first install wins. */
   installLanguage(bundleJson: string): void;
 }

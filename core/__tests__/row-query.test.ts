@@ -48,7 +48,7 @@ const WriteFixtureSchema = z.object({
 
 
 describe('rowMatchesPredicate edge cases', () => {
-  const row: EntityRow = { id: 'x', n: 0, s: 'Ab', nil: null, tags: ['a'], d: new Date(5) };
+  const row: EntityRow = { id: 'x', n: 0, s: 'Ab', nil: null, tags: ['a'], d: new Date(5).toISOString() };
   const m = (p: RowPredicate) => rowMatchesPredicate(row, p);
   it('empty all is true, empty any is false', () => {
     expect(m({ kind: 'all', of: [] })).toBe(true);
@@ -71,8 +71,8 @@ describe('rowMatchesPredicate edge cases', () => {
   it('compares only values of one kind', () => {
     expect(m({ kind: 'compare', field: 'n', op: '<', value: 'z' })).toBe(false);
     expect(m({ kind: 'compare', field: 's', op: '>', value: 1 })).toBe(false);
-    expect(m({ kind: 'compare', field: 'd', op: '>=', value: new Date(5) })).toBe(true);
-    expect(m({ kind: 'compare', field: 'd', op: '==', value: new Date(5) })).toBe(true);
+    expect(m({ kind: 'compare', field: 'd', op: '>=', value: new Date(5).toISOString() })).toBe(true);
+    expect(m({ kind: 'compare', field: 'd', op: '==', value: new Date(5).toISOString() })).toBe(true);
   });
   it('member and hasElement need a present value', () => {
     expect(m({ kind: 'member', field: 's', values: ['Ab'] })).toBe(true);
@@ -80,11 +80,11 @@ describe('rowMatchesPredicate edge cases', () => {
     expect(m({ kind: 'hasElement', field: 'tags', value: 'a' })).toBe(true);
     expect(m({ kind: 'hasElement', field: 's', value: 'A' })).toBe(false);
   });
-  it('member matches dates by time and never NaN, a number never a date', () => {
-    const r: EntityRow = { id: 'y', d: new Date(5), nan: Number.NaN, z: -0, n: 5 };
-    expect(rowMatchesPredicate(r, { kind: 'member', field: 'd', values: [new Date(5)] })).toBe(true);
+  it('member matches an ISO date by its text and never NaN, a number never a date', () => {
+    const r: EntityRow = { id: 'y', d: new Date(5).toISOString(), nan: Number.NaN, z: -0, n: 5 };
+    expect(rowMatchesPredicate(r, { kind: 'member', field: 'd', values: [new Date(5).toISOString()] })).toBe(true);
     expect(rowMatchesPredicate(r, { kind: 'member', field: 'd', values: [5] })).toBe(false);
-    expect(rowMatchesPredicate(r, { kind: 'member', field: 'n', values: [new Date(5)] })).toBe(false);
+    expect(rowMatchesPredicate(r, { kind: 'member', field: 'n', values: [new Date(5).toISOString()] })).toBe(false);
     expect(rowMatchesPredicate(r, { kind: 'member', field: 'nan', values: [Number.NaN] })).toBe(false);
     expect(rowMatchesPredicate(r, { kind: 'member', field: 'z', values: [0] })).toBe(true);
   });

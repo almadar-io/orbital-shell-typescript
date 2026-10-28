@@ -14,11 +14,10 @@ import { EventPayloadSchema, SExprDataSchema, type EventPayload, type SExpr } fr
 import { OrbitalIdSchema, TraitIdSchema, EventIdSchema, type OrbitalId, type TraitId, type EventId } from "./identity.js";
 import { RowSetRefSchema, type RowSetRef } from "./row-set.js";
 import { EntityRowSchema, type EntityRow } from "./entity.js";
-import { PatternConfigSchema, type PatternConfig } from "./effect.js";
 import { RawUserClaimsSchema, type RawUserClaims } from "./user.js";
 import { ServerEffectResultSchema, type ServerEffectResult } from "./effect-result.js";
 import type { ExternalInput } from "../access/externalInputs.js";
-import type { JsonValue } from "./json.js";
+import { JsonValueSchema, type JsonObject, type JsonValue } from "./json.js";
 import type { HopObservation, RepaintReason } from "../generated/kernel-wire.js";
 
 /**
@@ -115,7 +114,7 @@ export type EventListen<P> = string & { readonly __listenPayload?: P };
  * `transition` and `tick` are optional runtime-internal details; most
  * consumers only care about `orbital` and `trait`.
  */
-export interface BusEventSource {
+export type BusEventSource = {
   orbital?: string;
   /** V4 dual-carry id sibling of `orbital` — stable across an orbital rename. */
   orbitalId?: OrbitalId;
@@ -175,7 +174,7 @@ export interface BusEventSource {
    * host (`setLiveBroadcastSink`) also fans out to every other connected client.
    */
   persistSuccess?: boolean;
-}
+};
 
 // The third type param is `object` on schemas nesting a branded-id
 // `.refine(<type predicate>)` field: the refine's parsed INPUT is a plain
@@ -184,17 +183,17 @@ export interface BusEventSource {
 // (a JSON body) — never `unknown`.
 
 /** The delivery a transition is processing: `@event`, and one element of `@prevEvents` (Runtime Spec Clause 5.5). */
-export interface DeliveryRecord {
+export type DeliveryRecord = {
   event: string;
   payload?: EventPayload;
   source: BusEventSource;
-}
+};
 
 /** A trait's log so far in a dispatch that began elsewhere (`@prevEvents` / `@prevStates`), carried on the request. */
-export interface DispatchLog {
+export type DispatchLog = {
   prevEvents: DeliveryRecord[];
   prevStates: string[];
-}
+};
 
 /** The evaluator value of a delivery record: `source` carries exactly the ten `BusEventSource` fields that are set. */
 export function deliveryRecordValue(record: DeliveryRecord): EventPayload {
@@ -250,7 +249,7 @@ export const DispatchLogSchema: z.ZodType<DispatchLog, object> = z.object({
  * `event.source?.orbital === 'X' && event.source?.trait === 'Y'` without
  * parsing a delimiter.
  */
-export interface BusEvent {
+export type BusEvent = {
   /** Event type identifier (e.g., 'CartItemLoaded', 'TASK_COMPLETED') */
   type: EventKey;
   /** Optional structured payload */
@@ -259,7 +258,7 @@ export interface BusEvent {
   timestamp: number;
   /** Optional origin info for filtering */
   source?: BusEventSource;
-}
+};
 
 /** Bus event listener callback. */
 export type BusEventListener = (event: BusEvent) => void;
@@ -274,11 +273,11 @@ export type Unsubscribe = () => void;
  * generated compiled-path `EmittedEvent` (orbital-shell-typescript's
  * `shared/types.ts`) so the two execution paths agree on one shape.
  */
-export interface EmittedEvent {
+export type EmittedEvent = {
   event: string;
   payload?: EventPayload;
   source?: BusEventSource;
-}
+};
 
 /** Zod twin of `EmittedEvent`. Third type param `object`, see `BusEventSourceSchema`. */
 export const EmittedEventSchema: z.ZodType<EmittedEvent, object> = z.object({
@@ -309,7 +308,7 @@ export const EmittedEventSchema: z.ZodType<EmittedEvent, object> = z.object({
  * `(render-ui slot ...)` SExpr without re-validating against the registry —
  * registry validation lives in `orbital validate` / `lolo` parse, not here.
  */
-export type ClientRenderUITuple = ['render-ui', string, PatternConfig | null];
+export type ClientRenderUITuple = ['render-ui', string, JsonObject | null];
 
 export type ClientNavigateTuple =
   | ['navigate', string]
@@ -324,7 +323,7 @@ export type ClientEffectTuple =
   | ClientNavigateBackTuple;
 
 /** Zod twin of `ClientRenderUITuple`. */
-export const ClientRenderUITupleSchema = z.tuple([z.literal('render-ui'), z.string(), PatternConfigSchema]);
+export const ClientRenderUITupleSchema = z.tuple([z.literal('render-ui'), z.string(), z.record(z.string(), JsonValueSchema).nullable()]);
 
 /** Zod twin of `ClientNavigateTuple` — one variant per fixed arity (2/3/4), unioned. */
 export const ClientNavigateTupleSchema = z.union([
@@ -360,7 +359,7 @@ export const ClientEffectTupleSchema: z.ZodType<ClientEffectTuple> = z.union([
  * `orbital-core`) carry the same fields, so the two execution paths cannot
  * drift.
  */
-export interface OrbitalEventRequest {
+export type OrbitalEventRequest = {
   event: string;
   /**
    * V4 dual-carry id sibling of `event` — the fired event's id, when known
@@ -437,7 +436,7 @@ export interface OrbitalEventRequest {
   mount?: MountSeed[];
   /** Where this leg runs, set by the kernel (EXEC-DIST-6): `browser` for browser-stored rows only, else `server`. */
   residence?: 'browser' | 'server';
-}
+};
 
 /** The lifecycle events a trait runs when it enters a page (the first it handles). */
 /**
@@ -471,10 +470,10 @@ export function tickEventKey(tickName: string): string {
 export type LifecycleEvent = (typeof LIFECYCLE_EVENTS)[number];
 
 /** One trait of a mount batch and the lifecycle event it runs. */
-export interface MountSeed {
+export type MountSeed = {
   trait: string;
   event: LifecycleEvent;
-}
+};
 
 export const MountSeedSchema = z.object({ trait: z.string(), event: z.enum(LIFECYCLE_EVENTS) });
 
@@ -494,13 +493,13 @@ export type TransitionRejectionCode =
  * target trait declares as an external input (`listens { EVENT -> external { … } }`)
  * is dispatched; anything else is refused with `not-an-external-input`.
  */
-export interface ExternalInputRequest {
+export type ExternalInputRequest = {
   targetTrait: string;
   event: string;
   payload?: EventPayload;
   user?: RawUserClaims;
   entityId?: string;
-}
+};
 
 export type EventStreamItem =
   | { type: 'event'; data: EmittedEvent; timestamp: number }
@@ -538,11 +537,12 @@ export interface ServiceHostPorts {
   read(entity: string): Promise<EntityRow[]>;
   /**
    * A `program/dispatch` event request (owner, 2026-10-21): dispatch `request` on `orbital` as the HTTP events
-   * route does (`input: true` admits only a declared external input, as the inputs route). `request.user` is the
-   * dispatch's viewer when the call names one. A host that does not serve event requests leaves it out.
+   * route does (`input: true` admits only a declared external input, as the inputs route). `request` is the raw JSON
+   * the kernel parsed (`EventRequest::from_dispatch`); its `user` is the dispatch's viewer when the call names one.
+   * A host that does not serve event requests leaves it out.
    */
   supportsDispatchStream?: true;
-  dispatchRequest?(orbital: string, request: OrbitalEventRequest, input: boolean, stream?: boolean): Promise<DispatchRequestOutcome>;
+  dispatchRequest?(orbital: string, request: JsonObject, input: boolean, stream?: boolean): Promise<DispatchRequestOutcome>;
   /** A `program/dispatch { inbound }` delivery through the inbound route, credential check and answer path. */
   deliverInbound?(name: string, delivery: { headers: Readonly<Record<string, string>>; rawBody: string }): Promise<{ status: number; body: string }>;
   /** The host's last `steps` traced dispatch steps, oldest first; a host that keeps no trace leaves it out. */
@@ -561,35 +561,35 @@ export interface ServiceHostPorts {
  * table DOES declare the event, which makes a stale client-supplied `from`
  * self-explanatory in a stateless response.
  */
-export interface TransitionRejection {
+export type TransitionRejection = {
   code: TransitionRejectionCode;
   trait?: string;
   from?: string;
   event?: string;
   statesDeclaringEvent?: string[];
   transition?: string;
-  guard?: unknown;
+  guard?: JsonValue;
   /** `effect-failed`: the thrown error's message. */
   error?: string;
-}
+};
 
 /** How one authored effect of an executed hop ran. */
 export type HopEffectStatus = 'executed' | 'failed' | 'skipped';
 
 /** One authored effect of a hop: its operator head, its arguments as authored, and how it ran. */
-export interface HopEffect {
+export type HopEffect = {
   type: string;
   args: SExpr[];
   status: HopEffectStatus;
   error?: string;
-}
+};
 
 /**
  * One executed hop of a dispatch (the seed's, a same-trait cascade step's, a listener delivery's), in
  * dispatch order: what a `TransitionObserver` hears. `guardResult` is `true` when the fired arm's guard
  * held and absent for an unguarded arm.
  */
-export interface TransitionHop {
+export type TransitionHop = {
   trait: string;
   from: string;
   to: string;
@@ -600,7 +600,7 @@ export interface TransitionHop {
   effects: HopEffect[];
   /** The payload and `@entity` before and after the hop, when a verifier asked the kernel to record them. */
   observed?: HopObservation;
-}
+};
 
 /**
  * One client effect paired with the trait that produced it and, when the
@@ -608,7 +608,7 @@ export interface TransitionHop {
  * key (for a listens delivery, the triggered event, not the source emit) and
  * the state it fired from. A client stamps render provenance from these.
  */
-export interface ClientEffectByTrait {
+export type ClientEffectByTrait = {
   traitName: string;
   effect: ClientEffectTuple;
   event?: string;
@@ -617,7 +617,7 @@ export interface ClientEffectByTrait {
   callsitePayload?: EventPayload;
   /** Set when the paint is a repaint a renderer must act on beyond the content: the rows a reference in it points at changed (EXEC-RENDER-3). */
   repaint?: RepaintReason;
-}
+};
 
 /**
  * Server → client event dispatch response. Mirrors the compiled path's
@@ -626,7 +626,7 @@ export interface ClientEffectByTrait {
  * TS runtime's `OrbitalEventResponse` (`@almadar/runtime`'s
  * `OrbitalServerRuntime.ts`).
  */
-export interface OrbitalEventResponse {
+export type OrbitalEventResponse = {
   success: boolean;
   transitioned: boolean;
   /** Whole-orbital state snapshot, keyed by trait name. */
@@ -679,7 +679,7 @@ export interface OrbitalEventResponse {
   /** Every executed hop of the dispatch, in order (the server role's trace); absent when none ran. */
   transitions?: TransitionHop[];
   error?: string;
-}
+};
 
 /** Zod twin of `OrbitalEventRequest`. Third type param `object`, see `BusEventSourceSchema`. */
 export const OrbitalEventRequestSchema: z.ZodType<OrbitalEventRequest, object> = z.object({
@@ -732,7 +732,7 @@ export const OrbitalEventResponseSchema: z.ZodType<OrbitalEventResponse, object>
         event: z.string().optional(),
         statesDeclaringEvent: z.array(z.string()).optional(),
         transition: z.string().optional(),
-        guard: z.unknown().optional(),
+        guard: JsonValueSchema.optional(),
         error: z.string().optional(),
       }),
     )

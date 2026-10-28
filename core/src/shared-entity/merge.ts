@@ -19,7 +19,7 @@ import type { EntityRow, FieldValue } from '../types/entity.js';
  */
 export interface EntityFieldWrite {
   readonly field: string;
-  /** The frame's own value type (`EntityRow`'s): a writer may copy an absent field back. */
+  /** The field's JSON value; `undefined` is a writer copying an absent field back, which leaves the key absent. */
   readonly value: FieldValue | undefined;
 }
 
@@ -45,7 +45,8 @@ export function mergeEntityFrame(
   if (orderedWrites.length === 0) return current;
   const next: EntityRow = { ...current };
   for (const write of orderedWrites) {
-    next[write.field] = write.value;
+    if (write.value === undefined) delete next[write.field];
+    else next[write.field] = write.value;
   }
   return next;
 }

@@ -292,8 +292,8 @@ export function OrbInspector({ node, schema, editable = false, userType = 'build
       propName,
       value,
       selection: {
-        sourceSchemaName: selectedPattern?.nodeData.sourceSchemaName,
-        patternPath: selectedPattern?.patternId,
+        ...(selectedPattern?.nodeData.sourceSchemaName !== undefined ? { sourceSchemaName: selectedPattern.nodeData.sourceSchemaName } : {}),
+        ...(selectedPattern?.patternId !== undefined ? { patternPath: selectedPattern.patternId } : {}),
         orbitalName: elementOrbital,
         traitName: elementTrait,
         transitionEvent: elementTransition,
@@ -311,8 +311,8 @@ export function OrbInspector({ node, schema, editable = false, userType = 'build
       tokenKey: token.key,
       value,
       selection: {
-        sourceSchemaName: selectedPattern?.nodeData.sourceSchemaName,
-        patternPath: selectedPattern?.patternId,
+        ...(selectedPattern?.nodeData.sourceSchemaName !== undefined ? { sourceSchemaName: selectedPattern.nodeData.sourceSchemaName } : {}),
+        ...(selectedPattern?.patternId !== undefined ? { patternPath: selectedPattern.patternId } : {}),
         orbitalName: elementOrbital,
         traitName: elementTrait,
         transitionEvent: elementTransition,

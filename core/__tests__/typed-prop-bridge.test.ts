@@ -21,8 +21,8 @@ describe('G-CROSS-131 typed prop bridge (core)', () => {
       .toEqual({ name: 'Demo', at: '2026-10-09T00:00:00.000Z', nested: { list: [1, 'a', true] } });
   });
 
-  it('toPayloadValue keeps null and undefined as the absent value', () => {
+  it('toPayloadValue writes null and undefined as null, the one absent value on the wire', () => {
     expect(toPayloadValue(null)).toBeNull();
-    expect(toPayloadValue(undefined)).toBeUndefined();
+    expect(toPayloadValue(undefined)).toBeNull();
   });
 });

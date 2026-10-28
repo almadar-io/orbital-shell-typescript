@@ -9,13 +9,13 @@ import {
   type BrowserPageFacts,
   type PageFactField,
   isJsonObject,
-  OrbitalEventRequestSchema,
   QueryDeclinedError,
   WriteDeclinedError,
   type EntityRow,
   type EventPayload,
   type EventStreamItem,
   type HttpStreamEvent,
+  type JsonObject,
   type JsonValue,
   type OnDeviceModelPorts,
   type PersistenceAdapter,
@@ -27,9 +27,11 @@ import {
 import { untilAborted, type InFlightCalls } from '../effects/in-flight-calls.js';
 import type { ServiceCallContext } from '../service/service-provider.js';
 import { isProgramEffect, type ProgramEffectName, type ProgramEffectOutcome } from './program-effects.js';
+
+type ProgramEffectResult = Extract<ProgramEffectOutcome, { ok: true }>['result'];
 import { embedOnDevice, OnDeviceModelFailure, promptOnDevice } from '../effects/on-device-model.js';
 import { base64Standard, checkOAuthReply, sendBeaconRequest, sendHttp, streamHttp, systemRandom, type CredentialAdminPort, type Exchange, type HttpPorts } from './http.js';
-import type { CallSiteWire, IoAnswerWire, IoRequestWire, Settled, SubstrateFailureWire } from './wire.js';
+import type { CallSiteWire, IoAnswerWire, IoRequestWire, KernelModule, Settled, SubstrateFailureWire } from './wire.js';
 import type { OsCompletionEvent, OsCompletionPort, OsHostPort } from './os-port.js';
 import { TabHostFailure, type BrowserTabPort } from '@almadar/core';
 
@@ -88,6 +90,8 @@ export interface KernelHostPorts {
   os?: OsHostPort;
   /** What the kernel decides about a deferred `os` call (which ops defer, the event an outcome fires); absent, every `os` ask is answered in place. */
   osCompletions?: OsCompletionPort;
+  /** The kernel's typed parse of a `program/dispatch` event request; absent, that ask is refused. */
+  parseEventRequest?: EventRequestParser;
   substrateStream?: (op: string, args: readonly JsonValue[], scope: KernelAnswerScope) => SubstrateStreamSource | undefined;
   substrateMessage?: (site: CallSiteWire, key: string, value: JsonValue) => OsCompletionEvent | null;
   substrateCompletion?: (site: CallSiteWire, key: string, op: string, args: readonly JsonValue[], outcome: Settled<JsonValue, SubstrateFailureWire>) => OsCompletionEvent | null;
@@ -109,8 +113,24 @@ export interface KernelAnswerScope {
   assertReentry?: () => void;
 }
 
-function toJson(value: object | string | number | boolean | null): JsonValue {
-  return JSON.parse(JSON.stringify(value));
+/** A program effect's document (a program, an inspection, a catalog) as the JSON it travels as; the one clone left, for documents that are no wire type. */
+function programDocumentJson(document: ProgramEffectResult): JsonValue {
+  return JSON.parse(JSON.stringify(document));
+}
+
+/** The kernel's typed parse of a `program/dispatch` event request: the request as JSON, or the reason it is none. */
+export type EventRequestParser = (payload: JsonObject, options: JsonObject) => Settled<JsonObject, string>;
+
+/** The request parser over the kernel module: `EventRequest::from_dispatch`, not copied. */
+export function kernelEventRequestParser(kernel: Pick<KernelModule, 'parseEventRequest'>): EventRequestParser {
+  return (payload, options) => {
+    try {
+      const parsed: JsonValue = JSON.parse(kernel.parseEventRequest(JSON.stringify(payload), JSON.stringify(options)));
+      return isJsonObject(parsed) ? { ok: parsed } : { error: 'program/dispatch: the kernel parsed no event request' };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : String(error) };
+    }
+  };
 }
 
 async function settle<T>(work: () => Promise<T>): Promise<Settled<T, string>> {
@@ -151,7 +171,7 @@ async function callService(
         ? { ...identity, ...(host !== undefined ? { host } : {}), ...(signal !== undefined ? { signal } : {}), ...(outsideRequest !== undefined ? { outsideRequest } : {}) }
         : undefined;
     const result = await ports.callService(service, method, serviceParams(args), context);
-    return result === null ? null : toJson(result);
+    return result;
   };
   const deferred = site?.followOn === true ? ports.deferCallOutcome() : undefined;
   if (site !== undefined && deferred !== undefined) {
@@ -269,7 +289,7 @@ async function substrateInPlace(
   if (request.op === 'program/dispatch' || request.op === 'program/inputs') {
     const lent = ports.servicePorts({ orbital: scope.orbital, trait: '' }, scope.user, () => {}, scope.assertReentry);
     try {
-      const delivered = await deliverAgentAsk(request.op, request.args, lent);
+      const delivered = await deliverAgentAsk(request.op, request.args, lent, ports);
       if (delivered.ok) return { kind: 'substrate', result: { ok: delivered.result } };
       return failure(delivered.error, delivered.errors ?? []);
     } catch (error) {
@@ -281,8 +301,8 @@ async function substrateInPlace(
   try {
     const user = scope.user;
     const outcome = await handler(request.op, request.args, user !== undefined ? { principal: user.id, ...(user.role !== undefined ? { role: user.role } : {}) } : undefined);
-    if (outcome.ok) return { kind: 'substrate', result: { ok: toJson(outcome.result) } };
-    return failure(outcome.error, (outcome.errors ?? []).map((issue) => toJson(issuePayload(issue))));
+    if (outcome.ok) return { kind: 'substrate', result: { ok: programDocumentJson(outcome.result) } };
+    return failure(outcome.error, (outcome.errors ?? []).map((issue) => issuePayload(issue)));
   } catch (error) {
     return failure(error instanceof Error ? error.message : String(error));
   }
@@ -302,7 +322,7 @@ function present(value: JsonValue | undefined): value is JsonValue {
  * The asks the kernel plans for `program/dispatch` and `program/inputs` (EXEC-AGENT-1), delivered raw: an inbound
  * delivery, a declared input, an event request, or the trace. The kernel checks and shapes; the host only delivers.
  */
-async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs', args: readonly JsonValue[], host: ServiceHostPorts): Promise<Delivered> {
+async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs', args: readonly JsonValue[], host: ServiceHostPorts, ports: Pick<KernelHostPorts, 'parseEventRequest'>): Promise<Delivered> {
   const [first, second, third] = args;
   if (op === 'program/inputs') {
     const steps = args.length === 1 && isJsonObject(first) ? first['trace'] : undefined;
@@ -325,31 +345,22 @@ async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs', args: 
     if (host.dispatchRequest === undefined) return { ok: false, error: 'program/dispatch: this host does not serve event requests' };
     const stream = third['stream'] === true;
     if (stream && host.supportsDispatchStream !== true) return { ok: false, error: 'program/dispatch: this host does not answer stream items' };
-    const fields: { [key: string]: JsonValue } = { payload };
-    for (const key of ['event', 'entityId', 'targetTrait', 'clientId', 'locale', 'delivery', 'dispatchLog', 'mount']) {
-      const value = third[key];
-      if (present(value)) fields[key] = value;
-    }
-    const traits = third['traits'];
-    if (traits !== undefined && traits !== null) fields['traits'] = traits;
-    if (isJsonObject(third['viewer'])) fields['user'] = third['viewer'];
-    const parsed = OrbitalEventRequestSchema.safeParse(fields);
-    if (!parsed.success) {
-      const message = `program/dispatch: not an event request: ${parsed.error.message}`;
-      return { ok: false, error: message, errors: [{ code: 'INVALID_REQUEST', message, status: 400 }] };
-    }
+    const parse = ports.parseEventRequest;
+    if (parse === undefined) return { ok: false, error: 'program/dispatch: this host has no kernel to parse an event request' };
+    const parsed = parse(payload, third);
+    if ('error' in parsed) return { ok: false, error: parsed.error, errors: [{ code: 'INVALID_REQUEST', message: parsed.error, status: 400 }] };
     const orbital = typeof third['orbital'] === 'string' ? third['orbital'] : '';
-    const answered = await host.dispatchRequest(orbital, parsed.data, third['input'] === true, stream);
+    const answered = await host.dispatchRequest(orbital, parsed.ok, third['input'] === true, stream);
     if (!answered.ok) return { ok: false, error: answered.error, errors: [{ code: answered.code, message: answered.error, status: answered.status }] };
-    if (!stream) return { ok: true, result: toJson(answered.response) };
+    if (!stream) return { ok: true, result: answered.response };
     if (answered.streamItems === undefined) return { ok: false, error: 'program/dispatch: this host does not answer stream items' };
-    return { ok: true, result: toJson({ ...answered.response, items: answered.streamItems }) };
+    return { ok: true, result: { ...answered.response, items: answered.streamItems } };
   }
   const event = first.lastIndexOf('.');
   const trait = first.lastIndexOf('.', event - 1);
   if (event < 0 || trait < 0) return { ok: false, error: `program/dispatch: '${first}' is not a qualified address` };
   const response = await host.dispatchInput(first.slice(0, trait), { targetTrait: first.slice(trait + 1, event), event: first.slice(event + 1), payload });
-  return { ok: true, result: toJson(response) };
+  return { ok: true, result: response };
 }
 
 const HTTP_UNAVAILABLE = 'HTTP_KERNEL_UNAVAILABLE: this host was given no http ports';

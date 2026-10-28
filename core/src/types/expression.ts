@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import type { RuntimeValue } from './json.js';
+import { JsonValueSchema, type JsonValue, type RuntimeValue } from './json.js';
 
 // ============================================================================
 // S-Expression Type
@@ -420,29 +420,13 @@ export interface EvalContext {
 }
 
 /**
- * A single value carried by an event payload field. The top-level payload
- * is always an object; the VALUES in that object can be primitives, nested
- * objects, or arrays of the same. Arrays are allowed so real-world emits
- * like `{ files: [{ name, size, type }, ...] }` or `{ selected: string[] }`
- * are typed natively instead of forcing consumers to wrap at every call.
- *
- * `Date` is included so `EntityRow` (whose values are `FieldValue`, which
- * includes `Date`) is assignable to a payload field without a cast —
- * emitted entity rows flow through the bus without boundary widening.
+ * A single value carried by an event payload field: a JSON value. A date is its ISO string, an absent
+ * field is an absent key; `Date` and `undefined` never travel on the wire.
  */
-export type EventPayloadValue =
-  | string
-  | number
-  | boolean
-  | Date
-  | null
-  | undefined
-  | EventPayload
-  | readonly EventPayloadValue[];
+export type EventPayloadValue = JsonValue;
 
 /**
- * Typed event payload. Object-shaped so it's assignable to the bus's
- * `EventPayload` parameter without casts.
+ * Typed event payload: a JSON object, assignable to the bus's `EventPayload` parameter without casts.
  */
 export interface EventPayload {
   [key: string]: EventPayloadValue;
@@ -453,33 +437,21 @@ export interface EventPayload {
  * `unknown` values at typed substrate boundaries (e.g. `TraceContext.emit`).
  */
 export function isEventPayloadValue(value: RuntimeValue): value is EventPayloadValue {
-  if (value === null || value === undefined) return true;
+  if (value === null) return true;
   const kind = typeof value;
   if (kind === 'string' || kind === 'number' || kind === 'boolean') return true;
-  if (value instanceof Date) return true;
   if (Array.isArray(value)) return value.every((item: RuntimeValue) => isEventPayloadValue(item));
-  if (kind === 'object' && value !== null && typeof value === 'object') {
+  if (kind === 'object' && typeof value === 'object' && !(value instanceof Date)) {
     return Object.values(value).every((item: RuntimeValue) => isEventPayloadValue(item));
   }
   return false;
 }
 
 /** Zod twin of `EventPayloadValue` — the one runtime validator for a bus-emit payload slot. */
-export const EventPayloadValueSchema: z.ZodType<EventPayloadValue> = z.lazy(() =>
-  z.union([
-    z.string(),
-    z.number(),
-    z.boolean(),
-    z.date(),
-    z.null(),
-    z.undefined(),
-    EventPayloadSchema,
-    z.array(EventPayloadValueSchema),
-  ]),
-);
+export const EventPayloadValueSchema: z.ZodType<EventPayloadValue> = JsonValueSchema;
 
 /** Zod twin of `EventPayload` — the wire shape of a bus event's `payload`. */
-export const EventPayloadSchema: z.ZodType<EventPayload> = z.lazy(() => z.record(z.string(), EventPayloadValueSchema));
+export const EventPayloadSchema: z.ZodType<EventPayload> = z.record(z.string(), JsonValueSchema);
 
 /**
  * Allowed leaf value for `LogMeta`. Mirrors `EventPayloadValue` shape so

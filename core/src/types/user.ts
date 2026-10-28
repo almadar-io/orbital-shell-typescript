@@ -35,9 +35,7 @@ export type ViewerAuthority = 'pending' | 'anonymous' | 'authenticated' | 'faile
  * JSON value, readable as `@user.<claim>`. The Rust twin of the conversion is `orbital_core_base::viewer`
  * (`Viewer::from_user` / `Viewer::to_user`).
  */
-export interface UserContext extends Omit<Viewer, 'claims'> {
-  [key: string]: FieldValue | undefined;
-}
+export type UserContext = Omit<Viewer, 'claims'> & { [key: string]: FieldValue };
 
 const ClaimSchema: z.ZodType<Claim> = z.object({ name: z.string(), value: JsonValueSchema });
 
@@ -63,7 +61,7 @@ export const ANONYMOUS_USER: UserContext = {
 };
 
 /** Provider-shaped identity claims, before normalization. */
-export interface RawUserClaims {
+export type RawUserClaims = {
   id?: string;
   uid?: string;
   email?: string | null;
@@ -72,8 +70,7 @@ export interface RawUserClaims {
   /** Absent or `null` when the token carries none, as the kernel's `Viewer.role` (`Option`). */
   role?: string | null;
   permissions?: string[] | null;
-  [key: string]: FieldValue | undefined;
-}
+} & { [key: string]: FieldValue };
 
 /** Zod twin of `RawUserClaims` — the wire shape of `OrbitalEventRequest.user`. */
 export const RawUserClaimsSchema: z.ZodType<RawUserClaims> = z
@@ -86,7 +83,7 @@ export const RawUserClaimsSchema: z.ZodType<RawUserClaims> = z
     role: z.string().nullable().optional(),
     permissions: z.array(z.string()).nullable().optional(),
   })
-  .catchall(FieldValueSchema.optional());
+  .catchall(FieldValueSchema);
 
 /** Claim keys a `null` leaves absent, as the kernel's `Viewer` reads them (`Option`). */
 const NONE_WHEN_NULL_CLAIM_KEYS: readonly string[] = ['role', 'permissions'];

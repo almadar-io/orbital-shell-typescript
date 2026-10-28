@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import type { EventEmit, EventPayload, EventPayloadValue, A11yProps } from '@almadar/core';
+import { isJsonObject, type EventEmit, type EventPayload, type EventPayloadValue, type A11yProps } from '@almadar/core';
 import { Plus, Trash, ArrowRight, GitBranch, Eye, Pencil } from 'lucide-react';
 import { Select } from '../../../core';
 import type { SelectOption } from '../../../core';
@@ -19,22 +19,53 @@ import { useContentSurface } from '../../../core';
 import type { SurfaceMode } from '@almadar/core';
 
 import { domPassthrough } from '../../../core';
-export interface BranchingQuestion {
+export type BranchingQuestion = {
   id: string;
   label: string;
   optionValues?: string[];
-}
+};
 
 export type BranchingOperator = 'equals' | 'not-equals' | 'contains' | 'in';
 
 export const END_OF_SURVEY = 'end-of-survey';
 
-export interface BranchingRule extends EventPayload {
+export type BranchingRule = {
   id: string;
   sourceQuestionId: string;
   operator: BranchingOperator;
   value: string | string[];
   targetQuestionId: string | typeof END_OF_SURVEY;
+};
+
+const BRANCHING_OPERATORS: readonly string[] = ['equals', 'not-equals', 'contains', 'in'];
+
+function isTextList(value: EventPayloadValue | undefined): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string');
+}
+
+function isQuestionList(value: readonly BranchingQuestion[] | EventPayloadValue): value is readonly BranchingQuestion[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (q) => isJsonObject(q) && typeof q.id === 'string' && typeof q.label === 'string' && (q.optionValues === undefined || isTextList(q.optionValues)),
+    )
+  );
+}
+
+function isRuleList(value: readonly BranchingRule[] | EventPayloadValue): value is readonly BranchingRule[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (r) =>
+        isJsonObject(r) &&
+        typeof r.id === 'string' &&
+        typeof r.sourceQuestionId === 'string' &&
+        typeof r.operator === 'string' &&
+        BRANCHING_OPERATORS.includes(r.operator) &&
+        (typeof r.value === 'string' || isTextList(r.value)) &&
+        typeof r.targetQuestionId === 'string',
+    )
+  );
 }
 
 export interface BranchingLogicBuilderProps extends A11yProps {
@@ -445,17 +476,13 @@ export const BranchingLogicBuilder: React.FC<BranchingLogicBuilderProps> = ({
 }) => {
   const { t } = useTranslate();
   const eventBus = useEventBus();
-  const questions: readonly BranchingQuestion[] = Array.isArray(questionsProp)
-    ? (questionsProp as readonly BranchingQuestion[])
-    : [];
-  const rulesInitial: readonly BranchingRule[] = Array.isArray(rulesProp)
-    ? (rulesProp as readonly BranchingRule[])
-    : [];
+  const questions: readonly BranchingQuestion[] = isQuestionList(questionsProp) ? questionsProp : [];
+  const rulesInitial: readonly BranchingRule[] = isRuleList(rulesProp) ? rulesProp : [];
   const [rules, setRules] = useState<BranchingRule[]>([...rulesInitial]);
   const [view, setView] = useState<ViewMode>('edit');
 
   useEffect(() => {
-    setRules(Array.isArray(rulesProp) ? [...(rulesProp as readonly BranchingRule[])] : []);
+    setRules(isRuleList(rulesProp) ? [...rulesProp] : []);
   }, [rulesProp]);
 
   const updateRules = useCallback(

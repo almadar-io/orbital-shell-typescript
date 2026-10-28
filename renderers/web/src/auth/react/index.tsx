@@ -132,7 +132,7 @@ export function useAuth(): AuthContextValue {
 
 const PersonasSchema = z.object({
   success: z.literal(true),
-  personas: z.array(z.object({ id: z.string() }).catchall(FieldValueSchema.optional())),
+  personas: z.array(z.object({ id: z.string() }).catchall(FieldValueSchema)),
 });
 const SignInSchema = z.object({ success: z.literal(true), customToken: z.string() });
 

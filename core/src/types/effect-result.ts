@@ -21,11 +21,11 @@ import { EventPayloadValueSchema, type EventPayloadValue } from './expression.js
  * runtime's `EffectResult`. Callers who want telemetry pass an array that
  * the factory appends to; otherwise it's unused.
  */
-export interface ServerBatchSummary {
+export type ServerBatchSummary = {
   operations: EntityRow[];
   completedCount: number;
   totalCount: number;
-}
+};
 
 /** Zod twin of `ServerBatchSummary`. */
 export const ServerBatchSummarySchema: z.ZodType<ServerBatchSummary> = z.object({
@@ -34,7 +34,7 @@ export const ServerBatchSummarySchema: z.ZodType<ServerBatchSummary> = z.object(
   totalCount: z.number(),
 });
 
-export interface ServerEffectResult {
+export type ServerEffectResult = {
   /**
    * The reported effect's head (`SERVER_REPORTED_EFFECTS`, derived from the
    * effect union in `effect.ts`), or `"substrate"` — the one wire grouping
@@ -63,7 +63,7 @@ export interface ServerEffectResult {
   target?: string;
   /** The declared `emit.failure` event the program routed this effect's failure to; absent when it declares none. */
   routed?: string;
-}
+};
 
 /** Zod twin of `ServerEffectResult`. */
 export const ServerEffectResultSchema: z.ZodType<ServerEffectResult> = z.object({

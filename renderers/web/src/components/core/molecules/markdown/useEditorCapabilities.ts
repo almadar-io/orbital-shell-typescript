@@ -54,31 +54,31 @@ export interface UseEditorCapabilitiesArgs {
   applyChange: (next: string, origin: 'keystroke' | 'capability') => void;
 }
 
-export interface MotionPayload extends EventPayload {
+export type MotionPayload = EventPayload & {
   editorId: string;
   motion: EditorMotion;
   count: number;
-}
+};
 
-export interface OperatePayload extends EventPayload {
+export type OperatePayload = EventPayload & {
   editorId: string;
   operator: EditorOperator;
   motion: EditorMotion;
   count: number;
-}
+};
 
-export interface InsertTextPayload extends EventPayload {
+export type InsertTextPayload = EventPayload & {
   editorId: string;
   text: string;
-}
+};
 
-export interface SetModePayload extends EventPayload {
+export type SetModePayload = EventPayload & {
   editorId: string;
   mode: string;
   caret: EditorCaret;
   /** The keys the mode captures, in `useKeyboardRouter`'s spelling (bare key or `Control+Alt+Shift+Meta` chord). */
   keys?: string[];
-}
+};
 
 interface HistorySnapshot {
   text: string;

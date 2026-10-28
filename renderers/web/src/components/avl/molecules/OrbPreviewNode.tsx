@@ -258,7 +258,7 @@ function generateMockPayload(
     : [];
   const linkedFirstRow: EntityRow | undefined = linkedRows[0];
 
-  const valueForType = (rawType: string, entityType?: string): EventPayloadValue => {
+  const valueForType = (rawType: string, entityType?: string): EventPayloadValue | undefined => {
     const type = rawType.replace(/!$/, '').trim();
     const arrayMatch = /^\[\s*(\w+)\s*\]$/.exec(type);
     if (arrayMatch) {
@@ -316,7 +316,7 @@ function generateMockPayload(
       const fromRow = linkedFirstRow[tail];
       if (fromRow !== undefined) value = fromRow;
     }
-    setByPath(payload, field.name, value);
+    if (value !== undefined) setByPath(payload, field.name, value);
   }
   return payload;
 }
@@ -325,10 +325,10 @@ function substitutePayloadBindings(
   effects: Effect[],
   payload: EventPayload,
 ): Effect[] {
-  const isPayloadObject = (v: EventPayloadValue): v is EventPayload =>
-    v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date);
-  const getByPath = (path: string): EventPayloadValue => {
-    let cur: EventPayloadValue = payload;
+  const isPayloadObject = (v: EventPayloadValue | undefined): v is EventPayload =>
+    v !== null && typeof v === 'object' && !Array.isArray(v);
+  const getByPath = (path: string): EventPayloadValue | undefined => {
+    let cur: EventPayloadValue | undefined = payload;
     for (const k of path.split('.')) {
       if (!isPayloadObject(cur)) return undefined;
       cur = cur[k];
@@ -1050,7 +1050,7 @@ const OrbPreviewNodeInner: React.FC<NodeProps> = (props) => {
       if (!path || !position || !selectedAddress || !data.traitName || !data.transitionEvent) return;
       const loc = { orbitalName: data.orbitalName, traitName: data.traitName, transitionEvent: data.transitionEvent };
       const paths = selectedPaths.length > 0 ? selectedPaths : [path];
-      const withElements = elements ? { elements } : {};
+      const withElements: EventPayload = elements ? { elements } : {};
       if (duplicate) {
         eventBus.emit('UI:PATTERN_DUPLICATE', { paths, loc, ...withElements });
         if (paths.length > 1) {

@@ -131,7 +131,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
   const activate = (item: BreadcrumbItem, index: number) => {
     const href = item.path ?? item.href;
     if (item.event) {
-      eventBus.emit(`UI:${item.event}`, { label: item.label, href, index });
+      eventBus.emit(`UI:${item.event}`, { label: item.label, ...(href !== undefined ? { href } : {}), index });
     } else if (fromNavStack && href) {
       // Stack crumbs without an event navigate directly through the provider.
       navStack.goTo(href);

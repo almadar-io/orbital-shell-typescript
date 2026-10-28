@@ -17,6 +17,7 @@ export function stubKernelModule(Server: KernelServerClass, overrides: Partial<O
     osCompletionEvent: () => 'null',
     substrateCompletionEvent: () => 'null',
     tabUrlMatches: () => false,
+    parseEventRequest: unexpected('parseEventRequest'),
     installLanguage: unexpected('installLanguage'),
     evaluateMany: unexpected('evaluateMany'),
     resolveValues: unexpected('resolveValues'),

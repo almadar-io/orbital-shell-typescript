@@ -4,7 +4,7 @@
  * `{ id, row }` plus whatever its payload declares; one resolver owns it.
  */
 import { describe, it, expect } from 'vitest';
-import type { EntityRow, SExpr } from '@almadar/core';
+import type { EntityRow, EventPayload, SExpr } from '@almadar/core';
 import { rowActionPayload, type RowConditionalAction } from '../../src/lib/row-action-when';
 
 type Act = RowConditionalAction & { readonly event: string };
@@ -35,7 +35,7 @@ describe('rowActionPayload', () => {
   });
 
   it('a compiled payload function is called with the row', () => {
-    const payload = (r: EntityRow) => ({ entryId: r.id });
+    const payload = (r: EntityRow): EventPayload => (r.id === undefined ? {} : { entryId: r.id });
     expect(rowActionPayload(act({ event: 'PROMOTE', payload }), row, viewer)).toEqual({ id: 't-7', row, entryId: 't-7' });
   });
 

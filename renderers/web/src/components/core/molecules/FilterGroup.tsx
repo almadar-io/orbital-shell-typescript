@@ -209,7 +209,7 @@ const FilterGroupControls: React.FC<FilterGroupProps> = ({
         entity,
         field,
         value: value === "all" || value === null ? "" : value,
-        query,
+        ...(query !== undefined ? { query } : {}),
       };
       // Declarative configured event first (SearchInput's dual-emit shape):
       // cross-trait listeners route the configured name; the canonical
@@ -236,9 +236,9 @@ const FilterGroupControls: React.FC<FilterGroupProps> = ({
 
     // Emit UI:CLEAR_FILTERS event for closed circuit
     if (clearEvent && clearEvent !== "CLEAR_FILTERS") {
-      eventBus.emit(`UI:${clearEvent}`, { entity, query });
+      eventBus.emit(`UI:${clearEvent}`, { entity, ...(query !== undefined ? { query } : {}) });
     }
-    eventBus.emit("UI:CLEAR_FILTERS", { entity, query });
+    eventBus.emit("UI:CLEAR_FILTERS", { entity, ...(query !== undefined ? { query } : {}) });
   }, [onClearAll, queryState, eventBus, entity, query, clearEvent]);
 
   const activeFilterCount = Object.keys(selectedValues).length;

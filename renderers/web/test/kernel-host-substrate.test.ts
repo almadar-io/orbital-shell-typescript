@@ -91,6 +91,14 @@ it('defers keyed substrate answers, preserves context and suppresses cancelled c
   const refused: KernelHostPorts = {
     ...host,
     servicePorts: (caller, _user, message) => ({ caller, message, inputs: () => [], readableEntities: () => [], read: async () => [], dispatchInput: async () => { throw new Error('unused'); }, dispatchRequest: async () => ({ ok: false, error: 'missing', code: 'ORBITAL_NOT_FOUND', status: 404 }) }),
+    parseEventRequest: (payload, options) => {
+      const event = options['event'];
+      return typeof event === 'string' ? { ok: { event, payload } } : { error: 'program/dispatch: not an event request: missing field `event`' };
+    },
   };
   expect(await answerRequest(refused, decodeRequest({ kind: 'substrate', op: 'program/dispatch', args: ['Main.Worker.GO', {}, { orbital: 'Main', targetTrait: 'Worker', event: 'GO', wire: true }] }), { orbital: 'Main' })).toEqual({ kind: 'substrate', result: { error: { message: 'missing', errors: [{ code: 'ORBITAL_NOT_FOUND', message: 'missing', status: 404 }] } } });
+  const notARequest = 'program/dispatch: not an event request: missing field `event`';
+  expect(await answerRequest(refused, decodeRequest({ kind: 'substrate', op: 'program/dispatch', args: ['Main.Worker.GO', {}, { orbital: 'Main', targetTrait: 'Worker' }] }), { orbital: 'Main' })).toEqual({ kind: 'substrate', result: { error: { message: notARequest, errors: [{ code: 'INVALID_REQUEST', message: notARequest, status: 400 }] } } });
+  const unparsed: KernelHostPorts = { ...refused, parseEventRequest: undefined };
+  expect(await answerRequest(unparsed, decodeRequest({ kind: 'substrate', op: 'program/dispatch', args: ['Main.Worker.GO', {}, { orbital: 'Main', event: 'GO' }] }), { orbital: 'Main' })).toMatchObject({ kind: 'substrate', result: { error: { message: 'program/dispatch: this host has no kernel to parse an event request' } } });
 });

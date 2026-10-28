@@ -293,14 +293,14 @@ export const Timeline: React.FC<TimelineProps> = ({
                                             {itemActions.map((action, actionIdx) => {
                                                 // TimelineItem.icon is non-serializable (component or string ref).
                                                 // Project only the JSON-safe fields into the bus payload.
-                                                const { icon: _icon, ...rowSafe } = item;
+                                                const { icon: _icon, tags, ...rowSafe } = item;
                                                 return (
                                                 <Button
                                                     key={actionIdx}
                                                     variant="ghost"
                                                     size="sm"
                                                     action={action.event}
-                                                    actionPayload={{ row: rowSafe satisfies EventPayload }}
+                                                    actionPayload={{ row: { ...rowSafe, ...(tags !== undefined ? { tags: [...tags] } : {}) } }}
                                                 >
                                                     {action.label}
                                                 </Button>

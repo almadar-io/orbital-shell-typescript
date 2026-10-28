@@ -11,7 +11,7 @@ import { EntityIdSchema } from './identity.js';
 import type { EntityId } from './identity.js';
 import { EntityFieldSchema, type EntityField, type FileValue } from './field.js';
 import { SemanticAssetRefSchema, type SemanticAssetRef } from './asset.js';
-import { JsonValueSchema, type RuntimeValue } from './json.js';
+import { JsonValueSchema, type JsonValue, type RuntimeValue } from './json.js';
 import { SExprListSchema, SExprSchema, type SExpr } from './expression.js';
 
 // ============================================================================
@@ -301,20 +301,13 @@ export function persistenceModeAllowsOverrides(
 // ============================================================================
 
 /**
- * A single field value at runtime.
- * Union of all possible types from FieldType: string, number, boolean, date, array, nested.
- * The nested-record branch's index signature tolerates `undefined` so that
- * TypeScript optional properties (`x?: string`, carrying `string | undefined`)
- * on EntityRow extenders typecheck without ceremony. At JSON serialization
- * time `undefined` is equivalent to "key absent" and never appears on the
- * wire; the inclusion here is a pure type-surface accommodation.
+ * A single field value at runtime: a JSON value. A date is its ISO string, an absent field is an absent key;
+ * `Date` and `undefined` never travel on the wire, so neither is a field value.
  */
-export type FieldValue = string | number | boolean | Date | null | string[] | FieldValue[] | { [key: string]: FieldValue | undefined };
+export type FieldValue = JsonValue;
 
 /** Zod twin of `FieldValue` — the one runtime validator for a stored field slot. */
-export const FieldValueSchema: z.ZodType<FieldValue> = z.lazy(() =>
-  z.union([z.string(), z.number(), z.boolean(), z.date(), z.null(), z.array(FieldValueSchema), z.record(z.string(), FieldValueSchema.optional())]),
-);
+export const FieldValueSchema: z.ZodType<FieldValue> = JsonValueSchema;
 
 /**
  * What a FORM CONTROL puts on the event bus — the closed set of shapes an
@@ -348,10 +341,9 @@ export function isFieldValue(value: RuntimeValue): value is FieldValue {
   if (value === null) return true;
   const kind = typeof value;
   if (kind === 'string' || kind === 'number' || kind === 'boolean') return true;
-  if (value instanceof Date) return true;
   if (Array.isArray(value)) return value.every((item: RuntimeValue) => isFieldValue(item));
-  if (kind === 'object' && value !== null && typeof value === 'object') {
-    return Object.values(value).every((item: RuntimeValue) => item === undefined || isFieldValue(item));
+  if (kind === 'object' && typeof value === 'object' && !(value instanceof Date)) {
+    return Object.values(value).every((item: RuntimeValue) => isFieldValue(item));
   }
   return false;
 }
@@ -364,12 +356,12 @@ export function isFieldValue(value: RuntimeValue): value is FieldValue {
  * // Entity defines: Patient { fullName: string, age: number, active: boolean }
  * // EntityRow is: { id: "p1", fullName: "Sarah", age: 34, active: true }
  */
-export type EntityRow = { id?: string } & Record<string, FieldValue | undefined>;
+export type EntityRow = { id?: string } & Record<string, FieldValue>;
 
 /** Zod twin of `EntityRow` — the one runtime validator for an `@entity` wire row. */
 export const EntityRowSchema: z.ZodType<EntityRow> = z
   .object({ id: z.string().optional() })
-  .catchall(FieldValueSchema.optional());
+  .catchall(FieldValueSchema);
 
 /**
  * A field-TYPED `EntityRow` — the SINGLE entity type, refined with a concrete

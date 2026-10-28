@@ -64,7 +64,8 @@ import type {
   EventStreamItem,
 } from "@almadar/core";
 import { entityAccessPolicies } from "@almadar/core/mock";
-import { entityOwnerOrbital, RowSetRefSchema, type RowQueryPage } from "@almadar/core";
+import { entityOwnerOrbital, RowSetRefSchema, type JsonObject, type RowQueryPage } from "@almadar/core";
+import { isEventRequest } from "@almadar/core/kernel-wire";
 
 // Single upstream owner (`@almadar/core`'s `types/bus.ts`) — both execution
 // paths (this runtime and orbital-shell-typescript's generated handlers,
@@ -99,7 +100,7 @@ import { isEntityCall, normalizeUserContext, personaFromIdentityRow, ANONYMOUS_U
 import { identityEntityName } from "@almadar/core/mock";
 import { defaultCallService } from "@almadar/shell-runtime";
 import { KernelEngine, type KernelHostPorts } from "@almadar/shell-runtime";
-import { kernelOsCompletions, kernelOsGrants, type OsGrantPort, type OsHostPort } from "@almadar/shell-runtime";
+import { kernelEventRequestParser, kernelOsCompletions, kernelOsGrants, type OsGrantPort, type OsHostPort } from "@almadar/shell-runtime";
 import { createHttpPorts, createHttpSecrets, InFlightCalls, type HttpPorts, type HttpPortsOptions, type KernelModule } from "@almadar/shell-runtime";
 import { installNodeHostPorts } from "../host-ports.js";
 import { nativeMemoryOf } from "../kernel-loader.js";
@@ -698,6 +699,7 @@ export class OrbitalServerRuntime {
       ...(this.config.clock !== undefined ? { now: this.config.clock } : {}),
       ...(this.kernelOs !== undefined ? { os: this.kernelOs } : {}),
       ...(this.kernelOs !== undefined && this.config.kernel !== undefined ? { osCompletions: kernelOsCompletions(this.config.kernel) } : {}),
+      ...(this.config.kernel !== undefined ? { parseEventRequest: kernelEventRequestParser(this.config.kernel) } : {}),
       persistence: this.persistence,
       inFlightCalls: this.inFlightCalls,
       callService: (service, action, params, context) => {
@@ -1345,11 +1347,15 @@ export class OrbitalServerRuntime {
    */
   async dispatchEventRequest(
     orbital: string,
-    request: OrbitalEventRequest,
+    parsed: JsonObject,
     input: boolean,
     caller: UserContext | undefined,
     stream = false,
   ): Promise<DispatchRequestOutcome> {
+    if (!isEventRequest(parsed)) {
+      return { ok: false, error: 'program/dispatch: the kernel parsed no event request', code: 'INVALID_REQUEST', status: 400 };
+    }
+    const request: OrbitalEventRequest = parsed;
     const streamItems: EventStreamItem[] = [];
     const onPush = stream ? (item: PushItem): void => { streamItems.push({ ...item, timestamp: item.timestamp ?? Date.now() }); } : undefined;
     const answer = (response: OrbitalEventResponse): DispatchRequestOutcome => ({

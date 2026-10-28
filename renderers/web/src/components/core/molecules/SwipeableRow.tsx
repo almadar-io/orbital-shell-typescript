@@ -80,7 +80,7 @@ export const SwipeableRow: React.FC<SwipeableRowProps> = ({
     (action: SwipeAction) => {
       eventBus.emit(`UI:${action.event}`, {
         ...action.eventPayload,
-        row: itemData,
+        ...(itemData !== undefined ? { row: itemData } : {}),
       });
       setRevealState('closed');
       setOffsetX(0);

@@ -158,12 +158,15 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({
         if (entityData.length === 0) return [];
 
         return entityData.map((record, idx): MediaItem => {
+            const alt = record.alt ? String(record.alt) : undefined;
+            const thumbnail = resolveImageUrl(record.thumbnail);
+            const caption = record[captionField] != null ? String(record[captionField]) : undefined;
             return {
                 id: String(record.id ?? idx),
                 src: resolveImageUrl(record[srcField]) ?? "",
-                alt: (record.alt ? String(record.alt) : undefined),
-                thumbnail: resolveImageUrl(record.thumbnail),
-                caption: record[captionField] != null ? String(record[captionField]) : undefined,
+                ...(alt !== undefined ? { alt } : {}),
+                ...(thumbnail !== undefined ? { thumbnail } : {}),
+                ...(caption !== undefined ? { caption } : {}),
             };
         });
     }, [propItems, entityData, srcField, captionField]);

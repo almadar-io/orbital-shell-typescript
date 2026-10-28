@@ -5,7 +5,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { ROW_SET_MARKER, type ClientEffectByTrait, type PatternConfig } from '@almadar/core';
+import { ROW_SET_MARKER, type ClientEffectByTrait, type JsonObject } from '@almadar/core';
 import { useSlotFlush } from '../../src/hooks/circuit/useSlotFlush';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import { RowSetResolverProvider } from '../../src/providers/RowSetResolverContext';
@@ -16,7 +16,7 @@ const slots: UISlotManager = {
   subscribe: vi.fn(() => () => undefined), hasContent: vi.fn(() => false), getContent: vi.fn(() => null),
   getTraitContent: vi.fn(() => null), subscribeTrait: vi.fn(() => () => undefined), updateTraitContent: vi.fn(() => 'id'),
 };
-const table: PatternConfig = { type: 'data-list', entity: { [ROW_SET_MARKER]: true, ref: { entityType: 'Task', ids: ['t1'], total: 1, query: {} } } };
+const table: JsonObject = { type: 'data-list', entity: { [ROW_SET_MARKER]: true, ref: { entityType: 'Task', ids: ['t1'], total: 1, query: {} } } };
 const effect = (repaint?: 'rows-changed'): ClientEffectByTrait => ({ traitName: 'Board', effect: ['render-ui', 'main', table], ...(repaint !== undefined ? { repaint } : {}) });
 
 function setup() {

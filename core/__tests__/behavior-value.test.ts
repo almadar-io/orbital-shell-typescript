@@ -111,7 +111,7 @@ describe('TraitOverridesSchema / TraitValueSchema', () => {
 
 describe('program results are event payload data', () => {
   it('validator issues and an evaluated program travel on the bus as-is', () => {
-    const errors: readonly ProgramValidationIssue[] = [{ code: 'ORB_X', message: 'broken', line: 3 }];
+    const errors: ProgramValidationIssue[] = [{ code: 'ORB_X', message: 'broken', line: 3 }];
     const result: EvaluatedProgram = { behavior: './orbitals/X', traits: [], value: { behavior: './orbitals/X' } };
     const failure: EventPayload = { error: 'does not validate', errors };
     const success: EventPayload = { behavior: result.behavior, value: result.value };

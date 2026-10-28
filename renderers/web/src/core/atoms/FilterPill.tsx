@@ -107,12 +107,12 @@ export const FilterPill = React.forwardRef<HTMLSpanElement, FilterPillProps>(
 
     const handleClick = useCallback(() => {
       onClick?.();
-      if (clickEvent) eventBus.emit(`UI:${clickEvent}`, { label: payloadLabel });
+      if (clickEvent) eventBus.emit(`UI:${clickEvent}`, { ...(payloadLabel !== undefined ? { label: payloadLabel } : {}) });
     }, [onClick, clickEvent, eventBus, payloadLabel]);
 
     const handleRemove = useCallback(() => {
       onRemove?.();
-      if (removeEvent) eventBus.emit(`UI:${removeEvent}`, { label: payloadLabel });
+      if (removeEvent) eventBus.emit(`UI:${removeEvent}`, { ...(payloadLabel !== undefined ? { label: payloadLabel } : {}) });
     }, [onRemove, removeEvent, eventBus, payloadLabel]);
 
     const resolvedIcon =

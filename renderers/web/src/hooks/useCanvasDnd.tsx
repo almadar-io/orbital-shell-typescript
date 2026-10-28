@@ -75,16 +75,14 @@ export interface CanvasDragPayload {
 /**
  * Orbital/trait/transition context a drop will mutate.
  *
- * Has an explicit `[key: string]: string | undefined` index signature so it
- * structurally matches `EventPayload` — required because we pass the whole
+ * A type alias (not an interface) so it is assignable to `EventPayload` — we pass the whole
  * object as a field on the `UI:PATTERN_DROP` payload.
  */
-export interface CanvasContainerNode {
+export type CanvasContainerNode = {
   orbitalName?: string;
   traitName?: string;
   transitionEvent?: string;
-  [key: string]: string | undefined;
-}
+};
 
 /** Drop-target metadata stored on each droppable's `data` field. */
 /** Where a drop lands: the card path + index, and the container element's own address when the card knows it. */

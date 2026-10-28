@@ -319,7 +319,6 @@
     "os/watch-cron"
     "os/watch-env"
     "os/watch-files"
-    "os/watch-http"
     "os/watch-port"
     "os/watch-process"
     "os/watch-signal"
@@ -511,7 +510,6 @@
     "or"
     "quasiquote"
     "quote"
-    "typed"
     "unquote"
     "when"))
 

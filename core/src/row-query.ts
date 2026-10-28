@@ -119,14 +119,14 @@ export const RowQueryPageSchema: z.ZodType<RowQueryPage> = z.object({
   total: z.number().int().nonnegative(),
 });
 
-type Comparable = string | number | boolean | Date;
+type Comparable = string | number | boolean;
 
 function isMissing(value: FieldValue | undefined): value is null | undefined {
   return value === null || value === undefined;
 }
 
 function comparable(value: FieldValue | undefined): value is Comparable {
-  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || value instanceof Date;
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
 }
 
 function codePointOrder(a: string, b: string): number {
@@ -146,16 +146,10 @@ function orderValues(a: Comparable, b: Comparable): number | null {
   if (typeof a === 'string' && typeof b === 'string') return codePointOrder(a, b);
   if (typeof a === 'number' && typeof b === 'number') return a === b ? 0 : a < b ? -1 : 1;
   if (typeof a === 'boolean' && typeof b === 'boolean') return a === b ? 0 : a ? 1 : -1;
-  if (a instanceof Date && b instanceof Date) {
-    const x = a.getTime();
-    const y = b.getTime();
-    return x === y ? 0 : x < y ? -1 : 1;
-  }
   return null;
 }
 
 function sameValue(a: FieldValue | undefined, b: FieldValue | undefined): boolean {
-  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
   return a === b;
 }
 
@@ -182,10 +176,7 @@ function foldCase(text: string): string {
   return text.toUpperCase().toLowerCase();
 }
 
-interface MemberLookup {
-  plain: Set<FieldValue>;
-  times: Set<number>;
-}
+type MemberLookup = Set<FieldValue>;
 
 // A member list is scanned once per predicate, not once per row.
 const memberLookups = new WeakMap<RowPredicate & { kind: 'member' }, MemberLookup>();
@@ -193,11 +184,7 @@ const memberLookups = new WeakMap<RowPredicate & { kind: 'member' }, MemberLooku
 function memberLookup(predicate: RowPredicate & { kind: 'member' }): MemberLookup {
   const cached = memberLookups.get(predicate);
   if (cached !== undefined) return cached;
-  const lookup: MemberLookup = { plain: new Set(), times: new Set() };
-  for (const v of predicate.values) {
-    if (v instanceof Date) lookup.times.add(v.getTime());
-    else lookup.plain.add(v);
-  }
+  const lookup: MemberLookup = new Set(predicate.values);
   memberLookups.set(predicate, lookup);
   return lookup;
 }
@@ -214,8 +201,7 @@ export function rowMatchesPredicate(row: EntityRow, predicate: RowPredicate): bo
       const value = row[predicate.field];
       if (isMissing(value)) return false;
       const lookup = memberLookup(predicate);
-      if (value instanceof Date) return lookup.times.has(value.getTime());
-      return !Number.isNaN(value) && lookup.plain.has(value);
+      return !Number.isNaN(value) && lookup.has(value);
     }
     case 'hasElement': {
       const value = row[predicate.field];

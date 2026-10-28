@@ -110,7 +110,7 @@ export function resolveLambdaBindings(
 
 /** Row data is inserted quoted, so an array whose head names an operator is never evaluated as a call. */
 function asData(value: EventPayloadValue): SlotPropValue {
-  return value !== null && typeof value === "object" && !(value instanceof Date) ? quoteExpr(toWireValue(value)) : value;
+  return value !== null && typeof value === "object" ? quoteExpr(toWireValue(value)) : value;
 }
 
 function substituteLambdaBindings(
@@ -125,8 +125,8 @@ function substituteLambdaBindings(
   const itemName = params[0];
   const indexName = params[1];
   const itemPrefix = itemName ? `@${itemName}.` : null;
-  const lookup = (path: string): EventPayloadValue => {
-    let cur: EventPayloadValue = item as EventPayloadValue;
+  const lookup = (path: string): EventPayloadValue | undefined => {
+    let cur: EventPayloadValue | undefined = item;
     for (const seg of path.split(".")) {
       if (cur === null || cur === undefined) return undefined;
       if (typeof cur !== "object" || Array.isArray(cur)) return undefined;

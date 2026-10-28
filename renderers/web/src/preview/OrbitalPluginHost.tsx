@@ -67,7 +67,7 @@ import type { KernelInstance } from '../lib/kernel-wire';
 import { kernelOrbitals } from '../lib/kernel-schema';
 import { getTabClientId } from '../hooks/circuit/useCircuitKernel';
 import { useClientTicks } from '../hooks/circuit/useClientTicks';
-import { UI_SLOTS } from '@almadar/core';
+import { PatternConfigSchema, UI_SLOTS } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { useEventBus, useRootEventBus } from '../core';
 import { useTraitScopeChain } from '../core';
@@ -228,7 +228,7 @@ function paintClientEffects(id: string, effects: readonly ClientEffectByTrait[],
   for (const { effect } of effects) {
     switch (effect[0]) {
       case 'render-ui':
-        void handlers.renderUI?.(effect[1], effect[2]);
+        void handlers.renderUI?.(effect[1], PatternConfigSchema.parse(effect[2]));
         break;
       case 'navigate':
         handlers.navigate?.(effect[1], effect[2] ?? undefined, effect[3]?.crumb);

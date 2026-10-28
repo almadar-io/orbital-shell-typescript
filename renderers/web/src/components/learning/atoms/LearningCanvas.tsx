@@ -721,7 +721,7 @@ export const LearningCanvas: React.FC<LearningCanvasProps> = ({
         hoverIndexRef.current = idx;
         if (idx >= 0) {
           const shape = shapes[idx];
-          const payload = { id: shape.id, type: shape.type, index: idx };
+          const payload = { ...(shape.id !== undefined ? { id: shape.id } : {}), type: shape.type, index: idx };
           if (onShapeHover) onShapeHover(payload);
           else if (eventBus) eventBus.emit(`UI:SHAPE_HOVER`, payload);
         }
@@ -736,7 +736,7 @@ export const LearningCanvas: React.FC<LearningCanvasProps> = ({
       const idx = findShapeAt(e.clientX, e.clientY);
       if (idx >= 0) {
         const shape = shapes[idx];
-        const payload = { id: shape.id, type: shape.type, index: idx };
+        const payload = { ...(shape.id !== undefined ? { id: shape.id } : {}), type: shape.type, index: idx };
         if (onShapeClick) onShapeClick(payload);
         else if (eventBus) eventBus.emit(`UI:SHAPE_CLICK`, payload);
       }

@@ -908,7 +908,7 @@ export const Chart: React.FC<ChartProps> = ({
                 eventBus.emit(`UI:${drillEvent}`, {
                     label: point.label,
                     value: point.value,
-                    seriesLabel: seriesName === "default" ? undefined : seriesName,
+                    ...(seriesName === "default" ? {} : { seriesLabel: seriesName }),
                 });
             }
         },

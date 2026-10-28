@@ -2,20 +2,23 @@
 // orbital-core `embed::wire`. Do not edit: change the Rust wire types and regenerate.
 
 import type {
-  EntityRow,
   EventId,
-  FieldValue,
-  EventPayload,
-  EventPayloadValue,
   JsonObject,
   JsonValue,
   NamespacedEffectName,
   OrbitalId,
-  PatternConfig,
   RawUserClaims,
   ServerBatchSummary,
   TraitId,
 } from '../types/index.js';
+
+export type FieldValue = JsonValue;
+
+export type EventPayloadValue = JsonValue;
+
+export type EventPayload = JsonObject;
+
+export type EntityRow = { id?: string } & JsonObject;
 
 export type Accepted = null;
 
@@ -60,7 +63,7 @@ export type Claim = { name: string,
  */
 value: JsonValue, };
 
-export type ClientEffect = ["render-ui", string, PatternConfig | null] | ["navigate", string] | ["navigate", string, { [key in string]: string } | null] | ["navigate", string, { [key in string]: string } | null, NavigateOptions] | ["navigate-back"]
+export type ClientEffect = ["render-ui", string, JsonObject | null] | ["navigate", string] | ["navigate", string, { [key in string]: string } | null] | ["navigate", string, { [key in string]: string } | null, NavigateOptions] | ["navigate-back"]
 
 export type ClientEffectByTrait = { traitName: string, effect: ClientEffect, 
 /**
@@ -614,7 +617,7 @@ guardResult?: boolean, effects: Array<HopEffect>,
  */
 observed?: HopObservation, };
 
-export type TransitionRejection = { code: TransitionRejectionCode, trait?: string, from?: string, event?: string, statesDeclaringEvent?: Array<string>, transition?: string, guard?: unknown, 
+export type TransitionRejection = { code: TransitionRejectionCode, trait?: string, from?: string, event?: string, statesDeclaringEvent?: Array<string>, transition?: string, guard?: JsonValue, 
 /**
  * `effect-failed`: the failure's message.
  */
@@ -657,8 +660,20 @@ function checkClientEffectByTrait(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["traitName"] === 'string' && checkClientEffect(v["effect"]) && (v["event"] === undefined || typeof v["event"] === 'string') && (v["fromState"] === undefined || typeof v["fromState"] === 'string') && (v["callsitePayload"] === undefined || v["callsitePayload"] !== undefined) && (v["repaint"] === undefined || checkRepaintReason(v["repaint"])));
 }
 
+function checkDeliveryRecord(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["event"] === 'string' && (v["payload"] === undefined || v["payload"] !== undefined) && checkBusEventSource(v["source"]));
+}
+
+function checkDispatchLog(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && (Array.isArray(v["prevEvents"]) && v["prevEvents"].every((e) => checkDeliveryRecord(e))) && (Array.isArray(v["prevStates"]) && v["prevStates"].every((e) => typeof e === 'string')));
+}
+
 function checkEmittedEvent(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["event"] === 'string' && (v["payload"] === undefined || v["payload"] !== undefined) && (v["source"] === undefined || checkBusEventSource(v["source"])));
+}
+
+function checkEventRequest(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["event"] === 'string' && (v["eventId"] === undefined || v["eventId"] !== undefined) && (v["payload"] === undefined || v["payload"] !== undefined) && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["targetTrait"] === undefined || typeof v["targetTrait"] === 'string') && (v["user"] === undefined || v["user"] !== undefined) && (v["clientId"] === undefined || typeof v["clientId"] === 'string') && (v["locale"] === undefined || typeof v["locale"] === 'string') && (v["tick"] === undefined || typeof v["tick"] === 'string') && (v["sourceTrait"] === undefined || typeof v["sourceTrait"] === 'string') && (v["runTick"] === undefined || checkRunTick(v["runTick"])) && (v["traits"] === undefined || (Array.isArray(v["traits"]) && v["traits"].every((e) => checkTraitFrom(e)))) && (v["entityByTrait"] === undefined || (isRecord(v["entityByTrait"]) && Object.values(v["entityByTrait"]).every((e) => e !== undefined))) && (v["behavior"] === undefined || typeof v["behavior"] === 'string') && (v["delivery"] === undefined || checkDeliveryRecord(v["delivery"])) && (v["dispatchLog"] === undefined || checkDispatchLog(v["dispatchLog"])) && (v["mount"] === undefined || (Array.isArray(v["mount"]) && v["mount"].every((e) => checkMountSeed(e)))) && (v["residence"] === undefined || checkLegResidence(v["residence"])));
 }
 
 function checkEventResponse(v: JsonValue | undefined): boolean {
@@ -675,6 +690,18 @@ function checkHopEffectStatus(v: JsonValue | undefined): boolean {
 
 function checkHopObservation(v: JsonValue | undefined): boolean {
   return (isRecord(v) && v["payload"] !== undefined && v["entityBefore"] !== undefined && v["entityAfter"] !== undefined);
+}
+
+function checkLegResidence(v: JsonValue | undefined): boolean {
+  return (v === "browser" || v === "server");
+}
+
+function checkLifecycleEvent(v: JsonValue | undefined): boolean {
+  return (v === "INIT" || v === "LOAD" || v === "$MOUNT");
+}
+
+function checkMountSeed(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["trait"] === 'string' && checkLifecycleEvent(v["event"]));
 }
 
 function checkNavigateOptions(v: JsonValue | undefined): boolean {
@@ -717,6 +744,10 @@ function checkRowTotalMode(v: JsonValue | undefined): boolean {
   return (v === "exact" || v === "none");
 }
 
+function checkRunTick(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["tick"] === 'string');
+}
+
 function checkServerEffectCode(v: JsonValue | undefined): boolean {
   return (v === "not-found" || v === "no-row-key" || v === "duplicate-id" || v === "denied" || v === "derived-failed");
 }
@@ -727,6 +758,10 @@ function checkServerEffectKind(v: JsonValue | undefined): boolean {
 
 function checkServerEffectResult(v: JsonValue | undefined): boolean {
   return (isRecord(v) && checkServerEffectKind(v["effect"]) && (v["action"] === undefined || typeof v["action"] === 'string') && (v["entityType"] === undefined || typeof v["entityType"] === 'string') && (v["name"] === undefined || v["name"] !== undefined) && (v["data"] === undefined || (v["data"] !== undefined || v["data"] !== undefined || v["data"] !== undefined)) && typeof v["success"] === 'boolean' && (v["denied"] === undefined || v["denied"] === true) && (v["error"] === undefined || typeof v["error"] === 'string') && (v["code"] === undefined || checkServerEffectCode(v["code"])) && (v["target"] === undefined || typeof v["target"] === 'string') && (v["routed"] === undefined || typeof v["routed"] === 'string'));
+}
+
+function checkTraitFrom(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["from"] === 'string' && (v["event"] === undefined || typeof v["event"] === 'string'));
 }
 
 function checkTransitionHop(v: JsonValue | undefined): boolean {
@@ -744,4 +779,9 @@ function checkTransitionRejectionCode(v: JsonValue | undefined): boolean {
 /** The check of a kernel response at the host boundary: every field of `EventResponse` and of the wire types nested in it. */
 export function isEventResponse(value: JsonValue): value is JsonValue & EventResponse {
   return checkEventResponse(value);
+}
+
+/** The check of a request the kernel parsed (`parseEventRequest`): every field of `EventRequest` and of the wire types nested in it. */
+export function isEventRequest(value: JsonValue): value is JsonValue & EventRequest {
+  return checkEventRequest(value);
 }

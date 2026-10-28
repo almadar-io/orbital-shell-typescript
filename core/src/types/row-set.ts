@@ -7,12 +7,12 @@ import type { RuntimeValue } from "./json.js";
  * A fetched page by reference: `ids` = the window in order, `total` = matches before the window at
  * dispatch time, `query` = what produced it (its predicates, incl. the @read policy, re-count `total`; order and window are ignored).
  */
-export interface RowSetRef {
+export type RowSetRef = {
   entityType: string;
   ids: string[];
   total: number;
   query: RowQuery;
-}
+};
 
 export const RowSetRefSchema: z.ZodType<RowSetRef> = z.object({
   entityType: z.string(),

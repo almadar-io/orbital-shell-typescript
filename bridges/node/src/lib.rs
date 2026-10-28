@@ -288,6 +288,11 @@ pub fn os_glob_matches(glob: String, path: String) -> bool {
 }
 
 #[napi]
+pub fn parse_event_request(payload_json: String, options_json: String) -> napi::Result<String> {
+    api::parse_event_request(&payload_json, &options_json).map_err(js)
+}
+
+#[napi]
 pub fn tab_url_matches(pattern: String, url: String) -> bool {
     api::tab_url_matches(&pattern, &url)
 }

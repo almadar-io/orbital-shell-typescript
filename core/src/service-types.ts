@@ -302,7 +302,7 @@ export interface StoreFilter<T> {
 }
 
 /** One page of rows from a store: filters, then search, then sort, then the page. */
-export interface RowPageRequest<T> {
+export type RowPageRequest<T> = {
   /** 1-indexed. */
   page: number;
   pageSize: number;
@@ -312,13 +312,13 @@ export interface RowPageRequest<T> {
   searchFields?: readonly string[];
   sortBy?: string;
   sortOrder?: "asc" | "desc";
-}
+};
 
-export interface RowPage<T> {
+export type RowPage<T> = {
   rows: T[];
   /** Rows matching the filters and search, across all pages. */
   total: number;
-}
+};
 
 /** The comparison members of `StoreFilterOp`. */
 export type RowCompareOp = Extract<StoreFilterOp, "==" | "!=" | "<" | "<=" | ">" | ">=">;
@@ -341,27 +341,27 @@ export type RowPredicate =
   | { kind: "const"; value: boolean };
 
 /** One sort key. Missing and null values sort last in both directions; ties break by `id` ascending. A query with no `order` is ordered by `createdAt` ascending, then `id` (EXEC-FETCH-1). */
-export interface RowOrder {
+export type RowOrder = {
   field: string;
   direction: "asc" | "desc";
-}
+};
 
 /**
  * A vector-similarity query: up to `k` rows ordered by descending cosine similarity of `field` to `vector`
  * (EXEC-FETCH-2). A row whose field is absent, null or of zero norm is skipped; a stored vector that is not a
  * `[number]` of the query's length, a zero-norm query or a non-positive `k` fails.
  */
-export interface RowNearest {
+export type RowNearest = {
   field: string;
   vector: number[];
   k: number;
-}
+};
 
 /**
  * A pushed-down query: rows matching `policy` AND `filter`, ordered, then windowed. `policy` is the
  * entity's `@read` predicate already specialised to the viewer; `filter` is the call-site filter.
  */
-export interface RowQuery {
+export type RowQuery = {
   policy?: RowPredicate;
   filter?: RowPredicate;
   /** Absent = `createdAt` ascending, then `id` ascending (EXEC-FETCH-1). */
@@ -373,7 +373,7 @@ export interface RowQuery {
   total?: RowTotalMode;
   /** The nearest `k` rows among those `policy` and `filter` admit. Excludes `order`, `offset` and `limit`; `total` is the count returned. */
   nearest?: RowNearest;
-}
+};
 
 /** The answer to a `RowQuery`: the window, and `total` = every match before the window. */
 export type RowQueryPage = RowPage<EntityRow>;
@@ -385,16 +385,16 @@ export type RowValueKind = "string" | "number" | "boolean" | "date" | "null";
 export type RowOperator = RowCompareOp | "member" | "hasElement" | "contains";
 
 /** The value kinds one operator accepts on a store; an operator not listed accepts every kind. */
-export interface OperatorValueKinds {
+export type OperatorValueKinds = {
   operator: RowOperator;
   valueKinds: RowValueKind[];
-}
+};
 
 /** Whether `total` counts every match (`exact`, the default) or the store may skip the count (`none`). */
 export type RowTotalMode = "exact" | "none";
 
 /** What an adapter's `queryPage` honours for one entity type. */
-export interface QueryCapabilities {
+export type QueryCapabilities = {
   leaves: ("compare" | "member" | "hasElement" | "contains" | "isNull")[];
   combinators: ("all" | "any" | "not")[];
   compareOps: RowCompareOp[];
@@ -409,13 +409,13 @@ export interface QueryCapabilities {
   idsOnly?: boolean;
   /** `nearest` is pushed down: the store ranks by cosine similarity itself (EXEC-FETCH-2). */
   nearest?: boolean;
-}
+};
 
 /** The answer to a `queryIds`: the window's ids in order, and `total` as in `RowQueryPage`. */
-export interface RowIdPage {
+export type RowIdPage = {
   ids: string[];
   total: number;
-}
+};
 
 /**
  * One write. `create` fails (`duplicate-id`) when its id is taken. `upsert` creates the row or replaces it
@@ -452,13 +452,13 @@ export type RowWriteOutcome =
  */
 export type RowWriteFailureMode = "atomic" | "stop";
 
-export interface RowWriteBatch {
+export type RowWriteBatch = {
   ops: RowWriteOp[];
   onFailure: RowWriteFailureMode;
-}
+};
 
 /** What an adapter's `writeWhere`/`writeBatch` honours for one entity type. */
-export interface WriteCapabilities {
+export type WriteCapabilities = {
   /** The guard predicates the store can test; a `Pick` of the query capabilities. */
   guards: Pick<QueryCapabilities, "leaves" | "combinators" | "compareOps">;
   /** `writeWhere` tests the guard and the existence of the row in one step. */
@@ -473,18 +473,18 @@ export interface WriteCapabilities {
   rekey?: boolean;
   /** The store commits rows the kernel decided (`commitRows`) and holds no write semantics (EXEC-STORE-5). */
   commitRows?: boolean;
-}
+};
 
 /** What a compare-and-commit does to one row the kernel read. */
 export type RowCommitWrite = { kind: "keep" } | { kind: "put"; row: EntityRow } | { kind: "delete" };
 
 /** One row of a compare-and-commit: the version the kernel read (`null` when absent) and what it writes (EXEC-STORE-5). */
-export interface RowCommit {
+export type RowCommit = {
   entityType: string;
   id: string;
   expected: EntityRow | null;
   write: RowCommitWrite;
-}
+};
 
 /**
  * Storage contract for CRUD operations on entity rows. The runtime's effect

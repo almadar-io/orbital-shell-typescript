@@ -36,7 +36,10 @@ export function parseCalendarDate(value: string): Date | null {
   return d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]) ? d : null;
 }
 
-function toDate(value: FieldValue | undefined): Date | null {
+/** A field value, or the `Date` a local calendar helper builds; a `Date` is never a stored field value (that is its ISO text). */
+type DateLike = FieldValue | Date;
+
+function toDate(value: DateLike | undefined): Date | null {
   if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
   if (typeof value !== 'string' && typeof value !== 'number') return null;
   const s = String(value);
@@ -45,7 +48,7 @@ function toDate(value: FieldValue | undefined): Date | null {
 }
 
 /** Value for an `<input type="date">`: the LOCAL calendar day. */
-export function toDateInputValue(value: FieldValue | undefined): string {
+export function toDateInputValue(value: DateLike | undefined): string {
   if (!value) return '';
   if (typeof value === 'string' && CALENDAR_DATE.test(value)) return value;
   const d = toDate(value);
@@ -54,7 +57,7 @@ export function toDateInputValue(value: FieldValue | undefined): string {
 }
 
 /** Value for an `<input type="datetime-local">`: LOCAL wall-clock time. */
-export function toDateTimeInputValue(value: FieldValue | undefined): string {
+export function toDateTimeInputValue(value: DateLike | undefined): string {
   if (!value) return '';
   if (typeof value === 'string' && LOCAL_DATETIME.test(value)) return value;
   const d = toDate(value);

@@ -109,6 +109,6 @@ export function isJsonArray(value: JsonValue): value is JsonValue[] {
  * its JSON form, which is what the event wire carries. `JsonValue` is a payload value.
  */
 export function toPayloadValue(value: object | null | undefined): EventPayloadValue {
-  if (value === null || value === undefined) return value;
+  if (value === null || value === undefined) return null;
   return JsonValueSchema.parse(JSON.parse(JSON.stringify(value)));
 }

@@ -554,11 +554,11 @@ export const Form: React.FC<FormProps> = ({
     // their foreign-key ids ({id, name, …} or arrays of them). Forms edit ids —
     // collapse hydrated values back so pickers/selects seed correctly and the
     // submit payload stays a valid FK write.
-    const toId = (value: FieldValue | undefined): FieldValue | undefined => {
-      if (value === null || value === undefined || typeof value !== 'object' || value instanceof Date) return value;
+    const toId = (value: FieldValue): FieldValue => {
+      if (value === null || typeof value !== 'object') return value;
       if (Array.isArray(value)) {
         return value.map((item) =>
-          item !== null && typeof item === 'object' && !Array.isArray(item) && !(item instanceof Date)
+          item !== null && typeof item === 'object' && !Array.isArray(item)
           && item.id !== undefined && item.id !== null
             ? String(item.id)
             : item,
@@ -568,6 +568,7 @@ export const Form: React.FC<FormProps> = ({
     };
     const normalized: EntityRow = {};
     for (const [key, value] of Object.entries(merged)) {
+      if (value === undefined) continue;
       normalized[key] = key === 'id' ? value : toId(value);
     }
     return normalized;
@@ -750,7 +751,9 @@ export const Form: React.FC<FormProps> = ({
   );
 
   const handleChange = (name: string, value: ControlValue | undefined) => {
-    const newFormData = { ...formData, [name]: value };
+    const newFormData: EntityRow = { ...formData };
+    if (value === undefined) delete newFormData[name];
+    else newFormData[name] = value;
     debug('forms', 'field-change', { mode: formMode, name, value, prevFormData: formData, newFormData });
     setFormData(newFormData);
     if (fieldErrors[name] !== undefined) queueMicrotask(() => validateField(name));

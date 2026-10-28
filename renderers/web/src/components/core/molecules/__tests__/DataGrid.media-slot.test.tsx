@@ -6,12 +6,13 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
+import type { EntityRow } from '@almadar/core';
 import { DataGrid, type DataGridField } from '../DataGrid';
 import { EventBusProvider } from '../../../../core';
 
 const wrap = (ui: React.ReactElement) => render(<EventBusProvider debug={false}>{ui}</EventBusProvider>);
 const fields: readonly DataGridField[] = [{ name: 'name', variant: 'h4' }];
-const rows = [
+const rows: EntityRow[] = [
   { id: 'p1', name: 'Linen Shirt', image: 'https://example.com/shirt.jpg' },
   { id: 'p2', name: 'Stoneware Mug' },
 ];

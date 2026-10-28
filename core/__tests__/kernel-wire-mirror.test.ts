@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import type * as Wire from '../src/generated/kernel-wire.js';
+import { isEventRequest } from '../src/generated/kernel-wire.js';
+import type { JsonValue } from '../src/types/json.js';
 import type {
   AwaitingTrait,
   BusEventSource,
@@ -76,6 +78,14 @@ interface Mirror {
   rowWriteOp: Expect<Mutual<Wire.RowWriteOp, RowWriteOp>, true>;
   rekeyKeys: Expect<SameKeys<Extract<Wire.RowWriteOp, { kind: 'rekey' }>, Extract<RowWriteOp, { kind: 'rekey' }>>, true>;
   rowWriteOutcome: Expect<Mutual<Wire.RowWriteOutcome, RowWriteOutcome>, true>;
+  // the wire is JSON: a request, a response and everything a stream carries is a `JsonValue` as it stands
+  requestIsJson: Expect<OrbitalEventRequest, JsonValue>;
+  responseIsJson: Expect<OrbitalEventResponse, JsonValue>;
+  emittedIsJson: Expect<EmittedEvent, JsonValue>;
+  clientEffectIsJson: Expect<ClientEffectTuple, JsonValue>;
+  generatedResponseIsJson: Expect<Wire.EventResponse, JsonValue>;
+  generatedRequestIsJson: Expect<Wire.EventRequest, JsonValue>;
+  entityRowIsJson: Expect<Wire.EntityRow, JsonValue>;
 }
 
 describe('kernel wire mirror', () => {
@@ -83,6 +93,14 @@ describe('kernel wire mirror', () => {
     const generated = readFileSync(fileURLToPath(new URL('../src/generated/kernel-wire.ts', import.meta.url)), 'utf8');
     const names = ['DispatchMode', 'AwaitingTrait', 'TransitionRejectionCode', 'TransitionRejection', 'EmittedEvent', 'DeliveryRecord', 'DispatchLog', 'BusEventSource', 'MountSeed', 'TransitionHop', 'HopEffect', 'CallSiteWire', 'CallRoutesWire', 'ClientEffect', 'ServerEffectResult', 'ClientEffectByTrait', 'EventRequest', 'EventResponse'];
     for (const name of names) expect(generated).toContain(`export type ${name} = `);
+  });
+
+  it('isEventRequest accepts a kernel-parsed request and refuses one that is no request', () => {
+    expect(isEventRequest({ event: 'SAVE', targetTrait: 'Draft', payload: { n: 'x' }, mount: [{ trait: 'T', event: 'INIT' }], traits: [{ trait: 'T', from: 'idle' }] })).toBe(true);
+    expect(isEventRequest({ targetTrait: 'Draft' })).toBe(false);
+    expect(isEventRequest({ event: 3 })).toBe(false);
+    expect(isEventRequest({ event: 'INIT', mount: [{ trait: 'T', event: 'SAVE' }] })).toBe(false);
+    expect(isEventRequest({ event: 'GO', residence: 'moon' })).toBe(false);
   });
 
   it('control: a shape that differs from the core type is not mutual and has different keys', () => {

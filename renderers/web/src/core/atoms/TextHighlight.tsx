@@ -111,21 +111,21 @@ export const TextHighlight: React.FC<TextHighlightProps> = ({
       data-annotation-id={annotationId}
       className={cn(baseStyles, typeStyles[highlightType], className)}
       onClick={() => {
-        if (action) eventBus.emit(`UI:${action}`, { annotationId });
+        if (action) eventBus.emit(`UI:${action}`, { ...(annotationId !== undefined ? { annotationId } : {}) });
         onClick?.();
       }}
       onMouseEnter={() => {
-        if (hoverEvent) eventBus.emit(`UI:${hoverEvent}`, { hovered: true, annotationId });
+        if (hoverEvent) eventBus.emit(`UI:${hoverEvent}`, { hovered: true, ...(annotationId !== undefined ? { annotationId } : {}) });
         onMouseEnter?.();
       }}
       onMouseLeave={() => {
-        if (hoverEvent) eventBus.emit(`UI:${hoverEvent}`, { hovered: false, annotationId });
+        if (hoverEvent) eventBus.emit(`UI:${hoverEvent}`, { hovered: false, ...(annotationId !== undefined ? { annotationId } : {}) });
         onMouseLeave?.();
       }}
       onPointerDown={(e) => {
         // Touch/pen has no hover: a tap emits the SAME hover event the mouse-enter path fires.
         if (e.pointerType === "mouse") return;
-        if (hoverEvent) eventBus.emit(`UI:${hoverEvent}`, { hovered: true, annotationId });
+        if (hoverEvent) eventBus.emit(`UI:${hoverEvent}`, { hovered: true, ...(annotationId !== undefined ? { annotationId } : {}) });
         onMouseEnter?.();
       }}
       role="button"
@@ -135,7 +135,7 @@ export const TextHighlight: React.FC<TextHighlightProps> = ({
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          if (action) eventBus.emit(`UI:${action}`, { annotationId });
+          if (action) eventBus.emit(`UI:${action}`, { ...(annotationId !== undefined ? { annotationId } : {}) });
           onClick?.();
         }
       }}

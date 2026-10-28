@@ -121,12 +121,12 @@ export function useGameCanvas3DEvents(
             // Emit declarative event
             if (tileClickEvent) {
                 emit(tileClickEvent, {
-                    tileId: tile.id,
+                    ...(tile.id !== undefined ? { tileId: tile.id } : {}),
                     x: tile.x,
                     z: tile.z ?? tile.y ?? 0,
-                    type: tile.type,
-                    terrain: tile.terrain,
-                    elevation: tile.elevation,
+                    ...(tile.type !== undefined ? { type: tile.type } : {}),
+                    ...(tile.terrain !== undefined ? { terrain: tile.terrain } : {}),
+                    ...(tile.elevation !== undefined ? { elevation: tile.elevation } : {}),
                 });
             }
 
@@ -141,14 +141,14 @@ export function useGameCanvas3DEvents(
             if (unitClickEvent) {
                 emit(unitClickEvent, {
                     unitId: unit.id,
-                    x: unit.x,
+                    ...(unit.x !== undefined ? { x: unit.x } : {}),
                     z: unit.z ?? unit.y ?? 0,
-                    unitType: unit.unitType,
-                    name: unit.name,
-                    team: unit.team,
-                    faction: unit.faction,
-                    health: unit.health,
-                    maxHealth: unit.maxHealth,
+                    ...(unit.unitType !== undefined ? { unitType: unit.unitType } : {}),
+                    ...(unit.name !== undefined ? { name: unit.name } : {}),
+                    ...(unit.team !== undefined ? { team: unit.team } : {}),
+                    ...(unit.faction !== undefined ? { faction: unit.faction } : {}),
+                    ...(unit.health !== undefined ? { health: unit.health } : {}),
+                    ...(unit.maxHealth !== undefined ? { maxHealth: unit.maxHealth } : {}),
                 });
             }
 
@@ -161,11 +161,11 @@ export function useGameCanvas3DEvents(
         (feature: IsometricFeature, event: MinimalMouseEvent) => {
             if (featureClickEvent) {
                 emit(featureClickEvent, {
-                    featureId: feature.id,
+                    ...(feature.id !== undefined ? { featureId: feature.id } : {}),
                     x: feature.x,
                     z: feature.z ?? feature.y ?? 0,
                     type: feature.type,
-                    elevation: feature.elevation,
+                    ...(feature.elevation !== undefined ? { elevation: feature.elevation } : {}),
                 });
             }
 
@@ -194,10 +194,10 @@ export function useGameCanvas3DEvents(
             if (tile) {
                 if (tileHoverEvent) {
                     emit(tileHoverEvent, {
-                        tileId: tile.id,
+                        ...(tile.id !== undefined ? { tileId: tile.id } : {}),
                         x: tile.x,
                         z: tile.z ?? tile.y ?? 0,
-                        type: tile.type,
+                        ...(tile.type !== undefined ? { type: tile.type } : {}),
                     });
                 }
             } else {

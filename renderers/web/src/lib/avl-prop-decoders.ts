@@ -20,12 +20,12 @@ function fail(what: string): never {
   throw new Error(`Invalid AVL prop value: ${what}`);
 }
 
-function isList(value: EventPayloadValue): value is readonly EventPayloadValue[] {
+function isList(value: EventPayloadValue): value is EventPayloadValue[] {
   return Array.isArray(value);
 }
 
 function record(value: EventPayloadValue, what: string): EventPayload {
-  if (value === null || value === undefined || typeof value !== 'object' || value instanceof Date || isList(value)) {
+  if (value === null || value === undefined || typeof value !== 'object' || isList(value)) {
     fail(`${what} must be an object`);
   }
   return value;

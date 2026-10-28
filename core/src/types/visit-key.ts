@@ -1,22 +1,18 @@
 // The one identity of a cascade delivery (Runtime Spec Clause 5.3); twin of orbital-core `dispatch_visit_key`.
 import type { EventPayload, EventPayloadValue } from './expression.js';
 
-function isPayloadList(value: EventPayloadValue): value is readonly EventPayloadValue[] {
+function isPayloadList(value: EventPayloadValue | undefined): value is EventPayloadValue[] {
   return Array.isArray(value);
 }
 
-export function canonicalJson(value: EventPayloadValue): string {
+/** An absent payload (`undefined`) writes `null`, as an explicit `null` does. */
+export function canonicalJson(value: EventPayloadValue | undefined): string {
   if (value === undefined || value === null) return 'null';
-  if (value instanceof Date) return JSON.stringify(value.toISOString());
-  if (isPayloadList(value)) {
-    return `[${value.map((item: EventPayloadValue) => (item === undefined ? 'null' : canonicalJson(item))).join(',')}]`;
-  }
+  if (isPayloadList(value)) return `[${value.map((item: EventPayloadValue) => canonicalJson(item)).join(',')}]`;
   if (typeof value === 'object') {
-    const record: EventPayload = value;
-    const fields = Object.keys(record)
-      .filter((k) => record[k] !== undefined)
+    const fields = Object.keys(value)
       .sort()
-      .map((k) => `${JSON.stringify(k)}:${canonicalJson(record[k])}`);
+      .map((k) => `${JSON.stringify(k)}:${canonicalJson(value[k])}`);
     return `{${fields.join(',')}}`;
   }
   return JSON.stringify(value);
@@ -40,16 +36,15 @@ export function dispatchVisitKey(
 const COMPOSITE: unique symbol = Symbol('composite');
 
 /** The JSON leaf `canonicalJson` writes for a scalar (an absent value and a non-finite number both write `null`). */
-function canonicalLeaf(value: EventPayloadValue): string | number | boolean | null | typeof COMPOSITE {
+function canonicalLeaf(value: EventPayloadValue | undefined): string | number | boolean | null | typeof COMPOSITE {
   if (value === undefined || value === null) return null;
-  if (value instanceof Date) return value.toISOString();
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'object') return COMPOSITE;
   return value;
 }
 
 /** `canonicalJson(a) === canonicalJson(b)`, without building either string. */
-function sameCanonical(a: EventPayloadValue, b: EventPayloadValue): boolean {
+function sameCanonical(a: EventPayloadValue | undefined, b: EventPayloadValue | undefined): boolean {
   if (a === b) return true;
   const leafA = canonicalLeaf(a);
   const leafB = canonicalLeaf(b);
@@ -58,10 +53,10 @@ function sameCanonical(a: EventPayloadValue, b: EventPayloadValue): boolean {
     if (!isPayloadList(a) || !isPayloadList(b) || a.length !== b.length) return false;
     return a.every((item, i) => sameCanonical(item, b[i]));
   }
-  if (a instanceof Date || b instanceof Date || typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
-  const keysA = Object.keys(a).filter((k) => a[k] !== undefined);
-  const keysB = Object.keys(b).filter((k) => b[k] !== undefined);
-  return keysA.length === keysB.length && keysA.every((k) => b[k] !== undefined && sameCanonical(a[k], b[k]));
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  return keysA.length === keysB.length && keysA.every((k) => k in b && sameCanonical(a[k], b[k]));
 }
 
 interface Visit {

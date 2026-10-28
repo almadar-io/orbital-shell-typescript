@@ -129,12 +129,12 @@ export const SearchInput: React.FC<SearchInputProps> = ({
       // the canonical default emits once via the generic UI:SEARCH below, not
       // twice.
       if (event && event !== 'SEARCH') {
-        eventBus.emit(`UI:${event}`, { searchTerm: newValue, entity });
+        eventBus.emit(`UI:${event}`, { searchTerm: newValue, ...(entity !== undefined ? { entity } : {}) });
       }
 
       // Emit generic UI:SEARCH for entity lists/tables/grids when entity, event, or query is configured
       if (event || entity || query) {
-        eventBus.emit('UI:SEARCH', { searchTerm: newValue, entity, query });
+        eventBus.emit('UI:SEARCH', { searchTerm: newValue, ...(entity !== undefined ? { entity } : {}), ...(query !== undefined ? { query } : {}) });
       }
     }, debounceMs);
 
@@ -153,7 +153,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
 
     // Emit clear search event
     if (event || query) {
-      eventBus.emit('UI:CLEAR_SEARCH', { searchTerm: '', entity, query });
+      eventBus.emit('UI:CLEAR_SEARCH', { searchTerm: '', ...(entity !== undefined ? { entity } : {}), ...(query !== undefined ? { query } : {}) });
     }
 
     if (debounceTimer) {

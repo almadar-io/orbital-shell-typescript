@@ -18,7 +18,7 @@
  */
 
 import React from 'react';
-import { isRenderBindingMarker, type SExpr } from '@almadar/core';
+import { isRenderBindingMarker, ROW_SET_MARKER, type SExpr } from '@almadar/core';
 import type { SlotProps, SlotPropValue } from '../providers/UISlotContext';
 
 export interface ReconcileResult<T> {
@@ -60,7 +60,10 @@ function expressionEqual(a: SExpr, b: SExpr): boolean {
   return false;
 }
 
-function isPlainSlotObject(value: SlotPropValue): value is { readonly [key: string]: SlotPropValue } {
+/** The marker key is excluded from the plain-object shape: a `RowSetMarker` is a leaf, never merged key by key. */
+type PlainSlotObject = { readonly [key: string]: SlotPropValue; readonly [ROW_SET_MARKER]?: undefined };
+
+function isPlainSlotObject(value: SlotPropValue): value is PlainSlotObject {
   if (value === null || value === undefined || typeof value !== 'object') return false;
   if (Array.isArray(value)) return false;
   if (React.isValidElement(value)) return false;

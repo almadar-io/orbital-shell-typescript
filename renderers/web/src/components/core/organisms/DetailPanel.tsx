@@ -608,7 +608,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
         const url = action.navigatesTo.replace(/\{\{(\w+)\}\}/g, (_, key) =>
           String(record?.[key] ?? ""),
         );
-        eventBus.emit('UI:NAVIGATE', { url, row: record });
+        eventBus.emit('UI:NAVIGATE', { url, ...(record !== undefined ? { row: record } : {}) });
         return;
       }
       if (action.event) {

@@ -186,7 +186,7 @@ export const Typography: React.FC<TypographyProps> = ({
 
   // Formatting applies only to formattable scalars; element children pass through.
   let body = children ?? content;
-  if (format !== undefined && format !== "none" && (typeof body === "string" || typeof body === "number" || body instanceof Date)) {
+  if (format !== undefined && format !== "none" && (typeof body === "string" || typeof body === "number")) {
     body = formatValue(body, format, fmt);
   }
 

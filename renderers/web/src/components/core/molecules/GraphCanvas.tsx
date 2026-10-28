@@ -152,7 +152,7 @@ export const GROUP_COLORS = THEME_SERIES;
 const GROUP_GRAVITY = 0.3;
 const UNGROUPED_GRAVITY = 0.02;
 
-interface SimNode extends GraphNode {
+type SimNode = GraphNode & {
     vx: number;
     vy: number;
     // d3-force reads fx/fy as FIXED coordinates; leave them undefined so nodes stay free.
@@ -160,7 +160,7 @@ interface SimNode extends GraphNode {
     fy?: number | null;
     /** Cached rendered width of the TRUNCATED label so collision keeps on-screen text apart. */
     labelW?: number;
-}
+};
 
 /** Offscreen 2D context reused to measure label widths (matches the rendered label font). */
 let labelMeasureCtx: CanvasRenderingContext2D | null = null;

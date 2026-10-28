@@ -85,7 +85,7 @@ export function rowActionPayload<A extends RowConditionalAction>(
   row: EntityRow,
   bindings: RowActionBindings,
 ): EventPayload {
-  const base: EventPayload = { id: row.id, row };
+  const base: EventPayload = { ...(row.id !== undefined ? { id: row.id } : {}), row };
   const declared = action.payload;
   if (declared === undefined) return base;
   try {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EventPayload, PersistenceAdapter } from '@almadar/core';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
-import { answerRequest, type DeferredCallOutcome, type KernelCallService, type KernelHostPorts } from '../src/kernel/host.js';
+import { answerRequest, kernelEventRequestParser, type DeferredCallOutcome, type KernelCallService, type KernelHostPorts } from '../src/kernel/host.js';
 import { decodeRequest } from '../src/kernel/decode.js';
 
 const untouched = (): never => { throw new Error('the host store was not expected to be asked'); };
@@ -55,5 +55,23 @@ describe('deferred call-service completion echoes the ask key', () => {
 
   it('a keyed result that is not a record is left unchanged', async () => {
     expect((await deferred('job', answer(null))).payload).toBeUndefined();
+  });
+});
+
+describe('kernelEventRequestParser', () => {
+  const parser = kernelEventRequestParser({
+    parseEventRequest: (payloadJson, optionsJson) => {
+      const options: { event?: string } = JSON.parse(optionsJson);
+      if (options.event === undefined) throw new Error('program/dispatch: not an event request: missing field `event`');
+      return JSON.stringify({ event: options.event, payload: JSON.parse(payloadJson) });
+    },
+  });
+
+  it('hands the kernel the payload and the option record and answers the request it parsed', () => {
+    expect(parser({ n: 'x' }, { event: 'SAVE', orbital: 'Main' })).toEqual({ ok: { event: 'SAVE', payload: { n: 'x' } } });
+  });
+
+  it('control: the kernel refusing the record is the reason, never a request', () => {
+    expect(parser({}, { orbital: 'Main' })).toEqual({ error: 'program/dispatch: not an event request: missing field `event`' });
   });
 });

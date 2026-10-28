@@ -1,5 +1,5 @@
 import React from "react";
-import type { A11yProps, EventKey, EventEmit } from "@almadar/core";
+import type { A11yProps, EventKey, EventEmit, EventPayload } from "@almadar/core";
 import { cn } from "../lib/cn";
 import { Icon, resolveIcon, type IconInput } from "./Icon";
 import { Button } from "./Button";
@@ -170,7 +170,7 @@ export const Input = React.forwardRef<
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
       if (typeof onChange === 'string') {
         const target = e.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-        const payload = type === 'checkbox'
+        const payload: EventPayload = type === 'checkbox'
           ? { checked: (target as HTMLInputElement).checked }
           : { value: target.value };
         if (type !== 'checkbox') {
