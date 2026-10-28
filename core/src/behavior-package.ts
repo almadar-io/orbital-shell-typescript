@@ -22,7 +22,7 @@ import * as nodePath from 'node:path';
 import { z } from 'zod';
 
 const { createHash } = nodeCrypto;
-const { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } = nodeFs;
+const { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } = nodeFs;
 const { createRequire } = nodeModule;
 const { homedir } = nodeOs;
 const { dirname, isAbsolute, join, relative, resolve, sep } = nodePath;
@@ -430,7 +430,9 @@ function mirrorDir(pkg: BehaviorPackage, orbBin: string, cacheDir: string | unde
  * Delete every live-package mirror under the derived cache except those of
  * `keep` (as the current `orb` keys them) — a new `orb` binary, new language data or a moved
  * checkout leaves the old ones behind. Returns the removed directories.
- * Explicit only: other checkouts share the cache, so nothing prunes on its own.
+ * Explicit and total: it removes every mirror not in `keep`. Reading a mirror
+ * ({@link behaviorRegistryDir}) separately keeps only the newest
+ * {@link REGISTRY_MIRROR_LIMIT}.
  */
 export function pruneRegistryMirrors(keep: readonly BehaviorPackage[], options: RegistryDirOptions = {}): string[] {
   const orbBin = options.orbBin ?? resolveOrbBinary();
@@ -459,6 +461,39 @@ export function pruneRegistryMirrors(keep: readonly BehaviorPackage[], options: 
  * naming the file.
  */
 /**
+ * How many live-package mirrors the derived cache keeps. One mirror is a package's full lowered registry
+ * (170-360 MB for std), keyed by package root, `orb` binary and language data, so every rebuilt `orb` and every
+ * checkout adds one per package. Six holds the current and the previous binary of the two packages a checkout
+ * mounts (std, behaviors) plus a second checkout's current pair, and bounds the cache near 2 GB.
+ */
+export const REGISTRY_MIRROR_LIMIT = 6;
+
+const mirrorsInUse = new Set<string>();
+
+/**
+ * Evict the mirrors under `registryRoot` beyond the `limit` most recently used (directory modification time,
+ * newest first, ties broken by name), always keeping every directory in `protectedDirs`. Returns the removed
+ * directories, sorted.
+ */
+export function evictOldMirrors(registryRoot: string, protectedDirs: ReadonlySet<string>, limit: number = REGISTRY_MIRROR_LIMIT): string[] {
+  if (!existsSync(registryRoot)) return [];
+  const mirrors = readdirSync(registryRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => {
+      const dir = join(registryRoot, entry.name);
+      return { dir, name: entry.name, used: statSync(dir).mtimeMs };
+    })
+    .sort((a, b) => b.used - a.used || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+  const removed: string[] = [];
+  for (const mirror of mirrors.slice(limit)) {
+    if (protectedDirs.has(mirror.dir)) continue;
+    rmSync(mirror.dir, { recursive: true, force: true });
+    removed.push(mirror.dir);
+  }
+  return removed.sort();
+}
+
+/**
  * The files a package authors its behaviors in, without lowering anything: a
  * live package's `.lolo` source tree, or a published package's declared registry
  * of `.orb` programs. For tools that read behavior text (a class scanner, a
@@ -479,6 +514,11 @@ export function behaviorRegistryDir(pkg: BehaviorPackage, options: RegistryDirOp
   const source = packageFile(pkg, sourceRel, 'orb.source');
   const orbBin = options.orbBin ?? resolveOrbBinary();
   const out = mirrorDir(pkg, orbBin, options.cacheDir);
+  mkdirSync(out, { recursive: true });
+  const usedAt = new Date();
+  utimesSync(out, usedAt, usedAt);
+  mirrorsInUse.add(out);
+  evictOldMirrors(dirname(out), mirrorsInUse);
   const hashesPath = join(out, '.hashes.json');
   const previous: Record<string, SourceStamp> = existsSync(hashesPath) ? (JSON.parse(readFileSync(hashesPath, 'utf8')) as Record<string, SourceStamp>) : {};
   const current: Record<string, SourceStamp> = {};

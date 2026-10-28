@@ -1,9 +1,17 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { behaviorRegistryDir, behaviorSourceTree, materializeRegistry, pruneRegistryMirrors, readBehaviorPackage } from '../src/behavior-package.js';
+import {
+  behaviorRegistryDir,
+  behaviorSourceTree,
+  evictOldMirrors,
+  materializeRegistry,
+  pruneRegistryMirrors,
+  readBehaviorPackage,
+  REGISTRY_MIRROR_LIMIT,
+} from '../src/behavior-package.js';
 
 /**
  * A stand-in `orb`: `--version` prints a version; `lower <files…>` appends one
@@ -252,5 +260,69 @@ describe('behaviorSourceTree — the files a package authors its behaviors in', 
     writeFileSync(join(root, 'package.json'), JSON.stringify(manifest));
     mkdirSync(join(root, 'behaviors/registry'), { recursive: true });
     expect(behaviorSourceTree(readBehaviorPackage(root))).toEqual({ dir: join(root, 'behaviors/registry'), extension: '.orb' });
+  });
+});
+
+describe('derived registry mirrors are bounded', () => {
+  const seedMirrors = (root: string, count: number, firstAge: number): string[] => {
+    mkdirSync(root, { recursive: true });
+    return Array.from({ length: count }, (_, i) => {
+      const dir = join(root, `m${String(i).padStart(2, '0')}`);
+      mkdirSync(dir);
+      writeFileSync(join(dir, 'x.orb'), '{}');
+      const at = new Date(Date.now() - (firstAge - i) * 60_000);
+      utimesSync(dir, at, at);
+      return dir;
+    });
+  };
+  const names = (root: string): string[] => readdirSync(root).sort();
+
+  it('keeps exactly the limit, the most recently used', () => {
+    const root = mkdtempSync(join(tmpdir(), 'mirrors-'));
+    const dirs = seedMirrors(root, REGISTRY_MIRROR_LIMIT + 4, 100);
+    const removed = evictOldMirrors(root, new Set());
+    expect(removed).toEqual(dirs.slice(0, 4));
+    expect(names(root)).toEqual(dirs.slice(4).map((d) => d.slice(root.length + 1)));
+    expect(names(root)).toHaveLength(REGISTRY_MIRROR_LIMIT);
+  });
+
+  it('control: at or under the limit nothing is removed', () => {
+    const root = mkdtempSync(join(tmpdir(), 'mirrors-'));
+    seedMirrors(root, REGISTRY_MIRROR_LIMIT, 100);
+    expect(evictOldMirrors(root, new Set())).toEqual([]);
+    expect(names(root)).toHaveLength(REGISTRY_MIRROR_LIMIT);
+  });
+
+  it('never removes a protected mirror, even the oldest', () => {
+    const root = mkdtempSync(join(tmpdir(), 'mirrors-'));
+    const dirs = seedMirrors(root, REGISTRY_MIRROR_LIMIT + 2, 100);
+    const removed = evictOldMirrors(root, new Set([dirs[0]!]));
+    expect(removed).toEqual([dirs[1]]);
+    expect(existsSync(dirs[0]!)).toBe(true);
+  });
+
+  it('ties in use time resolve by name, the same way every run', () => {
+    const root = mkdtempSync(join(tmpdir(), 'mirrors-'));
+    const dirs = seedMirrors(root, REGISTRY_MIRROR_LIMIT + 1, 0);
+    const at = new Date(Date.now() - 60_000);
+    for (const dir of dirs) utimesSync(dir, at, at);
+    expect(evictOldMirrors(root, new Set())).toEqual([dirs[REGISTRY_MIRROR_LIMIT]]);
+  });
+
+  it('a missing registry root is not an error', () => {
+    expect(evictOldMirrors(join(tmpdir(), 'no-such-mirrors-root'), new Set())).toEqual([]);
+  });
+
+  it('reading a new revision keeps the limit and the revision it just wrote', () => {
+    const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A' });
+    const cache = join(work, 'cache');
+    const stale = seedMirrors(join(cache, 'registry'), REGISTRY_MIRROR_LIMIT + 3, 100);
+    const dir = behaviorRegistryDir(readBehaviorPackage(root), { orbBin: fakeOrb(work), cacheDir: cache });
+    expect(existsSync(join(dir, 'app/atoms/a.orb'))).toBe(true);
+    const left = readdirSync(join(cache, 'registry'));
+    expect(left).toHaveLength(REGISTRY_MIRROR_LIMIT);
+    expect(left).toContain(dir.slice(dir.lastIndexOf('/') + 1));
+    expect(existsSync(stale[0]!)).toBe(false);
+    expect(existsSync(stale[REGISTRY_MIRROR_LIMIT + 2]!)).toBe(true);
   });
 });
