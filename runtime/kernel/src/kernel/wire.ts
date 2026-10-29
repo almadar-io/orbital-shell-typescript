@@ -60,6 +60,11 @@ export interface KernelServerHandle {
   mount(traitsJson: string): void;
   remount(traitsJson: string): void;
   setTickMount(traitsJson: string): void;
+  /** One pass of the kernel's tick clock at monotonic `nowMs`: the `(trait, tick)` pairs due that this server runs, as `[{ trait, tick }]` JSON. */
+  tickPass(nowMs: number): string;
+  tickPause(): void;
+  tickResume(): void;
+  tickPaused(): boolean;
   setCapabilities(entityType: string, queryJson: string, writeJson: string): void;
   setMessages(localesJson: string, catalogsJson: string): void;
   /** The program (as JSON) whose declared credentials this server's credential effects manage beside its own. */

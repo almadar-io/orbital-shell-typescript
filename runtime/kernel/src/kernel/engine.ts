@@ -4,7 +4,12 @@
  * and nothing else. The continuation of a stopped dispatch never leaves the wasm instance.
  */
 import { installKernelEvaluator, isEntityReferenceAny, MountSeedSchema, type MountSeed, type EventPayload, type EventStreamItem, type MessageCatalogs, type OrbitalEventRequest, type OrbitalEventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext } from '@almadar/core';
+import { z } from 'zod';
 import { LaneHeldByParkedDispatch } from './lane.js';
+
+const DueTickSchema = z.object({ trait: z.string(), tick: z.string() });
+/** A tick the kernel's clock found due. */
+export type DueTick = z.infer<typeof DueTickSchema>;
 import { decodeNext, decodeProgress, decodeResolveProgress } from './decode.js';
 import { answerRequest, declareCapabilities, type KernelAnswerScope, type KernelHostPorts } from './host.js';
 import type { OsCompletionEvent } from './os-port.js';
@@ -118,6 +123,25 @@ export class KernelEngine {
   setTickMount(traits: string[]): void {
     this.tickMount = traits;
     this.handle.setTickMount(JSON.stringify(traits));
+  }
+
+  /** One pass of the kernel's tick clock: the ticks due at monotonic `nowMs` that this server runs (`[background]` ticks, and those of a mounted trait). The host starts each as a `runTick` request. */
+  tickPass(nowMs: number): DueTick[] {
+    return DueTickSchema.array().parse(JSON.parse(this.handle.tickPass(nowMs)));
+  }
+
+  /** Stop the kernel's tick clock; its phase is kept. */
+  tickPause(): void {
+    this.handle.tickPause();
+  }
+
+  /** Restart the kernel's tick clock; the paused span is never counted. */
+  tickResume(): void {
+    this.handle.tickResume();
+  }
+
+  tickPaused(): boolean {
+    return this.handle.tickPaused();
   }
 
   /** What this host mounts when it starts: the kernel's boot mounts for the side it serves (EXEC-ENDPOINT-3). */

@@ -1043,7 +1043,7 @@ export const SERVER_REPORTED_EFFECTS = [
 
 export type ServerReportedEffect = (typeof SERVER_REPORTED_EFFECTS)[number];
 
-/** A namespaced effect head (`trace/emit`, `memory/store`, `llm/…`) — what a
+/** A namespaced effect head (`llm/generate`, `behavior/describe`, `program/read`) — what a
  *  `substrate` result's `name` carries. Derived from the union, never listed. */
 export type NamespacedEffectName = Extract<Effect[0], `${string}/${string}`>;
 

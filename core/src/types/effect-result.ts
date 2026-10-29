@@ -44,7 +44,7 @@ export type ServerEffectResult = {
   effect: ServerReportedEffect | "substrate";
   action?: string;
   entityType?: string;
-  /** The invoked namespaced operator (e.g. `"memory/store"`), set only on `effect: "substrate"`. */
+  /** The invoked namespaced operator (e.g. `"llm/generate"`), set only on `effect: "substrate"`. */
   name?: NamespacedEffectName;
   /** Entity row for CRUD/set/swap, the batch summary for `persist batch`, the raw service/substrate result. */
   data?: EntityRow | ServerBatchSummary | EventPayloadValue;

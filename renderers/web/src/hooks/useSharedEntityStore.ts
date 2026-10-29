@@ -51,7 +51,7 @@ export interface SharedEntityStore {
 
 /**
  * Create a standalone shared-entity store. Plain factory — no React — so a
- * clock owner (the interpreter's TickScheduler, or a codegen rAF
+ * clock owner (the kernel's tick clock, or a codegen rAF
  * `useEffect`) can hold one instance and pass it to `runTickFrame` without
  * going through a hook.
  */
@@ -162,7 +162,7 @@ export function useSharedEntitySnapshot(store: SharedEntityStore, entityId: stri
  * Run one frame for `entityId`: fold each writer's writes into a running
  * scratch in binding order via `mergeEntityFrame` (field-level, so writer
  * k+1 reads writer k's same-frame writes), then commit the merged result
- * exactly ONCE. Clock-agnostic — the caller (a TickScheduler tick or a
+ * exactly ONCE. Clock-agnostic — the caller (a kernel-clock tick or a
  * codegen rAF loop) invokes this once per frame; it owns no timer itself.
  */
 export function runTickFrame(

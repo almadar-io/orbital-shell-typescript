@@ -79,6 +79,7 @@
     "sys": "sys",
     "desktop": "desktop",
     "kv": "kv",
+    "credentials": "credentials",
     "deployment": "deployment",
     "input": "input",
     "http": "http",

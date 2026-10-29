@@ -18,7 +18,6 @@ export * from '@almadar/shell-runtime/loader/schema-loader';
 export * from '@almadar/shell-runtime/loader/http-loader';
 export * from '@almadar/shell-runtime/loader/lazy-page';
 export * from '@almadar/shell-runtime/credentials/env-vars';
-export * from '@almadar/shell-runtime/credentials/seed';
 export * from '@almadar/shell-runtime/service/service-provider';
 export * from '@almadar/shell-runtime/service/default-call-service';
 export { AwaitingRegistry } from '@almadar/shell-runtime/client/awaiting';

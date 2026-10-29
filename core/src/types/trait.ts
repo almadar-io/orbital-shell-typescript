@@ -610,9 +610,8 @@ const CRON_INTERVAL = /^\S+(\s+\S+){4}$/;
  * string, or a cron expression.
  *
  * This schema previously accepted only `"frame"` or a number, while `TraitTick`
- * declared `string | number` and BOTH schedulers already parsed durations and cron
- * (`OrbitalServerRuntime.registerTick` → `isValidCronExpression`/
- * `parseDurationString`; Rust `TickScheduler::parse_interval` → `cron::parse_cron`).
+ * declared `string | number` and the kernel's tick clock already parsed durations and cron
+ * (`TickClock` → `cron::parse_cron`).
  * The gate therefore rejected every cron/duration tick before its runtime could
  * run it — `std-data-erasure`'s hourly `executionScan` made the whole orbital
  * unloadable in the interpreter with only `traits.N: Invalid input` to go on.

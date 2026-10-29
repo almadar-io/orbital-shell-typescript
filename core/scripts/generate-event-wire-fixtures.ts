@@ -294,7 +294,7 @@ const CASES: Record<string, EventWireFixture> = {
       emittedEvents: [],
       effectResults: [
         ...SERVER_REPORTED_EFFECTS.map((effect): ServerEffectResult => ({ effect, entityType: 'Note', success: true })),
-        { effect: 'substrate', name: 'memory/store', data: { id: 'mem-1' }, success: true },
+        { effect: 'substrate', name: 'llm/generate', data: { id: 'gen-1' }, success: true },
       ],
     },
   },

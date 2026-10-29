@@ -18,10 +18,7 @@ import type { EventTransport } from '@almadar/shell-runtime/client/EventTranspor
 import { buildTraitIndex } from '../traits/trait-index.js';
 import { createLocalStoreTransport, localStorePersistence, openLocalKernel } from './local-store-transport.js';
 import { tickEventKey } from '@almadar/core';
-import { createTickScheduler, type TickHandle } from '../time/TickScheduler.js';
 import { createLogger } from '@almadar/logger';
-import { isValidCronExpression } from '../time/cron.js';
-import { parseDurationString } from '../time/duration.js';
 
 /** One browser database per app and viewer locale, so a visitor's records stay in one language. */
 export function browserStoreName(appName: string, locale: string | undefined): string {
@@ -139,15 +136,8 @@ export interface BrowserHost extends EventTransport {
 const tickLog = createLogger('almadar:runtime:browser-host:ticks');
 const queueLog = createLogger('almadar:runtime:browser-host:queue');
 
-function refuseUnhostedTicks(traitIndex: ReturnType<typeof buildTraitIndex>): void {
-  for (const entry of traitIndex.byName.values()) {
-    for (const tick of entry.irTrait.ticks ?? []) {
-      if (tick.interval === 'frame') {
-        throw new Error(`openBrowserHost has no frame clock; ${entry.orbitalName}.${entry.traitDef.name} tick '${tick.name}' runs every frame`);
-      }
-    }
-  }
-}
+/** How often the host asks the kernel's tick clock which ticks are due. */
+const TICK_PASS_MS = 16;
 
 /**
  * Host a whole program in a browser context with no server (an extension's service worker): its
@@ -159,7 +149,6 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
   const memory = nativeMemoryPersistence(options.kernel);
   const persistence = localStorePersistence(options.schema, browserStore === null ? memory : await persistedMemory(options.kernel, browserStore, browserEntities(options.schema.orbitals), options.locale), memory);
   const traitIndex = buildTraitIndex(options.schema.orbitals);
-  refuseUnhostedTicks(traitIndex);
   const { schema } = options;
   let transport: EventTransport | undefined;
   const listeners = new Set<InputDispatchListener>();
@@ -217,38 +206,41 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
     });
   };
 
-  const scheduler = createTickScheduler();
-  const tickHandles: TickHandle[] = [];
+  const runnable = new Map<string, { orbitalName: string; traitName: string; tickName: string }>();
   for (const entry of traitIndex.byName.values()) {
     for (const tick of entry.irTrait.ticks ?? []) {
-      // A firing waits its turn; while one is queued or running, the next is skipped, not piled up.
-      let firing = false;
-      const fire = () => {
-        if (firing) return;
-        firing = true;
-        // Fired as a `runTick` request, so the tick runs where every transition runs: the gate, its
-        // effects, and its emits through the dispatch's own fan-out.
-        const request: OrbitalEventRequest = {
-          event: tickEventKey(tick.name),
-          runTick: { trait: entry.traitDef.name, tick: tick.name },
-          targetTrait: entry.traitDef.name,
-          tick: tick.name,
-        };
-        void local.send(entry.orbitalName, request).then((response) => {
-          if (response.transitioned) for (const listener of listeners) listener(entry.orbitalName, request, response);
-        }).catch((error: Error) => {
-          tickLog.error('tick:failed', { orbital: entry.orbitalName, trait: entry.traitDef.name, tick: tick.name, error: error.message });
-        }).finally(() => {
-          firing = false;
-        });
-      };
-      tickHandles.push(
-        typeof tick.interval === 'string' && isValidCronExpression(tick.interval)
-          ? scheduler.addCron(tick.interval, fire)
-          : scheduler.add(typeof tick.interval === 'number' ? tick.interval : parseDurationString(tick.interval), fire),
-      );
+      runnable.set(`${entry.traitDef.name}::${tick.name}`, { orbitalName: entry.orbitalName, traitName: entry.traitDef.name, tickName: tick.name });
     }
   }
+  // The kernel's one tick clock decides what is due; a firing waits its turn, and while one is queued or running the
+  // next is skipped, not piled up.
+  const firing = new Set<string>();
+  const fire = (key: string, tick: { orbitalName: string; traitName: string; tickName: string }): void => {
+    if (firing.has(key)) return;
+    firing.add(key);
+    // Fired as a `runTick` request, so the tick runs where every transition runs: the gate, its
+    // effects, and its emits through the dispatch's own fan-out.
+    const request: OrbitalEventRequest = {
+      event: tickEventKey(tick.tickName),
+      runTick: { trait: tick.traitName, tick: tick.tickName },
+      targetTrait: tick.traitName,
+      tick: tick.tickName,
+    };
+    void local.send(tick.orbitalName, request).then((response) => {
+      if (response.transitioned) for (const listener of listeners) listener(tick.orbitalName, request, response);
+    }).catch((error: Error) => {
+      tickLog.error('tick:failed', { orbital: tick.orbitalName, trait: tick.traitName, tick: tick.tickName, error: error.message });
+    }).finally(() => {
+      firing.delete(key);
+    });
+  };
+  const timer = runnable.size === 0 ? undefined : setInterval(() => {
+    for (const due of kernelEngine.tickPass(performance.now())) {
+      const key = `${due.trait}::${due.tick}`;
+      const tick = runnable.get(key);
+      if (tick !== undefined) fire(key, tick);
+    }
+  }, TICK_PASS_MS);
 
   return {
     ...local,
@@ -258,7 +250,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
     },
     routeMounts: (routePath) => kernelEngine.routeMounts(routePath),
     close() {
-      for (const handle of tickHandles) handle.stop();
+      if (timer !== undefined) clearInterval(timer);
     },
   };
 }

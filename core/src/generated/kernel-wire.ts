@@ -584,7 +584,7 @@ export type ServerEffectKind = "set" | "persist" | "call-service" | "fetch" | "f
 
 export type ServerEffectResult = { effect: ServerEffectKind, action?: string, entityType?: string, 
 /**
- * The namespaced operator (`memory/store`) — only on `ServerEffectKind::Substrate`.
+ * The namespaced operator (`llm/generate`) — only on `ServerEffectKind::Substrate`.
  */
 name?: NamespacedEffectName, data?: EntityRow | ServerBatchSummary | EventPayloadValue, success: boolean, 
 /**

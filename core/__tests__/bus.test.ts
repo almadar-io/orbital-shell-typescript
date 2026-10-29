@@ -199,7 +199,7 @@ describe('ServerEffectResult.effect derives from the effect union', () => {
     for (const effect of SERVER_REPORTED_EFFECTS) {
       expect(ServerEffectResultSchema.parse({ effect, success: true })).toEqual({ effect, success: true });
     }
-    expect(ServerEffectResultSchema.parse({ effect: 'substrate', name: 'memory/store', success: true }).name).toBe('memory/store');
+    expect(ServerEffectResultSchema.parse({ effect: 'substrate', name: 'llm/generate', success: true }).name).toBe('llm/generate');
   });
 
   it('rejects a name that is not an effect head', () => {

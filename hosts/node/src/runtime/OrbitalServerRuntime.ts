@@ -14,9 +14,6 @@ import { EventBus } from "@almadar/shell-runtime";
 import { eventRouteKey } from "@almadar/shell-runtime";
 import { stampEmitSource } from "@almadar/shell-runtime";
 import { evaluateOnKernel } from "@almadar/shell-runtime";
-import { createTickScheduler, type TickHandle, type TickScheduler } from "@almadar/shell-runtime";
-import { isValidCronExpression } from "@almadar/shell-runtime";
-import { parseDurationString } from "@almadar/shell-runtime";
 import { LIFECYCLE_EVENTS, UNMOUNT_EVENT, tickEventKey } from "@almadar/core";
 import { parseOrbitalTraits } from "@almadar/shell-runtime";
 import { createLogger } from '@almadar/logger';
@@ -41,6 +38,9 @@ const xOrbitalLog = createLogger("almadar:runtime:cross-orbital");
 const persistLog = createLogger("almadar:runtime:persist");
 
 const registerLog = createLogger("almadar:runtime:register");
+
+/** How often the host asks the kernel's tick clock which ticks are due. */
+const TICK_PASS_MS = 16;
 
 import type { TraitState, TransitionObserver } from "@almadar/shell-runtime";
 import type {
@@ -360,7 +360,6 @@ interface TickBinding {
   orbitalName: string;
   traitName: string;
   tick: RuntimeTraitTick;
-  handle: TickHandle;
 }
 
 /** What `register` takes beside the schema: the program's catalogs and the folder its `uses lazy` behaviors sit beside (EXEC-LOAD-1). */
@@ -414,10 +413,8 @@ export class OrbitalServerRuntime {
   private kernelOs: OsHostPort | undefined;
   /** `orbital::trait` → the clients that have it mounted (Runtime Spec Clause 8.3). */
   private readonly mountedBy = new Map<string, Set<string>>();
-  // One coalesced clock for every tick this runtime registers — replaces
-  // "one setInterval per tick" with a single accumulator loop so ticks due
-  // in the same pass fire together instead of on independent timers.
-  private readonly tickScheduler: TickScheduler = createTickScheduler();
+  /** Drives the kernel's one tick clock: every pass asks `KernelEngine.tickPass` which ticks are due. */
+  private tickTimer: ReturnType<typeof setInterval> | null = null;
   private readonly transitionObservers = new Set<TransitionObserver>();
   private readonly transitionFanout: TransitionObserver = {
     onTransition: (trace) => { for (const o of this.transitionObservers) o.onTransition(trace); },
@@ -836,73 +833,38 @@ export class OrbitalServerRuntime {
       }
     }
 
+    this.startTickClock();
     if (this.config.debug && this.tickBindings.length > 0) {
       registerLog.debug('register:ticks', { count: this.tickBindings.length });
     }
   }
 
-  /**
-   * Register a single tick
-   */
+  /** Record a tick the kernel's clock runs; the kernel parses its interval or cron expression. */
   private registerTick(
     orbitalName: string,
     traitName: string,
     tick: RuntimeTraitTick,
   ): void {
-    // A cron-shaped string ("0 9 * * *") schedules on calendar matches, not
-    // a fixed millisecond delay — route it to the scheduler's cron mode
-    // instead of forcing it through parseIntervalString (which used to
-    // silently default a cron string to 1000ms).
-    if (typeof tick.interval === "string" && isValidCronExpression(tick.interval)) {
-      if (this.config.debug) {
-        registerLog.debug('register:tick-cron', {
-          orbital: orbitalName,
-          trait: traitName,
-          tick: tick.name,
-          expression: tick.interval,
-        });
-      }
-      const handle = this.tickScheduler.addCron(tick.interval, () => {
-        void this.executeTick(orbitalName, traitName, tick);
-      });
-      this.tickBindings.push({ orbitalName, traitName, tick, handle });
-      return;
-    }
-
-    // Determine interval in milliseconds
-    let intervalMs: number;
-    if (typeof tick.interval === "number") {
-      intervalMs = tick.interval;
-    } else if (typeof tick.interval === "string") {
-      // Parse a duration string (e.g., '5s', '1m', '1h'). A string that's
-      // neither this shape nor a valid cron expression (already checked
-      // above) is an authoring mistake — this throws rather than silently
-      // defaulting to some fallback ms, so it surfaces loudly instead of
-      // ticking at a value the author never wrote.
-      intervalMs = parseDurationString(tick.interval);
-    } else {
-      intervalMs = 1000; // Default to 1 second
-    }
-
     if (this.config.debug) {
-      registerLog.debug('register:tick', {
-        orbital: orbitalName,
-        trait: traitName,
-        tick: tick.name,
-        intervalMs,
-      });
+      registerLog.debug('register:tick', { orbital: orbitalName, trait: traitName, tick: tick.name, interval: tick.interval });
     }
+    this.tickBindings.push({ orbitalName, traitName, tick });
+  }
 
-    const handle = this.tickScheduler.add(intervalMs, () => {
-      void this.executeTick(orbitalName, traitName, tick);
-    });
+  /** Ask the kernel's clock which ticks are due and start each as a `runTick` request. */
+  private tickPass(): void {
+    const engine = this.kernelEngine;
+    if (engine === null) return;
+    for (const due of engine.tickPass(performance.now())) {
+      const binding = this.tickBindings.find((b) => b.traitName === due.trait && b.tick.name === due.tick);
+      if (binding === undefined) continue;
+      void this.executeTick(binding.orbitalName, binding.traitName, binding.tick);
+    }
+  }
 
-    this.tickBindings.push({
-      orbitalName,
-      traitName,
-      tick,
-      handle,
-    });
+  private startTickClock(): void {
+    if (this.tickTimer !== null || this.tickBindings.length === 0) return;
+    this.tickTimer = setInterval(() => this.tickPass(), TICK_PASS_MS);
   }
 
   /** A tick: the host owns the timer, the kernel decides whether and over which rows it fires. */
@@ -929,9 +891,8 @@ export class OrbitalServerRuntime {
    * Clean up all active ticks
    */
   private cleanupTicks(): void {
-    for (const binding of this.tickBindings) {
-      binding.handle.stop();
-    }
+    if (this.tickTimer !== null) clearInterval(this.tickTimer);
+    this.tickTimer = null;
     this.tickBindings = [];
   }
 
@@ -1690,19 +1651,19 @@ export class OrbitalServerRuntime {
     }));
   }
 
-  /** Halt every registered tick's shared clock. Delegates to `TickScheduler.pause`. */
+  /** Halt the kernel's tick clock. */
   pauseTicks(): void {
-    this.tickScheduler.pause();
+    this.kernelEngine?.tickPause();
   }
 
-  /** Resume ticks halted by `pauseTicks()`. Delegates to `TickScheduler.resume`. */
+  /** Resume ticks halted by `pauseTicks()`; the paused span is never counted. */
   resumeTicks(): void {
-    this.tickScheduler.resume();
+    this.kernelEngine?.tickResume();
   }
 
-  /** True while ticks are paused. Delegates to `TickScheduler.isPaused`. */
+  /** True while the kernel's tick clock is paused. */
   areTicksPaused(): boolean {
-    return this.tickScheduler.isPaused;
+    return this.kernelEngine?.tickPaused() ?? false;
   }
 }
 

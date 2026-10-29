@@ -288,6 +288,28 @@ impl Server {
     }
 
     #[napi]
+    pub fn tick_pass(&self, now_ms: f64) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().tick_pass(now_ms.max(0.0) as u64).map_err(js)
+    }
+
+    #[napi]
+    pub fn tick_pause(&self) -> napi::Result<()> {
+        self.api.get().map_err(js)?.api().tick_pause();
+        Ok(())
+    }
+
+    #[napi]
+    pub fn tick_resume(&self) -> napi::Result<()> {
+        self.api.get().map_err(js)?.api().tick_resume();
+        Ok(())
+    }
+
+    #[napi]
+    pub fn tick_paused(&self) -> napi::Result<bool> {
+        Ok(self.api.get().map_err(js)?.api().tick_paused())
+    }
+
+    #[napi]
     pub fn last_error(&self) -> napi::Result<String> {
         Ok(self.api.get().map_err(js)?.api().last_error())
     }
@@ -441,11 +463,6 @@ pub fn evaluate_traced(context_json: String, expression_json: String) -> napi::R
 #[napi]
 pub fn trace_effects(context_json: String, effects_json: String) -> napi::Result<String> {
     api::trace_effects(&context_json, &effects_json).map_err(js)
-}
-
-#[napi]
-pub fn credential_seed_plan(declared_json: String, held_json: String, present_json: String) -> napi::Result<String> {
-    api::credential_seed_plan(&declared_json, &held_json, &present_json).map_err(js)
 }
 
 #[napi]

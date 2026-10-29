@@ -32,10 +32,10 @@
     },
     {
       "data": {
-        "id": "mem-1"
+        "id": "gen-1"
       },
       "effect": "substrate",
-      "name": "memory/store",
+      "name": "llm/generate",
       "success": true
     }
   ],

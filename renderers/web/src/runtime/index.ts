@@ -23,7 +23,6 @@ export type {
 } from './types.js';
 export { HANDLER_MANIFEST, isEffectTuple } from './types.js';
 
-export { TickScheduler, createTickScheduler, type TickHandle } from './time/TickScheduler.js';
 export {
   parseCron,
   parseCronField,

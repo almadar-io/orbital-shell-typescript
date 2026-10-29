@@ -1,7 +1,7 @@
 /**
  * Cron expression parsing and matching — the ONE canonical implementation
- * every engine that schedules a cron-shaped interval delegates to (`OrbitalServerRuntime`,
- * `TickScheduler`, and generated client codegen). No Node.js dependencies, so
+ * every TypeScript caller that checks a cron-shaped interval delegates to (the kernel tick clock
+ * parses its own, and generated client codegen). No Node.js dependencies, so
  * it's safe to import client-side too.
  *
  * @packageDocumentation

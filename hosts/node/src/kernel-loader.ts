@@ -7,10 +7,9 @@ import { installKernelEvaluator, type KernelMemoryStoreExports } from '@almadar/
 import { readLanguageBundle } from '@almadar/core/language-data';
 import * as installedModule from '@almadar/kernel';
 import { NativeMemoryPersistenceAdapter, type HttpKernel, type KernelModule } from '@almadar/shell-runtime';
-import type { CredentialSeedKernel } from '@almadar/shell-runtime';
 
 /** The whole server kernel as Node loads it: the shared module plus the server-only exports the client build omits. */
-export interface LoadedKernel extends KernelModule, HttpKernel, CredentialSeedKernel, KernelMemoryStoreExports {
+export interface LoadedKernel extends KernelModule, HttpKernel, KernelMemoryStoreExports {
   initSync(input: { module: Uint8Array }): object;
 }
 

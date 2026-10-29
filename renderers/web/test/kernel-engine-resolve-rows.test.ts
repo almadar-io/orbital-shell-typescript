@@ -99,6 +99,10 @@ function scripted(log: string[], service = false): KernelModule {
     mount(): void {}
     remount(): void {}
     setTickMount(): void {}
+    tickPass(): string { return '[]'; }
+    tickPause(): void {}
+    tickResume(): void {}
+    tickPaused(): boolean { return false; }
     setCapabilities(): void {}
     setMessages(): void {}
     setManagedProgram(): void {}
