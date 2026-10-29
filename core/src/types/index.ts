@@ -162,7 +162,6 @@ export {
   EntitySchema,
   OrbitalEntitySchema, // Backward compatibility
   EntityPersistenceSchema,
-  deriveCollection,
   isRuntimeEntity,
   isClientResident,
   storesRowsInBrowser,

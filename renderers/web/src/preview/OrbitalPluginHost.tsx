@@ -533,11 +533,6 @@ function PluginRuntimeMount({
     };
   }, [registrationReady, plugin.id, onDispatched, onError, snapshotAllStates]);
 
-  const orbitalOfTrait = useMemo(
-    () => new Map(plugin.schema.orbitals.flatMap((orbital) => traitNamesOf(orbital).map((trait) => [trait, orbital.name] as const))),
-    [plugin.schema],
-  );
-
   // One run's outcome, an inbound dispatch (`trigger`) or a tick frame (`null`): its client effects paint, its emits
   // reach the host bus, and the traits it moved are reported.
   const settle = useCallback(
@@ -554,24 +549,23 @@ function PluginRuntimeMount({
       for (const entry of response.emittedEvents ?? []) {
         if (inboundVocabulary.has(entry.event)) continue;
         if (plugin.outbound !== undefined && !plugin.outbound.includes(entry.event)) continue;
-        const trait = entry.source?.trait;
-        const sourceOrbital = entry.source?.orbital ?? (trait !== undefined ? orbitalOfTrait.get(trait) : undefined);
+        const sourceOrbital = entry.source?.orbital;
         if (sourceOrbital === undefined || !ownOrbitals.has(sourceOrbital)) continue;
         relay(entry.event, entry.payload, { ...entry.source, orbital: sourceOrbital });
       }
 
       // A cascade moves sibling traits the response does not name: a local kernel reports every trait it holds.
-      const transitions = Object.entries(response.states).flatMap(([traitName, stateName]) => {
-        const owner = orbital ?? orbitalOfTrait.get(traitName);
-        return owner === undefined ? [] : [[owner, traitName, stateName] as const];
-      });
       const states: Array<readonly [string, string, TraitState]> = local !== undefined
         ? snapshotAllStates(trigger)
-        : transitions.map(([owner, traitName, stateName]) => [owner, traitName, toTraitState(traitName, stateName, trigger)] as const);
-      for (const [owner, traitName, stateName] of transitions) onTransition?.(plugin.id, owner, traitName, stateName);
+        : orbital === undefined
+          ? []
+          : Object.entries(response.states).map(([traitName, stateName]) => [orbital, traitName, toTraitState(traitName, stateName, trigger)] as const);
+      for (const [owner, traitName] of states) {
+        if (traitName in response.states) onTransition?.(plugin.id, owner, traitName, response.states[traitName]);
+      }
       onDispatched(plugin.id, trigger, states);
     },
-    [local, mockHandlers, plugin, ownOrbitals, orbitalOfTrait, inboundVocabulary, relay, snapshotAllStates, onError, onTransition, onDispatched],
+    [local, mockHandlers, plugin, ownOrbitals, inboundVocabulary, relay, snapshotAllStates, onError, onTransition, onDispatched],
   );
 
   // The plugin program's own route pages say what mounts: for each one the kernel names the seeds, which run in its lifecycle
@@ -586,9 +580,9 @@ function PluginRuntimeMount({
       const seeds = await local.client.routeMounts(path);
       if (seeds.length === 0) continue;
       const outcome = await local.client.dispatchMount(seeds);
-      for (const seed of outcome.seeds) settleRef.current(seed.event, seed.local, orbitalOfTrait.get(seed.trait));
+      for (const seed of outcome.seeds) settleRef.current(seed.event, seed.local, undefined);
     }
-  }, [registrationReady, local, plugin.schema, orbitalOfTrait]);
+  }, [registrationReady, local, plugin.schema]);
 
   const dispatch = useCallback(
     async (row: PluginHostInbound, payload: EventPayload | undefined) => {

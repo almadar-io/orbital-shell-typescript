@@ -28,7 +28,7 @@ import { UISlotRenderer } from '../components/core/organisms/UISlotRenderer';
 import { useEventBus } from '../core';
 import { useTranslate } from '../core';
 import type { OrbitalSchema, EntityData, ResolvedTraitBinding, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
-import { orbitalInlineEntities, storesRowsInBrowser, collectCallsiteCaptureChildren, isHostSignInRoute, localeAlternates } from '@almadar/core';
+import { getPage, orbitalInlineEntities, storesRowsInBrowser, collectCallsiteCaptureChildren, isHostSignInRoute, localeAlternates } from '@almadar/core';
 import { useResolvedSchema } from '../hooks/useResolvedSchema';
 import { matchPathAmong } from '../core';
 import { collectEmbeddedTraits, collectTraitRefsFromResolvedTrait } from '../lib/embedded-traits';
@@ -332,10 +332,8 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
       // Single-page schemas: the resolved traits are already the right set.
       base = traits;
     } else {
-      // Initial load with multiple pages: pick the first page's traits.
-      // The schema's first `page` declaration is the canonical default
-      // landing page, mirroring the compiled shell's `<Route index>`.
-      const firstPage = ir.pages.values().next().value;
+      // Initial load with multiple pages: pick the initial page's traits.
+      const firstPage = getPage(ir);
       if (!firstPage) {
         base = traits;
       } else {
@@ -396,8 +394,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   );
 
   const mountRoute = useMemo<string | undefined>(() => {
-    const pages = ir ? Array.from(ir.pages.values()) : [];
-    return (pageName !== undefined ? pages.find((p) => p.name === pageName) : pages[0])?.path;
+    return ir ? getPage(ir, pageName)?.path : undefined;
   }, [ir, pageName]);
 
   // Per-trait linkedEntity map for EntitySchemaProvider — page bindings plus embedded traits (G-UI-086).

@@ -21,6 +21,7 @@ import { loadProgram } from './client-program';
 import { AuthProvider, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
 import { loadKernel, loadLanguage } from './kernel-host';
+import { AwaitViewer } from './AwaitViewer';
 import { ThemeProvider } from '@almadar/shell-web/core';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -36,7 +37,15 @@ function KernelApp(): React.ReactElement | null {
   const navigate = useNavigate();
   const firstPath = useRef(location.pathname);
   const viewer = useMemo(
-    () => (user ? normalizeUserContext({ ...user.claims, uid: user.uid, email: user.email, name: user.name }) : undefined),
+    () =>
+      user
+        ? normalizeUserContext({
+            ...user.claims,
+            uid: user.uid,
+            ...(user.email !== undefined ? { email: user.email } : {}),
+            ...(user.name !== undefined ? { name: user.name } : {}),
+          })
+        : undefined,
     [user],
   );
   const accessToken = useCallback(async (): Promise<string | undefined> => (auth ? auth.idToken() : undefined), [auth]);
@@ -49,6 +58,7 @@ function KernelApp(): React.ReactElement | null {
   if (failure) throw failure;
   if (!program) return null;
   return (
+    <AwaitViewer authority={authority}>
     <OrbPreview
       key={viewer?.id ?? 'anonymous'}
       schema={program}
@@ -62,6 +72,7 @@ function KernelApp(): React.ReactElement | null {
       onSignIn={(returnTo) => navigate('/login', { state: returnTo !== undefined ? { returnTo } : undefined })}
       onSignOut={() => void signOut()}
     />
+    </AwaitViewer>
   );
 }
 

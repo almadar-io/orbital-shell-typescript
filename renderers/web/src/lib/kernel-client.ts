@@ -346,6 +346,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     const traitName = request.targetTrait;
     if (traitName === undefined) throw new Error('dispatch requires request.targetTrait (the seed trait)');
     const k = await ready;
+    await scopeTail;
     if (request.runTick !== undefined) {
       const response = parse<OrbitalEventResponse>(k.tick(request.runTick.trait, request.runTick.tick, request.entityId));
       mirror(response);
@@ -515,11 +516,10 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       configs.set(traitName, config);
       return config;
     },
-    setViewer: async (user) => {
-      const k = await ready;
+    setViewer: (user) => declareScope((k) => {
       k.setCurrentUser(JSON.stringify(user));
       configs.clear();
-    },
+    }),
   };
   return client;
 }

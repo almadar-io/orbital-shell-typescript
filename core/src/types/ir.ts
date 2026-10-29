@@ -61,7 +61,8 @@ export interface ResolvedEntity {
   name: string;
   description?: string;
   icon?: string;
-  collection: string;
+  /** The declared collection; absent when the entity declares none (the store then uses the entity name). */
+  collection?: string;
   fields: ResolvedField[];
 
   /** Whether this entity only exists in runtime (not persisted to Firestore) */
@@ -369,6 +370,9 @@ export interface ResolvedPage {
 
   /** Singleton entities to spawn on this page (runtime singletons) */
   singletonEntities: ResolvedEntity[];
+
+  /** The page declared `[initial]`; absent otherwise. */
+  isInitial?: boolean;
 
   /** `access:` page modifier; absent = no gate. */
   access?: PageAccess;

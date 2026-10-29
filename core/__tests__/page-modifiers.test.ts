@@ -41,6 +41,20 @@ describe('page modifiers', () => {
     expect(schema.site?.signIn).toBe('/login');
   });
 
+  it('getPage without a name returns the page marked initial, else the first', () => {
+    const base = app({});
+    const orbital = base.orbitals[0]!;
+    const withPages = (second: Record<string, string | boolean>) => ({
+      ...base,
+      orbitals: [{ ...orbital, pages: [{ name: 'HomePage', path: '/', traits: [] }, { name: 'Scorecard', path: '/scorecard', traits: [], ...second }] }],
+    });
+    const marked = schemaToIR(parseOrbitalSchema(withPages({ isInitial: true })), false);
+    expect(getPage(marked)?.name).toBe('Scorecard');
+    expect(marked.pages.get('HomePage')?.isInitial).toBeUndefined();
+    const unmarked = schemaToIR(parseOrbitalSchema(withPages({})), false);
+    expect(getPage(unmarked)?.name).toBe('HomePage');
+  });
+
   it('control: omitted modifiers stay absent on the resolved page', () => {
     const page = getPage(schemaToIR(parseOrbitalSchema(app({})), false), 'HomePage');
     expect(page).toBeDefined();

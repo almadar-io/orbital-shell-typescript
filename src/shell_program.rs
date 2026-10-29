@@ -265,6 +265,20 @@ mod tests {
     }
 
     #[test]
+    fn a_std_declaring_an_operator_this_shell_predates_is_an_incompatible_failure_naming_both() {
+        let failure = language_ready(|| {
+            Err(orbital_core_base::language_data::LanguageDataError::Unimplemented {
+                package: "@almadar/std",
+                version: "16.256.0".to_string(),
+                operators: vec!["csv/parse".to_string()],
+            })
+        })
+        .expect_err("an operator the shell does not implement is refused");
+        assert_eq!(failure.code, "ORB_LANGUAGE_DATA_INCOMPATIBLE");
+        assert!(failure.message.contains("@almadar/std@16.256.0") && failure.message.contains("csv/parse"), "{}", failure.message);
+    }
+
+    #[test]
     fn the_templates_depend_on_no_retired_package() {
         use orbital_core_base::shell::Shell;
         const RETIRED: &[&str] = &["@almadar/patterns", "@almadar/evaluator"];

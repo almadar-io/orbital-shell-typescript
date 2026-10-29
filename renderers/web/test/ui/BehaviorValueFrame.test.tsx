@@ -13,12 +13,15 @@ import { EventBusProvider } from '../../src/core';
 import { UISlotProvider } from '../../src/providers/UISlotContext';
 import { TraitValueMountProvider, type TraitValueMountHost } from '../../src/preview/TraitValueFrame';
 import { BehaviorValueFrame } from '../../src/preview/BehaviorValueFrame';
+import { UISlotComponent } from '../../src/components/core/organisms/UISlotRenderer';
+import { useUISlots } from '../../src/providers/UISlotContext';
 
 const APP: BehaviorRef = { behavior: './orbitals/shop' };
 
 function program(): OrbitalSchema {
   return {
     name: 'Shop',
+    typeContractVersion: 1,
     orbitals: [
       {
         name: 'Shop',
@@ -56,6 +59,14 @@ function shell(h: TraitValueMountHost | null): React.ReactElement {
   );
 }
 
+function Slot({ refs }: { refs: BehaviorRef[] }): React.ReactElement {
+  const manager = useUISlots();
+  React.useEffect(() => {
+    manager.render({ target: 'main', pattern: 'stack', props: { children: refs } });
+  }, [manager, refs]);
+  return <UISlotComponent slot="main" />;
+}
+
 describe('BehaviorValueFrame', () => {
   it('mounts the program and runs it in place on its first page', async () => {
     const h = host({ ok: true, mounted: { schema: program(), firstPage: '/shop' } });
@@ -78,5 +89,35 @@ describe('BehaviorValueFrame', () => {
   it('control: no host at all is an explicit error', async () => {
     render(shell(null));
     await waitFor(() => expect(screen.getByText(/cannot run behavior/)).toBeTruthy());
+  });
+
+  it('the embed fills its slot instead of the preview default 400px', async () => {
+    const h = host({ ok: true, mounted: { schema: program(), firstPage: '/shop' } });
+    render(shell(h));
+    const text = await screen.findByText('Welcome to the shop');
+    const heights: string[] = [];
+    for (let node: HTMLElement | null = text; node !== null; node = node.parentElement) heights.push(node.style.height);
+    expect(heights).toContain('100%');
+    expect(heights).not.toContain('400px');
+  });
+
+  it('a later embed keeps its DOM when an earlier sibling embed is removed (keyed by behavior id)', async () => {
+    const carried = (name: string): BehaviorRef => ({ behavior: `./orbitals/${name}`, resolved: JSON.stringify(program()) });
+    const first = carried('one');
+    const second = carried('two');
+    const tree = (children: BehaviorRef[]): React.ReactElement => (
+      <EventBusProvider>
+        <UISlotProvider>
+          <Slot refs={children} />
+        </UISlotProvider>
+      </EventBusProvider>
+    );
+    const view = render(tree([first, second]));
+    const texts = await screen.findAllByText('Welcome to the shop');
+    const kept = texts[1]!;
+    view.rerender(tree([second]));
+    const after = await screen.findAllByText('Welcome to the shop');
+    expect(after).toHaveLength(1);
+    expect(after[0]).toBe(kept);
   });
 });

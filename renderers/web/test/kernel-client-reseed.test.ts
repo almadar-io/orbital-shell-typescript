@@ -93,3 +93,44 @@ describe('kernel client — a host that freed this client session', () => {
     expect(sent.map((r) => r.event)).toEqual(['READ_BACK']);
   });
 });
+
+describe('kernel client — the viewer is bound before the first mount and dispatch', () => {
+  function orderedKernel(calls: string[]): KernelInstance {
+    return { ...fakeKernel([]), setCurrentUser: (userJson: string) => { calls.push(`user:${(JSON.parse(userJson) as { id: string }).id}`); }, dispatchMount: () => { calls.push('mount'); return JSON.stringify(mountWire); }, dispatch: () => { calls.push('dispatch'); return JSON.stringify(dispatchWire); } };
+  }
+  const slowClient = (calls: string[]) => {
+    let load!: (k: KernelInstance) => void;
+    const instance = new Promise<KernelInstance>((resolve) => { load = resolve; });
+    const client = createKernelClient({ instance, store: createMemoryCircuitStore(), traitIndex, topology: Promise.resolve({ carriesCircuitState: false }) });
+    return { client, load: () => load(orderedKernel(calls)) };
+  };
+
+  it('binds the viewer before a mount queued ahead of it', async () => {
+    const calls: string[] = [];
+    const { client, load } = slowClient(calls);
+    const mounted = client.dispatchMount([{ trait: 'Viewer', event: 'INIT' }]);
+    const bound = client.setViewer({ id: 'maya' });
+    load();
+    await Promise.all([mounted, bound]);
+    expect(calls).toEqual(['user:maya', 'mount']);
+  });
+
+  it('binds the viewer before a dispatch queued ahead of it', async () => {
+    const calls: string[] = [];
+    const { client, load } = slowClient(calls);
+    const sent = client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' });
+    const bound = client.setViewer({ id: 'maya' });
+    load();
+    await Promise.all([sent, bound]);
+    expect(calls).toEqual(['user:maya', 'dispatch']);
+  });
+
+  it('control: with no viewer declared the mount runs on its own', async () => {
+    const calls: string[] = [];
+    const { client, load } = slowClient(calls);
+    const mounted = client.dispatchMount([{ trait: 'Viewer', event: 'INIT' }]);
+    load();
+    await mounted;
+    expect(calls).toEqual(['mount']);
+  });
+});

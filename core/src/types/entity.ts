@@ -216,28 +216,6 @@ export function instancesForLocale(entity: Pick<OrbitalEntity, 'instances' | 'lo
 // ============================================================================
 
 /**
- * Derives the collection name for a persistent entity.
- * 
- * Generates the database collection name by converting the entity name
- * to lowercase and adding an 's' suffix (simple pluralization).
- * Returns undefined for non-persistent (runtime) entities.
- * 
- * @param {OrbitalEntity} entity - Entity to derive collection name for
- * @returns {string | undefined} Collection name or undefined for non-persistent entities
- * 
- * @example
- * deriveCollection({ name: 'User', persistence: 'persistent' }); // returns 'users'
- * deriveCollection({ name: 'Task', persistence: 'runtime' }); // returns undefined
- */
-export function deriveCollection(entity: OrbitalEntity): string | undefined {
-    if (entity.persistence !== 'persistent') {
-        return undefined;
-    }
-    // Lowercase + 's' suffix (simple pluralization)
-    return entity.name.toLowerCase() + 's';
-}
-
-/**
  * Checks if an entity is runtime-only (not persisted).
  * 
  * Type guard to determine if an entity exists only at runtime

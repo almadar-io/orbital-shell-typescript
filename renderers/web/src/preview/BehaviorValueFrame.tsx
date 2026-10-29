@@ -99,6 +99,7 @@ export function BehaviorValueFrame({ value }: { value: BehaviorRef }): React.Rea
     <OrbPreview
       schema={state.mounted.schema}
       initialPagePath={state.mounted.firstPage}
+      height="100%"
       isolated
       {...(host?.behaviorTransport !== undefined ? { transport: host.behaviorTransport } : {})}
     />

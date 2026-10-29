@@ -125,7 +125,7 @@ export function schemaToIR(schema: OrbitalSchema, useCache: boolean = true): Res
         name: entityDef.name,
         description: entityDef.description,
         icon: entityDef.icon,
-        collection: entityDef.collection || entityDef.name.toLowerCase() + 's',
+        ...(entityDef.collection ? { collection: entityDef.collection } : {}),
         fields: (entityDef.fields || [])
           .filter((field: EntityField): field is EntityField & { name: string } =>
             typeof field.name === 'string' && field.name.length > 0,
@@ -406,7 +406,7 @@ function resolveTraitRef(
 
 /**
  * Get a specific page from resolved IR by name.
- * If no name is provided, returns the first page.
+ * If no name is provided, returns the page marked `[initial]`, else the first page.
  *
  * @param ir - Resolved IR
  * @param pageName - Optional page name to find
@@ -415,12 +415,12 @@ function resolveTraitRef(
  * @example
  * const ir = schemaToIR(schema);
  * const homePage = getPage(ir, 'HomePage');
- * const firstPage = getPage(ir); // No name = first page
+ * const initialPage = getPage(ir); // No name = the initial page
  */
 export function getPage(ir: ResolvedIR, pageName?: string): ResolvedPage | undefined {
   if (!pageName) {
-    // Return first page if no name specified
-    return ir.pages.values().next().value;
+    const pages = Array.from(ir.pages.values());
+    return pages.find((page) => page.isInitial === true) ?? pages[0];
   }
   return ir.pages.get(pageName);
 }
@@ -459,9 +459,10 @@ export function getTrait(ir: ResolvedIR, traitName: string): ResolvedTrait | und
 
 /** The declared page modifiers, omitting absent ones (never defaulted). */
 export function pageModifiers(
-  page: Pick<Page, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf'>,
-): Pick<ResolvedPage, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf'> {
+  page: Pick<Page, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf' | 'isInitial'>,
+): Pick<ResolvedPage, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf' | 'isInitial'> {
   return {
+    ...(page.isInitial === true ? { isInitial: true } : {}),
     ...(page.access !== undefined ? { access: page.access } : {}),
     ...(page.indexing !== undefined ? { indexing: page.indexing } : {}),
     ...(page.sourcePage !== undefined ? { sourcePage: page.sourcePage } : {}),

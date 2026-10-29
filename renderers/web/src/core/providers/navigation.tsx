@@ -200,7 +200,7 @@ const NavigationContext = createContext<NavigationContextValue | null>(null);
 export interface NavigationProviderProps {
     /** The schema to navigate within */
     schema: OrbitalSchema;
-    /** Initial page name (optional, defaults to first page) */
+    /** Initial page name (optional, defaults to the page marked initial, else the first) */
     initialPage?: string;
     /** Whether to update browser URL on navigation (default: true) */
     updateUrl?: boolean;

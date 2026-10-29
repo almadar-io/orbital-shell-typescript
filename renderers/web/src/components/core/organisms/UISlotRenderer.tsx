@@ -1499,8 +1499,9 @@ function renderPatternChildren(
     }
     // A whole behavior VALUE runs here as an isolated program.
     if (isBehaviorRefValue(child)) {
+      const earlierSame = childrenArray.slice(0, index).filter((c) => isBehaviorRefValue(c) && c.behavior === child.behavior).length;
       return (
-        <React.Suspense key={`${parentId}-${index}-behavior:${child.behavior}`} fallback={null}>
+        <React.Suspense key={`${parentId}-behavior:${child.behavior}#${earlierSame}`} fallback={null}>
           <LazyBehaviorValueFrame value={child} />
         </React.Suspense>
       );
