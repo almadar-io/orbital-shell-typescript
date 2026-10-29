@@ -264,9 +264,8 @@ export class ProcessOps {
     const op: OsOp = 'os/kill';
     let found: number | undefined;
     if (typeof value === 'string') found = SIGNAL_SET.find(([name]) => name === value)?.[1];
-    else if (typeof value === 'number' && Number.isInteger(value)) found = SIGNAL_SET.find(([, number]) => number === value)?.[1];
     if (found === undefined) {
-      throw invalid(op, 'signal must be one of TERM, KILL, INT, HUP, QUIT, USR1, USR2, STOP, CONT (or its number)');
+      throw invalid(op, 'signal must be one of TERM, KILL, INT, HUP, QUIT, USR1, USR2, STOP, CONT');
     }
     return found;
   }

@@ -1202,9 +1202,9 @@ export type { UserContext } from '@almadar/core';
                 }
                 _ => "z.string()".to_string(),
             },
-            OirType::Number | OirType::Integer | OirType::Instant => "z.number()".to_string(),
+            OirType::Number | OirType::Integer => "z.number()".to_string(),
             OirType::Boolean => "z.boolean()".to_string(),
-            OirType::Date | OirType::DateTime => match self.type_projection {
+            OirType::Date | OirType::DateTime | OirType::Instant => match self.type_projection {
                 TypeProjection::Wire => "z.union([z.string(), z.number()])".to_string(),
                 TypeProjection::HostInput => "z.union([z.date(), z.string(), z.number()])".to_string(),
             },
