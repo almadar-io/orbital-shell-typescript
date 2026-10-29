@@ -14,6 +14,7 @@ import { useFrame } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { createLogger } from '@almadar/logger';
+import { usePrefersReducedMotion } from '../../../core/hooks/usePrefersReducedMotion';
 
 const log = createLogger('almadar:ui:game:model-loader');
 
@@ -223,8 +224,9 @@ export function ModelLoader({
             action.fadeOut(0.15);
         };
     }, [mixer, clips, animation]);
+    const reducedMotion = usePrefersReducedMotion();
     useFrame((_, delta) => {
-        mixer?.update(delta);
+        if (!reducedMotion) mixer?.update(delta);
     });
 
     // Normalize the model to a unit cube (max dimension = 1) so a GLB's intrinsic export

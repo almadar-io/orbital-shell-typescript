@@ -269,10 +269,12 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     ...rest
 }) => {
     const descId = React.useId();
+    const selectedNode = selectedNodeId === undefined ? undefined : propNodes.find((n) => n.id === selectedNodeId);
     const eventBus = useEventBus();
     const { t } = useTranslate();
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const { theme: canvasTheme } = useCanvasTheme(canvasRef);
+    const canvasMounted = !isLoading && !error && propNodes.length > 0;
+    const { theme: canvasTheme } = useCanvasTheme(canvasRef, canvasMounted);
     const animRef = useRef<number>(0);
     const [zoom, setZoom] = useState(1);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -631,7 +633,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         return () => {
             cancelAnimationFrame(animRef.current);
         };
-    }, [nodesKey, edgesKey, propSimilarity, layout, repulsion, linkDistance, nodeSpacing, showLabels]);
+    }, [nodesKey, edgesKey, propSimilarity, layout, repulsion, linkDistance, nodeSpacing, showLabels, canvasMounted]);
 
     // Render
     useEffect(() => {
@@ -1087,6 +1089,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                         {...domPassthrough(rest)}
                     />
                     {description && <Box id={descId} className="sr-only">{description}</Box>}
+                    {selectedNode && <Box role="status" className="sr-only">{t('graphCanvas.selectedNode', { label: selectedNode.label ?? selectedNode.id })}</Box>}
                     {typeof window !== "undefined" && showLabelTooltip && labelTooltipStyle && (<ThemedPortal>{
                         <div
                             className={cn(

@@ -8,7 +8,12 @@ export type ImageAspect = 'auto' | '1/1' | '4/3' | '3/2' | '16/9' | '21/9';
 export type ImageRounded = 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 export type ImagePosition = 'center' | 'top' | 'bottom' | 'left' | 'right';
 
-/** @accessibleName alt */
+/**
+ * @accessibleName alt
+ * @role img
+ * @tokens --color-border
+ * @motion none
+ */
 export interface ImageProps extends A11yProps {
   /** Image source URL */
   src: AssetUrl;

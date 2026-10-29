@@ -103,21 +103,21 @@ function VerifyModePanel({
                 aria-label={expanded ? t('debug.collapseVerificationTimeline') : t('debug.expandVerificationTimeline')}
                 data-testid="debugger-verify-toggle"
             >
-                <span className="text-foreground/50 w-3" aria-hidden>{expanded ? '▾' : '▸'}</span>
+                <span className="text-muted-foreground w-3" aria-hidden>{expanded ? '▾' : '▸'}</span>
                 <Badge variant={failedChecks > 0 ? 'danger' : 'success'} size="sm">
                     {failedChecks > 0 ? t('debug.failCount', { count: failedChecks }) : t('debug.ok')}
                 </Badge>
-                <span className="text-foreground/70">
+                <span className="text-muted-foreground">
                     {t('debug.localCount', { count: localCount })}
                 </span>
                 <span className="text-primary">
                     {t('debug.serverCount', { count: serverCount })}
                 </span>
                 {traitStates && (
-                    <span className="text-accent truncate max-w-[400px]">{traitStates}</span>
+                    <span className="text-foreground truncate max-w-[400px]">{traitStates}</span>
                 )}
                 {!expanded && transitions.length > 0 && (
-                    <span className="ml-auto text-foreground/50">{t('debug.transitionsCount', { count: transitions.length })}</span>
+                    <span className="ml-auto text-muted-foreground">{t('debug.transitionsCount', { count: transitions.length })}</span>
                 )}
             </button>
 
@@ -421,7 +421,7 @@ export function RuntimeDebugger({
 
                     {/* Footer */}
                     <div className="runtime-debugger__footer">
-                        <Typography variant="small" className="text-foreground/50">
+                        <Typography variant="small" className="text-muted-foreground">
                             {t('debug.toggleHint')}
                         </Typography>
                     </div>

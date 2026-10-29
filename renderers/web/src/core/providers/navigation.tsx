@@ -20,7 +20,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import type { OrbitalSchema, OrbitalPage, Orbital, FieldValue } from '@almadar/core';
-import { matchPath, comparePathSpecificity, matchPathAmong, defaultPage, isRoutePage } from '@almadar/core';
+import { matchPath, comparePathSpecificity, matchPathAmong, defaultPage, notFoundPage, isRoutePage } from '@almadar/core';
 
 export { matchPath, comparePathSpecificity, matchPathAmong };
 import { createLogger } from '@almadar/logger';
@@ -265,7 +265,10 @@ export function NavigationProvider({
         path: string,
         payload?: Record<string, FieldValue>
     ) => {
-        const result = findPageByPath(schema, path);
+        const missing = notFoundPage(schema);
+        const result =
+            findPageByPath(schema, path) ??
+            (missing ? { page: missing.page, params: {}, orbitalName: missing.orbitalName } : null);
 
         if (!result) {
             log.error('No page found for path', { path });

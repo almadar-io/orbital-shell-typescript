@@ -21,6 +21,11 @@ import { Button } from '../../../core';
 import { domPassthrough } from '../../../core';
 export type AlertVariant = "info" | "success" | "warning" | "error";
 
+/**
+ * @role status
+ * @tokens --color-error --color-warning --color-success --color-info
+ * @motion none
+ */
 export interface AlertProps extends A11yProps {
   /** Alert content (children or message) */
   children?: React.ReactNode;

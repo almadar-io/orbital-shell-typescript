@@ -158,9 +158,9 @@ describe('tab asks on the wire', () => {
     });
 
     it('control: an unknown ask, command or action is refused, never passed to a host', () => {
-        expect(() => decodeRequest(JSON.parse(wire({ kind: 'eval' })))).toThrow(/unknown tab ask/);
-        expect(() => decodeRequest(JSON.parse(wire({ kind: 'command', tab: 1, command: { kind: 'eval' } })))).toThrow(/unknown tab command/);
-        expect(() => decodeRequest(JSON.parse(wire({ kind: 'command', tab: 1, command: { kind: 'act', elementId: 'e', action: 'drag' } })))).toThrow(/unknown tab action/);
-        expect(() => decodeRequest(JSON.parse(wire({ kind: 'close', tab: '4' })))).toThrow(/not an integer/);
+        expect(() => decodeRequest(JSON.parse(wire({ kind: 'eval' })))).toThrow(/IoRequestWire\.ask: unknown kind "eval"/);
+        expect(() => decodeRequest(JSON.parse(wire({ kind: 'command', tab: 1, command: { kind: 'eval' } })))).toThrow(/IoRequestWire\.ask\.command: unknown kind "eval"/);
+        expect(() => decodeRequest(JSON.parse(wire({ kind: 'command', tab: 1, command: { kind: 'act', elementId: 'e', action: 'drag' } })))).toThrow(/IoRequestWire\.ask\.command\.action: expected /);
+        expect(() => decodeRequest(JSON.parse(wire({ kind: 'close', tab: '4' })))).toThrow(/expected i64/);
     });
 });

@@ -9,6 +9,7 @@
  */
 import React from 'react';
 import { useFrame } from '@react-three/fiber';
+import { usePrefersReducedMotion } from '../../../core/hooks/usePrefersReducedMotion';
 import { Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DrawSpriteProps } from '../../../components/game/atoms/DrawSprite';
@@ -265,8 +266,9 @@ export function Shape3D({ node, projector, groupOpacity = 1 }: { node: DrawShape
     const validPos = isValidScenePos(node.position);
     const world: [number, number, number] = validPos ? projector.toWorld(node.position) : [0, 0, 0];
 
+    const reducedMotion = usePrefersReducedMotion();
     useFrame(({ clock }) => {
-        if (!animated || !groupRef.current) return;
+        if (!animated || reducedMotion || !groupRef.current) return;
         const view = applyShapeAnimation(node, clock.elapsedTime * 1000);
         groupRef.current.position.set(
             world[0] + (view.offsetX ?? 0) * projector.cellSize,

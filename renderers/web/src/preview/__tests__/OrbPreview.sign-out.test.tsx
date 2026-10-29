@@ -9,6 +9,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 class ResizeObserverStub {
   observe(): void {}
@@ -18,6 +19,7 @@ class ResizeObserverStub {
 (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= ResizeObserverStub;
 
 const app: OrbitalSchema = {
+  typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
   name: 'shop',
   orbitals: [{
     name: 'Home',

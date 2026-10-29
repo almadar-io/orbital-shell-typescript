@@ -1,3 +1,4 @@
+import type { FrameDelta } from '@almadar/core/kernel-wire';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { EntityRowSchema, JsonValueSchema, OrbitalSchemaSchema, eventPayloadOf, isJsonObject, orbitalInlineEntities, type EventPayload, type JsonValue, type OrbitalSchema, type QueryCapabilities } from '@almadar/core';
@@ -7,6 +8,16 @@ import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 import { NativeMemoryPersistenceAdapter } from '../src/persistence/native-memory.js';
 
 import { loadRealKernel } from './real-kernel.js';
+
+/** The value a frame delta's ops write to `frame.field`. */
+function writtenField(delta: FrameDelta | undefined, frame: string, field: string): JsonValue | undefined {
+  let value: JsonValue | undefined;
+  for (const op of delta?.ops ?? []) {
+    if (op[0] === 'set') value = op[1][frame]?.[field] ?? value;
+    if (op[0] === 'put' && op[1] === frame) value = op[2][field];
+  }
+  return value;
+}
 
 function program(name: string, entityName: string, command: string): OrbitalSchema {
   return OrbitalSchemaSchema.parse({
@@ -161,7 +172,7 @@ for (const implementation of implementations) {
               const payload = eventPayloadOf({ program: input, count: 1, seed: 1, nowMs: 0, viewerId: 'viewer', ownerPairs: [{ entity: 'Task', column: 'ownerId' }] });
               const response = await scalarSeed.evaluate('MockSeedOrbital', { event: 'DATASET_INPUT', targetTrait: 'MockSeed', payload }, { orbital: 'MockSeedOrbital', user: { id: 'viewer' } });
               expect(response.success).toBe(true);
-              expect(response.rejections ?? [], JSON.stringify({ host: implementation.name, identityCollection, control, events: response.emittedEvents, entity: response.entityByTrait }, null, 2)).toEqual([]);
+              expect(response.rejections ?? [], JSON.stringify({ host: implementation.name, identityCollection, control, events: response.emittedEvents, entity: response.frames }, null, 2)).toEqual([]);
               if (control.refuses) {
                 expect(response.emittedEvents.filter((event) => event.event === 'DATASET_FAILED').map((event) => event.payload)).toEqual([{ error: 'Type mismatch: expected string | number | boolean | date | datetime, got array' }]);
                 expect(response.emittedEvents.filter((event) => event.event === 'DATASET_DONE')).toEqual([]);
@@ -211,7 +222,7 @@ for (const implementation of implementations) {
     try {
       const payload = eventPayloadOf({ program: input, count: 1, seed: 1, nowMs: 0, viewerId: 'viewer', ownerPairs: [{ entity: 'Task', column: 'ownerId' }] });
       const response = await seed.evaluate('MockSeedOrbital', { event: 'DATASET_INPUT', targetTrait: 'MockSeed', payload }, { orbital: 'MockSeedOrbital', user: { id: 'viewer' } });
-      expect(response.rejections ?? [], JSON.stringify({ host: implementation.name, payload, events: response.emittedEvents, entity: response.entityByTrait }, null, 2)).toEqual([]);
+      expect(response.rejections ?? [], JSON.stringify({ host: implementation.name, payload, events: response.emittedEvents, entity: response.frames }, null, 2)).toEqual([]);
       expect(response.emittedEvents.filter((event) => event.event === 'DATASET_FAILED').map((event) => event.payload)).toEqual([{ error: 'Type mismatch: expected string | number | boolean | date | datetime, got array' }]);
       expect(response.emittedEvents.filter((event) => event.event === 'DATASET_DONE')).toEqual([]);
       console.info(`seed:fresh-compound passed (${implementation.name}): no prior scalar input or reset`);
@@ -298,7 +309,7 @@ for (const implementation of implementations) {
         const response = await engine.evaluate('Probe', { event: 'ASK', targetTrait: 'Run', payload: eventPayloadOf({ value }) }, { orbital: 'Probe' });
         expect(response.success).toBe(true);
         expect(response.transitioned).toBe(true);
-        expect(response.entityByTrait?.Run?.out).toBe(expected);
+        expect(writtenField(response.frames, 'Run', 'out')).toBe(expected);
       }
       console.info(`compiler:declared-fold passed (${implementation.name}): mixed/nested arrays and scalar/map controls through compiled typed wrappers`);
     } finally {

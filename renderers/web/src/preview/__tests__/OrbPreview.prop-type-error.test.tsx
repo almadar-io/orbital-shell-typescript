@@ -9,9 +9,11 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 function schemaWith(items: string | Array<{ title: string; content: string }>): OrbitalSchema {
   return JSON.parse(JSON.stringify({
+    typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: 'layout-app',
     version: '1.0.0',
     orbitals: [{

@@ -7,21 +7,26 @@
  */
 import type { FieldValue } from '@almadar/core';
 
-/** A hydrated relation row shown by its human label, never "[object Object]". */
-export function relationLabel(value: FieldValue): string | null {
+/**
+ * A hydrated relation row shown by the label of its injected relation option (the kernel labels each option by the
+ * relation's declared `display` field), else by its record id; never "[object Object]". `null` when the value is
+ * not a hydrated row with an id.
+ */
+export function relationLabel(
+  value: FieldValue,
+  options?: ReadonlyArray<{ value: string; label: string }>,
+): string | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value) || value instanceof Date)
     return null;
-  for (const key of ['name', 'title', 'label'] as const) {
-    const candidate = value[key];
-    if (typeof candidate === 'string' && candidate !== '') return candidate;
-  }
   const id = value.id;
-  return id !== undefined && id !== null ? String(id) : null;
+  if (id === undefined || id === null) return null;
+  const key = String(id);
+  return options?.find((opt) => opt.value === key)?.label ?? key;
 }
 
 /**
  * Resolve any relation-shaped value to display labels:
- * - a hydrated row (or array of rows) → its `name`/`title`/`label`;
+ * - a hydrated row (or array of rows) → the injected `{value, label}` option for its id, else its id;
  * - a bare foreign id (or array of ids) → the injected `{value, label}`
  *   relation options (the same contract Form's selects consume), falling back
  *   to the raw id when no option matches;
@@ -35,7 +40,7 @@ export function relationDisplayLabels(
   if (Array.isArray(value)) {
     return value.flatMap((item) => relationDisplayLabels(item as FieldValue, options));
   }
-  const hydrated = relationLabel(value);
+  const hydrated = relationLabel(value, options);
   if (hydrated !== null) return [hydrated];
   const raw = String(value);
   const match = options?.find((opt) => opt.value === raw);

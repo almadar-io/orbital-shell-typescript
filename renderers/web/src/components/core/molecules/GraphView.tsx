@@ -368,7 +368,8 @@ export const GraphView: React.FC<GraphViewProps> = ({
   return contentSurface.provide(
     <Box
       ref={containerRef}
-      role={onNodeClick ? 'group' : rest['aria-label'] ? 'img' : undefined}
+      role={onNodeClick ? 'group' : 'img'}
+      aria-label={rest['aria-label'] ?? t('aria.graph')}
       {...domPassthrough(rest)}
       className={cn('relative overflow-hidden', contentSurface.className, className)}
       style={{ width: propWidth ?? '100%', height: h }}

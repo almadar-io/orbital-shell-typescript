@@ -154,6 +154,9 @@ export type OrbitalPage = {
     /** Is this the initial page for navigation? */
     isInitial?: boolean;
 
+    /** Is this the page shown for a path no page matches (`[notFound]`)? */
+    isNotFound?: boolean;
+
     /** Nav icon name — `@icon "..."` annotation on the page declaration. */
     icon?: string;
 
@@ -230,6 +233,7 @@ export const OrbitalPageSchema = z.object({
     primaryEntity: z.string().optional(),
     traits: z.array(PageTraitRefSchema).optional(),
     isInitial: z.boolean().optional(),
+    isNotFound: z.boolean().optional(),
     icon: z.string().optional(),
     label: z.string().optional(),
     roles: z.array(z.string().min(1)).min(1).optional(),

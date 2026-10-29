@@ -35,6 +35,7 @@ import { applyMeshAnimation } from '../../../components/game/atoms/DrawMesh';
 import { expandFxLayer, type DrawFxLayerProps } from '../../../components/game/molecules/DrawFxLayer';
 import { Sprite3D, Shape3D, Text3D, warnUnsupported3d } from './mesh3d';
 import { Mesh3D } from './DrawMesh3D';
+import { usePrefersReducedMotion } from '../../../core/hooks/usePrefersReducedMotion';
 
 export interface Drawable3DProps {
     node: DrawableNode;
@@ -129,8 +130,9 @@ function Group3D({
         return boneStore.register(node.bone, boneObject);
     }, [node.bone, boneStore, boneObject]);
 
+    const reducedMotion = usePrefersReducedMotion();
     useFrame(({ clock }) => {
-        if (!animated || !ref.current) return;
+        if (!animated || reducedMotion || !ref.current) return;
         const state = applyMeshAnimation(node, clock.elapsedTime * 1000);
         if (!state) return;
         const cell = projector.cellSize;
@@ -175,8 +177,9 @@ function FxLayer3D({
 }): React.JSX.Element | null {
     const [, setFrame] = useState(0);
     const live = Array.isArray(node.items) && node.items.length > 0;
+    const reducedMotion = usePrefersReducedMotion();
     useFrame(() => {
-        if (live) setFrame((f) => (f + 1) % 1000000);
+        if (live && !reducedMotion) setFrame((f) => (f + 1) % 1000000);
     });
     if (!live) return null;
     const epochNow = typeof performance !== 'undefined' ? performance.timeOrigin + performance.now() : 0;

@@ -6,6 +6,7 @@ import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { EventPayload, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
+import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const WITH_INIT = ['Header', 'Detail', 'Sidebar'];
 
@@ -65,6 +66,7 @@ function mount(initial: Props) {
   const hook = renderHook(
     ({ names, mountKey, initPayload }: Props) =>
       useTraitStateMachine(names.map(binding), slots, {
+        stamp: TEST_STAMP,
         orbitals: orbs,
         ...(mountKey !== undefined ? { mountKey, routePath: ROUTES[mountKey] } : {}),
         ...(initPayload !== undefined ? { initPayload } : {}),

@@ -49,7 +49,7 @@ import { createCircuitVerificationObserver, recordDispatchVerdict } from '../lib
 import { hostDispatchInView } from '../lib/hostDispatchInView';
 import { normalizeEventKey, TRAIT_MOUNT_ERROR_TESTID, configReferencesCallsitePayload, traitReferencesCallsitePayload, type TraitStateSnapshot, type PersistenceAdapter, type TransitionRejection } from '@almadar/core';
 import type { useUISlots } from '../providers/UISlotContext';
-import { getTabClientId, useCircuitKernel } from './circuit/useCircuitKernel';
+import { getTabClientId, useCircuitKernel, type ProgramStamp } from './circuit/useCircuitKernel';
 import { useBusIngress } from './circuit/useBusIngress';
 import { useSlotFlush, type SlotCheckpoint } from './circuit/useSlotFlush';
 import { useClientTicks } from './circuit/useClientTicks';
@@ -104,7 +104,7 @@ export interface UseTraitStateMachineOptions {
   /** The program's `_metadata` (a compiled client program's operator sites and dispatch facts), handed to the kernel. */
   metadata?: SchemaMetadata;
   /** The program's type-contract stamp, carried into the browser kernel's registration. */
-  typeContractVersion?: 1;
+  stamp?: ProgramStamp;
   /** Caller-owned transport (server bridge). Omitted + `persistence` set =
    *  offline preview (plan G7); omitted + no `persistence` = fully local,
    *  nothing ever posts. */
@@ -142,7 +142,7 @@ export function useTraitStateMachine(
   const { kernel, store, traitIndex, appTraitNames, transport, engine: kernelClient } = useCircuitKernel(traitBindings, {
     orbitals: options.orbitals,
     ...(options.metadata !== undefined ? { metadata: options.metadata } : {}),
-    ...(options.typeContractVersion !== undefined ? { typeContractVersion: options.typeContractVersion } : {}),
+    ...(options.stamp !== undefined ? { stamp: options.stamp } : {}),
     engine,
     ...(options.transport !== undefined ? { transport: options.transport } : {}),
     ...(options.carriesCircuitState !== undefined ? { carriesCircuitState: options.carriesCircuitState } : {}),
@@ -354,7 +354,8 @@ export function useTraitStateMachine(
     if (!transport?.subscribeHostDispatches) return;
     return transport.subscribeHostDispatches((_orbitalName, request, response) => {
       const traitName = request.targetTrait;
-      if (traitName === undefined || !hostDispatchInView(request, response, (t) => traitIndex.byName.has(t))) return;
+      const ownsFrame = (frame: string): boolean => [...traitIndex.byName.values()].some((entry) => entry.frameKey === frame);
+      if (traitName === undefined || !hostDispatchInView(request, response, (t) => traitIndex.byName.has(t), ownsFrame)) return;
       void kernel.foldHostDispatch(request, response).then((outcome) =>
         settleOutcome(traitName, request.event, request.payload, outcome));
     }, { clientId: getTabClientId() });

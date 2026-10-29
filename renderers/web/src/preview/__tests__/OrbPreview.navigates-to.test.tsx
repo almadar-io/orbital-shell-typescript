@@ -10,6 +10,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 class ResizeObserverStub {
   observe(): void {}
@@ -20,6 +21,7 @@ class ResizeObserverStub {
 
 function schema(action: Record<string, string>): OrbitalSchema {
   return {
+    typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: 'nav-to-app',
     version: '1.0.0',
     orbitals: [

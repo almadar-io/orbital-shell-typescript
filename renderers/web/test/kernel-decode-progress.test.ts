@@ -21,9 +21,18 @@ describe('decodeProgress on a done response', () => {
   });
 
   it('control: a malformed response is refused, typed, not passed on', () => {
-    for (const bad of [{ ...response, success: 'yes' }, { ...response, states: [] }, { states: {}, emittedEvents: [] }]) {
+    for (const bad of [{ ...response, success: 'yes' }, { ...response, states: [] }, { ...response, emittedEvents: {} }]) {
       expect(() => decodeProgress(done(bad))).toThrow(/kernel wire: .*response/);
     }
+  });
+
+  it('a field serde defaults is filled in when missing, as the Rust deserializer does; a wrong type is still refused', () => {
+    expect(decodeProgress(done({ states: {}, emittedEvents: [] }))).toEqual({
+      status: 'done',
+      response: { success: false, transitioned: false, states: {}, emittedEvents: [] },
+    });
+    expect(decodeProgress(done({}))).toEqual({ status: 'done', response: { success: false, transitioned: false, states: {}, emittedEvents: [] } });
+    expect(() => decodeProgress(done({ success: 1 }))).toThrow(/kernel wire: .*response\.success/);
   });
 
   it('control: a malformed nested field is refused, whatever the depth', () => {

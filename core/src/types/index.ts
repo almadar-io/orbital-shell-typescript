@@ -22,7 +22,9 @@ export {
   type UseDeclaration,
   UseDeclarationSchema,
   type LazyPage,
+  type LazyTrait,
   LazyPageSchema,
+  LazyTraitSchema,
   // Expect Declaration (Consumer-Side Requirements)
   type ExpectDeclaration,
   ExpectDeclarationSchema,
@@ -81,6 +83,7 @@ export {
 // OrbitalSchema - top-level app definition
 export {
   type OrbitalSchema,
+  type ResolvedMark,
   type OrbitalSchema as AppSchema, // Alias
   type OrbitalSchemaWithTraits,
   type OrbitalSchemaInput,

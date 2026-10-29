@@ -363,10 +363,10 @@ interface TickBinding {
   handle: TickHandle;
 }
 
-/** What `register` takes beside the schema: the program's catalogs and the `uses lazy` behaviors the server runs alongside it. */
+/** What `register` takes beside the schema: the program's catalogs and the folder its `uses lazy` behaviors sit beside (EXEC-LOAD-1). */
 export interface RegisterOptions {
   messages?: MessageCatalogs;
-  lazy?: readonly OrbitalSchema[];
+  lazyDir?: string;
 }
 
 /** `orb resolve` writes each declared locale's merged catalog beside a `.orb` as `<stem>.<locale>.json`. */
@@ -428,6 +428,8 @@ export class OrbitalServerRuntime {
 
   /** The program's declared `locales`, in declared order; the first is the default. */
   private appLocales: readonly string[] = [];
+  /** The folder the program's lazy files sit beside; the pages that name them are on `resolvedSchema.lazyPages`. */
+  private lazyDir: string | undefined;
   /** Merged message catalogs of every registered program (keys are behavior-qualified). */
   private messages: MessageCatalogs = {};
   /** Wired by the hosting server (e.g. the playground SSE endpoint) via `setLiveBroadcastSink`. */
@@ -555,17 +557,19 @@ export class OrbitalServerRuntime {
     // no `orb` to run (a browser) registers only resolved programs.
     if (needsResolving(schema)) schema = await this.resolveWithOrb(schema);
 
-    // Register all orbitals (await to ensure instance seeding completes)
-    // Lazy pages' orbitals run here too; only the served schema keeps them lazy for the client.
-    const lazyOrbitals = (options.lazy ?? []).flatMap((lazy) => lazy.orbitals);
-    const executed: OrbitalSchema = lazyOrbitals.length > 0 ? { ...schema, orbitals: [...schema.orbitals, ...lazyOrbitals] } : schema;
-    for (const orbital of executed.orbitals) {
+    // Register all orbitals (await to ensure instance seeding completes). A `uses lazy` orbital is registered by the
+    // kernel on its first dispatch (EXEC-LOAD-2) and here when its first request names it.
+    this.lazyDir = options.lazyDir;
+    if ((schema.lazyPages ?? []).length > 0 && this.lazyDir === undefined) {
+      throw new Error(`OrbitalServerRuntime: program "${schema.name}" lists lazy pages and no folder their files sit beside was given; register it from its file`);
+    }
+    for (const orbital of schema.orbitals) {
       await this.registerOrbitalAsync(orbital);
     }
 
     // Set up scheduled ticks
     this.setupTicks();
-    await this.openKernel(executed);
+    await this.openKernel(schema);
 
     // Stash the post-preprocessing schema so HTTP layers (e.g. a playground
     // server's /api/schema handler) can serve the fully-resolved copy instead
@@ -627,28 +631,8 @@ export class OrbitalServerRuntime {
     }
     const locales = schema.locales ?? [];
     const messages = await readSidecarCatalogs(readFile, path, locales);
-    // `orb resolve` writes each `uses lazy` behavior (and its catalogs) at the page's `orbRef`, relative to the program.
-    const { dirname, join } = await import('node:path');
-    const lazy: OrbitalSchema[] = [];
-    for (const page of schema.lazyPages ?? []) {
-      const lazyPath = join(dirname(path), page.orbRef);
-      let lazyRaw: string;
-      try {
-        lazyRaw = await readFile(lazyPath, 'utf-8');
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        throw new Error(`registerFromFile: ${path} declares lazy page ${page.path} but its behavior ${page.orbRef} could not be read: ${msg}`);
-      }
-      const lazySchema = JSON.parse(lazyRaw) as OrbitalSchema;
-      if (!lazySchema.orbitals.some((o) => o.name === page.orbital)) {
-        throw new Error(`registerFromFile: lazy page ${page.path} expects orbital "${page.orbital}" in ${page.orbRef}, found: ${lazySchema.orbitals.map((o) => o.name).join(', ')}`);
-      }
-      lazy.push(lazySchema);
-      for (const [locale, catalog] of Object.entries(await readSidecarCatalogs(readFile, lazyPath, locales))) {
-        messages[locale] = { ...messages[locale], ...catalog };
-      }
-    }
-    await this.register(schema, { messages, lazy });
+    const { dirname } = await import('node:path');
+    await this.register(schema, { messages, lazyDir: dirname(path) });
   }
 
   /** A program with imports resolved by `orb` from the configured base path (Node only: the one resolver is the compiler). */
@@ -788,7 +772,7 @@ export class OrbitalServerRuntime {
     this.kernelEngine?.dispose();
     this.kernelOs?.close();
     this.kernelOs = this.config.osHost?.(kernelOsGrants(kernel, () => this.requireKernelEngine()));
-    this.kernelEngine = KernelEngine.open(kernel, schema, this.kernelPorts(registered.egress ?? []));
+    this.kernelEngine = KernelEngine.open(kernel, schema, this.kernelPorts(registered.egress ?? []), this.lazyDir);
     this.kernelEngine.setMessages(this.appLocales, this.messages);
     if (this.managedProgram !== undefined) this.kernelEngine.setManagedProgram(this.managedProgram);
     this.syncTickMount();
@@ -1255,7 +1239,39 @@ export class OrbitalServerRuntime {
       await this.registrationEpoch.catch(() => undefined);
       registered = this.orbitals.get(orbitalName);
     }
+    if (!registered) {
+      await this.loadLazyOrbital(orbitalName);
+      registered = this.orbitals.get(orbitalName);
+    }
     return registered;
+  }
+
+  /** The first request that names a `uses lazy` orbital registers it here; the kernel loads the same file on that request's dispatch (EXEC-LOAD-2). */
+  private async loadLazyOrbital(orbitalName: string): Promise<void> {
+    const dir = this.lazyDir;
+    const pages = (this.resolvedSchema?.lazyPages ?? []).filter((page) => page.orbital === orbitalName);
+    const first = pages[0];
+    if (dir === undefined || first === undefined) return;
+    const { readFile } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    const lazyPath = join(dir, first.orbRef);
+    let lazySchema: OrbitalSchema;
+    try {
+      lazySchema = JSON.parse(await readFile(lazyPath, 'utf-8')) as OrbitalSchema;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`lazy orbital "${orbitalName}": ${first.orbRef} could not be read: ${msg}`);
+    }
+    if (!lazySchema.orbitals.some((o) => o.name === orbitalName)) {
+      throw new Error(`lazy orbital "${orbitalName}" is not in ${first.orbRef}, found: ${lazySchema.orbitals.map((o) => o.name).join(', ')}`);
+    }
+    for (const [locale, catalog] of Object.entries(await readSidecarCatalogs(readFile, lazyPath, lazySchema.locales ?? []))) {
+      this.messages[locale] = { ...this.messages[locale], ...catalog };
+    }
+    this.kernelEngine?.setMessages(this.appLocales, this.messages);
+    for (const orbital of lazySchema.orbitals) {
+      await this.registerOrbitalAsync(orbital);
+    }
   }
 
   /** The registered orbitals as `GET /` lists them. */

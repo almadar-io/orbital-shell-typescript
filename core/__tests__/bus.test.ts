@@ -91,14 +91,14 @@ describe('OrbitalEventResponseSchema', () => {
     ).toThrow();
   });
 
-  it('accepts the full response shape (entityByTrait/clientEffectsByTrait/effectResults/guardFailed)', () => {
+  it('accepts the full response shape (frames/clientEffectsByTrait/effectResults/guardFailed)', () => {
     const response: OrbitalEventResponse = {
       success: false,
       transitioned: false,
       states: { NoteForm: 'idle' },
       emittedEvents: [{ event: 'SAVE_FAILED', payload: { reason: 'guard' }, source: { orbital: 'NoteOrbital', trait: 'NoteForm' } }],
       data: { Note: [{ id: 'n1', title: 'Draft' }] },
-      entityByTrait: { NoteForm: { id: 'n1', title: 'Draft' } },
+      frames: { session: 'tab-1', from: 0, to: 1, ops: [['clear'], ['put', 'NoteForm', { id: 'n1', title: 'Draft' }], ['set', { NoteForm: { title: 'Final' } }]] },
       clientEffectsByTrait: [{ traitName: 'NoteForm', effect: ['navigate-back'] }],
       effectResults: [{ effect: 'persist', success: false, denied: true, error: 'access denied' }],
       guardFailed: 'NoteForm.SAVE',

@@ -6,6 +6,11 @@ import { useTranslate } from "../hooks/useTranslate";
 export type StatusDotStatus = "online" | "offline" | "away" | "busy" | "warning" | "critical";
 export type StatusDotSize = "sm" | "md" | "lg";
 
+/**
+ * @role status
+ * @tokens --color-success --color-warning --color-error --color-muted-foreground
+ * @motion css
+ */
 export interface StatusDotProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, keyof A11yProps>, A11yProps {
   /** Additional CSS classes applied to the root element. */
   className?: string;

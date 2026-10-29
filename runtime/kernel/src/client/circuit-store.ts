@@ -14,6 +14,7 @@
 import { AwaitingRegistry } from './awaiting.js';
 import { StateBook } from './state-book.js';
 import type { EntityRow, EventPayload } from '@almadar/core';
+import type { FrameDelta } from '@almadar/core/kernel-wire';
 import type { TraitDefinition } from '@almadar/core';
 import type { RollbackCause, TransitionObserver } from './trait-types.js';
 
@@ -28,12 +29,26 @@ export interface TraitSnapshot {
   frame: EntityRow | undefined;
 }
 
+/**
+ * What a frame delta did to the store: `applied`; `stale` (its version is behind the one painted: dropped, so an
+ * old repaint never overwrites a newer value); `gap` (it starts past the painted version: nothing applied, the
+ * caller asks the kernel for `framesSince(frameVersion)` and applies the snapshot).
+ */
+export type FrameOutcome = 'applied' | 'stale' | 'gap';
+
 export interface CircuitStore {
   /** Each trait's state as the kernel last reported it. */
   readonly states: StateBook;
   /** The entity-frame map (`(set @entity.X)` writes), keyed by
    *  `IndexedTrait.frameKey`. */
   readonly frames: Map<string, EntityRow>;
+  /** The version of the kernel's frame record this store has painted. */
+  readonly frameVersion: number;
+  /**
+   * Paint the kernel's frame delta (EXEC-DIST-7): ops land only at the version they start from, and a snapshot
+   * (`from` 0 with a leading `clear`) always lands. The store merges nothing by its own rules.
+   */
+  applyFrames(delta: FrameDelta): FrameOutcome;
   /** Embedded child → the payload its composer last composed it with (sticky `@callsitePayload`). */
   readonly callsitePayloads: Map<string, EventPayload>;
   /** Traits awaiting a server round trip (per-trait subscriptions; see `AwaitingRegistry`). */
@@ -79,10 +94,44 @@ export function createMemoryCircuitStore(
   const frames = new Map<string, EntityRow>();
   const listeners = new Set<() => void>();
   let version = 0;
+  let frameVersion = 0;
+  let frameSession: string | undefined;
 
   return {
     states,
     frames,
+    get frameVersion() {
+      return frameVersion;
+    },
+    applyFrames(delta) {
+      if (delta.session !== undefined) {
+        const snapshot = delta.from === 0 && delta.ops[0]?.[0] === 'clear';
+        if (!snapshot) {
+          const current = (frameSession === undefined || delta.session === frameSession) && delta.from === frameVersion;
+          if (delta.session === frameSession && delta.to <= frameVersion && !current) return 'stale';
+          if (!current) return 'gap';
+        }
+        frameSession = delta.session;
+        frameVersion = delta.to;
+      }
+      for (const op of delta.ops) {
+        switch (op[0]) {
+          case 'clear':
+            frames.clear();
+            break;
+          case 'del':
+            frames.delete(op[1]);
+            break;
+          case 'put':
+            frames.set(op[1], { ...op[2] });
+            break;
+          case 'set':
+            for (const [frame, fields] of Object.entries(op[1])) frames.set(frame, { ...(frames.get(frame) ?? {}), ...fields });
+            break;
+        }
+      }
+      return 'applied';
+    },
     callsitePayloads: new Map<string, EventPayload>(),
     awaiting: new AwaitingRegistry(),
     snapshot(trait, entityId, frameKey) {

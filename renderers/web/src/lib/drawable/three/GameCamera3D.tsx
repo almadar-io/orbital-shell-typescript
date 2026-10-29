@@ -12,6 +12,7 @@
 import { useEffect, useRef } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { usePrefersReducedMotion } from '../../../core/hooks/usePrefersReducedMotion';
 
 /** Reports the live camera position on every change (imperative handle integration). */
 export function CameraController3D({
@@ -46,10 +47,11 @@ export function FollowCamera3D({
     offset: [number, number, number];
 }): null {
     const { camera } = useThree();
+    const reducedMotion = usePrefersReducedMotion();
     const look = useRef(new THREE.Vector3(target[0], target[1], target[2]));
     const goal = useRef(new THREE.Vector3());
     useFrame((_, delta) => {
-        const t = Math.min(1, delta * 5);
+        const t = reducedMotion ? 1 : Math.min(1, delta * 5);
         goal.current.set(target[0] + offset[0], target[1] + offset[1], target[2] + offset[2]);
         camera.position.lerp(goal.current, t);
         look.current.lerp(goal.current.set(target[0], target[1], target[2]), t);

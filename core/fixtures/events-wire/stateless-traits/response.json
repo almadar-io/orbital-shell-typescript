@@ -1,10 +1,19 @@
 {
   "emittedEvents": [],
-  "entityByTrait": {
-    "NotePersistor": {
-      "id": "note-1",
-      "title": "New title"
-    }
+  "frames": {
+    "from": 0,
+    "ops": [
+      [
+        "set",
+        {
+          "NotePersistor": {
+            "id": "note-1",
+            "title": "New title"
+          }
+        }
+      ]
+    ],
+    "to": 0
   },
   "states": {
     "NoteCatalog": "browsing",

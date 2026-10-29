@@ -10,7 +10,14 @@ import type { KernelModule as RuntimeKernelModule } from '../index';
 /** The `Kernel` class `@almadar/kernel` exports: JSON strings in, JSON strings out. */
 export interface KernelInstance {
   dispatch(traitName: string, entityId: string | undefined, event: string, payloadJson?: string): string;
-  applyServerResponse(responseJson: string, alreadyDeliveredJson?: string, baseJson?: string): string;
+  /** A flight for work the kernel did not wire (a dispatch the host ran on its own, a frame's browser leg). */
+  openFlight(): number;
+  /** `applyServerResponse` in flight order (EXEC-CONC-8): a `FoldProgressWire` as JSON, folded now or queued behind an older flight. */
+  foldInOrder(flight: number, responseJson: string, alreadyDeliveredJson?: string, baseJson?: string): string;
+  /** The oldest queued answer that can fold now, folded: a `FoldedNextWire` as JSON, or `undefined` when none waits. */
+  nextFold(): string | undefined;
+  /** The flight is done: its answers are folded, or the host gave up on them. */
+  endFlight(flight: number): boolean;
   /** The rows a posted leg's answer is folded against; `undefined` when the leg carried none. */
   /** The leg as a host that holds the circuit state takes it: only the `[shared]` frame rows its traits read. */
   statefulLeg(legJson: string): string;
@@ -18,6 +25,8 @@ export interface KernelInstance {
   reseedLeg(seedsJson: string, entityId?: string): string;
   foldBase(carriedJson: string | undefined, seededJson: string, entityId?: string): string | undefined;
   dispatchMount(seedsJson: string, entityId?: string, payloadJson?: string): string;
+  /** The frame delta a painter at version `since` of this kernel's frames needs (`FrameDelta` JSON): empty when current, else a snapshot. */
+  framesSince(since: number): string;
   restore(traitName: string, entityId: string | undefined, snapshotJson: string): string;
   tick(traitName: string, tickName: string, entityId?: string): string;
   frame(nowMs: number): string | undefined;

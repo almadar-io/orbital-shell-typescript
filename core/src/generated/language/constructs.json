@@ -1002,6 +1002,11 @@
         "doc": "`derived` field flag with the derivation expression."
       },
       {
+        "name": "display",
+        "type": "Option<String>",
+        "doc": "Trailing `@display <field>` annotation on a relation field: the target field a related record is shown by."
+      },
+      {
         "name": "span",
         "type": "Span",
         "doc": ""
@@ -1968,6 +1973,11 @@
         "name": "is_initial",
         "type": "bool",
         "doc": ""
+      },
+      {
+        "name": "is_not_found",
+        "type": "bool",
+        "doc": "`notFound` — the page shown for a path no page matches."
       },
       {
         "name": "span",

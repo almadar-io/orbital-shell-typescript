@@ -15,9 +15,11 @@ import type { OrbitalEventRequest, OrbitalSchema } from '@almadar/core';
 import type { EventTransport } from '../../index';
 import { OrbPreview } from '../OrbPreview';
 import { statelessKernelTransport } from '../../test-support/stateless-kernel';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 function schema(): OrbitalSchema {
   return {
+    typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: 'topology-before-dispatch',
     version: '1.0.0',
     orbitals: [{

@@ -11,8 +11,8 @@
 import type { EventPayload, MountSeed, OrbitalEventRequest, OrbitalEventResponse, TraitConfig, TransitionRejection, UserContext } from '@almadar/core';
 import {
   createLocalFold,
-  DispatchLane,
-  mirrorResponse,
+  paintResponse,
+  paintStates,
   traceResponse,
   type CircuitStore,
   type ClientDispatchHooks,
@@ -35,7 +35,7 @@ import { SessionEndedError } from '@almadar/shell-runtime/client/EventTransport'
 import { createLogger } from '@almadar/logger';
 import type { FrameScheduler } from './kernel-frames';
 import { getTraitPresence, presenceGroup } from '../core';
-import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, MountWire, TraitSnapshot } from '@almadar/core/kernel-wire';
+import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, FoldedNextWire, FoldProgressWire, FrameDelta, MountWire, TraitSnapshot } from '@almadar/core/kernel-wire';
 import type { KernelInstance } from './kernel-wire';
 
 const log = createLogger('almadar:ui:kernel-client');
@@ -116,13 +116,46 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     .filter(([, entry]) => (entry.irTrait.ticks ?? []).some((tick) => tick.whileVisible === true))
     .map(([name]) => [name, presenceGroup(traitIndex, name)]);
 
-  let queueTail: Promise<void> = Promise.resolve();
-  const enqueue = <T>(run: () => Promise<T>): Promise<T> => {
-    const result = queueTail.then(run);
-    queueTail = result.then(() => undefined, () => undefined);
-    return result;
+  // The kernel orders the answers of the dispatches that owe the host a leg (EXEC-CONC-8): an answer that
+  // arrives ahead of an older flight is queued by the kernel under a ticket and folded when that flight ends.
+  interface FoldTurn {
+    ran(applied: AppliedWire): void;
+    failed(error: Error): void;
+  }
+  const foldTurns = new Map<number, FoldTurn>();
+
+  const runQueuedFolds = (k: KernelInstance): void => {
+    for (let json = k.nextFold(); json !== undefined; json = k.nextFold()) {
+      const next = parse<FoldedNextWire>(json);
+      const turn = foldTurns.get(next.ticket);
+      if (turn === undefined) throw new Error(`kernel wire: the kernel folded ticket ${next.ticket}, which nothing waits on`);
+      foldTurns.delete(next.ticket);
+      if (next.outcome === 'failed') turn.failed(new Error(next.error));
+      else turn.ran(next.fold);
+    }
   };
-  let progressTail: Promise<void> = Promise.resolve();
+
+  const foldInOrder = (k: KernelInstance, flight: number, answer: OrbitalEventResponse, alreadyDeliveredJson: string, baseJson: string | undefined): Promise<AppliedWire> => {
+    const progress = parse<FoldProgressWire>(k.foldInOrder(flight, JSON.stringify(answer), alreadyDeliveredJson, baseJson));
+    if (progress.status === 'applied') return Promise.resolve(progress.fold);
+    const turn = new Promise<AppliedWire>((ran, failed) => {
+      foldTurns.set(progress.ticket, { ran, failed });
+    });
+    // A waiter never relies on one flight's end alone: if the older flights have already ended, its turn runs now.
+    queueMicrotask(() => runQueuedFolds(k));
+    return turn;
+  };
+
+  const endFlight = (k: KernelInstance, flight: number | null | undefined): void => {
+    if (flight === null || flight === undefined) return;
+    k.endFlight(flight);
+    runQueuedFolds(k);
+  };
+
+  const flightOf = (wire: DispatchWire): number => {
+    if (wire.flight === null || wire.flight === undefined) throw new Error(`kernel wire: ${wire.seed.trait}.${wire.seed.event} owes a leg and carries no flight`);
+    return wire.flight;
+  };
   // Mount declarations apply in call order and before any frame that follows them.
   let scopeTail: Promise<void> = Promise.resolve();
   const declareScope = (apply: (k: KernelInstance) => void): Promise<void> => {
@@ -131,11 +164,14 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     return applied;
   };
 
-  const frameKeyOf = (trait: string): string | undefined => traitIndex.byName.get(trait)?.frameKey;
-  const mirror = (response: OrbitalEventResponse): void => mirrorResponse(store, frameKeyOf, response);
+  const framesSince = (since: number): FrameDelta => {
+    if (loaded === undefined) throw new Error('the kernel is not loaded');
+    return parse<FrameDelta>(loaded.framesSince(since));
+  };
+  /** A response the in-process kernel produced: its states, payloads and frame delta are painted. */
+  const mirror = (response: OrbitalEventResponse): void => paintResponse(store, framesSince, response);
   const trace = (response: OrbitalEventResponse): void => traceResponse(opts.observer, response);
-  const localFold = createLocalFold({ store, frameKeyOf, ...(opts.observer !== undefined ? { observer: opts.observer } : {}) });
-  const lane = new DispatchLane();
+  const localFold = createLocalFold({ store, framesSince, ...(opts.observer !== undefined ? { observer: opts.observer } : {}) });
 
   const syncStates = (k: KernelInstance, traits: readonly string[]): void => {
     for (const trait of traits) {
@@ -149,11 +185,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     if (snapshot === null) return { clientEffectsByTrait: [] };
     const trait = wire.seed.trait;
     const repaint = parse<OrbitalEventResponse>(k.restore(trait, entityId, JSON.stringify(snapshot)));
-    const frameKey = traitIndex.byName.get(trait)?.frameKey ?? trait;
     if (snapshot.state !== '') store.states.rollbackState(trait, snapshot.state, entityId, 'server-rejected');
-    const entity = snapshot.entity;
-    if (entity !== null && typeof entity === 'object' && !Array.isArray(entity)) store.frames.set(frameKey, { ...entity });
-    else store.frames.delete(frameKey);
     mirror(repaint);
     store.notify();
     return { clientEffectsByTrait: repaint.clientEffectsByTrait ?? [] };
@@ -179,6 +211,8 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     foldSeeded: string[];
     /** The dispatches this leg answers for: rolled back when it fails. */
     wires: DispatchWire[];
+    /** The flight whose turn the leg's answers fold in. */
+    flight: number;
   }
 
   const planDispatch = (wire: DispatchWire, carriesCircuitState: boolean): { legs: PlannedLeg[]; awaiting: AwaitingTrait[] } => {
@@ -192,6 +226,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
           alreadyDelivered: wire.alreadyDelivered,
           foldSeeded: wire.foldSeeded,
           wires: [wire],
+          flight: flightOf(wire),
         })),
       };
     }
@@ -199,7 +234,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     if (!carriesCircuitState && wire.statefulLeg !== null) {
       return {
         awaiting: wire.statefulLeg.awaiting,
-        legs: [{ orbital: wire.statefulLeg.orbital, leg: wire.statefulLeg.leg, keepsState: true, alreadyDelivered: wire.alreadyDelivered, foldSeeded: [], wires: [wire] }],
+        legs: [{ orbital: wire.statefulLeg.orbital, leg: wire.statefulLeg.leg, keepsState: true, alreadyDelivered: wire.alreadyDelivered, foldSeeded: [], wires: [wire], flight: flightOf(wire) }],
       };
     }
     return { legs: [], awaiting: [] };
@@ -208,9 +243,32 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   // The mount seeds this client ran, per orbital: what a reconnect mounts again.
   const mountedSeeds = new Map<string, MountSeed[]>();
 
+  /** Fold a host answer through the kernel and paint what the kernel reports: the host's states, then the kernel's own frame delta. */
+  const foldAnswer = async (k: KernelInstance, flight: number, answer: OrbitalEventResponse): Promise<AppliedWire> => {
+    const applied = await foldInOrder(k, flight, answer, '[]', undefined);
+    paintStates(store, answer);
+    mirror(applied.response);
+    return applied;
+  };
+
+  /** The host numbered frames past the version the kernel holds: fetch the snapshot and fold it (EXEC-DIST-7). */
+  const resyncFrames = async (
+    k: KernelInstance,
+    flight: number,
+    orbital: string,
+    leg: OrbitalEventRequest,
+    since: number,
+    request: Pick<OrbitalEventRequest, 'locale' | 'entityId'>,
+  ): Promise<void> => {
+    if (leg.clientId === undefined) throw new Error('a frame resync needs the client id the leg was posted under');
+    const answer = await sendReseeding(k, flight, orbital, { event: '$FRAMES', clientId: leg.clientId, framesSince: since }, request);
+    if (answer.success) await foldAnswer(k, flight, answer);
+  };
+
   /** Send `sent`; when the host freed this client's session, mount again with the frames the client holds, then send it once more. */
   const sendReseeding = async (
     k: KernelInstance,
+    flight: number,
     orbital: string,
     sent: OrbitalEventRequest,
     request: Pick<OrbitalEventRequest, 'locale' | 'entityId'>,
@@ -223,7 +281,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       if (!(err instanceof SessionEndedError) || seeds === undefined || seeds.length === 0) throw err;
       const reseed: OrbitalEventRequest = JSON.parse(k.reseedLeg(JSON.stringify(seeds), request.entityId));
       const mounted = await transport.send(orbital, request.locale !== undefined ? { ...reseed, locale: request.locale } : reseed);
-      mirror(mounted);
+      await foldAnswer(k, flight, mounted);
       store.notify();
       return transport.send(orbital, sent);
     }
@@ -253,7 +311,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       const base = k.foldBase(sent.entityByTrait !== undefined ? JSON.stringify(sent.entityByTrait) : undefined, JSON.stringify(planned.foldSeeded), sent.entityId);
       let posted: OrbitalEventResponse;
       try {
-        posted = await sendReseeding(k, planned.orbital, sent, request);
+        posted = await sendReseeding(k, planned.flight, planned.orbital, sent, request);
       } catch (err) {
         if (flags.rollback || flags.mount) for (const wire of planned.wires) restore(k, wire, request.entityId);
         throw err instanceof Error ? err : new Error(String(err));
@@ -265,16 +323,17 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         }
         if (flags.mount) for (const wire of optimistic) restore(k, wire, request.entityId);
       }
-      const applied = parse<AppliedWire>(k.applyServerResponse(JSON.stringify(posted), JSON.stringify(planned.alreadyDelivered), base));
+      const applied = await foldInOrder(k, planned.flight, posted, JSON.stringify(planned.alreadyDelivered), base);
       // The kernel reconciles the server's states and rows but hands back only the cascade it ran: the
       // server's own renders and emits are the host's to carry, and the states are read back from the kernel.
       log.debug('fold', { orbital: planned.orbital, event: sent.event, posted: { success: posted.success, states: posted.states, emitted: posted.emittedEvents.map((e) => e.event) }, applied: applied.applied, cascadeEmitted: applied.response.emittedEvents.map((e) => e.event) });
       trace(applied.response);
       for (const routed of applied.serverLegs) {
-        queue.push({ orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [] });
+        queue.push({ orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight: planned.flight });
       }
-      mirror(posted);
+      paintStates(store, posted);
       mirror(applied.response);
+      if (applied.resync != null) await resyncFrames(k, planned.flight, planned.orbital, sent, applied.resync.since, request);
       syncStates(k, [...Object.keys(posted.states), ...applied.applied.map(([trait]) => trait)]);
       store.notify();
       const fold = applied.response;
@@ -318,10 +377,21 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   const framePost = (k: KernelInstance): FramePostPort | undefined => {
     if (transport === undefined) return undefined;
     return {
-      postDispatch: async (wire) => (await post(k, wire, {}, { rollback: false, awaiting: false })).serverEffects,
+      postDispatch: async (wire) => {
+        try {
+          return (await post(k, wire, {}, { rollback: false, awaiting: false })).serverEffects;
+        } finally {
+          endFlight(k, wire.flight);
+        }
+      },
       sendBrowserLeg: async (routed, frameResponse) => {
-        const planned: PlannedLeg = { orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [] };
-        return (await sendLegs(k, [planned], {}, { rollback: false, mount: false }, frameResponse)).serverEffects;
+        const flight = k.openFlight();
+        try {
+          const planned: PlannedLeg = { orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight };
+          return (await sendLegs(k, [planned], {}, { rollback: false, mount: false }, frameResponse)).serverEffects;
+        } finally {
+          endFlight(k, flight);
+        }
       },
     };
   };
@@ -337,7 +407,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       frameResume: () => k.frameResume(),
       tickCount: () => k.tickCount(),
     },
-    lane,
     client: localFold,
     post: framePost(k),
   });
@@ -354,7 +423,15 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       return { response, mode: parse<DispatchMode>(k.dispatchMode(request.runTick.trait)) };
     }
     const wire = parse<DispatchWire>(k.dispatch(traitName, request.entityId, request.event, payloadJson(request.payload)));
-    log.debug('dispatch', { trait: traitName, event: request.event, mode: wire.mode, legs: wire.serverLegs.length, success: wire.response.success, states: wire.response.states, effects: (wire.response.clientEffectsByTrait ?? []).map((e) => `${e.traitName}:${e.effect[0]}:${e.effect[1] ?? ''}`), emitted: wire.response.emittedEvents.map((e) => e.event) });
+    try {
+      return await settleDispatch(k, wire, request, hooks, progress);
+    } finally {
+      endFlight(k, wire.flight);
+    }
+  };
+
+  const settleDispatch = async (k: KernelInstance, wire: DispatchWire, request: OrbitalEventRequest, hooks: ClientDispatchHooks[], progress: boolean): Promise<ClientKernelOutcome> => {
+    log.debug('dispatch', { trait: wire.seed.trait, event: request.event, mode: wire.mode, legs: wire.serverLegs.length, success: wire.response.success, states: wire.response.states, effects: (wire.response.clientEffectsByTrait ?? []).map((e) => `${e.traitName}:${e.effect[0]}:${e.effect[1] ?? ''}`), emitted: wire.response.emittedEvents.map((e) => e.event) });
     trace(wire.response);
     mirror(wire.response);
     store.notify();
@@ -371,44 +448,12 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       : { response: posted.response, mode: wire.mode };
   };
 
-  const client: KernelClient = {
-    store,
-    dispatch: (request, hooks) => enqueue(() => dispatchOne(request, hooks !== undefined ? [hooks] : [], false)),
-    dispatchProgress: (request) => {
-      const outcome = progressTail.then(() => dispatchOne(request, [], true));
-      progressTail = outcome.then(() => undefined, () => undefined);
-      return outcome;
-    },
-    foldHostDispatch: (request, response) => enqueue(async () => {
-      const k = await ready;
-      if (request.targetTrait === undefined) throw new Error('foldHostDispatch requires request.targetTrait (the seed trait)');
-      const mode = parse<DispatchMode>(k.dispatchMode(request.targetTrait));
-      if (!response.success) return { response: { ...response, clientEffectsByTrait: [] }, mode };
-      const applied = parse<AppliedWire>(k.applyServerResponse(JSON.stringify(response), '[]'));
-      trace(applied.response);
-      mirror(response);
-      mirror(applied.response);
-      syncStates(k, [...Object.keys(response.states), ...applied.applied.map(([trait]) => trait)]);
-      store.notify();
-      return {
-        response: {
-          ...response,
-          clientEffectsByTrait: [...(response.clientEffectsByTrait ?? []), ...(applied.response.clientEffectsByTrait ?? [])],
-        },
-        mode,
-      };
-    }),
-    dispatchMount: (seeds, hooks?: MountHooks, base?: MountBase) => enqueue(async (): Promise<MountOutcome> => {
-      const k = await ready;
-      await scopeTail;
-      const baseRequest = base ?? {};
-      k.mount(JSON.stringify(seeds.map((s) => s.trait)));
-      const mount = parse<MountWire>(k.dispatchMount(JSON.stringify(seeds), baseRequest.entityId, payloadJson(baseRequest.payload)));
-      if (mount.failed !== null) {
-        const failed = mount.failed;
-        throw new TraitMountError(failed.trait, failed.event, new Error(failed.message));
-      }
-      const wires = mount.seeds;
+  const settleMount = async (k: KernelInstance, mount: MountWire, seeds: readonly MountSeed[], hooks: MountHooks | undefined, baseRequest: NonNullable<MountBase>): Promise<MountOutcome> => {
+    if (mount.failed !== null) {
+      const failed = mount.failed;
+      throw new TraitMountError(failed.trait, failed.event, new Error(failed.message));
+    }
+    const wires = mount.seeds;
       for (const wire of wires) {
         const kept = mountedSeeds.get(wire.orbital) ?? [];
         if (!kept.some((s) => s.trait === wire.seed.trait)) mountedSeeds.set(wire.orbital, [...kept, { trait: wire.seed.trait, event: seeds.find((s) => s.trait === wire.seed.trait)?.event ?? 'INIT' }]);
@@ -430,15 +475,22 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       };
       if (transport === undefined) return outcome;
       const topology = await opts.topology;
-      for (const group of topology.carriesCircuitState ? mount.legs : mount.statefulLegs) {
-        const answered = wires.filter((w) => group.seeds.some((s) => s.trait === w.seed.trait && s.event === w.seed.event));
-        const planned: PlannedLeg = { orbital: group.orbital, leg: group.leg, keepsState: true, alreadyDelivered: group.alreadyDelivered, foldSeeded: group.foldSeeded, wires: answered };
+      // A group folds under its oldest seed's flight, so the groups go in flight order and each ends its flights before the next.
+      const groups = (topology.carriesCircuitState ? mount.legs : mount.statefulLegs)
+        .map((group) => {
+          const answered = wires.filter((w) => group.seeds.some((s) => s.trait === w.seed.trait && s.event === w.seed.event));
+          return { group, answered, flight: Math.min(...answered.map(flightOf)) };
+        })
+        .sort((a, b) => a.flight - b.flight);
+      for (const { group, answered, flight } of groups) {
+        const planned: PlannedLeg = { orbital: group.orbital, leg: group.leg, keepsState: true, alreadyDelivered: group.alreadyDelivered, foldSeeded: group.foldSeeded, wires: answered, flight };
         store.awaiting.begin(group.awaiting);
         let posted: Posted;
         try {
           posted = await sendLegs(k, [planned], baseRequest, { rollback: false, mount: true }, answered[0]?.response ?? outcome.seeds[0]!.local);
         } finally {
           store.awaiting.end(group.awaiting.map((a) => a.trait));
+          for (const wire of answered) endFlight(k, wire.flight);
         }
         outcome.posted = true;
         outcome.success = outcome.success && posted.success;
@@ -448,7 +500,51 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         outcome.emittedEvents.push(...posted.foldedEmits);
       }
       return outcome;
-    }),
+  };
+
+  const client: KernelClient = {
+    store,
+    dispatch: (request, hooks) => dispatchOne(request, hooks !== undefined ? [hooks] : [], false),
+    dispatchProgress: (request) => dispatchOne(request, [], true),
+    foldHostDispatch: async (request, response) => {
+      const k = await ready;
+      if (request.targetTrait === undefined) throw new Error('foldHostDispatch requires request.targetTrait (the seed trait)');
+      const mode = parse<DispatchMode>(k.dispatchMode(request.targetTrait));
+      if (!response.success) return { response: { ...response, clientEffectsByTrait: [] }, mode };
+      const flight = k.openFlight();
+      try {
+        const applied = await foldInOrder(k, flight, response, '[]', undefined);
+        trace(applied.response);
+        paintStates(store, response);
+        mirror(applied.response);
+        syncStates(k, [...Object.keys(response.states), ...applied.applied.map(([trait]) => trait)]);
+        store.notify();
+        // The host ran the dispatch, but the fold's own arms can owe it more (a client trait emitting to a server trait).
+        const owed = applied.serverLegs.map((routed): PlannedLeg => ({ orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight }));
+        const posted = await sendLegs(k, owed, request, { rollback: false, mount: false }, applied.response);
+        return {
+          response: {
+            ...response,
+            clientEffectsByTrait: [...(response.clientEffectsByTrait ?? []), ...(posted.response.clientEffectsByTrait ?? [])],
+          },
+          mode,
+        };
+      } finally {
+        endFlight(k, flight);
+      }
+    },
+    dispatchMount: async (seeds, hooks?: MountHooks, base?: MountBase): Promise<MountOutcome> => {
+      const k = await ready;
+      await scopeTail;
+      const baseRequest = base ?? {};
+      k.mount(JSON.stringify(seeds.map((s) => s.trait)));
+      const mount = parse<MountWire>(k.dispatchMount(JSON.stringify(seeds), baseRequest.entityId, payloadJson(baseRequest.payload)));
+      try {
+        return await settleMount(k, mount, seeds, hooks, baseRequest);
+      } finally {
+        for (const wire of mount.seeds) endFlight(k, wire.flight);
+      }
+    },
     routeMounts: async (routePath) => parse<MountSeed[]>((await ready).routeMounts(routePath)),
     remount: (traits) => declareScope((k) => k.remount(JSON.stringify(traits))),
     mount: (traits) => declareScope((k) => k.mount(JSON.stringify(traits))),

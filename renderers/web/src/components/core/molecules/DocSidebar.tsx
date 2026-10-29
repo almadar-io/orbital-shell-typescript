@@ -30,6 +30,12 @@ export interface DocSidebarItem {
   active?: boolean;
 }
 
+/**
+ * @role navigation
+ * @tokens --color-muted-foreground
+ * @contrast muted-foreground background
+ * @motion none
+ */
 export interface DocSidebarProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
   /** Sidebar navigation items */
   items: DocSidebarItem[];

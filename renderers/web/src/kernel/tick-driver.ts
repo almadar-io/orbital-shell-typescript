@@ -1,12 +1,10 @@
 /**
- * Poll-mode tick driver for a browser host: every animation frame takes one `DispatchLane` turn,
- * runs `Kernel.frame(now)` inside it, then applies the `FrameWire`. A frame still pending (waiting on
- * the lane or folding) skips the next animation frame, so a stalled lane never stacks frames; the
- * kernel drops missed beats. A hidden page pauses the kernel's clock and stops polling.
+ * Poll-mode tick driver for a browser host: every animation frame runs `Kernel.frame(now)`, then applies the
+ * `FrameWire`. A frame still pending (folding) skips the next animation frame, so a slow fold never stacks
+ * frames; the kernel drops missed beats. The kernel orders what a frame's dispatches owe the host (EXEC-CONC-8). A hidden page pauses the kernel's clock and stops polling.
  */
 import type { LocalFoldKernel } from '@almadar/shell-runtime/client/client-kernel';
 import { applyFrame, type FrameApplied, type FramePostPort } from './frame-applier.js';
-import type { DispatchLane } from './lane.js';
 
 export interface TickKernelPort {
   frame(nowMs: number): string | undefined;
@@ -22,22 +20,14 @@ export interface VisibilityPort {
 
 export interface TickFramePorts {
   kernel: TickKernelPort;
-  lane: DispatchLane;
   client: LocalFoldKernel;
   /** Posts what fired ticks owe; `undefined` for a host with no transport (the frame then only folds locally). */
   post: FramePostPort | undefined;
 }
 
-/** One host frame: a lane turn around `Kernel.frame(now())` (read once the lane is held), then the applier. Shared by the poll driver and by hosts that step on demand. */
-export async function runTickFrame(ports: TickFramePorts, now: () => number): Promise<FrameApplied> {
-  const guard = await ports.lane.enter();
-  let json: string | undefined;
-  try {
-    json = ports.kernel.frame(now());
-  } finally {
-    guard.release();
-  }
-  return applyFrame(json, ports.client, ports.post);
+/** One host frame: `Kernel.frame(now())`, then the applier. Shared by the poll driver and by hosts that step on demand. */
+export function runTickFrame(ports: TickFramePorts, now: () => number): Promise<FrameApplied> {
+  return applyFrame(ports.kernel.frame(now()), ports.client, ports.post);
 }
 
 export interface TickDriverPorts extends TickFramePorts {

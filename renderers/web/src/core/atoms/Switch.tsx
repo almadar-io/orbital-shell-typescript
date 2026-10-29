@@ -5,7 +5,12 @@ import { cn } from "../lib/cn";
 import { domPassthrough } from "../lib/domPassthrough";
 import { useEventBus } from "../hooks/useEventBus";
 
-/** @accessibleName label */
+/**
+ * @accessibleName label
+ * @role switch
+ * @tokens --color-primary --color-muted --color-background
+ * @motion css
+ */
 export interface SwitchProps extends A11yProps {
   checked?: boolean;
   defaultChecked?: boolean;

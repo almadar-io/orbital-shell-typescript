@@ -5,7 +5,13 @@ import { useEventBus } from "../hooks/useEventBus";
 import { Label } from "./Label";
 import { Typography } from "./Typography";
 
-/** @accessibleName label */
+/**
+ * @accessibleName label
+ * @role textbox
+ * @tokens --color-card --color-border --color-foreground --color-muted-foreground
+ * @contrast foreground card
+ * @motion none
+ */
 export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange' | keyof A11yProps>, A11yProps {
   /** Additional CSS classes applied to the root element. */
   className?: string;

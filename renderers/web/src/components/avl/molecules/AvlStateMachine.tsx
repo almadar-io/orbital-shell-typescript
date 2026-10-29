@@ -11,6 +11,7 @@ import { formatSExpr, type A11yProps, type EventEmit } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { Box } from '../../../core';
 import { Typography } from '../../../core';
+import { Button } from '../../../core';
 import { useEventBus } from '../../../core';
 import { useTranslate } from '../../../core';
 import { useMediaQuery } from '../../../core';
@@ -131,6 +132,8 @@ export const AvlStateMachine: React.FC<AvlStateMachineProps> = ({
   const clickable = transitionClickEvent !== undefined || onTransitionClick !== undefined;
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const [layout, setLayout] = useState<ElkLayout | null>(null);
+  const [layoutFailed, setLayoutFailed] = useState(false);
+  const [layoutAttempt, setLayoutAttempt] = useState(0);
   const hostRef = useRef<HTMLDivElement>(null);
   const hostWidth = useContainerWidth(hostRef);
   const traitKey = useMemo(() => JSON.stringify(trait), [trait]);
@@ -138,12 +141,16 @@ export const AvlStateMachine: React.FC<AvlStateMachineProps> = ({
   useEffect(() => {
     if (trait.states.length === 0) return;
     let live = true;
+    setLayoutFailed(false);
     computeTraitLayout(trait, metricsFor(nodeShape, direction))
       .then((l) => { if (live) setLayout(l); })
-      .catch((error) => log.error('layout-failed', { trait: trait.name, error: error instanceof Error ? error : String(error) }));
+      .catch((error) => {
+        log.error('layout-failed', { trait: trait.name, error: error instanceof Error ? error : String(error) });
+        if (live) setLayoutFailed(true);
+      });
     return () => { live = false; };
     // trait is captured by its serialized key.
-  }, [traitKey, nodeShape, direction]);
+  }, [traitKey, nodeShape, direction, layoutAttempt]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -366,6 +373,7 @@ export const AvlStateMachine: React.FC<AvlStateMachineProps> = ({
                       transition: 'border-color var(--duration-normal, 200ms), box-shadow var(--duration-normal, 200ms)',
                     }}
                   >
+                    {pending ? <Box as="span" className="sr-only">{t('avl.pendingSourceState')}</Box> : null}
                     {visit !== undefined && !active ? (
                       <Box
                         as="span"
@@ -410,9 +418,16 @@ export const AvlStateMachine: React.FC<AvlStateMachineProps> = ({
             </Box>
           </Box>
         ) : (
-          <Box className="flex items-center justify-center py-10">
-            <Typography variant="caption" color="muted">{t('avl.computingLayout')}</Typography>
-          </Box>
+          layoutFailed ? (
+            <Box role="alert" className="flex flex-col items-center justify-center gap-2 py-10">
+              <Typography variant="caption" color="muted">{t('avl.layoutFailed')}</Typography>
+              <Button variant="ghost" size="sm" label={t('common.retry')} onClick={() => setLayoutAttempt((n) => n + 1)} />
+            </Box>
+          ) : (
+            <Box className="flex items-center justify-center py-10">
+              <Typography variant="caption" color="muted">{t('avl.computingLayout')}</Typography>
+            </Box>
+          )
         )}
       </Box>
     </Box>

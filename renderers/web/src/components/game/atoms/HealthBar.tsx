@@ -154,7 +154,7 @@ export function HealthBar({
             />
           </Box>
           {showLabel && (
-            <Typography as="span" className={cn('text-foreground/70 tabular-nums', sizes.label)}>
+            <Typography as="span" className={cn('text-muted-foreground tabular-nums', sizes.label)}>
               {current} / {max}{labelSuffix ? ` ${labelSuffix}` : ''}
             </Typography>
           )}

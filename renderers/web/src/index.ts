@@ -31,9 +31,9 @@ export { dispatchInbound } from '@almadar/shell-runtime/client/inbound-dispatch'
 export { DEFAULT_THEME_KEY, inlineNavItems, appNavItems, sigilThemeKey } from '@almadar/shell-runtime/client/render-sigils';
 export { type TraitState, type TransitionObserver, type RollbackCause } from '@almadar/shell-runtime/client/trait-types';
 export { findInitialState, createInitialTraitState, findMatchingTransitions, findTransition, StateBook } from '@almadar/shell-runtime/client/state-book';
-export { type TraitSnapshot, type CircuitStore, createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
+export { type TraitSnapshot, type CircuitStore, type FrameOutcome, createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 export { type ClientKernelOutcome, type ClientDispatchHooks, type ClientMountHooks, type ClientMountOutcome, type ClientKernel, type LocalFoldKernel } from '@almadar/shell-runtime/client/client-kernel';
-export { mirrorResponse, traceResponse, type LocalFoldOptions, createLocalFold } from '@almadar/shell-runtime/client/local-fold';
+export { paintStates, paintFrames, paintResponse, traceResponse, type FramesSince, type LocalFoldOptions, createLocalFold } from '@almadar/shell-runtime/client/local-fold';
 export { deriveCarriesCircuitState, type EventTransportRegisterResult, type PushTarget, type EventTransport, type HostDispatchListener, type AccessTokenProvider, type HttpTransportOptions, COMPRESSED_BODY_MIN_BYTES, encodeJsonBody, createHttpTransport, type OrbitalEvaluator, type InProcessTransportOptions, createInProcessTransport } from '@almadar/shell-runtime/client/EventTransport';
 export { type ChannelMessage, type TransportChannel, type ChannelTransportOptions, createChannelTransport, type ServedChannel, serveChannel, holdUntilServed } from '@almadar/shell-runtime/client/channel-transport';
 export * from './runtime/index.js';

@@ -12,6 +12,7 @@ import React, { useRef, useEffect, useImperativeHandle, forwardRef } from 'react
 import { useThree, useFrame, type RootState } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { usePrefersReducedMotion } from '../../../core/hooks/usePrefersReducedMotion';
 
 export type CameraMode = 'isometric' | 'perspective' | 'top-down';
 
@@ -120,6 +121,8 @@ export const Camera3D = forwardRef<Camera3DHandle, Camera3DProps>(
             };
         }, [mode, fov, zoom, viewport.aspect, set]);
 
+        const reducedMotion = usePrefersReducedMotion();
+
         // Update camera on changes
         useFrame(() => {
             if (onChange) {
@@ -171,7 +174,7 @@ export const Camera3D = forwardRef<Camera3DHandle, Camera3DProps>(
                 minDistance={minDistance}
                 maxDistance={maxDistance}
                 maxPolarAngle={maxPolarAngle}
-                enableDamping
+                enableDamping={!reducedMotion}
                 dampingFactor={0.05}
             />
         );

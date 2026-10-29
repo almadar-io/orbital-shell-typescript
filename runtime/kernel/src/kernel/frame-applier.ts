@@ -8,64 +8,12 @@
  * never delays the next frame.
  */
 import type { FiredTick, FrameWire, RoutedLeg } from '@almadar/core/kernel-wire';
-import { isEventResponse } from '@almadar/core/kernel-wire';
+import { isFrameWire } from '@almadar/core/kernel-wire';
 import type { JsonValue, OrbitalEventResponse } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import type { ClientKernelOutcome, LocalFoldKernel } from '../client/client-kernel.js';
 
 const log = createLogger('almadar:shell-web:frame');
-
-type JsonRecord = { [key: string]: JsonValue };
-
-function isRecord(value: JsonValue | undefined): value is JsonRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isList(value: JsonValue | undefined, item: (entry: JsonValue) => boolean): boolean {
-  return Array.isArray(value) && value.every(item);
-}
-
-function isSeed(value: JsonValue | undefined): boolean {
-  return isRecord(value) && typeof value['trait'] === 'string' && typeof value['event'] === 'string';
-}
-
-function isRoutedLeg(value: JsonValue): boolean {
-  if (!isRecord(value) || typeof value['orbital'] !== 'string') return false;
-  const leg = value['leg'];
-  return isRecord(leg) && typeof leg['event'] === 'string';
-}
-
-function isFiredTick(value: JsonValue): boolean {
-  return isRecord(value) && typeof value['trait'] === 'string' && typeof value['tick'] === 'string';
-}
-
-function isFrameDispatch(value: JsonValue): boolean {
-  if (!isRecord(value)) return false;
-  const response = value['response'];
-  return (
-    typeof value['trait'] === 'string'
-    && typeof value['orbital'] === 'string'
-    && isSeed(value['seed'])
-    && response !== undefined && isEventResponse(response)
-    && isList(value['serverLegs'], isRoutedLeg)
-    && typeof value['mode'] === 'string'
-    && Array.isArray(value['awaiting'])
-    && Array.isArray(value['foldSeeded'])
-  );
-}
-
-export function isFrameWire(value: JsonValue): value is JsonValue & FrameWire {
-  if (!isRecord(value)) return false;
-  const response = value['response'];
-  return (
-    isList(value['fired'], isFiredTick)
-    && response !== undefined && isEventResponse(response)
-    && isList(value['dispatches'], isFrameDispatch)
-    && isList(value['browserLegs'], isRoutedLeg)
-    && typeof value['droppedServerEffects'] === 'number'
-    && isList(value['errors'], (entry) => typeof entry === 'string')
-  );
-}
 
 /** `frame()`'s JSON; `undefined` (no tick due) decodes to `undefined`. */
 export function decodeFrame(json: string | undefined): FrameWire | undefined {

@@ -16,6 +16,7 @@ import { EventBusProvider } from '../../../../core';
 import { useEventBus } from '../../../../core';
 import type { EventPayload } from '@almadar/core';
 import { type PreviewNodeData } from '../../../../lib/avl-preview-converter';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../../../test-support/kernel-engine';
 
 class ResizeObserverStub {
   observe(): void {}
@@ -36,6 +37,7 @@ class PointerEventStub extends MouseEvent {
 
 function schema(): OrbitalSchema {
   return {
+    typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: 'pause-app',
     version: '1.0.0',
     orbitals: [

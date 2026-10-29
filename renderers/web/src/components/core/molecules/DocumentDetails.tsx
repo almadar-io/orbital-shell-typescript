@@ -81,6 +81,9 @@ export interface DocumentDetailsProps extends A11yProps {
    *  hydrated relation value (or one row of a many-relation) is clicked —
    *  the host routes it to the linked record's own surface. */
   relationEvent?: EventEmit<{ field: string; id: string; name: string }>;
+  /** The kernel-injected `{ value, label }` options per relation field; a relation chip reads its label from the
+   *  option for its id (labelled by the relation's declared display field), else shows the record id. */
+  relationsData?: Readonly<Record<string, ReadonlyArray<{ value: string; label: string }>>>;
   /** Card heading (defaults to the localized "Details") */
   title?: string;
   className?: string;
@@ -117,6 +120,7 @@ export function DocumentDetails({
   fields,
   metaCommitEvent,
   relationEvent,
+  relationsData,
   title,
   className,
   ...rest
@@ -139,7 +143,7 @@ export function DocumentDetails({
   // A relation chip: plain when un-routed, a click-through when the host
   // wires `relationEvent` — the "linked entities are navigable" affordance.
   const relationChip = (item: FieldValue, name: string, labels: DocumentDetailsField['labels'], key?: number) => {
-    const label = relationLabel(item) ?? valueLabelFor(String(item), labels);
+    const label = relationLabel(item, relationsData?.[name]) ?? valueLabelFor(String(item), labels);
     if (!relationEvent) {
       return <Badge key={key} variant="default">{label}</Badge>;
     }
@@ -255,7 +259,7 @@ export function DocumentDetails({
     }
     const shown = raw === undefined || raw === null || raw === ''
       ? '—'
-      : relationLabel(raw) ?? formatValue(raw, field.format, fmt);
+      : relationLabel(raw, relationsData?.[name]) ?? formatValue(raw, field.format, fmt);
     return (
       <Box
         role="button"

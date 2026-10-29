@@ -207,7 +207,7 @@ const CASES: Record<string, EventWireFixture> = {
       transitioned: true,
       states: { NoteCatalog: 'browsing', NotePersistor: 'idle' },
       emittedEvents: [],
-      entityByTrait: { NotePersistor: { id: 'note-1', title: 'New title' } },
+      frames: { from: 0, to: 0, ops: [['set', { NotePersistor: { id: 'note-1', title: 'New title' } }]] },
     },
   },
 

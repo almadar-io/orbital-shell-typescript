@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FrameWire } from '@almadar/core/kernel-wire';
 import type { OrbitalEventResponse } from '@almadar/core';
-import { DispatchLane } from '../src/kernel/lane.js';
 import { createTickDriver, type TickKernelPort } from '../src/kernel/tick-driver.js';
 
 const flush = async (): Promise<void> => { for (let i = 0; i < 10; i += 1) await Promise.resolve(); };
@@ -33,13 +32,13 @@ function rig(ticks: number) {
   let hidden = false;
   let listener: (() => void) | undefined;
   const folded: string[] = [];
-  const lane = new DispatchLane();
+  const foldGate: { current: Promise<void> } = { current: Promise.resolve() };
   const driver = createTickDriver({
     kernel,
-    lane,
     client: {
       foldLocalResponse: async (_response: OrbitalEventResponse) => {
         folded.push('fold');
+        await foldGate.current;
       },
     },
     post: undefined,
@@ -56,14 +55,14 @@ function rig(ticks: number) {
     await flush();
   };
   return {
-    calls, folded, lane, driver, rafs, tickRaf,
+    calls, folded, foldGate, driver, rafs, tickRaf,
     setCount: (n: number) => { count = n; },
     setHidden: (h: boolean) => { hidden = h; listener?.(); },
   };
 }
 
 describe('tick driver (poll mode)', () => {
-  it('runs one frame per animation frame, inside a lane turn, and folds the result', async () => {
+  it('runs one frame per animation frame and folds the result', async () => {
     const r = rig(1);
     r.driver.start();
     await r.tickRaf();
@@ -73,33 +72,20 @@ describe('tick driver (poll mode)', () => {
     expect(r.calls).toEqual(['frame@16', 'frame@32']);
   });
 
-  it('queues frames FIFO behind a held lane and keeps only one pending', async () => {
+  it('a frame still folding skips the animation frames that arrive meanwhile, and the next one runs after it', async () => {
     const r = rig(1);
     r.driver.start();
-    const held = await r.lane.enter();
+    let finish: () => void = () => undefined;
+    r.foldGate.current = new Promise<void>((resolve) => { finish = resolve; });
     await r.tickRaf();
     await r.tickRaf();
     await r.tickRaf();
-    expect(r.calls).toEqual([]);
-    held.release();
-    await flush();
-    expect(r.calls).toEqual(['frame@48']);
-    await r.tickRaf();
-    expect(r.calls).toEqual(['frame@48', 'frame@64']);
-  });
-
-  it('a frame behind a held lane runs after the earlier turn, not before it', async () => {
-    const r = rig(1);
-    r.driver.start();
-    const order: string[] = [];
-    const held = await r.lane.enter();
-    await r.tickRaf();
-    const second = r.lane.enter().then((g) => { order.push(`other:${r.calls.length}`); g.release(); });
-    held.release();
-    await second;
-    await flush();
     expect(r.calls).toEqual(['frame@16']);
-    expect(order).toEqual(['other:1']);
+    finish();
+    r.foldGate.current = Promise.resolve();
+    await flush();
+    await r.tickRaf();
+    expect(r.calls).toEqual(['frame@16', 'frame@64']);
   });
 
   it('pauses on hidden, stops polling, and resumes with no backlog', async () => {

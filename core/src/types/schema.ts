@@ -125,9 +125,16 @@ export const SiteMetaSchema = z.object({
 /** A program's merged message catalogs: locale → qualified key (`<behavior>:<key>`) → message. `orb resolve` writes one `<stem>.<locale>.json` per locale. */
 export type MessageCatalogs = Record<string, Record<string, string>>;
 
+/** The compiler's resolution stamp (`ResolvedMark` in orbital-core): the `orb` version that resolved the program and its type-contract version. */
+export interface ResolvedMark {
+  orb: string;
+  typeContractVersion: 1;
+}
+
 export interface OrbitalSchema {
   types?: Record<string, EventPayloadField[]>;
   typeContractVersion?: 1;
+  resolved?: ResolvedMark;
   /** Application name */
   name: string;
 
@@ -269,6 +276,7 @@ export const SchemaMetadataSchema = z.object({
 export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, object> = z.object({
   types: z.record(z.string(), TypeAliasMembersSchema).optional(),
   typeContractVersion: z.literal(1).optional(),
+  resolved: z.object({ orb: z.string(), typeContractVersion: z.literal(1) }).optional(),
   name: z.string().min(1, "Schema name is required"),
   description: z.string().optional(),
   theme: ThemeRefSchema.optional(),

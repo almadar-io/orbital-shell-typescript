@@ -57,4 +57,16 @@ describe('AvlStateMachine accessibility', () => {
     await renderMachine({ role: 'group', 'aria-label': 'Order flow' });
     expect(screen.getByRole('group', { name: 'Order flow' })).toBeTruthy();
   });
+
+  it('a pending transition source is stated in text, not only by a dashed border (G-ORBITAL-SHELL-TYPESCRIPT-062)', async () => {
+    await renderMachine({ stateClickEvent: 'PICK', pendingSourceState: 'a' });
+    const [a, b] = screen.getAllByTestId('avl-sm-state');
+    expect(a.textContent).toContain('Transition source selected');
+    expect(b.textContent).not.toContain('Transition source selected');
+  });
+
+  it('control: no pending source adds no such text', async () => {
+    await renderMachine({ stateClickEvent: 'PICK' });
+    for (const n of screen.getAllByTestId('avl-sm-state')) expect(n.textContent).not.toContain('Transition source selected');
+  });
 });

@@ -12,6 +12,11 @@ import { cn } from "../lib/cn";
 export type DividerOrientation = "horizontal" | "vertical";
 export type DividerVariant = "solid" | "dashed" | "dotted";
 
+/**
+ * @role separator
+ * @tokens --color-border
+ * @motion none
+ */
 export interface DividerProps extends A11yProps {
   /**
    * Orientation of the divider

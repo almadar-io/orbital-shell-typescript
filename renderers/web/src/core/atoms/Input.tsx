@@ -11,7 +11,13 @@ export interface SelectOption {
   label: string;
 }
 
-/** @accessibleName label */
+/**
+ * @accessibleName label
+ * @role textbox
+ * @tokens --color-card --color-border --color-foreground --color-muted-foreground
+ * @contrast foreground card
+ * @motion css
+ */
 export interface InputProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   "onChange" | Exclude<keyof A11yProps, "role" | "dir">

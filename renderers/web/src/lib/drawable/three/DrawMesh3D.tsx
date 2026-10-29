@@ -14,6 +14,7 @@
  */
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { usePrefersReducedMotion } from '../../../core/hooks/usePrefersReducedMotion';
 import * as THREE from 'three';
 import {
     applyMeshAnimation,
@@ -307,8 +308,9 @@ export function Mesh3D({
         return () => g?.dispose();
     }, [geo]);
 
+    const reducedMotion = usePrefersReducedMotion();
     useFrame(({ clock }) => {
-        if (!animated || !groupRef.current) return;
+        if (!animated || reducedMotion || !groupRef.current) return;
         const state = applyMeshAnimation(node, clock.elapsedTime * 1000);
         if (!state) return;
         const [wx, wy, wz] = baseWorld;

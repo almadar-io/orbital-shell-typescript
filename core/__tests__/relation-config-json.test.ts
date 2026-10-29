@@ -16,6 +16,12 @@ describe('RelationConfigSchema — parse output is JSON', () => {
     expect(parsed).toStrictEqual({ entity: 'Apiary', cardinality: 'many', field: 'hives', onDelete: 'cascade' });
   });
 
+  it('the declared display field survives parsing, and is absent when undeclared', () => {
+    expect(RelationConfigSchema.parse({ entity: 'Staff', cardinality: 'one', display: 'callsign' })).toStrictEqual({ entity: 'Staff', cardinality: 'one', display: 'callsign' });
+    expect('display' in RelationConfigSchema.parse({ entity: 'Staff' })).toBe(false);
+    expect(RelationConfigSchema.safeParse({ entity: 'Staff', display: '' }).success).toBe(false);
+  });
+
   it('edge: the legacy `type` still normalizes to cardinality', () => {
     const parsed = RelationConfigSchema.parse({ entity: 'Apiary', type: 'one' });
     expect(parsed).toStrictEqual({ entity: 'Apiary', cardinality: 'one' });

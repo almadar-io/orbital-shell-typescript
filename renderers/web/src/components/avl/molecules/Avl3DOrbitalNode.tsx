@@ -15,7 +15,7 @@ import { useFrame } from '@react-three/fiber';
 import { MathUtils, type Group } from 'three';
 import { AVL_3D_COLORS } from '../../../lib/avl-3d-layout';
 import { useAvl3DPalette } from '../../../providers/avl-3d-context';
-import { useTranslate } from '../../../core';
+import { useTranslate, usePrefersReducedMotion } from '../../../core';
 import { Avl3DLabel } from '../atoms/Avl3DLabel';
 import { Avl3DTooltip } from '../atoms/Avl3DTooltip';
 import { AVL_INK } from '../../../lib/avl-theme';
@@ -68,8 +68,13 @@ export const Avl3DOrbitalNode: React.FC<Avl3DOrbitalNodeProps> = ({
   const currentScale = useRef(scale);
   const targetScale = hovered ? scale * 1.06 : scale;
 
+  const reducedMotion = usePrefersReducedMotion();
   useFrame((_, delta) => {
     if (!groupRef.current) return;
+    if (reducedMotion) {
+      currentScale.current = targetScale;
+      return;
+    }
     // Gentle rotation (faster on hover)
     groupRef.current.rotation.y += delta * (hovered ? 0.4 : 0.2);
     groupRef.current.rotation.x += delta * 0.05;

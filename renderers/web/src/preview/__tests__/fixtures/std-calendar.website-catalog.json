@@ -231,7 +231,6 @@
         ],
         "traits": [
           {
-            "category": "interaction",
             "config": {
               "agendaGroupBy": {
                 "default": "date",
@@ -1196,7 +1195,6 @@
             "linkedEntity": "CalendarEvent",
             "linkedEntityId": "ent_01KXG04FWZKHSSDTZ2XFJT005R",
             "name": "CalendarEventCalendar",
-            "scope": "collection",
             "stateMachine": {
               "events": [
                 {

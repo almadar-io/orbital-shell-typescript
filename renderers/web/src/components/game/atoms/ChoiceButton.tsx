@@ -71,7 +71,7 @@ export function ChoiceButton({
           as="span"
           className={cn(
             'flex-shrink-0 font-mono font-bold text-sm',
-            selected ? 'text-accent' : 'text-muted-foreground'
+            selected ? 'text-foreground' : 'text-muted-foreground'
           )}
         >
           {index}.

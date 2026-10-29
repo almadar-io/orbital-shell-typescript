@@ -7,6 +7,11 @@ import { useTranslate } from "../hooks/useTranslate";
 export type TrendDirection = "up" | "down" | "flat";
 export type TrendIndicatorSize = "sm" | "md" | "lg";
 
+/**
+ * @role status
+ * @tokens --color-success --color-error --color-muted-foreground
+ * @motion none
+ */
 export interface TrendIndicatorProps extends Omit<React.HTMLAttributes<HTMLSpanElement>, keyof A11yProps>, A11yProps {
   /** Additional CSS classes applied to the root element. */
   className?: string;

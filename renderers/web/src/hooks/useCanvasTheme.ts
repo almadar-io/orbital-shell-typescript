@@ -8,7 +8,8 @@ import { resolveCanvasTheme } from '../lib/canvasTheme';
  * theme changes. `version` changes with every re-resolution, so a surface that paints imperatively
  * puts it in its draw dependencies and repaints on a theme switch. Null until the scope mounts.
  */
-export function useCanvasTheme(scopeRef: RefObject<Element | null>): { theme: CanvasTheme | null; version: number } {
+/** `scopePresent` is false while the scope element is not rendered (a loading or empty state); the theme resolves when it turns true. */
+export function useCanvasTheme(scopeRef: RefObject<Element | null>, scopePresent = true): { theme: CanvasTheme | null; version: number } {
   const { appliedTheme } = useTheme();
   const scopeKey = JSON.stringify(useThemeScope());
   const [state, setState] = useState<{ theme: CanvasTheme | null; version: number }>({ theme: null, version: 0 });
@@ -18,7 +19,7 @@ export function useCanvasTheme(scopeRef: RefObject<Element | null>): { theme: Ca
     if (!scope) return;
     const theme = resolveCanvasTheme(scope);
     setState((prev) => ({ theme, version: prev.version + 1 }));
-  }, [appliedTheme, scopeKey, scopeRef]);
+  }, [appliedTheme, scopeKey, scopeRef, scopePresent]);
 
   return state;
 }

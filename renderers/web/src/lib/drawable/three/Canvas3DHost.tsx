@@ -63,6 +63,7 @@ import { useOnScreen } from '../../../hooks/useOnScreen';
 import { markColor, withSeries } from '../../canvasTheme';
 import { applySceneMaterials, resolveDrawableColors } from '../themeDrawables';
 import { cn } from '../../../core';
+import { usePrefersReducedMotion } from '../../../core/hooks/usePrefersReducedMotion';
 import './Canvas3DHost.css';
 
 // Re-export types for convenience
@@ -391,6 +392,7 @@ export const Canvas3DHost = forwardRef<Canvas3DHostHandle, Canvas3DHostProps>(
         ref
     ) => {
         const containerRef = useRef<HTMLDivElement>(null);
+        const reducedMotion = usePrefersReducedMotion();
         // Off screen or in a hidden tab the scene stops rendering frames.
         const onScreen = useOnScreen(containerRef);
         const controlsRef = useRef<OrbitControlsImpl | null>(null);
@@ -930,7 +932,7 @@ export const Canvas3DHost = forwardRef<Canvas3DHostHandle, Canvas3DHostProps>(
                             ref={controlsRef}
                             enabled={controlsEnabled && !editable && cameraMode !== 'follow' && cameraMode !== 'chase'}
                             target={cameraTarget}
-                            enableDamping
+                            enableDamping={!reducedMotion}
                             dampingFactor={0.05}
                             enableZoom
                             enablePan

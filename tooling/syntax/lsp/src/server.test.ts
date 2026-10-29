@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { jsonPathToPosition } from './json-path.js';
+import { diagnosticFor } from './diagnostic.js';
+import { DiagnosticSeverity } from 'vscode-languageserver/node';
 import { resolveOrbBinary } from './binary-resolution.js';
 import { execFileSync } from 'child_process';
 import * as path from 'path';
@@ -242,5 +244,30 @@ describe('orb validate CLI', () => {
         } finally {
             try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
         }
+    });
+});
+
+describe('diagnosticFor', () => {
+    const source = 'app probe [ version: "1.0.0" ]\norbital Probe {\n  entity Item [runtime] {}\n}\n';
+    const item = { code: 'ORB_X', path: 'orbitals.Probe', message: 'broken', suggestion: 'fix it' };
+
+    it('underlines exactly the span the CLI reports', () => {
+        const d = diagnosticFor(source, { ...item, line: 3, column: 3, endLine: 3, endColumn: 9 }, DiagnosticSeverity.Error);
+        expect(d.range).toEqual({ start: { line: 2, character: 2 }, end: { line: 2, character: 8 } });
+        expect(d.severity).toBe(DiagnosticSeverity.Error);
+        expect(d.message).toBe('broken\n💡 fix it');
+    });
+
+    it('turns an approximate span into a hint', () => {
+        const d = diagnosticFor(source, { ...item, line: 2, column: 1, endLine: 2, endColumn: 8, approximate: true }, DiagnosticSeverity.Warning);
+        expect(d.severity).toBe(DiagnosticSeverity.Hint);
+        expect(d.range.end).toEqual({ line: 1, character: 7 });
+    });
+
+    it('control: a finding with no span keeps its path position and its severity', () => {
+        const d = diagnosticFor('{\n  "name": "t"\n}', { code: 'C', path: 'name', message: 'm' }, DiagnosticSeverity.Warning);
+        expect(d.severity).toBe(DiagnosticSeverity.Warning);
+        expect(d.range.start.line).toBe(1);
+        expect(d.range.end.character).toBe('  "name": "t"'.length);
     });
 });

@@ -11,6 +11,7 @@ import type { EventTransport, EventTransportRegisterResult } from '../../src';
 import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
 import type { EntityRow, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
+import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const rows: EntityRow[] = [{ id: 't1', title: 'Pour' }, { id: 't2', title: 'Frame' }];
 
@@ -92,6 +93,7 @@ const binding = (name: string): ResolvedTraitBinding => ({ trait: createEmptyRes
 async function mounted() {
   const slots = stubSlots();
   const hook = renderHook(() => useTraitStateMachine(['Feed', 'Body'].map(binding), slots, {
+    stamp: TEST_STAMP,
     orbitals,
     routePath: '/diary',
     transport: new Server(),

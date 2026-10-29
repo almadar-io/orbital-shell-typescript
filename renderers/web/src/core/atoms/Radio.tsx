@@ -10,7 +10,12 @@ import { cn } from "../lib/cn";
 import { useEventBus } from "../hooks/useEventBus";
 import { domPassthrough } from "../lib/domPassthrough";
 
-/** @accessibleName label */
+/**
+ * @accessibleName label
+ * @role radio
+ * @tokens --color-primary --color-border --color-foreground
+ * @motion css
+ */
 export interface RadioProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   "type" | "size" | keyof A11yProps

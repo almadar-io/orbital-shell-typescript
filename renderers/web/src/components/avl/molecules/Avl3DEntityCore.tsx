@@ -14,7 +14,7 @@ import { useFrame } from '@react-three/fiber';
 import type { Mesh } from 'three';
 import { AVL_3D_COLORS, persistencePaletteKey } from '../../../lib/avl-3d-layout';
 import { useAvl3DPalette } from '../../../providers/avl-3d-context';
-import { useTranslate } from '../../../core';
+import { useTranslate, usePrefersReducedMotion } from '../../../core';
 import { Avl3DLabel } from '../atoms/Avl3DLabel';
 import { AVL_INK } from '../../../lib/avl-theme';
 
@@ -77,8 +77,9 @@ export const Avl3DEntityCore: React.FC<Avl3DEntityCoreProps> = ({
   const { t } = useTranslate();
 
   // Slow rotation for visual interest
+  const reducedMotion = usePrefersReducedMotion();
   useFrame((_, delta) => {
-    if (!coreRef.current) return;
+    if (!coreRef.current || reducedMotion) return;
     coreRef.current.rotation.y += delta * 0.3;
     coreRef.current.rotation.x += delta * 0.1;
   });

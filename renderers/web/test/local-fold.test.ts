@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { OrbitalEventResponse } from '@almadar/core';
 import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
-import type { FrameWire } from '@almadar/core/kernel-wire';
+import type { FrameDelta, FrameWire } from '@almadar/core/kernel-wire';
 import { applyFrame } from '../src/kernel/frame-applier.js';
 import { createLocalFold } from '@almadar/shell-runtime/client/local-fold';
 
@@ -9,7 +9,7 @@ const response: OrbitalEventResponse = {
   success: true,
   transitioned: true,
   states: { T: 'running' },
-  entityByTrait: { T: { n: 2 }, Ghost: { n: 9 } },
+  frames: { session: '$program', from: 0, to: 1, ops: [['clear'], ['put', 'T-frame', { n: 2 }]] },
   emittedEvents: [],
   transitions: [{ trait: 'T', from: 'idle', to: 'running', event: 'GO', effects: [] }],
 };
@@ -22,14 +22,14 @@ describe('local fold', () => {
     store.subscribe(() => { notified += 1; });
     const fold = createLocalFold({
       store,
-      frameKeyOf: (trait) => (trait === 'T' ? 'T-frame' : undefined),
+      framesSince: () => ({ session: '$program', from: 0, to: 1, ops: [['clear']] }),
       observer: { onTransition: (t) => { hops.push(t.event); } },
     });
     await fold.foldLocalResponse(response, false, true);
     expect(hops).toEqual([]);
     expect(store.states.getState('T')?.currentState).toBe('running');
     expect(store.frames.get('T-frame')).toEqual({ n: 2 });
-    expect(store.frames.has('Ghost')).toBe(false);
+    expect(store.frameVersion).toBe(1);
     expect(notified).toBe(1);
     await fold.foldLocalResponse(response, true, false);
     expect(hops).toEqual(['GO']);
@@ -40,7 +40,7 @@ describe('local fold', () => {
     const store = createMemoryCircuitStore();
     let notified = 0;
     store.subscribe(() => { notified += 1; });
-    const fold = createLocalFold({ store, frameKeyOf: () => undefined });
+    const fold = createLocalFold({ store, framesSince: () => ({ session: '$program', from: 0, to: 0, ops: [] }) });
     const frame: FrameWire = {
       fired: [], response, droppedServerEffects: 0, errors: [], browserLegs: [],
       dispatches: [1, 2].map(() => ({
@@ -52,18 +52,59 @@ describe('local fold', () => {
     expect(notified).toBe(1);
   });
 
-  it('a delta row folded over an existing frame keeps the fields it does not name', async () => {
+  it('a set delta folded over an existing frame keeps the fields it does not name', async () => {
     const store = createMemoryCircuitStore();
     store.frames.set('T-frame', { id: 'r1', n: 1, items: ['a', 'b'] });
-    const fold = createLocalFold({ store, frameKeyOf: (trait) => (trait === 'T' ? 'T-frame' : undefined) });
-    await fold.foldLocalResponse({ ...response, entityByTrait: { T: { id: 'r1', n: 2 } } }, false, true);
+    const fold = createLocalFold({ store, framesSince: () => ({ session: '$program', from: 0, to: 0, ops: [] }) });
+    await fold.foldLocalResponse({ ...response, frames: { from: 0, to: 0, ops: [['set', { 'T-frame': { n: 2 } }]] } }, false, true);
     expect(store.frames.get('T-frame')).toEqual({ id: 'r1', n: 2, items: ['a', 'b'] });
   });
 
-  it('control: a delta for a trait never seen creates a frame of just those fields', async () => {
+  it('control: a set for a frame never seen creates a frame of just that field', async () => {
     const store = createMemoryCircuitStore();
-    const fold = createLocalFold({ store, frameKeyOf: (trait) => (trait === 'T' ? 'T-frame' : undefined) });
-    await fold.foldLocalResponse({ ...response, entityByTrait: { T: { id: 'r1', n: 2 } } }, false, true);
-    expect(store.frames.get('T-frame')).toEqual({ id: 'r1', n: 2 });
+    const fold = createLocalFold({ store, framesSince: () => ({ session: '$program', from: 0, to: 0, ops: [] }) });
+    await fold.foldLocalResponse({ ...response, frames: { from: 0, to: 0, ops: [['set', { 'T-frame': { n: 2 } }]] } }, false, true);
+    expect(store.frames.get('T-frame')).toEqual({ n: 2 });
+  });
+});
+
+describe('the store paints frame deltas by version', () => {
+  const delta = (from: number, to: number, ops: FrameDelta['ops']): FrameDelta => ({ session: '$program', from, to, ops });
+
+  it('applies a delta at its from version and a repeat of it changes nothing', () => {
+    const store = createMemoryCircuitStore();
+    expect(store.applyFrames(delta(0, 1, [['put', 'F', { n: 1 }]]))).toBe('applied');
+    expect(store.applyFrames(delta(1, 2, [['set', { 'F': { n: 2 } }]]))).toBe('applied');
+    expect(store.applyFrames(delta(1, 2, [['set', { 'F': { n: 2 } }]]))).toBe('stale');
+    expect(store.frames.get('F')).toEqual({ n: 2 });
+    expect(store.frameVersion).toBe(2);
+  });
+
+  it('a stale repaint does not overwrite a newer value', () => {
+    const store = createMemoryCircuitStore();
+    store.applyFrames(delta(0, 1, [['put', 'F', { n: 1 }]]));
+    store.applyFrames(delta(1, 2, [['set', { 'F': { n: 2 } }]]));
+    expect(store.applyFrames(delta(0, 1, [['clear'], ['put', 'F', { n: 1 }]]))).toBe('applied');
+    store.applyFrames(delta(1, 2, [['set', { 'F': { n: 2 } }]]));
+    expect(store.applyFrames(delta(0, 1, [['set', { 'F': { n: 1 } }]]))).toBe('stale');
+    expect(store.frames.get('F')).toEqual({ n: 2 });
+  });
+
+  it('a gap applies nothing and the snapshot heals it', () => {
+    const store = createMemoryCircuitStore();
+    store.applyFrames(delta(0, 1, [['put', 'F', { n: 1 }]]));
+    expect(store.applyFrames(delta(3, 4, [['set', { 'F': { n: 4 } }]]))).toBe('gap');
+    expect(store.frames.get('F')).toEqual({ n: 1 });
+    expect(store.applyFrames(delta(0, 4, [['clear'], ['put', 'F', { n: 4, m: 1 }]]))).toBe('applied');
+    expect(store.frames.get('F')).toEqual({ n: 4, m: 1 });
+    expect(store.applyFrames(delta(4, 5, [['del', 'F']]))).toBe('applied');
+    expect(store.frames.has('F')).toBe(false);
+  });
+
+  it('an unversioned delta applies wherever it lands and moves no version', () => {
+    const store = createMemoryCircuitStore();
+    expect(store.applyFrames({ from: 0, to: 0, ops: [['set', { 'F': { n: 7 } }]] })).toBe('applied');
+    expect(store.frameVersion).toBe(0);
+    expect(store.frames.get('F')).toEqual({ n: 7 });
   });
 });

@@ -171,7 +171,7 @@ function CompactView({
                                 display="inline-flex"
                                 className={cn('items-center gap-1 px-2 py-1 rounded bg-muted', config.fontSize)}
                             >
-                                <Typography variant="caption" className="text-accent">{transition.event}</Typography>
+                                <Typography variant="caption" className="text-foreground">{transition.event}</Typography>
                                 <Typography variant="caption" className="text-muted-foreground">{'\u2192'}</Typography>
                                 <Typography variant="caption" className="text-success">{transition.to}</Typography>
                                 {transition.guardHint && (
@@ -249,7 +249,7 @@ function FullView({
                                 className={cn(
                                     config.fontSize,
                                     'whitespace-nowrap',
-                                    isCurrent ? 'text-primary font-bold' : 'text-foreground/80',
+                                    isCurrent ? 'text-primary font-bold' : 'text-foreground',
                                 )}
                             >
                                 {state}
@@ -283,13 +283,13 @@ function FullView({
                                     <Typography variant="caption" className="text-muted-foreground">
                                         {'\u2014['}
                                     </Typography>
-                                    <Typography variant="caption" className="text-accent font-medium">
+                                    <Typography variant="caption" className="text-foreground font-medium">
                                         {transition.event}
                                     </Typography>
                                     <Typography variant="caption" className="text-muted-foreground">
                                         {']\u2192'}
                                     </Typography>
-                                    <Typography variant="caption" className={isActive ? 'text-success font-medium' : 'text-foreground/70'}>
+                                    <Typography variant="caption" className={isActive ? 'text-success font-medium' : 'text-muted-foreground'}>
                                         {transition.to}
                                     </Typography>
                                     {transition.guardHint && (
@@ -319,7 +319,7 @@ function FullView({
                                 display="inline-flex"
                                 className="items-center gap-1 px-2 py-1 rounded bg-primary/10 border border-primary/30 text-xs"
                             >
-                                <Typography variant="caption" className="text-accent font-medium">{t.event}</Typography>
+                                <Typography variant="caption" className="text-foreground font-medium">{t.event}</Typography>
                                 <Typography variant="caption" className="text-muted-foreground">{'\u2192'}</Typography>
                                 <Typography variant="caption" className="text-success">{t.to}</Typography>
                             </Box>

@@ -42,6 +42,7 @@ export class KernelEngine {
     forkedFrom?: KernelServerHandle,
     providedHandle?: KernelServerHandle,
     private readonly preserveProgramContext = false,
+    private readonly lazyDir?: string,
   ) {
     installKernelEvaluator(kernel);
     this.ports = {
@@ -59,7 +60,7 @@ export class KernelEngine {
    * fork (EXEC-DIST-5), `ports` answering it.
    */
   fork(ports: KernelHostPorts = this.ports): KernelEngine {
-    const forked = new KernelEngine(this.kernel, this.schemaJson, ports, this.entityTypes, this.handle, undefined, this.preserveProgramContext);
+    const forked = new KernelEngine(this.kernel, this.schemaJson, ports, this.entityTypes, this.handle, undefined, this.preserveProgramContext, this.lazyDir);
     forked.tickMount = this.tickMount;
     forked.messages = this.messages;
     return forked;
@@ -76,7 +77,7 @@ export class KernelEngine {
 
   /** A server over the host's ports. */
   private openServer(): KernelServerHandle {
-    return new this.kernel.Server(this.schemaJson);
+    return new this.kernel.Server(this.schemaJson, this.lazyDir);
   }
 
   private declare(): void {
@@ -84,8 +85,8 @@ export class KernelEngine {
     declareCapabilities(this.ports.persistence, (entityType, queryJson, writeJson) => handle.setCapabilities(entityType, queryJson, writeJson), this.entityTypes);
   }
 
-  static open(kernel: KernelModule, schema: OrbitalSchema, ports: KernelHostPorts): KernelEngine {
-    return new KernelEngine(kernel, JSON.stringify(schema), ports, declaredEntityTypes(schema));
+  static open(kernel: KernelModule, schema: OrbitalSchema, ports: KernelHostPorts, lazyDir?: string): KernelEngine {
+    return new KernelEngine(kernel, JSON.stringify(schema), ports, declaredEntityTypes(schema), undefined, undefined, false, lazyDir);
   }
 
   /** A fresh kernel on the same program: every trait back at its initial state. */

@@ -22,6 +22,11 @@ export type ProgressBarVariant =
   | "danger"; // backward-compat alias for 'error'
 export type ProgressBarColor = ProgressBarVariant;
 
+/**
+ * @role progressbar
+ * @tokens --color-primary --color-muted --color-error --color-warning --color-foreground
+ * @motion css
+ */
 export interface ProgressBarProps extends A11yProps {
   /**
    * Progress value (0-100)

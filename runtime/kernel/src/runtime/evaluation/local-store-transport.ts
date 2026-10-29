@@ -32,6 +32,7 @@ export interface LocalKernelOptions {
   /** Where a follow-on call's outcome is dispatched; absent, nowhere. */
   deferCallOutcome?: KernelHostPorts['deferCallOutcome'];
   pageFacts?: KernelHostPorts['pageFacts'];
+  hostActions?: KernelHostPorts['hostActions'];
   http?: HttpPorts;
   onDevice?: OnDeviceModelPorts;
   tabs?: BrowserTabPort;
@@ -66,6 +67,7 @@ export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
     deliverLive: () => undefined,
     deferCallOutcome: options.deferCallOutcome ?? (() => undefined),
     ...(options.pageFacts !== undefined ? { pageFacts: options.pageFacts } : {}),
+    ...(options.hostActions !== undefined ? { hostActions: options.hostActions } : {}),
     ...(options.http !== undefined ? { http: options.http } : {}),
     ...(options.onDevice !== undefined ? { onDevice: options.onDevice } : {}),
     ...(options.tabs !== undefined ? { tabs: options.tabs } : {}),

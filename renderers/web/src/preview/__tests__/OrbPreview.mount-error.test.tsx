@@ -8,6 +8,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { TRAIT_MOUNT_ERROR_TESTID, type OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 const footer = {
   name: 'Footer', linkedEntity: 'Item',
@@ -19,6 +20,7 @@ const footer = {
 
 function schemaWith(items: string | string[]): OrbitalSchema {
   return JSON.parse(JSON.stringify({
+    typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: 'nav-app',
     version: '1.0.0',
     orbitals: [{

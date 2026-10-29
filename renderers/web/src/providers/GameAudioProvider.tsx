@@ -2,12 +2,9 @@
 /**
  * GameAudioProvider
  *
- * Context provider that wires the audio system to the Almadar event bus.
- * Wrap your game organism with this provider, then emit:
- *
- *   emit('UI:PLAY_SOUND', { key: 'footstep' })
- *
- * from anywhere inside the tree and the corresponding sound will play.
+ * Context provider that owns the game audio. While it is mounted, the kernel's
+ * `audio/play-sound`, `audio/stop-sound`, `audio/change-music` and `audio/stop-music`
+ * asks drive it.
  *
  * The provider also exposes `muted`/`setMuted` and `masterVolume`/
  * `setMasterVolume` via the `GameAudioContext` for toggle buttons.
@@ -19,7 +16,7 @@
  */
 
 import React, { createContext, useContext, useEffect } from 'react';
-import { useEventBus } from '../core';
+import { registerHostAudio } from '../lib/host-actions';
 import { useGameAudio, type AudioManifest, type GameAudioControls } from '../hooks/useGameAudio';
 import type { UiError } from '../core';
 
@@ -85,46 +82,20 @@ export function GameAudioProvider({
     children,
     initialMuted = false,
 }: GameAudioProviderProps): React.JSX.Element {
-    const eventBus = useEventBus();
     const { play, stop, stopAll, playMusic, stopMusic, muted, setMuted, masterVolume, setMasterVolume } =
         useGameAudio({ manifest, baseUrl, initialMuted });
 
-    // Listen to events emitted from anywhere in the tree
-    useEffect(() => {
-        const unsubPlay = eventBus.on('UI:PLAY_SOUND', (event) => {
-            const key = event.payload?.key as string | undefined;
-            if (key) play(key);
-        });
-
-        const unsubStop = eventBus.on('UI:STOP_SOUND', (event) => {
-            const key = event.payload?.key as string | undefined;
-            if (key) {
-                stop(key);
-            } else {
-                stopAll();
-            }
-        });
-
-        const unsubChangeMusic = eventBus.on('UI:CHANGE_MUSIC', (event) => {
-            const key = event.payload?.key as string | undefined;
-            if (key) {
-                playMusic(key);
-            } else {
-                stopMusic();
-            }
-        });
-
-        const unsubStopMusic = eventBus.on('UI:STOP_MUSIC', () => {
-            stopMusic();
-        });
-
-        return () => {
-            unsubPlay();
-            unsubStop();
-            unsubChangeMusic();
-            unsubStopMusic();
-        };
-    }, [eventBus, play, stop, stopAll, playMusic, stopMusic]);
+    // The `audio/*` asks the kernel makes reach this provider's audio
+    useEffect(() => registerHostAudio((ask) => {
+        if (ask.op === 'audio/play-sound') play(ask.key);
+        else if (ask.op === 'audio/stop-sound') {
+            if (ask.key !== undefined) stop(ask.key);
+            else stopAll();
+        } else if (ask.op === 'audio/change-music') {
+            if (ask.key !== undefined) playMusic(ask.key);
+            else stopMusic();
+        } else stopMusic();
+    }), [play, stop, stopAll, playMusic, stopMusic]);
 
     const value: GameAudioContextValue = { muted, setMuted, masterVolume, setMasterVolume, play, playMusic, stopMusic };
 

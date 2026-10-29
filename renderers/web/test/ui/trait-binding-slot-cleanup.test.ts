@@ -25,6 +25,7 @@ import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import { useUISlotManager, ALL_SLOTS, type UISlotManager } from '../../src/hooks/useUISlots';
 import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
+import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 describe('diffDroppedTraitNames — pure trait-set diff', () => {
   it('names a trait present in prev but absent from next', () => {
@@ -185,7 +186,7 @@ describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
 
     const { rerender } = renderHook(
       ({ bindings }: { bindings: ResolvedTraitBinding[] }) =>
-        useTraitStateMachine(bindings, slots, { orbitals }),
+        useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals }),
       { initialProps: { bindings: pageA } },
     );
     rerender({ bindings: pageB });
@@ -211,7 +212,7 @@ describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
 
     const { rerender } = renderHook(
       ({ bindings }: { bindings: ResolvedTraitBinding[] }) =>
-        useTraitStateMachine(bindings, slots, { orbitals }),
+        useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals }),
       { initialProps: { bindings: pageA } },
     );
     slots.clearBySource.mockClear();
@@ -233,7 +234,7 @@ describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
 
     const { rerender } = renderHook(
       ({ bindings }: { bindings: ResolvedTraitBinding[] }) =>
-        useTraitStateMachine(bindings, slots, { orbitals, routePath: '/new' }),
+        useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals, routePath: '/new' }),
       { initialProps: { bindings: pageA } },
     );
 

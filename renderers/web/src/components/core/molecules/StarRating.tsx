@@ -19,7 +19,12 @@ function useSafeEventBus() {
 export type StarRatingSize = "sm" | "md" | "lg";
 export type StarRatingPrecision = "full" | "half";
 
-/** @accessibleName label */
+/**
+ * @accessibleName label
+ * @role img
+ * @tokens --color-warning --color-muted-foreground
+ * @motion css
+ */
 export interface StarRatingProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
   /** Current rating value */
   value?: number;
@@ -155,7 +160,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
               name="star"
               className={cn(
                 styles.star,
-                "text-foreground/30",
+                "text-muted-foreground",
                 "transition-colors duration-instant",
               )}
               strokeWidth={1.5}

@@ -9,6 +9,7 @@ import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { EventPayload, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
+import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const host: Trait = {
   name: 'Host', linkedEntity: 'Item',
@@ -49,6 +50,7 @@ const binding = (name: string): ResolvedTraitBinding => ({ trait: createEmptyRes
 async function mounted() {
   const slots = stubSlots();
   const hook = renderHook(() => useTraitStateMachine(['Host', 'Feed', 'Leaf'].map(binding), slots, {
+    stamp: TEST_STAMP,
     orbitals,
     callsiteCaptureChildrenByTrait: new Map([['Host', new Set(['Feed'])], ['Feed', new Set(['Leaf'])]]),
   }));

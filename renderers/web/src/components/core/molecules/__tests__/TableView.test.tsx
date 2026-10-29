@@ -43,14 +43,15 @@ describe('TableView relation columns', () => {
     expect(screen.queryByText('staff-42')).not.toBeInTheDocument();
   });
 
-  it('renders a hydrated relation row by its label even without relationsData', () => {
+  it('renders a hydrated relation row by its id when no relationsData declares its label', () => {
     renderWithProvider(
       <TableView
         entity={[{ id: '1', title: 'Jane Doe', interviewerName: { id: 'staff-42', name: 'Sam Staff' } }]}
         columns={columns}
       />,
     );
-    expect(screen.getByText('Sam Staff')).toBeInTheDocument();
+    expect(screen.getByText('staff-42')).toBeInTheDocument();
+    expect(screen.queryByText('Sam Staff')).toBeNull();
   });
 
   it('resolves the label inside a badge-format relation column too', () => {

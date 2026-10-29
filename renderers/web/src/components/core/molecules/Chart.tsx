@@ -946,7 +946,7 @@ export const Chart: React.FC<ChartProps> = ({
     }
 
     return contentSurface.provide(
-        <Box className={cn(contentSurface.className, "p-6 rounded-container", className)} {...domPassthrough(rest)}>
+        <Box role="group" aria-label={rest['aria-label'] ?? t('aria.chart')} className={cn(contentSurface.className, "p-6 rounded-container", className)} {...domPassthrough(rest)}>
             <VStack gap="md">
                 {(title || subtitle || (actions && actions.length > 0)) && (
                     <HStack justify="between" align="start">

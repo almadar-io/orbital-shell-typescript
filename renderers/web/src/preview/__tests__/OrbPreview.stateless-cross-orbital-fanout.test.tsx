@@ -15,6 +15,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
 import { statelessKernelTransport } from '../../test-support/stateless-kernel';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 class ResizeObserverStub {
   observe(): void {}
@@ -25,6 +26,7 @@ class ResizeObserverStub {
 
 function schema(): OrbitalSchema {
   return {
+    typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: 'stateless-fanout',
     version: '1.0.0',
     orbitals: [

@@ -68,7 +68,21 @@ export interface SubstrateStreamSource {
   subscribe(message: (value: JsonValue) => void, ended: () => void): () => void;
 }
 
+/** The `audio/*` asks: a sound or music key, absent where the op names none (stop every sound, stop the music). */
+export type HostAudioAsk =
+  | { op: 'audio/play-sound'; key: string }
+  | { op: 'audio/stop-sound'; key: string | undefined }
+  | { op: 'audio/change-music'; key: string | undefined }
+  | { op: 'audio/stop-music' };
+
+/** What the client host does for the `audio/*` and `auth/sign-out` asks; a host that has none refuses them by name. */
+export interface KernelHostActions {
+  audio?: (ask: HostAudioAsk) => void;
+  signOut?: () => void | Promise<void>;
+}
+
 export interface KernelHostPorts {
+  hostActions?: KernelHostActions;
   pageFacts?: (fields: readonly PageFactField[]) => BrowserPageFacts;
   persistence: PersistenceAdapter;
   callService: KernelCallService;
@@ -275,11 +289,63 @@ async function substrate(
   return { kind: 'serviceDeferred' };
 }
 
+function optionalKey(op: string, args: readonly JsonValue[]): { key: string | undefined } | { error: string } {
+  if (args.length === 0) return { key: undefined };
+  const [key] = args;
+  if (args.length === 1 && typeof key === 'string' && key !== '') return { key };
+  return { error: `${op}: the key must be one non-empty text` };
+}
+
+/** `audio/*` and `auth/sign-out`: one ask each, performed by the host's actions; a host without them refuses by name. */
+async function hostAction(
+  ports: KernelHostPorts,
+  request: Extract<IoRequestWire, { kind: 'substrate' }>,
+): Promise<IoAnswerWire> {
+  const { op, args } = request;
+  const fail = (message: string): IoAnswerWire => ({ kind: 'substrate', result: { error: { message, errors: [] } } });
+  const actions = ports.hostActions;
+  if (op === 'auth/sign-out') {
+    if (args.length !== 0) return fail('auth/sign-out takes no arguments');
+    if (actions?.signOut === undefined) return fail('no host sign-out is configured for auth/sign-out');
+    try {
+      await actions.signOut();
+      return { kind: 'substrate', result: { ok: null } };
+    } catch (error) {
+      return fail(error instanceof Error ? error.message : String(error));
+    }
+  }
+  const audio = actions?.audio;
+  if (audio === undefined) return fail(`no host audio is configured for ${op}`);
+  let ask: HostAudioAsk;
+  if (op === 'audio/stop-music') {
+    if (args.length !== 0) return fail('audio/stop-music takes no arguments');
+    ask = { op };
+  } else {
+    const parsed = optionalKey(op, args);
+    if ('error' in parsed) return fail(parsed.error);
+    if (op === 'audio/play-sound') {
+      if (parsed.key === undefined) return fail('audio/play-sound: the key must be one non-empty text');
+      ask = { op, key: parsed.key };
+    } else if (op === 'audio/stop-sound' || op === 'audio/change-music') {
+      ask = { op, key: parsed.key };
+    } else {
+      return fail(`no host action is configured for ${op}`);
+    }
+  }
+  try {
+    audio(ask);
+    return { kind: 'substrate', result: { ok: null } };
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : String(error));
+  }
+}
+
 async function substrateInPlace(
   ports: KernelHostPorts,
   request: Extract<IoRequestWire, { kind: 'substrate' }>,
   scope: KernelAnswerScope,
 ): Promise<IoAnswerWire> {
+  if (request.op.startsWith('audio/') || request.op === 'auth/sign-out') return hostAction(ports, request);
   if (request.op === 'program/live') return { kind: 'substrate', result: { error: { message: 'program/live streams to its onMessage route: give it a key and an onMessage route', errors: [] } } };
   const handler = ports.programEffect();
   const failure = (message: string, errors: JsonValue[] = []): IoAnswerWire => {

@@ -10,6 +10,7 @@ import type { EventTransport, EventTransportRegisterResult, HostDispatchListener
 import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
 import type { ClientEffectTuple, EmittedEvent, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
+import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const chat: Trait = {
   name: 'Chat',
@@ -68,7 +69,7 @@ async function pushed(event: string, target: PushTarget) {
   const slots = stubSlots();
   const server = new PushingServer();
   const binding: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('Chat', 'schema'), linkedEntity: 'Turn' };
-  renderHook(() => useTraitStateMachine([binding], slots, { orbitals, transport: server }));
+  renderHook(() => useTraitStateMachine([binding], slots, { stamp: TEST_STAMP, orbitals, transport: server }));
   await settle();
   slots.render.mockClear();
   server.push?.({ event, payload: { text: 'reading Task' }, source: { orbital: 'ChatOrbital', trait: 'Loop' } }, target);
@@ -119,7 +120,7 @@ async function pushedToCaller(target: PushTarget, sourceTrait: string) {
   const slots = stubSlots();
   const server = new PushingServer();
   const binding: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('Creator', 'schema'), linkedEntity: 'Turn' };
-  renderHook(() => useTraitStateMachine([binding], slots, { orbitals: creatorOrbitals, transport: server }));
+  renderHook(() => useTraitStateMachine([binding], slots, { stamp: TEST_STAMP, orbitals: creatorOrbitals, transport: server }));
   await settle();
   slots.render.mockClear();
   server.push?.({ event: 'GOAL_PROGRESS', payload: { text: 'Rust' }, source: { orbital: 'StartOrbital', trait: sourceTrait } }, target);
@@ -179,7 +180,7 @@ describe('a host-run dispatch (a follow-on call\'s outcome)', () => {
     const slots = stubSlots();
     const server = new DispatchingServer();
     const binding: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('Builder', 'schema'), linkedEntity: 'Turn' };
-    renderHook(() => useTraitStateMachine([binding], slots, { orbitals: builderOrbitals, transport: server }));
+    renderHook(() => useTraitStateMachine([binding], slots, { stamp: TEST_STAMP, orbitals: builderOrbitals, transport: server }));
     await settle();
     slots.render.mockClear();
     expect(typeof server.dispatchParams?.clientId).toBe('string');

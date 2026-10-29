@@ -127,6 +127,20 @@ export function defaultPage(schema: OrbitalSchema): { page: Page; orbitalName: s
   return first;
 }
 
+/**
+ * The page an app shows for a path no page matches: the one the program marks `notFound`, else none.
+ * The resolver admits at most one per program.
+ */
+export function notFoundPage(schema: OrbitalSchema): { page: Page; orbitalName: string } | null {
+  for (const orbital of schema.orbitals) {
+    for (const page of orbital.pages ?? []) {
+      if (isPageReference(page) || !isRoutePage(page)) continue;
+      if (page.isNotFound === true) return { page, orbitalName: orbital.name };
+    }
+  }
+  return null;
+}
+
 /** A concrete path matches a route pattern: same segment count, each pattern segment a `:param` or equal. */
 export function pathMatchesPattern(path: string, pattern: string): boolean {
   return matchPath(pattern, path) !== null;

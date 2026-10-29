@@ -12,6 +12,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { OrbitalSchema, ViewerAuthority } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 class ResizeObserverStub {
   observe(): void {}
@@ -38,6 +39,7 @@ function orbital(name: string, path: string, content: string | string[], access?
 }
 
 const app: OrbitalSchema = {
+  typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
   name: 'shop',
   site: { signIn: '/welcome' },
   orbitals: [

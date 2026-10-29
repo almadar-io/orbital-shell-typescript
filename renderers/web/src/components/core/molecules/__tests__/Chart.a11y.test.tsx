@@ -40,7 +40,7 @@ describe('Chart a11y', () => {
   it('control: without drillEvent nothing is a button and bars carry no stray aria-label', async () => {
     const { container } = renderChart(<Chart series={series} look="bar-vertical" />);
     expect(screen.queryAllByRole('button')).toHaveLength(0);
-    expect(container.querySelectorAll('[aria-label]')).toHaveLength(0);
+    expect([...container.querySelectorAll('[aria-label]')].map((n) => n.getAttribute('aria-label'))).toEqual(['Chart']);
     expect(describeViolations(await axeViolations(container))).toEqual([]);
   });
 

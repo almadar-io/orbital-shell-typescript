@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
-# H5 gate: shell-web's green checks, each ratcheted against scripts/gates/known-failures/<check>.txt.
+# H5 gate: the one required local gate for shell-web. Checks, in order: dist shape (built with declarations,
+# every ESM entry loads under Node), tsc over src AND test, vitest, eslint, theme audits, component contrast, pnpm audit.
+# Each check is zero-tolerance (empty known-failures file) except where a gap is named in the header of its
+# known-failures file; the gate fails on any failure not listed there.
+# Requires: ORB (the orb binary, for `orb gate`), ORB_BIN and ALMADAR_KERNEL_DIR (the rebuilt wasm kernel, for vitest),
+# and a full `pnpm build` of this package (dist with .d.ts; `build:dev` skips declarations and is refused).
 set -u
 cd "$(dirname "$0")/../.."
-ORB=${ORB:-orb}
+: "${ORB:?set ORB to the orb binary}"
+: "${ORB_BIN:?set ORB_BIN to the orb binary vitest spawns}"
+: "${ALMADAR_KERNEL_DIR:?set ALMADAR_KERNEL_DIR to orbital-rust/crates/orbital-wasm/js}"
 G=scripts/gates
 mkdir -p $G/.observed $G/known-failures
 status=0
@@ -12,6 +19,13 @@ ratchet() {
   echo "h5 $1:"
   $ORB gate "$G/known-failures/$1.txt" "$G/.observed/$1.txt" || status=1
 }
+
+{
+  [ -f dist/index.d.ts ] || echo "dist#MISSING-DECLARATIONS#run pnpm build (not build:dev) before the gate"
+  node scripts/verify-dist-esm.mjs 2>&1 | sed -nE 's/^ +FAIL (\S+): (.*)$/dist#\1#\2/p'
+} > $G/.observed/dist.txt
+ratchet dist
+if [ -s $G/.observed/dist.txt ] && grep -q MISSING-DECLARATIONS $G/.observed/dist.txt; then exit 1; fi
 
 npx tsc --noEmit -p tsconfig.json 2>&1 | sed -nE 's/^([^(]+)\([0-9]+,[0-9]+\): error (TS[0-9]+): (.*)$/\1#\2#\3/p' > $G/.observed/tsc.txt
 ratchet tsc

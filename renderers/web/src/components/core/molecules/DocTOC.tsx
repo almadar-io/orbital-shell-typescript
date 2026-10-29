@@ -26,6 +26,12 @@ export interface DocTOCItem {
   level: number;
 }
 
+/**
+ * @role navigation
+ * @tokens --color-foreground --color-muted-foreground
+ * @contrast muted-foreground background
+ * @motion css
+ */
 export interface DocTOCProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
   /** Table of contents items */
   items: DocTOCItem[];
@@ -66,7 +72,7 @@ export const DocTOC: React.FC<DocTOCProps> = ({
                 indent,
                 DOC_NAV_RULE_HOVER,
                 isActive
-                  ? 'border-l-accent text-accent hover:text-accent'
+                  ? 'border-l-accent text-foreground hover:text-foreground'
                   : 'border-l-transparent text-muted-foreground hover:border-l-border',
               )}
             >

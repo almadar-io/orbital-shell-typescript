@@ -3,6 +3,10 @@
  * WCAG contrast audit of the text/background pairs components actually
  * paint: every class string that sets both a `text-<token>` and a
  * `bg-<token>` (and every `hover:` pair) is measured in every theme mode.
+ * Text whose class string sets no background at all (or `bg-transparent`) sits on
+ * whatever is behind it, so it is measured against the page `--color-background`.
+ * The paired inks (`text-<x>-foreground`, `text-background`) are written for the
+ * `bg-<x>` / `bg-foreground` ground, never the page, so they are not measured there.
  *
  * Usage: node component-contrast-audit.mjs [--json] [--min <ratio>]
  */
@@ -18,6 +22,8 @@ const minIdx = args.indexOf('--min');
 const MIN = minIdx >= 0 ? Number(args[minIdx + 1]) : 4.5;
 
 const NOT_COLOR = /^(xs|sm|base|lg|xl|\dxl|left|right|center|start|end|justify|inherit|current|transparent|balance|wrap|nowrap|pretty|ellipsis|clip)$/;
+const PAIRED_INK = /^(background|(?!muted-)[a-z]+-foreground)$/;
+const PAGE = { name: 'background', alpha: 1, page: true };
 const STRINGS = /"([^"\n]{3,})"|'([^'\n]{3,})'|`([^`\n]{3,})`/g;
 
 function colorToken(cls, prefix) {
@@ -41,7 +47,8 @@ function files(dir) {
 function collectPairs() {
   const pairs = new Map();
   const add = (state, fg, bg, site) => {
-    const key = `${state === 'hover' ? 'hover: ' : ''}text-${fg.name}${fg.alpha < 1 ? '/' + fg.alpha * 100 : ''} on bg-${bg.name}${bg.alpha < 1 ? '/' + bg.alpha * 100 : ''}`;
+    const ground = bg.page ? 'page' : `bg-${bg.name}${bg.alpha < 1 ? '/' + bg.alpha * 100 : ''}`;
+    const key = `${state === 'hover' ? 'hover: ' : ''}text-${fg.name}${fg.alpha < 1 ? '/' + fg.alpha * 100 : ''} on ${ground}`;
     if (!pairs.has(key)) pairs.set(key, { key, fg, bg, state, sites: [] });
     pairs.get(key).sites.push(site);
   };
@@ -58,6 +65,11 @@ function collectPairs() {
           const hBg = toks.map(t => t.startsWith('hover:') ? colorToken(t.slice(6), 'bg') : null).filter(Boolean);
           const site = `${relative(ROOT, file)}:${i + 1}`;
           for (const b of bg) for (const t of text) add('base', t, b, site);
+          const paintsGround = !toks.some(t => /(^|:)bg-/.test(t) && t !== 'bg-transparent');
+          if (paintsGround) {
+            for (const t of text) if (!PAIRED_INK.test(t.name)) add('base', t, PAGE, site);
+            for (const t of hText) if (!PAIRED_INK.test(t.name)) add('hover', t, PAGE, site);
+          }
           const hoverBgs = hBg.length ? hBg : (hText.length ? bg : []);
           const hoverTexts = hText.length ? hText : text;
           if (hBg.length || hText.length) for (const b of hoverBgs) for (const t of hoverTexts) add('hover', t, b, site);

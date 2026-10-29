@@ -7,7 +7,7 @@
  *
  * Architecture:
  *   .orb/.lolo file → temp file → `orb validate --json` → parse JSON
- *   → map JSON paths (or lolo <input>:L:C locators) to line positions
+ *   → place each finding at the span the CLI reports (JSON paths only for .orb input)
  *   → publish diagnostics
  */
 
@@ -24,7 +24,7 @@ import {
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { jsonPathToPosition } from './json-path.js';
+import { diagnosticFor, ValidateItem } from './diagnostic.js';
 import { PreviewServer } from './preview/preview-server.js';
 import { resolveOrbBinary as resolveOrbBinaryPure } from './binary-resolution.js';
 import { byteOffsetOf, completeArgs, parseCompleteOutput, toCompletionItems } from './completion.js';
@@ -121,18 +121,8 @@ connection.onRequest('almadar/previewUrl', (params: { uri?: string }): { url: st
 interface ValidateResult {
     success: boolean;
     valid: boolean;
-    errors?: Array<{
-        code: string;
-        path: string;
-        message: string;
-        suggestion?: string;
-    }>;
-    warnings?: Array<{
-        code: string;
-        path: string;
-        message: string;
-        suggestion?: string;
-    }>;
+    errors?: ValidateItem[];
+    warnings?: ValidateItem[];
 }
 
 // ============================================================================
@@ -264,7 +254,7 @@ async function validateDocument(document: TextDocument): Promise<void> {
         // Map errors
         if (result.errors) {
             for (const err of result.errors) {
-                diagnostics.push(makeDiagnostic(
+                diagnostics.push(diagnosticFor(
                     sourceContent, err, DiagnosticSeverity.Error
                 ));
             }
@@ -273,7 +263,7 @@ async function validateDocument(document: TextDocument): Promise<void> {
         // Map warnings
         if (result.warnings) {
             for (const warn of result.warnings) {
-                diagnostics.push(makeDiagnostic(
+                diagnostics.push(diagnosticFor(
                     sourceContent, warn, DiagnosticSeverity.Warning
                 ));
             }
@@ -284,46 +274,6 @@ async function validateDocument(document: TextDocument): Promise<void> {
         // Clean up temp file
         try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
     }
-}
-
-/** Matches a lolo-level parse error's `path` — a literal `<input>:LINE:COL`
- *  locator into the original .lolo source, not a JSON-pointer path. */
-const LOLO_SOURCE_POS = /^<input>:(\d+):(\d+)$/;
-
-function makeDiagnostic(
-    sourceContent: string,
-    item: { code: string; path: string; message: string; suggestion?: string },
-    severity: DiagnosticSeverity,
-): Diagnostic {
-    const loloMatch = LOLO_SOURCE_POS.exec(item.path);
-    // Lolo parse errors carry a real line:col into the source; everything
-    // else (post-lowering semantic errors) is a JSON-pointer path with no
-    // direct .lolo-source position — jsonPathToPosition's whole-document
-    // fallback is the best available for those until a lolo->orb source map exists.
-    const pos = loloMatch
-        ? { line: Number(loloMatch[1]) - 1, character: Number(loloMatch[2]) - 1 }
-        : jsonPathToPosition(sourceContent, item.path);
-
-    // Find the end of the line for the range
-    const lines = sourceContent.split('\n');
-    const lineText = lines[pos.line] ?? '';
-    const endChar = lineText.length;
-
-    let message = item.message;
-    if (item.suggestion) {
-        message += `\n💡 ${item.suggestion}`;
-    }
-
-    return {
-        range: {
-            start: { line: pos.line, character: pos.character },
-            end: { line: pos.line, character: endChar },
-        },
-        message,
-        severity,
-        source: 'orb',
-        code: item.code,
-    };
 }
 
 // ============================================================================

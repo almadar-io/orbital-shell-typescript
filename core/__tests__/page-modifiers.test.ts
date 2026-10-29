@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { parseOrbitalSchema, safeParseOrbitalSchema, HOST_SIGN_IN_ROUTE, isHostSignInRoute } from '../src/types/schema.js';
 import { schemaToIR, getPage, pageModifiers } from '../src/resolver.js';
 import { localeAlternates } from '../src/i18n/index.js';
+import { notFoundPage } from '../src/route-match.js';
 import { PageModifiersSchema } from '../src/types/page.js';
 import { resolvePageMeta } from '../src/types/page.js';
 
@@ -53,6 +54,20 @@ describe('page modifiers', () => {
     expect(marked.pages.get('HomePage')?.isInitial).toBeUndefined();
     const unmarked = schemaToIR(parseOrbitalSchema(withPages({})), false);
     expect(getPage(unmarked)?.name).toBe('HomePage');
+  });
+
+  it('a page declared notFound is carried onto the resolved page and found by notFoundPage', () => {
+    const base = app({});
+    const orbital = base.orbitals[0]!;
+    const schema = parseOrbitalSchema({
+      ...base,
+      orbitals: [{ ...orbital, pages: [{ name: 'HomePage', path: '/', traits: [] }, { name: 'Missing', path: '/missing', traits: [], isNotFound: true }] }],
+    });
+    const ir = schemaToIR(schema, false);
+    expect(ir.pages.get('Missing')?.isNotFound).toBe(true);
+    expect(ir.pages.get('HomePage')?.isNotFound).toBeUndefined();
+    expect(notFoundPage(schema)?.page.name).toBe('Missing');
+    expect(notFoundPage(parseOrbitalSchema(app({})))).toBeNull();
   });
 
   it('control: omitted modifiers stay absent on the resolved page', () => {

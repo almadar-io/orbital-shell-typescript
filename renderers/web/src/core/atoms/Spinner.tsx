@@ -7,6 +7,11 @@ import { useTranslate } from "../hooks/useTranslate";
 
 export type SpinnerSize = "xs" | "sm" | "md" | "lg";
 
+/**
+ * @role status
+ * @tokens --color-foreground
+ * @motion css
+ */
 export interface SpinnerProps extends Omit<React.HTMLAttributes<HTMLDivElement>, keyof A11yProps>, A11yProps {
   /** Additional CSS classes applied to the root element. */
   className?: string;

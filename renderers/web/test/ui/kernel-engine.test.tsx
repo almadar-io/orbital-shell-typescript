@@ -18,7 +18,7 @@ import { resolveRenderBindingMarkers } from '../../src/lib/resolve-render-bindin
 
 // The provider's own contract: the shared setup's test kernel is not used here.
 vi.unmock('../../src/providers/KernelEngineContext');
-import { KERNEL_AVAILABLE, KERNEL_ENGINE, warmKernel } from '../../src/test-support/kernel-engine';
+import { KERNEL_AVAILABLE, KERNEL_ENGINE, warmKernel, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const describeKernel = KERNEL_AVAILABLE ? describe : describe.skip;
 
@@ -70,7 +70,7 @@ describe('KernelEngineProvider', () => {
 
   it('a circuit with no kernel loader above it refuses to run', () => {
     const quiet = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    expect(() => renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', []), engine: null }))).toThrow(KernelLoaderMissingError);
+    expect(() => renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', []), engine: null }))).toThrow(KernelLoaderMissingError);
     quiet.mockRestore();
   });
 
@@ -88,13 +88,13 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
   beforeAll(warmKernel);
 
   it('exposes the kernel client the circuit runs on', () => {
-    const kernel = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', []), engine: KERNEL_ENGINE }));
+    const kernel = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', []), engine: KERNEL_ENGINE }));
     expect(kernel.result.current.engine).toBeDefined();
   });
 
   it('an equal orbital set passed as a new array keeps the same kernel client (G-UI-102)', () => {
     const { result, rerender } = renderHook(
-      ({ set }: { set: ReturnType<typeof orbitals> }) => useCircuitKernel(bindings, { orbitals: set, engine: KERNEL_ENGINE }),
+      ({ set }: { set: ReturnType<typeof orbitals> }) => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: set, engine: KERNEL_ENGINE }),
       { initialProps: { set: orbitals('runtime', []) } },
     );
     const first = result.current.engine;
@@ -104,7 +104,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
 
   it('control: a changed orbital set builds a new kernel client', () => {
     const { result, rerender } = renderHook(
-      ({ set }: { set: ReturnType<typeof orbitals> }) => useCircuitKernel(bindings, { orbitals: set, engine: KERNEL_ENGINE }),
+      ({ set }: { set: ReturnType<typeof orbitals> }) => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: set, engine: KERNEL_ENGINE }),
       { initialProps: { set: orbitals('runtime', []) } },
     );
     const first = result.current.engine;
@@ -113,11 +113,23 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
   });
 
   it('mirrors the kernel run into the store the hooks read', async () => {
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', [['set', '@entity.score', 5]]), engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', [['set', '@entity.score', 5]]), engine: KERNEL_ENGINE }));
     await act(async () => { await result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' }); });
     expect(result.current.store.states.getState('Driver')?.currentState).toBe('busy');
     expect(result.current.store.frames.get('Driver')?.score).toBe(5);
     expect(result.current.engine?.traitState('Driver')).toBe('busy');
+  });
+
+  it('a program stamped only with `resolved` registers on the kernel', async () => {
+    const stamp: OrbitalSchema['resolved'] = { orb: '18.0.5', typeContractVersion: 1 };
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: { resolved: stamp }, orbitals: orbitals('runtime', [['set', '@entity.score', 5]]), engine: KERNEL_ENGINE }));
+    await act(async () => { await result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' }); });
+    expect(result.current.store.states.getState('Driver')?.currentState).toBe('busy');
+  });
+
+  it('control: an unstamped program is refused with the kernel\'s own error', async () => {
+    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', []), engine: KERNEL_ENGINE }));
+    await expect(result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' })).rejects.toThrow(/carries no type-contract stamp/);
   });
 
   it('posts the kernel leg and paints the server render after the local arm', async () => {
@@ -125,7 +137,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
       success: true, transitioned: true, states: { Driver: 'busy' }, emittedEvents: [],
       clientEffectsByTrait: [{ traitName: 'Driver', effect: ['render-ui', 'main', { type: 'box', className: 'server' }] }],
     });
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('persistent', persistBump), transport: server, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('persistent', persistBump), transport: server, engine: KERNEL_ENGINE }));
     const painted: string[] = [];
     const outcome = await result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' }, { onLocal: () => painted.push('local') });
     expect(server.sent).toHaveLength(1);
@@ -139,7 +151,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
 
   it('control: a client-only dispatch posts nothing', async () => {
     const server = new Server({ success: true, transitioned: true, states: {}, emittedEvents: [] });
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', [['set', '@entity.score', 5]]), transport: server, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', [['set', '@entity.score', 5]]), transport: server, engine: KERNEL_ENGINE }));
     const outcome = await result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' });
     expect(server.sent).toHaveLength(0);
     expect(outcome.localPainted).toBeUndefined();
@@ -147,7 +159,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
 
   it('a stateful host is posted the event of a server-backed dispatch that delegated nothing', async () => {
     const server = new Server({ success: true, transitioned: true, states: { Driver: 'idle' }, emittedEvents: [] });
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('persistent', []), transport: server, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('persistent', []), transport: server, engine: KERNEL_ENGINE }));
     await act(async () => { await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Driver' }); });
     expect(server.sent).toHaveLength(1);
     expect(server.sent[0]).toMatchObject({ event: 'INIT', targetTrait: 'Driver', sourceTrait: 'Driver' });
@@ -156,14 +168,14 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
 
   it('control: a stateless host is posted nothing for a dispatch that delegated nothing', async () => {
     const server = new Server({ success: true, transitioned: true, states: {}, emittedEvents: [] });
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('persistent', []), transport: server, carriesCircuitState: true, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('persistent', []), transport: server, carriesCircuitState: true, engine: KERNEL_ENGINE }));
     await act(async () => { await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Driver' }); });
     expect(server.sent).toHaveLength(0);
   });
 
   it('a mount posts one leg for all the seeds of an orbital', async () => {
     const server = new Server({ success: true, transitioned: true, states: { Driver: 'idle', Second: 'idle' }, emittedEvents: [] });
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('persistent', [], ['Driver', 'Second']), transport: server, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('persistent', [], ['Driver', 'Second']), transport: server, engine: KERNEL_ENGINE }));
     const outcome = await act(async () => result.current.kernel.dispatchMount([{ trait: 'Driver', event: 'INIT' }, { trait: 'Second', event: 'INIT' }], undefined, {}));
     expect(server.sent).toHaveLength(1);
     expect(server.sent[0]?.mount?.map((m) => m.trait)).toEqual(['Driver', 'Second']);
@@ -172,7 +184,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
 
   it('control: a mount of client-only seeds posts nothing', async () => {
     const server = new Server({ success: true, transitioned: true, states: {}, emittedEvents: [] });
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', []), transport: server, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', []), transport: server, engine: KERNEL_ENGINE }));
     const outcome = await act(async () => result.current.kernel.dispatchMount([{ trait: 'Driver', event: 'INIT' }], undefined, {}));
     expect(server.sent).toHaveLength(0);
     expect(outcome.posted).toBe(false);
@@ -181,7 +193,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
   it('hands the observer every executed hop of a dispatch', async () => {
     const hops: Array<{ traitName: string; from: string; to: string; event: string }> = [];
     const observer = { onTransition: (trace: { traitName: string; from: string; to: string; event: string }) => { hops.push({ traitName: trace.traitName, from: trace.from, to: trace.to, event: trace.event }); } };
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', [['set', '@entity.score', 5]]), observer, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', [['set', '@entity.score', 5]]), observer, engine: KERNEL_ENGINE }));
     await act(async () => { await result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' }); });
     expect(hops).toEqual([{ traitName: 'Driver', from: 'idle', to: 'busy', event: 'BUMP' }]);
   });
@@ -189,7 +201,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
   it('control: a rejected dispatch leaves the observer silent', async () => {
     const hops: string[] = [];
     const observer = { onTransition: (trace: { event: string }) => { hops.push(trace.event); } };
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', []), observer, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', []), observer, engine: KERNEL_ENGINE }));
     await act(async () => { await result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' }).catch(() => undefined); });
     await act(async () => { await result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' }).catch(() => undefined); });
     expect(hops.filter((e) => e === 'BUMP')).toHaveLength(1);
@@ -197,7 +209,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
 
   it('rolls an optimistic dispatch back when the server rejects it', async () => {
     const server = new Server({ success: false, transitioned: false, states: {}, emittedEvents: [], error: 'no' });
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', persistBump, ['Driver'], 'optimistic'), transport: server, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', persistBump, ['Driver'], 'optimistic'), transport: server, engine: KERNEL_ENGINE }));
     await act(async () => { await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Driver' }); });
     const outcome = await act(async () => result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' }));
     expect(outcome.mode).toBe('runtimeOptimistic');
@@ -208,14 +220,14 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
 
   it('rolls back and rejects when the transport fails', async () => {
     const server = new Server(new Error('offline'));
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', persistBump, ['Driver'], 'optimistic'), transport: server, carriesCircuitState: true, engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', persistBump, ['Driver'], 'optimistic'), transport: server, carriesCircuitState: true, engine: KERNEL_ENGINE }));
     await act(async () => { await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Driver' }); });
     await expect(result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' })).rejects.toThrow('offline');
     expect(result.current.store.states.getState('Driver')?.currentState).toBe('idle');
   });
 
   it('reports a dispatch to a trait the program does not declare', async () => {
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', []), engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', []), engine: KERNEL_ENGINE }));
     await expect(result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Ghost' })).rejects.toThrow();
   });
 });
@@ -244,7 +256,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <KernelEngineProvider loader={() => KERNEL_ENGINE.loadModule!()} scheduleFrame={frames.schedule}>{children}</KernelEngineProvider>
     );
-    return renderHook(() => useTraitStateMachine(bindings, stubSlots(), { orbitals: orbitals('runtime', []), routePath: '/' }), { wrapper });
+    return renderHook(() => useTraitStateMachine(bindings, stubSlots(), { stamp: TEST_STAMP, orbitals: orbitals('runtime', []), routePath: '/' }), { wrapper });
   };
 
   it('runs a declared tick from the kernel frame and shows its row to the binding source', async () => {
@@ -319,7 +331,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
       <KernelEngineProvider loader={() => KERNEL_ENGINE.loadModule!()} scheduleFrame={frames.schedule}>{children}</KernelEngineProvider>
     );
     const orbs = rivalOrbitals(withInit);
-    return renderHook(({ traits }: { traits: ResolvedTraitBinding[] }) => useTraitStateMachine(traits, stubSlots(), { orbitals: orbs, routePath: '/' }), { wrapper, initialProps: { traits: initial } });
+    return renderHook(({ traits }: { traits: ResolvedTraitBinding[] }) => useTraitStateMachine(traits, stubSlots(), { stamp: TEST_STAMP, orbitals: orbs, routePath: '/' }), { wrapper, initialProps: { traits: initial } });
   };
 
   const settle = async (frames: ReturnType<typeof clock>): Promise<void> => {
@@ -347,7 +359,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
   });
 
   it('an unmounted trait stops ticking', async () => {
-    const { result } = renderHook(() => useCircuitKernel([...bindings, rivalBinding], { orbitals: rivalOrbitals(), engine: KERNEL_ENGINE }));
+    const { result } = renderHook(() => useCircuitKernel([...bindings, rivalBinding], { stamp: TEST_STAMP, orbitals: rivalOrbitals(), engine: KERNEL_ENGINE }));
     const client = result.current.engine!;
     await client.mount(['Driver', 'Rival']);
     await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Driver' });
@@ -370,7 +382,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
 
 describe('useEntityBindingSource kernel state', () => {
   it('reads the state from the kernel client when one is given, the store otherwise', () => {
-    const { result: stateless } = renderHook(() => useCircuitKernel(bindings, { orbitals: orbitals('runtime', []), engine: KERNEL_ENGINE }));
+    const { result: stateless } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: orbitals('runtime', []), engine: KERNEL_ENGINE }));
     const withKernel = renderHook(() => useEntityBindingSource(stateless.current.store, stateless.current.traitIndex, { traitState: () => 'from-kernel', traitConfig: () => undefined }));
     const withStore = renderHook(() => useEntityBindingSource(stateless.current.store, stateless.current.traitIndex));
     expect(withKernel.result.current.getState('Driver')).toBe('from-kernel');
@@ -404,7 +416,7 @@ describeKernel('kernel engine parity', () => {
         }],
       }];
       const trait: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('T', 'schema'), linkedEntity: 'E' };
-      const { result } = renderHook(() => useCircuitKernel([trait], { orbitals: unset, engine }));
+      const { result } = renderHook(() => useCircuitKernel([trait], { stamp: TEST_STAMP, orbitals: unset, engine }));
       const outcome = await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'T' });
       const rendered = outcome.response.clientEffectsByTrait?.[0]?.effect;
       const pattern = rendered?.[0] === 'render-ui' ? rendered[2] : null;
@@ -414,6 +426,7 @@ describeKernel('kernel engine parity', () => {
 
     it('a host\'s state for a client-only trait does not override the client\'s', async () => {
       const split = (traits: ResolvedTraitBinding[]) => renderHook(() => useCircuitKernel(traits, {
+        stamp: TEST_STAMP,
         orbitals: [
           {
             name: 'SearchOrbital', pages: [],
@@ -459,7 +472,7 @@ describeKernel('kernel engine parity', () => {
         ],
       }];
       const traits: ResolvedTraitBinding[] = ['Play', 'Mechanic'].map((name) => ({ trait: createEmptyResolvedTrait(name, 'schema'), linkedEntity: 'S' }));
-      const { result } = renderHook(() => useCircuitKernel(traits, { orbitals: qualified, engine }));
+      const { result } = renderHook(() => useCircuitKernel(traits, { stamp: TEST_STAMP, orbitals: qualified, engine }));
       await act(async () => { await result.current.kernel.dispatch({ event: 'UP', targetTrait: 'Play' }); });
       expect(result.current.store.frames.get('Mechanic')?.dir).toBe('up');
     });

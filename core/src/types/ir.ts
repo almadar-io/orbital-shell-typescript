@@ -374,6 +374,9 @@ export interface ResolvedPage {
   /** The page declared `[initial]`; absent otherwise. */
   isInitial?: boolean;
 
+  /** The page declared `[notFound]`; absent otherwise. */
+  isNotFound?: boolean;
+
   /** `access:` page modifier; absent = no gate. */
   access?: PageAccess;
 

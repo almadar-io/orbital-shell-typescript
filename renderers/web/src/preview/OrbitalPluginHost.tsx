@@ -65,7 +65,7 @@ import { createLazyKernelClient } from '../lib/kernel-client-lazy';
 import type { KernelClient } from '../lib/kernel-client';
 import type { KernelInstance } from '../lib/kernel-wire';
 import { kernelOrbitals } from '../lib/kernel-schema';
-import { getTabClientId } from '../hooks/circuit/useCircuitKernel';
+import { getTabClientId, programStamp } from '../hooks/circuit/useCircuitKernel';
 import { useClientTicks } from '../hooks/circuit/useClientTicks';
 import { PatternConfigSchema, UI_SLOTS, isRoutePage } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
@@ -352,7 +352,7 @@ function openPluginKernel(
   kernelEngine.catch(() => undefined);
   const transport = createLocalStoreTransport({ kernelEngine });
   const instance = opened.then(({ kernel }) => {
-    const k = new kernel.Kernel(JSON.stringify({ name: schema.name, orbitals: kernelOrbitals(schema.orbitals), ...(schema.typeContractVersion !== undefined ? { typeContractVersion: schema.typeContractVersion } : {}), ...(schema._metadata !== undefined ? { _metadata: schema._metadata } : {}) }), getTabClientId());
+    const k = new kernel.Kernel(JSON.stringify({ name: schema.name, orbitals: kernelOrbitals(schema.orbitals), ...programStamp(schema), ...(schema._metadata !== undefined ? { _metadata: schema._metadata } : {}) }), getTabClientId());
     // The local kernel runs the whole worklist of every leg it is posted, listeners of a dispatched emit included.
     k.setHostFansOut(true);
     return k;

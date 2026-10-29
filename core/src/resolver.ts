@@ -459,10 +459,11 @@ export function getTrait(ir: ResolvedIR, traitName: string): ResolvedTrait | und
 
 /** The declared page modifiers, omitting absent ones (never defaulted). */
 export function pageModifiers(
-  page: Pick<Page, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf' | 'isInitial'>,
-): Pick<ResolvedPage, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf' | 'isInitial'> {
+  page: Pick<Page, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf' | 'isInitial' | 'isNotFound'>,
+): Pick<ResolvedPage, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf' | 'isInitial' | 'isNotFound'> {
   return {
     ...(page.isInitial === true ? { isInitial: true } : {}),
+    ...(page.isNotFound === true ? { isNotFound: true } : {}),
     ...(page.access !== undefined ? { access: page.access } : {}),
     ...(page.indexing !== undefined ? { indexing: page.indexing } : {}),
     ...(page.sourcePage !== undefined ? { sourcePage: page.sourcePage } : {}),

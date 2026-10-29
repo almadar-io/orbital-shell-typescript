@@ -14,6 +14,7 @@
  * @packageDocumentation
  */
 
+import { registerHostSignOut } from '../lib/host-actions';
 import React, { createContext, useContext, useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import { useHref, useInRouterContext } from 'react-router-dom';
 import { useArbitraryClassStyles } from '../providers/ArbitraryClassCompiler';
@@ -28,7 +29,7 @@ import { UISlotRenderer } from '../components/core/organisms/UISlotRenderer';
 import { useEventBus } from '../core';
 import { useTranslate } from '../core';
 import type { OrbitalSchema, EntityData, ResolvedTraitBinding, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
-import { getPage, orbitalInlineEntities, storesRowsInBrowser, collectCallsiteCaptureChildren, isHostSignInRoute, localeAlternates } from '@almadar/core';
+import { getPage, orbitalInlineEntities, storesRowsInBrowser, collectCallsiteCaptureChildren, isHostSignInRoute, localeAlternates, notFoundPage } from '@almadar/core';
 import { useResolvedSchema } from '../hooks/useResolvedSchema';
 import { matchPathAmong } from '../core';
 import { collectEmbeddedTraits, collectTraitRefsFromResolvedTrait } from '../lib/embedded-traits';
@@ -49,6 +50,7 @@ import type { PersistenceAdapter } from '@almadar/core';
 import { LoadingState } from '../components/core/molecules/LoadingState';
 import { ErrorState } from '../components/core/molecules/ErrorState';
 import { useBrowserStore } from '../hooks/circuit/useBrowserStore';
+import { programStamp, type ProgramStamp } from '../hooks/circuit/useCircuitKernel';
 import { KernelEngineProvider, useKernelEngine } from '../providers/KernelEngineContext';
 import { ClientTicksPausedContext } from '../hooks/circuit/useClientTicks';
 import type { KernelLoader, LanguageLoader } from '../lib/kernel-wire';
@@ -114,7 +116,7 @@ function appPathFromHref(href: string, hostHrefBase: string): string | null {
  * its own `sendEvent`/mount-time dispatch resolves — this component only
  * decides WHICH transport (or none) the kernel dispatches through.
  */
-function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, metadata, typeContractVersion, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
+function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, metadata, stamp, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
   traits: ResolvedTraitBinding[];
   /** Route params from a parameterized page path — merged into every INIT payload. */
   routeParams?: Record<string, string>;
@@ -126,7 +128,7 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
   /** The program's `_metadata`: a compiled client program's operator sites and dispatch facts ride it into the kernel. */
   metadata?: SchemaMetadata;
   /** The program's type-contract stamp: the kernel refuses to register a program without it. */
-  typeContractVersion?: 1;
+  stamp?: ProgramStamp;
   onNavigate?: (path: string, params?: Record<string, string>, crumb?: string) => void;
   /** navigate-back effect handler: pop the orbital's navigation stack. */
   onNavigateBack?: () => void;
@@ -182,7 +184,7 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
   const { entityBindingSource, awaitingSkeletonSource } = useTraitStateMachine(traits, uiSlots, {
     orbitals,
     ...(metadata !== undefined ? { metadata } : {}),
-    ...(typeContractVersion !== undefined ? { typeContractVersion } : {}),
+    ...(stamp !== undefined ? { stamp } : {}),
     ...(onNavigate !== undefined ? { navigate: onNavigate } : {}),
     ...(onNavigateBack !== undefined ? { navigateBack: onNavigateBack } : {}),
     ...(embeddedTraits !== undefined ? { embeddedTraits } : {}),
@@ -379,6 +381,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   // `schema.orbitals[].traits[]` so `useTraitStateMachine` can construct
   // the qualified `UI:Orbital.Trait.EVENT` bus key at both subscribe and
   // emit sites — same scope shape the compiled codegen produces.
+  const stamp = useMemo(() => programStamp(schema), [schema]);
   const orbitalsByTrait = useMemo<Record<string, string>>(
     () =>
       buildOrbitalsByTrait(
@@ -505,7 +508,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   const kernelEngine = useKernelEngine();
   const browserRows = useMemo(
     () => (browserStore.status === 'ready' && kernelEngine !== null
-      ? browserRowSets(kernelEngine, { name: schema.name ?? 'app', orbitals: schema.orbitals, ...(schema.typeContractVersion !== undefined ? { typeContractVersion: schema.typeContractVersion } : {}) }, browserStore.store, viewer.user ?? undefined)
+      ? browserRowSets(kernelEngine, { name: schema.name ?? 'app', orbitals: schema.orbitals, ...programStamp(schema) }, browserStore.store, viewer.user ?? undefined)
       : undefined),
     [browserStore, kernelEngine, schema.name, schema.orbitals, viewer.user],
   );
@@ -535,7 +538,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
           {...(mountRoute !== undefined ? { routePath: mountRoute } : {})}
           orbitals={schema.orbitals}
           {...(schema._metadata !== undefined ? { metadata: schema._metadata } : {})}
-          {...(schema.typeContractVersion !== undefined ? { typeContractVersion: schema.typeContractVersion } : {})}
+          stamp={stamp}
           hasBridge={Boolean(serverUrl || transport)}
           embeddedTraits={embeddedTraits}
           callsiteCaptureChildrenByTrait={callsiteCaptureChildrenByTrait}
@@ -777,6 +780,7 @@ function NavigateListener({ onNavigate }: { onNavigate: (path: string) => void }
 function SignOutListener({ onSignOut }: { onSignOut: () => void }): null {
   const bus = useEventBus();
   useEffect(() => bus.on('UI:SIGN_OUT', () => onSignOut()), [bus, onSignOut]);
+  useEffect(() => registerHostSignOut(onSignOut), [onSignOut]);
   return null;
 }
 
@@ -882,13 +886,17 @@ export function OrbPreview({
     () => (initialPagePath ? matchRoute(initialPagePath) : null),
     [matchRoute, initialPagePath],
   );
+  const notFoundEntry = useMemo(() => (parsedSchema ? notFoundPage(parsedSchema) : null), [parsedSchema]);
   const initialPageMatch = useMemo(() => {
     // Pattern-aware: a concrete `/threads/abc` URL must land on the declared
     // `/threads/:id` page, with the route params extracted for INIT — and a
     // static sibling outranks the `:param` route whatever the declaration order.
+    if (initialRoute === null && initialPagePath && notFoundEntry?.page.name) {
+      return { name: notFoundEntry.page.name, params: {} };
+    }
     if (initialRoute?.kind !== 'page' || !initialRoute.entry.page.name) return undefined;
     return { name: initialRoute.entry.page.name, params: initialRoute.params };
-  }, [initialRoute]);
+  }, [initialRoute, initialPagePath, notFoundEntry]);
   const [lazyRoute, setLazyRoute] = useState<{ page: LazyPage; path: string } | null>(
     initialRoute?.kind === 'lazy' && initialPagePath ? { page: initialRoute.page, path: initialPagePath } : null,
   );
@@ -1007,6 +1015,13 @@ export function OrbPreview({
     }
     const route = matchRoute(path);
     if (!route) {
+      if (notFoundEntry?.page.name) {
+        setLazyRoute(null);
+        setRouteParams({});
+        setCurrentPage(notFoundEntry.page.name);
+        announcePage(path);
+        return;
+      }
       onUnmatchedNavigate?.(path);
       return;
     }
@@ -1030,7 +1045,7 @@ export function OrbPreview({
       setCurrentPage(match.page.name);
       announcePage(path);
     }
-  }, [pages, matchRoute, announcePage, onUnmatchedNavigate, onSignIn]);
+  }, [pages, matchRoute, notFoundEntry, announcePage, onUnmatchedNavigate, onSignIn]);
 
   const activePage = useMemo(() => {
     const activePageName = currentPage ?? pages[0]?.page.name;

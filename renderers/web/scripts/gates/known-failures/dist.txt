@@ -1,0 +1,1 @@
+# H5 known failures. Zero-tolerance check: any line here is a defect to delete, not to add.

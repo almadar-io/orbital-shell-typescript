@@ -809,18 +809,12 @@ export type { UserContext } from '@almadar/core';
                         let mut field_rows: Vec<(String, String)> = schema
                             .iter()
                             .map(|(k, v)| {
-                                // `json` payload fields map to `EventPayload`
-                                // from @almadar/core so every declared payload
-                                // interface is assignable to the bus's payload
-                                // type. Reference/array/primitive fields keep
-                                // the normal mapping.
                                 // Substitute non-local entity references
                                 // with `EntityRow` before mapping to TS, so
                                 // molecules that inherit imported atoms'
                                 // events don't produce phantom imports.
                                 let v_local = rewrite_non_local_entity_refs(v, &local_entity_names);
                                 let ts = match &v_local {
-                                    OirType::Json => "EventPayload".to_string(),
                                     // An anonymous struct payload field (e.g. an
                                     // object callback arg like `CalendarEvent`) is
                                     // rendered for the BUS context: a date can
@@ -1013,19 +1007,12 @@ export type { UserContext } from '@almadar/core';
                                 !matches!(dv, OirValue::String(s) if s.starts_with("@config."))
                             })
                         });
-                        // json knob with an empty-array default: array-shaped,
-                        // not Record — mirrors the hook interface (TS2352).
-                        let empty_array_default = defaults
-                            .and_then(|d| d.get(k))
-                            .is_some_and(|dv| matches!(dv, OirValue::Array(a) if a.is_empty()));
                         let array_default_on_scalar =
                             defaults.and_then(|d| d.get(k)).is_some_and(|dv| {
                                 matches!(dv, OirValue::Array(a) if !a.is_empty())
                                     && !matches!(v.field_type, OirType::Array { .. })
                             });
-                        let ty = if empty_array_default && matches!(v.field_type, OirType::Json) {
-                            "EventPayloadValue[]".to_string()
-                        } else if array_default_on_scalar {
+                        let ty = if array_default_on_scalar {
                             // Authored array default on a scalar-declared knob:
                             // derive from the default (mirrors the hook).
                             oir_value_to_ts_type(defaults.and_then(|d| d.get(k)).unwrap())
@@ -1215,9 +1202,6 @@ export type { UserContext } from '@almadar/core';
             OirType::Bytes => "z.string()".to_string(),
             OirType::CallKey | OirType::FieldRef { .. } => "z.string()".to_string(),
             OirType::File => "z.object({ name: z.string(), url: z.string(), mimeType: z.string(), sizeBytes: z.number() })".to_string(),
-            // The zod twin of the declared TS type
-            // (`Record<string, FieldValue | undefined>`, `types.rs::json`).
-            OirType::Json => "z.record(FieldValueSchema.optional())".to_string(),
             // The closed union, enforced at runtime too — this is exactly what
             // `json` never gave us: a value that nests is REJECTED.
             // Renderable content: the inline `PatternValueSchema`
@@ -1394,6 +1378,7 @@ mod to_many_relation_field_tests {
             target_entity_id: None,
             cardinality,
             foreign_key: None,
+            display: None,
         });
         let mut entity = OirEntity::new("Revision");
         entity.fields.push(field);

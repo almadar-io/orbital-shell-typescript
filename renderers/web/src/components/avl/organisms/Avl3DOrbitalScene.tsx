@@ -12,7 +12,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Group } from 'three';
-import { useTranslate } from '../../../core';
+import { useTranslate, usePrefersReducedMotion } from '../../../core';
 import type { OrbitalLevelData } from '../../../lib/avl-schema-parser';
 import { useAvl3DPalette } from '../../../providers/avl-3d-context';
 import { Avl3DEntityCore } from '../molecules/Avl3DEntityCore';
@@ -55,7 +55,7 @@ interface TraitOrbitProps {
   onHover?: (hovered: boolean) => void;
 }
 
-function TraitOrbit({
+export function TraitOrbit({
   name,
   radius,
   tilt,
@@ -73,8 +73,9 @@ function TraitOrbit({
   const palette = useAvl3DPalette();
   const { t } = useTranslate();
 
+  const reducedMotion = usePrefersReducedMotion();
   useFrame((_, delta) => {
-    angleRef.current += delta * speed;
+    if (!reducedMotion) angleRef.current += delta * speed;
     if (!groupRef.current) return;
     // Position the trait marker on the orbit ring
     const x = radius * Math.cos(angleRef.current);

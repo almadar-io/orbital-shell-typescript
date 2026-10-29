@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
-import { ENGINES, loadTestKernel } from '../../src/test-support/kernel-engine';
+import { ENGINES, loadTestKernel, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
 import { nativeMemoryPersistence } from '../../src/runtime';
 import { I18nProvider, createTranslate } from '../../src/core';
 
@@ -41,7 +41,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe.each(ENGINES)('a local-store leg translates with the viewer catalog [%s engine]', (_name, engine) => {
   it('the offline transport mounts a trait whose leg renders translated text', async () => {
     const persistence = nativeMemoryPersistence(await loadTestKernel());
-    const { result } = renderHook(() => useCircuitKernel([binding], { orbitals, persistence, engine }), { wrapper });
+    const { result } = renderHook(() => useCircuitKernel([binding], { stamp: TEST_STAMP, orbitals, persistence, engine }), { wrapper });
     const outcome = await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Shell' });
     expect(outcome.response.success).toBe(true);
   });

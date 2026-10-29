@@ -25,6 +25,27 @@ fn flight_id(flight: f64) -> napi::Result<u64> {
     }
 }
 
+/// Lazy orbital files read from the folder the program was registered from: raw file reads, no decisions.
+struct DirLazySource {
+    dir: std::path::PathBuf,
+}
+
+impl orbital_wasm::LazySource for DirLazySource {
+    fn read(&self, file: &str) -> Result<orbital_wasm::LazyProgram, String> {
+        let path = self.dir.join(file);
+        let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let schema: orbital_wasm::OrbitalSchema = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+        let mut catalogs = std::collections::HashMap::new();
+        for locale in schema.locales.iter().flatten() {
+            let sidecar = path.with_extension(format!("{locale}.json"));
+            let raw = std::fs::read_to_string(&sidecar).map_err(|e| format!("{}: {e}", sidecar.display()))?;
+            let catalog = serde_json::from_str(&raw).map_err(|e| format!("{}: {e}", sidecar.display()))?;
+            catalogs.insert(locale.clone(), catalog);
+        }
+        Ok(orbital_wasm::LazyProgram { schema, catalogs })
+    }
+}
+
 /// The server role: `start` a request, answer the I/O it asks for, `resume` the flight until it is done.
 #[napi]
 pub struct Server {
@@ -33,11 +54,15 @@ pub struct Server {
 
 #[napi]
 impl Server {
+    /// `lazy_dir`: the folder the program's `uses lazy` files sit beside; the kernel loads each on the first dispatch that
+    /// reaches it (EXEC-LOAD-2). Absent, a lazy page is the client's to open.
     #[napi(constructor)]
-    pub fn new(resolved_schema_json: String) -> napi::Result<Self> {
-        Ok(Self {
-            api: Slot::new(ServerHandle::plain(&resolved_schema_json).map_err(js)?),
-        })
+    pub fn new(resolved_schema_json: String, lazy_dir: Option<String>) -> napi::Result<Self> {
+        let handle = match lazy_dir {
+            Some(dir) => ServerHandle::plain_lazy(&resolved_schema_json, std::sync::Arc::new(DirLazySource { dir: dir.into() })),
+            None => ServerHandle::plain(&resolved_schema_json),
+        };
+        Ok(Self { api: Slot::new(handle.map_err(js)?) })
     }
 
     #[napi]

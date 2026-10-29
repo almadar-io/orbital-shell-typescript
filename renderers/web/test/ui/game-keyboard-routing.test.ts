@@ -28,10 +28,12 @@ import { createEmptyResolvedTrait } from '@almadar/core';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
+import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 function snakeOrbitals(): OrbitalSchema['orbitals'] {
   const mk = (name: string, transitions: NonNullable<Trait['stateMachine']>['transitions']) => ({
     name,
+    ...(name === 'SnakePlay' ? { emits: [{ event: 'TURN', scope: 'internal' as const }] } : {}),
     linkedEntity: 'Snake',
     stateMachine: {
       states: [{ name: 'playing', isInitial: true }],
@@ -42,7 +44,7 @@ function snakeOrbitals(): OrbitalSchema['orbitals'] {
   return [{
     name: 'SnakeOrbital',
     id: 'orb_snake' as OrbitalId,
-    pages: [],
+    pages: [{ name: 'Home', path: '/', traits: [{ ref: 'SnakePlay' }, { ref: 'SnakeMechanic' }, { ref: 'SnakeCanvas' }] }],
     entity: { name: 'Snake', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [
       // The composer: owns the semantic direction events (the keyMap's
@@ -69,7 +71,7 @@ function withListen(orbitals: OrbitalSchema['orbitals']): OrbitalSchema['orbital
   const mechanic = orbitals[0].traits.find((t) => (t as { name?: string }).name === 'SnakeMechanic') as {
     listens?: unknown[];
   };
-  mechanic.listens = [{ event: 'SnakePlay.TURN', triggers: 'STEER' }];
+  mechanic.listens = [{ event: 'TURN', source: { kind: 'trait', trait: 'SnakePlay' }, triggers: 'STEER' }];
   return orbitals;
 }
 
@@ -113,7 +115,7 @@ describe('game keyboard input — qualified key fans reach the domain trait', ()
     let bus!: ReturnType<typeof useEventBus>;
     const { result } = renderHook(() => {
       bus = useEventBus();
-      return useTraitStateMachine(bindings, slots, { orbitals });
+      return useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals, routePath: '/' });
     });
 
     // The exact keys `useEventBus`'s R-EMBEDDED-EMIT-BUBBLE fan-out
@@ -143,7 +145,7 @@ describe('game keyboard input — qualified key fans reach the domain trait', ()
     let bus!: ReturnType<typeof useEventBus>;
     const { result } = renderHook(() => {
       bus = useEventBus();
-      return useTraitStateMachine(bindings, slots, { orbitals });
+      return useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals, routePath: '/' });
     });
 
     // The real fan emits the SAME semantic event on BOTH the embedded scope

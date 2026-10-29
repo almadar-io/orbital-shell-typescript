@@ -17,7 +17,13 @@ import { useTranslate } from "../hooks/useTranslate";
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 export type AvatarStatus = "online" | "offline" | "away" | "busy";
 
-/** @accessibleName alt name */
+/**
+ * @accessibleName alt name
+ * @role img
+ * @tokens --color-muted --color-border --color-foreground
+ * @contrast foreground muted
+ * @motion css
+ */
 export interface AvatarProps extends A11yProps {
   /**
    * Image source URL

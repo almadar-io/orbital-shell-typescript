@@ -6,7 +6,8 @@ import './helpers/kernel-evaluator.setup.js';
  * ORBITAL_KERNEL_MEMORY_WASM); the suite is skipped without them.
  */
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { EntityRow, EventPayload, OrbitalSchema, PersistenceAdapter, ServiceHostPorts } from '@almadar/core';
+import type { FrameDelta } from '@almadar/core/kernel-wire';
+import type { EntityRow, EventPayload, JsonValue, OrbitalSchema, PersistenceAdapter, ServiceHostPorts } from '@almadar/core';
 import { OrbitalServerRuntime } from '../../src/runtime/OrbitalServerRuntime.js';
 import { InFlightCalls, type NativeMemoryPersistenceAdapter } from '@almadar/shell-runtime';
 import { answerRequest, type DeferredCallOutcome, type KernelAnswerScope, type KernelHostPorts } from '@almadar/shell-runtime';
@@ -204,7 +205,14 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
         } }],
       }],
     });
-    const seen = (response: { entityByTrait?: Record<string, EventPayload> }): EventPayload[string] | undefined => response.entityByTrait?.['Editor']?.['seen'];
+    const seen = (response: { frames?: FrameDelta }): JsonValue | undefined => {
+      let value: JsonValue | undefined;
+      for (const op of response.frames?.ops ?? []) {
+        if (op[0] === 'set') value = op[1]['Editor']?.['seen'] ?? value;
+        if (op[0] === 'put' && op[1] === 'Editor') value = op[2]['seen'];
+      }
+      return value;
+    };
 
     it('another client\'s dispatch does not overwrite a client\'s frame', async () => {
       const runtime = await open(drafts());

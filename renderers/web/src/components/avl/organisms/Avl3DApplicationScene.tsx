@@ -16,6 +16,7 @@ import type { ApplicationLevelData } from '../../../lib/avl-schema-parser';
 import { goldenSpiralPositions, forceDirectedPositions } from '../../../lib/avl-3d-layout';
 import { Avl3DOrbitalNode } from '../molecules/Avl3DOrbitalNode';
 import { Avl3DCrossWire } from '../molecules/Avl3DCrossWire';
+import { usePrefersReducedMotion } from '../../../core';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -76,8 +77,9 @@ export const Avl3DApplicationScene: React.FC<Avl3DApplicationSceneProps> = ({
   }, [data.orbitals, orbitalPositions]);
 
   // Slow ambient rotation
+  const reducedMotion = usePrefersReducedMotion();
   useFrame((_, delta) => {
-    if (!groupRef.current) return;
+    if (!groupRef.current || reducedMotion) return;
     groupRef.current.rotation.y += delta * 0.03;
   });
 

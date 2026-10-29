@@ -18,6 +18,11 @@ import { domPassthrough } from '../../../core';
  */
 export type { SkeletonVariant };
 
+/**
+ * @role status
+ * @tokens --color-muted --color-border
+ * @motion css
+ */
 export interface SkeletonProps extends A11yProps {
   /** The skeleton variant to render */
   variant?: SkeletonVariant;

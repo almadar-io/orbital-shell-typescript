@@ -24,7 +24,13 @@ export type ButtonVariant =
   | "link";
 export type ButtonSize = "sm" | "md" | "lg";
 
-/** @accessibleName label */
+/**
+ * @accessibleName label
+ * @role button
+ * @tokens --color-primary --color-primary-foreground --color-foreground
+ * @contrast primary-foreground primary
+ * @motion css
+ */
 export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, keyof A11yProps | 'onClick'>, A11yProps {
   /** Additional CSS classes applied to the root element. */
   className?: string;

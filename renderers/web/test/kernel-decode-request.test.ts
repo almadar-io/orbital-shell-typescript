@@ -58,6 +58,34 @@ describe('decodeRequest', () => {
   }
 
   it('refuses a kind the wire does not have', () => {
-    expect(() => decodeRequest({ kind: 'nope' })).toThrow('unknown request kind "nope"');
+    expect(() => decodeRequest({ kind: 'nope' })).toThrow('IoRequestWire: unknown kind "nope"');
+  });
+});
+
+describe('decodeRequest follows what the Rust deserializer accepts and produces', () => {
+  it('rule 1: an integer field takes an integer in the range of its Rust type', () => {
+    expect(decodeRequest({ kind: 'random', bytes: 4 })).toEqual({ kind: 'random', bytes: 4 });
+    for (const bytes of [1.5, -1, 4294967296, '4']) {
+      expect(() => decodeRequest({ kind: 'random', bytes }), String(bytes)).toThrow(/IoRequestWire\.bytes: expected u32/);
+    }
+  });
+
+  it('rule 2: a field the type does not declare is dropped, as serde drops it', () => {
+    expect(decodeRequest({ kind: 'listRows', entityType: 'E', extra: 1 })).toEqual({ kind: 'listRows', entityType: 'E' });
+    expect(decodeRequest({ kind: 'http', request, extra: true })).toEqual({ kind: 'http', request });
+  });
+
+  it('rule 3: a defaulted field is filled in when missing, and a wrong type is still refused', () => {
+    const grant = { provider: 'google', redirectUri: 'r', verifier: 'v', subject: null };
+    const decoded = decodeRequest({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant } });
+    expect(decoded).toEqual({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant: { ...grant, scopes: [] } } });
+    const kept = decodeRequest({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant: { ...grant, scopes: ['a'] } } });
+    expect(kept).toEqual({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant: { ...grant, scopes: ['a'] } } });
+    expect(() => decodeRequest({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant: { ...grant, scopes: 'a' } } })).toThrow(/scopes: expected a list/);
+  });
+
+  it('a missing Option decodes to its absence, and a null Option is absent too', () => {
+    expect(decodeRequest({ kind: 'secret', name: 'n' })).toEqual({ kind: 'secret', name: 'n' });
+    expect(decodeRequest({ kind: 'secret', name: 'n', principal: null })).toEqual({ kind: 'secret', name: 'n' });
   });
 });

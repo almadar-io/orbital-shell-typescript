@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { installKernelEvaluator } from '@almadar/core';
+import type { OrbitalSchema } from '@almadar/core';
 import { readLanguageBundle } from '@almadar/core/language-data';
 import type { KernelEngineValue } from '../providers/KernelEngineContext.js';
 import type { KernelModule } from '../lib/kernel-wire.js';
@@ -41,6 +42,12 @@ async function load(): Promise<KernelModule> {
   installKernelEvaluator(glue);
   return glue;
 }
+
+/** The type-contract stamp every test program carries, typed from core's `OrbitalSchema` so a version bump there fails here. */
+export const TEST_TYPE_CONTRACT_VERSION: NonNullable<OrbitalSchema['typeContractVersion']> = 1;
+
+/** The stamp option a hook under test hands the kernel: the same version, as a program's stamp. */
+export const TEST_STAMP: Pick<OrbitalSchema, 'typeContractVersion'> = { typeContractVersion: TEST_TYPE_CONTRACT_VERSION };
 
 /** The installed language as the bundle a browser host hands a kernel it opens over a local store. */
 export const TEST_LANGUAGE: string = JSON.stringify(readLanguageBundle(process.cwd()));

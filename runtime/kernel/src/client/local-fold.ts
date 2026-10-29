@@ -1,26 +1,38 @@
 /**
  * The view's side of a dispatch the in-process kernel already ran: report its executed hops to the observer,
- * mirror its states, rows and sticky callsite payloads into the `CircuitStore`, then notify subscribers.
+ * paint its states, frame delta and sticky callsite payloads into the `CircuitStore`, then notify subscribers.
  * One implementation for every response the kernel produces (a dispatch, a mount seed, a posted leg's fold,
  * a tick frame).
  */
 import type { OrbitalEventResponse } from '@almadar/core';
+import type { FrameDelta } from '@almadar/core/kernel-wire';
 import type { LocalFoldKernel } from './client-kernel.js';
 import type { CircuitStore } from './circuit-store.js';
 import type { TransitionObserver } from './trait-types.js';
 
-export function mirrorResponse(store: CircuitStore, frameKeyOf: (trait: string) => string | undefined, response: OrbitalEventResponse): void {
+/** A snapshot of the kernel's frames for a painter at `since` (the kernel's `framesSince`). */
+export type FramesSince = (since: number) => FrameDelta;
+
+/** Paint a response's states and sticky callsite payloads. Rows are the kernel's frame delta, painted by [`paintFrames`]. */
+export function paintStates(store: CircuitStore, response: OrbitalEventResponse): void {
   for (const [trait, state] of Object.entries(response.states)) {
     if (store.states.getState(trait)?.currentState !== state) store.states.seedState(trait, state);
-  }
-  for (const [trait, row] of Object.entries(response.entityByTrait ?? {})) {
-    const frameKey = frameKeyOf(trait);
-    if (frameKey === undefined) continue;
-    store.frames.set(frameKey, { ...(store.frames.get(frameKey) ?? {}), ...row });
   }
   for (const effect of response.clientEffectsByTrait ?? []) {
     if (effect.callsitePayload !== undefined) store.callsitePayloads.set(effect.traitName, effect.callsitePayload);
   }
+}
+
+/** Paint the kernel's frame delta; on a version gap, ask the kernel for the snapshot and paint that. */
+export function paintFrames(store: CircuitStore, delta: FrameDelta | undefined, framesSince: FramesSince): void {
+  if (delta === undefined) return;
+  if (store.applyFrames(delta) === 'gap') store.applyFrames(framesSince(store.frameVersion));
+}
+
+/** Paint a response the in-process kernel produced: its states, payloads and frames. */
+export function paintResponse(store: CircuitStore, framesSince: FramesSince, response: OrbitalEventResponse): void {
+  paintStates(store, response);
+  paintFrames(store, response.frames, framesSince);
 }
 
 export function traceResponse(observer: TransitionObserver | undefined, response: OrbitalEventResponse): void {
@@ -41,7 +53,7 @@ export function traceResponse(observer: TransitionObserver | undefined, response
 
 export interface LocalFoldOptions {
   store: CircuitStore;
-  frameKeyOf(trait: string): string | undefined;
+  framesSince: FramesSince;
   observer?: TransitionObserver;
 }
 
@@ -49,7 +61,7 @@ export function createLocalFold(opts: LocalFoldOptions): LocalFoldKernel {
   return {
     foldLocalResponse: async (response, traceHops, notify) => {
       if (traceHops) traceResponse(opts.observer, response);
-      mirrorResponse(opts.store, opts.frameKeyOf, response);
+      paintResponse(opts.store, opts.framesSince, response);
       if (notify) opts.store.notify();
     },
   };

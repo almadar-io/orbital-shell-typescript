@@ -34,6 +34,7 @@ import type {
   TraitEventListener,
   ConfigFieldDeclaration,
   TraitDispatchMode,
+  DispatchMode,
 } from "./trait.js";
 import {
   isInlineTrait,
@@ -47,6 +48,7 @@ import {
   TraitEventListenerSchema,
   ConfigFieldDeclarationSchema,
   TraitDispatchModeSchema,
+  DispatchModeSchema,
 } from "./trait.js";
 import type {
   DomainContext,
@@ -135,13 +137,41 @@ export type LazyPage = {
   orbRef: string;
   /** The link and navigate targets inside the page's behavior, sorted and unique; page reachability follows them between lazy pages. */
   links?: string[];
+  /** The page's protocol (`http`, `stdio`, `boot`); absent for a route. A lazy orbital with an endpoint page loads when the host starts. */
+  protocol?: string;
+  /** The eager orbital that preceded the lazy one in the importer: where its listeners sit in fan-out order. */
+  after?: string;
+  /** The traits the page places. */
+  places?: string[];
+  /** The traits of the page's orbital the kernel registers before the behavior is loaded (EXEC-LOAD-2). */
+  traits?: LazyTrait[];
 };
+
+/** A trait of a lazily-used orbital as its importer records it: its name, the events it listens to, and whether it has a background tick. */
+export type LazyTrait = {
+  name: string;
+  /** The trait's declared dispatch mode: a `[client]` trait never triggers a server load. */
+  dispatchMode: DispatchMode;
+  listens?: TraitEventListener[];
+  backgroundTicks?: boolean;
+};
+
+export const LazyTraitSchema = z.object({
+  name: z.string().min(1),
+  dispatchMode: DispatchModeSchema,
+  listens: z.array(TraitEventListenerSchema).optional(),
+  backgroundTicks: z.boolean().optional(),
+});
 
 export const LazyPageSchema = z.object({
   path: z.string().min(1),
   orbital: z.string().min(1),
   orbRef: z.string().min(1),
   links: z.array(z.string()).optional(),
+  protocol: z.string().optional(),
+  after: z.string().optional(),
+  places: z.array(z.string()).optional(),
+  traits: z.array(LazyTraitSchema).optional(),
 });
 
 // ============================================================================

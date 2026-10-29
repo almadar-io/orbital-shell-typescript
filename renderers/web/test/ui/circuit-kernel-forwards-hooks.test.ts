@@ -7,7 +7,7 @@ import type { OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
 import type { EventTransport, EventTransportRegisterResult } from '../../src';
 import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
-import { ENGINES, warmKernel } from '../../src/test-support/kernel-engine';
+import { ENGINES, warmKernel, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const orbitals: OrbitalSchema['orbitals'] = [{
   name: 'Main', pages: [],
@@ -47,7 +47,7 @@ describe.each(ENGINES)('useCircuitKernel [%s engine] forwards dispatch hooks', (
   beforeAll(warmKernel);
   it('onLocal sees the local render before the server leg settles', async () => {
     const server = new GatedServer();
-    const { result } = renderHook(() => useCircuitKernel([binding], { orbitals, transport: server, carriesCircuitState: true, engine }));
+    const { result } = renderHook(() => useCircuitKernel([binding], { stamp: TEST_STAMP, orbitals, transport: server, carriesCircuitState: true, engine }));
     const painted: string[] = [];
     const done = result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Notes' }, {
       onLocal: (local) => { painted.push(...(local.clientEffectsByTrait ?? []).map((e) => String(e.effect[0]))); },
@@ -60,7 +60,7 @@ describe.each(ENGINES)('useCircuitKernel [%s engine] forwards dispatch hooks', (
 
   it('while the topology is pending the local arm paints and only the post waits', async () => {
     const server = new GatedServer();
-    const { result, rerender } = renderHook(({ pending }) => useCircuitKernel([binding], { orbitals, transport: server, carriesCircuitState: true, awaitTopology: pending, engine }), { initialProps: { pending: true } });
+    const { result, rerender } = renderHook(({ pending }) => useCircuitKernel([binding], { stamp: TEST_STAMP, orbitals, transport: server, carriesCircuitState: true, awaitTopology: pending, engine }), { initialProps: { pending: true } });
     let localSeen = false;
     const done = result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Notes' }, { onLocal: () => { localSeen = true; } });
     await new Promise((r) => setTimeout(r, 0));
@@ -76,7 +76,7 @@ describe.each(ENGINES)('useCircuitKernel [%s engine] forwards dispatch hooks', (
 
   it('the kernel survives the topology resolving: one dispatch is posted once, never dropped or duplicated', async () => {
     const server = new GatedServer();
-    const { result, rerender } = renderHook(({ pending }) => useCircuitKernel([binding], { orbitals, transport: server, carriesCircuitState: true, awaitTopology: pending, engine }), { initialProps: { pending: true } });
+    const { result, rerender } = renderHook(({ pending }) => useCircuitKernel([binding], { stamp: TEST_STAMP, orbitals, transport: server, carriesCircuitState: true, awaitTopology: pending, engine }), { initialProps: { pending: true } });
     const before = result.current.kernel;
     const done = before.dispatch({ event: 'INIT', targetTrait: 'Notes' });
     rerender({ pending: false });

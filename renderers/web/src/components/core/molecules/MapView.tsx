@@ -252,7 +252,7 @@ const MapViewImpl = lazy(async () => {
               key={route.id}
               positions={route.waypoints.map((wp): [number, number] => [wp.lat, wp.lng])}
               pathOptions={{
-                color: route.color ?? 'var(--primary, #2563eb)',
+                color: route.color ?? 'var(--color-primary)',
                 weight: route.weight ?? 4,
                 opacity: route.opacity ?? 0.8,
                 dashArray: route.dashArray,

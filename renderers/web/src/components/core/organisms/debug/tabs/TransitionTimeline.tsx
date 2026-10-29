@@ -134,7 +134,7 @@ export function TransitionTimeline({ transitions }: TransitionTimelineProps) {
                                     {trace.traitName}
                                 </Badge>
                                 <Typography variant="small" className="font-mono text-muted-foreground">
-                                    {trace.from} <span className="text-muted-foreground/50">{'\u2192'}</span> {trace.to}
+                                    {trace.from} <span className="text-muted-foreground">{'\u2192'}</span> {trace.to}
                                 </Typography>
                                 <Badge variant="info" size="sm">
                                     {trace.event}

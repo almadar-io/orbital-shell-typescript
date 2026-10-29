@@ -31,6 +31,8 @@ export interface FilterPillProps extends Omit<React.HTMLAttributes<HTMLSpanEleme
   onRemove?: () => void;
   /** Disable the remove button (renders without × control) */
   removable?: boolean;
+  /** Pressed state of the pill body (filter toggle), exposed as aria-pressed */
+  selected?: boolean;
   /** Click handler for the body of the pill (filter toggle) */
   onClick?: () => void;
   /** Event name dispatched via event bus when the pill body is clicked. Payload: { label } */
@@ -95,6 +97,7 @@ export const FilterPill = React.forwardRef<HTMLSpanElement, FilterPillProps>(
       clickEvent,
       removeEvent,
       children,
+      selected,
       'aria-pressed': ariaPressed,
       ...props
     },
@@ -136,7 +139,7 @@ export const FilterPill = React.forwardRef<HTMLSpanElement, FilterPillProps>(
         <span
           className={cn("inline-flex items-center gap-1", pressable && "cursor-pointer")}
           {...pressableProps<HTMLSpanElement>(pressable)}
-          aria-pressed={pressable ? ariaPressed : undefined}
+          aria-pressed={pressable ? (ariaPressed ?? selected) : undefined}
         >
           {resolvedIcon}
           <span>{children ?? label}</span>

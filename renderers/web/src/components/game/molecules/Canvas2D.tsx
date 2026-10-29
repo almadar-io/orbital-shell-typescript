@@ -734,6 +734,11 @@ export function Canvas2D({
     // Camera-lerp RAF: runs only while a follow target is active.
     useEffect(() => {
         if (camera !== 'follow' || !followTarget) return;
+        if (canvasTheme && !canvasTheme.motion.enabled) {
+            lerpToTarget(1);
+            draw();
+            return;
+        }
         let running = true;
         const tick = () => {
             if (!running) return;
@@ -746,7 +751,7 @@ export function Canvas2D({
             running = false;
             cancelAnimationFrame(lerpRafRef.current);
         };
-    }, [camera, followTarget, lerpToTarget, draw]);
+    }, [camera, followTarget, lerpToTarget, draw, canvasTheme]);
 
     // =========================================================================
     // Pointer / gesture handlers

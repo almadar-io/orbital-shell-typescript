@@ -18,7 +18,7 @@ import { RawUserClaimsSchema, type RawUserClaims } from "./user.js";
 import { ServerEffectResultSchema, type ServerEffectResult } from "./effect-result.js";
 import type { ExternalInput } from "../access/externalInputs.js";
 import { JsonValueSchema, type JsonObject, type JsonValue } from "./json.js";
-import type { EventRequest, HopObservation, RepaintReason } from "../generated/kernel-wire.js";
+import type { EventRequest, FrameDelta, HopObservation, RepaintReason } from "../generated/kernel-wire.js";
 
 /**
  * Declared event key. A trait's event names (INIT, SAVE, CLOSE,
@@ -436,6 +436,8 @@ export type OrbitalEventRequest = {
   mount?: MountSeed[];
   /** Where this leg runs, set by the kernel (EXEC-DIST-6): `browser` for browser-stored rows only, else `server`. */
   residence?: 'browser' | 'server';
+  /** Not a dispatch: the client holds this version of the session's frames and asks what it misses (answered in `frames`). */
+  framesSince?: number;
 };
 
 /** The lifecycle events a trait runs when it enters a page (the first it handles). */
@@ -649,12 +651,11 @@ export type OrbitalEventResponse = {
   /** Fetched pages delivered by reference (`deliver: ids`), keyed by entity name. */
   dataRefs?: Record<string, RowSetRef>;
   /**
-   * `@entity` fields this transition's server-side `set` effects wrote,
-   * post-effect, keyed by trait name — the response-side twin of the
-   * request's `entityByTrait`. The client merges them over its own effect
-   * results (server wins).
+   * What this response changes in the frames the client holds, against the kernel's view record for the session
+   * (EXEC-DIST-7): absolute, idempotent ops keyed by frame (a trait's own frame, or `$shared::<Entity>`). A client
+   * applies it only at the version `from`; on a gap it asks the kernel for `framesSince`.
    */
-  entityByTrait?: Record<string, EntityRow>;
+  frames?: FrameDelta;
   /** Client-side effects to execute (render-ui, navigate), each paired with the producing trait name so consumers resolve `@trait.X` bindings. */
   clientEffectsByTrait?: ClientEffectByTrait[];
   /** Results from server-side effects (persist, call-service, set). */
@@ -700,6 +701,21 @@ export const OrbitalEventRequestSchema: z.ZodType<OrbitalEventRequest, object> =
   delivery: DeliveryRecordSchema.optional(),
   dispatchLog: DispatchLogSchema.optional(),
   mount: z.array(MountSeedSchema).optional(),
+  framesSince: z.number().optional(),
+});
+
+const FrameOpSchema = z.union([
+  z.tuple([z.literal("put"), z.string(), EntityRowSchema]),
+  z.tuple([z.literal("set"), z.record(z.string(), EntityRowSchema)]),
+  z.tuple([z.literal("del"), z.string()]),
+  z.tuple([z.literal("clear")]),
+]);
+
+const FrameDeltaSchema = z.object({
+  session: z.string().optional(),
+  from: z.number(),
+  to: z.number(),
+  ops: z.array(FrameOpSchema),
 });
 
 /** Zod twin of `OrbitalEventResponse`. Third type param `object`, see `BusEventSourceSchema`. */
@@ -710,7 +726,7 @@ export const OrbitalEventResponseSchema: z.ZodType<OrbitalEventResponse, object>
   emittedEvents: z.array(EmittedEventSchema),
   data: z.record(z.string(), z.array(EntityRowSchema)).optional(),
   dataRefs: z.record(z.string(), RowSetRefSchema).optional(),
-  entityByTrait: z.record(z.string(), EntityRowSchema).optional(),
+  frames: FrameDeltaSchema.optional(),
   clientEffectsByTrait: z
     .array(z.object({
       traitName: z.string(),

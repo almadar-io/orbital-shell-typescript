@@ -4,8 +4,9 @@
  * circuit) mounts only once the host's auth provider has resolved an
  * authenticated viewer, and is keyed by that viewer so a different user never
  * inherits the previous user's circuit. Any other resolved authority sends the
- * viewer to the app's declared `signIn` route. Public and undeclared pages pass
- * straight through — no auth wait, no gate.
+ * viewer to the app's declared `signIn` route. An `access: public` page mounts at
+ * once, whatever the authority. A page that declares no access mounts once the
+ * stored sign-in has settled, never anonymously while it restores.
  *
  * @packageDocumentation
  */
@@ -45,7 +46,8 @@ export function PageAccessHost({
     if (denied && signIn !== undefined) onDenied(signIn, path);
   }, [denied, signIn, path, onDenied]);
 
-  if (!gated) return <>{children}</>;
+  if (access === 'public') return <>{children}</>;
+  if (!gated) return authority === 'pending' ? null : <>{children}</>;
   if (authority !== 'authenticated') return null;
   return <React.Fragment key={viewerId}>{children}</React.Fragment>;
 }

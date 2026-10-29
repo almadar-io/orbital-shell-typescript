@@ -9,6 +9,7 @@ import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { collectCallsiteCaptureChildren, createEmptyResolvedTrait } from '@almadar/core';
+import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const parent: Trait = {
   name: 'Catalog',
@@ -74,6 +75,7 @@ async function mounted() {
   const orbs = orbitals();
   const bindings = ['Catalog', 'Ledger'].map(binding);
   const hook = renderHook(() => useTraitStateMachine(bindings, slots, {
+    stamp: TEST_STAMP,
     orbitals: orbs,
     callsiteCaptureChildrenByTrait: collectCallsiteCaptureChildren(orbs[0]),
   }));

@@ -24,6 +24,12 @@ export interface DocBreadcrumbItem {
   href?: string;
 }
 
+/**
+ * @role navigation
+ * @tokens --color-foreground --color-muted-foreground
+ * @contrast muted-foreground background
+ * @motion none
+ */
 export interface DocBreadcrumbProps extends A11yProps {
   /** Breadcrumb path items, last item is treated as current page */
   items: DocBreadcrumbItem[];
@@ -74,7 +80,7 @@ export const DocBreadcrumb: React.FC<DocBreadcrumbProps> = ({
                 <Button
                   variant="link"
                   href={item.href}
-                  className="h-auto px-0 text-xs font-normal text-muted-foreground hover:text-primary"
+                  className="h-auto px-0 text-xs font-normal text-muted-foreground hover:text-foreground"
                 >
                   {item.label}
                 </Button>

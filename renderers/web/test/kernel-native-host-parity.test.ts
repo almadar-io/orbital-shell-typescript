@@ -4,10 +4,11 @@ import { untouchedPersistence } from './helpers/persistence.js';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 import { KernelEngine } from '../src/kernel/engine.js';
 import type { KernelHostPorts } from '../src/kernel/host.js';
-import { loadTestKernel } from '../src/test-support/kernel-engine.js';
+import { loadTestKernel, TEST_TYPE_CONTRACT_VERSION } from '../src/test-support/kernel-engine.js';
 
 const schema = OrbitalSchemaSchema.parse({
   name: 'Parity',
+  typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
   orbitals: [{ name: 'Main', entity: { name: 'Job', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] }, traits: [{ name: 'Worker', linkedEntity: 'Job', stateMachine: {
     events: [{ key: 'GO', name: 'GO' }, { key: 'ASK', name: 'ASK' }, { key: 'FINISH', name: 'FINISH' }],
     states: [{ name: 'idle', isInitial: true }, { name: 'busy' }, { name: 'done' }],

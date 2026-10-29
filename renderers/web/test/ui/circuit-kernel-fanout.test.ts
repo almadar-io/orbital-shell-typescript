@@ -22,7 +22,7 @@ import { describe, it, expect } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { OrbitalId, OrbitalSchema } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
-import { ENGINES } from '../../src/test-support/kernel-engine';
+import { ENGINES, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 function fixtureOrbitals(): OrbitalSchema['orbitals'] {
   return [
@@ -83,7 +83,7 @@ describe.each(ENGINES)('useCircuitKernel [%s engine] — cross-trait dispatch th
       { trait: { name: 'Chart', id: undefined, states: [{ name: 'idle' }, { name: 'listened' }], events: [], transitions: [{ from: 'idle', to: 'listened', event: 'RENDER' }], guards: [], ticks: [], listens: [{ event: 'POINTS_READY', triggers: 'RENDER', source: { kind: 'trait', trait: 'Writer' } }], emits: [], source: 'schema' } },
     ] as never;
 
-    const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals, engine }));
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals, engine }));
 
     await act(async () => {
       await result.current.kernel.dispatch({ event: 'COMPUTE', payload: { points: '[1,2,3]' }, targetTrait: 'Writer' });

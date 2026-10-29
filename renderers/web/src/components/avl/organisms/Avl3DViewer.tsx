@@ -41,7 +41,7 @@ import { Avl3DTraitScene } from './Avl3DTraitScene';
 import { Avl3DTransitionScene } from './Avl3DTransitionScene';
 import { Avl3DEffects } from './Avl3DEffects';
 import { Avl3DContext, type Avl3DModelOverrides } from '../../../providers/avl-3d-context';
-import { useTranslate } from '../../../core';
+import { useTranslate, usePrefersReducedMotion } from '../../../core';
 import { useThemeColors } from '../../../hooks/useThemeColors';
 import { createLogger } from '@almadar/logger';
 
@@ -84,12 +84,13 @@ interface CameraControllerProps {
   animated: boolean;
 }
 
-function CameraController({ targetPosition, targetLookAt, animated }: CameraControllerProps): null {
+export function CameraController({ targetPosition, targetLookAt, animated }: CameraControllerProps): null {
   const { camera } = useThree();
   const targetPosVec = useRef(new THREE.Vector3(...targetPosition));
   const targetLookVec = useRef(new THREE.Vector3(...targetLookAt));
   // Only animate when target changes, then release control to OrbitControls
   const isAnimating = useRef(false);
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     const newTarget = new THREE.Vector3(...targetPosition);
@@ -100,14 +101,14 @@ function CameraController({ targetPosition, targetLookAt, animated }: CameraCont
       targetPosVec.current.copy(newTarget);
       targetLookVec.current.copy(newLookAt);
 
-      if (animated) {
+      if (animated && !reducedMotion) {
         isAnimating.current = true;
       } else {
         camera.position.copy(targetPosVec.current);
         camera.lookAt(targetLookVec.current.x, targetLookVec.current.y, targetLookVec.current.z);
       }
     }
-  }, [targetPosition, targetLookAt, animated, camera]);
+  }, [targetPosition, targetLookAt, animated, reducedMotion, camera]);
 
   useFrame((_, delta) => {
     if (!isAnimating.current) return;
@@ -137,14 +138,15 @@ interface SceneFadeProps {
   children: React.ReactNode;
 }
 
-function SceneFade({ animating, children }: SceneFadeProps): React.JSX.Element {
+export function SceneFade({ animating, children }: SceneFadeProps): React.JSX.Element {
   const groupRef = useRef<THREE.Group>(null);
   const opacityRef = useRef(1);
+  const reducedMotion = usePrefersReducedMotion();
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
     const target = animating ? 0 : 1;
-    opacityRef.current = THREE.MathUtils.damp(opacityRef.current, target, 5, delta);
+    opacityRef.current = reducedMotion ? target : THREE.MathUtils.damp(opacityRef.current, target, 5, delta);
     // Apply opacity via scale trick (R3F doesn't support group opacity directly)
     // Instead use visibility toggle at threshold
     groupRef.current.visible = opacityRef.current > 0.05;

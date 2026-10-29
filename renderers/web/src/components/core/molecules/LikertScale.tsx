@@ -21,6 +21,12 @@ export interface LikertOption {
   label: string;
 }
 
+/**
+ * @role radiogroup
+ * @tokens --color-primary --color-muted --color-surface --color-border --color-foreground
+ * @contrast foreground surface
+ * @motion css
+ */
 export interface LikertScaleProps extends A11yProps {
   /** Optional row prompt above the scale */
   question?: string;

@@ -7,6 +7,7 @@ import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 class ResizeObserverStub { observe(): void {} unobserve(): void {} disconnect(): void {} }
 (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= ResizeObserverStub;
@@ -15,6 +16,7 @@ const show = ['render-ui', 'main', { type: 'typography', content: ['str/concat',
 
 function ticking(): OrbitalSchema {
   return JSON.parse(JSON.stringify({
+    typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: `paused-${Math.random()}`, version: '1.0.0',
     orbitals: [{
       name: 'Lab',

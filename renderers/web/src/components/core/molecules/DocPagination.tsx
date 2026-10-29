@@ -15,6 +15,7 @@ import { HStack } from '../../../core';
 import { VStack } from '../../../core';
 import { Icon } from '../../../core';
 import { Typography } from '../../../core';
+import { useTranslate } from '../../../core';
 import { DOC_NAV_CARD_HOVER } from '../../../lib/doc-nav-classes';
 
 export interface DocPaginationLink {
@@ -23,6 +24,12 @@ export interface DocPaginationLink {
   category?: string;
 }
 
+/**
+ * @role navigation
+ * @tokens --color-border --color-accent --color-muted-foreground
+ * @contrast muted-foreground background
+ * @motion css
+ */
 export interface DocPaginationProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
   /** Previous page link */
   prev?: DocPaginationLink;
@@ -46,10 +53,13 @@ const linkCardStyles = [
 ].join(' ');
 
 export function DocPagination({ prev, next, className, ...rest }: DocPaginationProps) {
+  const { t } = useTranslate();
   if (!prev && !next) return null;
 
   return (
     <HStack
+      role="navigation"
+      aria-label={rest['aria-label'] ?? t('aria.pageNavigation')}
       {...domPassthrough(rest)}
       justify="between"
       align="stretch"

@@ -2,8 +2,8 @@
  * The browser store of a program's `[persistent: x, browser]` entities, opened once, and the in-process transport its legs run through. The runtime
  * host (`useBrowserStore`) and compiled static clients both open it here.
  */
-import type { BrowserTabPort, MessageCatalogs, MountSeed, OnDeviceModelPorts, OrbitalEntity, OrbitalDefinition, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema, RuntimeValue } from '@almadar/core';
-import { applyRowAccess, externalInputsOf, orbitalInlineEntities, parseOrbitalSchema, readableEntitiesOf, storesRowsInBrowser } from '@almadar/core';
+import type { BrowserTabPort, MessageCatalogs, MountSeed, OnDeviceModelPorts, OrbitalEntity, OrbitalDefinition, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
+import { applyRowAccess, externalInputsOf, orbitalInlineEntities, readableEntitiesOf, storesRowsInBrowser } from '@almadar/core';
 import { entityAccessPolicies } from '@almadar/core/mock';
 import type { KernelHostPorts } from '../../kernel/host.js';
 import type { HttpPorts } from '../../kernel/http.js';
@@ -87,11 +87,10 @@ export async function openBrowserStoreTransport(options: BrowserStoreTransportOp
 }
 
 /**
- * A compiled client's bundled `browserSchema.json`, parsed by this runtime's own core (the client's core may predate
- * the browser-storage fields), served on the kernel like any local host.
+ * A compiled client's bundled `browserSchema.json`, served on the kernel like any local host. The program is the
+ * resolved `orb` output: the kernel validates it when it registers, so the host does not parse it again.
  */
-export function openBundledBrowserStore(bundled: RuntimeValue, kernel: KernelModule, language: string, locale?: string, callService?: EffectHandlers['callService'], messages?: MessageCatalogs, http?: HttpPorts): Promise<EventTransport> {
-  const schema = parseOrbitalSchema(bundled);
+export function openBundledBrowserStore(schema: OrbitalSchema, kernel: KernelModule, language: string, locale?: string, callService?: EffectHandlers['callService'], messages?: MessageCatalogs, http?: HttpPorts): Promise<EventTransport> {
   return openBrowserStoreTransport({
     databaseName: browserStoreName(schema.name, locale),
     schema,

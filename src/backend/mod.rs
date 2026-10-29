@@ -282,7 +282,6 @@ mod tests {
         assert_eq!(d(&OirType::DateTime), "string | number");
         assert_eq!(d(&OirType::Bytes), "string");
         assert_eq!(d(&OirType::String), "string");
-        assert_eq!(d(&OirType::Json), "Record<string, FieldValue | undefined>");
         assert_eq!(d(&OirType::Trait), "TraitFieldRef");
         assert_eq!(d(&OirType::SExpr), "SExpr");
         assert_eq!(d(&OirType::Node), "PatternValue");

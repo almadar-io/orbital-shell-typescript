@@ -7,8 +7,10 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 const schema: OrbitalSchema = JSON.parse(JSON.stringify({
+  typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
   name: 'button-app',
   version: '1.0.0',
   orbitals: [{

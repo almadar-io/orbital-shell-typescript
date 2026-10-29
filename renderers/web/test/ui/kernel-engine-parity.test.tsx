@@ -5,7 +5,7 @@ import { act, renderHook } from '@testing-library/react';
 import type { OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
-import { KERNEL_AVAILABLE, KERNEL_ENGINE, warmKernel } from '../../src/test-support/kernel-engine';
+import { KERNEL_AVAILABLE, KERNEL_ENGINE, warmKernel, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const orbitals: OrbitalSchema['orbitals'] = [{
   name: 'Main',
@@ -28,7 +28,7 @@ const orbitals: OrbitalSchema['orbitals'] = [{
 const bindings: ResolvedTraitBinding[] = [{ trait: createEmptyResolvedTrait('Panel', 'schema'), linkedEntity: 'Board' }];
 
 async function renderedSlot(engine: typeof KERNEL_ENGINE): Promise<string | undefined> {
-  const { result } = renderHook(() => useCircuitKernel(bindings, { orbitals, engine }));
+  const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals, engine }));
   const outcome = await act(async () => result.current.kernel.dispatch({ event: 'OPEN', targetTrait: 'Panel' }));
   const render = (outcome.response.clientEffectsByTrait ?? []).map((e) => e.effect).find((effect) => effect[0] === 'render-ui');
   return render?.[1];

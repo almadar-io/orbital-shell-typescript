@@ -6,7 +6,7 @@ import type { EventTransport, EventTransportRegisterResult } from '../../src';
 import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
 import { UNMOUNT_EVENT } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
-import { ENGINES } from '../../src/test-support/kernel-engine';
+import { ENGINES, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
 import type { KernelEngineValue } from '../../src/providers/KernelEngineContext';
 
 function trait(name: string): OrbitalSchema['orbitals'][number]['traits'][number] {
@@ -63,7 +63,7 @@ class RecordingTransport implements EventTransport {
 function mount(engine: KernelEngineValue, transport: RecordingTransport, names: string[], awaitTopology = false) {
   return renderHook(
     ({ bindings, pending }: { bindings: ResolvedTraitBinding[]; pending: boolean }) =>
-      useCircuitKernel(bindings, { orbitals, transport, awaitTopology: pending, engine }),
+      useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals, transport, awaitTopology: pending, engine }),
     { initialProps: { bindings: names.map(binding), pending: awaitTopology } },
   );
 }

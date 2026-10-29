@@ -15,7 +15,7 @@ import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { MathUtils } from 'three';
 import { RoundedBox } from '@react-three/drei';
-import { useTranslate } from '../../../core';
+import { useTranslate, usePrefersReducedMotion } from '../../../core';
 import { AVL_3D_COLORS } from '../../../lib/avl-3d-layout';
 import { useAvl3DPalette } from '../../../providers/avl-3d-context';
 import { Avl3DLabel } from '../atoms/Avl3DLabel';
@@ -69,8 +69,9 @@ export const Avl3DStateNode: React.FC<Avl3DStateNodeProps> = ({
 
   const targetScale = hovered ? 1.08 : 1;
   const currentScale = useRef(1);
+  const reducedMotion = usePrefersReducedMotion();
   useFrame((_, delta) => {
-    currentScale.current = MathUtils.damp(currentScale.current, targetScale, 6, delta);
+    currentScale.current = reducedMotion ? targetScale : MathUtils.damp(currentScale.current, targetScale, 6, delta);
   });
   const scale = currentScale.current;
 

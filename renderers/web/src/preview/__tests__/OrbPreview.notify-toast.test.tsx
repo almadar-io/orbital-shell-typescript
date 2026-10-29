@@ -11,6 +11,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 class ResizeObserverStub {
   observe(): void {}
@@ -21,6 +22,7 @@ class ResizeObserverStub {
 
 function schema(): OrbitalSchema {
   return {
+    typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: 'notify-toast',
     version: '1.0.0',
     orbitals: [{

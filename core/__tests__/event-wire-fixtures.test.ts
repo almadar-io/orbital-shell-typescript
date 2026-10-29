@@ -86,12 +86,12 @@ describe('every fixture file parses and validates', () => {
     }
   });
 
-  it('stateless-traits request carries traits[]/entityByTrait/behavior; response carries entityByTrait', () => {
+  it('stateless-traits request carries traits[]/entityByTrait/behavior; response carries a frame delta', () => {
     const { request, response } = loadEventWireFixture('stateless-traits');
     expect(request?.traits?.length).toBeGreaterThan(0);
     expect(request?.entityByTrait).toBeDefined();
     expect(request?.behavior).toBeDefined();
-    expect(response?.entityByTrait).toBeDefined();
+    expect(response?.frames?.ops.length).toBeGreaterThan(0);
   });
 
   it('client-effects-by-trait attributes each effect to its producing trait, in order', () => {

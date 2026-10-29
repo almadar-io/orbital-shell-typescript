@@ -194,7 +194,7 @@ export { type InboundAnswer, type InboundDelivery, type InboundRoute, type Inbou
 export { mergeExpectationShape } from './src/expectation-shape';
 
 // Route matching — the one path → page-pattern resolver.
-export { matchPath, comparePathSpecificity, matchPathAmong, defaultPage, pathMatchesPattern } from './src/route-match';
+export { matchPath, comparePathSpecificity, matchPathAmong, defaultPage, notFoundPage, pathMatchesPattern } from './src/route-match';
 
 // Shared-entity frame merge (mechanics-as-traits DRY primitive: the JS
 // interpreter and the generated TypeScript codegen both fold mechanic

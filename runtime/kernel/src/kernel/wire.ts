@@ -71,7 +71,8 @@ export interface KernelServerHandle {
 
 /** The `Server` constructor of a kernel module. */
 export interface KernelServerClass {
-  new (resolvedSchemaJson: string): KernelServerHandle;
+  /** `lazyDir`: the folder the program's `uses lazy` files sit beside; the kernel loads each on the first dispatch that reaches it (EXEC-LOAD-2). */
+  new (resolvedSchemaJson: string, lazyDir?: string): KernelServerHandle;
 }
 
 /** An initialised `@almadar/kernel` module: what `OrbitalServerRuntime({ engine: 'kernel' })` is handed. */

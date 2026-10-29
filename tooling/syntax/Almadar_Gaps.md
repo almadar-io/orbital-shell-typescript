@@ -13,6 +13,5 @@ Next code: `G-SYNTAX-003`
 ## Open gaps
 
 - **G-EXTENSIONS-002** — `editors/zed/tree-sitter-lolo` corpus tests "Trait with state and effect" and "Guard transition with operator symbol" fail at HEAD (`tree-sitter test`: 2/9 failed before the 2026-10-08 modifier-bracket change too): the expected trees name a `sexpr_op` node the generated parser no longer produces. Regenerate expectations or restore the node. The grammar also lags the language (no `uses`, `theme`, `locales` rules). `editors/zed/tree-sitter-lolo/` [mechanical] — found 2026-10-08. Prevention rung: tooling regression gate (`tree-sitter test` in CI). Root cause: T4.
-- **G-EXTENSIONS-001** — The Orb LSP ignores `orb validate --json`'s `line`/`column`/`endLine`/`endColumn`/`approximate`: it derives positions by regex on the `path` string and underlines to end of line. Use the reported span (approximate → a hint-severity range). `lsp/src/server.ts` [mechanical] — found 2026-09-28 Root cause: T1.
 
 

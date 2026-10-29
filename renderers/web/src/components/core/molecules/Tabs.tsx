@@ -57,6 +57,12 @@ interface NormalizedTabItem extends Omit<TabItem, 'id' | 'value'> {
   id: string;
 }
 
+/**
+ * @role tablist
+ * @tokens --color-muted --color-primary --color-border --color-foreground --color-muted-foreground
+ * @contrast muted-foreground background
+ * @motion css
+ */
 export interface TabsProps extends A11yProps {
   /** Tab items */
   items?: TabItem[];

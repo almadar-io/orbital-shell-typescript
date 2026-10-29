@@ -32,12 +32,13 @@ import { createEmptyResolvedTrait } from '@almadar/core';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
+import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 function gatewayOrbitals(): OrbitalSchema['orbitals'] {
   return [{
     name: 'RouteOrbital',
     id: 'orb_routes' as OrbitalId,
-    pages: [],
+    pages: [{ name: 'Home', path: '/', traits: [{ ref: 'RouteCatalog' }, { ref: 'RouteCreate' }] }],
     entity: { name: 'Route', persistence: 'persistent', fields: [{ name: 'id', type: 'string' }] },
     traits: [
       {
@@ -107,7 +108,7 @@ describe('listen-source bus routing — RouteCatalog.CREATE -> RouteCreate', () 
     let bus!: ReturnType<typeof useEventBus>;
     const { result } = renderHook(() => {
       bus = useEventBus();
-      return useTraitStateMachine(bindings, slots, { orbitals });
+      return useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals, routePath: '/' });
     });
 
     // The exact key the Button's scope-chain fan-out produces (the button
@@ -136,7 +137,7 @@ describe('listen-source bus routing — the emitter declares the event', () => {
     return [{
       name: 'ContactOrbital',
       id: 'orb_contacts' as OrbitalId,
-      pages: [],
+      pages: [{ name: 'Home', path: '/', traits: [{ ref: 'ContactCreate' }, { ref: 'ContactPersistor' }] }],
       entity: { name: 'Contact', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'created', type: 'number', default: 0 }] },
       traits: [
         {
@@ -163,7 +164,7 @@ describe('listen-source bus routing — the emitter declares the event', () => {
     let bus!: ReturnType<typeof useEventBus>;
     const { result } = renderHook(() => {
       bus = useEventBus();
-      return useTraitStateMachine(bindings, stubSlots(), { orbitals });
+      return useTraitStateMachine(bindings, stubSlots(), { stamp: TEST_STAMP, orbitals, routePath: '/' });
     });
     await act(async () => {
       bus.emit('UI:ContactOrbital.ContactCreate.SAVE', {});

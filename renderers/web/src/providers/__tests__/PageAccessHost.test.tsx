@@ -3,7 +3,7 @@
  * `access: authenticated` mounts the page subtree only for a resolved
  * authenticated viewer (zero mounts while pending, anonymous, failed or
  * unavailable), sends a denied viewer to the declared `signIn` route, and
- * remounts for a different viewer. Public and undeclared pages never wait.
+ * remounts for a different viewer. A public page never waits; an undeclared page waits only while the sign-in restores.
  */
 import React, { useEffect } from 'react';
 import { describe, it, expect, vi } from 'vitest';
@@ -76,15 +76,28 @@ describe('PageAccessHost', () => {
     expect(h.unmounts).toEqual([]);
   });
 
-  it('control: public and undeclared pages render immediately whatever the authority', () => {
-    for (const access of ['public', undefined] as const) {
-      for (const authority of ['pending', 'unavailable', 'anonymous'] as const) {
-        const h = harness();
-        const view = render(h.host(access, authority));
-        expect(h.mounts).toEqual(['circuit']);
-        expect(h.onDenied).not.toHaveBeenCalled();
-        view.unmount();
-      }
+  it('an access: public page mounts at once, whatever the authority', () => {
+    for (const authority of ['pending', 'unavailable', 'anonymous', 'failed', 'authenticated'] as const) {
+      const h = harness();
+      const view = render(h.host('public', authority));
+      expect(h.mounts).toEqual(['circuit']);
+      expect(h.onDenied).not.toHaveBeenCalled();
+      view.unmount();
     }
+  });
+
+  it('control: a page with no declared access waits while the sign-in restores, then mounts once', () => {
+    const h = harness();
+    const view = render(h.host(undefined, 'pending'));
+    expect(h.mounts).toEqual([]);
+    view.rerender(h.host(undefined, 'authenticated', 'u1'));
+    expect(h.mounts).toEqual(['circuit']);
+  });
+
+  it.each<ViewerAuthority>(['anonymous', 'unavailable', 'failed'])('control: a page with no declared access mounts at once for %s', (authority) => {
+    const h = harness();
+    render(h.host(undefined, authority));
+    expect(h.mounts).toEqual(['circuit']);
+    expect(h.onDenied).not.toHaveBeenCalled();
   });
 });

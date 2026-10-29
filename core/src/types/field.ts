@@ -217,6 +217,8 @@ export type RelationConfig = {
     cardinality?: RelationCardinality;
     /** Delete behavior */
     onDelete?: 'cascade' | 'nullify' | 'restrict';
+    /** The target field a related record is shown by (`@display <field>`); the record id when absent. */
+    display?: string;
     /** 
      * Foreign key field name (for legacy compatibility).
      * @deprecated Use field instead
@@ -240,6 +242,7 @@ export const RelationConfigSchema = z.object({
     field: z.string().optional(),
     cardinality: RelationCardinalitySchema.optional(),
     onDelete: z.enum(['cascade', 'nullify', 'restrict']).optional(),
+    display: z.string().min(1).optional(),
     // Legacy compatibility fields
     foreignKey: z.string().optional(),
     target: z.string().optional(),
@@ -253,6 +256,7 @@ export const RelationConfigSchema = z.object({
         ...(cardinality !== undefined ? { cardinality } : {}),
         ...(data.field !== undefined ? { field: data.field } : {}),
         ...(data.onDelete !== undefined ? { onDelete: data.onDelete } : {}),
+        ...(data.display !== undefined ? { display: data.display } : {}),
     };
     return normalized;
 });

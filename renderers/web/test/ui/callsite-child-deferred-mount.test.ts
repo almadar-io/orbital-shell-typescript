@@ -9,6 +9,7 @@ import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { EventPayload, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
+import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const content: Trait = {
   name: 'Content', linkedEntity: 'Deal',
@@ -63,6 +64,7 @@ const binding = (name: string): ResolvedTraitBinding => ({ trait: createEmptyRes
 async function mounted() {
   const slots = stubSlots();
   const hook = renderHook(() => useTraitStateMachine(['Content', 'Panel', 'Won', 'Title', 'Reloader'].map(binding), slots, {
+    stamp: TEST_STAMP,
     orbitals,
     routePath: '/deals',
     callsiteCaptureChildrenByTrait: new Map([['Content', new Set(['Panel'])], ['Panel', new Set(['Won', 'Title', 'Reloader'])]]),

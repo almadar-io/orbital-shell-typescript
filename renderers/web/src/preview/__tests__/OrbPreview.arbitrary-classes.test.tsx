@@ -8,8 +8,10 @@ import { render, waitFor } from '@testing-library/react';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
 import { ArbitraryClassCompilerProvider, resetArbitraryClassStyles } from '../../providers/ArbitraryClassCompiler';
+import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 const schema: OrbitalSchema = JSON.parse(JSON.stringify({
+  typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
   name: 'styled-app',
   version: '1.0.0',
   orbitals: [{

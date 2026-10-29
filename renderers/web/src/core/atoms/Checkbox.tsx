@@ -4,7 +4,13 @@ import { cn } from "../lib/cn";
 import { useEventBus } from "../hooks/useEventBus";
 import { Typography } from "./Typography";
 
-/** @accessibleName label */
+/**
+ * @accessibleName label
+ * @role checkbox
+ * @tokens --color-primary --color-border --color-card --color-foreground
+ * @contrast foreground card
+ * @motion none
+ */
 export interface CheckboxProps extends Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
   "type" | "onChange" | keyof A11yProps
