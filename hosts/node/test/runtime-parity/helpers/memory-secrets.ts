@@ -1,6 +1,6 @@
-import { userCredentialKey, type HttpSecrets } from '@almadar/shell-runtime';
+import { userCredentialKey, type SecretStore } from '@almadar/shell-runtime';
 
-export function memorySecrets(initial: { [name: string]: string }, rotatable = true): HttpSecrets & { held: Map<string, string> } {
+export function memorySecrets(initial: { [name: string]: string }, rotatable = true): SecretStore & { held: Map<string, string> } {
   const held = new Map(Object.entries(initial));
   return {
     held,

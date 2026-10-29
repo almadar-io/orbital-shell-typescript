@@ -23,6 +23,7 @@ export const PROGRAM_EFFECTS = [
   'program/print',
   'program/eval',
   'program/validate',
+  'program/prove',
   'program/compose',
   'program/step',
 ] as const;

@@ -273,6 +273,27 @@ const ValidateReportSchema = z.object({
   warnings: z.array(IssueSchema).optional(),
 });
 
+const ProveFindingSchema = z.object({
+  verdict: z.enum(['violated', 'unproved']),
+  reason: z.string(),
+  counterexample: SExprSchema.optional(),
+  site: z.string(),
+  proposition: z.object({
+    kind: z.enum(['row', 'state', 'transition']),
+    entity: z.string().optional(),
+    trait: z.string().optional(),
+    state: z.string().optional(),
+    from: z.string().optional(),
+    event: z.string().optional(),
+    to: z.string().optional(),
+    expr: SExprSchema,
+  }),
+});
+const ProveReportSchema = z.object({ findings: z.array(ProveFindingSchema) });
+
+/** What `program/prove` returns: every spec proposition the program cannot be shown to keep. */
+export type ProgramProveReport = z.infer<typeof ProveReportSchema>;
+
 /** Who runs a program effect: the signed-in caller, as `call-service` receives it. */
 export type ProgramCallContext = Pick<ServiceCallContext, 'principal' | 'role'>;
 
@@ -353,6 +374,17 @@ export async function programValidate(program: OrbitalSchema, opts: Pick<Program
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+/**
+ * `program/prove`: the kernel prover's findings on a program, asked of `orb prove` (the prover is the kernel's, so the
+ * node host carries no copy of it). A program value is written to a temp file and resolved like any file; `path` names
+ * the file directly.
+ */
+export async function programProve(target: { readonly program: OrbitalSchema } | { readonly path: string }, opts: ProgramHostOptions): Promise<ProgramProveReport> {
+  if ('path' in target) return parseJson(ProveReportSchema, await runOrb(['prove', target.path], opts), 'program/prove');
+  if (!PROGRAM_NAME.test(target.program.name)) throw new Error(`program/prove: program name "${target.program.name}" is not a file name`);
+  return withTempFile(`${target.program.name}.orb`, JSON.stringify(target.program), async (file) => parseJson(ProveReportSchema, await runOrb(['prove', file], opts), 'program/prove'));
 }
 
 /**
@@ -821,6 +853,19 @@ export async function runProgramEffect(op: ProgramEffectName, args: readonly Eff
           } else return fail(`program/validate: unsupported option "${key}"`);
         }
         return { ok: true, result: await programValidate(program, { ...opts, ...(prior !== undefined ? { prior } : {}), ...(final !== undefined ? { final } : {}) }) };
+      }
+      case 'program/prove': {
+        const options = args[1] ?? {};
+        if (options === null || typeof options !== 'object' || Array.isArray(options)) return fail('program/prove: options must be an object');
+        for (const key of Object.keys(options)) if (key !== 'path') return fail(`program/prove: unsupported option "${key}"`);
+        const path = options['path'];
+        if (path !== undefined) {
+          if (typeof path !== 'string' || !isAbsolute(path)) return fail('program/prove: path must be an absolute path');
+          return { ok: true, result: await programProve({ path }, opts) };
+        }
+        const program = programArg(op, args[0]);
+        if (typeof program === 'string') return fail(program);
+        return { ok: true, result: await programProve({ program }, opts) };
       }
       case 'program/eval': {
         const program = programArg(op, args[0]);

@@ -12,9 +12,7 @@ import { OrbitalServerRuntime } from '../../src/runtime/OrbitalServerRuntime.js'
 import { InFlightCalls, type NativeMemoryPersistenceAdapter } from '@almadar/shell-runtime';
 import { answerRequest, type DeferredCallOutcome, type KernelAnswerScope, type KernelHostPorts } from '@almadar/shell-runtime';
 import type { KernelModule } from '@almadar/shell-runtime';
-import { loadHttpKernel } from '@almadar/shell-node';
-import { memorySecrets } from './helpers/memory-secrets.js';
-import { KERNEL_DIR, PACKAGE_ROOT } from './helpers/kernel-module.js';
+import { KERNEL_DIR } from './helpers/kernel-module.js';
 import { MEMORY_KERNEL_PATH, memoryKernel, nativeMemory } from './helpers/native-memory.js';
 
 const emit = { emit: { success: 'SAVED', failure: 'SAVE_FAILED' } };
@@ -67,33 +65,6 @@ function endpoints(): OrbitalSchema {
       ],
       entity: { name: 'Note', persistence: 'persistent', collection: 'notes', fields: [{ name: 'id', type: 'string', primaryKey: true }] },
       traits: [lifecycle('ViewT'), lifecycle('BootT')],
-    }],
-  };
-}
-
-function fetcher(egress: string[]): OrbitalSchema {
-  return {
-    name: 'fetcher',
-    typeContractVersion: 1,
-    version: '1.0.0',
-    egress,
-    orbitals: [{
-      name: 'Main',
-      pages: [],
-      entity: { name: 'Run', fields: [{ name: 'id', type: 'string' }] },
-      traits: [{
-        name: 'Getter',
-        linkedEntity: 'Run',
-        stateMachine: {
-          states: [{ name: 'idle', isInitial: true }, { name: 'got' }, { name: 'missed' }],
-          events: [{ key: 'GO', name: 'GO' }, { key: 'GOT', name: 'GOT' }, { key: 'MISSED', name: 'MISSED' }],
-          transitions: [
-            { from: 'idle', to: 'idle', event: 'GO', effects: [['http', 'GET', 'http://127.0.0.1:9000', '/x', {}, { emit: { success: 'GOT', failure: 'MISSED' } }]] },
-            { from: 'idle', to: 'got', event: 'GOT' },
-            { from: 'idle', to: 'missed', event: 'MISSED' },
-          ],
-        },
-      }],
     }],
   };
 }
@@ -489,30 +460,6 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
         kind: 'substrate',
         result: { error: { message: 'program/eval refused', errors: [{ code: 'ORB_X', message: 'bad', path: 'a.b' }] } },
       });
-    });
-  });
-
-  describe('http egress', () => {
-    const run = async (egress: string[]): Promise<string[]> => {
-      const urls: string[] = [];
-      const runtime = await open(fetcher(egress), {
-        http: {
-          kernel: () => loadHttpKernel(KERNEL_DIR ?? '', { languageFrom: PACKAGE_ROOT }),
-          secrets: memorySecrets({}),
-          fetch: async (url) => { urls.push(url.href); return new Response('ok', { status: 200 }); },
-          resolve: async (host) => ({ literal: true, addresses: [host] }),
-        },
-      });
-      await runtime.processOrbitalEvent('Main', { event: 'GO', targetTrait: 'Getter' });
-      return urls;
-    };
-
-    it('a program\'s declared egress reaches the host on the first register', async () => {
-      expect(await run(['http://127.0.0.1:9000'])).toEqual(['http://127.0.0.1:9000/x']);
-    });
-
-    it('control: an origin the program does not list is refused before any send', async () => {
-      expect(await run([])).toEqual([]);
     });
   });
 });

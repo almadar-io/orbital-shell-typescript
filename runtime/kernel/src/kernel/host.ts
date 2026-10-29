@@ -29,7 +29,7 @@ import { isProgramEffect, type ProgramEffectName, type ProgramEffectOutcome } fr
 
 type ProgramEffectResult = Extract<ProgramEffectOutcome, { ok: true }>['result'];
 import { embedOnDevice, OnDeviceModelFailure, promptOnDevice } from '../effects/on-device-model.js';
-import { base64Standard, sendHttp, systemRandom, type CredentialAdminPort, type Exchange, type HttpPorts } from './http.js';
+import { base64Standard, systemRandom, type CredentialAdminPort, type SecretPorts } from './secret-ports.js';
 import type { EventRequest, OsError } from '@almadar/core/kernel-wire';
 import type { CallSiteWire, IoAnswerWire, IoRequestWire, KernelModule, Settled, SubstrateFailureWire } from './wire.js';
 import type { OsCompletionEvent, OsCompletionPort, OsHostPort, OsTlsPort } from './os-port.js';
@@ -94,8 +94,8 @@ export interface KernelHostPorts {
   deliverLive: (site: { orbital: string; trait: string; event: string }, payload: EventPayload, originClientId: string | undefined) => void;
   /** Read per call: the sink a follow-on call's outcome runs through, absent when the host cannot deliver it to the tab. */
   deferCallOutcome: () => ((call: DeferredCallOutcome) => void) | undefined;
-  /** The `http` effect's ports (kernel builder, secrets, egress); absent, an `http` ask fails as unavailable. */
-  http?: HttpPorts;
+  /** The secret store, CSPRNG and credential administration ports the kernel's secret, random and credential asks use. */
+  secretPorts?: SecretPorts;
   /** The on-device model and embedder; absent, a `browser/prompt` or `browser/embed` ask fails `unconfigured`. */
   onDevice?: OnDeviceModelPorts;
   /** The browser's tabs for the `browser/tab-*` effects; absent, a tab ask fails `unavailable`. */
@@ -430,31 +430,7 @@ async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs', args: 
   return { ok: true, result: response };
 }
 
-const HTTP_UNAVAILABLE = 'HTTP_KERNEL_UNAVAILABLE: this host was given no http ports';
-
-type HttpAsk = Extract<IoRequestWire, { kind: 'http' }>;
-
-function httpAnswer(exchange: Exchange): IoAnswerWire {
-  return { kind: 'http', result: exchange.kind === 'reply' ? { ok: exchange.response } : { error: exchange.failure } };
-}
-
-/** `http`: the built request sent as asked; keyed, a `cancel-call` aborts it. */
-async function http(ports: KernelHostPorts, request: HttpAsk, scope: KernelAnswerScope): Promise<IoAnswerWire> {
-  const exchangePorts = ports.http;
-  if (exchangePorts === undefined) return { kind: 'http', result: { error: { kind: 'failed', message: HTTP_UNAVAILABLE } } };
-  const { key } = request;
-  const send = (signal?: AbortSignal): Promise<Exchange> => sendHttp(exchangePorts, request.request, signal, request.delayMs);
-  const run = async (): Promise<IoAnswerWire> => {
-    if (key === undefined) return httpAnswer(await send());
-    const outcome = await ports.inFlightCalls.run(key, (signal) => untilAborted(signal, send(signal)));
-    return outcome.cancelled ? { kind: 'serviceCancelled' } : httpAnswer(outcome.value);
-  };
-  try {
-    return await run();
-  } catch (error) {
-    return { kind: 'http', result: { error: { kind: 'failed', message: failureMessage(error) } } };
-  }
-}
+const SECRET_PORTS_UNAVAILABLE = 'SECRET_PORTS_UNAVAILABLE: this host was given no secret ports';
 
 /** `prompt` / `embed`: the host's on-device model or embedder; keyed, a `cancel-call` aborts the ask and a late reply is dropped. */
 async function onDeviceModel(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'prompt' | 'embed' }>, scope: KernelAnswerScope): Promise<IoAnswerWire> {
@@ -597,14 +573,14 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
 }
 
 async function secret(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'secret' }>): Promise<IoAnswerWire> {
-  const store = ports.http?.secrets;
-  if (store === undefined) return { kind: 'secret', result: { error: HTTP_UNAVAILABLE } };
+  const store = ports.secretPorts?.secrets;
+  if (store === undefined) return { kind: 'secret', result: { error: SECRET_PORTS_UNAVAILABLE } };
   return { kind: 'secret', result: await settle(async () => (await store.get(request.name, request.principal)) ?? null) };
 }
 
 async function secretSet(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'secretSet' }>): Promise<IoAnswerWire> {
-  const store = ports.http?.secrets;
-  if (store === undefined) return { kind: 'secretSet', result: { error: HTTP_UNAVAILABLE } };
+  const store = ports.secretPorts?.secrets;
+  if (store === undefined) return { kind: 'secretSet', result: { error: SECRET_PORTS_UNAVAILABLE } };
   return { kind: 'secretSet', result: await settle(async () => {
     await store.set(request.name, request.value, request.ttlMs, request.principal);
     return null;
@@ -612,8 +588,8 @@ async function secretSet(ports: KernelHostPorts, request: Extract<IoRequestWire,
 }
 
 async function secretRotate(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'secretRotate' }>): Promise<IoAnswerWire> {
-  const store = ports.http?.secrets;
-  if (store === undefined) return { kind: 'secretRotate', result: { error: HTTP_UNAVAILABLE } };
+  const store = ports.secretPorts?.secrets;
+  if (store === undefined) return { kind: 'secretRotate', result: { error: SECRET_PORTS_UNAVAILABLE } };
   const rotate = store.rotate;
   if (rotate === undefined) return { kind: 'secretRotate', result: { error: 'this host keeps no rotatable credentials' } };
   return { kind: 'secretRotate', result: await settle(async () => {
@@ -624,7 +600,7 @@ async function secretRotate(ports: KernelHostPorts, request: Extract<IoRequestWi
 
 /** `random`: CSPRNG bytes (the ports' source, else the platform's), as standard base64. */
 function random(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'random' }>): IoAnswerWire {
-  const source = ports.http?.random ?? systemRandom;
+  const source = ports.secretPorts?.random ?? systemRandom;
   try {
     return { kind: 'random', result: { ok: base64Standard(source(request.bytes)) } };
   } catch (error) {
@@ -633,8 +609,8 @@ function random(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 
 }
 
 async function credentialStatus(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'credentialStatus' }>): Promise<IoAnswerWire> {
-  const store = ports.http?.secrets;
-  if (store === undefined) return { kind: 'credentialStatus', result: { error: HTTP_UNAVAILABLE } };
+  const store = ports.secretPorts?.secrets;
+  if (store === undefined) return { kind: 'credentialStatus', result: { error: SECRET_PORTS_UNAVAILABLE } };
   return { kind: 'credentialStatus', result: await settle(async () => {
     const connected = credentialStatusConnected(await store.get(request.name, request.principal), request.principal);
     const label = connected ? await store.label?.(request.name, request.principal) : undefined;
@@ -643,8 +619,8 @@ async function credentialStatus(ports: KernelHostPorts, request: Extract<IoReque
 }
 
 async function credentialForget(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'credentialForget' }>): Promise<IoAnswerWire> {
-  const store = ports.http?.secrets;
-  if (store === undefined) return { kind: 'credentialForget', result: { error: HTTP_UNAVAILABLE } };
+  const store = ports.secretPorts?.secrets;
+  if (store === undefined) return { kind: 'credentialForget', result: { error: SECRET_PORTS_UNAVAILABLE } };
   return { kind: 'credentialForget', result: await settle(async () => {
     await store.forget(request.name, request.principal);
     return null;
@@ -652,8 +628,8 @@ async function credentialForget(ports: KernelHostPorts, request: Extract<IoReque
 }
 
 async function credentialAdmin<T>(ports: KernelHostPorts, work: (port: CredentialAdminPort) => Promise<T>): Promise<Settled<T, string>> {
-  const port = ports.http?.credentials;
-  if (port === undefined) return { error: HTTP_UNAVAILABLE };
+  const port = ports.secretPorts?.credentials;
+  if (port === undefined) return { error: SECRET_PORTS_UNAVAILABLE };
   return settle(() => work(port));
 }
 
@@ -769,8 +745,6 @@ export async function answerRequest(ports: KernelHostPorts, request: IoRequestWi
       return { kind: 'cancelled', result: { ok: null } };
     case 'substrate':
       return substrate(ports, request, scope);
-    case 'http':
-      return http(ports, request, scope);
     case 'pageFacts':
       return pageFacts(ports, request);
     case 'prompt':

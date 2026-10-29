@@ -1,31 +1,16 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { isIP } from 'node:net';
-import { lookup } from 'node:dns/promises';
-import { CredentialVault, CREDENTIAL_MASTER_KEY_ENV, CREDENTIAL_PREVIOUS_MASTER_KEY_ENV, installCredentialScopeStorage, installCredentialStore, installNetPort, type CredentialScopeStorage, type CredentialVaultModule, type NetPort, type ResolvedHost } from '@almadar/shell-runtime';
+import { CredentialVault, CREDENTIAL_MASTER_KEY_ENV, CREDENTIAL_PREVIOUS_MASTER_KEY_ENV, installCredentialScopeStorage, installCredentialStore, type CredentialScopeStorage, type CredentialVaultModule } from '@almadar/shell-runtime';
 import { credentialsFilePath, fileCredentialRows } from './credential-rows.js';
-import { pinnedFetchNode } from './pinned-fetch.js';
-
-export { pinnedFetchNode };
-
-export async function resolveHostNode(host: string): Promise<ResolvedHost> {
-  if (isIP(host) !== 0) return { literal: true, addresses: [host] };
-  const found = await lookup(host, { all: true });
-  return { literal: false, addresses: found.map((entry) => entry.address) };
-}
-
-export const nodeNetPort: NetPort = { resolve: resolveHostNode, fetch: pinnedFetchNode };
-
 export function nodeCredentialScope(): CredentialScopeStorage {
   return new AsyncLocalStorage<CredentialVault>();
 }
 
 let installed = false;
 
-/** Install the Node ports `@almadar/shell-runtime` leaves open: the pinned `http` fetch + resolver and per-tenant credential scopes. Idempotent. */
+/** Install the Node ports `@almadar/shell-runtime` leaves open: per-tenant credential scopes. Idempotent. */
 export function installNodeHostPorts(): void {
   if (installed) return;
   installed = true;
-  installNetPort(nodeNetPort);
   installCredentialScopeStorage(nodeCredentialScope());
 }
 

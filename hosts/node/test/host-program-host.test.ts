@@ -285,6 +285,41 @@ describe.skipIf(!hasOrb)('program host (real orb)', () => {
     expect(out).toEqual({ ok: false, error: 'program/validate: unsupported option "workspace"' });
   });
 
+  const PROVE_PROGRAM = (guarded: boolean) => ({
+    name: 'ShopApp', version: '1.0.0',
+    orbitals: [{
+      name: 'Shop',
+      entity: { name: 'Order', collection: 'orders', persistence: 'persistent', fields: [{ name: 'id', type: 'string', required: true }, { name: 'total', type: 'number', required: true }] },
+      expects: [{ kind: 'entity', name: 'Order', invariants: [['>=', '@entity.total', 0]], strict: true }],
+      traits: [{ name: 'Checkout', linkedEntity: 'Order', stateMachine: {
+        states: [{ name: 'open', isInitial: true }],
+        events: [{ key: 'INIT', name: 'Init' }, { key: 'ADD', name: 'Add', payloadSchema: [{ name: 'total', type: 'number', required: true }] }],
+        transitions: [{ from: 'open', to: 'open', event: 'ADD', ...(guarded ? { guard: ['>=', '@payload.total', 0] } : {}), effects: [['persist', 'create', 'Order', { total: '@payload.total' }]] }],
+      } }],
+      pages: [],
+    }],
+  });
+
+  it('program/prove answers a confirmed counterexample as violated, and control: the guarded program has no finding', async () => {
+    const cwd = project();
+    const broken = await runProgramEffect('program/prove', [arg(PROVE_PROGRAM(false))], { cwd, orbBin: ORB });
+    expect(broken.ok).toBe(true);
+    if (broken.ok && typeof broken.result === 'object' && broken.result !== null && 'findings' in broken.result) {
+      expect(broken.result.findings).toHaveLength(1);
+      expect(broken.result.findings[0]?.verdict).toBe('violated');
+      expect(broken.result.findings[0]?.proposition.kind).toBe('row');
+      expect(broken.result.findings[0]?.proposition.entity).toBe('Order');
+    }
+    expect(await runProgramEffect('program/prove', [arg(PROVE_PROGRAM(true))], { cwd, orbBin: ORB })).toEqual({ ok: true, result: { findings: [] } });
+  });
+
+  it('control: program/prove refuses a non-program, a relative path and an unsupported option before orb runs', async () => {
+    const cwd = project();
+    expect((await runProgramEffect('program/prove', ['not a program'], { cwd, orbBin: ORB })).ok).toBe(false);
+    expect(await runProgramEffect('program/prove', [null, { path: 'shop.orb' }], { cwd, orbBin: ORB })).toEqual({ ok: false, error: 'program/prove: path must be an absolute path' });
+    expect(await runProgramEffect('program/prove', [arg(PROVE_PROGRAM(true)), { final: true }], { cwd, orbBin: ORB })).toEqual({ ok: false, error: 'program/prove: unsupported option "final"' });
+  });
+
   it('rejects a program name that is not a file name', async () => {
     const cwd = project();
     const program = { ...(await programRead(VALID, { cwd, orbBin: ORB })), name: '../escape' };

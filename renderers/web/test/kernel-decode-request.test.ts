@@ -4,7 +4,6 @@ import type { JsonValue } from '@almadar/core';
 import { decodeRequest } from '../src/kernel/decode.js';
 
 const site = { trait: 'T', followOn: false, emit: { success: 'OK', failure: 'BAD' } };
-const request = { method: 'GET', url: 'https://api.example.com/x', headers: [['a', 'b']] as Array<[string, string]>, body: { kind: 'empty' as const } };
 const ref = { instance: 'i', orbital: 'O', trait: 'T' };
 
 /** One sample per wire kind; keyed by the generated union, so a kind the wire gains cannot go unsampled. */
@@ -20,7 +19,6 @@ const SAMPLES: { readonly [K in IoRequestWire['kind']]: Extract<IoRequestWire, {
   callService: { kind: 'callService', service: 's', method: 'm', args: {}, key: 'k', site },
   cancelCall: { kind: 'cancelCall', key: 'k' },
   substrate: { kind: 'substrate', op: 'program/eval', args: [] },
-  http: { kind: 'http', request, key: 'k', delayMs: 5, site },
   pageFacts: { kind: 'pageFacts', fields: ['hostname', 'screenWidth'] },
   prompt: { kind: 'prompt', text: 't', schema: 's', key: 'k' },
   embed: { kind: 'embed', texts: ['a'], key: 'k' },
@@ -69,7 +67,6 @@ describe('decodeRequest follows what the Rust deserializer accepts and produces'
 
   it('rule 2: a field the type does not declare is dropped, as serde drops it', () => {
     expect(decodeRequest({ kind: 'listRows', entityType: 'E', extra: 1 })).toEqual({ kind: 'listRows', entityType: 'E' });
-    expect(decodeRequest({ kind: 'http', request, extra: true })).toEqual({ kind: 'http', request });
   });
 
   it('rule 3: a defaulted field is filled in when missing, and a wrong type is still refused', () => {

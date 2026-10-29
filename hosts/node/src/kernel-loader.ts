@@ -6,10 +6,10 @@ import { pathToFileURL } from 'node:url';
 import { installKernelEvaluator, type KernelMemoryStoreExports } from '@almadar/core';
 import { readLanguageBundle } from '@almadar/core/language-data';
 import * as installedModule from '@almadar/kernel';
-import { NativeMemoryPersistenceAdapter, type HttpKernel, type KernelModule } from '@almadar/shell-runtime';
+import { NativeMemoryPersistenceAdapter, type KernelModule } from '@almadar/shell-runtime';
 
 /** The whole server kernel as Node loads it: the shared module plus the server-only exports the client build omits. */
-export interface LoadedKernel extends KernelModule, HttpKernel, KernelMemoryStoreExports {
+export interface LoadedKernel extends KernelModule, KernelMemoryStoreExports {
   initSync(input: { module: Uint8Array }): object;
 }
 
@@ -66,14 +66,6 @@ export function initKernelSync(languageFrom: string): typeof installedModule {
  */
 export async function loadInstalledKernel(languageFrom: string): Promise<LoadedKernel> {
   return initKernelSync(languageFrom);
-}
-
-/**
- * The `http` effect's builder exports of the same package (`buildHttpRequest`, `isPublicAddress`, …): the
- * interpreter's only way to build a request. A directory that does not hold a built kernel rejects, never falls back.
- */
-export async function loadHttpKernel(kernelDir: string, options: LoadKernelOptions): Promise<HttpKernel> {
-  return loadKernel(kernelDir, options);
 }
 
 async function loadKernel(kernelDir: string, options: LoadKernelOptions): Promise<LoadedKernel> {

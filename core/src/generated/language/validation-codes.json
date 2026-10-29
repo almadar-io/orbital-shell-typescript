@@ -1,28 +1,8 @@
 [
   {
-    "code": "ORB_E_MISSING_NAME",
-    "category": "entity",
-    "description": "Entity is missing a name"
-  },
-  {
-    "code": "ORB_E_INVALID_RELATION",
-    "category": "entity",
-    "description": "Relation target entity doesn't exist"
-  },
-  {
-    "code": "ORB_T_NO_INITIAL_STATE",
-    "category": "trait",
-    "description": "State machine has no initial state"
-  },
-  {
     "code": "ORB_T_MISSING_RENDER_UI",
     "category": "trait",
     "description": "Interaction trait missing render_ui effects"
-  },
-  {
-    "code": "ORB_T_TRAIT_UNMOUNTED",
-    "category": "trait",
-    "description": "A program trait is listed on no page"
   },
   {
     "code": "ORB_T_BEHAVIOR_REF_UNRESOLVED",
@@ -40,11 +20,6 @@
     "description": "An `[\"unquote\", …]` call outside a quasiquote body in an `.orb` input."
   },
   {
-    "code": "ORB_T_INVALID_EVENT_DEFAULT",
-    "category": "trait",
-    "description": "Config field typed `event` holds a value that is not a member of the trait's post-rename event set (SCAN-EVENT-KNOB-1). Definer-position knobs (A-UNIFY) skip this membership check — their value CREATES the event name — but still land here if the default isn't a plain string."
-  },
-  {
     "code": "ORB_T_EVENT_REF_UNRESOLVED",
     "category": "trait",
     "description": "An event-typed config value addresses a trait the program does not have."
@@ -58,11 +33,6 @@
     "code": "ORB_T_CONFIG_SHAPE_MISMATCH",
     "category": "trait",
     "description": "Config field's default value doesn't match its declared structural shape (array vs scalar, object vs string, missing required, etc.). Fires after the typed-config carriers (`items` / `properties` / `values`) make the declared shape concrete enough to check against."
-  },
-  {
-    "code": "ORB_T_GENERIC_TYPE_DEPRECATED",
-    "category": "trait",
-    "description": "A declaration uses a generic type — bare `json`, `object` (without declared `properties`), or `any` — in an entity field, config knob, type-alias member, or event payload field. Generic types are being eliminated from the language: renderable content belongs in `node`, structured data in inline `{ k: T }` shapes / named aliases / `Map K V`, and genuinely polymorphic atoms in declared type parameters. Hard error since 2026-09-01 (both behavior packages report zero occurrences)."
   },
   {
     "code": "ORB_T_TYPE_UNKNOWN",
@@ -103,11 +73,6 @@
     "code": "ORB_T_EVENT_TYPE_WRONG_KIND",
     "category": "trait",
     "description": "An `emits` entry names a declared type that is not an Event type"
-  },
-  {
-    "code": "ORB_P_MISSING_PATH",
-    "category": "page",
-    "description": "Page is missing a path"
   },
   {
     "code": "ORB_P_UNKNOWN_PROTOCOL",
@@ -170,49 +135,9 @@
     "description": "A composed trait's rendered control fires an event carrying a value that no other trait hears and whose own handling reads none of it: the value the user entered is discarded (a form submission nothing keeps)."
   },
   {
-    "code": "ORB_SLOT_MAIN_NOT_COVERED",
-    "category": "slot",
-    "description": "Main slot not covered by any trait"
-  },
-  {
-    "code": "ORB_RUI_INVALID_SLOT",
-    "category": "render_ui",
-    "description": "Invalid slot in render_ui effect"
-  },
-  {
-    "code": "ORB_RUI_INVALID_PATTERN",
-    "category": "render_ui",
-    "description": "Invalid pattern type"
-  },
-  {
-    "code": "ORB_RUI_INVALID_PROP",
-    "category": "render_ui",
-    "description": "Invalid prop for pattern"
-  },
-  {
-    "code": "ORB_RUI_CHILD_NOT_DRAWABLE",
-    "category": "render_ui",
-    "description": "A non-drawable child composed under a canvas draw-host. A draw-host paints only neutral drawable descriptors (draw-sprite / draw-shape / draw-text / draw-*-layer); DOM chrome belongs in a `hud`/`overlay` slot."
-  },
-  {
-    "code": "ORB_RUI_INVALID_ITEM_ACTION",
-    "category": "render_ui",
-    "description": "Invalid itemAction configuration"
-  },
-  {
     "code": "ORB_RUI_UNKNOWN_ITEM_ACTION_PROP",
     "category": "render_ui",
     "description": "Unknown itemAction prop (e.g., hallucinated 'condition')"
-  },
-  {
-    "code": "ORB_RUI_INVALID_FIELD_PATH",
-    "category": "render_ui",
-    "description": "Nested field path references invalid relation or field"
-  },
-  {
-    "code": "ORB_RUI_FORM_FIELD_INTRINSIC",
-    "category": "render_ui",
-    "description": "A `form`-contract pattern offers an input for an `@intrinsic` entity field — intrinsic fields are never persisted, so the input is discarded."
   },
   {
     "code": "ORB_RUI_BINDING_TYPE_MISMATCH",
@@ -225,59 +150,14 @@
     "description": "L2.2: render-ui prop with `kind: \"event-ref\"` or `kind: \"callback\"` bound to an event-name string whose declared payload schema in the trait's `emits {}` block doesn't match the component's documented bus emit shape (registry's `emitPayloadSchema` for event-ref props; `callbackArgs` for callback props). Gap #32 in `docs/Almadar_Std_Verification.md`."
   },
   {
-    "code": "ORB_CALL_SERVICE_CANCELLED_WITHOUT_KEY",
-    "category": "effect",
-    "description": "call-service declares `emit.cancelled` but no `key` — nothing can cancel an unkeyed call"
-  },
-  {
-    "code": "ORB_CALL_SERVICE_KEY_TYPE",
-    "category": "effect",
-    "description": "call-service `key` is a non-string literal (number/bool/object/array)"
-  },
-  {
     "code": "ORB_CANCEL_CALL_NO_KEYED_CALL",
     "category": "effect",
     "description": "the app runs `cancel-call` but no `call-service` anywhere carries a `key`"
   },
   {
-    "code": "ORB_CALL_KEY_UNUSED",
-    "category": "effect",
-    "description": "a literal `(as \"k\" CallKey)` in a program whose keyed calls are all keyed by literals, none of them `\"k\"`"
-  },
-  {
     "code": "ORB_CANCEL_CALL_KEY_NEVER_CALLED",
     "category": "effect",
     "description": "`--final`: a `cancel-call` on a `CallKey` (or a list of them) in a finished program where no keyed call has a `CallKey`-typed `key:`, so nothing the program runs is named by a key made with `as`"
-  },
-  {
-    "code": "ORB_CALL_SERVICE_RESULT_HAS_KEY",
-    "category": "effect",
-    "description": "a keyed call-service whose registry responseShape already has a `key` field"
-  },
-  {
-    "code": "ORB_INBOUND_UNDECLARED",
-    "category": "effect",
-    "description": "an inbound handler (`listens { EVENT -> inbound \"name\" … }`) is reachable in a program whose app does not declare `name` in `inbound`"
-  },
-  {
-    "code": "ORB_INBOUND_ENTRY_INVALID",
-    "category": "effect",
-    "description": "an `inbound` entry is not one lower-case hook name (letters, digits, `-`), or is listed twice"
-  },
-  {
-    "code": "ORB_INBOUND_DUPLICATE",
-    "category": "effect",
-    "description": "two traits handle the same inbound hook name"
-  },
-  {
-    "code": "ORB_INBOUND_ANSWER_UNDECLARED",
-    "category": "effect",
-    "description": "an inbound handler answers with an event its trait does not declare in `emits`"
-  },
-  {
-    "code": "ORB_INBOUND_ANSWER_FOREIGN",
-    "category": "effect",
-    "description": "a trait other than an inbound handler emits the handler's answer event and the handler does not relay it: only the handler's own emit answers"
   },
   {
     "code": "ORB_OS_GRANT_MISSING",
@@ -300,84 +180,9 @@
     "description": "a declared `os/` grant entry whose shape cannot match anything"
   },
   {
-    "code": "ORB_PLACEMENT_ORBITAL_UNKNOWN",
-    "category": "effect",
-    "description": "a `deployment` unit lists an orbital the program does not declare"
-  },
-  {
-    "code": "ORB_PLACEMENT_ORBITAL_DUPLICATE",
-    "category": "effect",
-    "description": "an orbital is listed in more than one `deployment` unit, or twice in one"
-  },
-  {
-    "code": "ORB_PLACEMENT_ORBITAL_UNPLACED",
-    "category": "effect",
-    "description": "a `deployment` is declared and an orbital is in none of its units"
-  },
-  {
-    "code": "ORB_PLACEMENT_UNIT_EMPTY",
-    "category": "effect",
-    "description": "a `deployment` unit lists no orbital"
-  },
-  {
-    "code": "ORB_HOST_EFFECT_ARITY",
-    "category": "effect",
-    "description": "`random-bytes`, `credential-status` or `credential-forget` with the wrong number of arguments"
-  },
-  {
-    "code": "ORB_HOST_EFFECT_OPTION_UNKNOWN",
-    "category": "effect",
-    "description": "a key other than `emit`, or a non-object, as the options of a host effect"
-  },
-  {
-    "code": "ORB_RANDOM_BYTES_COUNT",
-    "category": "effect",
-    "description": "a literal `random-bytes` count that is not an integer from 1 to 1024"
-  },
-  {
-    "code": "ORB_CREDENTIAL_REQUEST_INVALID",
-    "category": "effect",
-    "description": "a literal request of a `credential-*` administration effect that is not an object of its declared parameters, or leaves one out"
-  },
-  {
-    "code": "ORB_PAGE_FACTS_FIELD_INVALID",
-    "category": "effect",
-    "description": "`browser/page-facts` fields: an unknown word, an empty list or a duplicate"
-  },
-  {
     "code": "ORB_PAGE_FACTS_UNREQUESTED_READ",
     "category": "effect",
     "description": "an event reads a page fact the `browser/page-facts` call did not request"
-  },
-  {
-    "code": "ORB_ON_DEVICE_EFFECT_ON_SERVER",
-    "category": "effect",
-    "description": "a `browser/prompt` or `browser/embed` where the server runs the transition: a `[background]` tick"
-  },
-  {
-    "code": "ORB_ON_DEVICE_SCHEMA_INVALID",
-    "category": "effect",
-    "description": "a literal `browser/prompt` response schema that is not a JSON object"
-  },
-  {
-    "code": "ORB_TAB_REQUEST_INVALID",
-    "category": "effect",
-    "description": "a `browser/tab-*` request that is not an object of the op's closed keys, or whose literal values the kernel refuses"
-  },
-  {
-    "code": "ORB_EFF_SET_PAYLOAD_NOT_ALLOWED",
-    "category": "effect",
-    "description": "set effect using @payload (should use @entity)"
-  },
-  {
-    "code": "ORB_EFF_FETCH_INVALID_ENTITY",
-    "category": "effect",
-    "description": "fetch effect referencing invalid entity"
-  },
-  {
-    "code": "ORB_PERSIST_BATCH_OPS_NOT_ARRAY",
-    "category": "effect",
-    "description": "`persist batch` ops expression is not array-typed"
   },
   {
     "code": "ORB_EFF_SLOT_CONFLICT",
@@ -385,19 +190,9 @@
     "description": "Multiple render_ui effects targeting same slot"
   },
   {
-    "code": "ORB_EFF_UNKNOWN_TYPE",
-    "category": "effect",
-    "description": "Unknown effect type"
-  },
-  {
     "code": "ORB_EFF_NOTIFY_RETIRED",
     "category": "effect",
     "description": "`notify` is sugar for `render-ui toast { type: alert, … }`, desugared at `.lolo` lowering (owner ruling 2026-09-11) — the `.orb` IR never carries a `notify` effect kind. A `notify` tuple reaching L2 means a hand-authored `.orb` or a registry not yet re-emitted."
-  },
-  {
-    "code": "ORB_EFF_NAVIGATE_MISSING_PAYLOAD",
-    "category": "effect",
-    "description": "Navigate effect missing required payload for target page"
   },
   {
     "code": "ORB_EMIT_DECLARED_BUT_UNFIRED",
@@ -408,21 +203,6 @@
     "code": "ORB_EMIT_CONTROL_UNHANDLED",
     "category": "effect",
     "description": "`orb validate --final`: a rendered control fires an event no trait handles — not the rendering trait, an embedder of it, nor a `listens` route (G-ORB-187)."
-  },
-  {
-    "code": "ORB_EFF_EMIT_KEY_INVALID",
-    "category": "effect",
-    "description": "`emit:` config carries a key the operator doesn't support (e.g. `on_message` on `fetch`, `failure` on `set`)."
-  },
-  {
-    "code": "ORB_EFF_EMIT_INVALID_NAME",
-    "category": "effect",
-    "description": "Event name inside `emit:` isn't UPPER_SNAKE_CASE."
-  },
-  {
-    "code": "ORB_EFF_EMIT_UNDECLARED_EVENT",
-    "category": "effect",
-    "description": "Event in `emit:` isn't declared in the trait's `emits` array."
   },
   {
     "code": "ORB_EFF_MISSING_REQUIRED_EMIT",
@@ -440,11 +220,6 @@
     "description": "`total: none` skips the count, so the success event's `totalCount` is never set."
   },
   {
-    "code": "SEXPR_INVALID_OPERATOR",
-    "category": "sexpr",
-    "description": "Unknown operator in S-expression"
-  },
-  {
     "code": "SEXPR_ARITY_MISMATCH",
     "category": "sexpr",
     "description": "Wrong number of arguments for operator"
@@ -460,29 +235,9 @@
     "description": "Effect operator used in guard context"
   },
   {
-    "code": "ORB_X_MIXED_RESIDENCE",
-    "category": "cross",
-    "description": "One transition's data effects touch both browser-stored and server-stored entities (ORB_X_MIXED_RESIDENCE)"
-  },
-  {
-    "code": "ORB_X_UNRESOLVED_RELATION_TARGET",
-    "category": "cross",
-    "description": "A `type: 'relation'` field's `relation.entity` does not resolve to any entity declared in the same schema. Error severity; the entity-scope validator also emits `ORB_E_INVALID_RELATION` for the same condition. See COMP-9 in docs/Almadar_Agent_Behaviors_Plan.md."
-  },
-  {
     "code": "ORB_X_UNRESOLVED_PATTERN_FIELD_REF",
     "category": "cross",
     "description": "A pattern prop tagged `kind: 'field-ref'` (scalar) or `itemKind: 'field-ref'` (array element) carries a value that does not resolve to any field on the linked entity. Error severity. See Phase 3.2/3.3 in docs/Almadar_Agent_Behaviors_Plan.md."
-  },
-  {
-    "code": "ORB_BINDING_UNKNOWN_ROOT",
-    "category": "binding",
-    "description": "Unknown binding root"
-  },
-  {
-    "code": "ORB_CONFIG_DANGLING_REF",
-    "category": "binding",
-    "description": "`@config.<key>` literal whose key no reachable config schema declares"
   },
   {
     "code": "ORB_CONFIG_FIELD_REF_UNKNOWN",
@@ -500,19 +255,9 @@
     "description": "Invalid binding path"
   },
   {
-    "code": "ORB_BINDING_PAYLOAD_IN_TICK",
-    "category": "binding",
-    "description": "@payload not available in tick context"
-  },
-  {
     "code": "ORB_X_SET_VALUE_TYPE_MISMATCH",
     "category": "effect",
     "description": "`(set @entity.X ?payloadField)` writes a payload field whose declared type does not match the target entity field's declared type. The lolo crate catches this at author time for `.lolo`; this is the raw-`.orb` defense-in-depth backstop. Payload field types are sourced from the trait's `emits[].payload_schema` and `listens` payload metadata."
-  },
-  {
-    "code": "ORB_X_ENUM_VALUE_NOT_MEMBER",
-    "category": "effect",
-    "description": "`(set @entity.X literal)` assigns a string literal that is not a member of the target field's declared enum (`values: [...]`). The declared union was previously validated + emitted but never enforced — an out-of-set value passed silently. The lolo crate catches this at author time for `.lolo`; this is the raw-`.orb` defense-in-depth backstop."
   },
   {
     "code": "ORB_X_ROW_LITERAL_UNKNOWN_FIELD",
@@ -585,11 +330,6 @@
     "description": "An `emit` repeats an earlier one of the same transition identically: the dispatch loop collapses the second."
   },
   {
-    "code": "ORB_X_UNTYPED_ARRAY",
-    "category": "entity",
-    "description": "An array field (entity or payload-schema) declares no element type."
-  },
-  {
     "code": "ORB_X_ENTITY_PROP_CONTRACT",
     "category": "render_ui",
     "description": "A render-ui pattern prop typed `EntityWith<K>` declares required entity fields (`requiredFields` in the registry), but the bound entity does not provide them and no remap/field-map supplies them. The component would render blank rows. Remap-aware (runs post-inline). Error severity."
@@ -600,24 +340,9 @@
     "description": "**The payload invariant.** An event's declared payload type IS its access path: declaring `Survey` means the payload is the row (read `?name`); declaring `{ row : Survey }` means read `?row.name`. This fires when an event declares a field that the effect firing it does not actually emit — so every read of that field is `undefined` at runtime, even though `orb validate` and `orb verify` otherwise pass. Checked as width subtyping (`declared ⊆ produced`): declaring FEWER fields than are emitted is legal, declaring one that is never emitted is not. Replaces the narrower `EmitSuccessPayloadWrapped` (persist-only) and `EmitSuccessPayloadReturnMismatch` (empty-payload-only) checks. Error severity."
   },
   {
-    "code": "ORB_X_CROSS_EMITTER_DECLARED_PAYLOAD_MISMATCH",
-    "category": "cross",
-    "description": "Phase F.2: two or more traits declare the same external event name in their `emits` arrays but disagree on the declared payload field list. Consumers that listen on the event will see one shape from one emitter and a different shape from another. Error severity."
-  },
-  {
     "code": "ORB_EFFECT_IN_LAMBDA",
     "category": "binding",
     "description": "An effect (`emit`, `persist`, `set`, `notify`, …) inside the `fn` body of a collection operator: a lambda is evaluated for its value, an effect there never runs. Error severity."
-  },
-  {
-    "code": "ORB_SHARED_ENTITY_RENDER_AUTHORITY",
-    "category": "entity_mutation",
-    "description": "A `[shared]` entity is render-ui-read by more than one distinct trait. Exactly one render authority is allowed per shared entity, mirroring `SlotContention`'s single-owner rule."
-  },
-  {
-    "code": "CIRCUIT_ORPHAN_EVENT",
-    "category": "circuit",
-    "description": "Action emits event with no transition handler"
   },
   {
     "code": "CIRCUIT_DEAD_END_COMPONENT",
@@ -625,69 +350,9 @@
     "description": "Interactive component missing itemActions"
   },
   {
-    "code": "CIRCUIT_UNREACHABLE_STATE",
-    "category": "circuit",
-    "description": "State has no incoming transitions"
-  },
-  {
-    "code": "CIRCUIT_DEAD_END_STATE",
-    "category": "circuit",
-    "description": "State has no outgoing transitions"
-  },
-  {
-    "code": "CIRCUIT_ACTION_COMPONENT_MISMATCH",
-    "category": "circuit",
-    "description": "Action-component mismatch"
-  },
-  {
     "code": "ORB_CIRCUIT_VIEWER_STRANDED",
     "category": "circuit",
     "description": "The trait that OWNS a page's content region (`page_content_owner`'s `channel`/`sole-writer`) has a user-triggered arm that repaints its own main-slot body with something offering no way on: no content-body pattern, no registry event-kind prop bound to a live (non-lifecycle) event or an unresolved binding, and no `@trait.X` embed. \"User- triggered\" means the event is reachable from a rendered affordance or a `listens` route, transitively, minus async-result and lifecycle events. Exempt: an arm running its own `fetch`/`persist` (its result arm repaints); a non-self-transition escaping to a state with another producible, non-lifecycle arm. Ported from the JS wiring lint's `viewer-stranded`, predicate revised 2026-09-12 per the F31 live probe (`play_scene` on `ui-minigolf-board`/`std-chem-titration`): the JS's labelled-control test and `@`/`?` sigil branch were both heuristics and are dropped — a registry event-kind prop is the only test. Error severity."
-  },
-  {
-    "code": "ORB_UI_ICON_INVALID_FORMAT",
-    "category": "icon",
-    "description": "Icon name has invalid format"
-  },
-  {
-    "code": "ORB_UI_ICON_EMPTY",
-    "category": "icon",
-    "description": "Icon name is empty"
-  },
-  {
-    "code": "ORB_T_EVT_INVALID_NAME",
-    "category": "trait_event",
-    "description": "Event name not UPPER_SNAKE_CASE"
-  },
-  {
-    "code": "ORB_S_ROLE_LITERAL_NOT_MEMBER",
-    "category": "schema",
-    "description": "A literal compared against an `@user.<field>` whose declared type is a closed vocabulary is not one of that vocabulary's members — a branch that can never be taken. The bug class that let std-healthcare's `\"patient\"` and std-lms's `\"student\"` ship green."
-  },
-  {
-    "code": "ORB_S_UNKNOWN_IDENTITY_FIELD",
-    "category": "schema",
-    "description": "`@user.<field>` names a field the declared `[identity]` entity does not have. Resolves to null at runtime, so the guard silently takes its negative branch."
-  },
-  {
-    "code": "ORB_S_OWNER_FIELD_NOT_IDENTITY_TYPED",
-    "category": "schema",
-    "description": "An access directive compares an `@entity.<field>` against `@user.id`, but `<field>` is not a relation to the `[identity]` entity. The comparison is then between a free-text scalar and a roster id — it type-checks, reads like ownership, and matches nothing, because the seeder only stamps viewer ids onto DECLARED relations. This is the `customerEmail` trap: a policy that silently denies everyone while looking correct."
-  },
-  {
-    "code": "ORB_THEME_UNDECLARED",
-    "category": "schema",
-    "description": "A `data-theme` resolves to a literal theme the program does not declare (app or orbital `theme`, or the app's `themes`), so the compiled client ships no stylesheet for it (G-UI-106)."
-  },
-  {
-    "code": "ORB_S_EXPECTATION_UNSATISFIED",
-    "category": "schema",
-    "description": "Compose link-check: an orbital's `expects entity X` / `expects entity X [identity]` names a requirement no orbital in the program provides. The message names WHO ASKED — the consumer orbital — so the repair is attributable."
-  },
-  {
-    "code": "ORB_S_EXPECTED_FIELD_TYPE_MISMATCH",
-    "category": "schema",
-    "description": "Compose link-check: the provider has the expected field but with an incompatible type (per orbital-core's `type_compat`; literal unions use subset semantics — every expected member must be a provider member)."
   },
   {
     "code": "ORB_S_INVARIANT_VIOLATED",
@@ -705,11 +370,6 @@
     "description": "A `uses A from \"…\" { config { … } }` call-site override names a key the imported behavior's app-level `config {}` (`OrbitalSchema.config`, `Almadar_Orbital_Import.md` §4.5) does not declare."
   },
   {
-    "code": "ORB_GEN_INVALID_VALUE",
-    "category": "generic",
-    "description": "Generic invalid value"
-  },
-  {
     "code": "ORB_GEN_INVALID_REFERENCE",
     "category": "generic",
     "description": "Generic invalid reference format"
@@ -723,5 +383,1630 @@
     "code": "ORB_GEN_DUPLICATE",
     "category": "generic",
     "description": "Generic duplicate entity/item"
+  },
+  {
+    "code": "CIRCUIT_ACTION_COMPONENT_MISMATCH",
+    "category": "circuit",
+    "description": "An item action is used on a component type that does not support that action"
+  },
+  {
+    "code": "CIRCUIT_DEAD_END_STATE",
+    "category": "circuit",
+    "description": "A state has no outgoing transitions, so it is a dead end"
+  },
+  {
+    "code": "CIRCUIT_DEAD_HANDLER",
+    "category": "circuit",
+    "description": "An item action fires an event into a state where no transition handles that event"
+  },
+  {
+    "code": "CIRCUIT_DUPLICATE_EVENT",
+    "category": "circuit",
+    "description": "The same event is emitted by more than one action within a single render-ui effect"
+  },
+  {
+    "code": "CIRCUIT_MODAL_EXIT_INCOMPLETE",
+    "category": "circuit",
+    "description": "A transition leaving a modal state does not close the modal overlay it opened"
+  },
+  {
+    "code": "CIRCUIT_NO_OVERLAY_EXIT",
+    "category": "circuit",
+    "description": "A state renders into an overlay slot but has no exit transition, leaving users stuck"
+  },
+  {
+    "code": "CIRCUIT_ORPHAN_EVENT",
+    "category": "circuit",
+    "description": "An action or emit raises an event that has no transition handler"
+  },
+  {
+    "code": "CIRCUIT_UNREACHABLE_STATE",
+    "category": "circuit",
+    "description": "A state has no incoming transitions and cannot be reached"
+  },
+  {
+    "code": "LINT_NODE_UNCHECKED",
+    "category": "lint",
+    "description": "A lint rule met a schema node of an unexpected shape and could not check it"
+  },
+  {
+    "code": "ORB_A11Y_UNNAMED",
+    "category": "a11y",
+    "description": "A render-ui control has no accessible name, so screen readers announce it as unlabeled"
+  },
+  {
+    "code": "ORB_ASSET_INLINE_URL",
+    "category": "asset",
+    "description": "A literal http(s) url sits in the config defaults or seed rows of an orbital that composes std-asset-pack."
+  },
+  {
+    "code": "ORB_AUTH_GUARD_CLIENT_ONLY",
+    "category": "auth",
+    "description": "A transition guards on @user but its trait dispatches client-only, so the UI transition advances before the server evaluates the guard"
+  },
+  {
+    "code": "ORB_BEACON_OPTION_UNKNOWN",
+    "category": "beacon",
+    "description": "A browser beacon request carries an option key that is not a known beacon request key"
+  },
+  {
+    "code": "ORB_BEACON_TEXT_REQUIRED",
+    "category": "browser",
+    "description": "browser/beacon needs a request carrying a text field"
+  },
+  {
+    "code": "ORB_BEACON_URL_NOT_ABSOLUTE",
+    "category": "browser",
+    "description": "A browser beacon effect targets a URL that is not an absolute http(s) URL"
+  },
+  {
+    "code": "ORB_BINDING_DISPATCH_ROOT_IN_TICK",
+    "category": "binding",
+    "description": "A dispatch-only binding root is read inside a tick, where a firing has no delivery"
+  },
+  {
+    "code": "ORB_BINDING_EMBED_READS_ARM_WRITE",
+    "category": "binding",
+    "description": "A transition writes a value and renders a child that reads it on mount, so the child shows the stale value"
+  },
+  {
+    "code": "ORB_BINDING_ENTITY_FIELD_NEVER_SET",
+    "category": "binding",
+    "description": "A trait reads an entity binding field but no transition ever sets it, so it stays undefined"
+  },
+  {
+    "code": "ORB_BINDING_ENTITY_FIELD_NOT_FOUND",
+    "category": "binding",
+    "description": "An @entity binding names a field that the linked entity does not declare"
+  },
+  {
+    "code": "ORB_BINDING_EVENT_INVALID_PATH",
+    "category": "binding",
+    "description": "An @event binding path does not follow the shape of the delivery record"
+  },
+  {
+    "code": "ORB_BINDING_FROM_ENTITY_OUTSIDE_ENSURES",
+    "category": "binding",
+    "description": "@fromEntity is the row before a transition and may only be used inside an @ensures"
+  },
+  {
+    "code": "ORB_BINDING_INVALID_FORMAT",
+    "category": "binding",
+    "description": "A binding string is not in a valid binding format"
+  },
+  {
+    "code": "ORB_BINDING_NOW_NO_PATH",
+    "category": "binding",
+    "description": "The @now binding is given a path, but it returns the current timestamp directly"
+  },
+  {
+    "code": "ORB_BINDING_PAYLOAD_FIELD_UNDECLARED",
+    "category": "binding",
+    "description": "A @payload binding reads a field that the triggering event does not declare in its payload"
+  },
+  {
+    "code": "ORB_BINDING_PAYLOAD_IN_TICK",
+    "category": "binding",
+    "description": "A binding reads @payload inside a tick, where a firing has no delivery"
+  },
+  {
+    "code": "ORB_BINDING_PERSIST_ROW_ID_NEVER_SET",
+    "category": "binding",
+    "description": "A persist update or delete runs on an event but no transition sets the row id, so the write never touches a row"
+  },
+  {
+    "code": "ORB_BINDING_ROOT_NO_PATH",
+    "category": "binding",
+    "description": "A binding root that takes no path is written with a path"
+  },
+  {
+    "code": "ORB_BINDING_SET_TARGET_MISSING_PATH",
+    "category": "binding",
+    "description": "A set effect targets a binding root without a field path"
+  },
+  {
+    "code": "ORB_BINDING_STATE_NO_PATH",
+    "category": "binding",
+    "description": "A binding root that returns a bare value, such as @state, is given a path"
+  },
+  {
+    "code": "ORB_BINDING_TRAIT_CYCLE",
+    "category": "binding",
+    "description": "A cycle exists in @trait references"
+  },
+  {
+    "code": "ORB_BINDING_TRAIT_INVALID_FORMAT",
+    "category": "binding",
+    "description": "A trait binding or trait-typed config default is not a valid trait reference"
+  },
+  {
+    "code": "ORB_BINDING_TRAIT_INVALID_POSITION",
+    "category": "binding",
+    "description": "A @trait binding appears in a position other than a children array or a node-typed prop"
+  },
+  {
+    "code": "ORB_BINDING_TRAIT_MISSING_NAME",
+    "category": "binding",
+    "description": "A @trait binding does not name the trait it refers to"
+  },
+  {
+    "code": "ORB_BINDING_TRAIT_OUTSIDE_RENDER_UI",
+    "category": "binding",
+    "description": "An @trait binding appears outside a render-ui effect, where it is the only place trait references are allowed"
+  },
+  {
+    "code": "ORB_BINDING_TRAIT_SELF_REFERENCE",
+    "category": "binding",
+    "description": "A trait references itself through a trait binding"
+  },
+  {
+    "code": "ORB_BINDING_TRAIT_UNKNOWN",
+    "category": "binding",
+    "description": "A @trait binding references a trait that is not declared in this orbital"
+  },
+  {
+    "code": "ORB_BINDING_UNKNOWN_ENTITY",
+    "category": "binding",
+    "description": "A binding refers to an entity that is not declared in the program"
+  },
+  {
+    "code": "ORB_BINDING_UNKNOWN_ROOT",
+    "category": "binding",
+    "description": "A binding names a root the context does not provide"
+  },
+  {
+    "code": "ORB_CALL_KEY_UNUSED",
+    "category": "effect",
+    "description": "A literal (as 'k' CallKey) names a key that no keyed call in the program runs under"
+  },
+  {
+    "code": "ORB_CALL_SERVICE_CANCELLED_WITHOUT_KEY",
+    "category": "call_service",
+    "description": "A call-service declares emit.cancelled but has no key, so nothing can cancel an unkeyed call"
+  },
+  {
+    "code": "ORB_CALL_SERVICE_KEY_DUPLICATE",
+    "category": "effect",
+    "description": "Two call-service effects in one transition use the same key"
+  },
+  {
+    "code": "ORB_CALL_SERVICE_KEY_TYPE",
+    "category": "call_service",
+    "description": "A keyed call-service effect has a key that is not a non-empty string"
+  },
+  {
+    "code": "ORB_CALL_SERVICE_RESULT_HAS_KEY",
+    "category": "effect",
+    "description": "A keyed call-service returns a record that already has a key field, so the call key would collide with it"
+  },
+  {
+    "code": "ORB_CIRCUIT_ASYNC_RESULT_DEAF_TARGET",
+    "category": "circuit",
+    "description": "A transition declares async result events but its target state has no arm handling them, so the requester cannot hear its own result"
+  },
+  {
+    "code": "ORB_CIRCUIT_DEAD_BODILESS_ACTION",
+    "category": "circuit",
+    "description": "A transition changes state but carries no effects, so the screen keeps its paint and affordances routed to it are dead"
+  },
+  {
+    "code": "ORB_CIRCUIT_FAILURE_ARM_MISSING",
+    "category": "circuit",
+    "description": "A transition starting an asynchronous client call has no failure arm to handle its error"
+  },
+  {
+    "code": "ORB_CIRCUIT_FAILURE_ARM_RENDERS_NOTHING",
+    "category": "circuit",
+    "description": "A state handles a failure event but its arm neither renders nor emits a declared event, so the failure reaches no one"
+  },
+  {
+    "code": "ORB_CIRCUIT_INIT_UNCOVERED_STATE",
+    "category": "circuit",
+    "description": "A page trait handles INIT in its initial state but not in another reachable state, so revisiting the page from there does nothing"
+  },
+  {
+    "code": "ORB_CIRCUIT_LIFECYCLE_EMIT_UNDELIVERED",
+    "category": "circuit",
+    "description": "A transition emits a lifecycle event that the event bus never delivers"
+  },
+  {
+    "code": "ORB_CIRCUIT_MODAL_SHELL_CLOSE_DEAF",
+    "category": "circuit",
+    "description": "A state mounting an overlay-slot pattern has no CLOSE or CANCEL transition to dismiss it"
+  },
+  {
+    "code": "ORB_CIRCUIT_SELF_EMIT_LOOP",
+    "category": "circuit",
+    "description": "A transition re-emits its own trigger event with a constant payload and a same-event arm is reachable, so it loops forever"
+  },
+  {
+    "code": "ORB_CIRCUIT_SELF_OVERLAY_IN_SHELL",
+    "category": "circuit",
+    "description": "A self-overlaying pattern is rendered inside an overlay slot payload, stacking two overlay chromes"
+  },
+  {
+    "code": "ORB_COMPOSED_STATE_UNREACHABLE",
+    "category": "circuit",
+    "description": "A composed trait can never enter some states because nothing in the program sends the events that enter them"
+  },
+  {
+    "code": "ORB_COMPOSED_TRANSITION_UNREACHABLE",
+    "category": "composed",
+    "description": "A composed trait handles events that nothing in the program ever sends"
+  },
+  {
+    "code": "ORB_CONFIG_DANGLING_REF",
+    "category": "binding",
+    "description": "An @config key is not declared by any config schema reachable from the trait chain"
+  },
+  {
+    "code": "ORB_CREDENTIAL_REQUEST_INVALID",
+    "category": "credential",
+    "description": "A credential request host effect carries options other than the ones it declares"
+  },
+  {
+    "code": "ORB_DERIVED_FIELD_WRITTEN",
+    "category": "entity_mutation",
+    "description": "A set or persist writes an @derived field that the kernel computes on every write"
+  },
+  {
+    "code": "ORB_EFFECT_OPTION_DROPPED",
+    "category": "effect",
+    "description": "An effect carries options that depend on a key echo, but the effect has no key so the options are dropped"
+  },
+  {
+    "code": "ORB_EFF_CALL_SERVICE_MISSING_ACTION",
+    "category": "effect",
+    "description": "A call-service effect has no string action"
+  },
+  {
+    "code": "ORB_EFF_CALL_SERVICE_MISSING_PARAM",
+    "category": "effect",
+    "description": "A call-service effect omits a parameter the service action requires"
+  },
+  {
+    "code": "ORB_EFF_CALL_SERVICE_MISSING_SERVICE",
+    "category": "effect",
+    "description": "A call_service effect is missing its service name or action"
+  },
+  {
+    "code": "ORB_EFF_CALL_SERVICE_PARAM_TYPE",
+    "category": "effect",
+    "description": "A call-service parameter has a value whose type does not match the type the service action declares"
+  },
+  {
+    "code": "ORB_EFF_CALL_SERVICE_UNKNOWN_PARAM",
+    "category": "effect",
+    "description": "A call-service passes a param that the service action does not declare"
+  },
+  {
+    "code": "ORB_EFF_CALL_SERVICE_UNKNOWN_SERVICE",
+    "category": "effect",
+    "description": "A call-service effect names a service that is not a registered integrator or declared service"
+  },
+  {
+    "code": "ORB_EFF_EMIT_INVALID_NAME",
+    "category": "effect",
+    "description": "The event name inside an emit effect is not a valid string event name"
+  },
+  {
+    "code": "ORB_EFF_EMIT_KEY_INVALID",
+    "category": "effect",
+    "description": "An emit config carries a key that the operator does not support"
+  },
+  {
+    "code": "ORB_EFF_EMIT_UNDECLARED_EVENT",
+    "category": "effect",
+    "description": "An event named in emit is not declared in the trait's emits array"
+  },
+  {
+    "code": "ORB_EFF_FETCH_BY_ID_PAYLOAD_LIST",
+    "category": "effect",
+    "description": "A fetch by id effect takes its id from a payload that is a list rather than a single value"
+  },
+  {
+    "code": "ORB_EFF_FETCH_INVALID_ENTITY",
+    "category": "effect",
+    "description": "A fetch effect is missing an entity name or references an invalid entity"
+  },
+  {
+    "code": "ORB_EFF_FETCH_INVALID_INCLUDE",
+    "category": "effect",
+    "description": "A fetch includes a relation that the fetched entity has no relation field for"
+  },
+  {
+    "code": "ORB_EFF_FETCH_INVALID_OPTION",
+    "category": "effect",
+    "description": "A fetch deliver option is not one of the allowed values rows or ids"
+  },
+  {
+    "code": "ORB_EFF_MISSING_FETCH_FOR_ENTITY",
+    "category": "effect",
+    "description": "A render-ui references an entity but no fetch effect for it exists in this or any predecessor transition"
+  },
+  {
+    "code": "ORB_EFF_NAVIGATE_MISSING_PAYLOAD",
+    "category": "effect",
+    "description": "A navigate effect omits a payload field the target page requires for its INIT event"
+  },
+  {
+    "code": "ORB_EFF_NAVIGATE_TARGET_UNREACHABLE",
+    "category": "effect",
+    "description": "A navigate target path does not resolve to any declared page"
+  },
+  {
+    "code": "ORB_EFF_PROGRAM_EVAL_FAILURE_MISSING",
+    "category": "effect",
+    "description": "program/eval carries no emit.failure event, so validator errors would be dropped"
+  },
+  {
+    "code": "ORB_EFF_RETIRED_FORM",
+    "category": "effect",
+    "description": "An effect is written in a retired object form instead of the array form"
+  },
+  {
+    "code": "ORB_EFF_SET_INVALID_BINDING",
+    "category": "effect",
+    "description": "A set effect is missing its binding or its value"
+  },
+  {
+    "code": "ORB_EFF_SET_PAYLOAD_NOT_ALLOWED",
+    "category": "effect",
+    "description": "A set effect targets @payload, which is read-only; it should target @entity"
+  },
+  {
+    "code": "ORB_EFF_UNKNOWN_TYPE",
+    "category": "effect",
+    "description": "An effect has an unknown type or is malformed"
+  },
+  {
+    "code": "ORB_EMBED_BRIDGE_EMITS_UNHEARD",
+    "category": "embed",
+    "description": "An embed bridge re-emits an event on the host that nothing in the program handles"
+  },
+  {
+    "code": "ORB_EMBED_BRIDGE_LISTENS_UNSENT",
+    "category": "embed",
+    "description": "An embed bridge delivers an event into the program that nothing in the program sends"
+  },
+  {
+    "code": "ORB_EMBED_CONFIG_FORWARD_MULTI_REFERRER",
+    "category": "embed",
+    "description": "A trait that forwards @config is embedded by more than one referrer, so the forwarded value is ambiguous"
+  },
+  {
+    "code": "ORB_EMIT_CONFIG_REF_INVALID",
+    "category": "effect",
+    "description": "An emit config reference is invalid"
+  },
+  {
+    "code": "ORB_EMIT_UNROUTED_TO_HANDLER",
+    "category": "trait_event",
+    "description": "A trait emits an event another trait has an arm for, but no declared listens route delivers it"
+  },
+  {
+    "code": "ORB_ENTITY_INTRINSIC_FIELD_PERSISTED",
+    "category": "entity_mutation",
+    "description": "A persist data literal names an @intrinsic field, which is trait-owned view-state and never a persisted column"
+  },
+  {
+    "code": "ORB_ENTITY_OWNER_COLUMN_UNSCOPED",
+    "category": "entity",
+    "description": "An entity declares owner columns but has no access policy scoping rows to the owner"
+  },
+  {
+    "code": "ORB_ENTITY_SPLIT_MUTATION",
+    "category": "entity_mutation",
+    "description": "A runtime entity is mutated by several traits on isolated per-trait copies while another trait reads a field it never writes"
+  },
+  {
+    "code": "ORB_E_DUPLICATE_FIELD",
+    "category": "entity",
+    "description": "An entity declares the same field name more than once"
+  },
+  {
+    "code": "ORB_E_EMPTY_ENUM_VALUES",
+    "category": "entity",
+    "description": "An enum field declares no values"
+  },
+  {
+    "code": "ORB_E_IDENTITY_LOCAL",
+    "category": "entity",
+    "description": "An identity entity is declared as browser-stored, but the viewer directory is never browser-resident"
+  },
+  {
+    "code": "ORB_E_INSTANCE_INVALID",
+    "category": "entity",
+    "description": "An entity instance row sets a key that is not a field of the entity"
+  },
+  {
+    "code": "ORB_E_INVALID_FIELD_NAME",
+    "category": "entity",
+    "description": "An entity field or entity name is empty or not in the required naming form"
+  },
+  {
+    "code": "ORB_E_INVALID_FIELD_TYPE",
+    "category": "entity",
+    "description": "An entity field declares a type that is not a valid field type"
+  },
+  {
+    "code": "ORB_E_INVALID_RELATION",
+    "category": "entity",
+    "description": "A relation field is missing its relation configuration or points at an entity that does not exist"
+  },
+  {
+    "code": "ORB_E_LITERAL_UNION_DEFAULT_MISMATCH",
+    "category": "entity",
+    "description": "A field default is not one of the values of its declared literal union"
+  },
+  {
+    "code": "ORB_E_LOCALE_INSTANCES_INCOMPLETE",
+    "category": "entity",
+    "description": "An entity writes rows per locale but has no default instances block for its default locale"
+  },
+  {
+    "code": "ORB_E_LOCALE_INSTANCES_NOT_LOCAL",
+    "category": "entity",
+    "description": "An entity writes rows per locale but its rows are not browser-stored, so every viewer shares them"
+  },
+  {
+    "code": "ORB_E_LOCALE_INSTANCES_UNKNOWN_LOCALE",
+    "category": "entity",
+    "description": "An entity writes locale instances for a locale that is not among the declared locales"
+  },
+  {
+    "code": "ORB_E_LOCAL_REQUIRES_PERSISTENT",
+    "category": "entity",
+    "description": "A runtime entity declares a browser storage location, which only applies to persistent entities"
+  },
+  {
+    "code": "ORB_E_MERGED_FIELD_UNREFERENCED",
+    "category": "entity",
+    "description": "A field merged into an entity is never read, written, fetch-included or persisted by any trait of the orbital"
+  },
+  {
+    "code": "ORB_E_MISSING_COLLECTION",
+    "category": "entity",
+    "description": "A persistent entity does not declare a collection name"
+  },
+  {
+    "code": "ORB_E_MISSING_NAME",
+    "category": "entity",
+    "description": "An entity is missing its required name"
+  },
+  {
+    "code": "ORB_E_MOCK_NOT_IN_ENUM",
+    "category": "entity",
+    "description": "Mock candidate values are not values of the enum field they belong to"
+  },
+  {
+    "code": "ORB_E_NO_FIELDS",
+    "category": "entity",
+    "description": "An entity declares no fields and must have at least one"
+  },
+  {
+    "code": "ORB_E_SEMANTIC_VALUE_INVALID",
+    "category": "entity",
+    "description": "A semantically typed field has a default value that is invalid for its kind, such as an empty string"
+  },
+  {
+    "code": "ORB_FETCH_DELIVER_IDS_ENTITY_REFS",
+    "category": "fetch",
+    "description": "A fetch using deliver ids also asks for included relations, but ids delivers no rows to carry them"
+  },
+  {
+    "code": "ORB_FETCH_DELIVER_IDS_NO_SUCCESS",
+    "category": "effect",
+    "description": "A fetch with deliver ids has no emit.success, so nothing carries the reference"
+  },
+  {
+    "code": "ORB_FETCH_NEEDS_COMPOSITE_INDEX",
+    "category": "effect",
+    "description": "A fetch query needs a composite index that the store driver does not create and no index declaration covers"
+  },
+  {
+    "code": "ORB_FETCH_UNINDEXED",
+    "category": "query",
+    "description": "A fetch filter cannot be pushed down by the store driver and no @index covers it, so the kernel scans every row"
+  },
+  {
+    "code": "ORB_GEN_INVALID_VALUE",
+    "category": "generic",
+    "description": "A value is invalid for the position it is written in"
+  },
+  {
+    "code": "ORB_GUARD_ON_FRAME_FIELD_AUTHORIZES",
+    "category": "guard",
+    "description": "A guard reads an intrinsic frame field of an entity to authorize, but intrinsic fields are not trustworthy for access"
+  },
+  {
+    "code": "ORB_HOST_EFFECT_ARITY",
+    "category": "effect",
+    "description": "A host effect is called with the wrong number of arguments"
+  },
+  {
+    "code": "ORB_HOST_EFFECT_OPTION_UNKNOWN",
+    "category": "host_effect",
+    "description": "A host effect is given an option outside the set of options it accepts"
+  },
+  {
+    "code": "ORB_HTTP_AUTH_INVALID",
+    "category": "http",
+    "description": "An http request auth block has an invalid onUnauthorized value"
+  },
+  {
+    "code": "ORB_HTTP_AUTH_ON_CLIENT",
+    "category": "http",
+    "description": "An authenticated http request is made from a client trait, so its credentials would transit the browser"
+  },
+  {
+    "code": "ORB_HTTP_AUTH_SCHEME_UNKNOWN",
+    "category": "http",
+    "description": "An http auth.scheme is not one of the closed scheme set"
+  },
+  {
+    "code": "ORB_HTTP_BODY_CONFLICT",
+    "category": "http",
+    "description": "An http request declares more than one body form or a body on a GET"
+  },
+  {
+    "code": "ORB_HTTP_EGRESS_ENTRY_INVALID",
+    "category": "http",
+    "description": "An egress allowlist entry is not of the form scheme://host[:port]"
+  },
+  {
+    "code": "ORB_HTTP_EGRESS_UNDECLARED",
+    "category": "http",
+    "description": "An outbound request targets an origin that is not declared in the program egress list"
+  },
+  {
+    "code": "ORB_HTTP_METHOD_UNKNOWN",
+    "category": "http",
+    "description": "An http method is not one of the allowed methods"
+  },
+  {
+    "code": "ORB_HTTP_OPTION_UNKNOWN",
+    "category": "http",
+    "description": "An http request uses a key that is not a valid http request option"
+  },
+  {
+    "code": "ORB_HTTP_ORIGIN_NOT_STATIC",
+    "category": "http",
+    "description": "An http origin is not a string literal or a url-typed config knob, so egress cannot be checked"
+  },
+  {
+    "code": "ORB_HTTP_PAGINATE_MAX_MISSING",
+    "category": "http",
+    "description": "An http request with paginate does not declare the required max bound"
+  },
+  {
+    "code": "ORB_HTTP_PATH_INVALID",
+    "category": "http",
+    "description": "An http path is invalid or leaves the declared origin"
+  },
+  {
+    "code": "ORB_HTTP_STREAM_WITHOUT_ON_MESSAGE",
+    "category": "http",
+    "description": "An http stream request omits the required emit.onMessage"
+  },
+  {
+    "code": "ORB_HTTP_TOKEN_ROTATE_INVALID",
+    "category": "http",
+    "description": "An auth.rotate block uses a key that is not a valid rotate key"
+  },
+  {
+    "code": "ORB_ID_AUTHORED_WITHOUT_LEDGER",
+    "category": "id",
+    "description": "An id is authored in source without a matching ledger entry, so it is replaced on load"
+  },
+  {
+    "code": "ORB_ID_DUPLICATE_EVENT_ID",
+    "category": "id",
+    "description": "An event id is declared by more than one trait, but ids must be document-unique"
+  },
+  {
+    "code": "ORB_ID_KIND_MISMATCH",
+    "category": "id",
+    "description": "An id of one kind is used in a position that requires an id of a different kind"
+  },
+  {
+    "code": "ORB_ID_LEDGER_ORPHAN",
+    "category": "id",
+    "description": "An id ledger row is carried by no node in the schema and is stale"
+  },
+  {
+    "code": "ORB_ID_NAME_MISMATCH",
+    "category": "id",
+    "description": "A name in the source disagrees with the current name the ledger records for the same id"
+  },
+  {
+    "code": "ORB_ID_UNKNOWN_REF",
+    "category": "id",
+    "description": "An id reference matches no arena node or ledger entry"
+  },
+  {
+    "code": "ORB_INBOUND_ANSWER_FOREIGN",
+    "category": "inbound",
+    "description": "A trait other than an inbound handler emits the handler's answer event, so the answer never reaches the caller"
+  },
+  {
+    "code": "ORB_INBOUND_ANSWER_UNDECLARED",
+    "category": "inbound",
+    "description": "An inbound hook event answers with an event the trait does not declare in emits"
+  },
+  {
+    "code": "ORB_INBOUND_DUPLICATE",
+    "category": "inbound",
+    "description": "An inbound hook has more than one handler"
+  },
+  {
+    "code": "ORB_INBOUND_ENTRY_INVALID",
+    "category": "inbound",
+    "description": "An inbound entry is not a valid hook name"
+  },
+  {
+    "code": "ORB_INBOUND_UNDECLARED",
+    "category": "inbound",
+    "description": "An event handles an inbound hook that the program's inbound block does not declare"
+  },
+  {
+    "code": "ORB_INBOUND_VERIFY_INVALID",
+    "category": "inbound",
+    "description": "An inbound hook verifies a header against a credential, but the header is not a lower-case header name or the credential is not a credential name"
+  },
+  {
+    "code": "ORB_INDEX_PATH_DUPLICATE",
+    "category": "index",
+    "description": "The same index path, with the same ordering, is declared more than once on an entity"
+  },
+  {
+    "code": "ORB_INDEX_PATH_INVALID",
+    "category": "entity",
+    "description": "An index path names a field that the entity does not declare"
+  },
+  {
+    "code": "ORB_LINT_INPUT_UNREAD",
+    "category": "lint",
+    "description": "A lint input file could not be read or lowered, so the lint rules did not run"
+  },
+  {
+    "code": "ORB_LINT_LANGUAGE_FACTS_UNREAD",
+    "category": "lint",
+    "description": "The installed language facts could not be read, so the lint rule could not check what it needs"
+  },
+  {
+    "code": "ORB_LINT_OPERATOR_SHAPES_UNREAD",
+    "category": "lint",
+    "description": "The installed operator table could not be read or does not match the operator shape type, so a lint cannot run"
+  },
+  {
+    "code": "ORB_LINT_SERVICE_REGISTRY_UNREAD",
+    "category": "lint",
+    "description": "The installed services registry could not be read, so call-service services cannot be checked"
+  },
+  {
+    "code": "ORB_LINT_UI_VOCAB_UNREAD",
+    "category": "lint",
+    "description": "The installed @almadar/core declares no readable UI vocabulary, so a UI lint check cannot run"
+  },
+  {
+    "code": "ORB_LISTEN_REDUNDANT_EMBED_ROUTE",
+    "category": "listen",
+    "description": "A listens route is redundant because the embedded trait already receives that event"
+  },
+  {
+    "code": "ORB_LISTEN_ROUTE_STARVES_REQUIRED_FIELD",
+    "category": "trait_event",
+    "description": "A listens route requires a payload field that the source event contract never produces"
+  },
+  {
+    "code": "ORB_LISTEN_WILDCARD_UNKEYED",
+    "category": "trait_event",
+    "description": "A wildcard listens route hears every caller's event but its guard never reads the call key in the payload"
+  },
+  {
+    "code": "ORB_OAUTH_CLIENT_INVALID",
+    "category": "oauth",
+    "description": "An OAuth client block uses a key that is not a valid OAuth client key"
+  },
+  {
+    "code": "ORB_OAUTH_ENDPOINT_MISMATCH",
+    "category": "oauth",
+    "description": "An oauth-endpoint is used without an oauth-client auth"
+  },
+  {
+    "code": "ORB_OAUTH_OPTION_UNKNOWN",
+    "category": "oauth",
+    "description": "An oauth-authorize call passes an option that is not recognized"
+  },
+  {
+    "code": "ORB_OAUTH_OP_UNKNOWN",
+    "category": "oauth",
+    "description": "An oauth effect names an operation that is not an oauth-client op"
+  },
+  {
+    "code": "ORB_OAUTH_PROVIDER_UNKNOWN",
+    "category": "oauth",
+    "description": "The OAuth clients map is keyed by something other than a known provider tag"
+  },
+  {
+    "code": "ORB_OAUTH_REQUEST_CONFLICT",
+    "category": "oauth",
+    "description": "An oauth-client request carries fields other than auth that it may not carry"
+  },
+  {
+    "code": "ORB_ON_DEVICE_EFFECT_ON_SERVER",
+    "category": "browser",
+    "description": "An on-device model effect runs in a background tick on the server, which has no on-device model"
+  },
+  {
+    "code": "ORB_ON_DEVICE_SCHEMA_INVALID",
+    "category": "browser",
+    "description": "A browser prompt response schema is not valid JSON Schema text describing a JSON object"
+  },
+  {
+    "code": "ORB_OP_INVALID_TIME_UNIT",
+    "category": "operator",
+    "description": "A time operator is given a unit that is not an accepted time unit"
+  },
+  {
+    "code": "ORB_O_CONFIG_DEAD_KNOB",
+    "category": "orbital",
+    "description": "A declared app-level config knob is not forwarded by any trait config default, so it has no effect"
+  },
+  {
+    "code": "ORB_O_CONFIG_UNKNOWN_KEY",
+    "category": "orbital_ref",
+    "description": "A call-site config key matches no config knob declared by the upstream orbital"
+  },
+  {
+    "code": "ORB_O_DUPLICATE_NAME",
+    "category": "orbital",
+    "description": "Two or more orbitals in a program share the same name"
+  },
+  {
+    "code": "ORB_O_DUPLICATE_USE_ALIAS",
+    "category": "orbital",
+    "description": "Two uses imports share the same alias"
+  },
+  {
+    "code": "ORB_O_ENTITY_PERSISTENCE_LOCKED",
+    "category": "orbital",
+    "description": "An entity persistence or collection override on an orbital reference has no effect because the primary entity locks it"
+  },
+  {
+    "code": "ORB_O_EXTEND_FIELD_COLLISION",
+    "category": "orbital_ref",
+    "description": "An extend field collides with a field already declared on the upstream primary entity"
+  },
+  {
+    "code": "ORB_O_EXTEND_FIELD_UNREAD",
+    "category": "orbital",
+    "description": "A field added by an extend block is never read, set, rendered or forwarded by a config knob"
+  },
+  {
+    "code": "ORB_O_MOCK_UNKNOWN_FIELD",
+    "category": "orbital",
+    "description": "A mock block names a field the entity materialized from the referenced orbital does not declare"
+  },
+  {
+    "code": "ORB_O_OMIT_EMBEDDED_TRAIT",
+    "category": "orbital",
+    "description": "An orbital reference omits a trait that another kept trait embeds"
+  },
+  {
+    "code": "ORB_O_PAGE_UNKNOWN_PATH",
+    "category": "orbital_ref",
+    "description": "A pages or mounts key names a page path that the upstream orbital does not declare"
+  },
+  {
+    "code": "ORB_O_RETYPE_FIELD_CONFLICT",
+    "category": "orbital",
+    "description": "A field is both retyped and added by extend in the same orbital reference"
+  },
+  {
+    "code": "ORB_O_RETYPE_UNKNOWN_FIELD",
+    "category": "orbital",
+    "description": "A retype block names a field the entity materialized from the referenced orbital does not declare"
+  },
+  {
+    "code": "ORB_O_TRAITS_OMITTED_TRAIT",
+    "category": "orbital",
+    "description": "A traits override names a trait that omit or only drops from the imported orbital"
+  },
+  {
+    "code": "ORB_O_TRAITS_UNKNOWN_TRAIT",
+    "category": "orbital_ref",
+    "description": "A traits key names a trait that the upstream orbital does not have"
+  },
+  {
+    "code": "ORB_PAGE_AMBIGUOUS_CONTENT_OWNER",
+    "category": "page",
+    "description": "Several traits each render a content body into the main slot and none composes the others, so the page has no single content owner"
+  },
+  {
+    "code": "ORB_PAGE_FACTS_FIELD_INVALID",
+    "category": "page",
+    "description": "A browser/page-facts effect declares no facts"
+  },
+  {
+    "code": "ORB_PAGE_SECOND_CONTENT_BODY",
+    "category": "page",
+    "description": "More than one trait on a page renders a content body into the main slot"
+  },
+  {
+    "code": "ORB_PAGE_UNREACHABLE",
+    "category": "page",
+    "description": "A page is declared but appears in no link, navItems entry or navigate effect"
+  },
+  {
+    "code": "ORB_PERSIST_BATCH_BAD_OP",
+    "category": "persist",
+    "description": "A persist batch contains an operation that is not valid in a batch"
+  },
+  {
+    "code": "ORB_PERSIST_BATCH_MIXED_PLACEMENT",
+    "category": "persist",
+    "description": "A persist batch writes both browser-stored and server-stored entities in one effect, which no single executor can hold"
+  },
+  {
+    "code": "ORB_PERSIST_BATCH_OPS_NOT_ARRAY",
+    "category": "persist",
+    "description": "A persist batch operations expression is missing or not array-typed"
+  },
+  {
+    "code": "ORB_PERSIST_CREATE_LITERAL_ID",
+    "category": "persist",
+    "description": "A persist create names a literal id, so a second run fails with a duplicate id"
+  },
+  {
+    "code": "ORB_PERSIST_CREATE_MISSING_POLICY_FIELD",
+    "category": "persist",
+    "description": "A persist create data literal omits a field its entity's create access policy compares, so the row can never satisfy the policy"
+  },
+  {
+    "code": "ORB_PERSIST_ID_NOT_A_PATH",
+    "category": "persist",
+    "description": "A persist effect names its row id with an expression instead of a binding path or literal id, so no row key resolves"
+  },
+  {
+    "code": "ORB_PERSIST_WHERE_NOT_A_PREDICATE",
+    "category": "persist",
+    "description": "A persist where clause is not a valid row predicate"
+  },
+  {
+    "code": "ORB_PLACEMENT_ORBITAL_DUPLICATE",
+    "category": "placement",
+    "description": "An orbital is placed more than once in the deployment"
+  },
+  {
+    "code": "ORB_PLACEMENT_ORBITAL_UNKNOWN",
+    "category": "placement",
+    "description": "A deployment unit lists an orbital name that is not an orbital of the program"
+  },
+  {
+    "code": "ORB_PLACEMENT_ORBITAL_UNPLACED",
+    "category": "placement",
+    "description": "A deployment is declared but an orbital belongs to none of its units"
+  },
+  {
+    "code": "ORB_PLACEMENT_UNIT_EMPTY",
+    "category": "placement",
+    "description": "A deployment unit lists no orbital"
+  },
+  {
+    "code": "ORB_POSTGRES_CALL_INVALID",
+    "category": "postgres",
+    "description": "A postgres call has an origin that is not a postgres or postgresql origin without a path"
+  },
+  {
+    "code": "ORB_P_AUTH_NO_SIGN_IN",
+    "category": "page",
+    "description": "A page requires authenticated access but the app declares no signIn route"
+  },
+  {
+    "code": "ORB_P_DUPLICATE_PATH",
+    "category": "page",
+    "description": "Two pages declare the same path after normalization"
+  },
+  {
+    "code": "ORB_P_EMPTY_TRAITS",
+    "category": "page",
+    "description": "A page declares an empty traits array"
+  },
+  {
+    "code": "ORB_P_HOST_RESERVED_ROUTE",
+    "category": "page",
+    "description": "A page is declared on the host's reserved sign-in route"
+  },
+  {
+    "code": "ORB_P_INDEX_PARAM_ROUTE",
+    "category": "page",
+    "description": "A parameter-route page is marked indexing index although its concrete URLs are not declared"
+  },
+  {
+    "code": "ORB_P_INDEX_REQUIRES_PUBLIC",
+    "category": "page",
+    "description": "A page declares indexing: index but lacks the public access it requires"
+  },
+  {
+    "code": "ORB_P_INVALID_PATH",
+    "category": "page",
+    "description": "A page or navigate path does not start with a slash"
+  },
+  {
+    "code": "ORB_P_INVALID_TRAIT_REF",
+    "category": "page",
+    "description": "A page's inline trait reference has no name"
+  },
+  {
+    "code": "ORB_P_INVALID_VIEW_TYPE",
+    "category": "page",
+    "description": "A page declares a view type that is not a valid view type"
+  },
+  {
+    "code": "ORB_P_MISSING_NAME",
+    "category": "page",
+    "description": "A page does not declare a name"
+  },
+  {
+    "code": "ORB_P_MISSING_PATH",
+    "category": "page",
+    "description": "A page is missing its required path"
+  },
+  {
+    "code": "ORB_P_MISSING_TRAITS",
+    "category": "page",
+    "description": "A page has no traits array for trait-driven UI"
+  },
+  {
+    "code": "ORB_P_SIGN_IN_UNKNOWN_ROUTE",
+    "category": "page",
+    "description": "The app's signIn route names a path that is no page of the app"
+  },
+  {
+    "code": "ORB_P_TRANSLATION_DUPLICATE_LOCALE",
+    "category": "page",
+    "description": "A translation group holds more than one page in the same locale"
+  },
+  {
+    "code": "ORB_RANDOM_BYTES_COUNT",
+    "category": "random",
+    "description": "A random-bytes count argument is outside the allowed integer range"
+  },
+  {
+    "code": "ORB_REDIS_CALL_INVALID",
+    "category": "redis",
+    "description": "A redis call has an origin that is not a redis or rediss origin without a path"
+  },
+  {
+    "code": "ORB_RENDER_ACTION_LIFECYCLE_EVENT",
+    "category": "render_ui",
+    "description": "A rendered pattern prop targets a lifecycle event that the bus never delivers"
+  },
+  {
+    "code": "ORB_RENDER_GROUPBY_ENUM_COLUMN_GAP",
+    "category": "render_ui",
+    "description": "A groupBy column set omits enum values of the field, so rows with those values match no column and disappear"
+  },
+  {
+    "code": "ORB_RENDER_ORBITAL_VALUE_EMBEDDED",
+    "category": "render_ui",
+    "description": "A render-ui embeds an orbital value, but only trait values can be rendered"
+  },
+  {
+    "code": "ORB_RENDER_UNBOUND_TRAIT_KNOB_EMBEDDED",
+    "category": "render_ui",
+    "description": "A render-ui embeds a trait-typed value that may be unbound without a guard, so it renders nothing"
+  },
+  {
+    "code": "ORB_RUI_CHILD_NOT_DRAWABLE",
+    "category": "render_ui",
+    "description": "A non-drawable child is composed under a canvas draw-host, which paints only neutral drawable descriptors"
+  },
+  {
+    "code": "ORB_RUI_ELEMENT_SHAPE_MISMATCH",
+    "category": "render_ui",
+    "description": "An element of a pattern prop is missing a field required by the pattern's element shape"
+  },
+  {
+    "code": "ORB_RUI_FORM_FIELD_INTRINSIC",
+    "category": "render_ui",
+    "description": "A form pattern offers an input for an intrinsic entity field, which is never persisted so the input is discarded"
+  },
+  {
+    "code": "ORB_RUI_INVALID_FIELD_PATH",
+    "category": "render_ui",
+    "description": "A nested field path references an invalid relation or field"
+  },
+  {
+    "code": "ORB_RUI_INVALID_ITEM_ACTION",
+    "category": "render_ui",
+    "description": "An itemAction configuration on a rendered pattern is invalid"
+  },
+  {
+    "code": "ORB_RUI_INVALID_PATTERN",
+    "category": "render_ui",
+    "description": "A render-ui pattern type is not in the pattern registry"
+  },
+  {
+    "code": "ORB_RUI_INVALID_PROP",
+    "category": "render_ui",
+    "description": "A render-ui pattern is given a prop that the pattern does not define"
+  },
+  {
+    "code": "ORB_RUI_INVALID_SLOT",
+    "category": "render_ui",
+    "description": "A render-ui effect targets an invalid slot"
+  },
+  {
+    "code": "ORB_RUI_MISSING_ACTION",
+    "category": "render_ui",
+    "description": "A render-ui pattern that needs an interaction target has no action, onClick, event or href"
+  },
+  {
+    "code": "ORB_RUI_MISSING_PATTERN_TYPE",
+    "category": "render_ui",
+    "description": "A render-ui pattern has no type property"
+  },
+  {
+    "code": "ORB_RUI_MISSING_REQUIRED_PROP",
+    "category": "render_ui",
+    "description": "A render-ui pattern is missing a prop that the pattern requires"
+  },
+  {
+    "code": "ORB_RUI_PROP_TYPE_MISMATCH",
+    "category": "render_ui",
+    "description": "A render-ui pattern prop has a value that is not one of its allowed values"
+  },
+  {
+    "code": "ORB_RUI_RENDERABLE_IN_GENERIC_FIELD",
+    "category": "render_ui",
+    "description": "A render-ui pattern literal is passed to a field not typed node, hiding renderable content from render-ui checks"
+  },
+  {
+    "code": "ORB_SET_COLUMN_WITHOUT_ROW",
+    "category": "entity_mutation",
+    "description": "A set writes an entity column with no row in scope and no persist create or update that could land it"
+  },
+  {
+    "code": "ORB_SHARED_ENTITY_FIELD_CONFLICT",
+    "category": "entity_mutation",
+    "description": "A field of a shared entity is written by more than one trait"
+  },
+  {
+    "code": "ORB_SHARED_ENTITY_RENDER_AUTHORITY",
+    "category": "entity_mutation",
+    "description": "A shared entity is render-ui-read by more than one trait, but only one render authority is allowed per entity and slot"
+  },
+  {
+    "code": "ORB_SLOT_CONTENTION",
+    "category": "slot",
+    "description": "Multiple traits on a page render into the same slot"
+  },
+  {
+    "code": "ORB_SLOT_CONTENTION_RUNTIME",
+    "category": "slot",
+    "description": "Several traits render to the same slot in the same state, so they contend for it"
+  },
+  {
+    "code": "ORB_SLOT_CONTENTION_TICK",
+    "category": "slot",
+    "description": "Several traits on a page render into the same slot from ticks, so their output contends"
+  },
+  {
+    "code": "ORB_SLOT_INVALID_NESTING",
+    "category": "slot",
+    "description": "A slot is nested in an invalid way"
+  },
+  {
+    "code": "ORB_SLOT_MAIN_NOT_COVERED",
+    "category": "slot",
+    "description": "No trait on a page renders anything into the main slot"
+  },
+  {
+    "code": "ORB_STORE_DRIVER_CONTRACT",
+    "category": "store",
+    "description": "A store driver has no trait handling one or more verbs required by the row-store driver contract"
+  },
+  {
+    "code": "ORB_STORE_DRIVER_NOT_CONDITIONAL",
+    "category": "store",
+    "description": "A conditional persist op is bound to a store driver that cannot execute conditional writes"
+  },
+  {
+    "code": "ORB_STORE_ON_NON_PERSISTENT",
+    "category": "store",
+    "description": "An entity binds a store but its rows live in no store"
+  },
+  {
+    "code": "ORB_STORE_UNKNOWN_ORBITAL",
+    "category": "store",
+    "description": "A store binding names an orbital that is not part of the program"
+  },
+  {
+    "code": "ORB_STORE_VERB_OUTSIDE_SEAM",
+    "category": "store",
+    "description": "A trait emits a row-store verb directly, but a store driver may be asked only by the store seam"
+  },
+  {
+    "code": "ORB_S_ACCESS_POLICY_INVALID_BINDING",
+    "category": "schema",
+    "description": "An access directive uses a binding other than the ones legal there"
+  },
+  {
+    "code": "ORB_S_ACCESS_POLICY_REQUIRES_IDENTITY",
+    "category": "schema",
+    "description": "An access directive reads @user but the program declares no identity entity"
+  },
+  {
+    "code": "ORB_S_ACCESS_POLICY_UNKNOWN_ENTITY_FIELD",
+    "category": "schema",
+    "description": "An access policy references a name that is not a field of its entity, so it resolves to null and denies everyone"
+  },
+  {
+    "code": "ORB_S_COLLECTION_POLICY_CONFLICT",
+    "category": "schema",
+    "description": "Entities bound to the same collection declare different access directives"
+  },
+  {
+    "code": "ORB_S_EMPTY_VERSION",
+    "category": "schema",
+    "description": "The schema version is empty"
+  },
+  {
+    "code": "ORB_S_EXPECTATION_FIELD_UNDECLARED",
+    "category": "schema",
+    "description": "An effect persists a field that the orbital's expects entity shape does not declare"
+  },
+  {
+    "code": "ORB_S_EXPECTATION_PROVIDER_MISMATCH",
+    "category": "schema",
+    "description": "An expectation requires a field to be marked as a key but the providing entity declares it without that mark"
+  },
+  {
+    "code": "ORB_S_EXPECTATION_UNSATISFIED",
+    "category": "schema",
+    "description": "An orbital expects an entity, trait, event, or config default that nothing in the program provides"
+  },
+  {
+    "code": "ORB_S_EXPECTED_FIELD_NOT_PROVIDED",
+    "category": "schema",
+    "description": "A rebound entity does not provide a field that the trait expects it to have"
+  },
+  {
+    "code": "ORB_S_EXPECTED_FIELD_TYPE_MISMATCH",
+    "category": "schema",
+    "description": "The provider has the expected field or knob but with an incompatible type"
+  },
+  {
+    "code": "ORB_S_IDENTITY_NOT_UNIQUE",
+    "category": "schema",
+    "description": "More than one entity is tagged identity, making every @user field reference ambiguous"
+  },
+  {
+    "code": "ORB_S_MISSING_NAME",
+    "category": "schema",
+    "description": "The schema does not declare a name"
+  },
+  {
+    "code": "ORB_S_NO_ORBITALS",
+    "category": "schema",
+    "description": "The schema declares no orbitals"
+  },
+  {
+    "code": "ORB_S_OWNER_FIELD_NOT_IDENTITY_TYPED",
+    "category": "schema",
+    "description": "An access directive compares a field to @user.id but the field is not a relation to the identity entity"
+  },
+  {
+    "code": "ORB_S_ROLE_LITERAL_NOT_MEMBER",
+    "category": "schema",
+    "description": "A literal compared against an @user field with a closed vocabulary is not a member of that vocabulary, so the branch can never be taken"
+  },
+  {
+    "code": "ORB_S_SHARED_WITHOUT_PERSISTENCE_MODE",
+    "category": "schema",
+    "description": "A shared entity declares no persistence mode, and none may be inferred"
+  },
+  {
+    "code": "ORB_S_UNKNOWN_IDENTITY_FIELD",
+    "category": "schema",
+    "description": "@user.<field> names a field the declared identity entity does not have"
+  },
+  {
+    "code": "ORB_TAB_EFFECT_ON_SERVER",
+    "category": "tab",
+    "description": "A browser tab effect is used in a transition that runs on the server, which holds no tabs"
+  },
+  {
+    "code": "ORB_TAB_REQUEST_INVALID",
+    "category": "browser",
+    "description": "A browser/tab request is not an object of the operation's closed keys or has refused literal values"
+  },
+  {
+    "code": "ORB_THEME_PIN_CONTRADICTS_APP",
+    "category": "theme",
+    "description": "An orbital pins a theme that differs from the theme the app declares at app level"
+  },
+  {
+    "code": "ORB_THEME_UNDECLARED",
+    "category": "theme",
+    "description": "A frame is shown in a literal theme that the program does not declare, so no stylesheet ships for it"
+  },
+  {
+    "code": "ORB_TICK_ASYNC_EFFECT",
+    "category": "tick",
+    "description": "A tick calls a server-async operator, which ticks cannot run"
+  },
+  {
+    "code": "ORB_TICK_REQUIRES_RUNTIME",
+    "category": "trait",
+    "description": "A non-cron tick mutates a persistent entity, which should usually be runtime"
+  },
+  {
+    "code": "ORB_T_CLIENT_TICK_NOT_LOCAL",
+    "category": "trait",
+    "description": "A trait writes a frame entity ticked on the client but declares no dispatch mode, so a server step overwrites the live frame"
+  },
+  {
+    "code": "ORB_T_CLIENT_TICK_SERVER_EFFECT",
+    "category": "trait",
+    "description": "A tick that runs in the browser has effects that reach the server, and nothing replays a tick there"
+  },
+  {
+    "code": "ORB_T_CONFIG_MISSING_REQUIRED_KEY",
+    "category": "trait",
+    "description": "A trait reference does not supply a config knob that the referenced trait declares as required"
+  },
+  {
+    "code": "ORB_T_CONFIG_OBJECT_ARRAY_FORBIDDEN",
+    "category": "trait",
+    "description": "A config field uses a banned bare object or array type instead of a named struct alias"
+  },
+  {
+    "code": "ORB_T_CONFIG_TIER_INVALID",
+    "category": "trait",
+    "description": "A config field declares a tier value outside domain, policy, infra, presentation and internal"
+  },
+  {
+    "code": "ORB_T_CONFIG_UNKNOWN_CALL_SITE_KEY",
+    "category": "trait",
+    "description": "A call-site config key matches no config knob declared on the referenced trait"
+  },
+  {
+    "code": "ORB_T_DUPLICATE_NAME",
+    "category": "trait",
+    "description": "The same trait name is defined in more than one orbital"
+  },
+  {
+    "code": "ORB_T_DUPLICATE_STATE",
+    "category": "trait",
+    "description": "A trait declares the same state name more than once"
+  },
+  {
+    "code": "ORB_T_DUPLICATE_TRANSITION",
+    "category": "trait",
+    "description": "Two transitions share the same source state and event without guards"
+  },
+  {
+    "code": "ORB_T_EMPTY_EVENT_NAME",
+    "category": "trait",
+    "description": "An event name is empty"
+  },
+  {
+    "code": "ORB_T_ENDPOINT_TRAIT_RENDERS",
+    "category": "trait",
+    "description": "A trait mounted only on protocol endpoints renders UI, which endpoints cannot show"
+  },
+  {
+    "code": "ORB_T_ENTITY_NAME_SHADOWS_TRAIT_UNION",
+    "category": "trait",
+    "description": "An entity name collides with a trait's generated state union type"
+  },
+  {
+    "code": "ORB_T_ENTITY_NOT_REBINDABLE",
+    "category": "trait",
+    "description": "A trait is bound to an entity it cannot be rebound to"
+  },
+  {
+    "code": "ORB_T_EVENT_RENAME_UNKNOWN_KEY",
+    "category": "trait",
+    "description": "An events rename key names no event declared by the referenced trait"
+  },
+  {
+    "code": "ORB_T_EVT_EXTERNAL_MISSING_PAYLOAD",
+    "category": "trait",
+    "description": "An external event does not declare a typed payload"
+  },
+  {
+    "code": "ORB_T_EVT_INVALID_NAME",
+    "category": "trait",
+    "description": "An event name is not a valid UPPER_SNAKE_CASE identifier"
+  },
+  {
+    "code": "ORB_T_EVT_UNDECLARED",
+    "category": "trait",
+    "description": "An event is emitted but not declared in the trait's emits array"
+  },
+  {
+    "code": "ORB_T_EXTERNAL_INPUT_NOT_RESTING",
+    "category": "trait",
+    "description": "An external input is not accepted from the trait's initial state"
+  },
+  {
+    "code": "ORB_T_GENERIC_TYPE_DEPRECATED",
+    "category": "trait",
+    "description": "A declaration uses a generic type such as bare json, object without properties, or any, which the language no longer allows"
+  },
+  {
+    "code": "ORB_T_INIT_MISSING_FETCH",
+    "category": "trait",
+    "description": "No trait fetches a persistent entity on INIT, so interaction traits read data nothing loads"
+  },
+  {
+    "code": "ORB_T_INVALID_EVENT_DEFAULT",
+    "category": "trait",
+    "description": "A config field typed event holds a value that is not a valid event name or member of the trait's event set"
+  },
+  {
+    "code": "ORB_T_INVALID_FORMAT",
+    "category": "trait",
+    "description": "A trait reference has neither a ref nor a name property"
+  },
+  {
+    "code": "ORB_T_INVALID_PATTERN_DEFAULT",
+    "category": "trait",
+    "description": "A pattern-typed config knob has a default that is not a known pattern type"
+  },
+  {
+    "code": "ORB_T_INVALID_SLOT_DEFAULT",
+    "category": "trait",
+    "description": "A slot-typed config field has a default that is not a valid slot"
+  },
+  {
+    "code": "ORB_T_INVALID_TRANSITION",
+    "category": "trait",
+    "description": "A transition references a source or target state that does not exist"
+  },
+  {
+    "code": "ORB_T_LOCAL_ON_NON_SHARED_PERSISTENT",
+    "category": "trait",
+    "description": "A client-dispatch trait is linked to an entity that is neither shared nor client-resident, hiding server-gated writes behind optimism"
+  },
+  {
+    "code": "ORB_T_LOCAL_TRAIT_TOUCHES_SERVER",
+    "category": "trait",
+    "description": "A client trait transition guards on or touches server-only state"
+  },
+  {
+    "code": "ORB_T_MISSING_INIT_TRANSITION",
+    "category": "trait",
+    "description": "A route trait has no INIT transition on its initial state"
+  },
+  {
+    "code": "ORB_T_MULTIPLE_INITIAL_STATES",
+    "category": "trait",
+    "description": "A trait state machine declares more than one initial state"
+  },
+  {
+    "code": "ORB_T_NO_INITIAL_STATE",
+    "category": "trait",
+    "description": "A state machine declares no states and so has no initial state"
+  },
+  {
+    "code": "ORB_T_REBIND_MISSING_FIELDS",
+    "category": "trait",
+    "description": "A trait is rebound to an entity that lacks fields the trait requires"
+  },
+  {
+    "code": "ORB_T_REBIND_TARGET_UNRESOLVED",
+    "category": "trait",
+    "description": "A trait rebind target cannot be resolved"
+  },
+  {
+    "code": "ORB_T_SECRET_DEFAULT_NOT_STRING",
+    "category": "trait",
+    "description": "A config field typed secret does not default to a string credential reference"
+  },
+  {
+    "code": "ORB_T_STATE_UNREACHABLE",
+    "category": "trait",
+    "description": "A state is unreachable from the initial state through any transition path"
+  },
+  {
+    "code": "ORB_T_TRAIT_ON_ROUTE_AND_ENDPOINT",
+    "category": "trait",
+    "description": "A trait is mounted on both a route page and a protocol endpoint"
+  },
+  {
+    "code": "ORB_T_TRAIT_UNMOUNTED",
+    "category": "trait",
+    "description": "A trait owns a state machine but is listed on no page and reached by no embed"
+  },
+  {
+    "code": "ORB_T_UNDEFINED_EVENT",
+    "category": "trait",
+    "description": "A transition uses an event that is not defined in the trait's events array"
+  },
+  {
+    "code": "ORB_T_UNDEFINED_TRAIT",
+    "category": "trait",
+    "description": "A trait reference does not give a trait name"
+  },
+  {
+    "code": "ORB_T_UNRESOLVED_TYPE_PARAM",
+    "category": "trait",
+    "description": "A declaration uses a type variable that no trait parameter binds"
+  },
+  {
+    "code": "ORB_UI_ICON_EMPTY",
+    "category": "icon",
+    "description": "An icon name is empty"
+  },
+  {
+    "code": "ORB_UI_ICON_INVALID_FORMAT",
+    "category": "icon",
+    "description": "An icon name has an invalid format"
+  },
+  {
+    "code": "ORB_UI_ICON_NOT_FOUND",
+    "category": "icon",
+    "description": "An icon name does not exist in the icon set"
+  },
+  {
+    "code": "ORB_USER_INTO_REQUIRED_SLOT",
+    "category": "user",
+    "description": "A user-identity value is bound into a slot that requires a value the viewer may not have"
+  },
+  {
+    "code": "ORB_W_LOOP_INVARIANT_PARSE",
+    "category": "lint",
+    "description": "A parse inside a lambda re-parses the same value for every element and should be bound once outside"
+  },
+  {
+    "code": "ORB_X_CIRCULAR_DEPENDENCY",
+    "category": "cross",
+    "description": "Traits form a circular event dependency"
+  },
+  {
+    "code": "ORB_X_CROSS_EMITTER_DECLARED_PAYLOAD_MISMATCH",
+    "category": "cross",
+    "description": "An event declared by several emitters has conflicting payload fields across them"
+  },
+  {
+    "code": "ORB_X_DUPLICATE_ENTITY",
+    "category": "cross",
+    "description": "The same entity name is defined in more than one orbital"
+  },
+  {
+    "code": "ORB_X_DUPLICATE_TRAIT_ID",
+    "category": "cross",
+    "description": "Two or more traits carry the same trait id, so listens match each other's emits"
+  },
+  {
+    "code": "ORB_X_ENUM_VALUE_NOT_MEMBER",
+    "category": "cross",
+    "description": "A set effect assigns a string literal that is not a declared member of the target field's enum"
+  },
+  {
+    "code": "ORB_X_FILTER_FIELD_NEVER_WRITTEN",
+    "category": "cross",
+    "description": "A fetch filters on a field that no persist create or update of that entity supplies, so it always returns empty"
+  },
+  {
+    "code": "ORB_X_LISTEN_SOURCE_NEVER_PRODUCES",
+    "category": "cross",
+    "description": "A listens route names a source whose emits contract never produces the listened event"
+  },
+  {
+    "code": "ORB_X_LISTEN_SOURCE_UNRESOLVED",
+    "category": "cross",
+    "description": "A listen entry references a source trait event that the source does not declare"
+  },
+  {
+    "code": "ORB_X_LISTEN_TRIGGER_UNMATCHED",
+    "category": "cross",
+    "description": "A listens entry triggers an event that no transition in the same trait reacts to"
+  },
+  {
+    "code": "ORB_X_MISSING_ORBITAL_NAME",
+    "category": "cross",
+    "description": "An orbital does not declare a name"
+  },
+  {
+    "code": "ORB_X_MIXED_RESIDENCE",
+    "category": "cross",
+    "description": "One transition touches both browser-stored and server-stored entities"
+  },
+  {
+    "code": "ORB_X_ORPHAN_LISTENER",
+    "category": "cross",
+    "description": "A trait listens for an event that no trait emits"
+  },
+  {
+    "code": "ORB_X_PAYLOAD_FIELD_NAME",
+    "category": "cross",
+    "description": "A payload field name is not a valid TypeScript identifier"
+  },
+  {
+    "code": "ORB_X_PAYLOAD_MISMATCH",
+    "category": "cross",
+    "description": "An external emit is missing a payload field required by the event's declaration"
+  },
+  {
+    "code": "ORB_X_RENDER_UI_EVENT_LITERAL_STALE",
+    "category": "cross",
+    "description": "A render-ui prop references an event literal that no longer matches a declared event"
+  },
+  {
+    "code": "ORB_X_UNKNOWN_THEME",
+    "category": "cross",
+    "description": "A theme reference is neither a built-in theme key nor an orbital-declared inline theme"
+  },
+  {
+    "code": "ORB_X_UNRESOLVED_RELATION_TARGET",
+    "category": "cross",
+    "description": "A relation field points at an entity that is not declared in the schema"
+  },
+  {
+    "code": "ORB_X_UNTYPED_ARRAY",
+    "category": "cross",
+    "description": "An array field declares no element type"
+  },
+  {
+    "code": "ORB_X_UNUSED_EMISSION",
+    "category": "cross",
+    "description": "A trait emits an event that no trait listens for"
+  },
+  {
+    "code": "SEXPR_INVALID_BINDING",
+    "category": "sexpr",
+    "description": "An s-expression contains an invalid binding"
+  },
+  {
+    "code": "SEXPR_INVALID_OPERATOR",
+    "category": "sexpr",
+    "description": "An S-expression uses an operator that is not in the operator registry"
+  },
+  {
+    "code": "SEXPR_UNKNOWN_ENTITY",
+    "category": "sexpr",
+    "description": "An entity named in a binding may not exist in the program"
+  },
+  {
+    "code": "inbound-hook-duplicate",
+    "category": "lint",
+    "description": "Two cli hooks declare the same inbound name"
+  },
+  {
+    "code": "shared-type-drift",
+    "category": "lint",
+    "description": "A type shared between behaviors has drifted from its canonical declaration"
+  },
+  {
+    "code": "unread",
+    "category": "lint",
+    "description": "The file the rule reads could not be read or listed"
   }
 ]

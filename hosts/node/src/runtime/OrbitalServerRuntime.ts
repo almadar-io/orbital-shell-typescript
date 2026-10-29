@@ -1,6 +1,6 @@
 /**
  * OrbitalServerRuntime: the Node host that runs a registered program on the kernel. It answers the kernel's asks
- * (rows, services, `http`, `os` through the given os host, live streams), drives its ticks and mounts; it serves no
+ * (rows, services, secrets, `os` through the given os host, live streams), drives its ticks and mounts; it serves no
  * HTTP routes (a served program composes std-http-server for that).
  *
  * @packageDocumentation
@@ -101,7 +101,7 @@ import { identityEntityName } from "@almadar/core/mock";
 import { defaultCallService } from "@almadar/shell-runtime";
 import { KernelEngine, type KernelHostPorts } from "@almadar/shell-runtime";
 import { kernelEventRequestParser, kernelOsCompletions, kernelOsGrants, kernelOsTls, type OsGrantPort, type OsHostPort } from "@almadar/shell-runtime";
-import { createHttpPorts, createHttpSecrets, InFlightCalls, type HttpPorts, type HttpPortsOptions, type KernelModule } from "@almadar/shell-runtime";
+import { createSecretPorts, createSecretStore, InFlightCalls, type SecretPorts, type SecretPortsOptions, type KernelModule } from "@almadar/shell-runtime";
 import { installNodeHostPorts } from "../host-ports.js";
 import { nativeMemoryOf } from "../kernel-loader.js";
 import { bindDeclaredCollections } from "@almadar/shell-runtime";
@@ -269,11 +269,10 @@ export interface OrbitalServerRuntimeConfig {
    */
   kernel?: KernelModule;
   /**
-   * What the `http` effect runs on: the kernel's request driver (`loadHttpKernel`), and optionally the secret store,
-   * pinned fetch and resolver. The program's `egress` is read from the registered schema. Absent, an `http` effect
-   * fails with `HTTP_KERNEL_UNAVAILABLE`.
+   * What the kernel's secret, random and credential asks run on: optionally the secret store, the CSPRNG and the
+   * credential administration port. Absent, those asks fail as unavailable.
    */
-  http?: Omit<HttpPortsOptions, 'egress'>;
+  secretPorts?: SecretPortsOptions;
   /**
    * Builds the `os` host of the kernel engine from the grant port backed by the kernel (`createNodeOsHost` from
    * `@almadar/shell-node`). Absent, every `os` ask is denied, as the native host does with none.
@@ -668,15 +667,15 @@ export class OrbitalServerRuntime {
   }
 
   /** The adapters the kernel's I/O is answered with: this runtime's persistence, services and program host. */
-  private httpPorts(egress: readonly string[] = this.resolvedSchema?.egress ?? []): HttpPorts | undefined {
-    const options = this.config.http;
-    return options === undefined ? undefined : createHttpPorts({ ...options, egress });
+  private secretPorts(): SecretPorts | undefined {
+    const options = this.config.secretPorts;
+    return options === undefined ? undefined : createSecretPorts(options);
   }
 
-  private kernelPorts(egress: readonly string[]): KernelHostPorts {
-    const http = this.httpPorts(egress);
+  private kernelPorts(): KernelHostPorts {
+    const secretPorts = this.secretPorts();
     return {
-      ...(http !== undefined ? { http } : {}),
+      ...(secretPorts !== undefined ? { secretPorts } : {}),
       ...(this.config.clock !== undefined ? { now: this.config.clock } : {}),
       ...(this.kernelOs !== undefined ? { os: this.kernelOs } : {}),
       ...(this.kernelOs !== undefined && this.config.kernel !== undefined ? { osCompletions: kernelOsCompletions(this.config.kernel) } : {}),
@@ -770,7 +769,7 @@ export class OrbitalServerRuntime {
     this.kernelEngine?.dispose();
     this.kernelOs?.close();
     this.kernelOs = this.config.osHost?.(kernelOsGrants(kernel, () => this.requireKernelEngine()));
-    this.kernelEngine = KernelEngine.open(kernel, schema, this.kernelPorts(registered.egress ?? []), this.lazyDir);
+    this.kernelEngine = KernelEngine.open(kernel, schema, this.kernelPorts(), this.lazyDir);
     this.kernelEngine.setMessages(this.appLocales, this.messages);
     if (this.managedProgram !== undefined) this.kernelEngine.setManagedProgram(this.managedProgram);
     this.syncTickMount();
@@ -1393,7 +1392,7 @@ export class OrbitalServerRuntime {
   }
 
   async deliverInbound(name: string, delivery: InboundDelivery, onPush?: (item: PushItem) => void): Promise<InboundAnswer> {
-    return dispatchInbound(this.resolvedSchema, name, delivery, (orbital, req) => this.processOrbitalEvent(orbital, req, onPush), (credential) => (this.httpPorts()?.secrets ?? createHttpSecrets()).get(credential, undefined));
+    return dispatchInbound(this.resolvedSchema, name, delivery, (orbital, req) => this.processOrbitalEvent(orbital, req, onPush), (credential) => (this.secretPorts()?.secrets ?? createSecretStore()).get(credential, undefined));
   }
 
   async processOrbitalEvent(

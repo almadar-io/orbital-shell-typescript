@@ -43,7 +43,6 @@
     "@almadar/core": "^10.129.0",
     "@almadar/kernel": "^18.0.0",
     "@almadar/logger": "^1.18.0",
-    "undici": "^6.29.1",
     "zod": "^4.6.7",
     "@almadar/std": "^16.255.0",
     "@almadar/shell-runtime": "^0.1.0"

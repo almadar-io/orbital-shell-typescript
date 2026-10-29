@@ -1,8 +1,5 @@
 /** Decoders for what the kernel hands back as JSON: the generated decoders of `@almadar/core/kernel-wire`, which throw naming the failing path. */
 import {
-  decodeHttpBody,
-  decodeHttpRequestWire,
-  decodeHttpResponseWire,
   decodeIoRequestWire,
   decodeNextWire,
   decodeResolveProgressWire,
@@ -11,8 +8,6 @@ import {
 import type { JsonValue } from '@almadar/core';
 import type { NextWire, ResolveProgressWire, ServerProgressWire } from './wire.js';
 
-export { decodeHttpBody };
-export { decodeHttpRequestWire as decodeHttpRequest, decodeHttpResponseWire as decodeHttpResponse };
 export { decodeIoRequestWire as decodeRequest };
 
 export function decodeProgress(json: string): ServerProgressWire {

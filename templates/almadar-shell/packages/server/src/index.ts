@@ -28,7 +28,7 @@ const program: OrbitalSchema = JSON.parse(readFileSync(join(server, 'generated',
 const kernel = await loadNativeKernelModule(join(process.env[KERNEL_DIR_ENV] || join(project, 'kernel'), 'kernel.node'), { languageFrom: server });
 const runtime = new OrbitalServerRuntime({
   kernel,
-  http: { kernel: async () => kernel },
+  secretPorts: {},
   osHost: (grants) => createNodeOsHost(grants, { anchors: { ...processAnchors(), start: project } }),
 });
 await runtime.register(program, { messages: catalogsOf(program) });

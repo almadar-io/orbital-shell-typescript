@@ -9,7 +9,7 @@ import { entityAccessPolicies } from '@almadar/core/mock';
 import type { EffectHandlers } from '../types.js';
 import { KernelEngine, evaluateOnKernel } from '../../kernel/engine.js';
 import type { KernelHostPorts } from '../../kernel/host.js';
-import type { HttpPorts } from '../../kernel/http.js';
+import type { SecretPorts } from '../../kernel/secret-ports.js';
 import type { KernelModule } from '../../kernel/wire.js';
 import { createInProcessTransport, type EventTransport } from '../../client/EventTransport.js';
 import { InFlightCalls } from '../../effects/in-flight-calls.js';
@@ -33,7 +33,7 @@ export interface LocalKernelOptions {
   deferCallOutcome?: KernelHostPorts['deferCallOutcome'];
   pageFacts?: KernelHostPorts['pageFacts'];
   hostActions?: KernelHostPorts['hostActions'];
-  http?: HttpPorts;
+  secretPorts?: SecretPorts;
   onDevice?: OnDeviceModelPorts;
   tabs?: BrowserTabPort;
   /** The program's message catalogs, so `i18n/t` resolves for the request's locale. */
@@ -68,7 +68,7 @@ export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
     deferCallOutcome: options.deferCallOutcome ?? (() => undefined),
     ...(options.pageFacts !== undefined ? { pageFacts: options.pageFacts } : {}),
     ...(options.hostActions !== undefined ? { hostActions: options.hostActions } : {}),
-    ...(options.http !== undefined ? { http: options.http } : {}),
+    ...(options.secretPorts !== undefined ? { secretPorts: options.secretPorts } : {}),
     ...(options.onDevice !== undefined ? { onDevice: options.onDevice } : {}),
     ...(options.tabs !== undefined ? { tabs: options.tabs } : {}),
   });

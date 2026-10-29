@@ -6,7 +6,7 @@ import type { BrowserTabPort, MessageCatalogs, MountSeed, OnDeviceModelPorts, Or
 import { applyRowAccess, externalInputsOf, orbitalInlineEntities, readableEntitiesOf, storesRowsInBrowser } from '@almadar/core';
 import { entityAccessPolicies } from '@almadar/core/mock';
 import type { KernelHostPorts } from '../../kernel/host.js';
-import type { HttpPorts } from '../../kernel/http.js';
+import type { SecretPorts } from '../../kernel/secret-ports.js';
 import type { KernelModule } from '../../lib/kernel-wire.js';
 import { dispatchDeclaredInput } from '@almadar/shell-runtime/client/declared-input-dispatch';
 import { IndexedDbPersistence } from '@almadar/shell-browser/storage';
@@ -56,8 +56,8 @@ export interface BrowserStoreTransportOptions {
   locale?: string;
   /** Answers the program's calls to browser-only services (the client's web-hosted integrations). */
   callService?: EffectHandlers['callService'];
-  /** What a leg's client-site `http` runs on (`createBrowserHttpPorts`). */
-  http?: HttpPorts;
+  /** The secret, random and credential ports of a leg (`createBrowserSecretPorts`). */
+  secretPorts?: SecretPorts;
   /** The program's message catalogs, so a leg's `i18n/t` resolves for the request's locale. */
   messages?: MessageCatalogs;
 }
@@ -77,7 +77,7 @@ export async function openBrowserStoreTransport(options: BrowserStoreTransportOp
       schema: options.schema,
       persistence,
       ...(options.callService !== undefined ? { callService: options.callService } : {}),
-      ...(options.http !== undefined ? { http: options.http } : {}),
+      ...(options.secretPorts !== undefined ? { secretPorts: options.secretPorts } : {}),
       ...(options.messages !== undefined ? { messages: options.messages } : {}),
     }),
   });
@@ -87,7 +87,7 @@ export async function openBrowserStoreTransport(options: BrowserStoreTransportOp
  * A compiled client's bundled `browserSchema.json`, served on the kernel like any local host. The program is the
  * resolved `orb` output: the kernel validates it when it registers, so the host does not parse it again.
  */
-export function openBundledBrowserStore(schema: OrbitalSchema, kernel: KernelModule, language: string, locale?: string, callService?: EffectHandlers['callService'], messages?: MessageCatalogs, http?: HttpPorts): Promise<EventTransport> {
+export function openBundledBrowserStore(schema: OrbitalSchema, kernel: KernelModule, language: string, locale?: string, callService?: EffectHandlers['callService'], messages?: MessageCatalogs, secretPorts?: SecretPorts): Promise<EventTransport> {
   return openBrowserStoreTransport({
     databaseName: browserStoreName(schema.name, locale),
     schema,
@@ -95,7 +95,7 @@ export function openBundledBrowserStore(schema: OrbitalSchema, kernel: KernelMod
     kernel,
     language,
     ...(callService !== undefined ? { callService } : {}),
-    ...(http !== undefined ? { http } : {}),
+    ...(secretPorts !== undefined ? { secretPorts } : {}),
     ...(messages !== undefined ? { messages } : {}),
   });
 }
@@ -105,8 +105,8 @@ export interface BrowserHostOptions {
   schema: OrbitalSchema;
   /** Answers every `call-service` of the program (the host's browser integrations). */
   callService: EffectHandlers['callService'];
-  /** What the program's client-site `http` effects run on (`createBrowserHttpPorts`). */
-  http?: HttpPorts;
+  /** The secret, random and credential ports of the program (`createBrowserSecretPorts`). */
+  secretPorts?: SecretPorts;
   /** The on-device model and embedder `browser/prompt` and `browser/embed` ask (the host plugs its Prompt API and embedder in here). */
   onDevice?: OnDeviceModelPorts;
   /** The initialised `@almadar/kernel` module the program runs on; this host answers its I/O. */
@@ -182,7 +182,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
     callService: options.callService,
     servicePorts,
     deferCallOutcome: () => deferred,
-    ...(options.http !== undefined ? { http: options.http } : {}),
+    ...(options.secretPorts !== undefined ? { secretPorts: options.secretPorts } : {}),
     ...(options.onDevice !== undefined ? { onDevice: options.onDevice } : {}),
     ...(options.tabs !== undefined ? { tabs: options.tabs } : {}),
   });

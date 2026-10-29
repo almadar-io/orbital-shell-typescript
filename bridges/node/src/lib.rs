@@ -1,4 +1,4 @@
-//! The kernel as a native Node add-on. Every export is the `orbital-wasm` host API (`orbital_wasm::api`, `http`, `oauth`)
+//! The kernel as a native Node add-on. Every export is the `orbital-wasm` host API (`orbital_wasm::api`)
 //! under the name the wasm module gives it, so a host loads either one behind the same ports. Marshalling only: every
 //! decision is `orbital_core::embed`'s.
 
@@ -7,7 +7,6 @@ use napi::Env;
 use napi_derive::napi;
 use orbital_wasm::api;
 use orbital_wasm::stored::{ServerHandle, Slot};
-use orbital_wasm::{http, oauth};
 
 fn js(error: impl std::fmt::Display) -> Error {
     Error::from_reason(error.to_string())
@@ -321,21 +320,6 @@ pub fn install_language(bundle_json: String) -> napi::Result<()> {
 }
 
 #[napi]
-pub fn http_driver_start(call_json: String, egress_json: String) -> napi::Result<String> {
-    http::http_driver_start(&call_json, &egress_json).map_err(js)
-}
-
-#[napi]
-pub fn http_driver_resume(driver_json: String, answer_json: String) -> napi::Result<String> {
-    http::http_driver_resume(&driver_json, &answer_json).map_err(js)
-}
-
-#[napi]
-pub fn http_driver_drop(driver_json: String) -> napi::Result<()> {
-    http::http_driver_drop(&driver_json).map_err(js)
-}
-
-#[napi]
 pub fn os_glob_matches(glob: String, path: String) -> bool {
     api::os_glob_matches(&glob, &path)
 }
@@ -371,73 +355,6 @@ pub fn os_completion_event(
     outcome_json: String,
 ) -> napi::Result<String> {
     api::os_completion_event(&site_json, &key, &outcome_json).map_err(js)
-}
-
-#[napi]
-pub fn is_public_address(ip: String) -> napi::Result<bool> {
-    http::is_public_address(&ip).map_err(js)
-}
-
-#[napi]
-pub fn frame_stream(
-    framing: String,
-    key: Option<String>,
-    chunk: String,
-    carry: String,
-) -> napi::Result<String> {
-    http::frame_stream(&framing, key.as_deref(), &chunk, &carry).map_err(js)
-}
-
-#[napi]
-pub fn frame_stream_finish(
-    framing: String,
-    key: Option<String>,
-    carry: String,
-) -> napi::Result<String> {
-    http::frame_stream_finish(&framing, key.as_deref(), &carry).map_err(js)
-}
-
-#[napi]
-pub fn stream_events(driver_json: String, chunk: String, carry: String) -> napi::Result<String> {
-    http::stream_events(&driver_json, &chunk, &carry).map_err(js)
-}
-
-#[napi]
-pub fn stream_finish(driver_json: String, carry: String) -> napi::Result<String> {
-    http::stream_finish(&driver_json, &carry).map_err(js)
-}
-
-#[napi]
-pub fn oauth_authorize_plan(client_json: String, options_json: String) -> napi::Result<String> {
-    oauth::oauth_authorize_plan(&client_json, &options_json).map_err(js)
-}
-
-#[napi]
-pub fn oauth_authorize_build(
-    plan_json: String,
-    client_id: String,
-    metadata_json: String,
-    state_base64: String,
-    verifier_base64: String,
-) -> napi::Result<String> {
-    oauth::oauth_authorize_build(
-        &plan_json,
-        &client_id,
-        &metadata_json,
-        &state_base64,
-        &verifier_base64,
-    )
-    .map_err(js)
-}
-
-#[napi]
-pub fn oauth_authorize_mock_build(plan_json: String, state_base64: String) -> napi::Result<String> {
-    oauth::oauth_authorize_mock_build(&plan_json, &state_base64).map_err(js)
-}
-
-#[napi]
-pub fn oauth_failure(reason: String) -> napi::Result<String> {
-    oauth::oauth_failure(&reason).map_err(js)
 }
 
 #[napi]

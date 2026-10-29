@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { EntityRowSchema, type EntityRow } from '@almadar/core';
 import { CredentialVault } from '@almadar/shell-web';
-import { createExtensionHttpPorts } from '../src/kernel/extension-ports.js';
+import { createExtensionSecretPorts } from '../src/kernel/extension-ports.js';
 import {
   CHROME_CREDENTIAL_MASTER_KEY,
   CHROME_CREDENTIAL_ROWS_KEY,
@@ -100,7 +100,7 @@ describe('chrome credential rows: a pending OAuth grant survives a worker restar
 
   async function worker(storage: ChromeStorageArea) {
     const vault = await CredentialVault.open(new kernel.CredentialVault(MASTER), chromeCredentialRows(storage));
-    return createExtensionHttpPorts({ kernel: () => Promise.reject(new Error('never')), egress: [], credentials: Promise.resolve(vault) });
+    return createExtensionSecretPorts({ credentials: Promise.resolve(vault) });
   }
 
   it('a new host instance over the same storage takes the grant stored before the restart', async () => {

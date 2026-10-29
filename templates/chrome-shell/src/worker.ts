@@ -1,6 +1,6 @@
 /**
  * The extension's service worker hosts the program on the wasm kernel: the kernel decides every step and
- * the worker answers its raw asks — browser-stored entities in IndexedDB, every keyless `http` by the worker's own `fetch`, every `browser/tab-*` by the Chrome tabs, declared inputs (a watched
+ * the worker answers its raw asks — browser-stored entities in IndexedDB, every `browser/tab-*` by the Chrome tabs, declared inputs (a watched
  * page's elements) dispatched by the host.
  * At start it mounts the program's `/` page, as a view would, so its traits run with no view open;
  * the side panel connects over a port and renders the same running program.
@@ -12,7 +12,7 @@ import { chromePromptModel, chromeTabPort, type ChromeLanguageModel } from '@alm
 import programText from './generated/program.orb?raw';
 import { portChannel, VIEW_PORT } from './channel';
 import { embedder } from './generated/embedder';
-import { http } from './generated/http';
+import { secretPorts } from './generated/secret-ports';
 import { kernelReady } from './generated/kernel';
 
 declare const LanguageModel: ChromeLanguageModel | undefined;
@@ -35,7 +35,7 @@ const hostReady: Promise<BrowserHost> = kernelReady.then((kernel) => {
     schema,
     kernel,
     tabs,
-    ...(http !== undefined ? { http } : {}),
+    ...(secretPorts !== undefined ? { secretPorts } : {}),
     onDevice: { model: promptModel, ...(embedder !== undefined ? { embedder } : {}) },
   });
 });

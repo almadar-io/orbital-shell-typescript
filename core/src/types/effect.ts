@@ -870,14 +870,14 @@ export type LlmEffect = [`llm/${string}`, ...SExpr[]];
  * installed packages through `orb`, so they run on the server.
  * @example ['behavior/catalog', { paths: ['std/ui/core/molecules'] }, { emit: { success: 'LISTED', failure: 'LIST_FAILED' } }]
  */
-export type BehaviorReflectionEffect = ['behavior/catalog' | 'behavior/describe' | 'behavior/source' | 'behavior/resolve' | 'behavior/dependencies' | 'behavior/packages' | 'behavior/texts', ...SExpr[]];
+export type BehaviorReflectionEffect = ['behavior/catalog' | 'behavior/describe' | 'behavior/source' | 'behavior/resolve' | 'behavior/dependencies' | 'behavior/packages', ...SExpr[]];
 
 /**
  * Program effects: read `.lolo` text into a quoted program, print one back,
  * evaluate one (validate, then instantiate). Run `orb` on the server.
  * @example ['program/eval', '@entity.program', { emit: { success: 'BUILT', failure: 'BUILD_FAILED' } }]
  */
-export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/compose' | 'program/step' | 'program/live' | 'program/self' | 'program/tick' | 'program/resolve-rows', ...SExpr[]];
+export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/prove' | 'program/compose' | 'program/step' | 'program/live' | 'program/self' | 'program/tick' | 'program/resolve-rows', ...SExpr[]];
 
 /**
  * Agent-port effects, the three abilities an LLM tool loop is written with: `program/inputs` lists the
@@ -1000,7 +1000,7 @@ export const EFFECT_OPERATORS = [
   'notify', 'send-server',
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
   'workspace/write-schema', 'workspace/write-plan', 'workspace/archive-orbital', 'behavior/catalog',
-  'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'behavior/packages', 'behavior/texts', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/compose', 'program/step',
+  'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'behavior/packages', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/prove', 'program/compose', 'program/step',
   'program/inputs', 'program/dispatch', 'program/live', 'program/self', 'program/tick', 'program/resolve-rows', 'persist/read-named',
 ] as const;
 

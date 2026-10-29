@@ -97,7 +97,7 @@ const KERNEL_WASM_ASSET: (&str, &str) = (
 /// The language-data bundle `finalize.mjs` writes into `dist/` and the worker hands the kernel.
 const LANGUAGE_BUNDLE_FILE: &str = "language.json";
 
-const HTTP_STUB: &str = "import type { HttpPorts } from '@almadar/shell-web';\n\nexport const http: HttpPorts | undefined = undefined;\n";
+const SECRET_PORTS_STUB: &str = "import type { SecretPorts } from '@almadar/shell-web';\n\nexport const secretPorts: SecretPorts | undefined = undefined;\n";
 
 /// The wasm kernel the worker hosts the program on (the client build: no verifier, no raw-socket drivers), loaded from the
 /// `.wasm` the build copies into `dist/`: an MV3 worker
@@ -112,28 +112,16 @@ fn kernel_loader() -> String {
     )
 }
 
-/// The worker's `http` ports: the kernel's request driver and the browser's own `fetch` — a browser cannot resolve a
-/// name, so only the program's `egress` (and the extension's `host_permissions`, derived from it) bound what the call reaches.
-/// A program that names a credential (an `http` with `auth`, `credential-*`, an OAuth effect) also gets the profile's credential
-/// vault (the kernel's encrypted store over `chrome.storage` rows), so the kernel's secret asks are answered here and the program never receives a value; `oauth-authorize` further gets
-/// the host's own Google sign-in (`chrome.identity`, no client secret).
-fn http_ports(program: &ChromeProgram) -> String {
-    let egress: Vec<String> = program.egress_origins.iter().map(|o| format!("'{o}'")).collect();
-    let egress = egress.join(", ");
-    if !program.uses_credentials {
-        return format!(
-            "import {{ createBrowserHttpPorts, type HttpPorts }} from '@almadar/shell-web';\nimport {{ kernelReady }} from './kernel';\n\nexport const http: HttpPorts | undefined = createBrowserHttpPorts({{\n  kernel: () => kernelReady,\n  egress: [{egress}],\n}});\n"
-        );
-    }
-    let sign_in = if program.uses_identity { "  signIn: extensionHost.signIn,\n" } else { "" };
-    format!(
-        "import {{ createChromeCredentialVault, createExtensionHttpPorts }} from '@almadar/shell-chrome';\nimport type {{ HttpPorts }} from '@almadar/shell-web';\nimport {{ extensionHost }} from '../config';\nimport {{ kernelReady }} from './kernel';\n\nexport const http: HttpPorts | undefined = createExtensionHttpPorts({{\n  kernel: () => kernelReady,\n  egress: [{egress}],\n  credentials: kernelReady.then((kernel) => createChromeCredentialVault(chrome.storage.local, kernel)),\n  provisioned: extensionHost.provisioned,\n  fetch: extensionHost.fetch,\n{sign_in}}});\n"
-    )
+/// The worker's secret ports. A program that names a credential (`credential-status`, `credential-forget`) gets the profile's
+/// credential vault (the kernel's encrypted store over `chrome.storage` rows), so the kernel's secret asks are answered here and the
+/// program never receives a value.
+fn secret_ports() -> String {
+    "import { createChromeCredentialVault, createExtensionSecretPorts } from '@almadar/shell-chrome';\nimport type { SecretPorts } from '@almadar/shell-web';\nimport { extensionHost } from '../config';\nimport { kernelReady } from './kernel';\n\nexport const secretPorts: SecretPorts | undefined = createExtensionSecretPorts({\n  credentials: kernelReady.then((kernel) => createChromeCredentialVault(chrome.storage.local, kernel)),\n  provisioned: extensionHost.provisioned,\n});\n".to_string()
 }
 
-/// The worker's embedder, `http` and kernel wiring and the files `finalize.mjs` copies into `dist/`. The kernel decides
-/// every step of the program, so its `.wasm` always ships; the embedder and the `http` ports are each declared by whether
-/// the program runs `browser/embed` / a keyless `http`.
+/// The worker's embedder, secret-ports and kernel wiring and the files `finalize.mjs` copies into `dist/`. The kernel decides
+/// every step of the program, so its `.wasm` always ships; the embedder and the secret ports are each declared by whether
+/// the program runs `browser/embed` / names a credential.
 pub fn embedder_files(program: &ChromeProgram) -> Vec<GeneratedFile> {
     let (embedder, mut assets) = if program.embeds_on_device {
         (
@@ -154,8 +142,12 @@ pub fn embedder_files(program: &ChromeProgram) -> Vec<GeneratedFile> {
             serde_json::to_string_pretty(&assets).unwrap_or_default(),
         ),
         GeneratedFile::new(
-            "http.ts",
-            if program.uses_http || program.uses_credentials { http_ports(program) } else { HTTP_STUB.to_string() },
+            "secret-ports.ts",
+            if program.uses_credentials {
+                secret_ports()
+            } else {
+                SECRET_PORTS_STUB.to_string()
+            },
         ),
         GeneratedFile::new("kernel.ts", kernel_loader()),
     ]
@@ -249,7 +241,6 @@ mod tests {
             embeds_on_device: false,
             egress_patterns: Vec::new(),
             egress_origins: Vec::new(),
-            uses_http: false,
             uses_credentials: false,
             uses_identity: false,
         }
@@ -285,18 +276,17 @@ mod tests {
         assert_eq!(capturing["permissions"], json!(["sidePanel", "storage", "tabs", "activeTab"]));
     }
 
-    fn http_program(egress: &[(&str, &str)]) -> ChromeProgram {
+    fn egress_program(egress: &[(&str, &str)]) -> ChromeProgram {
         ChromeProgram {
             egress_patterns: egress.iter().map(|(_, pattern)| pattern.to_string()).collect(),
             egress_origins: egress.iter().map(|(origin, _)| origin.to_string()).collect(),
-            uses_http: true,
             ..program(&["https://example.com/*"], &[])
         }
     }
 
     #[test]
-    fn a_program_running_http_gets_every_egress_origin_as_a_host_permission_and_the_driver_over_the_kernel() {
-        let p = http_program(&[("https://api.example.com", "https://api.example.com/*")]);
+    fn a_program_declaring_egress_gets_every_origin_as_a_host_permission_and_the_one_kernel_loader() {
+        let p = egress_program(&[("https://api.example.com", "https://api.example.com/*")]);
         let m = manifest("App", "1.0.0", None, &p);
         assert_eq!(
             m["host_permissions"],
@@ -313,35 +303,26 @@ mod tests {
         );
         let files = embedder_files(&p);
         assert_eq!(kernel_assets(&files[1]), json!([kernel_asset()]));
-        assert_eq!(files[2].path, "http.ts");
-        assert!(files[2].content.contains("createBrowserHttpPorts"), "{}", files[2].content);
-        assert!(files[2].content.contains("type HttpPorts } from '@almadar/shell-web'"), "{}", files[2].content);
-        assert!(files[2].content.contains("egress: ['https://api.example.com']"), "{}", files[2].content);
-        assert!(!files[2].content.contains("initKernel"), "the http ports share the one kernel loader: {}", files[2].content);
-        assert!(files[2].content.contains("kernel: () => kernelReady"), "{}", files[2].content);
+        assert_eq!(files[2].path, "secret-ports.ts");
+        assert!(files[2].content.contains("= undefined;"), "no credential, no secret ports: {}", files[2].content);
     }
 
     #[test]
-    fn a_program_that_names_a_credential_gets_the_profile_credential_store_and_only_authorize_gets_the_native_sign_in() {
-        let credential_program = ChromeProgram { uses_credentials: true, ..http_program(&[("https://api.example.com", "https://api.example.com/*")]) };
+    fn a_program_that_names_a_credential_gets_the_profile_credential_store() {
+        let credential_program = ChromeProgram { uses_credentials: true, ..egress_program(&[("https://api.example.com", "https://api.example.com/*")]) };
         let files = embedder_files(&credential_program);
-        let http = &files[2].content;
-        assert!(http.contains("createExtensionHttpPorts"), "{http}");
-        assert!(http.contains("import type { HttpPorts } from '@almadar/shell-web'"), "{http}");
-        assert!(http.contains("createChromeCredentialVault(chrome.storage.local, kernel)"), "{http}");
-        assert!(http.contains("fetch: extensionHost.fetch"), "Firebase requests carry the project key through the host fetch: {http}");
-        assert!(http.contains("from '../config'"), "http.ts lives in generated/, config.ts one level up: {http}");
-        assert!(http.contains("egress: ['https://api.example.com']"), "{http}");
-        assert!(!http.contains("signIn"), "no sign-in without oauth-authorize: {http}");
+        assert_eq!(files[2].path, "secret-ports.ts");
+        let ports = &files[2].content;
+        assert!(ports.contains("createExtensionSecretPorts"), "{ports}");
+        assert!(ports.contains("import type { SecretPorts } from '@almadar/shell-web'"), "{ports}");
+        assert!(ports.contains("createChromeCredentialVault(chrome.storage.local, kernel)"), "{ports}");
+        assert!(ports.contains("provisioned: extensionHost.provisioned"), "{ports}");
+        assert!(ports.contains("from '../config'"), "secret-ports.ts lives in generated/, config.ts one level up: {ports}");
+        assert!(!ports.contains("signIn") && !ports.contains("egress") && !ports.contains("fetch"), "the ports take only the vault and the provisioned values: {ports}");
         assert!(!manifest("App", "1.0.0", None, &credential_program)["permissions"].as_array().unwrap().contains(&json!("identity")));
 
-        let oauth_program = ChromeProgram { uses_identity: true, ..credential_program.clone() };
-        let http = &embedder_files(&oauth_program)[2].content;
-        assert!(http.contains("signIn: extensionHost.signIn"), "{http}");
-        assert!(manifest("App", "1.0.0", None, &oauth_program)["permissions"].as_array().unwrap().contains(&json!("identity")));
-
-        let only_credentials = ChromeProgram { uses_http: false, uses_credentials: true, ..program(&["https://example.com/*"], &[]) };
-        assert!(embedder_files(&only_credentials)[2].content.contains("createExtensionHttpPorts"), "credential-status alone still needs the store");
+        let only_credentials = ChromeProgram { uses_credentials: true, ..program(&["https://example.com/*"], &[]) };
+        assert!(embedder_files(&only_credentials)[2].content.contains("createExtensionSecretPorts"), "credential-status alone still needs the store");
     }
 
     #[test]
@@ -354,19 +335,21 @@ mod tests {
                 assert!(!text.contains(needle), "{name} names {needle}: an extension bundle is extractable, so no client secret may ship in it");
             }
         }
-        let oauth_program = ChromeProgram { uses_credentials: true, uses_identity: true, ..http_program(&[("https://accounts.google.com", "https://accounts.google.com/*")]) };
-        let http = &embedder_files(&oauth_program)[2].content;
-        assert!(!http.contains("ecret"), "{http}");
+        let oauth_program = ChromeProgram { uses_credentials: true, uses_identity: true, ..egress_program(&[("https://accounts.google.com", "https://accounts.google.com/*")]) };
+        let ports = &embedder_files(&oauth_program)[2].content;
+        for needle in ["CLIENT_SECRET", "clientSecret", "client_secret"] {
+            assert!(!ports.contains(needle), "{needle}: {ports}");
+        }
     }
 
     #[test]
     fn an_egress_origin_already_read_as_a_site_is_listed_once() {
-        let p = http_program(&[("https://example.com", "https://example.com/*")]);
+        let p = egress_program(&[("https://example.com", "https://example.com/*")]);
         assert_eq!(manifest("App", "1.0.0", None, &p)["host_permissions"], json!(["https://example.com/*"]));
     }
 
     #[test]
-    fn control_a_program_without_http_gets_the_http_stub_but_still_the_kernel() {
+    fn control_a_program_without_a_credential_gets_the_secret_ports_stub_but_still_the_kernel() {
         let p = program(&["https://example.com/*"], &[]);
         let files = embedder_files(&p);
         assert!(files[2].content.contains("= undefined;"), "{}", files[2].content);
@@ -477,7 +460,7 @@ mod tests {
 
     #[test]
     fn control_no_generated_file_imports_the_integrations_package() {
-        let credentials = ChromeProgram { uses_credentials: true, uses_identity: true, ..http_program(&[("https://accounts.google.com", "https://accounts.google.com/*")]) };
+        let credentials = ChromeProgram { uses_credentials: true, uses_identity: true, ..egress_program(&[("https://accounts.google.com", "https://accounts.google.com/*")]) };
         for p in [embedding_program(&[]), program(&[], &[]), credentials] {
             for file in embedder_files(&p) {
                 assert!(!file.content.contains("@almadar/integrations"), "{}", file.path);

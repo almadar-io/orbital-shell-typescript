@@ -22,7 +22,7 @@ export * from './kernel/decode.js';
 export * from './kernel/engine.js';
 export * from './kernel/frame-applier.js';
 export * from './kernel/host.js';
-export * from './kernel/http.js';
+export * from './kernel/secret-ports.js';
 export * from './kernel/lane.js';
 export * from './kernel/os-port.js';
 export * from './kernel/program-effects.js';

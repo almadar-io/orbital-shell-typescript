@@ -24,14 +24,11 @@ pub struct ChromeProgram {
     pub services: Vec<String>,
     /// The program runs `browser/embed`, so the worker needs an on-device embedder.
     pub embeds_on_device: bool,
-    /// Match patterns of every `egress` origin: the extension's host permissions for `http`.
+    /// Match patterns of every `egress` origin: the extension's host permissions for a request the program makes.
     pub egress_patterns: Vec<String>,
-    /// Every `egress` origin as the program declares it: the ports the worker's `http` effect enforces.
+    /// Every `egress` origin as the program declares it: the origins the program may reach.
     pub egress_origins: Vec<String>,
-    /// The program runs an `http` effect, so the worker needs the wasm kernel's request driver.
-    pub uses_http: bool,
-    /// The program runs an `http` effect with `auth` (or a request nothing is known about), `credential-status`,
-    /// `credential-forget` or an OAuth effect, so the worker holds a credential store the kernel's asks are answered from:
+    /// The program runs `credential-status` or `credential-forget`, so the worker holds a credential store the kernel's asks are answered from:
     /// the program names a credential and never receives its value.
     pub uses_credentials: bool,
     /// The program runs `oauth-authorize`, so the worker runs the host's own Google sign-in through `chrome.identity` (a secret-less flow).
@@ -65,7 +62,6 @@ pub fn check_program(
     let mut embeds_on_device = false;
     let mut uses_tabs = false;
     let mut uses_tab_capture = false;
-    let mut uses_http = false;
     let mut uses_credentials = false;
     let mut uses_identity = false;
     let mut egress_patterns = BTreeSet::new();
@@ -177,7 +173,6 @@ pub fn check_program(
             embeds_on_device,
             egress_patterns: egress_patterns.into_iter().collect(),
             egress_origins,
-            uses_http,
             uses_credentials,
             uses_identity,
         })
@@ -376,7 +371,6 @@ mod tests {
             let checked = check_program(&p, &runtimes()).expect(operator);
             assert!(checked.uses_credentials, "{operator}");
             assert_eq!(checked.uses_identity, identity, "{operator}");
-            assert!(!checked.uses_http, "{operator} makes no request of its own");
         }
     }
 
@@ -384,7 +378,7 @@ mod tests {
     fn control_a_program_without_http_does_not_ask_for_the_request_driver() {
         let p = program(local_entity(), trait_with(json!([["call-service", "browser-svc", "status", {}]]), json!({})));
         let checked = check_program(&p, &runtimes()).expect("accepted");
-        assert!(!checked.uses_http && !checked.uses_credentials && !checked.uses_identity);
+        assert!(!checked.uses_credentials && !checked.uses_identity);
     }
 
     #[test]

@@ -1,26 +1,17 @@
 /**
- * The one TypeScript half of the `http` effect: the host side that moves the bytes the Rust request builder
- * (`@almadar/kernel`, wasm) produced. Both the kernel host (`host.ts`) and the interpreter (`EffectExecutor`)
- * call it; nothing here builds a request, frames a stream or shapes a payload — the wasm exports do.
+ * The host ports of the kernel's secret, random and credential asks: the secret store, the CSPRNG and the credential
+ * administration port. The `http` effect is retired (HTTP/1.1 is `.lolo` over `os/*`), so nothing here moves HTTP bytes.
  */
-import { credentialStatusConnected, credentialStorageKey, resolveCredentialStatusIdentity, isJsonObject, type CredentialPayload, type JsonObject, type JsonValue, type RuntimeValue } from '@almadar/core';
+import { credentialStatusConnected, credentialStorageKey, resolveCredentialStatusIdentity, type CredentialPayload, type RuntimeValue } from '@almadar/core';
 import { getEffectiveCredentialStore, getModeControl, resolveCredentialRef } from '../credentials/scope.js';
 import type { CredentialVault } from '../credentials/vault.js';
-import { untilAborted } from '../effects/in-flight-calls.js';
-import { decodeHttpRequest } from './decode.js';
-import type { HttpBody, HttpFailureWire, HttpRequestWire, HttpResponseWire, IoRequestWire } from './wire.js';
-
-/** The `@almadar/kernel` export the `http` port uses: the public-address check of a resolved host. */
-export interface HttpKernel {
-  isPublicAddress(ip: string): boolean;
-}
 
 /**
  * The host's secret store: a credential NAME in, its value out; `set` keeps a minted value (an OAuth2 token) for `ttlMs`.
  * `principal` is the signed-in user's id for a user-scoped credential (the kernel sets it from the dispatch's `@user`,
  * never the program); absent, the credential is app-wide.
  */
-export interface HttpSecrets {
+export interface SecretStore {
   get(name: string, principal?: string): Promise<string | undefined>;
   /** `ttlMs` of 0 forgets the value. */
   set(name: string, value: string, ttlMs: number, principal?: string): Promise<void>;
@@ -45,35 +36,6 @@ export function userCredentialKey(principal: string, name: string): string {
   return credentialStorageKey({ name, principal });
 }
 
-/** Where a host name points: its addresses, and whether the name already is one. */
-export interface ResolvedHost {
-  literal: boolean;
-  addresses: readonly string[];
-}
-
-export interface PinnedInit {
-  method: string;
-  headers: Array<[string, string]>;
-  body?: Uint8Array<ArrayBuffer>;
-  redirect: 'manual';
-  signal?: AbortSignal;
-}
-
-/** The part of a fetch response the exchange reads. */
-export interface PinnedResponse {
-  status: number;
-  headers: { entries(): IterableIterator<[string, string]> };
-  body: { getReader(): {
-    read(): Promise<{ done: boolean; value?: Uint8Array }>;
-    cancel?(): Promise<void>;
-    releaseLock?(): void;
-  } } | null;
-  arrayBuffer(): Promise<ArrayBuffer>;
-}
-
-/** Fetch with the connection pinned to `address`, the one that was checked (no resolve-then-connect race). */
-export type PinnedFetch = (url: URL, init: PinnedInit, address: string) => Promise<PinnedResponse>;
-
 /** CSPRNG output: `bytes` random bytes. */
 export type RandomSource = (bytes: number) => Uint8Array;
 
@@ -96,56 +58,29 @@ export interface CredentialAdminPort {
   setMode(mode: string): Promise<string>;
 }
 
-export interface HttpPorts {
-  kernel: () => Promise<HttpKernel>;
+export interface SecretPorts {
   /** The host CSPRNG `random-bytes` and the driver's `Random` ask draw from. */
   random: RandomSource;
-  /** The program's declared `egress` origins. */
-  egress: readonly string[];
-  secrets: HttpSecrets;
+  secrets: SecretStore;
   /** The credential store and mode flag the credential administration effects ask; absent, those asks fail unavailable. */
   credentials?: CredentialAdminPort;
-  fetch: PinnedFetch;
-  /** Looks a host up for the public-address check; `null` where the host cannot resolve a name (a browser). */
-  resolve: ((host: string) => Promise<ResolvedHost>) | null;
 }
 
-export interface HttpPortsOptions {
-  kernel: () => Promise<HttpKernel>;
+export interface SecretPortsOptions {
   random?: RandomSource;
-  egress: readonly string[];
-  secrets?: HttpSecrets;
+  secrets?: SecretStore;
   /** Defaults to the installed credential store and mode flag. */
   credentials?: CredentialAdminPort;
-  fetch?: PinnedFetch;
-  resolve?: (host: string) => Promise<ResolvedHost>;
 }
 
-export interface BrowserHttpPortsOptions {
-  kernel: () => Promise<HttpKernel>;
-  /** The program's declared `egress` origins. */
-  egress: readonly string[];
-  /** Defaults to the global `fetch`. */
-  fetch?: (url: string, init: RequestInit) => Promise<PinnedResponse & Response>;
-}
-
-/** The loud, coded error for a host that gave the `http` effect no ports. */
-export class HttpUnavailableError extends Error {
-  readonly code = 'HTTP_KERNEL_UNAVAILABLE';
-  constructor(detail: string) {
-    super(`HTTP_KERNEL_UNAVAILABLE: ${detail}`);
-  }
-}
-
-/** A failed `http` effect: its payload is what the `emit.failure` route carries. */
 /** Where the secrets' durable credentials live: the store a host installed, and how a name resolves through it. */
-export interface HttpSecretsHost {
+export interface SecretStoreHost {
   store(): Promise<CredentialVault | null>;
   resolve(name: string, principal: string | undefined): Promise<string | undefined>;
 }
 
 /** The credential store the host installed, with its environment fallback. */
-const installedSecretsHost: HttpSecretsHost = {
+const installedSecretsHost: SecretStoreHost = {
   async store() {
     return getEffectiveCredentialStore();
   },
@@ -160,7 +95,7 @@ const installedSecretsHost: HttpSecretsHost = {
  * `forget`, and a one-use value held sealed in the rows (`hold`, `take`). A host with no enabled vault holds a one-use value
  * in memory, as the native host does.
  */
-export function createHttpSecrets(now: () => number = Date.now, host: HttpSecretsHost = installedSecretsHost): HttpSecrets {
+export function createSecretStore(now: () => number = Date.now, host: SecretStoreHost = installedSecretsHost): SecretStore {
   type Minted = Map<string, { value: string; expiresAt: number }>;
   const environmentMinted: Minted = new Map();
   const storeMinted = new WeakMap<CredentialVault, Minted>();
@@ -308,7 +243,7 @@ export function base64Url(bytes: Uint8Array): string {
  * `random-bytes`: the success payload for `bytes` drawn from the host CSPRNG; a bad count or key is the effect's
  * failure. A keyed call echoes its `key` beside the `value`.
  */
-export function randomBytesPayload(ports: Pick<HttpPorts, 'random'>, bytes: RuntimeValue | undefined, key?: RuntimeValue): { value: string; key?: string } {
+export function randomBytesPayload(ports: Pick<SecretPorts, 'random'>, bytes: RuntimeValue | undefined, key?: RuntimeValue): { value: string; key?: string } {
   if (key !== undefined && (typeof key !== 'string' || key === '')) {
     throw new Error(`call key must evaluate to a non-empty string, got ${String(key)}`);
   }
@@ -331,7 +266,7 @@ function credentialName(head: string, credential: RuntimeValue | undefined): str
 
 /** `credential-status`: a bare name selects the viewer; an explicit slot selects its declared scope. */
 export async function credentialStatusPayload(
-  ports: Pick<HttpPorts, 'secrets'>,
+  ports: Pick<SecretPorts, 'secrets'>,
   credential: RuntimeValue | undefined,
   principal: string | undefined,
 ): Promise<CredentialPayload> {
@@ -343,7 +278,7 @@ export async function credentialStatusPayload(
 
 /** `credential-forget`: drops the signed-in viewer's credential; `{ connected: false }`. */
 export async function credentialForgetPayload(
-  ports: Pick<HttpPorts, 'secrets'>,
+  ports: Pick<SecretPorts, 'secrets'>,
   credential: RuntimeValue | undefined,
   principal: string | undefined,
 ): Promise<{ connected: false; label: string }> {
@@ -353,37 +288,16 @@ export async function credentialForgetPayload(
   return { connected: false, label: '' };
 }
 
-/** The Node half of the server `http` ports: name resolution and the address-pinned fetch (`@almadar/shell-node` installs it). */
-export interface NetPort {
-  resolve: (host: string) => Promise<ResolvedHost>;
-  fetch: PinnedFetch;
-}
-
-let installedNet: NetPort | null = null;
-
-export function installNetPort(port: NetPort): void {
-  installedNet = port;
-}
-
-function netPort(): NetPort {
-  if (installedNet === null) throw new Error('createHttpPorts needs a NetPort for its default fetch/resolve: install one (@almadar/shell-node installNodeHostPorts) or pass both');
-  return installedNet;
-}
-
-export function createHttpPorts(options: HttpPortsOptions): HttpPorts {
+export function createSecretPorts(options: SecretPortsOptions = {}): SecretPorts {
   return {
-    kernel: options.kernel,
     random: options.random ?? systemRandom,
-    egress: options.egress,
-    secrets: options.secrets ?? createHttpSecrets(),
+    secrets: options.secrets ?? createSecretStore(),
     credentials: options.credentials ?? createCredentialAdminPort(),
-    fetch: options.fetch ?? netPort().fetch,
-    resolve: options.resolve ?? netPort().resolve,
   };
 }
 
-/** A browser holds no credential: a keyless call never asks for one, and a keyed call must not reach a browser. */
-const browserSecrets: HttpSecrets = {
+/** A browser holds no credential: a secret ask must not reach a browser. */
+const browserSecrets: SecretStore = {
   async get(name) {
     throw new Error(`credential ${name} is not available in a browser`);
   },
@@ -395,155 +309,7 @@ const browserSecrets: HttpSecrets = {
   },
 };
 
-/**
- * Ports for a client-site `http` (a call with no `auth`): the same kernel driver and exchange as the server,
- * over the browser's `fetch`. A browser cannot resolve a name or pin a connection, so there is no
- * public-address check; the program's `egress` (the driver refuses any other origin) and the browser's own
- * CORS rules bound what the call reaches.
- */
-export function createBrowserHttpPorts(options: BrowserHttpPortsOptions): HttpPorts {
-  const browserFetch = options.fetch ?? ((url, init) => fetch(url, init));
-  return {
-    kernel: options.kernel,
-    random: systemRandom,
-    egress: options.egress,
-    secrets: browserSecrets,
-    fetch: (url, init) => browserFetch(url.href, { method: init.method, headers: init.headers, ...(init.body !== undefined ? { body: init.body } : {}), redirect: init.redirect, ...(init.signal !== undefined ? { signal: init.signal } : {}) }),
-    resolve: null,
-  };
-}
-
-/** What one exchange came to; a cancelled exchange is the caller's abort signal, never an outcome. */
-export type Exchange =
-  | { kind: 'reply'; response: HttpResponseWire }
-  | { kind: 'failure'; failure: HttpFailureWire };
-
-function parsed(json: string): JsonValue {
-  return JSON.parse(json);
-}
-
-function record(value: JsonValue, what: string): JsonObject {
-  if (!isJsonObject(value)) throw new Error(`${what} is not an object`);
-  return value;
-}
-
-function bodyBytes(body: HttpBody): Uint8Array<ArrayBuffer> | undefined {
-  switch (body.kind) {
-    case 'empty':
-      return undefined;
-    case 'text':
-      return new TextEncoder().encode(body.text);
-    case 'base64':
-      return Uint8Array.from(atob(body.data), (char) => char.charCodeAt(0));
-  }
-}
-
-function wireBody(bytes: Uint8Array): HttpBody {
-  if (bytes.length === 0) return { kind: 'empty' };
-  try {
-    return { kind: 'text', text: new TextDecoder('utf-8', { fatal: true }).decode(bytes) };
-  } catch {
-    let binary = '';
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return { kind: 'base64', data: btoa(binary) };
-  }
-}
-
-function refusal(message: string): Exchange {
-  return { kind: 'failure', failure: { kind: 'refused', message } };
-}
-
-/** The address a request may be sent to (the one every check passed), or the refusal. */
-async function checkedAddress(ports: HttpPorts, kernel: HttpKernel, url: URL): Promise<{ address: string } | { refused: string }> {
-  const host = url.hostname.startsWith('[') ? url.hostname.slice(1, -1) : url.hostname;
-  if (ports.resolve === null) return { address: host };
-  const resolved = await ports.resolve(host);
-  const [first] = resolved.addresses;
-  if (first === undefined) return { refused: `${host} resolves to no address` };
-  if (resolved.literal && ports.egress.includes(url.origin)) return { address: first };
-  const closed = resolved.addresses.find((address) => !kernel.isPublicAddress(address));
-  if (closed !== undefined) return { refused: `${host} resolves to ${closed}, which is not a public address` };
-  return { address: first };
-}
-
-/**
- * Send one built request. `signal` is the caller's cancel: when it aborts, this rejects (the keyed-call
- * registry reads that as a cancel). A timeout or a transport error is an outcome, not a throw.
- */
-async function dispatch(
-  ports: HttpPorts,
-  request: HttpRequestWire,
-  signal: AbortSignal | undefined,
-  read: (response: PinnedResponse, signal: AbortSignal | undefined) => Promise<Exchange>,
-): Promise<Exchange> {
-  const kernel = await ports.kernel();
-  signal?.throwIfAborted();
-  let url: URL;
-  try {
-    url = new URL(request.url);
-  } catch {
-    return refusal(`${request.url} is not a URL`);
-  }
-  const timeout = request.timeoutMs !== undefined ? AbortSignal.timeout(request.timeoutMs) : undefined;
-  const signals = [signal, timeout].filter((s): s is AbortSignal => s !== undefined);
-  const operationSignal = signals.length > 0 ? AbortSignal.any(signals) : undefined;
-  const body = bodyBytes(request.body);
-  try {
-    const lookup = checkedAddress(ports, kernel, url);
-    const checked = operationSignal !== undefined ? await untilAborted(operationSignal, lookup) : await lookup;
-    operationSignal?.throwIfAborted();
-    if ('refused' in checked) return refusal(checked.refused);
-    const response = await ports.fetch(url, {
-      method: request.method,
-      headers: request.headers,
-      ...(body !== undefined ? { body } : {}),
-      redirect: 'manual',
-      ...(operationSignal !== undefined ? { signal: operationSignal } : {}),
-    }, checked.address);
-    operationSignal?.throwIfAborted();
-    return await read(response, operationSignal);
-  } catch (error) {
-    if (signal?.aborted === true) throw error;
-    if (timeout?.aborted === true) return { kind: 'failure', failure: { kind: 'timedOut' } };
-    return { kind: 'failure', failure: { kind: 'failed', message: error instanceof Error ? error.message : String(error) } };
-  }
-}
-
-function headerPairs(response: PinnedResponse): Array<[string, string]> {
-  return Array.from(response.headers.entries());
-}
-
-async function waitForHttpDelay(delayMs: number, signal: AbortSignal | undefined): Promise<void> {
-  if (!Number.isFinite(delayMs) || !Number.isInteger(delayMs) || delayMs < 0) {
-    throw new Error('http delayMs must be a nonnegative whole number');
-  }
-  signal?.throwIfAborted();
-  let remaining = delayMs;
-  while (remaining > 0) {
-    signal?.throwIfAborted();
-    const duration = Math.min(remaining, 2_147_483_647);
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        signal?.removeEventListener('abort', onAbort);
-        resolve();
-      }, duration);
-      function onAbort(): void {
-        clearTimeout(timer);
-        signal?.removeEventListener('abort', onAbort);
-        reject(signal?.reason ?? new Error('The call was cancelled'));
-      }
-      signal?.addEventListener('abort', onAbort, { once: true });
-      if (signal?.aborted) onAbort();
-    });
-    remaining -= duration;
-  }
-}
-
-/** Send one built request after its requested retry delay and read the whole reply. */
-export async function sendHttp(ports: HttpPorts, request: HttpRequestWire, signal?: AbortSignal, delayMs = 0): Promise<Exchange> {
-  await waitForHttpDelay(delayMs, signal);
-  return dispatch(ports, request, signal, async (response) => ({
-    kind: 'reply',
-    response: { status: response.status, headers: headerPairs(response), body: wireBody(new Uint8Array(await response.arrayBuffer())) },
-  }));
+/** Ports of a browser: it holds no credential, so a secret ask fails and the CSPRNG is the page's. */
+export function createBrowserSecretPorts(): SecretPorts {
+  return { random: systemRandom, secrets: browserSecrets };
 }

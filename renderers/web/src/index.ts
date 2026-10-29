@@ -1,6 +1,6 @@
 export * from '@almadar/shell-runtime/kernel/wire';
 export * from '@almadar/shell-runtime/kernel/decode';
-export * from '@almadar/shell-runtime/kernel/http';
+export * from '@almadar/shell-runtime/kernel/secret-ports';
 export * from '@almadar/shell-runtime/credentials/vault';
 export * from '@almadar/shell-runtime/credentials/scope';
 export * from '@almadar/shell-runtime/effects/in-flight-calls';

@@ -1,17 +1,17 @@
 /**
  * Node-only: run one `.lolo`/`.orb` program on the kernel engine and read what it emits. The program's own atoms
- * (for example `std-llm`) do the work; this host answers the `http`, secret and `os` asks and nothing else.
+ * (for example `std-llm`) do the work; this host answers the secret, random, credential and `os` asks and nothing else.
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import type { KernelMemoryStoreExports, EmittedEvent, EntityRow, EventPayload, InboundAnswer, InboundDelivery, OrbitalSchema, TransitionRejection, UserContext } from '@almadar/core';
-import { dispatchInbound, KernelEngine, NativeMemoryPersistenceAdapter, createHttpPorts, InFlightCalls, kernelOsGrants, type KernelHostPorts, type HttpPorts, type HttpPortsOptions, type KernelModule, type OsHostPort } from '@almadar/shell-runtime';
+import { dispatchInbound, KernelEngine, NativeMemoryPersistenceAdapter, createSecretPorts, InFlightCalls, kernelOsGrants, type KernelHostPorts, type SecretPorts, type SecretPortsOptions, type KernelModule, type OsHostPort } from '@almadar/shell-runtime';
 import { resolveOrbBinary } from '@almadar/core/behavior-package';
 import { tickEventKey } from '@almadar/core';
 import { installNodeHostPorts } from './host-ports.js';
 import { createNodeOsHost } from './os-node.js';
-import { loadHttpKernel, loadKernelModule, loadNativeKernelModule, resolveNativeAddon, type LoadedKernel } from './kernel-loader.js';
+import { loadKernelModule, loadNativeKernelModule, resolveNativeAddon, type LoadedKernel } from './kernel-loader.js';
 
 export interface KernelProgramOptions {
   /** Which kernel runs the program: the WebAssembly module (default; the only one in a browser) or the native add-on. The host's ports are the same for both. */
@@ -22,8 +22,8 @@ export interface KernelProgramOptions {
   kernelDir?: string;
   /** Where the installed `@almadar/core` and `@almadar/std` are found, node-style. */
   languageFrom: string;
-  /** Transport overrides of the `http` effect: pinned fetch, address resolver, secret store. */
-  http?: Pick<HttpPortsOptions, 'fetch' | 'resolve' | 'secrets' | 'random'>;
+  /** Overrides of the secret store and the CSPRNG. */
+  secretPorts?: Pick<SecretPortsOptions, 'secrets' | 'random'>;
   /** Rows the program's in-memory store starts with, by entity name (a catalog the host already holds). */
   seed?: Record<string, EntityRow[]>;
   /** Answer the program's `os` effects with the Node host (its grants are the program's own); absent, every `os` ask is denied. */
@@ -82,7 +82,7 @@ export class KernelProgram {
     private readonly engine: KernelEngine,
     private readonly os: OsHostPort | undefined,
     private readonly schema: OrbitalSchema,
-    private readonly http: HttpPorts,
+    private readonly secretPorts: SecretPorts,
     private readonly persistence: NativeMemoryPersistenceAdapter,
   ) {}
 
@@ -93,11 +93,7 @@ export class KernelProgram {
     const kernelDir = addon === undefined ? (options.kernelDir ?? resolveKernelDir()) : '';
     const kernel: KernelModule & KernelMemoryStoreExports = addon ?? (await loadKernelModule(kernelDir, languageFrom));
     installNodeHostPorts();
-    const http = createHttpPorts({
-      kernel: addon !== undefined ? async () => addon : () => loadHttpKernel(kernelDir, languageFrom),
-      ...options.http,
-      egress: schema.egress ?? [],
-    });
+    const secretPorts = createSecretPorts({ ...options.secretPorts });
     const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
     for (const [entityType, rows] of Object.entries(options.seed ?? {})) {
       for (const row of rows) await persistence.writeWhere({ kind: 'upsert', entityType, data: row });
@@ -116,14 +112,14 @@ export class KernelProgram {
       servicePorts: (caller, _user, message) => ({ caller, message, inputs: () => [], readableEntities: () => [], dispatchInput: async () => { throw new Error('KernelProgram has no input channel'); }, read: async () => [] }),
       deliverLive: () => undefined,
       deferCallOutcome: () => undefined,
-      http,
+      secretPorts,
       ...(os !== undefined ? { os } : {}),
     };
     engine = KernelEngine.open(kernel, schema, ports);
-    return new KernelProgram(engine, os, schema, http, persistence);
+    return new KernelProgram(engine, os, schema, secretPorts, persistence);
   }
 
-  /** Fire `event` at the orbital as `user` (the program's `@user`), wait for its whole cascade (every `http` ask included), and return what it emitted. */
+  /** Fire `event` at the orbital as `user` (the program's `@user`), wait for its whole cascade (every secret ask included), and return what it emitted. */
   async dispatch(orbital: string, event: string, payload: EventPayload = {}, targetTrait?: string, user?: UserContext): Promise<ProgramRun> {
     const response = await this.engine.evaluate(
       orbital,
@@ -151,7 +147,7 @@ export class KernelProgram {
 
   /** Deliver an `/api/hooks/<name>` request to the program and return the answer it gave (EXEC-INBOUND-1). */
   async deliverInbound(name: string, delivery: InboundDelivery): Promise<InboundAnswer> {
-    return dispatchInbound(this.schema, name, delivery, (orbital, request) => this.engine.evaluate(orbital, request, { orbital }), (credential) => this.http.secrets.get(credential, undefined));
+    return dispatchInbound(this.schema, name, delivery, (orbital, request) => this.engine.evaluate(orbital, request, { orbital }), (credential) => this.secretPorts.secrets.get(credential, undefined));
   }
 
   /** The rows the host's in-memory store holds for `entity` (empty when the native kernel keeps its own `store`). */
