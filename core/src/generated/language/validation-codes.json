@@ -770,16 +770,6 @@
     "description": "a keyed call-service whose registry responseShape already has a `key` field"
   },
   {
-    "code": "ORB_HTTP_EGRESS_UNDECLARED",
-    "category": "effect",
-    "description": "an `http` origin, `tokenUrl` origin, or `url` knob default is not in `egress`"
-  },
-  {
-    "code": "ORB_HTTP_EGRESS_ENTRY_INVALID",
-    "category": "effect",
-    "description": "an `egress` entry is not `scheme://host[:port]`"
-  },
-  {
     "code": "ORB_INBOUND_UNDECLARED",
     "category": "effect",
     "description": "an inbound handler (`listens { EVENT -> inbound \"name\" … }`) is reachable in a program whose app does not declare `name` in `inbound`"
@@ -850,61 +840,6 @@
     "description": "a `deployment` unit lists no orbital"
   },
   {
-    "code": "ORB_HTTP_ORIGIN_NOT_STATIC",
-    "category": "effect",
-    "description": "an `http` origin is neither a string literal nor a `url`-typed `@config` knob"
-  },
-  {
-    "code": "ORB_HTTP_METHOD_UNKNOWN",
-    "category": "effect",
-    "description": "an `http` method is not one of GET POST PUT PATCH DELETE"
-  },
-  {
-    "code": "ORB_HTTP_PATH_INVALID",
-    "category": "effect",
-    "description": "an `http` path violates the kernel's absolute-path contract"
-  },
-  {
-    "code": "ORB_HTTP_OPTION_UNKNOWN",
-    "category": "effect",
-    "description": "an `http` request/auth/paginate object carries a key outside its closed set"
-  },
-  {
-    "code": "ORB_HTTP_AUTH_SCHEME_UNKNOWN",
-    "category": "effect",
-    "description": "`http` `auth.scheme` is not in the closed scheme set"
-  },
-  {
-    "code": "ORB_HTTP_AUTH_INVALID",
-    "category": "effect",
-    "description": "An HTTP auth, grant-cache, presign, or webpush configuration violates its contract."
-  },
-  {
-    "code": "ORB_HTTP_TOKEN_ROTATE_INVALID",
-    "category": "effect",
-    "description": "A token-exchange `rotate` is not a `{ field, credential }` rotation of the body's `refresh_token` slot."
-  },
-  {
-    "code": "ORB_HTTP_HEADER_INVALID",
-    "category": "effect",
-    "description": "An HTTP request/auth header name is not a token, or its value is not a single-line string."
-  },
-  {
-    "code": "ORB_HTTP_REQUEST_OPTION_INVALID",
-    "category": "effect",
-    "description": "An HTTP request's `timeoutMs`, `delayMs` or `retry` is not a value of its declared kind."
-  },
-  {
-    "code": "ORB_HTTP_AUTH_ON_CLIENT",
-    "category": "effect",
-    "description": "an `http` with `auth` sits where its trait runs on the client (a `[client]` trait, a browser-run tick)"
-  },
-  {
-    "code": "ORB_HTTP_BODY_CONFLICT",
-    "category": "effect",
-    "description": "an `http` request has more than one body kind, or a body on GET"
-  },
-  {
     "code": "ORB_HOST_EFFECT_ARITY",
     "category": "effect",
     "description": "`random-bytes`, `credential-status` or `credential-forget` with the wrong number of arguments"
@@ -925,56 +860,6 @@
     "description": "a literal request of a `credential-*` administration effect that is not an object of its declared parameters, or leaves one out"
   },
   {
-    "code": "ORB_REDIS_CALL_INVALID",
-    "category": "effect",
-    "description": "a `redis` call whose origin is not `redis://` or `rediss://`, whose command is not a non-empty list of text, or whose connection options are malformed"
-  },
-  {
-    "code": "ORB_POSTGRES_CALL_INVALID",
-    "category": "effect",
-    "description": "a `postgres` call whose origin is not `postgres://` or `postgresql://`, whose literal statement is not a single read-only SELECT, whose params are not a list, or whose connection options are malformed or lack a user"
-  },
-  {
-    "code": "ORB_OAUTH_CLIENT_INVALID",
-    "category": "effect",
-    "description": "an OAuth client object with an unknown or missing key, both or neither of `issuer`/`endpoints`, or a bad word"
-  },
-  {
-    "code": "ORB_OAUTH_OP_UNKNOWN",
-    "category": "effect",
-    "description": "an `oauth-client` `op` outside the closed set, or an input the op does not take or requires"
-  },
-  {
-    "code": "ORB_OAUTH_ENDPOINT_MISMATCH",
-    "category": "effect",
-    "description": "`oauth-endpoint` without an `oauth-client` auth, or a target word or method that does not serve the op"
-  },
-  {
-    "code": "ORB_OAUTH_REQUEST_CONFLICT",
-    "category": "effect",
-    "description": "an `oauth-client` request that carries anything but `auth`"
-  },
-  {
-    "code": "ORB_OAUTH_PROVIDER_UNKNOWN",
-    "category": "effect",
-    "description": "a provider word outside `google | github | auth0`"
-  },
-  {
-    "code": "ORB_OAUTH_OPTION_UNKNOWN",
-    "category": "effect",
-    "description": "an unknown key, or a missing `redirectUri`, in `oauth-authorize` options"
-  },
-  {
-    "code": "ORB_HTTP_PAGINATE_MAX_MISSING",
-    "category": "effect",
-    "description": "`http` `paginate` without `max`"
-  },
-  {
-    "code": "ORB_HTTP_STREAM_WITHOUT_ON_MESSAGE",
-    "category": "effect",
-    "description": "`http` `stream` without `emit.onMessage`"
-  },
-  {
     "code": "ORB_PAGE_FACTS_FIELD_INVALID",
     "category": "effect",
     "description": "`browser/page-facts` fields: an unknown word, an empty list or a duplicate"
@@ -983,21 +868,6 @@
     "code": "ORB_PAGE_FACTS_UNREQUESTED_READ",
     "category": "effect",
     "description": "an event reads a page fact the `browser/page-facts` call did not request"
-  },
-  {
-    "code": "ORB_BEACON_OPTION_UNKNOWN",
-    "category": "effect",
-    "description": "a `browser/beacon` request or option key outside its closed set"
-  },
-  {
-    "code": "ORB_BEACON_TEXT_REQUIRED",
-    "category": "effect",
-    "description": "a `browser/beacon` request without `text`"
-  },
-  {
-    "code": "ORB_BEACON_URL_NOT_ABSOLUTE",
-    "category": "effect",
-    "description": "a literal `browser/beacon` URL that is not an absolute http(s) URL"
   },
   {
     "code": "ORB_ON_DEVICE_EFFECT_ON_SERVER",

@@ -14,7 +14,6 @@ import {
   type EntityRow,
   type EventPayload,
   type EventStreamItem,
-  type HttpStreamEvent,
   type JsonObject,
   type JsonValue,
   type OnDeviceModelPorts,
@@ -30,10 +29,10 @@ import { isProgramEffect, type ProgramEffectName, type ProgramEffectOutcome } fr
 
 type ProgramEffectResult = Extract<ProgramEffectOutcome, { ok: true }>['result'];
 import { embedOnDevice, OnDeviceModelFailure, promptOnDevice } from '../effects/on-device-model.js';
-import { base64Standard, checkOAuthReply, sendBeaconRequest, sendHttp, streamHttp, systemRandom, type CredentialAdminPort, type Exchange, type HttpPorts } from './http.js';
-import type { EventRequest } from '@almadar/core/kernel-wire';
+import { base64Standard, sendHttp, systemRandom, type CredentialAdminPort, type Exchange, type HttpPorts } from './http.js';
+import type { EventRequest, OsError } from '@almadar/core/kernel-wire';
 import type { CallSiteWire, IoAnswerWire, IoRequestWire, KernelModule, Settled, SubstrateFailureWire } from './wire.js';
-import type { OsCompletionEvent, OsCompletionPort, OsHostPort } from './os-port.js';
+import type { OsCompletionEvent, OsCompletionPort, OsHostPort, OsTlsPort } from './os-port.js';
 import { TabHostFailure, type BrowserTabPort } from '@almadar/core';
 
 function issuePayload(issue: ProgramValidationIssue): EventPayload {
@@ -105,6 +104,8 @@ export interface KernelHostPorts {
   os?: OsHostPort;
   /** What the kernel decides about a deferred `os` call (which ops defer, the event an outcome fires); absent, every `os` ask is answered in place. */
   osCompletions?: OsCompletionPort;
+  /** The kernel's TLS state for sockets it owns (EXEC-HTTP-7); absent, a deferred outcome reaches its route as the host gave it. */
+  osTls?: OsTlsPort;
   /** The kernel's typed parse of a `program/dispatch` event request; absent, that ask is refused. */
   parseEventRequest?: EventRequestParser;
   substrateStream?: (op: string, args: readonly JsonValue[], scope: KernelAnswerScope) => SubstrateStreamSource | undefined;
@@ -431,27 +432,18 @@ async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs', args: 
 
 const HTTP_UNAVAILABLE = 'HTTP_KERNEL_UNAVAILABLE: this host was given no http ports';
 
-type HttpAsk = Extract<IoRequestWire, { kind: 'http' | 'httpStream' }>;
+type HttpAsk = Extract<IoRequestWire, { kind: 'http' }>;
 
 function httpAnswer(exchange: Exchange): IoAnswerWire {
   return { kind: 'http', result: exchange.kind === 'reply' ? { ok: exchange.response } : { error: exchange.failure } };
 }
 
-/** `http` / `httpStream`: the built request sent as asked; keyed, a `cancel-call` aborts it. */
+/** `http`: the built request sent as asked; keyed, a `cancel-call` aborts it. */
 async function http(ports: KernelHostPorts, request: HttpAsk, scope: KernelAnswerScope): Promise<IoAnswerWire> {
   const exchangePorts = ports.http;
   if (exchangePorts === undefined) return { kind: 'http', result: { error: { kind: 'failed', message: HTTP_UNAVAILABLE } } };
-  const { key, site } = request;
-  const orbital = site?.orbital ?? scope.orbital;
-  const onMessage = site?.emit.onMessage;
-  const onEvent = (event: HttpStreamEvent): void => {
-    if (site === undefined || onMessage === undefined) return;
-    ports.deliverLive({ orbital, trait: site.trait, event: onMessage }, { ...event }, scope.originClientId);
-  };
-  const send = (signal?: AbortSignal): Promise<Exchange> =>
-    request.kind === 'httpStream'
-      ? streamHttp(exchangePorts, request.request, { framing: request.framing, key: key ?? null }, onEvent, signal)
-      : sendHttp(exchangePorts, request.request, signal, request.delayMs);
+  const { key } = request;
+  const send = (signal?: AbortSignal): Promise<Exchange> => sendHttp(exchangePorts, request.request, signal, request.delayMs);
   const run = async (): Promise<IoAnswerWire> => {
     if (key === undefined) return httpAnswer(await send());
     const outcome = await ports.inFlightCalls.run(key, (signal) => untilAborted(signal, send(signal)));
@@ -461,24 +453,6 @@ async function http(ports: KernelHostPorts, request: HttpAsk, scope: KernelAnswe
     return await run();
   } catch (error) {
     return { kind: 'http', result: { error: { kind: 'failed', message: failureMessage(error) } } };
-  }
-}
-
-/** `httpBeacon`: the built request taken by the host's beacon port; keyed, a `cancel-call` stops the wait only. */
-async function httpBeacon(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'httpBeacon' }>, scope: KernelAnswerScope): Promise<IoAnswerWire> {
-  const exchangePorts = ports.http;
-  if (exchangePorts === undefined) return { kind: 'httpBeacon', result: { ok: { via: 'unavailable', message: HTTP_UNAVAILABLE } } };
-  const { key } = request;
-  const send = async (signal?: AbortSignal): Promise<IoAnswerWire> => ({ kind: 'httpBeacon', result: await sendBeaconRequest(exchangePorts, request.request, signal) });
-  const run = async (): Promise<IoAnswerWire> => {
-    if (key === undefined) return send();
-    const outcome = await ports.inFlightCalls.run(key, (signal) => untilAborted(signal, send(signal)));
-    return outcome.cancelled ? { kind: 'serviceCancelled' } : outcome.value;
-  };
-  try {
-    return await run();
-  } catch (error) {
-    return { kind: 'httpBeacon', result: { error: { kind: 'failed', message: failureMessage(error) } } };
   }
 }
 
@@ -541,6 +515,25 @@ async function pageFacts(ports: KernelHostPorts, request: Extract<IoRequestWire,
 }
 
 /**
+ * A deferred raw `os` outcome that belongs to a TLS operation the kernel parked (EXEC-HTTP-7) is finished in the kernel:
+ * it decrypts or encrypts the raw outcome and, while it needs more raw bytes, asks the host's `os` port for them. Any
+ * other key's outcome is returned as it stands.
+ */
+export async function finishTls(ports: KernelHostPorts, os: OsHostPort, key: string, raw: Settled<JsonValue, OsError>): Promise<Settled<JsonValue, OsError>> {
+  const tls = ports.osTls;
+  if (tls === undefined) return raw;
+  let outcome = raw;
+  let parked = false;
+  for (;;) {
+    const step = tls.complete(key, outcome);
+    if (step === null) return parked ? { error: { kind: 'tls', message: 'the TLS operation vanished' } } : outcome;
+    if ('done' in step) return step.done;
+    parked = true;
+    outcome = await os.answer(step.ask.op, step.ask.args);
+  }
+}
+
+/**
  * `os`: the raw ask handed to the host's `os` port; the grants and every answer shape are the port's. A keyed ask of a
  * completion-deferring op under a declared route is started and answered `serviceDeferred` when the host can run its
  * outcome as a dispatch of its own (EXEC-QUEUE-10); its completion event is the kernel's.
@@ -577,22 +570,25 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
     if (lease === undefined) return { kind: 'os', result: { error: { kind: 'invalid', message: `${op}: key ${key} already has a completion pending` } } };
     const cancel = (): void => { os.cancel?.(key); lease.release(); };
     lease.signal.addEventListener('abort', cancel, { once: true });
-    const started = os.defer(op, args, key, (outcome) => {
-      lease.release();
-      lease.signal.removeEventListener('abort', cancel);
-      if (lease.signal.aborted) return;
-      const fired = completions.event(site, key, outcome);
-      if (fired === null) return;
-      sink({
-        orbital,
-        traitName: site.trait,
-        event: fired.event,
-        payload: isJsonObject(fired.payload) ? fired.payload : undefined,
-        entityId: site.entityId,
-        originClientId: scope.originClientId,
-        user: scope.user,
-        locale: scope.locale,
-      });
+    const started = os.defer(op, args, key, (raw) => {
+      void (async (): Promise<void> => {
+        const outcome = await finishTls(ports, os, key, raw);
+        lease.release();
+        lease.signal.removeEventListener('abort', cancel);
+        if (lease.signal.aborted) return;
+        const fired = completions.event(site, key, outcome);
+        if (fired === null) return;
+        sink({
+          orbital,
+          traitName: site.trait,
+          event: fired.event,
+          payload: isJsonObject(fired.payload) ? fired.payload : undefined,
+          entityId: site.entityId,
+          originClientId: scope.originClientId,
+          user: scope.user,
+          locale: scope.locale,
+        });
+      })();
     });
     if ('error' in started) { lease.release(); lease.signal.removeEventListener('abort', cancel); }
     return 'error' in started ? { kind: 'os', result: started } : { kind: 'serviceDeferred' };
@@ -659,13 +655,6 @@ async function credentialAdmin<T>(ports: KernelHostPorts, work: (port: Credentia
   const port = ports.http?.credentials;
   if (port === undefined) return { error: HTTP_UNAVAILABLE };
   return settle(() => work(port));
-}
-
-/** `oauth`: what an OAuth flow asks its host to keep, answered by the host's `OAuthPort`. */
-async function oauth(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'oauth' }>): Promise<IoAnswerWire> {
-  const port = ports.http?.oauth;
-  if (port === undefined) return { kind: 'oauth', result: { error: 'this host keeps no OAuth state' } };
-  return { kind: 'oauth', result: await settle(async () => checkOAuthReply(await port.answer(request.ask, request.principal))) };
 }
 
 function rowData(value: JsonValue): EntityRow {
@@ -781,10 +770,7 @@ export async function answerRequest(ports: KernelHostPorts, request: IoRequestWi
     case 'substrate':
       return substrate(ports, request, scope);
     case 'http':
-    case 'httpStream':
       return http(ports, request, scope);
-    case 'httpBeacon':
-      return httpBeacon(ports, request, scope);
     case 'pageFacts':
       return pageFacts(ports, request);
     case 'prompt':
@@ -824,7 +810,5 @@ export async function answerRequest(ports: KernelHostPorts, request: IoRequestWi
       return { kind: request.kind, result: await credentialAdmin(ports, (port) => port.mode()) };
     case 'credentialModeWrite':
       return { kind: request.kind, result: await credentialAdmin(ports, (port) => port.setMode(request.mode)) };
-    case 'oauth':
-      return oauth(ports, request);
   }
 }

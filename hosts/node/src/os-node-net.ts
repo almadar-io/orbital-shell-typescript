@@ -40,7 +40,7 @@ const MAX_DATAGRAM = 65_535;
 const SOCKET_HIGH_WATER = 1024 * 1024;
 
 const NET_OPS: ReadonlySet<OsOp> = new Set<OsOp>([
-  'os/tcp-connect', 'os/tcp-listen', 'os/send', 'os/recv', 'os/udp-bind', 'os/sendto', 'os/recvfrom', 'os/dns-resolve', 'os/shutdown', 'os/watch-port',
+  'os/tcp-connect', 'os/tcp-listen', 'os/tls-upgrade', 'os/send', 'os/recv', 'os/udp-bind', 'os/sendto', 'os/recvfrom', 'os/dns-resolve', 'os/shutdown', 'os/watch-port',
 ]);
 
 export function isNetOp(op: OsOp): boolean {
@@ -139,6 +139,8 @@ export class NetOps {
         throw invalid(op, 'a stream needs a key and a call site');
       case 'os/tcp-connect':
         return this.tcpConnect(op, args);
+      case 'os/tls-upgrade':
+        throw osFailure('unsupported', op, 'a kernel op: the kernel owns TLS and a host implements none');
       case 'os/send':
         return this.send(op, args);
       case 'os/recv':

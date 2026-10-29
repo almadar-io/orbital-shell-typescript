@@ -46,6 +46,8 @@ export interface KernelServerHandle {
   osAllows(requirementJson: string): boolean;
   /** Place the program's anchored grants and arguments under the host's anchors; answers `[{ path, message }]` for what grants nothing. */
   setOsAnchors(anchorsJson: string): string;
+  /** Feed a deferred raw `os` outcome (`Settled`) into the TLS operation parked under `key`: `null`, `{ ask }` or `{ done }`. */
+  tlsComplete(key: string, outcomeJson: string): string;
   /** An `os/` call's arguments with its anchored parts resolved; a `Settled<args, OsError>` as JSON. */
   osResolveArgs(op: string, argsJson: string): string;
   inFlight(): number;

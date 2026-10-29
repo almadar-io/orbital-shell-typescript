@@ -30,6 +30,7 @@ const NOT_RUN: ReadonlyArray<readonly [string, string]> = [
   ['os/isatty', 'depends on how the test process is attached'],
   ['os/tty-size', 'needs a terminal'],
   ['os/tcp-listen', 'a stream: its first answer arrives through the stream callback (os-asks.json)'],
+  ['os/tls-upgrade', 'a kernel op: the kernel answers it and a host implements no TLS'],
   ['os/dns-resolve', 'needs a resolver'],
   ['os/mmio-read', 'no devices on this host'],
   ['os/mmio-write', 'no devices on this host'],

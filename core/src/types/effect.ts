@@ -554,194 +554,11 @@ export interface CredentialAdminFailure {
     code: 'AUTH_ERROR' | 'VALIDATION_ERROR' | null;
 }
 
-/** The provider words an OAuth connection can be kept for. */
-export type OAuthProviderWord = 'google' | 'github' | 'auth0';
-
-/** The operations an `oauth-client` auth performs (closed set). */
-export type OAuthOp = 'discovery' | 'code' | 'connect' | 'refresh' | 'revoke' | 'userinfo';
-
-/** The `oauth-endpoint` target words: the URL comes from the client's metadata. */
-export type OAuthEndpointWord = 'token' | 'revocation' | 'userinfo';
-
-/**
- * An OAuth client object: where the authorization server is described (`issuer` XOR `endpoints`) and which
- * `secret` knobs hold the client credentials. `mode: 'mock'` has no runtime on the kernel host.
- */
-export type OAuthClient = {
-    tag: OAuthProviderWord;
-    mode: 'real' | 'mock';
-    clientId: SExpr;
-    clientSecret?: SExpr;
-    clientAuth: 'basic' | 'post' | 'none';
-} & (
-    | { issuer: SExpr; endpoints?: never }
-    | { issuer?: never; endpoints: { authorization: SExpr; token: SExpr; revocation?: SExpr; userinfo?: SExpr } }
-);
-
-/** The options of `oauth-authorize`: the redirect, the scopes, the subject that must complete it, extra authorization params. */
-export interface OAuthAuthorizeOptions {
-    redirectUri: SExpr;
-    scope?: SExpr;
-    subject?: SExpr;
-    params?: Record<string, SExpr>;
-}
-
-/**
- * OAuth-authorize effect - builds the authorization URL and keeps the pending grant (PKCE verifier included)
- * with the host; success carries {@link OAuthAuthorizePayload}, failure {@link OAuthEffectFailurePayload}. Server-only.
- * @example ['oauth-authorize', { tag: 'google', mode: 'real', issuer: '@config.issuer', clientId: '@config.id', clientAuth: 'post' }, { redirectUri: '@config.redirect' }, { emit: { success: 'AUTH_URL' } }]
- */
-export type OAuthAuthorizeEffect =
-    | ['oauth-authorize', OAuthClient, OAuthAuthorizeOptions]
-    | ['oauth-authorize', OAuthClient, OAuthAuthorizeOptions, HostCallEmitConfig & { key?: SExpr }];
-
-/**
- * OAuth-connection-status effect - the signed-in viewer's connection to a provider; success carries
- * {@link OAuthConnectionPayload}. Server-only.
- * @example ['oauth-connection-status', 'google', { emit: { success: 'CONNECTION' } }]
- */
-export type OAuthConnectionStatusEffect =
-    | ['oauth-connection-status', OAuthProviderWord]
-    | ['oauth-connection-status', OAuthProviderWord, HostCallEmitConfig];
-
-/**
- * OAuth-connection-forget effect - drops the signed-in viewer's connection to a provider; success carries the
- * disconnected {@link OAuthConnectionPayload}. Server-only.
- * @example ['oauth-connection-forget', 'google', { emit: { success: 'DISCONNECTED' } }]
- */
-export type OAuthConnectionForgetEffect =
-    | ['oauth-connection-forget', OAuthProviderWord]
-    | ['oauth-connection-forget', OAuthProviderWord, HostCallEmitConfig];
-
-/** Success payload of `oauth-authorize`. */
-export interface OAuthAuthorizePayload {
-    authUrl: string;
-    state: string;
-    /** The authorization code the person's consent returned on a host that asked them itself; empty text on every other host. */
-    code: string;
-    /** The call's evaluated `key` option; null when unkeyed. */
-    key: string | null;
-}
-
-/** Success payload of `oauth-connection-status` and `oauth-connection-forget`, and of an `oauth-client` `connect`. */
-export interface OAuthConnectionPayload {
-    provider: OAuthProviderWord;
-    connected: boolean;
-    account: string;
-    avatarUrl: string;
-    scope: string[];
-    connectedAt: string;
-}
-
-/** Failure payload of the OAuth effects: a fixed safe message, the public code and the closed reason. */
-export interface OAuthEffectFailurePayload {
-    error: string;
-    code: HttpOAuthFailureCode;
-    reason: HttpOAuthFailureReason;
-}
-
-/** Failure payload of `oauth-authorize`: the OAuth failure (or a bare `error`) beside the call's `key`. */
-export type OAuthAuthorizeFailurePayload = (OAuthEffectFailurePayload | { error: string }) & { key: string | null };
-
-/** Success payloads of the `oauth-client` ops (each also carries the call's `key`). */
-export interface OAuthDiscoveryPayload { issuer: string; key: string | null }
-export interface OAuthCodePayload {
-    accessToken: string;
-    refreshToken: string | null;
-    expiresIn: number;
-    tokenType: string;
-    scope: string[];
-    subject: string | null;
-    key: string | null;
-}
-export interface OAuthRefreshPayload { accessToken: string; expiresIn: number; key: string | null }
-export interface OAuthRevokePayload { revoked: boolean; key: string | null }
-export interface OAuthUserinfoPayload { sub: string; email: string; name: string; picture: string; key: string | null }
-export type OAuthConnectPayload = OAuthConnectionPayload & { key: string | null };
-
 export type CallServiceEffect =
     | ['call-service', string, string]
     | ['call-service', string, string, ServiceParams]
     | ['call-service', string, string, ServiceParams, CallServiceEmitConfig]
     | ['call-service', string, CallServiceConfig];
-
-/** HTTP method word of the `http` effect. */
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
-
-/**
- * Http effect - one HTTP request to a declared egress origin (server-only).
- * `request` carries the closed keys query/headers/body/auth/timeoutMs/responseAs/paginate/stream.
- * @example ['http', 'GET', 'https://api.iconify.design', '/search', { query: { query: '@payload.q' } }, { key: '@entity.id', emit: { success: 'OK', failure: 'ERR' } }]
- */
-export type HttpEffect =
-    | ['http', HttpMethod, string, SExpr]
-    | ['http', HttpMethod, string, SExpr, SExpr]
-    | ['http', HttpMethod, string, SExpr, SExpr, CallServiceEmitConfig];
-
-/**
- * Redis effect - one command to a declared `redis://`/`rediss://` egress origin (server-only); the kernel owns RESP.
- * @example ['redis', 'redis://cache.internal:6379', ['GET', '@payload.key'], { auth: '@config.password' }, { emit: { success: 'GOT', failure: 'ERR' } }]
- */
-export type RedisEffect =
-    | ['redis', string, SExpr]
-    | ['redis', string, SExpr, SExpr]
-    | ['redis', string, SExpr, SExpr, SExpr];
-
-/**
- * Postgres effect - one parameterised read-only query to a declared `postgres://` egress origin (server-only); the kernel owns the wire protocol.
- * @example ['postgres', 'postgres://db.internal:5432', 'select id from t where a = $1', ['@payload.a'], { user: 'app' }, { emit: { success: 'ROWS', failure: 'ERR' } }]
- */
-export type PostgresEffect =
-    | ['postgres', string, SExpr, SExpr]
-    | ['postgres', string, SExpr, SExpr, SExpr]
-    | ['postgres', string, SExpr, SExpr, SExpr, SExpr];
-
-/** Success payload of an `http` effect; a non-2xx status is still a success reply. */
-export interface HttpReplyPayload {
-    status: number;
-    /** Lower-cased header names. */
-    headers: Record<string, string>;
-    body: string;
-    /** The call's evaluated `key` option; null when unkeyed. */
-    key: string | null;
-}
-
-/** Success payload of an `http` effect with `paginate`. */
-export interface HttpPagedPayload<T> {
-    pages: number;
-    items: T[];
-    last: HttpReplyPayload;
-    /** The call's evaluated `key` option; null when unkeyed. */
-    key: string | null;
-}
-
-export interface HttpPresignedPayload {
-    url: string;
-    key: string | null;
-}
-
-/** Evaluated HTTP input; clock metadata belongs to the dispatch, never the authored request. */
-export interface HttpCall {
-    method: string;
-    origin: string;
-    path: string;
-    request: JsonObject;
-    key?: string | null;
-    nowMs?: number;
-    /** `beacon` hands the built request to the host's beacon port instead of an exchange; absent is `fetch`. */
-    delivery?: 'fetch' | 'beacon';
-}
-
-/** Success payload of a `browser/beacon` effect: how the host took the request, never a collector reply. */
-export interface HttpBeaconPayload {
-    /** Queue accepted, or the keepalive fetch answered 2xx. */
-    sent: boolean;
-    via: 'queue' | 'fetch';
-    /** The keepalive fetch's status; null when the queue accepted or the fetch threw. */
-    status: number | null;
-    /** The call's evaluated `key`; null when unkeyed. */
-    key: string | null;
-}
 
 /** A page fact `browser/page-facts` can read; the list order is the read order. */
 export type PageFactField = 'hostname' | 'referrer' | 'screenWidth';
@@ -823,15 +640,6 @@ export type BrowserEmbedEffect =
     | ['browser/embed', string[]]
     | ['browser/embed', string[], CallServiceEmitConfig];
 
-/**
- * Beacon effect - fire-and-forget text/plain POST to an absolute http(s) URL through the browser's beacon queue,
- * then one keepalive fetch (client-only).
- * @example ['browser/beacon', 'https://collector.example.com/e', { text: '@entity.body', key: '@entity.id' }, { emit: { success: 'DONE', failure: 'FAILED', cancelled: 'CANCELLED' } }]
- */
-export type BrowserBeaconEffect =
-    | ['browser/beacon', string, SExpr]
-    | ['browser/beacon', string, SExpr, CallServiceEmitConfig];
-
 /** Why a `browser/tab-*` call failed: refused before any ask, no tabs on the host, no page script, a vanished element, or another error. */
 export type BrowserTabFailureKind = 'invalid' | 'unavailable' | 'not-ready' | 'not-found' | 'failed';
 
@@ -888,49 +696,14 @@ export type BrowserTabOperator =
     | 'browser/tab-capture';
 
 /** The leg of an `http` call that failed: its token-exchange grant or the authored request. */
-export type HttpFailurePhase = 'grant' | 'request';
-
 /** Public AUTH code of an `oauth` failure. */
-export type HttpOAuthFailureCode = 'AUTH_ERROR' | 'VALIDATION_ERROR' | 'NOT_CONFIGURED' | 'SERVICE_ERROR' | 'NETWORK_ERROR';
-
 /** Closed reason set of an `oauth` failure. */
-export type HttpOAuthFailureReason =
-  | 'state-unknown'
-  | 'state-expired'
-  | 'subject-mismatch'
-  | 'provider-mismatch'
-  | 'not-signed-in'
-  | 'store-unavailable'
-  | 'metadata-invalid'
-  | 'response-invalid'
-  | 'token-rejected'
-  | 'userinfo-mismatch'
-  | 'unconfigured-client';
-
 /**
  * Failure payload of an `http` effect; `refused` = rejected before sending, `unavailable` = the host has no port
  * for a capability the call needs. `phase` names the failed leg (null for a refusal or other failure) and
  * `grantStatus`/`grantBody` the status and raw body text of a non-2xx grant reply (never a 2xx body, which carries tokens); `code`/`reason` are set only for `oauth`.
  */
-export type HttpFailurePayload = {
-  error: string;
-  /** The call's evaluated `key` option; null when unkeyed. */
-  key: string | null;
-} & (
-  | { kind: 'unconfigured'; credential: string; phase: HttpFailurePhase | null; grantStatus: number | null; grantBody: string | null; code: null; reason: null }
-  | { kind: 'timeout' | 'failed' | 'refused' | 'unavailable'; credential: null; phase: HttpFailurePhase | null; grantStatus: number | null; grantBody: string | null; code: null; reason: null }
-  | { kind: 'oauth'; credential: null; phase: null; grantStatus: null; grantBody: null; code: HttpOAuthFailureCode; reason: HttpOAuthFailureReason }
-);
-
 /** One `onMessage` delivery of an `http` effect with `stream` (json-lines: `event`/`id` null). */
-export interface HttpStreamEvent {
-    data: string;
-    event: string | null;
-    id: string | null;
-    /** The call's evaluated `key` option; null when unkeyed. */
-    key: string | null;
-}
-
 /**
  * Spawn effect - creates a new entity instance (games).
  * @example ['spawn', 'Bullet', { x: '@entity.x', y: '@entity.y' }]
@@ -1157,12 +930,6 @@ export type TypedEffect =
     | CredentialForgetEffect
     | CredentialAdminEffect
     | AccessCheckEffect
-    | OAuthAuthorizeEffect
-    | OAuthConnectionStatusEffect
-    | OAuthConnectionForgetEffect
-    | HttpEffect
-    | RedisEffect
-    | PostgresEffect
     | SpawnEffect
     | DespawnEffect
     | DoEffect
@@ -1228,7 +995,7 @@ export type Effect = TypedEffect;
 
 /** Every literal effect operator the {@link Effect} union declares, as runtime data. */
 export const EFFECT_OPERATORS = [
-  'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'random-bytes', 'credential-status', 'credential-forget', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'oauth-authorize', 'oauth-connection-status', 'oauth-connection-forget', 'http', 'redis', 'postgres', 'spawn',
+  'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'random-bytes', 'credential-status', 'credential-forget', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'spawn',
   'despawn', 'do', 'fetch', 'fetch-stream', 'if', 'when', 'let', 'log', 'wait',
   'notify', 'send-server',
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
@@ -1269,7 +1036,6 @@ export const SERVER_REPORTED_EFFECTS = [
     'set',
     'persist',
     'call-service',
-    'http',
     'fetch',
     'fetch-stream',
     'emit',

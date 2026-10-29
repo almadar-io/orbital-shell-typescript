@@ -100,7 +100,7 @@ import { isEntityCall, normalizeUserContext, personaFromIdentityRow, ANONYMOUS_U
 import { identityEntityName } from "@almadar/core/mock";
 import { defaultCallService } from "@almadar/shell-runtime";
 import { KernelEngine, type KernelHostPorts } from "@almadar/shell-runtime";
-import { kernelEventRequestParser, kernelOsCompletions, kernelOsGrants, type OsGrantPort, type OsHostPort } from "@almadar/shell-runtime";
+import { kernelEventRequestParser, kernelOsCompletions, kernelOsGrants, kernelOsTls, type OsGrantPort, type OsHostPort } from "@almadar/shell-runtime";
 import { createHttpPorts, createHttpSecrets, InFlightCalls, type HttpPorts, type HttpPortsOptions, type KernelModule } from "@almadar/shell-runtime";
 import { installNodeHostPorts } from "../host-ports.js";
 import { nativeMemoryOf } from "../kernel-loader.js";
@@ -683,6 +683,7 @@ export class OrbitalServerRuntime {
       ...(this.config.clock !== undefined ? { now: this.config.clock } : {}),
       ...(this.kernelOs !== undefined ? { os: this.kernelOs } : {}),
       ...(this.kernelOs !== undefined && this.config.kernel !== undefined ? { osCompletions: kernelOsCompletions(this.config.kernel) } : {}),
+      ...(this.kernelOs !== undefined ? { osTls: kernelOsTls(() => this.requireKernelEngine()) } : {}),
       ...(this.config.kernel !== undefined ? { parseEventRequest: kernelEventRequestParser(this.config.kernel) } : {}),
       persistence: this.persistence,
       inFlightCalls: this.inFlightCalls,

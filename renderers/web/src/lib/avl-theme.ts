@@ -120,7 +120,6 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
   'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/packages': 'system', 'behavior/texts': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/compose': 'system', 'program/step': 'system',
   'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
-  'http': 'communication', 'redis': 'communication', 'postgres': 'communication', 'oauth-authorize': 'communication', 'oauth-connection-status': 'communication', 'oauth-connection-forget': 'communication',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'compute',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system',
 };
@@ -148,7 +147,6 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
   'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/packages': 'system', 'behavior/texts': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/compose': 'system', 'program/step': 'system',
   'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
-  'http': 'remote', 'redis': 'remote', 'postgres': 'remote', 'oauth-authorize': 'remote', 'oauth-connection-status': 'remote', 'oauth-connection-forget': 'remote',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'system',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system',
 };

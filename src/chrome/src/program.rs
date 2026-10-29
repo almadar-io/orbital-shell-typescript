@@ -5,8 +5,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 
-use orbital_core_base::runs_on::{declares_runtime, http_auth, HttpAuth, SERVICE_RUNTIME_UNSUPPORTED};
-use orbital_core_base::schema::SExpression;
+use orbital_core_base::runs_on::{declares_runtime, SERVICE_RUNTIME_UNSUPPORTED};
 use orbital_core_base::tab::{is_match_pattern, TabOp};
 use serde_json::Value;
 
@@ -103,15 +102,7 @@ pub fn check_program(
         for t in array(orbital, "traits") {
             let trait_name = string(t, "name");
             let config = t.get("config");
-            let mut https = Vec::new();
-            collect_operator(t, "http", &mut https);
-            for call in https {
-                let args: Option<Vec<SExpression>> =
-                    serde_json::from_value(Value::Array(call[1..].to_vec())).ok();
-                uses_http = true;
-                uses_credentials |= args.as_deref().map(http_auth) != Some(HttpAuth::Keyless);
-            }
-            for operator in ["credential-status", "credential-forget", "oauth-authorize", "oauth-connection-status", "oauth-connection-forget"] {
+            for operator in ["credential-status", "credential-forget"] {
                 let mut credentials = Vec::new();
                 collect_operator(t, operator, &mut credentials);
                 uses_credentials |= !credentials.is_empty();
@@ -376,40 +367,10 @@ mod tests {
     }
 
     #[test]
-    fn an_http_effect_that_carries_auth_is_allowed_and_asks_for_the_credential_ports() {
-        let p = with_egress(
-            program(
-                local_entity(),
-                trait_with(
-                    json!([["if", true, ["http", "GET", "https://api.example.com", "/x", { "auth": { "scheme": "bearer", "credential": "K" } }, {}]]]),
-                    json!({}),
-                ),
-            ),
-            json!(["https://api.example.com"]),
-        );
-        let checked = check_program(&p, &runtimes()).expect("accepted");
-        assert!(checked.uses_http && checked.uses_credentials);
-        assert!(!checked.uses_identity);
-    }
-
-    #[test]
-    fn an_http_effect_whose_request_is_not_a_literal_object_is_allowed_and_asks_for_the_credential_ports() {
-        let p = program(
-            local_entity(),
-            trait_with(json!([["http", "GET", "https://api.example.com", "/x", "@payload.request"]]), json!({})),
-        );
-        let checked = check_program(&p, &runtimes()).expect("accepted");
-        assert!(checked.uses_http && checked.uses_credentials);
-    }
-
-    #[test]
-    fn credential_and_oauth_effects_are_allowed_and_only_authorize_asks_for_the_native_sign_in() {
+    fn credential_effects_are_allowed_and_ask_for_the_credential_ports() {
         for (operator, identity) in [
             ("credential-status", false),
             ("credential-forget", false),
-            ("oauth-connection-status", false),
-            ("oauth-connection-forget", false),
-            ("oauth-authorize", true),
         ] {
             let p = program(local_entity(), trait_with(json!([[operator, "K", {}]]), json!({})));
             let checked = check_program(&p, &runtimes()).expect(operator);
@@ -417,31 +378,6 @@ mod tests {
             assert_eq!(checked.uses_identity, identity, "{operator}");
             assert!(!checked.uses_http, "{operator} makes no request of its own");
         }
-    }
-
-    #[test]
-    fn a_keyless_http_effect_is_allowed_and_asks_for_the_request_driver() {
-        let p = with_egress(
-            program(
-                local_entity(),
-                trait_with(
-                    json!([["http", "GET", "https://api.example.com", "/x", { "query": { "q": "a" } }, {}]]),
-                    json!({}),
-                ),
-            ),
-            json!(["https://api.example.com", "http://localhost:8080"]),
-        );
-        let checked = check_program(&p, &runtimes()).expect("accepted");
-        assert!(checked.uses_http);
-        assert!(!checked.uses_credentials, "a keyless request needs no credential store");
-        assert_eq!(
-            checked.egress_patterns,
-            vec!["http://localhost/*".to_string(), "https://api.example.com/*".to_string()]
-        );
-        assert_eq!(
-            checked.egress_origins,
-            vec!["https://api.example.com".to_string(), "http://localhost:8080".to_string()]
-        );
     }
 
     #[test]

@@ -5,14 +5,13 @@ import {
   decodeHttpResponseWire,
   decodeIoRequestWire,
   decodeNextWire,
-  decodeOAuthAsk,
   decodeResolveProgressWire,
   decodeServerProgressWire,
 } from '@almadar/core/kernel-wire';
 import type { JsonValue } from '@almadar/core';
 import type { NextWire, ResolveProgressWire, ServerProgressWire } from './wire.js';
 
-export { decodeHttpBody, decodeOAuthAsk };
+export { decodeHttpBody };
 export { decodeHttpRequestWire as decodeHttpRequest, decodeHttpResponseWire as decodeHttpResponse };
 export { decodeIoRequestWire as decodeRequest };
 

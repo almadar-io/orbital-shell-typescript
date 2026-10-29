@@ -13,7 +13,7 @@ import { InFlightCalls, type NativeMemoryPersistenceAdapter } from '@almadar/she
 import { answerRequest, type DeferredCallOutcome, type KernelAnswerScope, type KernelHostPorts } from '@almadar/shell-runtime';
 import type { KernelModule } from '@almadar/shell-runtime';
 import { loadHttpKernel } from '@almadar/shell-node';
-import { memorySecrets } from './helpers/fake-http-kernel.js';
+import { memorySecrets } from './helpers/memory-secrets.js';
 import { KERNEL_DIR, PACKAGE_ROOT } from './helpers/kernel-module.js';
 import { MEMORY_KERNEL_PATH, memoryKernel, nativeMemory } from './helpers/native-memory.js';
 

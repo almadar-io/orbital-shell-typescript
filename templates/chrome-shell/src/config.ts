@@ -1,6 +1,5 @@
 /** Build-time configuration of the Firebase project the extension signs in against (VITE_ env at build). Absent, the host supplies no provisioned id, sign-in or keyed fetch. */
-import { firebaseKeyedFetch, googleSignIn } from '@almadar/shell-chrome';
-import type { ExtensionHttpPortsOptions } from '@almadar/shell-chrome';
+import { firebaseKeyedFetch } from '@almadar/shell-chrome';
 
 export interface KnowledgeConfig {
   baseUrl: string;
@@ -24,7 +23,6 @@ export const knowledgeConfig: KnowledgeConfig | null =
  */
 export interface ExtensionHostConfig {
   provisioned: Record<string, string>;
-  signIn: ExtensionHttpPortsOptions['signIn'];
   /** The host's `fetch`: Firebase token and identity requests carry the project's web API key (`VITE_KNOWLEDGE_FIREBASE_API_KEY`), so no program names it. */
   fetch: typeof fetch;
 }
@@ -34,14 +32,4 @@ const plainFetch: typeof fetch = (input, init) => fetch(input, init);
 export const extensionHost: ExtensionHostConfig = {
   fetch: knowledgeConfig ? firebaseKeyedFetch(knowledgeConfig.apiKey, plainFetch) : plainFetch,
   provisioned: knowledgeConfig ? { KNOWLEDGE_GOOGLE_CLIENT_ID: knowledgeConfig.googleClientId } : {},
-  signIn: knowledgeConfig
-    ? () =>
-        googleSignIn({
-          apiKey: knowledgeConfig.apiKey,
-          clientId: knowledgeConfig.googleClientId,
-          credential: 'KNOWLEDGE_REFRESH_TOKEN',
-          identity: chrome.identity,
-          fetch: plainFetch,
-        })()
-    : undefined,
 };

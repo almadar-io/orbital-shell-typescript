@@ -153,6 +153,10 @@ export class KernelEngine {
     return this.handle.osResolveArgs(op, argsJson);
   }
 
+  tlsComplete(key: string, outcomeJson: string): string {
+    return this.handle.tlsComplete(key, outcomeJson);
+  }
+
   /** A live stream of `client`'s session opened (EXEC-DIST-9); the id closes it. */
   openSessionStream(client: string): number {
     return this.handle.openSessionStream(client);

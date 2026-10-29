@@ -16,11 +16,6 @@
       "success": true
     },
     {
-      "effect": "http",
-      "entityType": "Note",
-      "success": true
-    },
-    {
       "effect": "fetch",
       "entityType": "Note",
       "success": true

@@ -74,6 +74,30 @@ export interface OsCompletionPort {
   event(site: CallSiteWire, key: string, outcome: Settled<JsonValue, OsError>): OsCompletionEvent | null;
 }
 
+/** The next step of a TLS operation the kernel parked on a deferred raw ask. */
+export type OsTlsStep = { ask: { op: OsOp; args: JsonValue[] } } | { done: Settled<JsonValue, OsError> };
+
+/** The kernel's TLS sockets (EXEC-HTTP-7): the host's raw outcome of a deferred ask goes in, the next raw ask or the program's outcome comes out. */
+export interface OsTlsPort {
+  /** `null` when `key` parks no TLS operation. */
+  complete(key: string, outcome: Settled<JsonValue, OsError>): OsTlsStep | null;
+}
+
+/** The server handle's TLS export. */
+export interface OsTlsKernel {
+  tlsComplete(key: string, outcomeJson: string): string;
+}
+
+/** The TLS port over the kernel `Server` handle: every decision is `RuntimeKernel::tls_complete`. */
+export function kernelOsTls(server: () => OsTlsKernel): OsTlsPort {
+  return {
+    complete: (key, outcome) => {
+      const step: OsTlsStep | null = JSON.parse(server().tlsComplete(key, JSON.stringify(outcome)));
+      return step;
+    },
+  };
+}
+
 /** The kernel exports the completion port is built from. */
 export interface OsCompletionMatchers {
   osDeferringOps(): string;

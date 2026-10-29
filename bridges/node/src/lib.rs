@@ -112,6 +112,11 @@ impl Server {
     }
 
     #[napi]
+    pub fn tls_complete(&self, key: String, outcome_json: String) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().tls_complete(&key, &outcome_json).map_err(js)
+    }
+
+    #[napi]
     pub fn start(&self, orbital: String, request_json: String) -> napi::Result<String> {
         self.api
             .get()
