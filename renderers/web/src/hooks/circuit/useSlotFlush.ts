@@ -19,6 +19,7 @@
  */
 import { useRowSetResolverHandle } from '../../providers/RowSetResolverContext';
 import { notifyRowsChanged } from '../../lib/rows-changed';
+import { answerHostAsk, type HostAskDispatch } from '../../lib/host-actions';
 import { useCallback, useMemo, useRef } from 'react';
 import type { ClientEffectByTrait, EventPayload, PatternNode } from '@almadar/core';
 import { isNotificationSlot } from '../../lib/slot-definitions';
@@ -73,7 +74,10 @@ function unwrapPattern(record: PatternNode | string | null): { bareTraitRef?: st
 export function useSlotFlush(
   uiSlots: ReturnType<typeof useUISlots>,
   embeddedTraits: ReadonlySet<string> | undefined,
+  returnHostAsk?: HostAskDispatch,
 ): SlotFlushHandle {
+  const returnHostAskRef = useRef(returnHostAsk);
+  returnHostAskRef.current = returnHostAsk;
   const uiSlotsRef = useRef(uiSlots);
   uiSlotsRef.current = uiSlots;
   const rowSets = useRowSetResolverHandle();
@@ -183,6 +187,9 @@ export function useSlotFlush(
         onNavigate?.(route, params ?? undefined, options?.crumb);
       } else if (kind === 'navigate-back') {
         onNavigateBack?.();
+      } else if (kind === 'host-ask') {
+        const [, op, args, completion] = effect;
+        void answerHostAsk(op, args, completion, returnHostAskRef.current).catch((error: Error) => flushLog.error('host-ask return failed', { op, error: error.message }));
       }
     }
   }, []);

@@ -144,6 +144,21 @@ describe('ClientEffectTupleSchema — exact tuple arities', () => {
     expect(() => ClientEffectTupleSchema.parse(['navigate-back', 'extra'])).toThrow();
   });
 
+  it('accepts a host-ask with its resolved arguments and rejects every other arity or shape', () => {
+    expect(ClientEffectTupleSchema.parse(['host-ask', 'auth/sign-out', []])).toEqual(['host-ask', 'auth/sign-out', []]);
+    expect(ClientEffectTupleSchema.parse(['host-ask', 'audio/play-sound', ['footstep']])).toBeTruthy();
+    expect(decodeEventResponse({ success: true, transitioned: true, states: {}, clientEffectsByTrait: [{ traitName: 'Chrome', effect: ['host-ask', 'auth/sign-out', []] }] }).clientEffectsByTrait).toEqual([{ traitName: 'Chrome', effect: ['host-ask', 'auth/sign-out', []] }]);
+    const routed = ['host-ask', 'auth/sign-in', [{ method: 'google' }], { trait: 'SignIn', key: 'k', success: 'SIGNED_IN', failure: 'SIGN_IN_FAILED' }];
+    expect(ClientEffectTupleSchema.parse(routed)).toEqual(routed);
+    for (const wrong of [['host-ask', 'auth/sign-in', [], { success: 'OK' }], ['host-ask', 'auth/sign-in', [], { trait: 'T', extra: 1 }], ['host-ask', 'auth/sign-in', [], { trait: 'T' }, 1]]) {
+      expect(() => ClientEffectTupleSchema.parse(wrong)).toThrow();
+    }
+    for (const wrong of [['host-ask', 'auth/sign-out'], ['host-ask', 'auth/sign-out', 'x'], ['host-ask', 3, []], ['host-ask', 'auth/sign-out', [], 1]]) {
+      expect(() => ClientEffectTupleSchema.parse(wrong)).toThrow();
+    }
+    expect(() => decodeEventResponse({ success: true, transitioned: true, states: {}, clientEffectsByTrait: [{ traitName: 'Chrome', effect: ['host-ask', 'auth/sign-out'] }] })).toThrow();
+  });
+
   it('rejects an unknown effect kind', () => {
     expect(() => ClientEffectTupleSchema.parse(['emit', 'X'])).toThrow();
   });

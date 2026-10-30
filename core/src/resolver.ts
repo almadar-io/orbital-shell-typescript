@@ -201,6 +201,7 @@ export function schemaToIR(schema: OrbitalSchema, useCache: boolean = true): Res
           triggers: l.triggers,
           guard: l.guard,
           payloadMapping: l.payloadMapping,
+          key: l.key,
           source: l.source,
         })),
         dataEntities: [],

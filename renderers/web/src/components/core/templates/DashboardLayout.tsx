@@ -165,7 +165,7 @@ export interface DashboardLayoutProps {
    *  works inside the embedded playground where `pathname` would be
    *  the studio route. */
   currentPath?: string;
-  /** The trait's reaction to Sign out; the host ends the session through `UI:SIGN_OUT` either way. */
+  /** The trait's reaction to Sign out; the program ends the session with `(auth/sign-out)` in its arm for the event. */
   onSignOut?: () => void;
   /** Layout mode. Default `"sidebar"`.
    *  - `sidebar`: Left sidebar nav + top header (classic dashboard)
@@ -301,10 +301,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         }
       : null);
 
-  // The trait's own reaction, then the host ends the session (`UI:SIGN_OUT`, a system event).
   const handleSignOut = (): void => {
     onSignOutProp?.();
-    eventBus.emit("UI:SIGN_OUT", {});
   };
 
   const showSidebar = layoutMode === "sidebar" || isDrawer;

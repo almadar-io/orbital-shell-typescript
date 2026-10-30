@@ -29,13 +29,13 @@ describe('renderer-neutral page facts port', () => {
   it('reports unavailable without a page host', async () => {
     expect(await answerRequest(ports(), request, scope)).toEqual({
       kind: 'pageFacts',
-      result: { ok: { available: false, hostname: '', referrer: '', screenWidth: null } },
+      result: { ok: { available: false, hostname: '', referrer: '', screenWidth: null, href: '' } },
     });
   });
 
   it('hands fields to the injected page host and preserves its facts', async () => {
     const seen: (readonly PageFactField[])[] = [];
-    const facts: BrowserPageFacts = { available: true, hostname: 'example.test', referrer: '', screenWidth: 1200 };
+    const facts: BrowserPageFacts = { available: true, hostname: 'example.test', referrer: '', screenWidth: 1200, href: 'https://example.test/a?b=1' };
     expect(await answerRequest(ports((fields) => { seen.push(fields); return facts; }), request, scope)).toEqual({ kind: 'pageFacts', result: { ok: facts } });
     expect(seen).toEqual([request.fields]);
   });

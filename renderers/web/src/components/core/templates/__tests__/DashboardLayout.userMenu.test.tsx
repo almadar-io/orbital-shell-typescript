@@ -67,21 +67,21 @@ describe('DashboardLayout account menu entries', () => {
     expect(screen.queryByText('Settings')).toBeNull();
   });
 
-  it('Sign out asks the host to end the session with the bare UI:SIGN_OUT', () => {
-    const seen: string[] = [];
-    renderLayout(undefined, seen);
-    openAccountMenu();
-    fireEvent.click(screen.getByText('Sign out'));
-    expect(seen).toEqual(['SIGN_OUT']);
-  });
-
-  it('a declared onSignOut runs too, so the trait can react', () => {
+  it('Sign out runs the trait\'s declared onSignOut and emits no bus event of its own', () => {
     const seen: string[] = [];
     const calls: string[] = [];
     renderLayout(undefined, seen, () => calls.push('trait'));
     openAccountMenu();
     fireEvent.click(screen.getByText('Sign out'));
     expect(calls).toEqual(['trait']);
-    expect(seen).toEqual(['SIGN_OUT']);
+    expect(seen).toEqual([]);
+  });
+
+  it('control: with no onSignOut declared, Sign out asks nothing of the host from the shell', () => {
+    const seen: string[] = [];
+    renderLayout(undefined, seen);
+    openAccountMenu();
+    fireEvent.click(screen.getByText('Sign out'));
+    expect(seen).toEqual([]);
   });
 });

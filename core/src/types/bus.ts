@@ -176,6 +176,11 @@ export type BusEventSource = {
    * host (`setLiveBroadcastSink`) also fans out to every other connected client.
    */
   persistSuccess?: boolean;
+  /**
+   * The row of the emitting trait's entity that made the emit, when the trait's rows are addressed by a `per`
+   * listener. A listener with a `per` clause evaluates its own key; one without ignores this.
+   */
+  instanceKey?: string;
 };
 
 // The third type param is `object` on schemas nesting a branded-id
@@ -211,6 +216,7 @@ export const BusEventSourceSchema: z.ZodType<BusEventSource, object> = z.object(
   originClientId: z.string().optional(),
   pendingKey: z.string().optional(),
   persistSuccess: z.boolean().optional(),
+  instanceKey: z.string().optional(),
 });
 
 /** Zod twin of `DeliveryRecord`. */
@@ -301,10 +307,26 @@ export type ClientNavigateTuple =
 
 export type ClientNavigateBackTuple = ['navigate-back'];
 
+/** A `runsOn: client` host-port effect (`auth/sign-out`, `audio/*`) the client host answers; its arguments are resolved. */
+export type ClientHostAskTuple = ['host-ask', string, JsonValue[]] | ['host-ask', string, JsonValue[], HostAskCompletion];
+
+/**
+ * The return address of a `host-ask` that declared `emit` routes (EXEC-DIST-13): the host answers once by dispatching
+ * the event of the outcome it reached to `trait` (on `entity` when the frame is a row); an absent route fires nothing.
+ */
+export type HostAskCompletion = {
+  trait: string;
+  entity?: string;
+  key?: string;
+  success?: string;
+  failure?: string;
+};
+
 export type ClientEffectTuple =
   | ClientRenderUITuple
   | ClientNavigateTuple
-  | ClientNavigateBackTuple;
+  | ClientNavigateBackTuple
+  | ClientHostAskTuple;
 
 /** Zod twin of `ClientRenderUITuple`. */
 export const ClientRenderUITupleSchema = z.tuple([z.literal('render-ui'), z.string(), z.record(z.string(), JsonValueSchema).nullable()]);
@@ -324,11 +346,26 @@ export const ClientNavigateTupleSchema = z.union([
 /** Zod twin of `ClientNavigateBackTuple`. */
 export const ClientNavigateBackTupleSchema = z.tuple([z.literal('navigate-back')]);
 
+/** Zod twin of `ClientHostAskTuple`. */
+export const HostAskCompletionSchema = z.object({
+  trait: z.string(),
+  entity: z.string().optional(),
+  key: z.string().optional(),
+  success: z.string().optional(),
+  failure: z.string().optional(),
+}).strict();
+
+export const ClientHostAskTupleSchema = z.union([
+  z.tuple([z.literal('host-ask'), z.string(), z.array(JsonValueSchema)]),
+  z.tuple([z.literal('host-ask'), z.string(), z.array(JsonValueSchema), HostAskCompletionSchema]),
+]);
+
 /** Zod twin of `ClientEffectTuple`. */
 export const ClientEffectTupleSchema: z.ZodType<ClientEffectTuple> = z.union([
   ClientRenderUITupleSchema,
   ClientNavigateTupleSchema,
   ClientNavigateBackTupleSchema,
+  ClientHostAskTupleSchema,
 ]);
 
 // ============================================================================
@@ -336,18 +373,6 @@ export const ClientEffectTupleSchema: z.ZodType<ClientEffectTuple> = z.union([
 // ============================================================================
 
 /** The lifecycle events a trait runs when it enters a page (the first it handles). */
-/**
- * Host-level UI events: handled by the app host, never by a trait, so a
- * component inside a trait scope emits them bare (`UI:SIGN_OUT`), not
- * qualified to its trait. `SIGN_OUT` ends the viewer's session.
- */
-export const SYSTEM_UI_EVENTS = ["SIGN_OUT"] as const;
-export type SystemUiEvent = (typeof SYSTEM_UI_EVENTS)[number];
-
-export function isSystemUiEvent(event: string): event is SystemUiEvent {
-  return (SYSTEM_UI_EVENTS as readonly string[]).includes(event);
-}
-
 export const LIFECYCLE_EVENTS = ["INIT", "LOAD", "$MOUNT"] as const;
 
 /** Wire-only event a client sends when a trait leaves the page; the server stops counting it as mounted. */

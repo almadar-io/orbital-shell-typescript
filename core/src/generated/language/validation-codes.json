@@ -1940,6 +1940,16 @@
     "description": "A fetch filters on a field that no persist create or update of that entity supplies, so it always returns empty"
   },
   {
+    "code": "ORB_X_LISTEN_PER_ENTITY",
+    "category": "trait_event",
+    "description": "A trait that listens per a key does not link a [runtime] entity declaring an id : string field"
+  },
+  {
+    "code": "ORB_X_LISTEN_PER_ROUTED_PAGE",
+    "category": "trait_event",
+    "description": "A trait that listens per a key is placed on a route page"
+  },
+  {
     "code": "ORB_X_LISTEN_SOURCE_NEVER_PRODUCES",
     "category": "cross",
     "description": "A listens route names a source whose emits contract never produces the listened event"

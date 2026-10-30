@@ -20,7 +20,6 @@ import type {
   EventBusContextType,
 } from '../types/event-bus-types';
 import type { EventPayload } from '@almadar/core';
-import { isSystemUiEvent } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 
 const log = createLogger('almadar:eventbus');
@@ -230,7 +229,7 @@ export function useEventBus(): EventBusContextType {
           // the bridge relay deliver it. Only a sourceless bare emit is the
           // real defect this warn exists for: a component (Button/Form) firing
           // outside any TraitScopeProvider, whose click reaches no machine.
-          if (typeof type === 'string' && type.startsWith('UI:') && !type.slice(3).includes('.') && !isSystemUiEvent(type.slice(3)) && !source?.trait) {
+          if (typeof type === 'string' && type.startsWith('UI:') && !type.slice(3).includes('.') && !source?.trait) {
             scopeLog.warn('emit:bare-key-no-scope', { type });
           }
           baseBus.emit(type, payload, source);
@@ -240,7 +239,7 @@ export function useEventBus(): EventBusContextType {
     return {
       ...baseBus,
       emit: (type: string, payload?: EventPayload, source?: BusEventSource) => {
-        if (typeof type === 'string' && type.startsWith('UI:') && !isSystemUiEvent(type.slice(3))) {
+        if (typeof type === 'string' && type.startsWith('UI:')) {
           const tail = type.slice(3);
           const isQualified = tail.includes('.');
           // Bare event name. For a qualified key the event is the segment

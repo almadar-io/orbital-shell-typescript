@@ -55,7 +55,12 @@ pendingKey?: string,
  * Set on a `persist` effect's `emit.success` envelope: the emit a live-push host fans out to the
  * other connected clients. On the wire, not an `@event.source` binding.
  */
-persistSuccess?: boolean, };
+persistSuccess?: boolean, 
+/**
+ * The row of the emitting trait's entity that made the emit, when the trait's rows are addressed by a `per`
+ * listener (EXEC-STEP-1a). A listener with a `per` clause evaluates its own key; one without ignores this.
+ */
+instanceKey?: string, };
 
 export type CallRoutesWire = { success?: string, failure?: string, cancelled?: string, onMessage?: string, };
 
@@ -75,7 +80,7 @@ export type Claim = { name: string,
  */
 value: JsonValue, };
 
-export type ClientEffect = ["render-ui", string, JsonObject | null] | ["navigate", string] | ["navigate", string, { [key in string]: string } | null] | ["navigate", string, { [key in string]: string } | null, NavigateOptions] | ["navigate-back"]
+export type ClientEffect = ["render-ui", string, JsonObject | null] | ["navigate", string] | ["navigate", string, { [key in string]: string } | null] | ["navigate", string, { [key in string]: string } | null, NavigateOptions] | ["navigate-back"] | ["host-ask", string, Array<JsonValue>] | ["host-ask", string, Array<JsonValue>, HostAskCompletion]
 
 export type ClientEffectByTrait = { traitName: string, effect: ClientEffect, 
 /**
@@ -102,7 +107,7 @@ export type CredentialStanding = { connected: boolean, label?: string | null, };
 
 export type DeliverRefusal = { kind: DeliverRefusalKind, id: string, };
 
-export type DeliverRefusalKind = "mailbox-full" | "hop-cap" | "unknown-instance" | "denied" | "down" | "payload-invalid";
+export type DeliverRefusalKind = "mailbox-full" | "hop-cap" | "unknown-instance" | "denied" | "down" | "payload-invalid" | "key-invalid";
 
 export type DeliveryRecord = { event: string, payload?: EventPayload, source: BusEventSource, };
 
@@ -310,6 +315,8 @@ export type HopEffectStatus = "executed" | "failed" | "skipped";
 
 export type HopObservation = { payload: JsonValue, entityBefore: JsonValue, entityAfter: JsonValue, };
 
+export type HostAskCompletion = { trait: string, entity?: string, key?: string, success?: string, failure?: string, };
+
 export type IndexRealization = "runtime" | "deploy" | "none";
 
 export type InstanceRef = { instance: string, orbital: string, trait?: string, };
@@ -406,9 +413,9 @@ export type OsGrantsReport = { findings: Array<OsGrantFinding>, };
 
 export type OsOp = "os/read-file" | "os/write-file" | "os/append-file" | "os/open" | "os/close" | "os/read" | "os/write" | "os/seek" | "os/truncate" | "os/fsync" | "os/copy" | "os/rename" | "os/remove" | "os/link" | "os/symlink" | "os/readlink" | "os/watch-files" | "os/mkdir" | "os/rmdir" | "os/list-dir" | "os/glob" | "os/mktemp" | "os/realpath" | "os/cwd" | "os/chdir" | "os/stat" | "os/lstat" | "os/access" | "os/exists" | "os/chmod" | "os/chown" | "os/utimes" | "os/spawn" | "os/wait" | "os/kill" | "os/pid" | "os/ppid" | "os/current-exe" | "os/watch-process" | "os/watch-signal" | "os/getenv" | "os/setenv" | "os/unsetenv" | "os/environ" | "os/watch-env" | "os/stdin-read" | "os/stdout-write" | "os/stderr-write" | "os/isatty" | "os/tty-size" | "os/tcp-connect" | "os/tcp-listen" | "os/tls-upgrade" | "os/send" | "os/recv" | "os/udp-bind" | "os/sendto" | "os/recvfrom" | "os/dns-resolve" | "os/shutdown" | "os/watch-port" | "os/fetch" | "os/clock-monotonic" | "os/uid" | "os/gid" | "os/username" | "os/group-of" | "os/watch-cron" | "os/cpu-usage" | "os/memory-info" | "os/uptime" | "os/load-avg" | "os/hostname" | "os/uname" | "os/disk-usage" | "os/mounts" | "os/disk-io" | "os/network-interfaces" | "os/network-stats" | "os/network-connected" | "os/default-gateway" | "os/battery-status" | "os/ac-power" | "os/thermal-zones" | "os/notify" | "os/speak" | "os/brightness-get" | "os/brightness-set" | "os/volume-get" | "os/volume-set" | "os/volume-mute" | "os/suspend" | "os/hibernate" | "os/mmio-read" | "os/mmio-write" | "os/irq-wait" | "os/irq-ack" | "kv/get" | "kv/put" | "kv/delete" | "kv/scan" | "kv/batch";
 
-export type PageFactFieldWire = "hostname" | "referrer" | "screenWidth";
+export type PageFactFieldWire = "hostname" | "referrer" | "screenWidth" | "href";
 
-export type PageFactsWire = { available: boolean, hostname: string, referrer: string, screenWidth: number | null, };
+export type PageFactsWire = { available: boolean, hostname: string, referrer: string, screenWidth: number | null, href: string, };
 
 export type PayloadSlot = { name: string, type: string, required: boolean, 
 /**
@@ -892,7 +899,7 @@ function checkAwaitingTrait(v: JsonValue | undefined): boolean {
 }
 
 function checkBusEventSource(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && (v["orbital"] === undefined || typeof v["orbital"] === 'string') && (v["orbitalId"] === undefined || accepts((x, q) => asOrbitalId(str(x, q)), v["orbitalId"])) && (v["trait"] === undefined || typeof v["trait"] === 'string') && (v["traitId"] === undefined || accepts((x, q) => asTraitId(str(x, q)), v["traitId"])) && (v["eventId"] === undefined || accepts((x, q) => asEventId(str(x, q)), v["eventId"])) && (v["transition"] === undefined || typeof v["transition"] === 'string') && (v["tick"] === undefined || typeof v["tick"] === 'string') && (v["fromBridge"] === undefined || typeof v["fromBridge"] === 'boolean') && (v["dispatched"] === undefined || typeof v["dispatched"] === 'boolean') && (v["originClientId"] === undefined || typeof v["originClientId"] === 'string') && (v["pendingKey"] === undefined || typeof v["pendingKey"] === 'string') && (v["persistSuccess"] === undefined || typeof v["persistSuccess"] === 'boolean'));
+  return (isRecord(v) && (v["orbital"] === undefined || typeof v["orbital"] === 'string') && (v["orbitalId"] === undefined || accepts((x, q) => asOrbitalId(str(x, q)), v["orbitalId"])) && (v["trait"] === undefined || typeof v["trait"] === 'string') && (v["traitId"] === undefined || accepts((x, q) => asTraitId(str(x, q)), v["traitId"])) && (v["eventId"] === undefined || accepts((x, q) => asEventId(str(x, q)), v["eventId"])) && (v["transition"] === undefined || typeof v["transition"] === 'string') && (v["tick"] === undefined || typeof v["tick"] === 'string') && (v["fromBridge"] === undefined || typeof v["fromBridge"] === 'boolean') && (v["dispatched"] === undefined || typeof v["dispatched"] === 'boolean') && (v["originClientId"] === undefined || typeof v["originClientId"] === 'string') && (v["pendingKey"] === undefined || typeof v["pendingKey"] === 'string') && (v["persistSuccess"] === undefined || typeof v["persistSuccess"] === 'boolean') && (v["instanceKey"] === undefined || typeof v["instanceKey"] === 'string'));
 }
 
 function checkCallRoutesWire(v: JsonValue | undefined): boolean {
@@ -912,7 +919,7 @@ function checkCanvasTheme(v: JsonValue | undefined): boolean {
 }
 
 function checkClientEffect(v: JsonValue | undefined): boolean {
-  return ((Array.isArray(v) && v.length === 3 && v[0] === "render-ui" && typeof v[1] === 'string' && (accepts((x, q) => rec(x, q), v[2]) || v[2] === null)) || (Array.isArray(v) && v.length === 2 && v[0] === "navigate" && typeof v[1] === 'string') || (Array.isArray(v) && v.length === 3 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null)) || (Array.isArray(v) && v.length === 4 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null) && checkNavigateOptions(v[3])) || (Array.isArray(v) && v.length === 1 && v[0] === "navigate-back"));
+  return ((Array.isArray(v) && v.length === 3 && v[0] === "render-ui" && typeof v[1] === 'string' && (accepts((x, q) => rec(x, q), v[2]) || v[2] === null)) || (Array.isArray(v) && v.length === 2 && v[0] === "navigate" && typeof v[1] === 'string') || (Array.isArray(v) && v.length === 3 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null)) || (Array.isArray(v) && v.length === 4 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null) && checkNavigateOptions(v[3])) || (Array.isArray(v) && v.length === 1 && v[0] === "navigate-back") || (Array.isArray(v) && v.length === 3 && v[0] === "host-ask" && typeof v[1] === 'string' && (Array.isArray(v[2]) && v[2].every((e) => accepts((x, q) => any(x, q), e)))) || (Array.isArray(v) && v.length === 4 && v[0] === "host-ask" && typeof v[1] === 'string' && (Array.isArray(v[2]) && v[2].every((e) => accepts((x, q) => any(x, q), e))) && checkHostAskCompletion(v[3])));
 }
 
 function checkClientEffectByTrait(v: JsonValue | undefined): boolean {
@@ -928,7 +935,7 @@ function checkDeliverRefusal(v: JsonValue | undefined): boolean {
 }
 
 function checkDeliverRefusalKind(v: JsonValue | undefined): boolean {
-  return (v === "mailbox-full" || v === "hop-cap" || v === "unknown-instance" || v === "denied" || v === "down" || v === "payload-invalid");
+  return (v === "mailbox-full" || v === "hop-cap" || v === "unknown-instance" || v === "denied" || v === "down" || v === "payload-invalid" || v === "key-invalid");
 }
 
 function checkDeliveryRecord(v: JsonValue | undefined): boolean {
@@ -1013,6 +1020,10 @@ function checkHopEffectStatus(v: JsonValue | undefined): boolean {
 
 function checkHopObservation(v: JsonValue | undefined): boolean {
   return (isRecord(v) && accepts((x, q) => any(x, q), v["payload"]) && accepts((x, q) => any(x, q), v["entityBefore"]) && accepts((x, q) => any(x, q), v["entityAfter"]));
+}
+
+function checkHostAskCompletion(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["trait"] === 'string' && (v["entity"] === undefined || typeof v["entity"] === 'string') && (v["key"] === undefined || typeof v["key"] === 'string') && (v["success"] === undefined || typeof v["success"] === 'string') && (v["failure"] === undefined || typeof v["failure"] === 'string'));
 }
 
 function checkInstanceRef(v: JsonValue | undefined): boolean {
@@ -1104,11 +1115,11 @@ function checkOsOp(v: JsonValue | undefined): boolean {
 }
 
 function checkPageFactFieldWire(v: JsonValue | undefined): boolean {
-  return (v === "hostname" || v === "referrer" || v === "screenWidth");
+  return (v === "hostname" || v === "referrer" || v === "screenWidth" || v === "href");
 }
 
 function checkPageFactsWire(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["available"] === 'boolean' && typeof v["hostname"] === 'string' && typeof v["referrer"] === 'string' && (typeof v["screenWidth"] === 'number' || v["screenWidth"] === null));
+  return (isRecord(v) && typeof v["available"] === 'boolean' && typeof v["hostname"] === 'string' && typeof v["referrer"] === 'string' && (typeof v["screenWidth"] === 'number' || v["screenWidth"] === null) && typeof v["href"] === 'string');
 }
 
 function checkPendingRequestWire(v: JsonValue | undefined): boolean {
@@ -1400,7 +1411,7 @@ function buildAwaitingTrait(v: JsonValue | undefined, p: string): AwaitingTrait 
 }
 
 function buildBusEventSource(v: JsonValue | undefined, p: string): BusEventSource {
-  return obj(v, p, null, (r0) => ({ ...(r0["orbital"] === undefined || r0["orbital"] === null ? {} : { "orbital": str(r0["orbital"], p + '.orbital') }), ...(r0["orbitalId"] === undefined || r0["orbitalId"] === null ? {} : { "orbitalId": asOrbitalId(str(r0["orbitalId"], p + '.orbitalId')) }), ...(r0["trait"] === undefined || r0["trait"] === null ? {} : { "trait": str(r0["trait"], p + '.trait') }), ...(r0["traitId"] === undefined || r0["traitId"] === null ? {} : { "traitId": asTraitId(str(r0["traitId"], p + '.traitId')) }), ...(r0["eventId"] === undefined || r0["eventId"] === null ? {} : { "eventId": asEventId(str(r0["eventId"], p + '.eventId')) }), ...(r0["transition"] === undefined || r0["transition"] === null ? {} : { "transition": str(r0["transition"], p + '.transition') }), ...(r0["tick"] === undefined || r0["tick"] === null ? {} : { "tick": str(r0["tick"], p + '.tick') }), ...(r0["fromBridge"] === undefined || r0["fromBridge"] === null ? {} : { "fromBridge": bool(r0["fromBridge"], p + '.fromBridge') }), ...(r0["dispatched"] === undefined || r0["dispatched"] === null ? {} : { "dispatched": bool(r0["dispatched"], p + '.dispatched') }), ...(r0["originClientId"] === undefined || r0["originClientId"] === null ? {} : { "originClientId": str(r0["originClientId"], p + '.originClientId') }), ...(r0["pendingKey"] === undefined || r0["pendingKey"] === null ? {} : { "pendingKey": str(r0["pendingKey"], p + '.pendingKey') }), ...(r0["persistSuccess"] === undefined || r0["persistSuccess"] === null ? {} : { "persistSuccess": bool(r0["persistSuccess"], p + '.persistSuccess') }) }));
+  return obj(v, p, null, (r0) => ({ ...(r0["orbital"] === undefined || r0["orbital"] === null ? {} : { "orbital": str(r0["orbital"], p + '.orbital') }), ...(r0["orbitalId"] === undefined || r0["orbitalId"] === null ? {} : { "orbitalId": asOrbitalId(str(r0["orbitalId"], p + '.orbitalId')) }), ...(r0["trait"] === undefined || r0["trait"] === null ? {} : { "trait": str(r0["trait"], p + '.trait') }), ...(r0["traitId"] === undefined || r0["traitId"] === null ? {} : { "traitId": asTraitId(str(r0["traitId"], p + '.traitId')) }), ...(r0["eventId"] === undefined || r0["eventId"] === null ? {} : { "eventId": asEventId(str(r0["eventId"], p + '.eventId')) }), ...(r0["transition"] === undefined || r0["transition"] === null ? {} : { "transition": str(r0["transition"], p + '.transition') }), ...(r0["tick"] === undefined || r0["tick"] === null ? {} : { "tick": str(r0["tick"], p + '.tick') }), ...(r0["fromBridge"] === undefined || r0["fromBridge"] === null ? {} : { "fromBridge": bool(r0["fromBridge"], p + '.fromBridge') }), ...(r0["dispatched"] === undefined || r0["dispatched"] === null ? {} : { "dispatched": bool(r0["dispatched"], p + '.dispatched') }), ...(r0["originClientId"] === undefined || r0["originClientId"] === null ? {} : { "originClientId": str(r0["originClientId"], p + '.originClientId') }), ...(r0["pendingKey"] === undefined || r0["pendingKey"] === null ? {} : { "pendingKey": str(r0["pendingKey"], p + '.pendingKey') }), ...(r0["persistSuccess"] === undefined || r0["persistSuccess"] === null ? {} : { "persistSuccess": bool(r0["persistSuccess"], p + '.persistSuccess') }), ...(r0["instanceKey"] === undefined || r0["instanceKey"] === null ? {} : { "instanceKey": str(r0["instanceKey"], p + '.instanceKey') }) }));
 }
 
 function buildCallRoutesWire(v: JsonValue | undefined, p: string): CallRoutesWire {
@@ -1420,7 +1431,7 @@ function buildCanvasTheme(v: JsonValue | undefined, p: string): CanvasTheme {
 }
 
 function buildClientEffect(v: JsonValue | undefined, p: string): ClientEffect {
-  return ((Array.isArray(v) && v.length === 3 && v[0] === "render-ui" && typeof v[1] === 'string' && (accepts((x, q) => rec(x, q), v[2]) || v[2] === null)) ? tuple(v, p, 3, (t0) => [lit(t0[0], p + '[0]', "render-ui"), str(t0[1], p + '[1]'), (t0[2] === null ? null : rec(t0[2], p + '[2]'))]) : (Array.isArray(v) && v.length === 2 && v[0] === "navigate" && typeof v[1] === 'string') ? tuple(v, p, 2, (t0) => [lit(t0[0], p + '[0]', "navigate"), str(t0[1], p + '[1]')]) : (Array.isArray(v) && v.length === 3 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null)) ? tuple(v, p, 3, (t0) => [lit(t0[0], p + '[0]', "navigate"), str(t0[1], p + '[1]'), (t0[2] === null ? null : dict(t0[2], p + '[2]', (e1, q1) => str(e1, q1)))]) : (Array.isArray(v) && v.length === 4 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null) && checkNavigateOptions(v[3])) ? tuple(v, p, 4, (t0) => [lit(t0[0], p + '[0]', "navigate"), str(t0[1], p + '[1]'), (t0[2] === null ? null : dict(t0[2], p + '[2]', (e1, q1) => str(e1, q1))), buildNavigateOptions(t0[3], p + '[3]')]) : (Array.isArray(v) && v.length === 1 && v[0] === "navigate-back") ? tuple(v, p, 1, (t0) => [lit(t0[0], p + '[0]', "navigate-back")]) : fail(miss(p, "a list of 3 | a list of 2 | a list of 3 | a list of 4 | a list of 1")));
+  return ((Array.isArray(v) && v.length === 3 && v[0] === "render-ui" && typeof v[1] === 'string' && (accepts((x, q) => rec(x, q), v[2]) || v[2] === null)) ? tuple(v, p, 3, (t0) => [lit(t0[0], p + '[0]', "render-ui"), str(t0[1], p + '[1]'), (t0[2] === null ? null : rec(t0[2], p + '[2]'))]) : (Array.isArray(v) && v.length === 2 && v[0] === "navigate" && typeof v[1] === 'string') ? tuple(v, p, 2, (t0) => [lit(t0[0], p + '[0]', "navigate"), str(t0[1], p + '[1]')]) : (Array.isArray(v) && v.length === 3 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null)) ? tuple(v, p, 3, (t0) => [lit(t0[0], p + '[0]', "navigate"), str(t0[1], p + '[1]'), (t0[2] === null ? null : dict(t0[2], p + '[2]', (e1, q1) => str(e1, q1)))]) : (Array.isArray(v) && v.length === 4 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null) && checkNavigateOptions(v[3])) ? tuple(v, p, 4, (t0) => [lit(t0[0], p + '[0]', "navigate"), str(t0[1], p + '[1]'), (t0[2] === null ? null : dict(t0[2], p + '[2]', (e1, q1) => str(e1, q1))), buildNavigateOptions(t0[3], p + '[3]')]) : (Array.isArray(v) && v.length === 1 && v[0] === "navigate-back") ? tuple(v, p, 1, (t0) => [lit(t0[0], p + '[0]', "navigate-back")]) : (Array.isArray(v) && v.length === 3 && v[0] === "host-ask" && typeof v[1] === 'string' && (Array.isArray(v[2]) && v[2].every((e) => accepts((x, q) => any(x, q), e)))) ? tuple(v, p, 3, (t0) => [lit(t0[0], p + '[0]', "host-ask"), str(t0[1], p + '[1]'), list(t0[2], p + '[2]', (e1, q1) => any(e1, q1))]) : (Array.isArray(v) && v.length === 4 && v[0] === "host-ask" && typeof v[1] === 'string' && (Array.isArray(v[2]) && v[2].every((e) => accepts((x, q) => any(x, q), e))) && checkHostAskCompletion(v[3])) ? tuple(v, p, 4, (t0) => [lit(t0[0], p + '[0]', "host-ask"), str(t0[1], p + '[1]'), list(t0[2], p + '[2]', (e1, q1) => any(e1, q1)), buildHostAskCompletion(t0[3], p + '[3]')]) : fail(miss(p, "a list of 3 | a list of 2 | a list of 3 | a list of 4 | a list of 1 | a list of 3 | a list of 4")));
 }
 
 function buildClientEffectByTrait(v: JsonValue | undefined, p: string): ClientEffectByTrait {
@@ -1436,7 +1447,7 @@ function buildDeliverRefusal(v: JsonValue | undefined, p: string): DeliverRefusa
 }
 
 function buildDeliverRefusalKind(v: JsonValue | undefined, p: string): DeliverRefusalKind {
-  return oneOf(v, p, ["mailbox-full", "hop-cap", "unknown-instance", "denied", "down", "payload-invalid"]);
+  return oneOf(v, p, ["mailbox-full", "hop-cap", "unknown-instance", "denied", "down", "payload-invalid", "key-invalid"]);
 }
 
 function buildDeliveryRecord(v: JsonValue | undefined, p: string): DeliveryRecord {
@@ -1521,6 +1532,10 @@ function buildHopEffectStatus(v: JsonValue | undefined, p: string): HopEffectSta
 
 function buildHopObservation(v: JsonValue | undefined, p: string): HopObservation {
   return obj(v, p, null, (r0) => ({ "payload": any(r0["payload"], p + '.payload'), "entityBefore": any(r0["entityBefore"], p + '.entityBefore'), "entityAfter": any(r0["entityAfter"], p + '.entityAfter') }));
+}
+
+function buildHostAskCompletion(v: JsonValue | undefined, p: string): HostAskCompletion {
+  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), ...(r0["entity"] === undefined || r0["entity"] === null ? {} : { "entity": str(r0["entity"], p + '.entity') }), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["success"] === undefined || r0["success"] === null ? {} : { "success": str(r0["success"], p + '.success') }), ...(r0["failure"] === undefined || r0["failure"] === null ? {} : { "failure": str(r0["failure"], p + '.failure') }) }));
 }
 
 function buildInstanceRef(v: JsonValue | undefined, p: string): InstanceRef {
@@ -1612,11 +1627,11 @@ function buildOsOp(v: JsonValue | undefined, p: string): OsOp {
 }
 
 function buildPageFactFieldWire(v: JsonValue | undefined, p: string): PageFactFieldWire {
-  return oneOf(v, p, ["hostname", "referrer", "screenWidth"]);
+  return oneOf(v, p, ["hostname", "referrer", "screenWidth", "href"]);
 }
 
 function buildPageFactsWire(v: JsonValue | undefined, p: string): PageFactsWire {
-  return obj(v, p, null, (r0) => ({ "available": bool(r0["available"], p + '.available'), "hostname": str(r0["hostname"], p + '.hostname'), "referrer": str(r0["referrer"], p + '.referrer'), "screenWidth": r0["screenWidth"] === undefined ? null : (r0["screenWidth"] === null ? null : num(r0["screenWidth"], p + '.screenWidth')) }));
+  return obj(v, p, null, (r0) => ({ "available": bool(r0["available"], p + '.available'), "hostname": str(r0["hostname"], p + '.hostname'), "referrer": str(r0["referrer"], p + '.referrer'), "screenWidth": r0["screenWidth"] === undefined ? null : (r0["screenWidth"] === null ? null : num(r0["screenWidth"], p + '.screenWidth')), "href": str(r0["href"], p + '.href') }));
 }
 
 function buildPendingRequestWire(v: JsonValue | undefined, p: string): PendingRequestWire {

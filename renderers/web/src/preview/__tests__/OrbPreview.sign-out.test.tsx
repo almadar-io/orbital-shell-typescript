@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 /**
- * `UI:SIGN_OUT` is a host-level event: a Sign out inside the circuit reaches the
- * host's `onSignOut` (G-PATTERN-SYNC-031), as `UI:NAVIGATE` reaches its router.
+ * Sign out is the circuit's own `(auth/sign-out)` effect: the kernel hands it back as a `host-ask`
+ * client effect and the host's `onSignOut` answers it (G-ORB-589). Needs a kernel build that
+ * emits the `host-ask` kind (`ALMADAR_KERNEL_DIR`).
  */
 import { describe, expect, it, vi } from 'vitest';
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
@@ -32,7 +33,10 @@ const app: OrbitalSchema = {
         events: [],
         transitions: [{
           from: 'idle', to: 'idle', event: 'INIT',
-          effects: [['render-ui', 'main', { type: 'dashboard-layout', appName: 'Shop', user: { name: 'Maya Buyer', email: 'maya@example.com' }, children: [{ type: 'typography', content: 'Home' }] }]],
+          effects: [['render-ui', 'main', { type: 'dashboard-layout', appName: 'Shop', onSignOut: 'SIGN_OUT', user: { name: 'Maya Buyer', email: 'maya@example.com' }, children: [{ type: 'typography', content: 'Home' }] }]],
+        }, {
+          from: 'idle', to: 'idle', event: 'SIGN_OUT',
+          effects: [['auth/sign-out']],
         }],
       },
     }],
@@ -51,10 +55,11 @@ async function signOutFrom(onSignOut?: () => void): Promise<void> {
 }
 
 describe('sign-out on the interpreter', () => {
-  it('a Sign out in the circuit reaches the host', async () => {
+  it('a Sign out in the circuit reaches the host through the program\'s own (auth/sign-out)', async () => {
     const onSignOut = vi.fn();
     await signOutFrom(onSignOut);
-    expect(onSignOut).toHaveBeenCalledTimes(1);
+    // The click dispatches `SIGN_OUT` to the kernel; the host-ask comes back with its response, after the click returns.
+    await waitFor(() => expect(onSignOut).toHaveBeenCalledTimes(1));
   });
 
   it('control: a host with no sign-out offers none and nothing breaks', async () => {

@@ -920,6 +920,11 @@ export type TraitEventListener = {
      */
     payloadMapping?: Record<string, SExpr>;
     /**
+     * `per <expr>`: the row of the listening entity this delivery steps, an s-expression over the source payload that
+     * must evaluate to a non-empty string. The kernel evaluates it and creates the row on first use.
+     */
+    key?: SExpr;
+    /**
      * Source scoping (see `ListenSource`). Undefined when the listen entry is
      * a local payload declaration rather than a bus subscription.
      */
@@ -937,6 +942,7 @@ export const TraitEventListenerSchema = z.object({
     guard: ExpressionSchema.optional(),
     scope: EventScopeSchema.optional(),
     payloadMapping: z.record(z.string(), SExprSchema).optional(),
+    key: SExprSchema.optional(),
     source: ListenSourceSchema.optional(),
 });
 

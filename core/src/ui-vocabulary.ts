@@ -50,6 +50,7 @@ export const EVENT_SOURCE_KEYS: readonly string[] = [
   'fromBridge',
   'dispatched',
   'originClientId',
+  'instanceKey',
 ];
 
 /** `<name>-light` when the preset carries tokens, `<name>-dark` when it has a dark variant. */

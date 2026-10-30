@@ -14,6 +14,7 @@ import {
   type EntityRow,
   type EventPayload,
   type EventStreamItem,
+  type HostAskCompletion,
   type JsonObject,
   type JsonValue,
   type OnDeviceModelPorts,
@@ -74,10 +75,43 @@ export type HostAudioAsk =
   | { op: 'audio/change-music'; key: string | undefined }
   | { op: 'audio/stop-music' };
 
-/** What the client host does for the `audio/*` and `auth/sign-out` asks; a host that has none refuses them by name. */
+/** The one object `auth/sign-in` takes: the method and the credentials it needs. */
+export type HostSignInRequest =
+  | { method: 'google' }
+  | { method: 'email'; email: string; password: string }
+  | { method: 'emailLink'; email: string; continueUrl: string }
+  | { method: 'emailLink'; email: string; link: string }
+  | { method: 'customToken'; token: string };
+
+/** What a sign-in answers: the viewer, or `{ sent: true }` for an email link that was only sent. */
+export type HostSignInAnswer = { uid: string; email?: string; displayName?: string } | { sent: true };
+
+/** Why a host ask failed: the viewer closed it, the provider denied it, the request was malformed, or the host has no such action. */
+export type HostAskFailureKind = 'cancelled' | 'denied' | 'invalid' | 'unavailable';
+
+/** A host action's own failure, carrying the kind the completion reports. */
+export class HostAskError extends Error {
+  constructor(readonly kind: HostAskFailureKind, message: string) {
+    super(message);
+  }
+}
+
+/** What the client host does for the `audio/*`, `auth/sign-out` and `auth/sign-in` asks; a host that has none refuses them by name. */
 export interface KernelHostActions {
   audio?: (ask: HostAudioAsk) => void;
   signOut?: () => void | Promise<void>;
+  signIn?: (request: HostSignInRequest) => Promise<HostSignInAnswer>;
+}
+
+/** A host ask's answer: the payload of its success route, or the error and kind of its failure route. */
+export type HostAskOutcome = { ok: JsonObject } | { error: string; kind: HostAskFailureKind };
+
+/** The event a host's answer dispatches: to `trait` (on `entity` when the frame is a row), carrying `payload`. */
+export interface HostAskReturn {
+  trait: string;
+  entity?: string;
+  event: string;
+  payload: JsonObject;
 }
 
 export interface KernelHostPorts {
@@ -298,19 +332,18 @@ function optionalKey(op: string, args: readonly JsonValue[]): { key: string | un
 }
 
 /** `audio/*` and `auth/sign-out`: one ask each, performed by the host's actions; a host without them refuses by name. */
-async function hostAction(
-  ports: KernelHostPorts,
-  request: Extract<IoRequestWire, { kind: 'substrate' }>,
-): Promise<IoAnswerWire> {
-  const { op, args } = request;
-  const fail = (message: string): IoAnswerWire => ({ kind: 'substrate', result: { error: { message, errors: [] } } });
-  const actions = ports.hostActions;
+export async function performHostAsk(
+  actions: KernelHostActions | undefined,
+  op: string,
+  args: readonly JsonValue[],
+): Promise<Settled<null, string>> {
+  const fail = (message: string): Settled<null, string> => ({ error: message });
   if (op === 'auth/sign-out') {
     if (args.length !== 0) return fail('auth/sign-out takes no arguments');
     if (actions?.signOut === undefined) return fail('no host sign-out is configured for auth/sign-out');
     try {
       await actions.signOut();
-      return { kind: 'substrate', result: { ok: null } };
+      return { ok: null };
     } catch (error) {
       return fail(error instanceof Error ? error.message : String(error));
     }
@@ -335,10 +368,94 @@ async function hostAction(
   }
   try {
     audio(ask);
-    return { kind: 'substrate', result: { ok: null } };
+    return { ok: null };
   } catch (error) {
     return fail(error instanceof Error ? error.message : String(error));
   }
+}
+
+const SIGN_IN_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  google: ['method'],
+  email: ['method', 'email', 'password'],
+  emailLink: ['method', 'email', 'continueUrl', 'link'],
+  customToken: ['method', 'token'],
+};
+
+/** The `auth/sign-in` request an ask carries, or why it is refused before the host is asked. */
+export function parseSignInRequest(args: readonly JsonValue[]): { request: HostSignInRequest } | { error: string } {
+  const [request] = args;
+  if (args.length !== 1 || !isJsonObject(request)) return { error: 'auth/sign-in takes one request object' };
+  const method = request.method;
+  const allowed = typeof method === 'string' ? SIGN_IN_FIELDS[method] : undefined;
+  if (typeof method !== 'string' || allowed === undefined) return { error: 'auth/sign-in: method must be google, email, emailLink or customToken' };
+  const text = (field: string): string | undefined => {
+    const value = request[field];
+    return typeof value === 'string' && value !== '' ? value : undefined;
+  };
+  for (const field of Object.keys(request)) {
+    if (!allowed.includes(field)) return { error: `auth/sign-in: ${field} is not a field of the ${method} method` };
+  }
+  if (method === 'google') return { request: { method } };
+  if (method === 'email') {
+    const email = text('email');
+    const password = text('password');
+    return email !== undefined && password !== undefined ? { request: { method, email, password } } : { error: 'auth/sign-in: email takes an email and a password' };
+  }
+  if (method === 'customToken') {
+    const token = text('token');
+    return token !== undefined ? { request: { method, token } } : { error: 'auth/sign-in: customToken takes a token' };
+  }
+  const email = text('email');
+  const continueUrl = text('continueUrl');
+  const link = text('link');
+  if (email === undefined || (continueUrl === undefined) === (link === undefined)) {
+    return { error: 'auth/sign-in: emailLink takes an email and exactly one of continueUrl (send the link) or link (complete the sign-in)' };
+  }
+  return continueUrl !== undefined ? { request: { method: 'emailLink', email, continueUrl } } : { request: { method: 'emailLink', email, link: link as string } };
+}
+
+/** The answer of one host ask whose completion the host returns: `auth/sign-in` through the host's sign-in, any other op as it is performed (an empty success). */
+export async function performHostAnswer(actions: KernelHostActions | undefined, op: string, args: readonly JsonValue[]): Promise<HostAskOutcome> {
+  if (op !== 'auth/sign-in') {
+    const outcome = await performHostAsk(actions, op, args);
+    return 'error' in outcome ? { error: outcome.error, kind: 'unavailable' } : { ok: {} };
+  }
+  const parsed = parseSignInRequest(args);
+  if ('error' in parsed) return { error: parsed.error, kind: 'invalid' };
+  if (actions?.signIn === undefined) return { error: 'no host sign-in is configured for auth/sign-in', kind: 'unavailable' };
+  try {
+    const answer = await actions.signIn(parsed.request);
+    const fields: JsonObject = {};
+    if ('sent' in answer) fields.sent = true;
+    else {
+      fields.uid = answer.uid;
+      if (answer.email !== undefined) fields.email = answer.email;
+      if (answer.displayName !== undefined) fields.displayName = answer.displayName;
+    }
+    return { ok: fields };
+  } catch (error) {
+    if (error instanceof HostAskError) return { error: error.message, kind: error.kind };
+    return { error: error instanceof Error ? error.message : String(error), kind: 'unavailable' };
+  }
+}
+
+/** The event `outcome` fires on the ask's declared route, or undefined when the ask declared none for it (nothing fires). */
+export function hostAskReturn(completion: HostAskCompletion, outcome: HostAskOutcome): HostAskReturn | undefined {
+  const keyed: JsonObject = completion.key !== undefined ? { key: completion.key } : {};
+  const event = 'ok' in outcome ? completion.success : completion.failure;
+  if (event === undefined) return undefined;
+  const payload: JsonObject = 'ok' in outcome ? { ...outcome.ok, ...keyed } : { error: outcome.error, kind: outcome.kind, ...keyed };
+  return { trait: completion.trait, ...(completion.entity !== undefined ? { entity: completion.entity } : {}), event, payload };
+}
+
+async function hostAction(
+  ports: KernelHostPorts,
+  request: Extract<IoRequestWire, { kind: 'substrate' }>,
+): Promise<IoAnswerWire> {
+  const outcome = await performHostAsk(ports.hostActions, request.op, request.args);
+  return 'error' in outcome
+    ? { kind: 'substrate', result: { error: { message: outcome.error, errors: [] } } }
+    : { kind: 'substrate', result: { ok: null } };
 }
 
 async function substrateInPlace(
@@ -346,6 +463,7 @@ async function substrateInPlace(
   request: Extract<IoRequestWire, { kind: 'substrate' }>,
   scope: KernelAnswerScope,
 ): Promise<IoAnswerWire> {
+  if (request.op === 'auth/sign-in') return { kind: 'substrate', result: { error: { message: 'auth/sign-in runs on the client host: a server-role kernel cannot ask it', errors: [] } } };
   if (request.op.startsWith('audio/') || request.op === 'auth/sign-out') return hostAction(ports, request);
   if (request.op === 'program/live') return { kind: 'substrate', result: { error: { message: 'program/live streams to its onMessage route: give it a key and an onMessage route', errors: [] } } };
   const handler = ports.programEffect();
@@ -487,7 +605,7 @@ async function tab(ports: KernelHostPorts, request: Extract<IoRequestWire, { kin
 
 /** `pageFacts`: the requested facts read from the page this host runs in; no window or document is `available: false`. */
 async function pageFacts(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'pageFacts' }>): Promise<IoAnswerWire> {
-  return { kind: 'pageFacts', result: await settle(async () => ports.pageFacts?.(request.fields) ?? { available: false, hostname: '', referrer: '', screenWidth: null }) };
+  return { kind: 'pageFacts', result: await settle(async () => ports.pageFacts?.(request.fields) ?? { available: false, hostname: '', referrer: '', screenWidth: null, href: '' }) };
 }
 
 /**

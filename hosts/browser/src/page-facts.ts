@@ -4,12 +4,12 @@
 
 import type { BrowserPageFacts, PageFactField, RuntimeValue } from '@almadar/core';
 
-const PAGE_FACT_FIELDS: readonly PageFactField[] = ['hostname', 'referrer', 'screenWidth'];
+const PAGE_FACT_FIELDS: readonly PageFactField[] = ['hostname', 'referrer', 'screenWidth', 'href'];
 
 /** The fields a `browser/page-facts` call asks for, or why the call is refused before anything is read. */
 export function parsePageFactFields(value: RuntimeValue | undefined): { fields: PageFactField[] } | { error: string } {
     if (!Array.isArray(value) || value.length === 0) {
-        return { error: 'browser/page-facts: the fields must be a non-empty list of hostname, referrer, screenWidth' };
+        return { error: 'browser/page-facts: the fields must be a non-empty list of hostname, referrer, screenWidth, href' };
     }
     const fields: PageFactField[] = [];
     for (const entry of value) {
@@ -25,13 +25,14 @@ export function parsePageFactFields(value: RuntimeValue | undefined): { fields: 
 
 /** Read `fields` from the page in list order. No window or document is `available: false`; a throwing getter rejects. */
 export function readPageFacts(fields: readonly PageFactField[]): BrowserPageFacts {
-    const facts: BrowserPageFacts = { available: false, hostname: '', referrer: '', screenWidth: null };
+    const facts: BrowserPageFacts = { available: false, hostname: '', referrer: '', screenWidth: null, href: '' };
     if (typeof window === 'undefined' || typeof document === 'undefined') return facts;
     facts.available = true;
     for (const field of fields) {
         if (field === 'hostname') facts.hostname = window.location.hostname;
         else if (field === 'referrer') facts.referrer = document.referrer;
-        else facts.screenWidth = window.screen?.width ?? null;
+        else if (field === 'screenWidth') facts.screenWidth = window.screen?.width ?? null;
+        else facts.href = window.location.href;
     }
     return facts;
 }

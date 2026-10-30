@@ -561,7 +561,7 @@ export type CallServiceEffect =
     | ['call-service', string, CallServiceConfig];
 
 /** A page fact `browser/page-facts` can read; the list order is the read order. */
-export type PageFactField = 'hostname' | 'referrer' | 'screenWidth';
+export type PageFactField = 'hostname' | 'referrer' | 'screenWidth' | 'href';
 
 /** Success payload of `browser/page-facts`: a fact that was not requested carries its default. */
 export interface BrowserPageFacts {
@@ -570,6 +570,8 @@ export interface BrowserPageFacts {
     hostname: string;
     referrer: string;
     screenWidth: number | null;
+    /** The full URL of the current location; empty when it was not requested or there is no page. */
+    href: string;
 }
 
 /**

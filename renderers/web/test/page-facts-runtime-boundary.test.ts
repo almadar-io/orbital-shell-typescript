@@ -25,16 +25,16 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('web runtime page host compatibility', () => {
   it('keeps browser facts in the web facade while shared runtime requires an injected host', async () => {
-    vi.stubGlobal('window', { location: { hostname: 'app.example' }, screen: { width: 1440 } });
+    vi.stubGlobal('window', { location: { hostname: 'app.example', href: 'https://app.example/p' }, screen: { width: 1440 } });
     vi.stubGlobal('document', { referrer: 'https://example.test/' });
-    const request = { kind: 'pageFacts' as const, fields: ['hostname', 'referrer', 'screenWidth'] as const };
+    const request = { kind: 'pageFacts' as const, fields: ['hostname', 'referrer', 'screenWidth', 'href'] as const };
     const ask = { ...request, fields: [...request.fields] };
     const scope = { orbital: 'Main' };
     expect(await answerWebRequest(ports(), ask, scope)).toEqual({
-      kind: 'pageFacts', result: { ok: { available: true, hostname: 'app.example', referrer: 'https://example.test/', screenWidth: 1440 } },
+      kind: 'pageFacts', result: { ok: { available: true, hostname: 'app.example', referrer: 'https://example.test/', screenWidth: 1440, href: 'https://app.example/p' } },
     });
     expect(await answerRuntimeRequest(ports(), ask, scope)).toEqual({
-      kind: 'pageFacts', result: { ok: { available: false, hostname: '', referrer: '', screenWidth: null } },
+      kind: 'pageFacts', result: { ok: { available: false, hostname: '', referrer: '', screenWidth: null, href: '' } },
     });
   });
 });

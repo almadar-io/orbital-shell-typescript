@@ -152,6 +152,8 @@ export interface ResolvedTraitListener {
   guard?: SExpr;
   /** `with { ... }` payload rewrite: `{ targetField: SExpr }`, evaluated against the source payload. */
   payloadMapping?: Record<string, SExpr>;
+  /** `per <expr>`: the row this delivery steps, evaluated by the kernel against the source payload. */
+  key?: SExpr;
   /** Source scoping (see `ListenSource` in types/trait). */
   source?: ListenSource;
 }

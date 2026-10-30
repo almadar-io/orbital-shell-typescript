@@ -52,6 +52,7 @@ import type { useUISlots } from '../providers/UISlotContext';
 import { getTabClientId, useCircuitKernel, type ProgramStamp } from './circuit/useCircuitKernel';
 import { useBusIngress } from './circuit/useBusIngress';
 import { useSlotFlush, type SlotCheckpoint } from './circuit/useSlotFlush';
+import type { HostAskDispatch } from '../lib/host-actions';
 import { useClientTicks } from './circuit/useClientTicks';
 import { useEntityBindingSource } from './circuit/useEntityBindingSource';
 import { useAwaitingSkeletonSource } from './circuit/useAwaitingSkeletonSource';
@@ -136,7 +137,8 @@ export function useTraitStateMachine(
     observer,
   });
 
-  const slotFlush = useSlotFlush(uiSlots, options.embeddedTraits);
+  const hostAskDispatchRef = useRef<HostAskDispatch | undefined>(undefined);
+  const slotFlush = useSlotFlush(uiSlots, options.embeddedTraits, (trait, event, payload) => hostAskDispatchRef.current?.(trait, event, payload) ?? Promise.resolve());
 
 
   const entityBindingSource = useEntityBindingSource(store, traitIndex, kernelClient);
@@ -272,6 +274,8 @@ export function useTraitStateMachine(
     }
     await settleOutcome(traitName, eventKey, payload, outcome);
   }, [kernel, slotFlush, traitIndex, store, options.navigate, options.navigateBack, settleOutcome]);
+
+  hostAskDispatchRef.current = dispatchAndSettle;
 
   // An emit that entered from outside the kernel: the kernel decides who hears it, the view paints its answer.
   // 'listeners' is another client's push: its declared listeners hear it here and nothing else. 'origin' is the live

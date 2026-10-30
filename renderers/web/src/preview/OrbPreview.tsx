@@ -14,7 +14,8 @@
  * @packageDocumentation
  */
 
-import { registerHostSignOut } from '../lib/host-actions';
+import { registerHostSignOut, registerHostSignIn } from '../lib/host-actions';
+import type { HostSignInAnswer, HostSignInRequest } from '@almadar/shell-runtime/kernel/host';
 import React, { createContext, useContext, useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import { useHref, useInRouterContext } from 'react-router-dom';
 import { useArbitraryClassStyles } from '../providers/ArbitraryClassCompiler';
@@ -27,7 +28,6 @@ import { VerificationProvider } from '../providers/VerificationProvider';
 import { UISlotProvider, useUISlots } from '../providers/UISlotContext';
 import { UISlotRenderer } from '../components/core/organisms/UISlotRenderer';
 import { useTranslate } from '../core';
-import { useEventBus } from '../core';
 import type { OrbitalSchema, EntityData, ResolvedTraitBinding, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
 import { getPage, orbitalInlineEntities, storesRowsInBrowser, isHostSignInRoute, localeAlternates, notFoundPage } from '@almadar/core';
 import { useResolvedSchema } from '../hooks/useResolvedSchema';
@@ -675,10 +675,15 @@ export interface OrbPreviewProps {
    */
   onSignIn?: (returnTo?: string) => void;
   /**
-   * The host's session sign-out, called on the system event `UI:SIGN_OUT` (a
-   * Sign out inside the circuit). Omitted → the host offers no sign-out.
+   * The host's session sign-out, run when the circuit asks `(auth/sign-out)`
+   * (a `host-ask` client effect). Omitted → the host offers no sign-out and the ask is refused by name.
    */
   onSignOut?: () => void;
+  /**
+   * The host's own sign-in, run when the circuit asks `(auth/sign-in { method … })` (a `host-ask` client effect whose
+   * answer returns to the asking trait). Omitted → the host offers no sign-in and the ask fails `unavailable`.
+   */
+  onSignInAsk?: (request: HostSignInRequest) => Promise<HostSignInAnswer>;
 }
 
 type LazyLoad =
@@ -726,11 +731,15 @@ export function resolvePreviewTheme(
  * ```
  */
 
-/** `UI:SIGN_OUT` consumer: the host ends the viewer's session. Mounted inside OrbitalProvider. */
-function SignOutListener({ onSignOut }: { onSignOut: () => void }): null {
-  const bus = useEventBus();
-  useEffect(() => bus.on('UI:SIGN_OUT', () => onSignOut()), [bus, onSignOut]);
+/** Installs the host's session sign-out, which a `host-ask` for `auth/sign-out` runs (`answerHostAsk`). */
+function SignOutHost({ onSignOut }: { onSignOut: () => void }): null {
   useEffect(() => registerHostSignOut(onSignOut), [onSignOut]);
+  return null;
+}
+
+/** Installs the host's sign-in, which a `host-ask` for `auth/sign-in` runs (`answerHostAsk`). */
+function SignInHost({ onSignInAsk }: { onSignInAsk: (request: HostSignInRequest) => Promise<HostSignInAnswer> }): null {
+  useEffect(() => registerHostSignIn(onSignInAsk), [onSignInAsk]);
   return null;
 }
 
@@ -757,6 +766,7 @@ export function OrbPreview({
   onUnmatchedNavigate,
   onSignIn,
   onSignOut,
+  onSignInAsk,
 }: OrbPreviewProps): React.ReactElement {
   if (serverUrl && transport) {
     throw new Error('OrbPreview accepts serverUrl OR transport, not both');
@@ -1173,7 +1183,8 @@ export function OrbPreview({
         >
         <NavStackRefBridge apiRef={navStackRef} />
         <OrbitalProvider initialData={effectiveMockData} skipTheme verification isolated={isolated} user={user}>
-          {onSignOut !== undefined && <SignOutListener onSignOut={onSignOut} />}
+          {onSignOut !== undefined && <SignOutHost onSignOut={onSignOut} />}
+          {onSignInAsk !== undefined && <SignInHost onSignInAsk={onSignInAsk} />}
           <UISlotProvider>
             <PageAccessHost
               access={activePage?.access}

@@ -17,6 +17,7 @@ import { I18nProvider, createTranslate } from '@almadar/shell-web/core';
 import { KernelEngineProvider } from '@almadar/shell-web/providers';
 import { OrbPreview } from '@almadar/shell-web/runtime';
 import type { ClientManifest } from '@almadar/core';
+import { hostSignIn } from '@almadar/shell-web/auth/react';
 import { loadProgram } from './client-program';
 import { AuthProvider, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
@@ -32,6 +33,7 @@ function KernelApp(): React.ReactElement | null {
     loadProgram().then(setProgram, setFailure);
   }, []);
   const { auth, user, authority, signOut } = useAuthContext();
+  const signInAsk = useMemo(() => (auth === null ? undefined : hostSignIn(auth)), [auth]);
   const location = useLocation();
   const navigate = useNavigate();
   const firstPath = useRef(location.pathname);
@@ -69,6 +71,7 @@ function KernelApp(): React.ReactElement | null {
       authority={authority}
       onSignIn={(returnTo) => navigate('/login', { state: returnTo !== undefined ? { returnTo } : undefined })}
       onSignOut={() => void signOut()}
+      onSignInAsk={signInAsk}
     />
   );
 }

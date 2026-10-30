@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { z } from 'zod';
 import { FieldValueSchema, type UserContext, type ViewerAuthority } from '@almadar/core';
 import type { BrowserAuth, SignedInUser } from '@almadar/shell-browser/auth';
+import { HostAskError, type HostAskFailureKind, type HostSignInAnswer, type HostSignInRequest } from '@almadar/shell-runtime/kernel/host';
 
 export type { BrowserAuth, SignedInUser } from '@almadar/shell-browser/auth';
 
@@ -173,4 +174,48 @@ export function useDevPersonas(apiBase: string): DevPersonas {
   }, [apiBase, signInWithCustomToken]);
 
   return { personas, signInAs };
+}
+
+const FIREBASE_FAILURE_KIND: Readonly<Record<string, HostAskFailureKind>> = {
+  'auth/popup-closed-by-user': 'cancelled',
+  'auth/cancelled-popup-request': 'cancelled',
+  'auth/user-cancelled': 'cancelled',
+  'auth/wrong-password': 'denied',
+  'auth/invalid-credential': 'denied',
+  'auth/user-not-found': 'denied',
+  'auth/user-disabled': 'denied',
+  'auth/popup-blocked': 'denied',
+  'auth/invalid-email': 'invalid',
+  'auth/invalid-custom-token': 'invalid',
+  'auth/invalid-action-code': 'invalid',
+  'auth/expired-action-code': 'invalid',
+  'auth/network-request-failed': 'unavailable',
+  'auth/operation-not-allowed': 'unavailable',
+};
+
+function userAnswer(user: SignedInUser): HostSignInAnswer {
+  return { uid: user.uid, ...(user.email !== undefined ? { email: user.email } : {}), ...(user.name !== undefined ? { displayName: user.name } : {}) };
+}
+
+/**
+ * The host's `auth/sign-in` action over a connected Firebase auth: each method of the request is the one call the
+ * auth surface offers for it. A provider failure keeps the kind its code names (`FIREBASE_FAILURE_KIND`); a code the
+ * table does not list is `unavailable`.
+ */
+export function hostSignIn(auth: BrowserAuth): (request: HostSignInRequest) => Promise<HostSignInAnswer> {
+  return async (request) => {
+    try {
+      if (request.method === 'google') return userAnswer(await auth.signInWithGoogle());
+      if (request.method === 'email') return userAnswer(await auth.signInWithEmail(request.email, request.password));
+      if (request.method === 'customToken') return userAnswer(await auth.signInWithCustomToken(request.token));
+      if ('continueUrl' in request) {
+        await auth.sendSignInLinkToEmail(request.email, request.continueUrl);
+        return { sent: true };
+      }
+      return userAnswer(await auth.signInWithEmailLink(request.email, request.link));
+    } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string' ? error.code : undefined;
+      throw new HostAskError(code !== undefined ? (FIREBASE_FAILURE_KIND[code] ?? 'unavailable') : 'unavailable', error instanceof Error ? error.message : String(error));
+    }
+  };
 }

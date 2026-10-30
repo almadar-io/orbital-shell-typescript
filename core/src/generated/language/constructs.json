@@ -1686,6 +1686,11 @@
         "doc": ""
       },
       {
+        "name": "key",
+        "type": "Option<SExpression>",
+        "doc": "`per <expr>`: the row of the listening entity the delivery steps (EXEC-STEP-1a)."
+      },
+      {
         "name": "payload_mapping",
         "type": "Vec<(String, SExpression)>",
         "doc": ""
