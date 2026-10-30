@@ -974,11 +974,11 @@ export class OrbitalServerRuntime {
    * resolve flight. A client reaches it with
    * `POST /:orbital/../resolve-rows` as the signed-in viewer.
    */
-  async resolveRows(reference: RowSetRef, user: UserContext): Promise<RowQueryPage> {
+  async resolveRows(reference: RowSetRef, user: UserContext | null): Promise<RowQueryPage> {
     const engine = this.kernelEngine;
     const owner = engine === null ? undefined : engine.entityOwnerOrbital(reference.entityType);
     if (engine === null || owner === undefined) throw new Error(`${reference.entityType}: no registered orbital declares this entity`);
-    return engine.resolveRows(reference, { orbital: owner, user });
+    return engine.resolveRows(reference, { orbital: owner, ...(user !== null ? { user } : {}) });
   }
 
   // ==========================================================================
@@ -1100,6 +1100,7 @@ export class OrbitalServerRuntime {
         return this.dispatchEventRequest(orbital, request, input, user, stream);
       },
       deliverInbound: (name, delivery) => this.deliverInbound(name, delivery),
+      resolveRows: (reference, viewer) => this.resolveRows(reference, viewer),
     };
   }
 

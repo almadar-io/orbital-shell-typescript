@@ -9,7 +9,7 @@ function M.start(command, cwd, on_error, on_notification)
         vim.fn.chansend(client.job, vim.json.encode(request.message) .. "\n")
     end
     local function receive(line)
-        local ok, message = pcall(vim.json.decode, line)
+        local ok, message = pcall(vim.json.decode, line, { luanil = { object = true } })
         if ok and type(message) == "table" and message.id == nil and type(message.method) == "string" then
             if on_notification then on_notification(message.method, message.params) end
             return

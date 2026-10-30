@@ -22,7 +22,7 @@ local function current_version()
 end
 
 local function set_status(text)
-    if session and vim.api.nvim_win_is_valid(session.window) then
+    if session and session.window and vim.api.nvim_win_is_valid(session.window) then
         vim.wo[session.window].winbar = " " .. text:gsub("%%", "%%%%")
     end
 end
@@ -203,6 +203,11 @@ local function render_selection(selection, version)
         diagram.render(session.buffer, result.layout, session.visual)
         set_status(selection.orbital .. " / " .. selection.trait .. "  ·  Enter source · K details · t trait · r refresh")
         apply_runtime_projection()
+        if session.pendingCircuit then
+            local window = session.pendingCircuit
+            session.pendingCircuit = nil
+            M.circuit(window)
+        end
     end)
 end
 
@@ -247,7 +252,20 @@ function M.refresh()
                 end
             end
         end
-        if #result.machines == 1 then select_machine(result.machines[1], version) else M.choose() end
+        if #result.machines == 1 then return select_machine(result.machines[1], version) end
+        local window = vim.fn.bufwinid(session.source)
+        if window == -1 then return M.choose() end
+        local cursor = vim.api.nvim_win_get_cursor(window)
+        local line = vim.api.nvim_buf_get_lines(session.source, cursor[1] - 1, cursor[1], false)[1]
+        request("focus", {
+            path = vim.api.nvim_buf_get_name(session.source), line = cursor[1],
+            column = vim.str_utfindex(line, cursor[2]) + 1, version = version,
+        }, function(focused)
+            if current_version() ~= version then return end
+            if not focused.graph then return M.choose() end
+            session.machine = { orbital = focused.orbital, trait = focused.trait }
+            render_selection(focused, version)
+        end)
     end)
 end
 
@@ -293,6 +311,27 @@ function M.trace()
     vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buffer })
 end
 
+--- The transition a focus result lands on: the first focused edge that carries one.
+local function focused_transition(focus, selection)
+    local focused = {}
+    for _, id in ipairs(focus.edgeIds or {}) do focused[id] = true end
+    for _, edge in ipairs(selection.graph.edges) do
+        if focused[edge.id] and edge.transitionIndex ~= nil then return edge.transitionIndex end
+    end
+end
+
+--- Paint the circuit of `transition` unless it is the one already drawn.
+local function draw_circuit(selection, transition)
+    local key = selection.orbital .. "\0" .. selection.trait .. "\0" .. transition .. "\0" .. current_version()
+    if session.circuitKey == key and require("almadar.circuit").visible() then return end
+    session.circuitKey = key
+    request("circuit", {
+        orbital = selection.orbital, trait = selection.trait, transitionIndex = transition,
+    }, function(circuit)
+        if session and session.circuitKey == key then require("almadar.circuit").show(circuit) end
+    end)
+end
+
 local function follow_source()
     if not session or not session.selection or not session.layout then return end
     if vim.api.nvim_get_current_buf() ~= session.source or current_version() ~= session.program.version then return end
@@ -311,6 +350,11 @@ local function follow_source()
         if focus.ambiguous then
             return set_status("Cursor scope has multiple traits; press t to choose a trait")
         end
+        if require("almadar.circuit").visible() then
+            local selection = result.graph and result or session.selection
+            local transition = focused_transition(focus, selection)
+            if transition ~= nil then draw_circuit(selection, transition) end
+        end
         if result.graph then
             session.machine = { orbital = result.orbital, trait = result.trait }
             return render_selection(result, version)
@@ -319,6 +363,43 @@ local function follow_source()
         session.visual.selectedNodeId, session.visual.selectedEdgeId = nil, nil
         session.visual.selectedNodeIds, session.visual.selectedEdgeIds = focus.nodeIds, focus.edgeIds
         diagram.update(session.buffer, session.visual)
+    end)
+end
+
+--- Draw the circuit of the transition under the cursor in `window` (default: the source's window), opening the
+--- inspector first when it is not running.
+---@param window integer|nil
+function M.circuit(window)
+    if not session then
+        local source_window = vim.api.nvim_get_current_win()
+        M.open({ diagram = false })
+        if not session then return end
+        session.pendingCircuit = source_window
+        if vim.api.nvim_win_is_valid(source_window) then vim.api.nvim_set_current_win(source_window) end
+        return
+    end
+    window = window or (vim.api.nvim_get_current_buf() == session.source and vim.api.nvim_get_current_win())
+        or vim.fn.bufwinid(session.source)
+    if window == -1 or not vim.api.nvim_win_is_valid(window) then
+        return notify("Show the inspected .lolo file to pick a transition", vim.log.levels.WARN)
+    end
+    local cursor = vim.api.nvim_win_get_cursor(window)
+    local line = vim.api.nvim_buf_get_lines(session.source, cursor[1] - 1, cursor[1], false)[1]
+    request("focus", {
+        path = vim.api.nvim_buf_get_name(session.source), line = cursor[1],
+        column = vim.str_utfindex(line, cursor[2]) + 1, version = current_version(),
+    }, function(result)
+        local focus = result.focus
+        if focus.ambiguous then
+            return notify("Cursor scope has multiple traits; press t in the inspector to choose one", vim.log.levels.WARN)
+        end
+        local selection = result.graph and result or session.selection
+        local transition = focused_transition(focus, selection)
+        if transition == nil then
+            return notify("Put the cursor on a transition (its `EVENT -> state` line, guard or effects)", vim.log.levels.WARN)
+        end
+        session.circuitKey = nil
+        draw_circuit(selection, transition)
     end)
 end
 
@@ -332,9 +413,28 @@ function M.close()
     if vim.api.nvim_buf_is_valid(old.buffer) then vim.api.nvim_buf_delete(old.buffer, { force = true }) end
 end
 
-function M.open()
+--- Show the diagram window for `buffer` at the right of the editor.
+local function diagram_window(buffer, width)
+    vim.cmd("botright " .. width .. "vsplit")
+    local window = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(window, buffer)
+    vim.wo[window].wrap, vim.wo[window].number, vim.wo[window].relativenumber = false, false, false
+    vim.wo[window].signcolumn, vim.wo[window].cursorline = "no", true
+    return window
+end
+
+--- Start the inspector for the current buffer. `opts.diagram = false` runs it without its diagram window (the
+--- circuit view uses it that way); a later plain open shows the diagram.
+---@param opts { diagram: boolean }|nil
+function M.open(opts)
+    local show = not opts or opts.diagram ~= false
     if session then
-        if vim.api.nvim_win_is_valid(session.window) then vim.api.nvim_set_current_win(session.window) end
+        if session.window and vim.api.nvim_win_is_valid(session.window) then
+            if show then vim.api.nvim_set_current_win(session.window) end
+        elseif show then
+            session.window = diagram_window(session.buffer, config.options.inspector.width)
+            if session.layout then diagram.render(session.buffer, session.layout, session.visual) end
+        end
         return
     end
     local source = vim.api.nvim_get_current_buf()
@@ -346,24 +446,18 @@ function M.open()
         if not options.program then return notify("Set inspector.program to the Orb inspector .lolo program") end
         command = { config.options.cmd or "orb", "run", vim.fn.expand(options.program) }
     end
-    local client, err = require("almadar.inspector_client").start(command, vim.fs.dirname(path), notify, receive_notification)
+    local client, err = require("almadar.inspector_client").start(command, options.cwd or vim.fs.dirname(path), notify, receive_notification)
     if not client then return notify(err) end
     local source_window = vim.api.nvim_get_current_win()
-    vim.cmd("botright " .. options.width .. "vsplit")
     local buffer = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_win_set_buf(0, buffer)
     vim.bo[buffer].buftype = "nofile"
-    vim.bo[buffer].bufhidden = "wipe"
+    vim.bo[buffer].bufhidden = "hide"
     vim.bo[buffer].swapfile = false
     vim.bo[buffer].filetype = "orb-diagram"
-    vim.wo.wrap = false
-    vim.wo.number = false
-    vim.wo.relativenumber = false
-    vim.wo.signcolumn = "no"
-    vim.wo.cursorline = true
+    local window = show and diagram_window(buffer, options.width) or nil
     session = {
         client = client, source = source, source_window = source_window, buffer = buffer,
-        window = vim.api.nvim_get_current_win(),
+        window = window,
         traceMessages = {},
         group = vim.api.nvim_create_augroup("AlmadarInspector", { clear = true }),
     }

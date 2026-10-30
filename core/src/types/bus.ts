@@ -14,7 +14,8 @@ import { EventPayloadSchema, SExprDataSchema, type EventPayload, type SExpr } fr
 import { OrbitalIdSchema, TraitIdSchema, EventIdSchema, type OrbitalId, type TraitId, type EventId } from "./identity.js";
 import { RowSetRefSchema, type RowSetRef } from "./row-set.js";
 import { EntityRowSchema, type EntityRow } from "./entity.js";
-import { RawUserClaimsSchema, type RawUserClaims } from "./user.js";
+import { RawUserClaimsSchema, type RawUserClaims, type UserContext } from "./user.js";
+import type { RowQueryPage } from "../service-types.js";
 import { ServerEffectResultSchema, type ServerEffectResult } from "./effect-result.js";
 import type { ExternalInput } from "../access/contract.js";
 import { JsonValueSchema, type JsonObject, type JsonValue } from "./json.js";
@@ -458,6 +459,8 @@ export interface ServiceHostPorts {
   deliverInbound?(name: string, delivery: { headers: Readonly<Record<string, string>>; rawBody: string }): Promise<{ status: number; body: string }>;
   /** The host's last `steps` traced dispatch steps, oldest first; a host that keeps no trace leaves it out. */
   trace?(steps: number): JsonValue[];
+  /** A `program/resolve-rows` ask: `reference` resolved for the viewer the call names (`null` is anonymous), `@read` applied by the kernel's one resolver. */
+  resolveRows?(reference: RowSetRef, viewer: UserContext | null): Promise<RowQueryPage>;
   /**
    * Deliver one message of the running call to the caller's tab, live, as the
    * call site's `emit.onMessage` event source-stamped to the caller. A no-op

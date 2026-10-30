@@ -168,3 +168,46 @@ describeWithMemoryKernel('OrbitalServerRuntime.dispatchEventRequest (program/dis
     expect(noTrait.ok === false && noTrait.code).toBe('NO_TRAIT');
   });
 });
+
+describeWithMemoryKernel('OrbitalServerRuntime program/resolve-rows (the Rust-shell twin: a_program_resolve_rows_answers_only_the_rows_the_named_viewer_may_read)', () => {
+  const OWNED: SExpr = ['=', ['object/get', '@entity', 'ownerId'], '@user.id'];
+  const ownedNotes = async () => {
+    const runtime = new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
+    await runtime.register({
+      name: 'ResolveApp',
+      typeContractVersion: 1,
+      version: '1.0.0',
+      orbitals: [{
+        name: 'Notes',
+        pages: [],
+        entity: {
+          name: 'Note', persistence: 'persistent', read_policy: OWNED,
+          fields: [{ name: 'id', type: 'string', primaryKey: true }, { name: 'ownerId', type: 'string' }],
+        },
+        traits: [{
+          name: 'NoteBrowse', linkedEntity: 'Note',
+          stateMachine: { states: [{ name: 'idle', isInitial: true }], transitions: [{ from: 'idle', to: 'idle', event: 'LIST' }] },
+        }],
+      }],
+    });
+    for (const [id, ownerId] of [['a1', 'alice'], ['a2', 'alice'], ['b1', 'bob']]) await runtime.persistence.create('Note', { id, ownerId });
+    return runtime;
+  };
+  const reference = { entityType: 'Note', ids: ['a1', 'b1', 'a2'], total: 3, query: {} };
+  const ids = (page: { rows: ReadonlyArray<{ id?: unknown }> }) => page.rows.map((row) => row.id);
+
+  it('answers only the rows the named viewer may read, never the dispatching caller', async () => {
+    const runtime = await ownedNotes();
+    const ports = runtime.servicePorts({ orbital: 'Notes', trait: 'NoteBrowse' }, { id: 'bob' });
+    const alice = await ports.resolveRows?.(reference, { id: 'alice' });
+    expect(alice && ids(alice)).toEqual(['a1', 'a2']);
+    expect(alice?.total).toBe(2);
+    const anonymous = await ports.resolveRows?.(reference, null);
+    expect(anonymous && ids(anonymous)).toEqual([]);
+  });
+
+  it('fails a reference naming an entity no orbital declares', async () => {
+    const runtime = await ownedNotes();
+    await expect(runtime.resolveRows({ ...reference, entityType: 'Nothing' }, null)).rejects.toThrow('no registered orbital declares this entity');
+  });
+});

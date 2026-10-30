@@ -82,6 +82,7 @@ require("almadar").setup({
 | `:OrbFormat` | `orb format` the current file in place |
 | `:OrbPreview` | open the orb-lsp live preview in a browser |
 | `:OrbInspect` | inspect the current behavior in a native Neovim diagram split |
+| `:OrbCircuit` | draw the transition under the cursor as a box-drawing circuit in a split (needs `:OrbInspect`) |
 | `:OrbInspectClose` | close the native inspector and its process |
 | `:OrbBuildParser` | force a rebuild of the tree-sitter-lolo parser |
 
@@ -109,6 +110,10 @@ require("almadar").setup({
 An `inspector.command` array can select a development binary and replaces
 the default `orb run <program>` command. The workspace `nvim/init.lua`
 already configures the entry point and maps `<leader>oi` to `:OrbInspect`.
+
+| Option | Meaning |
+| --- | --- |
+| `inspector.cwd` | working directory of the inspector process; set it to the workspace root so std atoms such as `circuit` resolve `node_modules/@almadar/std` and fs grants (default: the source file's directory) |
 
 Open a named `.lolo` buffer and run `:OrbInspect`. Unsaved buffer text is
 sent to the native reader with its original path and document version.

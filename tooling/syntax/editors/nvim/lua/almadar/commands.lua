@@ -238,6 +238,10 @@ function M.setup()
         require("almadar.inspector").open()
     end, { desc = "Inspect the current behavior in a native state-machine split" })
 
+    vim.api.nvim_create_user_command("OrbCircuit", function()
+        require("almadar.inspector").circuit()
+    end, { desc = "Draw the guard and effect circuit of the transition under the cursor" })
+
     vim.api.nvim_create_user_command("OrbInspectClose", function()
         require("almadar.inspector").close()
     end, { desc = "Close the native behavior inspector" })

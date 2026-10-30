@@ -13,6 +13,7 @@ local M = {}
 ---@class almadar.InspectorConfig
 ---@field program string|nil Native Orb inspector .lolo entry point.
 ---@field command string[]|nil Override the native inspector command.
+---@field cwd string|nil Working directory of the inspector process. nil = the source file's directory.
 ---@field width integer Width of the diagram split.
 
 ---@class almadar.TreesitterConfig
@@ -29,7 +30,7 @@ local M = {}
 
 ---@type almadar.Config
 local defaults = {
-    inspector = { program = nil, command = nil, width = 72 },
+    inspector = { program = nil, command = nil, cwd = nil, width = 72 },
     treesitter = {
         enabled = true,
         auto_install = true,

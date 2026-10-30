@@ -9,6 +9,7 @@ import {
   type BrowserPageFacts,
   type PageFactField,
   isJsonObject,
+  RowSetRefSchema,
   QueryDeclinedError,
   WriteDeclinedError,
   type EntityRow,
@@ -471,7 +472,7 @@ async function substrateInPlace(
     const detail: SubstrateFailureWire = { message, errors };
     return { kind: 'substrate', result: { error: detail } };
   };
-  if (request.op === 'program/dispatch' || request.op === 'program/inputs') {
+  if (request.op === 'program/dispatch' || request.op === 'program/inputs' || request.op === 'program/resolve-rows') {
     const lent = ports.servicePorts({ orbital: scope.orbital, trait: '' }, scope.user, () => {}, scope.assertReentry);
     try {
       const delivered = await deliverAgentAsk(request.op, request.args, lent, ports);
@@ -493,6 +494,10 @@ async function substrateInPlace(
   }
 }
 
+function isViewerRecord(value: JsonValue): value is UserContext {
+  return isJsonObject(value) && typeof value['id'] === 'string';
+}
+
 type Delivered = { ok: true; result: JsonValue } | { ok: false; error: string; errors?: JsonValue[] };
 
 /** An empty text, record or list in an event request is absent, as the HTTP routes read it. */
@@ -507,8 +512,20 @@ function present(value: JsonValue | undefined): value is JsonValue {
  * The asks the kernel plans for `program/dispatch` and `program/inputs` (EXEC-AGENT-1), delivered raw: an inbound
  * delivery, a declared input, an event request, or the trace. The kernel checks and shapes; the host only delivers.
  */
-async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs', args: readonly JsonValue[], host: ServiceHostPorts, ports: Pick<KernelHostPorts, 'parseEventRequest'>): Promise<Delivered> {
+async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs' | 'program/resolve-rows', args: readonly JsonValue[], host: ServiceHostPorts, ports: Pick<KernelHostPorts, 'parseEventRequest'>): Promise<Delivered> {
   const [first, second, third] = args;
+  if (op === 'program/resolve-rows') {
+    if (args.length !== 2 || first === undefined || second === undefined) return { ok: false, error: 'program/resolve-rows: the host is asked for a row-set reference and the viewer it is resolved for' };
+    const reference = RowSetRefSchema.safeParse(first);
+    if (!reference.success) {
+      const error = `program/resolve-rows: not a row-set reference: ${reference.error.message}`;
+      return { ok: false, error, errors: [{ code: 'INVALID_REQUEST', message: error, status: 400 }] };
+    }
+    if (second !== null && !isViewerRecord(second)) return { ok: false, error: 'program/resolve-rows: the viewer is a record with an id, or null' };
+    if (host.resolveRows === undefined) return { ok: false, error: 'program/resolve-rows: this host resolves no row sets' };
+    const page = await host.resolveRows(reference.data, second);
+    return { ok: true, result: JSON.parse(JSON.stringify(page)) };
+  }
   if (op === 'program/inputs') {
     const steps = args.length === 1 && isJsonObject(first) ? first['trace'] : undefined;
     if (typeof steps !== 'number') return { ok: false, error: 'program/inputs: the host is asked for { trace } only' };
