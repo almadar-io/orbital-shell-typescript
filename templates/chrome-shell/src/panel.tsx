@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parseOrbitalSchema } from '@almadar/core';
 import { createChannelTransport } from '@almadar/shell-web';
+import { chromeConsent } from '@almadar/shell-chrome';
 import { OrbPreview } from '@almadar/shell-web/runtime';
 import programText from './generated/program.orb?raw';
 import { KEEP_ALIVE, KEEP_ALIVE_MS, portChannel, VIEW_PORT } from './channel';
 import './index.css';
+
+const consentAsk = chromeConsent(() => chrome.identity);
 
 const schema = parseOrbitalSchema(JSON.parse(programText));
 
@@ -26,7 +29,7 @@ function Panel() {
       port.disconnect();
     };
   }, [port]);
-  return <OrbPreview key={connection} schema={schema} transport={transport} initialPagePath="/" height="100vh" />;
+  return <OrbPreview key={connection} schema={schema} transport={transport} initialPagePath="/" onConsentAsk={consentAsk} height="100vh" />;
 }
 
 const root = document.getElementById('root');

@@ -23,6 +23,7 @@ import type {
   RowBindingWire,
   TraceEffectsWire,
 } from './generated/kernel-wire';
+import { setOwn } from './types/own-key';
 import type { EntityRow, EventPayload, JsonObject, JsonValue, OrbitalSchema, SExpr } from './types/index';
 
 /** One delivery the program makes between two different traits: `emitterTrait` emits `event` and `listenerTrait` listens to it. */
@@ -187,7 +188,7 @@ export function toWireValue(value: WireInput): JsonValue {
   if (typeof value === 'object') {
     const out: JsonObject = {};
     for (const [key, item] of Object.entries(value)) {
-      if (item !== undefined) out[key] = toWireValue(item);
+      if (item !== undefined) setOwn(out, key, toWireValue(item));
     }
     return out;
   }

@@ -53,7 +53,7 @@ export interface CredentialRotation {
 
 export interface CredentialListing {
   enabled: boolean;
-  entries: Array<{ service: string; name: string }>;
+  entries: Array<{ service: string; name: string; last4?: string }>;
 }
 
 type RowWrite =
@@ -230,7 +230,8 @@ export class CredentialVault {
       enabled: listing.enabled,
       entries: entries.map((entry) => {
         if (!isJsonObject(entry)) throw new Error('the kernel credential listing holds a row that is not an object');
-        return { service: textOf(entry.service, 'listing service'), name: textOf(entry.name, 'listing name') };
+        const row = { service: textOf(entry.service, 'listing service'), name: textOf(entry.name, 'listing name') };
+        return entry.last4 === undefined ? row : { ...row, last4: textOf(entry.last4, 'listing last4') };
       }),
     };
   }

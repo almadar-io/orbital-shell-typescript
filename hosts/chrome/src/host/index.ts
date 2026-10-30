@@ -7,3 +7,4 @@ export { CHROME_CREDENTIAL_MASTER_KEY, CHROME_CREDENTIAL_ROWS_KEY, chromeCredent
 export { ChromePortError, type ChromePortErrorCode } from './errors.js';
 export { chromePromptModel, PROMPT_TIMEOUT_MS, type ChromeLanguageModel, type ChromeModelSession, type ChromePromptModelOptions } from './prompt.js';
 export { transformersEmbedder, type FeatureExtractor, type OnDeviceEmbedderPort, type TransformersEmbedderOptions } from './embedder.js';
+export { chromeConsent, type ChromeIdentityApi } from './consent.js';

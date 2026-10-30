@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { JsonValue } from '@almadar/core';
-import type { OsError, OsOp, Settled } from '@almadar/core/kernel-wire';
+import type { IoAnswerWire, OsError, OsOp, Settled } from '@almadar/core/kernel-wire';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 import { answerRequest, finishTls, type DeferredCallOutcome, type KernelHostPorts } from '../src/kernel/host.js';
 import { decodeRequest } from '../src/kernel/decode.js';
@@ -353,5 +353,59 @@ describe('an os/send segment list, as the Rust resolver reads it', () => {
   it('a named credential with no source is denied; the encode is checked before an empty name skips it', async () => {
     expect(await sentAll([{ bytes: '', credential: 'tok' }], undefined)).toEqual({ error: { kind: 'denied', message: 'os/send: no credential source is configured' } });
     expect(await sentAll([{ bytes: '', credential: '', encode: 'rot13' }], undefined)).toEqual({ error: { kind: 'invalid', message: 'os/send: segment 1 encode must be one of base64, uri, form' } });
+  });
+});
+
+describe('an os/send segment scope, as the Rust resolver reads it', () => {
+  const sendAs = async (segment: JsonValue, principal: string | undefined): Promise<{ sent: string[]; reads: Array<[string, string | undefined]>; answer: IoAnswerWire }> => {
+    const sent: string[] = [];
+    const reads: Array<[string, string | undefined]> = [];
+    const secrets: SecretStore = {
+      get: async (name, who) => { reads.push([name, who]); return `value-of-${who ?? 'app'}`; },
+      set: async () => undefined,
+      forget: async () => undefined,
+    };
+    const host: KernelHostPorts = {
+      persistence, inFlightCalls: new InFlightCalls(),
+      callService: async () => null,
+      programEffect: () => undefined,
+      servicePorts: (caller) => ({ caller, inputs: () => [], readableEntities: () => [], dispatchInput: async () => { throw new Error('unused'); }, read: async () => [] }),
+      deliverLive: () => undefined,
+      deferCallOutcome: () => () => undefined,
+      secretPorts: { random: { bytes: () => new Uint8Array(0) }, secrets },
+      os: { answer: async (_op, args) => { sent.push(atob(String(args[1]))); return { ok: { bytes: 0 } }; }, close: () => undefined },
+    };
+    const request = decodeRequest({ kind: 'os', op: 'os/send', args: [5, [segment]], ...(principal === undefined ? {} : { principal }) });
+    return { sent, reads, answer: await answerRequest(host, request, { orbital: 'Main' }) };
+  };
+
+  it('reads the credential of the viewer the ask carries, so two viewers get two values', async () => {
+    const user = { bytes: '', credential: 'tok', scope: 'user' };
+    expect((await sendAs(user, 'alice')).sent).toEqual(['value-of-alice']);
+    const bob = await sendAs(user, 'bob');
+    expect(bob.sent).toEqual(['value-of-bob']);
+    expect(bob.reads).toEqual([['tok', 'bob']]);
+  });
+
+  it('denies a user segment with no viewer before any credential is read or byte is sent', async () => {
+    const result = await sendAs({ bytes: '', credential: 'tok', scope: 'user' }, undefined);
+    expect(result.answer).toEqual({ kind: 'os', result: { error: { kind: 'denied', message: 'os/send: segment 1 needs a signed-in viewer' } } });
+    expect(result.reads).toEqual([]);
+    expect(result.sent).toEqual([]);
+  });
+
+  it('control: an app segment, with or without a scope, ignores the viewer', async () => {
+    for (const segment of [{ bytes: '', credential: 'tok' }, { bytes: '', credential: 'tok', scope: 'app' }]) {
+      const result = await sendAs(segment, 'alice');
+      expect(result.sent).toEqual(['value-of-app']);
+      expect(result.reads).toEqual([['tok', undefined]]);
+    }
+  });
+
+  it('refuses an unknown or non-text scope', async () => {
+    for (const bad of ['team', 'USER', '', 1, null]) {
+      const result = await sendAs({ bytes: '', credential: 'tok', scope: bad }, 'alice');
+      expect(result.answer).toEqual({ kind: 'os', result: { error: { kind: 'invalid', message: 'os/send: segment 1 scope must be one of app, user' } } });
+    }
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { answerRequest, HostAskError, hostAskReturn, parseSignInRequest, performHostAnswer, performHostAsk, type HostAudioAsk, type KernelHostPorts } from '../src/kernel/host.js';
+import { answerRequest, consentFromRedirect, HostAskError, hostAskReturn, parseConsentRequest, parseSignInRequest, performHostAnswer, performHostAsk, type HostAudioAsk, type KernelHostPorts } from '../src/kernel/host.js';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 
 function ports(hostActions?: KernelHostPorts['hostActions']): KernelHostPorts {
@@ -112,5 +112,52 @@ describe('auth/sign-in: the host ask whose answer returns to the asking trait (E
     expect(await performHostAnswer({}, 'auth/sign-in', [{ method: 'google' }])).toEqual({ error: 'no host sign-in is configured for auth/sign-in', kind: 'unavailable' });
     expect(await performHostAnswer({ signIn: async () => ({ sent: true }) }, 'auth/sign-in', [{ method: 'email' }])).toMatchObject({ kind: 'invalid' });
     expect(await performHostAnswer({ signIn: async () => ({ sent: true }) }, 'auth/sign-in', [{ method: 'emailLink', email: 'a@b.c', continueUrl: 'u' }])).toEqual({ ok: { sent: true } });
+  });
+});
+
+describe('auth/consent: the host ask whose answer returns the redirect code and state (EXEC-DIST-13)', () => {
+  const completion = { trait: 'Consent', key: 'k1', success: 'CONSENT_GRANTED', failure: 'CONSENT_FAILED' };
+  const url = 'https://idp.example/authorize?state=s1';
+
+  it('parses the one authorizeUrl request and refuses anything else before the host is asked', () => {
+    expect(parseConsentRequest([{ authorizeUrl: url }])).toEqual({ request: { authorizeUrl: url } });
+    for (const wrong of [[], [{}], [{ authorizeUrl: '' }], [{ authorizeUrl: 3 }], [{ authorizeUrl: url, extra: 'x' }], [{ authorizeUrl: url }, {}], ['text']]) {
+      expect('error' in parseConsentRequest(wrong)).toBe(true);
+    }
+  });
+
+  it('returns { code, state } on its success route and { error, kind } on its failure route', async () => {
+    const ok = await performHostAnswer({ consent: async (request) => ({ code: 'c1', state: request.authorizeUrl.endsWith('s1') ? 's1' : 'other' }) }, 'auth/consent', [{ authorizeUrl: url }]);
+    expect(ok).toEqual({ ok: { code: 'c1', state: 's1' } });
+    expect(hostAskReturn(completion, ok)).toEqual({ trait: 'Consent', event: 'CONSENT_GRANTED', payload: { code: 'c1', state: 's1', key: 'k1' } });
+    const cancelled = await performHostAnswer({ consent: async () => { throw new HostAskError('cancelled', 'the viewer closed the window'); } }, 'auth/consent', [{ authorizeUrl: url }]);
+    expect(cancelled).toEqual({ error: 'the viewer closed the window', kind: 'cancelled' });
+    expect(hostAskReturn(completion, cancelled)).toEqual({ trait: 'Consent', event: 'CONSENT_FAILED', payload: { error: 'the viewer closed the window', kind: 'cancelled', key: 'k1' } });
+  });
+
+  it('reads only code and state from the final redirect URL, and a redirect without both is denied', () => {
+    expect(consentFromRedirect('https://app.example/cb?code=c1&state=s1&scope=x')).toEqual({ code: 'c1', state: 's1' });
+    expect(() => consentFromRedirect('https://app.example/cb?error=access_denied&state=s1')).toThrowError(expect.objectContaining({ kind: 'denied' }));
+    expect(() => consentFromRedirect('https://app.example/cb?code=c1')).toThrowError(expect.objectContaining({ kind: 'denied' }));
+    expect(() => consentFromRedirect('not a url')).toThrowError(expect.objectContaining({ kind: 'invalid' }));
+  });
+
+  it('control: a host with no consent fails unavailable, a bad request fails invalid, and sign-in still runs through signIn', async () => {
+    expect(await performHostAnswer({}, 'auth/consent', [{ authorizeUrl: url }])).toEqual({ error: 'no host consent is configured for auth/consent', kind: 'unavailable' });
+    expect(await performHostAnswer({ consent: async () => ({ code: 'c', state: 's' }) }, 'auth/consent', [{}])).toMatchObject({ kind: 'invalid' });
+    expect(await performHostAnswer({ signIn: async () => ({ uid: 'u1' }) }, 'auth/sign-in', [{ method: 'google' }])).toEqual({ ok: { uid: 'u1' } });
+  });
+});
+
+describe('credential-connect on a host with no credential store (twin of the Rust bare-host test)', () => {
+  it('answers unavailable with the kernel message, whatever secret ports it holds', async () => {
+    const request = {
+      kind: 'credentialConnect' as const,
+      grant: { name: 'TOKEN', tokenEndpoint: 'https://auth.example/token', grant: 'authorization_code', code: 'single-use', redirectUri: 'https://app.example/cb', clientId: 'CLIENT', clientAuth: 'basic' as const, scopes: [] },
+    };
+    expect(await answerRequest(ports(), request, scope)).toEqual({
+      kind: 'credentialConnect',
+      result: { error: { kind: 'unavailable', message: 'this host holds no credential store that can connect' } },
+    });
   });
 });

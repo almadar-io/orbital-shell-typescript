@@ -31,7 +31,7 @@ pub struct ChromeProgram {
     /// The program runs `credential-status` or `credential-forget`, so the worker holds a credential store the kernel's asks are answered from:
     /// the program names a credential and never receives its value.
     pub uses_credentials: bool,
-    /// The program runs `oauth-authorize`, so the worker runs the host's own Google sign-in through `chrome.identity` (a secret-less flow).
+    /// The program runs `auth/consent`, so the extension asks for the `identity` permission and the panel answers through `chrome.identity.launchWebAuthFlow`.
     pub uses_identity: bool,
 }
 
@@ -102,8 +102,10 @@ pub fn check_program(
                 let mut credentials = Vec::new();
                 collect_operator(t, operator, &mut credentials);
                 uses_credentials |= !credentials.is_empty();
-                uses_identity |= operator == "oauth-authorize" && !credentials.is_empty();
             }
+            let mut consents = Vec::new();
+            collect_operator(t, "auth/consent", &mut consents);
+            uses_identity |= !consents.is_empty();
             let mut embeds = Vec::new();
             collect_operator(t, "browser/embed", &mut embeds);
             embeds_on_device |= !embeds.is_empty();
@@ -372,6 +374,14 @@ mod tests {
             assert!(checked.uses_credentials, "{operator}");
             assert_eq!(checked.uses_identity, identity, "{operator}");
         }
+    }
+
+    #[test]
+    fn an_auth_consent_ask_needs_the_identity_permission_and_no_credential_store() {
+        let p = program(local_entity(), trait_with(json!([["auth/consent", {"authorizeUrl": "https://idp.example/authorize"}, {"emit": {"success": "OK"}}]]), json!({})));
+        let checked = check_program(&p, &runtimes()).expect("accepted");
+        assert!(checked.uses_identity);
+        assert!(!checked.uses_credentials);
     }
 
     #[test]

@@ -54,12 +54,31 @@ export interface CredentialAdminPort {
   setMode(mode: string): Promise<string>;
 }
 
+/** The tails of the named variables this host's own environment holds: `last4` only from eight characters up, never a value. */
+export type EnvTailsPort = (names: readonly string[]) => Array<{ name: string; last4?: string }>;
+
+/** The environment tails of `env`: a name it holds non-empty, with the last four characters of a value of eight or more. */
+export function envTailsOf(env: Readonly<Record<string, string | undefined>>): EnvTailsPort {
+  return (names) => {
+    const tails: Array<{ name: string; last4?: string }> = [];
+    for (const name of names) {
+      const value = env[name];
+      if (value === undefined || value === '') continue;
+      const chars = Array.from(value);
+      tails.push(chars.length >= 8 ? { name, last4: chars.slice(-4).join('') } : { name });
+    }
+    return tails;
+  };
+}
+
 export interface SecretPorts {
   /** The host CSPRNG `random-bytes` and the driver's `Random` ask draw from. */
   random: RandomSource;
   secrets: SecretStore;
   /** The credential store and mode flag the credential administration effects ask; absent, those asks fail unavailable. */
   credentials?: CredentialAdminPort;
+  /** The host's own environment, for `credential-list`; absent, the host answers `unsupported` (a browser reads none). */
+  env?: EnvTailsPort;
 }
 
 export interface SecretPortsOptions {
@@ -67,6 +86,8 @@ export interface SecretPortsOptions {
   secrets?: SecretStore;
   /** Defaults to the installed credential store and mode flag. */
   credentials?: CredentialAdminPort;
+  /** Defaults to the process environment. */
+  env?: EnvTailsPort;
 }
 
 /** Where the secrets' durable credentials live: the store a host installed, and how a name resolves through it. */
@@ -261,6 +282,7 @@ export function createSecretPorts(options: SecretPortsOptions = {}): SecretPorts
     random: options.random ?? systemRandom,
     secrets: options.secrets ?? createSecretStore(),
     credentials: options.credentials ?? createCredentialAdminPort(),
+    env: options.env ?? ((names) => envTailsOf(process.env)(names)),
   };
 }
 

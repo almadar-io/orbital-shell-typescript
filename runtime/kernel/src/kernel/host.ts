@@ -88,6 +88,17 @@ export type HostSignInRequest =
 /** What a sign-in answers: the viewer, or `{ sent: true }` for an email link that was only sent. */
 export type HostSignInAnswer = { uid: string; email?: string; displayName?: string } | { sent: true };
 
+/** The one object `auth/consent` takes: the authorize URL the viewer is sent to. */
+export interface HostConsentRequest {
+  authorizeUrl: string;
+}
+
+/** What a consent answers: the `code` and `state` query params of the final redirect URL, read as they are. */
+export interface HostConsentAnswer {
+  code: string;
+  state: string;
+}
+
 /** Why a host ask failed: the viewer closed it, the provider denied it, the request was malformed, or the host has no such action. */
 export type HostAskFailureKind = 'cancelled' | 'denied' | 'invalid' | 'unavailable';
 
@@ -98,11 +109,12 @@ export class HostAskError extends Error {
   }
 }
 
-/** What the client host does for the `audio/*`, `auth/sign-out` and `auth/sign-in` asks; a host that has none refuses them by name. */
+/** What the client host does for the `audio/*`, `auth/sign-out`, `auth/sign-in` and `auth/consent` asks; a host that has none refuses them by name. */
 export interface KernelHostActions {
   audio?: (ask: HostAudioAsk) => void;
   signOut?: () => void | Promise<void>;
   signIn?: (request: HostSignInRequest) => Promise<HostSignInAnswer>;
+  consent?: (request: HostConsentRequest) => Promise<HostConsentAnswer>;
 }
 
 /** A host ask's answer: the payload of its success route, or the error and kind of its failure route. */
@@ -416,8 +428,47 @@ export function parseSignInRequest(args: readonly JsonValue[]): { request: HostS
   return continueUrl !== undefined ? { request: { method: 'emailLink', email, continueUrl } } : { request: { method: 'emailLink', email, link: link as string } };
 }
 
-/** The answer of one host ask whose completion the host returns: `auth/sign-in` through the host's sign-in, any other op as it is performed (an empty success). */
+/** The `auth/consent` request an ask carries, or why it is refused before the host is asked. */
+export function parseConsentRequest(args: readonly JsonValue[]): { request: HostConsentRequest } | { error: string } {
+  const [request] = args;
+  if (args.length !== 1 || !isJsonObject(request)) return { error: 'auth/consent takes one request object' };
+  for (const field of Object.keys(request)) {
+    if (field !== 'authorizeUrl') return { error: `auth/consent: ${field} is not a field of the request` };
+  }
+  const authorizeUrl = request.authorizeUrl;
+  return typeof authorizeUrl === 'string' && authorizeUrl !== '' ? { request: { authorizeUrl } } : { error: 'auth/consent: authorizeUrl must be one non-empty text' };
+}
+
+/** The `code` and `state` query params of a consent's final redirect URL, read as they are; a redirect without both is a denial. */
+export function consentFromRedirect(redirectUrl: string): HostConsentAnswer {
+  let params: URLSearchParams;
+  try {
+    params = new URL(redirectUrl).searchParams;
+  } catch {
+    throw new HostAskError('invalid', 'the consent redirect is not a URL');
+  }
+  const code = params.get('code');
+  const state = params.get('state');
+  if (code === null || code === '' || state === null || state === '') throw new HostAskError('denied', 'the consent redirect carried no code and state');
+  return { code, state };
+}
+
+async function performConsent(actions: KernelHostActions | undefined, args: readonly JsonValue[]): Promise<HostAskOutcome> {
+  const parsed = parseConsentRequest(args);
+  if ('error' in parsed) return { error: parsed.error, kind: 'invalid' };
+  if (actions?.consent === undefined) return { error: 'no host consent is configured for auth/consent', kind: 'unavailable' };
+  try {
+    const { code, state } = await actions.consent(parsed.request);
+    return { ok: { code, state } };
+  } catch (error) {
+    if (error instanceof HostAskError) return { error: error.message, kind: error.kind };
+    return { error: error instanceof Error ? error.message : String(error), kind: 'unavailable' };
+  }
+}
+
+/** The answer of one host ask whose completion the host returns: `auth/sign-in` through the host's sign-in, `auth/consent` through its consent, any other op as it is performed (an empty success). */
 export async function performHostAnswer(actions: KernelHostActions | undefined, op: string, args: readonly JsonValue[]): Promise<HostAskOutcome> {
+  if (op === 'auth/consent') return performConsent(actions, args);
   if (op !== 'auth/sign-in') {
     const outcome = await performHostAsk(actions, op, args);
     return 'error' in outcome ? { error: outcome.error, kind: 'unavailable' } : { ok: {} };
@@ -465,7 +516,7 @@ async function substrateInPlace(
   request: Extract<IoRequestWire, { kind: 'substrate' }>,
   scope: KernelAnswerScope,
 ): Promise<IoAnswerWire> {
-  if (request.op === 'auth/sign-in') return { kind: 'substrate', result: { error: { message: 'auth/sign-in runs on the client host: a server-role kernel cannot ask it', errors: [] } } };
+  if (request.op === 'auth/sign-in' || request.op === 'auth/consent') return { kind: 'substrate', result: { error: { message: `${request.op} runs on the client host: a server-role kernel cannot ask it`, errors: [] } } };
   if (request.op.startsWith('audio/') || request.op === 'auth/sign-out') return hostAction(ports, request);
   if (request.op === 'program/live') return { kind: 'substrate', result: { error: { message: 'program/live streams to its onMessage route: give it a key and an onMessage route', errors: [] } } };
   const handler = ports.programEffect();
@@ -566,6 +617,7 @@ async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs' | 'prog
   return { ok: true, result: response };
 }
 
+const CREDENTIAL_CONNECT_UNAVAILABLE = 'this host holds no credential store that can connect';
 const SECRET_PORTS_UNAVAILABLE = 'SECRET_PORTS_UNAVAILABLE: this host was given no secret ports';
 
 /** `prompt` / `embed`: the host's on-device model or embedder; keyed, a `cancel-call` aborts the ask and a late reply is dropped. */
@@ -665,12 +717,13 @@ const SEGMENT_ENCODERS: Readonly<Record<string, (value: string) => string>> = {
 };
 
 /**
- * An `os/send` whose data operand is a list of `{ bytes, credential, encode? }` segments becomes one bytes operand here, at
+ * An `os/send` whose data operand is a list of `{ bytes, credential, encode?, scope? }` segments becomes one bytes operand here, at
  * the boundary: each segment is its standard base64 `bytes` followed by the value of the credential it names (passed through
- * its `encode`; an empty name is bytes alone). The credential's value is read from the host's secret store and exists only in
+ * its `encode`; an empty name is bytes alone). A segment's `scope` is `app` (default) or `user`: a user segment reads the
+ * credential of `principal`, the viewer the kernel carried on the ask, and is denied with none. The credential's value is read from the host's secret store and exists only in
  * this call, never in program data, the journal or the answer. Mirrors `resolve_credential_segments` in orbital-core.
  */
-async function withCredentialSegments(ports: KernelHostPorts, op: string, args: JsonValue[]): Promise<{ args: JsonValue[] } | { error: OsError }> {
+async function withCredentialSegments(ports: KernelHostPorts, op: string, args: JsonValue[], principal: string | undefined): Promise<{ args: JsonValue[] } | { error: OsError }> {
   const segments = args[1];
   if (op !== 'os/send' || !Array.isArray(segments)) return { args };
   const parts: Uint8Array[] = [];
@@ -685,12 +738,15 @@ async function withCredentialSegments(ports: KernelHostPorts, op: string, args: 
     const requested = segment['encode'];
     const encoder = requested === undefined ? undefined : typeof requested === 'string' && Object.hasOwn(SEGMENT_ENCODERS, requested) ? SEGMENT_ENCODERS[requested] : null;
     if (encoder === null) return invalid(`encode must be one of ${Object.keys(SEGMENT_ENCODERS).join(', ')}`);
+    const requestedScope = segment['scope'];
+    if (requestedScope !== undefined && requestedScope !== 'app' && requestedScope !== 'user') return invalid('scope must be one of app, user');
     if (name === '') continue;
+    if (requestedScope === 'user' && principal === undefined) return { error: { kind: 'denied', message: `${op}: segment ${at + 1} needs a signed-in viewer` } };
     const store = ports.secretPorts?.secrets;
     if (store === undefined) return { error: { kind: 'denied', message: `${op}: no credential source is configured` } };
     let held: string | undefined | null;
     try {
-      held = await store.get(name, undefined);
+      held = await store.get(name, requestedScope === 'user' ? principal : undefined);
     } catch (error) {
       return { error: { kind: 'io', message: `${op}: credential ${name}: ${error instanceof Error ? error.message : String(error)}` } };
     }
@@ -716,7 +772,7 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
   if ((streaming || deferring) && lease === undefined) {
     return { kind: 'os', result: { error: { kind: 'invalid', message: `${op}: key ${key} already has ${streaming ? 'a stream open' : 'a completion pending'}` } } };
   }
-  const segmented = await withCredentialSegments(ports, op, request.args);
+  const segmented = await withCredentialSegments(ports, op, request.args, request.principal);
   if ('error' in segmented) {
     lease?.release();
     return { kind: 'os', result: segmented };
@@ -826,6 +882,12 @@ async function credentialForget(ports: KernelHostPorts, request: Extract<IoReque
     await store.forget(request.name, request.principal);
     return null;
   }) };
+}
+
+async function credentialEnvTails(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'credentialEnvTails' }>): Promise<IoAnswerWire> {
+  const env = ports.secretPorts?.env;
+  if (env === undefined) return { kind: 'credentialEnvTails', result: { ok: { kind: 'unsupported' } } };
+  return { kind: 'credentialEnvTails', result: await settle(async () => ({ kind: 'held' as const, tails: env(request.names) })) };
 }
 
 async function credentialAdmin<T>(ports: KernelHostPorts, work: (port: CredentialAdminPort) => Promise<T>): Promise<Settled<T, string>> {
@@ -973,8 +1035,12 @@ export async function answerRequest(ports: KernelHostPorts, request: IoRequestWi
       return credentialStatus(ports, request);
     case 'credentialForget':
       return credentialForget(ports, request);
+    case 'credentialConnect':
+      return { kind: 'credentialConnect', result: { error: { kind: 'unavailable', message: CREDENTIAL_CONNECT_UNAVAILABLE } } };
     case 'credentialStoreList':
       return { kind: request.kind, result: await credentialAdmin(ports, (port) => port.list()) };
+    case 'credentialEnvTails':
+      return credentialEnvTails(ports, request);
     case 'credentialStoreRead':
       return { kind: request.kind, result: await credentialAdmin(ports, (port) => port.read(request.name)) };
     case 'credentialStoreWrite':

@@ -15,6 +15,7 @@
  */
 
 import { z } from 'zod';
+import { setOwn } from './own-key.js';
 import { JsonValueSchema, type JsonValue, type RuntimeValue } from './json.js';
 
 // ============================================================================
@@ -530,7 +531,7 @@ function canonicalQuoteValue(expr: SExpr): SExpr {
   if (Array.isArray(expr)) return expr.map(canonicalQuoteValue);
   if (expr !== null && typeof expr === 'object') {
     const out: SExprObject = {};
-    for (const key of Object.keys(expr).sort()) out[key] = canonicalQuoteValue(expr[key]);
+    for (const key of Object.keys(expr).sort()) setOwn(out, key, canonicalQuoteValue(expr[key]));
     return out;
   }
   return expr;
@@ -610,7 +611,7 @@ function extractHoles(expr: SExpr, holes: SExpr[]): SExpr {
   if (expr !== null && typeof expr === 'object') {
     // Canonical key order, so hole numbering matches the body bytes on every path.
     const out: SExprObject = {};
-    for (const k of Object.keys(expr).sort()) out[k] = extractHoles(expr[k], holes);
+    for (const k of Object.keys(expr).sort()) setOwn(out, k, extractHoles(expr[k], holes));
     return out;
   }
   return expr;
@@ -648,7 +649,7 @@ function fillMarkers(expr: SExpr, values: readonly SExpr[]): SExpr {
   if (Array.isArray(expr)) return expr.map((e) => fillMarkers(e, values));
   if (expr !== null && typeof expr === 'object') {
     const out: SExprObject = {};
-    for (const [k, v] of Object.entries(expr)) out[k] = fillMarkers(v, values);
+    for (const [k, v] of Object.entries(expr)) setOwn(out, k, fillMarkers(v, values));
     return out;
   }
   return expr;
@@ -667,7 +668,7 @@ export function toProgramData(value: RuntimeValue): SExpr {
   if (Array.isArray(value)) return value.map((v: RuntimeValue) => toProgramData(v));
   if (typeof value === 'object' && !(value instanceof Date) && Object.getPrototypeOf(value) === Object.prototype) {
     const out: SExprObject = {};
-    for (const [k, v] of Object.entries(value)) out[k] = toProgramData(v);
+    for (const [k, v] of Object.entries(value)) setOwn(out, k, toProgramData(v));
     return out;
   }
   throw new Error(`quasiquote: a hole evaluated to a ${typeof value} value, which cannot be held as program data`);

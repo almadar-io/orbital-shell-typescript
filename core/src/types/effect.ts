@@ -393,7 +393,7 @@ export type CallServiceEmitConfig = {
  */
 export type CancelCallEffect = ['cancel-call', SExpr];
 
-/** Trailing config of `random-bytes`, `credential-status` and `credential-forget`: outcome events only. */
+/** Trailing config of `random-bytes`, `credential-status`, `credential-forget` and `credential-connect`: outcome events only. */
 export type HostCallEmitConfig = {
     emit?: { success?: string; failure?: string };
 };
@@ -479,6 +479,41 @@ export type CredentialStatusEffect =
 export type CredentialForgetEffect =
     | ['credential-forget', SExpr]
     | ['credential-forget', SExpr, HostCallEmitConfig];
+
+/** Why a `credential-connect` did not connect. */
+export type CredentialConnectFailureKind =
+    | 'unavailable' | 'unsigned' | 'denied' | 'invalid_grant' | 'invalid_client' | 'transport' | 'malformed' | 'refused';
+
+/** The request of `credential-connect`: `credential`, `clientId` and `clientSecret` are secret knobs; `code` and `verifier` are the single-use values the host's credential store exchanges. */
+export interface CredentialConnectRequest {
+    credential: SExpr;
+    scope?: SExpr;
+    tokenEndpoint: SExpr;
+    grant: SExpr;
+    code: SExpr;
+    redirectUri: SExpr;
+    verifier?: SExpr;
+    clientId: SExpr;
+    clientSecret?: SExpr;
+    clientAuth: SExpr;
+    scopes?: SExpr;
+}
+
+/**
+ * Credential-connect effect - asks the host's credential store to exchange an OAuth code at a declared token endpoint and
+ * keep the result under the named secret knob; the program never holds a token. Success carries {@link CredentialPayload};
+ * failure carries {@link CredentialConnectFailure}. Server-only.
+ * @example ['credential-connect', { credential: '@config.googleToken', tokenEndpoint: 'https://oauth2.googleapis.com/token', grant: 'authorization_code', code: '@payload.code', redirectUri: 'https://app.example.com/cb', clientId: '@config.googleClientId', clientAuth: 'body' }, { emit: { success: 'CONNECTED' } }]
+ */
+export type CredentialConnectEffect =
+    | ['credential-connect', CredentialConnectRequest]
+    | ['credential-connect', CredentialConnectRequest, HostCallEmitConfig];
+
+/** Failure payload of `credential-connect`. */
+export interface CredentialConnectFailure {
+    error: string;
+    kind: CredentialConnectFailureKind;
+}
 
 /** Success payload of `credential-status` and `credential-forget`. */
 export interface CredentialPayload {
@@ -984,6 +1019,7 @@ export type TypedEffect =
     | RandomBytesEffect
     | CredentialStatusEffect
     | CredentialForgetEffect
+    | CredentialConnectEffect
     | CredentialAdminEffect
     | AccessCheckEffect
     | SpawnEffect
@@ -1053,7 +1089,7 @@ export type Effect = TypedEffect;
 
 /** Every literal effect operator the {@link Effect} union declares, as runtime data. */
 export const EFFECT_OPERATORS = [
-  'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'http', 'oauth-authorize', 'oauth-connection-status', 'oauth-connection-forget', 'random-bytes', 'credential-status', 'credential-forget', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'spawn',
+  'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'http', 'oauth-authorize', 'oauth-connection-status', 'oauth-connection-forget', 'random-bytes', 'credential-status', 'credential-forget', 'credential-connect', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'spawn',
   'despawn', 'do', 'fetch', 'fetch-stream', 'if', 'when', 'let', 'log', 'wait',
   'notify', 'send-server',
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',

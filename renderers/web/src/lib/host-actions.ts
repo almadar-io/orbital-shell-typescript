@@ -1,12 +1,15 @@
 import type { EventPayload, HostAskCompletion, JsonValue } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
-import { hostAskReturn, performHostAnswer, type HostAudioAsk, type HostSignInAnswer, type HostSignInRequest, type KernelHostActions } from '@almadar/shell-runtime/kernel/host';
+import { hostAskReturn, performHostAnswer, type HostAudioAsk, type HostConsentAnswer, type HostConsentRequest, type HostSignInAnswer, type HostSignInRequest, type KernelHostActions } from '@almadar/shell-runtime/kernel/host';
+
+import { browserConsentEnv, consentByPopup } from './consent-popup';
 
 const log = createLogger('almadar:ui:host-actions');
 
 let audioHost: ((ask: HostAudioAsk) => void) | undefined;
 let signOutHost: (() => void | Promise<void>) | undefined;
 let signInHost: ((request: HostSignInRequest) => Promise<HostSignInAnswer>) | undefined;
+let consentHost: ((request: HostConsentRequest) => Promise<HostConsentAnswer>) | undefined;
 
 /** Install the audio the `audio/*` asks drive (the mounted game audio provider); the returned function removes it. */
 export function registerHostAudio(host: (ask: HostAudioAsk) => void): () => void {
@@ -32,6 +35,14 @@ export function registerHostSignIn(host: (request: HostSignInRequest) => Promise
   };
 }
 
+/** Install the consent `auth/consent` runs in place of the popup (a shell with its own authorize window, such as an extension); the returned function removes it. */
+export function registerHostConsent(host: (request: HostConsentRequest) => Promise<HostConsentAnswer>): () => void {
+  consentHost = host;
+  return () => {
+    if (consentHost === host) consentHost = undefined;
+  };
+}
+
 /** What the web shell answers `audio/*` and `auth/sign-out` with: the host installed above, read per ask. */
 export const webHostActions: KernelHostActions = {
   get audio() {
@@ -43,13 +54,16 @@ export const webHostActions: KernelHostActions = {
   get signIn() {
     return signInHost;
   },
+  get consent() {
+    return consentHost ?? (typeof window === 'undefined' ? undefined : consentByPopup(browserConsentEnv(window)));
+  },
 };
 
 /** Dispatches one event to a trait: the return of a host ask. */
 export type HostAskDispatch = (trait: string, event: string, payload: EventPayload) => Promise<void>;
 
 /**
- * Answers one `host-ask` client effect the kernel handed back (`auth/sign-out`, `auth/sign-in`, `audio/*`). An ask
+ * Answers one `host-ask` client effect the kernel handed back (`auth/sign-out`, `auth/sign-in`, `auth/consent`, `audio/*`). An ask
  * that declared `emit` routes returns its answer by dispatching the route's event to the asking trait; a refusal of
  * an ask with no route is logged by name.
  */

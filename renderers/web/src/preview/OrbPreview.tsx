@@ -14,8 +14,8 @@
  * @packageDocumentation
  */
 
-import { registerHostSignOut, registerHostSignIn } from '../lib/host-actions';
-import type { HostSignInAnswer, HostSignInRequest } from '@almadar/shell-runtime/kernel/host';
+import { registerHostSignOut, registerHostSignIn, registerHostConsent } from '../lib/host-actions';
+import type { HostConsentAnswer, HostConsentRequest, HostSignInAnswer, HostSignInRequest } from '@almadar/shell-runtime/kernel/host';
 import React, { createContext, useContext, useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import { useHref, useInRouterContext } from 'react-router-dom';
 import { useArbitraryClassStyles } from '../providers/ArbitraryClassCompiler';
@@ -528,6 +528,8 @@ export interface OrbPreviewProps {
    * answer returns to the asking trait). Omitted → the host offers no sign-in and the ask fails `unavailable`.
    */
   onSignInAsk?: (request: HostSignInRequest) => Promise<HostSignInAnswer>;
+  /** Answers `auth/consent` in place of the popup the web host opens: the shell's own authorize window. */
+  onConsentAsk?: (request: HostConsentRequest) => Promise<HostConsentAnswer>;
 }
 
 type LazyLoad =
@@ -587,6 +589,12 @@ function SignInHost({ onSignInAsk }: { onSignInAsk: (request: HostSignInRequest)
   return null;
 }
 
+/** Installs the host's consent window, which a `host-ask` for `auth/consent` runs (`answerHostAsk`). */
+function ConsentHost({ onConsentAsk }: { onConsentAsk: (request: HostConsentRequest) => Promise<HostConsentAnswer> }): null {
+  useEffect(() => registerHostConsent(onConsentAsk), [onConsentAsk]);
+  return null;
+}
+
 export function OrbPreview({
   schema,
   mockData,
@@ -611,6 +619,7 @@ export function OrbPreview({
   onSignIn,
   onSignOut,
   onSignInAsk,
+  onConsentAsk,
 }: OrbPreviewProps): React.ReactElement {
   if (serverUrl && transport) {
     throw new Error('OrbPreview accepts serverUrl OR transport, not both');
@@ -1029,6 +1038,7 @@ export function OrbPreview({
         <OrbitalProvider initialData={effectiveMockData} skipTheme verification isolated={isolated} user={user}>
           {onSignOut !== undefined && <SignOutHost onSignOut={onSignOut} />}
           {onSignInAsk !== undefined && <SignInHost onSignInAsk={onSignInAsk} />}
+          {onConsentAsk !== undefined && <ConsentHost onConsentAsk={onConsentAsk} />}
           <UISlotProvider>
             <PageAccessHost
               access={activePage?.access}

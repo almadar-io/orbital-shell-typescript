@@ -46,6 +46,20 @@ describe('node credential rows', () => {
     expect(rowsOf(file)).toEqual([]);
   });
 
+  it('lists the last four characters of a secret of eight or more and nothing for a shorter one', async () => {
+    const { env } = workspace();
+    const vault = await installNodeCredentialVault({ kernel: wasm, env });
+    await vault?.set('stripe', 'LONG_KEY', 'sk-live-abcd1234');
+    await vault?.set('stripe', 'SHORT_KEY', 'sk-1234');
+    expect(vault?.listing()).toEqual({
+      enabled: true,
+      entries: [
+        { service: 'stripe', name: 'LONG_KEY', last4: '1234' },
+        { service: 'stripe', name: 'SHORT_KEY' },
+      ],
+    });
+  });
+
   it('reads rows the native host wrote: the shared fixture opens to the plaintexts, rotation window included', async () => {
     const { file } = workspace();
     const rows = fileCredentialRows(file);
