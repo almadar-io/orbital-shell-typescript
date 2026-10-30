@@ -10,7 +10,7 @@ import type {
   ProgramInspection,
   TraitDescription,
 } from '@almadar/core';
-import type { OsGrantsReport, ProveReport } from '@almadar/core/kernel-wire';
+import type { OsGrantsReport, PendingAsk, ProveReport } from '@almadar/core/kernel-wire';
 
 /** The effects the language trio routes to this host. */
 export const PROGRAM_EFFECTS = [
@@ -78,7 +78,7 @@ export interface CascadeOutcome {
 }
 
 /** A played request: the request as asked, and the circuit it ran, with every trait its cascade moved. */
-export type PlayedStep = StepRequest & { result: CircuitStepResult & { outcomes: CascadeOutcome[]; entityAfter: EventPayload | null } };
+export type PlayedStep = StepRequest & { result: CircuitStepResult & { outcomes: CascadeOutcome[]; entityAfter: EventPayload | null; pendingAsks: PendingAsk[] } };
 
 /** The outcome of one program effect: the value for `{ result }`, or the failure (`errors` for eval's validator issues). */
 export type ProgramEffectOutcome =

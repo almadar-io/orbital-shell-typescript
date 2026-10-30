@@ -110,7 +110,7 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
   'access-check': 'system',
   'render-ui': 'ui', 'navigate': 'ui', 'navigate-back': 'ui',
   'set': 'data', 'persist': 'data', 'fetch': 'data', 'fetch-stream': 'data',
-  'emit': 'communication', 'notify': 'communication', 'send-server': 'communication', 'call-service': 'communication', 'cancel-call': 'communication',
+  'emit': 'communication', 'http': 'communication', 'notify': 'communication', 'send-server': 'communication', 'call-service': 'communication', 'cancel-call': 'communication',
   'spawn': 'lifecycle', 'despawn': 'lifecycle',
   'do': 'control', 'if': 'control', 'when': 'control', 'let': 'control', 'log': 'control',
   'wait': 'async',
@@ -121,6 +121,7 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/prove': 'system', 'program/os-grants': 'system', 'program/compose': 'system', 'program/step': 'system',
   'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'compute',
+  'oauth-authorize': 'system', 'oauth-connection-status': 'system', 'oauth-connection-forget': 'system',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system',
 };
 
@@ -137,7 +138,7 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
   'render-ui': 'screen', 'navigate': 'route', 'navigate-back': 'route',
   'set': 'entity',
   'persist': 'store', 'fetch': 'store', 'fetch-stream': 'store',
-  'emit': 'bus', 'send-server': 'bus', 'notify': 'toast', 'call-service': 'remote', 'cancel-call': 'remote',
+  'emit': 'bus', 'send-server': 'bus', 'http': 'remote', 'notify': 'toast', 'call-service': 'remote', 'cancel-call': 'remote',
   'spawn': 'instances', 'despawn': 'instances',
   'do': 'flow', 'if': 'flow', 'when': 'flow', 'let': 'flow', 'log': 'flow',
   'wait': 'timer',
@@ -148,6 +149,7 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/prove': 'system', 'program/os-grants': 'system', 'program/compose': 'system', 'program/step': 'system',
   'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'system',
+  'oauth-authorize': 'remote', 'oauth-connection-status': 'remote', 'oauth-connection-forget': 'remote',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system',
 };
 

@@ -427,6 +427,8 @@ values?: Array<string>,
  */
 entity?: string, };
 
+export type PendingAsk = { trait: string, operator: string, args: Array<JsonValue>, key: string, };
+
 export type PendingRequestWire = { id: number, request: IoRequestWire, };
 
 export type PlayedEffect = { type: string, args: Array<JsonValue>, status: PlayedEffectStatus, error?: string, 
@@ -652,7 +654,7 @@ export type StepRefusal = { success: false, error: string, };
 
 export type StepReport = { success: true, steps: Array<StepResult>, dispatchModes: { [key in string]: DispatchMode }, };
 
-export type StepResult = { outcomes: Array<StepOutcome>, states: { [key in string]: string }, entities: { [key in string]: JsonValue }, entityAfter: EventPayload | null, };
+export type StepResult = { outcomes: Array<StepOutcome>, states: { [key in string]: string }, entities: { [key in string]: JsonValue }, entityAfter: EventPayload | null, pendingAsks: Array<PendingAsk>, };
 
 export type StoreListing = { enabled: boolean, entries: Array<StoredName>, };
 
@@ -1122,6 +1124,10 @@ function checkPageFactsWire(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["available"] === 'boolean' && typeof v["hostname"] === 'string' && typeof v["referrer"] === 'string' && (typeof v["screenWidth"] === 'number' || v["screenWidth"] === null) && typeof v["href"] === 'string');
 }
 
+function checkPendingAsk(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["operator"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && typeof v["key"] === 'string');
+}
+
 function checkPendingRequestWire(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["id"] === 'number' && checkIoRequestWire(v["request"]));
 }
@@ -1303,7 +1309,7 @@ function checkStepReport(v: JsonValue | undefined): boolean {
 }
 
 function checkStepResult(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && (Array.isArray(v["outcomes"]) && v["outcomes"].every((e) => checkStepOutcome(e))) && (isRecord(v["states"]) && Object.values(v["states"]).every((e) => typeof e === 'string')) && (isRecord(v["entities"]) && Object.values(v["entities"]).every((e) => accepts((x, q) => any(x, q), e))) && (accepts((x, q) => rec(x, q), v["entityAfter"]) || v["entityAfter"] === null));
+  return (isRecord(v) && (Array.isArray(v["outcomes"]) && v["outcomes"].every((e) => checkStepOutcome(e))) && (isRecord(v["states"]) && Object.values(v["states"]).every((e) => typeof e === 'string')) && (isRecord(v["entities"]) && Object.values(v["entities"]).every((e) => accepts((x, q) => any(x, q), e))) && (accepts((x, q) => rec(x, q), v["entityAfter"]) || v["entityAfter"] === null) && (Array.isArray(v["pendingAsks"]) && v["pendingAsks"].every((e) => checkPendingAsk(e))));
 }
 
 function checkStoreListing(v: JsonValue | undefined): boolean {
@@ -1634,6 +1640,10 @@ function buildPageFactsWire(v: JsonValue | undefined, p: string): PageFactsWire 
   return obj(v, p, null, (r0) => ({ "available": bool(r0["available"], p + '.available'), "hostname": str(r0["hostname"], p + '.hostname'), "referrer": str(r0["referrer"], p + '.referrer'), "screenWidth": r0["screenWidth"] === undefined ? null : (r0["screenWidth"] === null ? null : num(r0["screenWidth"], p + '.screenWidth')), "href": str(r0["href"], p + '.href') }));
 }
 
+function buildPendingAsk(v: JsonValue | undefined, p: string): PendingAsk {
+  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "operator": str(r0["operator"], p + '.operator'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), "key": str(r0["key"], p + '.key') }));
+}
+
 function buildPendingRequestWire(v: JsonValue | undefined, p: string): PendingRequestWire {
   return obj(v, p, null, (r0) => ({ "id": int(r0["id"], p + '.id', 0, Number.MAX_SAFE_INTEGER, "u64"), "request": buildIoRequestWire(r0["request"], p + '.request') }));
 }
@@ -1815,7 +1825,7 @@ function buildStepReport(v: JsonValue | undefined, p: string): StepReport {
 }
 
 function buildStepResult(v: JsonValue | undefined, p: string): StepResult {
-  return obj(v, p, null, (r0) => ({ "outcomes": list(r0["outcomes"], p + '.outcomes', (e1, q1) => buildStepOutcome(e1, q1)), "states": dict(r0["states"], p + '.states', (e1, q1) => str(e1, q1)), "entities": dict(r0["entities"], p + '.entities', (e1, q1) => any(e1, q1)), "entityAfter": (r0["entityAfter"] === null ? null : rec(r0["entityAfter"], p + '.entityAfter')) }));
+  return obj(v, p, null, (r0) => ({ "outcomes": list(r0["outcomes"], p + '.outcomes', (e1, q1) => buildStepOutcome(e1, q1)), "states": dict(r0["states"], p + '.states', (e1, q1) => str(e1, q1)), "entities": dict(r0["entities"], p + '.entities', (e1, q1) => any(e1, q1)), "entityAfter": (r0["entityAfter"] === null ? null : rec(r0["entityAfter"], p + '.entityAfter')), "pendingAsks": list(r0["pendingAsks"], p + '.pendingAsks', (e1, q1) => buildPendingAsk(e1, q1)) }));
 }
 
 function buildStoreListing(v: JsonValue | undefined, p: string): StoreListing {

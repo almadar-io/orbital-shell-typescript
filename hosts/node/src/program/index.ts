@@ -581,6 +581,7 @@ export async function programStep(program: OrbitalSchema, requests: readonly Ste
         emitted: emittedOf(outcome.emits, i),
         guards: outcome.guards.map((g) => ({ arm: g.arm, guard: g.guard, passed: g.passed, trace: [], ...(g.error !== undefined ? { error: g.error } : {}) })),
         entityAfter: report.steps[i]?.entityAfter ?? null,
+        pendingAsks: report.steps[i]?.pendingAsks ?? [],
         outcomes: moved.map((o) => ({ orbital: o.orbital, trait: o.trait, event: o.event, from: o.previousState, to: o.newState, arm: o.firedArm, fired: o.executed, effects: effectsOf(o.effects), emitted: emittedOf(o.emits, i) })),
       } });
     }

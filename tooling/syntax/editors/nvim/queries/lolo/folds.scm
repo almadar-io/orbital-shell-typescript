@@ -15,4 +15,5 @@
   (object_literal)
   (array_literal)
   (jsx_element)
+  (sexpr)
 ] @fold

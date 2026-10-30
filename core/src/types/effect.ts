@@ -398,6 +398,54 @@ export type HostCallEmitConfig = {
     emit?: { success?: string; failure?: string };
 };
 
+/** Request parts of an `http` effect: query, headers, at most one body, auth, retry, timeouts, response and stream options. */
+export type HttpRequestParts = { [part: string]: SExpr };
+
+/**
+ * Http effect - `(http METHOD origin path request? options?)`. The origin must be declared in the app's egress;
+ * credentials are host-resolved secret knobs. Success carries `{ status, headers, body, key }`. Server-only.
+ * @example ['http', 'GET', 'https://api.example.com', '/items', { query: { limit: 10 } }, { emit: { success: 'ITEMS_LOADED', failure: 'ITEMS_FAILED' } }]
+ */
+export type HttpEffect =
+    | ['http', SExpr, SExpr, SExpr]
+    | ['http', SExpr, SExpr, SExpr, HttpRequestParts]
+    | ['http', SExpr, SExpr, SExpr, HttpRequestParts, CallServiceEmitConfig];
+
+/** The OAuth client an `oauth-authorize` names: tag, mode, issuer XOR endpoints, secret-knob client credentials, clientAuth. */
+export type OAuthClient = { [field: string]: SExpr };
+
+/** Authorization request of `oauth-authorize`. */
+export interface OAuthAuthorizeRequest {
+    redirectUri: SExpr;
+    scope?: SExpr;
+    subject?: SExpr;
+    params?: SExpr;
+}
+
+/**
+ * OAuth-authorize effect - starts an authorization for a client; success carries `{ authUrl, state, code }`. Server-only.
+ * @example ['oauth-authorize', { tag: 'google', mode: 'real' }, { redirectUri: 'https://app.example.com/cb', scope: ['openid'] }, { emit: { success: 'AUTH_URL' } }]
+ */
+export type OAuthAuthorizeEffect =
+    | ['oauth-authorize', OAuthClient, OAuthAuthorizeRequest]
+    | ['oauth-authorize', OAuthClient, OAuthAuthorizeRequest, HostCallEmitConfig & { key?: SExpr }];
+
+/**
+ * OAuth-connection-status effect - the signed-in viewer's connection to a provider (google, github or auth0).
+ * @example ['oauth-connection-status', 'google', { emit: { success: 'CONNECTION' } }]
+ */
+export type OAuthConnectionStatusEffect =
+    | ['oauth-connection-status', SExpr]
+    | ['oauth-connection-status', SExpr, HostCallEmitConfig];
+
+/**
+ * OAuth-connection-forget effect - drops the signed-in viewer's connection to a provider.
+ * @example ['oauth-connection-forget', 'google', { emit: { success: 'DISCONNECTED' } }]
+ */
+export type OAuthConnectionForgetEffect =
+    | ['oauth-connection-forget', SExpr]
+    | ['oauth-connection-forget', SExpr, HostCallEmitConfig];
+
 /**
  * Random-bytes effect - `n` bytes (an integer from 1 to 1024) of the host CSPRNG, journaled on the kernel path.
  * Success carries {@link RandomBytesPayload}; failure carries `{ error }`. Server-only.
@@ -929,6 +977,10 @@ export type TypedEffect =
     | PersistEffect
     | CallServiceEffect
     | CancelCallEffect
+    | HttpEffect
+    | OAuthAuthorizeEffect
+    | OAuthConnectionStatusEffect
+    | OAuthConnectionForgetEffect
     | RandomBytesEffect
     | CredentialStatusEffect
     | CredentialForgetEffect
@@ -1001,7 +1053,7 @@ export type Effect = TypedEffect;
 
 /** Every literal effect operator the {@link Effect} union declares, as runtime data. */
 export const EFFECT_OPERATORS = [
-  'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'random-bytes', 'credential-status', 'credential-forget', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'spawn',
+  'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'http', 'oauth-authorize', 'oauth-connection-status', 'oauth-connection-forget', 'random-bytes', 'credential-status', 'credential-forget', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'spawn',
   'despawn', 'do', 'fetch', 'fetch-stream', 'if', 'when', 'let', 'log', 'wait',
   'notify', 'send-server',
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
