@@ -25,16 +25,13 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 
 import {
-  type OrbitalEventRequest,
-  type OrbitalEventResponse,
   type EventStreamItem,
   EventStreamItemSchema,
   type LiveBroadcastItem,
-  OrbitalEventRequestSchema,
-  OrbitalEventResponseSchema,
   LiveBroadcastItemSchema,
 } from './types/bus.js';
 import type { JsonValue } from './types/json.js';
+import { decodeEventRequest, decodeEventResponse, type EventRequest, type EventResponse } from './generated/kernel-wire.js';
 
 /**
  * One SSE stream item, as written by the `POST .../events?stream=true`
@@ -51,8 +48,8 @@ export const SSEStreamItemSchema = EventStreamItemSchema;
 
 /** One loaded fixture case — the files actually present under `<case>/`. */
 export interface EventWireFixture {
-  request?: OrbitalEventRequest;
-  response?: OrbitalEventResponse;
+  request?: EventRequest;
+  response?: EventResponse;
   stream?: SSEStreamItem[];
   livePush?: LiveBroadcastItem;
 }
@@ -99,9 +96,9 @@ function readJsonIfExists(path: string): JsonValue | undefined {
 
 /** Reads `<caseDir>/<file>` and validates it through its schema — the load is
  *  typed by the parse, never by a cast. */
-function loadValidated<T>(caseDir: string, file: string, schema: z.ZodType<T, object>): T | undefined {
+function loadValidated<T>(caseDir: string, file: string, decode: (json: JsonValue) => T): T | undefined {
   const json = readJsonIfExists(join(caseDir, file));
-  return json === undefined ? undefined : schema.parse(json);
+  return json === undefined ? undefined : decode(json);
 }
 
 /**
@@ -116,9 +113,9 @@ export function loadEventWireFixture(caseName: string): EventWireFixture {
   }
   const caseDir = join(PACKAGE_ROOT, 'fixtures', 'events-wire', caseName);
   return {
-    request: loadValidated(caseDir, 'request.json', OrbitalEventRequestSchema),
-    response: loadValidated(caseDir, 'response.json', OrbitalEventResponseSchema),
-    stream: loadValidated(caseDir, 'stream.json', z.array(SSEStreamItemSchema)),
-    livePush: loadValidated(caseDir, 'live-push.json', LiveBroadcastItemSchema),
+    request: loadValidated(caseDir, 'request.json', decodeEventRequest),
+    response: loadValidated(caseDir, 'response.json', decodeEventResponse),
+    stream: loadValidated(caseDir, 'stream.json', (json) => z.array(SSEStreamItemSchema).parse(json)),
+    livePush: loadValidated(caseDir, 'live-push.json', (json) => LiveBroadcastItemSchema.parse(json)),
   };
 }

@@ -241,6 +241,12 @@ impl Server {
         self.api.get().map_err(js)?.api().route_mounts(&route_path).map_err(js)
     }
 
+    /// One question about the registered program (a `ContractQuery` as JSON): its answer as JSON.
+    #[napi]
+    pub fn contract_query(&self, query_json: String) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().contract_query(&query_json).map_err(js)
+    }
+
     #[napi]
     pub fn remount(&self, traits_json: String) -> napi::Result<()> {
         self.api
@@ -277,13 +283,46 @@ impl Server {
     }
 
     #[napi]
-    pub fn set_tick_mount(&self, traits_json: String) -> napi::Result<()> {
-        self.api
-            .get()
-            .map_err(js)?
-            .api()
-            .set_tick_mount(&traits_json)
-            .map_err(js)
+    pub fn mount_client(&self, client: String, orbital: String, traits_json: String) -> napi::Result<()> {
+        self.api.get().map_err(js)?.api().mount_client(&client, &orbital, &traits_json).map_err(js)
+    }
+
+    #[napi]
+    pub fn unmount_client(&self, client: String, orbital: String, traits_json: String) -> napi::Result<()> {
+        self.api.get().map_err(js)?.api().unmount_client(&client, &orbital, &traits_json).map_err(js)
+    }
+
+    #[napi]
+    pub fn release_client(&self, client: String) -> napi::Result<()> {
+        self.api.get().map_err(js)?.api().release_client(&client);
+        Ok(())
+    }
+
+    #[napi]
+    pub fn relay_tick(&self, orbital: String, request_json: String) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().relay_tick(&orbital, &request_json).map_err(js)
+    }
+
+    #[napi]
+    pub fn set_tick_relay_interval(&self, interval_ms: f64) -> napi::Result<()> {
+        self.api.get().map_err(js)?.api().set_tick_relay_interval(interval_ms.max(0.0) as u64);
+        Ok(())
+    }
+
+    #[napi]
+    pub fn flush_tick_relay(&self) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().flush_tick_relay().map_err(js)
+    }
+
+    #[napi]
+    pub fn set_stateful(&self, stateful: bool) -> napi::Result<()> {
+        self.api.get().map_err(js)?.api().set_stateful(stateful);
+        Ok(())
+    }
+
+    #[napi]
+    pub fn declares_ticks(&self) -> napi::Result<bool> {
+        Ok(self.api.get().map_err(js)?.api().declares_ticks())
     }
 
     #[napi]
@@ -331,6 +370,12 @@ pub fn parse_event_request(env: Env, payload_json: String, options_json: String)
     let json: napi::JsObject = env.get_global()?.get_named_property("JSON")?;
     let parse: napi::JsFunction = json.get_named_property("parse")?;
     parse.call(Some(&json), &[env.create_string(&request)?])
+}
+
+/// The program's emitter-to-listener wire table (`EventWire[]` as JSON), by the source rule the kernel delivers by.
+#[napi]
+pub fn event_wires(schema_json: String) -> napi::Result<String> {
+    api::event_wires(&schema_json).map_err(js)
 }
 
 #[napi]

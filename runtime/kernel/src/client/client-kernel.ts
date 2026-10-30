@@ -2,12 +2,12 @@
  * The contract of a client kernel: what a view dispatches into and what it gets back. `@almadar/ui`'s kernel client
  * (over `@almadar/kernel/client`) implements it.
  */
-import type { DispatchMode, MountSeed, OrbitalEventRequest, OrbitalEventResponse, TransitionRejection } from '@almadar/core';
+import type { DispatchMode, EmittedEvent, MountSeed, EventRequest, EventResponse, TransitionRejection } from '@almadar/core';
 import type { CircuitStore } from './circuit-store.js';
 
 /** One `ClientKernel.dispatch()` call's settled outcome. */
 export interface ClientKernelOutcome {
-  response: OrbitalEventResponse;
+  response: EventResponse;
   mode: DispatchMode;
   /**
    * True when `onLocal` already received the local arm's response (the leg
@@ -15,29 +15,34 @@ export interface ClientKernelOutcome {
    * added — the local ones were painted before the round trip.
    */
   localPainted?: boolean;
-  serverEffects?: Pick<OrbitalEventResponse, 'clientEffectsByTrait'>;
+  serverEffects?: Pick<EventResponse, 'clientEffectsByTrait'>;
   /**
    * A tick-lane dispatch: what its post's fold added on top of the local run,
    * once the post settles (undefined when a newer firing superseded it). The
    * drain never waits on it; the caller paints it when it lands.
    */
-  tickSettled?: Promise<Pick<OrbitalEventResponse, 'clientEffectsByTrait'> | undefined>;
+  tickSettled?: Promise<Pick<EventResponse, 'clientEffectsByTrait'> | undefined>;
 }
 
 /** Per-dispatch hooks: `onLocal` sees the locally-evaluated response before its server leg is sent. */
 export interface ClientDispatchHooks {
-  onLocal?: (local: OrbitalEventResponse) => void;
+  onLocal?: (local: EventResponse) => void;
 }
 
 /** Mount hooks: `onLocal` sees each seed's local response before the mount leg is sent. */
 export interface ClientMountHooks {
-  onLocal?: (trait: string, local: OrbitalEventResponse) => void;
+  onLocal?: (trait: string, local: EventResponse) => void;
+}
+
+/** What the kernel answered to an emit that entered from outside it: the cascade it ran, with its paint and its emits. */
+export interface ClientEmitOutcome {
+  response: EventResponse;
 }
 
 /** One `ClientKernel.dispatchMount()` call's settled outcome. */
 export interface ClientMountOutcome {
   /** Each seed's local run, in seed order (already painted through `onLocal`). */
-  seeds: Array<{ trait: string; event: string; mode: DispatchMode; local: OrbitalEventResponse }>;
+  seeds: Array<{ trait: string; event: string; mode: DispatchMode; local: EventResponse }>;
   /** Whether any mount leg was posted. */
   posted: boolean;
   success: boolean;
@@ -45,8 +50,8 @@ export interface ClientMountOutcome {
   /** Per-trait effect failures the posted legs reported (`effect-failed`). */
   rejections: TransitionRejection[];
   /** What the posted legs added: the server's effects and the emits the client had not run. */
-  serverEffects: Pick<OrbitalEventResponse, 'clientEffectsByTrait'>;
-  emittedEvents: OrbitalEventResponse['emittedEvents'];
+  serverEffects: Pick<EventResponse, 'clientEffectsByTrait'>;
+  emittedEvents: EventResponse['emittedEvents'];
 }
 
 export interface ClientKernel {
@@ -72,20 +77,37 @@ export interface ClientKernel {
    * out on a per-(event, trait) newest-wins lane outside the FIFO, with no
    * rollback, so a tick round trip never delays a command.
    */
-  dispatch(request: OrbitalEventRequest, hooks?: ClientDispatchHooks): Promise<ClientKernelOutcome>;
+  dispatch(request: EventRequest, hooks?: ClientDispatchHooks): Promise<ClientKernelOutcome>;
   /**
    * Dispatch a server-pushed live message of THIS client's own running
    * request (`PushTarget` `origin`). Outside the FIFO, because the request
    * producing it is the entry the FIFO is waiting on; progress dispatches run
    * one at a time, in push order, and never mark traits awaiting.
    */
-  dispatchProgress(request: OrbitalEventRequest): Promise<ClientKernelOutcome>;
+  dispatchProgress(request: EventRequest): Promise<ClientKernelOutcome>;
   /**
    * Show the result of a dispatch the host ran on its own (`EventTransport.subscribeHostDispatches`):
    * the host's states, rows and render land in this view. Nothing runs here and nothing is posted,
    * so the dispatch's effects happen once, on the host. Host dispatches fold one at a time, in order.
    */
-  foldHostDispatch(request: OrbitalEventRequest, response: OrbitalEventResponse): Promise<ClientKernelOutcome>;
+  foldHostDispatch(request: EventRequest, response: EventResponse): Promise<ClientKernelOutcome>;
+  /**
+   * Hand the kernel an emit that happened outside it (a bus emit with no dispatch behind it, a server push). The kernel
+   * decides who hears it: the emitter's own arm and every declared `listens` route (EXEC-DISP). Nothing is routed here.
+   */
+  deliverEmit(emitted: EmittedEvent): Promise<ClientEmitOutcome>;
+  /**
+   * Hand the kernel an emit another client made (a server push): it reaches its declared `listens` routes only, guards and
+   * payload mapping included. The emitter's own arm does not run here, and neither the emit's `dispatched` stamp nor the
+   * host's fan-out narrows who hears it.
+   */
+  deliverToListeners(emitted: EmittedEvent): Promise<ClientEmitOutcome>;
+  /**
+   * Hand the kernel the live message of this client's own running call, whose emitter already ran its own arm as that call's
+   * progress dispatch: it reaches its declared `listens` routes like `deliverToListeners`, except that a route back to the
+   * emitter under the emitted name is that arm again and does not run twice.
+   */
+  deliverOriginEmit(emitted: EmittedEvent): Promise<ClientEmitOutcome>;
   /**
    * Mount several traits in ONE FIFO entry: every seed's local arm runs and
    * paints, then one `mount` leg per owning orbital is posted and folded.
@@ -93,7 +115,7 @@ export interface ClientKernel {
   dispatchMount(
     seeds: readonly MountSeed[],
     hooks?: ClientMountHooks,
-    base?: Pick<OrbitalEventRequest, 'payload' | 'entityId' | 'clientId' | 'locale'>,
+    base?: Pick<EventRequest, 'payload' | 'entityId' | 'clientId' | 'locale'>,
   ): Promise<ClientMountOutcome>;
   readonly store: CircuitStore;
 }
@@ -106,5 +128,5 @@ export interface ClientKernel {
  * observer; a frame's aggregate response carries tick hops the kernel's tick observer already reported. `notify` wakes the store's subscribers after the fold; a frame folds several responses and notifies on the last only.
  */
 export interface LocalFoldKernel {
-  foldLocalResponse(response: OrbitalEventResponse, traceHops: boolean, notify: boolean): Promise<void>;
+  foldLocalResponse(response: EventResponse, traceHops: boolean, notify: boolean): Promise<void>;
 }

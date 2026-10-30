@@ -16,11 +16,13 @@ export function createLazyKernelClient(opts: KernelClientOptions): KernelClient 
     dispatch: (request, hooks) => client.then((c) => c.dispatch(request, hooks)),
     dispatchProgress: (request) => client.then((c) => c.dispatchProgress(request)),
     foldHostDispatch: (request, response) => client.then((c) => c.foldHostDispatch(request, response)),
+    deliverEmit: (emitted) => client.then((c) => c.deliverEmit(emitted)),
+    deliverToListeners: (emitted) => client.then((c) => c.deliverToListeners(emitted)),
+    deliverOriginEmit: (emitted) => client.then((c) => c.deliverOriginEmit(emitted)),
     dispatchMount: (seeds, hooks, base) => client.then((c) => c.dispatchMount(seeds, hooks, base)),
     routeMounts: (routePath) => client.then((c) => c.routeMounts(routePath)),
-    remount: (traits) => client.then((c) => c.remount(traits)),
-    mount: (traits) => client.then((c) => c.mount(traits)),
-    unmount: (traits) => client.then((c) => c.unmount(traits)),
+    enter: (routePath, mountKey, traits) => client.then((c) => c.enter(routePath, mountKey, traits)),
+    leave: () => client.then((c) => c.leave()),
     frame: (nowMs) => client.then((c) => c.frame(nowMs)),
     startFrames: (onFrame, schedule) => {
       let stop: (() => void) | undefined;

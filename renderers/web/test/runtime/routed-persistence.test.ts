@@ -1,7 +1,7 @@
 // The browser host's kernel store: the program's browser-stored entities in the browser database, every other entity in memory.
 import { describe, expect, it } from 'vitest';
 import type { RowQuery } from '@almadar/core';
-import { routeByEntity } from '../../src/runtime/evaluation/routed-persistence';
+import { routeByEntity } from '@almadar/shell-runtime/runtime/evaluation/routed-persistence';
 import { nativeMemory } from '../helpers/persistence.js';
 
 const everything: RowQuery = { offset: 0, limit: 10, total: 'exact' };

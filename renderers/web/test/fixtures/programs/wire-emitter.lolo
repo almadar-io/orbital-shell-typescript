@@ -1,0 +1,24 @@
+app wire-emitter [
+  version: "1.0.0",
+  description: "An atom whose one trait emits GO on INIT."
+]
+orbital EmitterOrbital {
+  entity Signal [runtime] {
+    id : string!
+  }
+
+  trait Emitter -> @rebindable Signal {
+    initial: idle
+
+    emits {
+      GO -> external { }
+    }
+
+    state idle {
+      INIT -> idle
+        (emit GO)
+    }
+  }
+
+  page boot as EmitterBoot -> Emitter
+}

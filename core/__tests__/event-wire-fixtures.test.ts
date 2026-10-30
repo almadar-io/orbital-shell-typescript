@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 import { EVENT_WIRE_FIXTURE_CASES, loadEventWireFixture } from '../src/fixtures.js';
-import { OrbitalEventRequestSchema, OrbitalEventResponseSchema, LiveBroadcastItemSchema } from '../src/types/bus.js';
+import { LiveBroadcastItemSchema } from '../src/types/bus.js';
 import { SSEStreamItemSchema } from '../src/fixtures.js';
 
 /**
@@ -49,8 +49,6 @@ describe('every fixture file parses and validates', () => {
       expect(fixture.request).toBeDefined();
       expect(fixture.response).toBeDefined();
 
-      expect(() => OrbitalEventRequestSchema.parse(fixture.request)).not.toThrow();
-      expect(() => OrbitalEventResponseSchema.parse(fixture.response)).not.toThrow();
 
       if (fixture.stream) {
         expect(fixture.stream.length).toBeGreaterThan(0);

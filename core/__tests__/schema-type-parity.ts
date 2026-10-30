@@ -33,8 +33,8 @@ type SchemaCoversType<TType, TSchema extends z.ZodTypeAny> =
 
 import type { AnimationDef, AssetCatalogEntry, Camera, ManifestEntry, ScenePos, SemanticAssetRef, SoundEntry, SpriteSheetAtlas, SubTexture, TextureAtlas, Tilesheet } from '../src/types/asset.js';
 import { AnimationDefSchema, AssetCatalogEntrySchema, CameraSchema, ManifestEntrySchema, ScenePosSchema, SemanticAssetRefSchema, SoundEntrySchema, SpriteSheetAtlasSchema, SubTextureSchema, TextureAtlasSchema, TilesheetSchema } from '../src/types/asset.js';
-import type { BusEventSource, EmittedEvent, LiveBroadcastItem, OrbitalEventRequest, OrbitalEventResponse } from '../src/types/bus.js';
-import { BusEventSourceSchema, EmittedEventSchema, LiveBroadcastItemSchema, OrbitalEventRequestSchema, OrbitalEventResponseSchema } from '../src/types/bus.js';
+import type { BusEventSource, EmittedEvent, LiveBroadcastItem } from '../src/types/bus.js';
+import { BusEventSourceSchema, EmittedEventSchema, LiveBroadcastItemSchema } from '../src/types/bus.js';
 import type { ColorTokens, CustomPatternDefinition, DensityTokens, DesignPreferences, DomainContext, ElevationTokens, GeometryTokens, IconographyTokens, IllustrationTokens, DiagramTokens, SceneTokens, SurfaceTokens, MotionDurationPalette, MotionEasingPalette, MotionIntent, MotionIntentMap, MotionTokens, RelatedLink, SpacingScale, SuggestedGuard, ThemeDefinition, ThemeTokens, ThemeVariant, TypeIntent, TypeIntentMap, TypeScale, TypeScaleEntry, TypeScaleTokens, UserPersona, UXHints } from '../src/types/domain.js';
 import { ColorTokensSchema, CustomPatternDefinitionSchema, DensityTokensSchema, DesignPreferencesSchema, DomainContextSchema, ElevationTokensSchema, GeometryTokensSchema, IconographyTokensSchema, IllustrationTokensSchema, DiagramTokensSchema, SceneTokensSchema, SurfaceTokensSchema, MotionDurationPaletteSchema, MotionEasingPaletteSchema, MotionIntentSchema, MotionIntentMapSchema, MotionTokensSchema, RelatedLinkSchema, SpacingScaleSchema, SuggestedGuardSchema, ThemeDefinitionSchema, ThemeTokensSchema, ThemeVariantSchema, TypeIntentSchema, TypeIntentMapSchema, TypeScaleSchema, TypeScaleEntrySchema, TypeScaleTokensSchema, UserPersonaSchema, UXHintsSchema } from '../src/types/domain.js';
 import type { ServerBatchSummary, ServerEffectResult } from '../src/types/effect-result.js';
@@ -91,10 +91,6 @@ const _checkEmittedEvent: SchemaCoversType<EmittedEvent, typeof EmittedEventSche
 void _checkEmittedEvent;
 const _checkLiveBroadcastItem: SchemaCoversType<LiveBroadcastItem, typeof LiveBroadcastItemSchema> = true;
 void _checkLiveBroadcastItem;
-const _checkOrbitalEventRequest: SchemaCoversType<OrbitalEventRequest, typeof OrbitalEventRequestSchema> = true;
-void _checkOrbitalEventRequest;
-const _checkOrbitalEventResponse: SchemaCoversType<OrbitalEventResponse, typeof OrbitalEventResponseSchema> = true;
-void _checkOrbitalEventResponse;
 
 // ─── domain.ts ───
 const _checkColorTokens: SchemaCoversType<ColorTokens, typeof ColorTokensSchema> = true;

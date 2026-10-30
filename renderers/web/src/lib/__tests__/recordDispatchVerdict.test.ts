@@ -6,11 +6,11 @@
  * console line, and the walk credited it because the state "reached" `to`.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import type { OrbitalEventResponse } from '@almadar/core';
+import type { EventResponse } from '@almadar/core';
 import { recordDispatchVerdict } from '../circuitVerificationObserver';
 import { clearVerification, getTransitions } from '../verificationRegistry';
 
-function response(overrides: Partial<OrbitalEventResponse>): OrbitalEventResponse {
+function response(overrides: Partial<EventResponse>): EventResponse {
   return { success: true, transitioned: true, states: {}, emittedEvents: [], ...overrides };
 }
 

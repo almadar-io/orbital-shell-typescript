@@ -27,7 +27,8 @@ export interface AccessBindings {
 /** The three directives checked against a row before it is written. */
 export type MutationOp = MutationOpWire;
 
-function accessContext(bindings: AccessBindings): EvalContextWire {
+/** The kernel's evaluation context for a viewer (and the dispatch facts a policy may read). */
+export function accessContext(bindings: AccessBindings): EvalContextWire {
   return {
     ...(bindings.user !== undefined ? { user: toWireValue(bindings.user) } : {}),
     ...(bindings.now !== undefined ? { now: bindings.now } : {}),

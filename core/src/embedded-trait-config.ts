@@ -6,7 +6,7 @@
  *
  * @packageDocumentation
  */
-import type { ConfigFieldDeclaration, DeclaredTraitConfig, OrbitalDefinition, OrbitalSchema, RuntimeValue, SExpr, Trait, TraitConfig, TraitConfigObject, TraitConfigValue, TraitRef } from './types/index.js';
+import type { ConfigFieldDeclaration, DeclaredTraitConfig, OrbitalDefinition, OrbitalSchema, RuntimeValue, SExpr, Trait, TraitConfig, TraitConfigValue, TraitRef } from './types/index.js';
 import { isCallSiteConfigDeclaration } from './types/index.js';
 
 const TRAIT_BINDING_PREFIX = '@trait.';
@@ -389,58 +389,11 @@ export function filterConfigToForwardedKeys(
 /**
  * One orbital's own file: the orbital plus the organism `config` knobs its traits forward
  * (`@config.<knob>`), so the forward still resolves when the app's files are composed back
- * (`unionOrganismConfigs`). The file shape the studio stores and rabit's per-orbital build writes.
+ * (the Rust composer unions them). The file shape the studio stores and rabit's per-orbital build writes.
  */
 export function orbitalFileOf(schema: OrbitalSchema, orbital: OrbitalDefinition): OrbitalSchema {
   const config = schema.config !== undefined
     ? filterConfigToForwardedKeys(schema.config, collectOrbitalForwardedConfigKeys(orbital))
     : undefined;
   return { name: orbital.name, version: schema.version ?? '1.0.0', orbitals: [orbital], ...(config !== undefined ? { config } : {}) };
-}
-
-/** A `[NavItem]`-typed knob's literal list (matched by its type tag, never its name); null for `@pages` and scalars. */
-function navItemsList(field: ConfigFieldDeclaration): ReadonlyArray<TraitConfigValue> | null {
-  return field.type === '[NavItem]' && Array.isArray(field.default) ? field.default : null;
-}
-
-function isConfigObject(value: TraitConfigValue): value is TraitConfigObject {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-/** A nav entry's `href`; undefined when the entry carries none. */
-export function navItemHref(item: TraitConfigValue): string | undefined {
-  return isConfigObject(item) && typeof item.href === 'string' ? item.href : undefined;
-}
-
-/**
- * Every per-orbital file's organism `config`, unioned; the first declaration of a knob wins —
- * except a `[NavItem]` list, which concatenates in file (roster) order: an app composed from
- * several organisms gets one sidebar listing each organism's sections, an href already listed
- * dropped. An entry without a readable href is kept, never guessed away.
- */
-export function unionOrganismConfigs(
-  schemas: ReadonlyArray<Pick<OrbitalSchema, 'config'>>,
-): DeclaredTraitConfig | undefined {
-  let merged: Record<string, ConfigFieldDeclaration> | undefined;
-  for (const schema of schemas) {
-    if (schema.config === undefined) continue;
-    merged ??= {};
-    for (const [key, field] of Object.entries(schema.config)) {
-      const held = merged[key];
-      if (held === undefined) {
-        merged[key] = field;
-        continue;
-      }
-      const heldList = navItemsList(held);
-      const addedList = navItemsList(field);
-      if (heldList === null || addedList === null) continue;
-      const listed = new Set(heldList.map(navItemHref).filter((href): href is string => href !== undefined));
-      const added = addedList.filter((item) => {
-        const href = navItemHref(item);
-        return href === undefined || !listed.has(href);
-      });
-      if (added.length > 0) merged[key] = { ...held, default: [...heldList, ...added] };
-    }
-  }
-  return merged;
 }

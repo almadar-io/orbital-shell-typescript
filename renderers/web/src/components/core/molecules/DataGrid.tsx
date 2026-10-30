@@ -31,7 +31,7 @@ import { createLogger } from '@almadar/logger';
 
 const dataGridLog = createLogger('almadar:ui:data-grid');
 import { getNestedValue, resolveImageUrl } from '../../../lib/getNestedValue';
-import { useEventBus } from '../../../core';
+import { useEventBus, useNavStack } from '../../../core';
 import { useRowActions, useRowActionPayload, useRowActionFire } from '../../../hooks/useRowActions';
 import type { RowActionCondition, RowActionPayload } from '../../../lib/row-action-when';
 import { useTranslate, useFormatContext } from '../../../core';
@@ -242,6 +242,7 @@ export function DataGrid({
   ...rest
 }: DataGridProps) {
   const eventBus = useEventBus();
+  const navStack = useNavStack();
   const moves = useItemMoves(itemEnter !== undefined && itemEnter !== 'none');
   // Lists nested in the cards share this scope; without its own `itemEnter` the grid's items join it, so a board column eases its height when its cards move.
   const nestedMoves = useNewItemMoveScope();
@@ -339,7 +340,7 @@ export function DataGrid({
       const url = action.navigatesTo.replace(/\{\{row\.(\w+(?:\.\w+)*)\}\}/g, (_, field: string) =>
         String(itemData[field] ?? ''),
       );
-      eventBus.emit('UI:NAVIGATE', { url, row: itemData });
+      navStack.goTo(url);
       return;
     }
     fireRowAction(action, itemData, String(itemData.id ?? ""));

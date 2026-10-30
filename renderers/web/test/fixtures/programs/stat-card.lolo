@@ -1,0 +1,23 @@
+app stat-card [
+  version: "1.0.0",
+  description: "A one-trait stat card: renders a stat-card on INIT and again on REFRESH."
+]
+orbital StatCardOrbital {
+  entity StatCard [runtime] {
+    id : string!
+    label : string = ""
+  }
+
+  trait StatCardRender -> @rebindable StatCard {
+    initial: idle
+
+    state idle {
+      INIT -> idle
+        (render-ui sidebar { type: stat-card })
+      REFRESH -> idle
+        (render-ui sidebar { type: stat-card, label: x })
+    }
+  }
+
+  page "/stat" as StatPage -> StatCardRender
+}

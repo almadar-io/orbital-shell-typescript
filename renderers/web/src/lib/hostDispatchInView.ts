@@ -1,12 +1,12 @@
-import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
+import type { EventRequest, EventResponse } from '@almadar/core';
 
 /**
  * Whether a host dispatch's response names any trait this view owns: its target, or a trait its fanout settled or painted,
  * or a frame it writes (`ownsFrame`, a frame key: a trait's own frame or a `$shared::<Entity>` frame).
  */
 export function hostDispatchInView(
-  request: OrbitalEventRequest,
-  response: OrbitalEventResponse,
+  request: EventRequest,
+  response: EventResponse,
   owns: (trait: string) => boolean,
   ownsFrame: (frame: string) => boolean,
 ): boolean {

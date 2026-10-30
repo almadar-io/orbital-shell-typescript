@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { dirname, join } from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { isProgramEffect } from '@almadar/shell-runtime';
-import { behaviorCatalog, behaviorDescribe, behaviorSource, mountBehaviorValue, mountTraitValue, programCompose, programEval, programPrint, programRead, programValidate, runProgramEffect } from '../src/program/index.js';
+import { behaviorCatalog, behaviorDescribe, behaviorSource, programCompose, programEval, programPrint, programRead, programValidate, runProgramEffect } from '../src/program/index.js';
 import { BehaviorDescriptionSchema, JsonValueSchema, parseProgram, type JsonValue } from '@almadar/core';
 import { installWorkspaceHost, installedWorkspaceHost, uninstallWorkspaceHost, workspaceOwnerSegment, type WorkspaceHost } from '../src/program/workspace-host.js';
 
@@ -157,17 +157,6 @@ describe.skipIf(!hasOrb)('program host (real orb)', () => {
       expect(await runProgramEffect('behavior/resolve', [value], { cwd, orbBin: ORB }, owner)).toMatchObject({ ok: true });
     });
 
-    it('mounting a program from another user\'s workspace is refused; its owner mounts it', async () => {
-      const cwd = project();
-      installWorkspaceHost(localWorkspaceHost(cwd));
-      const program = await programRead(VALID, { cwd, orbBin: ORB });
-      const out = await runProgramEffect('program/eval', [arg({ ...program, name: 'HelloApp' }), { workspace: 'app-1' }], { cwd, orbBin: ORB }, owner);
-      if (!out.ok) throw new Error(out.error);
-      const value = (out.result as { value: { behavior: string } }).value;
-      expect(await mountBehaviorValue(value, { cwd, orbBin: ORB }, { principal: 'user-b' })).toMatchObject({ ok: false, error: expect.stringMatching(/another user's workspace/) });
-      expect((await mountBehaviorValue(value, { cwd, orbBin: ORB }, owner)).ok).toBe(true);
-    });
-
     it('a principal with spaces (an identity row id) builds into its workspace and reads the program back', async () => {
       const cwd = project();
       installWorkspaceHost(localWorkspaceHost(cwd));
@@ -309,6 +298,7 @@ describe.skipIf(!hasOrb)('program host (real orb)', () => {
       expect(broken.result.findings[0]?.verdict).toBe('violated');
       expect(broken.result.findings[0]?.proposition.kind).toBe('row');
       expect(broken.result.findings[0]?.proposition.entity).toBe('Order');
+      expect(broken.result.findings[0]?.reason).toContain('`(>= @entity.total 0)` is false on the counterexample');
     }
     expect(await runProgramEffect('program/prove', [arg(PROVE_PROGRAM(true))], { cwd, orbBin: ORB })).toEqual({ ok: true, result: { findings: [] } });
   });
@@ -318,6 +308,40 @@ describe.skipIf(!hasOrb)('program host (real orb)', () => {
     expect((await runProgramEffect('program/prove', ['not a program'], { cwd, orbBin: ORB })).ok).toBe(false);
     expect(await runProgramEffect('program/prove', [null, { path: 'shop.orb' }], { cwd, orbBin: ORB })).toEqual({ ok: false, error: 'program/prove: path must be an absolute path' });
     expect(await runProgramEffect('program/prove', [arg(PROVE_PROGRAM(true)), { final: true }], { cwd, orbBin: ORB })).toEqual({ ok: false, error: 'program/prove: unsupported option "final"' });
+  });
+
+  const GRANT_PROGRAM = (granted: boolean) => ({
+    name: 'files', version: '1.0.0',
+    orbitals: [{
+      name: 'Files',
+      ...(granted ? { osGrants: { fs: [{ glob: '/data/**', modes: ['read'] }] } } : {}),
+      entity: { name: 'Row', persistence: 'runtime', fields: [{ name: 'id', type: 'string', required: true }] },
+      traits: [{ name: 'Reader', linkedEntity: 'Row', stateMachine: {
+        states: [{ name: 'idle', isInitial: true }],
+        events: [{ key: 'INIT', name: 'Init' }],
+        transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['os/read-file', granted ? '/data/a' : '/etc/passwd']] }],
+      } }],
+      pages: [],
+    }],
+  });
+
+  it('program/os-grants answers a missing grant, and control: the covered program has no finding', async () => {
+    const cwd = project();
+    const broken = await runProgramEffect('program/os-grants', [arg(GRANT_PROGRAM(false))], { cwd, orbBin: ORB });
+    expect(broken.ok).toBe(true);
+    if (broken.ok && typeof broken.result === 'object' && broken.result !== null && 'findings' in broken.result) {
+      expect(broken.result.findings.map((f) => f.code)).toEqual(['missing']);
+      expect(broken.result.findings[0]?.call).toBe('os/read-file');
+    }
+    expect(await runProgramEffect('program/os-grants', [arg(GRANT_PROGRAM(true))], { cwd, orbBin: ORB })).toEqual({ ok: true, result: { findings: [] } });
+  });
+
+  it('control: program/os-grants refuses a non-program, a relative path, a non-boolean final and an unsupported option before orb runs', async () => {
+    const cwd = project();
+    expect((await runProgramEffect('program/os-grants', ['not a program'], { cwd, orbBin: ORB })).ok).toBe(false);
+    expect(await runProgramEffect('program/os-grants', [null, { path: 'files.orb' }], { cwd, orbBin: ORB })).toEqual({ ok: false, error: 'program/os-grants: path must be an absolute path' });
+    expect(await runProgramEffect('program/os-grants', [arg(GRANT_PROGRAM(true)), { final: 'yes' }], { cwd, orbBin: ORB })).toEqual({ ok: false, error: 'program/os-grants: final must be a boolean' });
+    expect(await runProgramEffect('program/os-grants', [arg(GRANT_PROGRAM(true)), { bogus: true }], { cwd, orbBin: ORB })).toEqual({ ok: false, error: 'program/os-grants: unsupported option "bogus"' });
   });
 
   it('rejects a program name that is not a file name', async () => {
@@ -513,7 +537,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
           events: [{ key: 'OPEN', name: 'Open' }, { key: 'LATE', name: 'Late' }],
           transitions: [
             { from: 'ready', to: 'open', event: 'OPEN', guard: ['=', '@entity.owner', 'ann'] },
-            { from: 'ready', to: 'open', event: 'LATE', guard: ['>', '@now', 1000] },
+            { from: 'ready', to: 'open', event: 'LATE', guard: ['>', ['time/diff', '@now', ['time/parse', '1970-01-01T00:00:00Z']], 1000] },
           ],
         },
       }],
@@ -699,34 +723,6 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
   it('control: behavior/resolve without a value is refused before orb runs', async () => {
     expect(await runProgramEffect('behavior/resolve', [], { cwd: project(), orbBin: ORB })).toMatchObject({ ok: false });
   });
-
-  it('mountTraitValue resolves a value with overrides into a runnable wrapper', async () => {
-    const out = await mountTraitValue({ ...ACCORDION, config: { ariaBusy: true } }, { cwd: project(), orbBin: ORB });
-    expect(out).toMatchObject({ ok: true, mounted: { orbital: 'Mounted', trait: 'MountedAccordionRender' } });
-  });
-
-  it('mountTraitValue mounts a trait of a program program/eval just wrote into ./orbitals/', async () => {
-    const cwd = project();
-    const program = await programRead(VALID, { cwd, orbBin: ORB });
-    const written = await programEval({ ...program, name: 'HelloApp' }, { cwd, orbBin: ORB });
-    expect(written.ok).toBe(true);
-    const out = await mountTraitValue({ behavior: './orbitals/HelloApp', trait: 'Greet' }, { cwd, orbBin: ORB });
-    expect(out).toMatchObject({ ok: true, mounted: { orbital: 'Mounted', trait: 'MountedGreet' } });
-  });
-
-  it('control: mounting a trait the written program does not declare is refused', async () => {
-    const cwd = project();
-    const program = await programRead(VALID, { cwd, orbBin: ORB });
-    await programEval({ ...program, name: 'HelloApp' }, { cwd, orbBin: ORB });
-    const out = await mountTraitValue({ behavior: './orbitals/HelloApp', trait: 'NoSuchTrait' }, { cwd, orbBin: ORB });
-    expect(out).toMatchObject({ ok: false, error: expect.stringMatching(/declares no inline trait "NoSuchTrait"/) });
-  });
-
-  it('control: a value whose override does not validate where it is bound is refused with issues', async () => {
-    const out = await mountTraitValue({ ...ACCORDION, config: { noSuchKnob: true } }, { cwd: project(), orbBin: ORB });
-    expect(out.ok).toBe(false);
-    if (!out.ok) expect(out.errors?.length ?? 0).toBeGreaterThan(0);
-  });
 });
 
 describe.skipIf(!hasOrb)('orbital values + program/compose (real orb)', () => {
@@ -795,8 +791,9 @@ orbital AccountPage = Identity.orbitals.IdentityOrbital {
   }, 120_000);
 
   it('programCompose is the same entry the effect uses, and sets the app theme', async () => {
-    const schema = await programCompose([{ name: 'P', orbitals: [] }], { appName: 'Empty', theme: 'ocean' }, { cwd: project(), orbBin: ORB });
-    expect(schema.name).toBe('Empty');
+    const faq = { name: 'FaqProgram', orbitals: [{ ...ACCORDION, name: 'Faq', entity: 'Question' }] };
+    const schema = await programCompose([parseProgram(faq)], { appName: 'Themed', theme: 'ocean' }, { cwd: project(), orbBin: ORB });
+    expect(schema.name).toBe('Themed');
     expect(schema.theme).toBe('ocean');
   });
 });
@@ -820,7 +817,7 @@ describe('runProgramEffect — argument validation (no orb needed)', () => {
     expect(await runProgramEffect('program/eval', [arg(program), { final: 'yes' }], opts)).toEqual({ ok: false, error: 'program/eval: final must be a boolean' });
   });
 
-  it('forwards knobVectors: true as --knob-vectors and vectors: false as --no-vectors, nothing otherwise', async () => {
+  it('forwards traits: false as --no-traits and refuses the retired vectors, topics and knobVectors options', async () => {
     const dir = project();
     const argvFile = join(dir, 'argv');
     const stub = join(dir, 'orb');
@@ -829,25 +826,19 @@ describe('runProgramEffect — argument validation (no orb needed)', () => {
     const argv = (): string[] => readFileSync(argvFile, 'utf8').trim().split('\n');
     const trait = { behavior: 'almadar-std/std-retry', trait: 'Retry' };
 
-    expect((await runProgramEffect('behavior/describe', [trait, { knobVectors: true }], stubbed)).ok).toBe(false);
-    expect(argv()).toContain('--knob-vectors');
     await runProgramEffect('behavior/describe', [trait], stubbed);
-    expect(argv()).not.toContain('--knob-vectors');
-    await runProgramEffect('behavior/describe', [trait, { knobVectors: false }], stubbed);
-    expect(argv()).not.toContain('--knob-vectors');
-
-    await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { vectors: false }], stubbed);
-    expect(argv()).toEqual(['behaviors', 'catalog', '--json', '--no-vectors', 'almadar-std/ml']);
+    expect(argv().slice(0, 3)).toEqual(['behaviors', 'describe', '--json']);
+    expect(argv()).toHaveLength(4);
     await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }], stubbed);
     expect(argv()).toEqual(['behaviors', 'catalog', '--json', 'almadar-std/ml']);
-    await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { vectors: false, traits: false }], stubbed);
-    expect(argv()).toEqual(['behaviors', 'catalog', '--json', '--no-vectors', '--no-traits', 'almadar-std/ml']);
+    await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { traits: false }], stubbed);
+    expect(argv()).toEqual(['behaviors', 'catalog', '--json', '--no-traits', 'almadar-std/ml']);
     await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { traits: true }], stubbed);
     expect(argv()).toEqual(['behaviors', 'catalog', '--json', 'almadar-std/ml']);
-    await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { topics: true, traits: false }], stubbed);
-    expect(argv()).toEqual(['behaviors', 'catalog', '--json', '--topics', 'almadar-std/ml']);
 
-    expect(await runProgramEffect('behavior/describe', [trait, { knobVectors: 'yes' }], stubbed)).toEqual({ ok: false, error: 'behavior/describe: knobVectors must be a boolean' });
+    expect(await runProgramEffect('behavior/describe', [trait, { knobVectors: true }], stubbed)).toEqual({ ok: false, error: 'behavior/describe: unsupported option "knobVectors"' });
+    expect(await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { vectors: false }], stubbed)).toEqual({ ok: false, error: 'behavior/catalog: unsupported option "vectors"' });
+    expect(await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { topics: true }], stubbed)).toEqual({ ok: false, error: 'behavior/catalog: unsupported option "topics"' });
     expect(await runProgramEffect('behavior/catalog', [{ paths: ['almadar-std/ml'] }, { vector: false }], stubbed)).toEqual({ ok: false, error: 'behavior/catalog: unsupported option "vector"' });
   });
 
@@ -872,32 +863,5 @@ describe.skipIf(!hasOrb)('runProgramEffect (real orb)', () => {
     const evald = await runProgramEffect('program/eval', [arg({ ...read.result, name: 'HelloApp' }), {}], { cwd, orbBin: ORB });
     expect(evald).toMatchObject({ ok: true, result: { behavior: './orbitals/HelloApp' } });
     expect(existsSync(join(cwd, 'orbitals', 'HelloApp.orb'))).toBe(true);
-  });
-});
-
-describe.skipIf(!hasOrb)('behavior values: mounting a whole program (real orb)', () => {
-  it('mounts a program program/eval wrote, opening on its first page', async () => {
-    const cwd = project();
-    const program = await programRead(VALID, { cwd, orbBin: ORB });
-    const evaluated = await programEval({ ...program, name: 'HelloApp' }, { cwd, orbBin: ORB });
-    if (!evaluated.ok) throw new Error('eval failed');
-    const out = await mountBehaviorValue(evaluated.result.value, { cwd, orbBin: ORB });
-    expect(out).toMatchObject({ ok: true, mounted: { firstPage: '/' } });
-    if (out.ok) expect(out.mounted.schema.orbitals.map((o) => o.name)).toContain('Hello');
-  });
-
-  it('mounts an installed package behavior', async () => {
-    const out = await mountBehaviorValue({ behavior: 'almadar-std/ui-accordion' }, { cwd: project(), orbBin: ORB });
-    expect(out.ok).toBe(true);
-  });
-
-  it('control: a workspace program that does not exist is refused, not thrown', async () => {
-    const out = await mountBehaviorValue({ behavior: './orbitals/Nope' }, { cwd: project(), orbBin: ORB });
-    expect(out.ok).toBe(false);
-  });
-
-  it('control: an uninstalled package behavior is refused', async () => {
-    const out = await mountBehaviorValue({ behavior: 'almadar-std/no-such-behavior' }, { cwd: project(), orbBin: ORB });
-    expect(out.ok).toBe(false);
   });
 });

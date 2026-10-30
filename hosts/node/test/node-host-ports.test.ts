@@ -51,4 +51,15 @@ describe('raw Node network asks', () => {
       expect(await host.answer('os/watch-port', [])).toMatchObject({ error: { kind: 'unsupported' } });
     } finally { host.close(); }
   });
+
+  it('refuses os/fetch typed, naming the ports it speaks HTTP over (twin of the Rust os host)', async () => {
+    const host = createNodeOsHost({ allows: () => true, globMatches: () => false, isPublicAddress: () => false, anchor: () => [], resolveArgs: (_op, args) => ({ ok: args }) });
+    try {
+      const refused = await host.answer('os/fetch', ['GET', 'https://a.example.test/']);
+      expect(refused).toMatchObject({ error: { kind: 'unsupported' } });
+      expect(JSON.stringify(refused)).toContain('os/tcp-connect');
+      expect(await host.answer('os/fetch', ['GET', 'https://a.example.test/', { stream: true }])).toMatchObject({ error: { kind: 'unsupported' } });
+      expect(await host.answer('os/exists', ['/'])).not.toMatchObject({ error: { kind: 'unsupported' } });
+    } finally { host.close(); }
+  });
 });

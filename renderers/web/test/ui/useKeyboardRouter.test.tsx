@@ -8,10 +8,11 @@ import React from 'react';
 import { EventBusProvider } from '../../src/core';
 import { useEventBus } from '../../src/core';
 import type { EventPayload } from '@almadar/core';
+import { EditorFocusProvider, useEditorFocus } from '../../src/providers/EditorFocusContext';
 import { useKeyboardRouter, mergeCaptureTables, keyChord, type KeyCaptureTable, type EditorKeyEvent } from '../../src/hooks/useKeyboardRouter';
 
 function wrapper({ children }: { children?: React.ReactNode }): React.JSX.Element {
-  return React.createElement(EventBusProvider, { isolated: true }, children as React.ReactElement);
+  return React.createElement(EventBusProvider, { isolated: true }, React.createElement(EditorFocusProvider, null, children));
 }
 
 /** Rebuilds the `EditorKeyEvent` shape `useKeyboardRouter` actually emits
@@ -57,16 +58,17 @@ function renderRouterWithBus(captureTable: KeyCaptureTable) {
   const { result } = renderHook(
     () => {
       const bus = useEventBus();
+      const focus = useEditorFocus();
       useKeyboardRouter({ captureTable });
-      return bus;
+      return { bus, focus };
     },
     { wrapper },
   );
-  result.current.on('UI:KEY', (evt) => {
+  result.current.bus.on('UI:KEY', (evt) => {
     const keyEvent = toEditorKeyEvent(evt.payload);
     if (keyEvent) received.push(keyEvent);
   });
-  return { bus: result.current, received };
+  return { focus: result.current.focus, received };
 }
 
 afterEach(() => {
@@ -76,9 +78,9 @@ afterEach(() => {
 describe('useKeyboardRouter', () => {
   it('captures a declared key for the focused editor and emits UI:KEY', () => {
     const captureTable: KeyCaptureTable = { e1: { mode: 'NORMAL', keys: new Set(['h']) } };
-    const { bus, received } = renderRouterWithBus(captureTable);
+    const { focus, received } = renderRouterWithBus(captureTable);
 
-    bus.emit('UI:EDITOR_FOCUS', { editorId: 'e1' });
+    focus.focus('e1');
     const preventDefault = dispatchKeyDown({ key: 'h', code: 'KeyH' });
 
     expect(preventDefault).toHaveBeenCalled();
@@ -88,9 +90,9 @@ describe('useKeyboardRouter', () => {
 
   it('does not preventDefault for an undeclared key, but still emits UI:KEY', () => {
     const captureTable: KeyCaptureTable = { e1: { mode: 'NORMAL', keys: new Set(['h']) } };
-    const { bus, received } = renderRouterWithBus(captureTable);
+    const { focus, received } = renderRouterWithBus(captureTable);
 
-    bus.emit('UI:EDITOR_FOCUS', { editorId: 'e1' });
+    focus.focus('e1');
     const preventDefault = dispatchKeyDown({ key: 'a', code: 'KeyA' });
 
     expect(preventDefault).not.toHaveBeenCalled();
@@ -134,15 +136,15 @@ describe('useKeyboardRouter', () => {
     expect(preventDefault).not.toHaveBeenCalled();
   });
 
-  it('falls back to shell after a matching UI:EDITOR_BLUR', () => {
+  it('falls back to shell after a matching blur', () => {
     const captureTable: KeyCaptureTable = {
       e1: { mode: 'NORMAL', keys: new Set(['h']) },
       shell: { mode: 'any', keys: new Set() },
     };
-    const { bus, received } = renderRouterWithBus(captureTable);
+    const { focus, received } = renderRouterWithBus(captureTable);
 
-    bus.emit('UI:EDITOR_FOCUS', { editorId: 'e1' });
-    bus.emit('UI:EDITOR_BLUR', { editorId: 'e1' });
+    focus.focus('e1');
+    focus.blur('e1');
     dispatchKeyDown({ key: 'x', code: 'KeyX' });
 
     expect(received).toHaveLength(1);

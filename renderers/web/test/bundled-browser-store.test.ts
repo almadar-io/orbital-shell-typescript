@@ -5,14 +5,14 @@
 import { describe, expect, it } from 'vitest';
 import { parseOrbitalSchema, type OrbitalSchema } from '@almadar/core';
 import { openBundledBrowserStore } from '../src/runtime/index.js';
-import { KERNEL_AVAILABLE, TEST_LANGUAGE, loadTestKernel } from '../src/test-support/kernel-engine.js';
+import { KERNEL_AVAILABLE, loadTestKernel } from '../src/test-support/kernel-engine.js';
 
 const unparsable: OrbitalSchema = JSON.parse('{"name":5,"orbitals":[]}');
 
 describe.skipIf(!KERNEL_AVAILABLE)('openBundledBrowserStore', () => {
   it('opens the program as given, without a parse of its own', async () => {
     const kernel = await loadTestKernel();
-    await expect(openBundledBrowserStore(unparsable, kernel, TEST_LANGUAGE)).rejects.toThrow('declares no browser-stored entity');
+    await expect(openBundledBrowserStore(unparsable, kernel)).rejects.toThrow('declares no browser-stored entity');
   });
 
   it('control: the zod parse the host used to run refuses the same program', () => {

@@ -14,8 +14,6 @@ import type {
   DispatchMode,
   EmittedEvent,
   MountSeed,
-  OrbitalEventRequest,
-  OrbitalEventResponse,
   QueryCapabilities,
   RowQuery,
   RowSetRef,
@@ -65,10 +63,7 @@ interface Mirror {
   clientEffect: Expect<Mutual<Wire.ClientEffect, ClientEffectTuple>, true>;
   serverEffectResult: Expect<Mutual<Wire.ServerEffectResult, ServerEffectResult>, true>;
   serverEffectResultKeys: Expect<SameKeys<Wire.ServerEffectResult, ServerEffectResult>, true>;
-  responseKeys: Expect<SameKeys<Wire.EventResponse, OrbitalEventResponse>, true>;
   clientEffectByTrait: Expect<Mutual<Wire.ClientEffectByTrait, ClientEffectByTrait>, true>;
-  request: Expect<Mutual<Wire.EventRequest, OrbitalEventRequest>, true>;
-  response: Expect<Mutual<Wire.EventResponse, OrbitalEventResponse>, true>;
   rowSetRef: Expect<Mutual<Wire.RowSetRef, RowSetRef>, true>;
   rowQuery: Expect<Mutual<Wire.RowQuery, RowQuery>, true>;
   queryCapabilities: Expect<Mutual<Wire.QueryCapabilities, QueryCapabilities>, true>;
@@ -78,9 +73,7 @@ interface Mirror {
   rekeyKeys: Expect<SameKeys<Extract<Wire.RowWriteOp, { kind: 'rekey' }>, Extract<RowWriteOp, { kind: 'rekey' }>>, true>;
   rowWriteOutcome: Expect<Mutual<Wire.RowWriteOutcome, RowWriteOutcome>, true>;
   // the wire is JSON: a request, a response and everything a stream carries is a `JsonValue` as it stands
-  requestIsJson: Expect<OrbitalEventRequest, JsonValue>;
-  responseIsJson: Expect<OrbitalEventResponse, JsonValue>;
-  emittedIsJson: Expect<EmittedEvent, JsonValue>;
+    emittedIsJson: Expect<EmittedEvent, JsonValue>;
   clientEffectIsJson: Expect<ClientEffectTuple, JsonValue>;
   generatedResponseIsJson: Expect<Wire.EventResponse, JsonValue>;
   generatedRequestIsJson: Expect<Wire.EventRequest, JsonValue>;

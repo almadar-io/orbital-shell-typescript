@@ -30,7 +30,7 @@ export interface KvNamespace {
   store: string;
 }
 
-export interface KvScanEntry {
+interface KvScanEntry {
   key: string;
   value: JsonValue;
 }
@@ -44,7 +44,7 @@ export class KvFailure extends Error {
 }
 
 /** A namespace's whole content, key order = UTF-8 byte order. Backends load and commit it whole. */
-export type KvTable = Map<string, JsonValue>;
+type KvTable = Map<string, JsonValue>;
 
 export interface KvBackend {
   load(ns: KvNamespace): Promise<KvTable>;
@@ -55,7 +55,7 @@ export interface KvBackend {
 const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
 const SEGMENT = /^[A-Za-z0-9._-]+$/;
 
-export function namespaceId(ns: KvNamespace): string {
+function namespaceId(ns: KvNamespace): string {
   return `kv:${ns.app}:${ns.locale}:${ns.store}`;
 }
 

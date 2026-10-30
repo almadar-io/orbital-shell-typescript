@@ -6,6 +6,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
+import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { EventPayload, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
@@ -59,22 +60,26 @@ function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
   };
 }
 
-const binding = (name: string): ResolvedTraitBinding => ({ trait: createEmptyResolvedTrait(name, 'schema'), linkedEntity: 'Deal' });
+const binding = (name: string): ResolvedTraitBinding => {
+  const trait = createEmptyResolvedTrait(name, 'schema');
+  trait.transitions = ([content, panel, won, title, reloader].find((t) => t.name === name)?.stateMachine?.transitions ?? []).map(({ from, to, event }) => ({ from, to, event, effects: [] }));
+  return { trait, linkedEntity: 'Deal' };
+};
 
 async function mounted() {
   const slots = stubSlots();
-  const hook = renderHook(() => useTraitStateMachine(['Content', 'Panel', 'Won', 'Title', 'Reloader'].map(binding), slots, {
+  let bus!: ReturnType<typeof useEventBus>;
+  const hook = renderHook(() => { bus = useEventBus(); return useTraitStateMachine(['Content', 'Panel', 'Won', 'Title', 'Reloader'].map(binding), slots, {
     stamp: TEST_STAMP,
     orbitals,
     routePath: '/deals',
-    callsiteCaptureChildrenByTrait: new Map([['Content', new Set(['Panel'])], ['Panel', new Set(['Won', 'Title', 'Reloader'])]]),
-  }));
+  }); });
   await act(async () => undefined);
   const rendersOf = (trait: string) => slots.render.mock.calls
     .map(([arg]) => arg as { sourceTrait?: string; pattern?: string; props?: Record<string, unknown> })
     .filter((c) => c.sourceTrait === trait);
   const send = async (event: string, payload: EventPayload) => {
-    hook.result.current.sendEvent(event, payload);
+    bus.emit(`UI:DealOrbital.Panel.${event}`, payload);
     await act(async () => undefined);
   };
   return { slots, rendersOf, send };

@@ -25,9 +25,9 @@ export interface KernelWorkspaceBucket {
   secretAccessKey: string;
 }
 
-export const GCS_ENDPOINT = 'https://storage.googleapis.com';
-export const WORKSPACE_HMAC_KEY_ID = 'ALMADAR_WORKSPACE_HMAC_KEY_ID';
-export const WORKSPACE_HMAC_SECRET = 'ALMADAR_WORKSPACE_HMAC_SECRET';
+const GCS_ENDPOINT = 'https://storage.googleapis.com';
+const WORKSPACE_HMAC_KEY_ID = 'ALMADAR_WORKSPACE_HMAC_KEY_ID';
+const WORKSPACE_HMAC_SECRET = 'ALMADAR_WORKSPACE_HMAC_SECRET';
 
 /** The bucket a host's environment names: `ALMADAR_WORKSPACE_BUCKET` on Google Cloud Storage, keyed by the two HMAC credentials; absent, the project's disk. */
 export function workspaceBucketFromEnv(env: Record<string, string | undefined>): KernelWorkspaceBucket | undefined {

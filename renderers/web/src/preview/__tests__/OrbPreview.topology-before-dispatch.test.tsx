@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { OrbitalEventRequest, OrbitalSchema } from '@almadar/core';
+import type { EventRequest, OrbitalSchema } from '@almadar/core';
 import type { EventTransport } from '../../index';
 import { OrbPreview } from '../OrbPreview';
 import { statelessKernelTransport } from '../../test-support/stateless-kernel';
@@ -42,7 +42,7 @@ function schema(): OrbitalSchema {
   } as OrbitalSchema;
 }
 
-function delayedRegisterStatelessTransport(s: OrbitalSchema, sends: Array<{ registered: boolean; request: OrbitalEventRequest }>): EventTransport {
+function delayedRegisterStatelessTransport(s: OrbitalSchema, sends: Array<{ registered: boolean; request: EventRequest }>): EventTransport {
   const base = statelessKernelTransport(s);
   let registered = false;
   return {
@@ -63,7 +63,7 @@ function delayedRegisterStatelessTransport(s: OrbitalSchema, sends: Array<{ regi
 describe('mount dispatches wait for the bridge topology', () => {
   it('no event is posted before register() reports the topology; the INIT goes out stateless-shaped', async () => {
     const s = schema();
-    const sends: Array<{ registered: boolean; request: OrbitalEventRequest }> = [];
+    const sends: Array<{ registered: boolean; request: EventRequest }> = [];
     render(
       <MemoryRouter>
         <OrbPreview schema={s} transport={delayedRegisterStatelessTransport(s, sends)} initialPagePath="/notes" isolated />

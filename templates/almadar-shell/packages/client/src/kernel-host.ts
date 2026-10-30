@@ -2,22 +2,22 @@
  * Kernel loader
  *
  * Fetches and instantiates the WebAssembly client kernel (`@almadar/kernel/client`) once, for the renderer's
- * `KernelEngineProvider`.
+ * `KernelEngineProvider`, through the one browser loader (`@almadar/shell-browser/kernel-loader`) the Chrome worker also
+ * uses. The language data is installed there, once, when the program ships it; the engine never installs it again.
  *
  * @packageDocumentation
  */
 
 import init, * as kernel from '@almadar/kernel/client';
 import wasmUrl from '@almadar/kernel/client.wasm?url';
+import { loadBrowserKernel } from '@almadar/shell-browser/kernel-loader';
 
-export async function loadKernel(): Promise<typeof kernel> {
-  await init({ module_or_path: wasmUrl });
-  return kernel;
-}
-
-/** The language bundle the kernel a browser opens over its browser-stored rows installs, fetched when that kernel opens. */
-export async function loadLanguage(): Promise<string> {
-  const response = await fetch(`${import.meta.env.BASE_URL}language.json`);
-  if (!response.ok) throw new Error(`language.json: ${response.status} ${response.statusText}`);
-  return response.text();
+/** `language`: the program's manifest says it ships `language.json` (a kernel over browser-stored rows needs it). */
+export function loadKernel(language: boolean): Promise<typeof kernel> {
+  return loadBrowserKernel({
+    init,
+    glue: kernel,
+    wasm: wasmUrl,
+    ...(language ? { language: `${import.meta.env.BASE_URL}language.json` } : {}),
+  });
 }

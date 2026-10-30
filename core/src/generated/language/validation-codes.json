@@ -90,51 +90,6 @@
     "description": "A protocol page's address does not type-check against the protocol's address record"
   },
   {
-    "code": "ORB_O_ROLE_TARGET_NOT_MEMBER",
-    "category": "page",
-    "description": "An `orbital X = Alias.orbitals.Y { roles { … } } }` target is not a member of the CONSUMER roster's vocabulary (`identity_entities` on the importing schema, post-inline)."
-  },
-  {
-    "code": "ORB_O_ROLE_UNKNOWN_UPSTREAM",
-    "category": "page",
-    "description": "An `orbital X = Alias.orbitals.Y { roles { … } } }` key names no value in any UPSTREAM identity field's vocabulary (or the upstream alias declares no roster at all)."
-  },
-  {
-    "code": "ORB_O_ENTITY_UNMAPPED",
-    "category": "page",
-    "description": "A kept trait/relation/page references an out-of-orbital entity that `obj.entities {}` never maps — the import splice has nothing to rebind it to."
-  },
-  {
-    "code": "ORB_O_ENTITY_UNKNOWN_KEY",
-    "category": "page",
-    "description": "An `obj.entities {}` key names no entity in the upstream closure's out-of-orbital universe."
-  },
-  {
-    "code": "ORB_O_ENTITY_EXPECT_AMBIGUOUS",
-    "category": "page",
-    "description": "An entity an imported orbital expects of a sibling is provided by several sibling imports and no `entities {}` entry names which one it binds to."
-  },
-  {
-    "code": "ORB_O_ENTITY_TARGET_UNKNOWN",
-    "category": "page",
-    "description": "An `obj.entities {}` value names no entity the consumer schema declares."
-  },
-  {
-    "code": "ORB_O_FIELD_RENAME_UNAPPLIED",
-    "category": "page",
-    "description": "A `fields { OLD: NEW }` rename on an `orbital X = Alias.orbitals.Y { … }` reference left a structurally-recognized field-reference position (a config default's bare/list field-name value) still naming the pre-rename upstream field — the rename silently failed to reach it (G3, `docs/Almadar_Compiler_Gaps.md` §82, rung 2: what used to validate 0/0 with a dead reference now errors instead)."
-  },
-  {
-    "code": "ORB_PAGE_CONTROL_OUTSIDE_SHELL",
-    "category": "page",
-    "description": "A page whose `main` a shell owns through a config channel (`contentTrait` …) also mounts a trait that paints a control into `main` which neither the owner nor anything it embeds references: the control stacks outside the shell's layout instead of inside it."
-  },
-  {
-    "code": "ORB_CONTROL_VALUE_DISCARDED",
-    "category": "circuit",
-    "description": "A composed trait's rendered control fires an event carrying a value that no other trait hears and whose own handling reads none of it: the value the user entered is discarded (a form submission nothing keeps)."
-  },
-  {
     "code": "ORB_RUI_UNKNOWN_ITEM_ACTION_PROP",
     "category": "render_ui",
     "description": "Unknown itemAction prop (e.g., hallucinated 'condition')"
@@ -160,29 +115,14 @@
     "description": "`--final`: a `cancel-call` on a `CallKey` (or a list of them) in a finished program where no keyed call has a `CallKey`-typed `key:`, so nothing the program runs is named by a key made with `as`"
   },
   {
-    "code": "ORB_OS_GRANT_MISSING",
-    "category": "effect",
-    "description": "an `os/` call needs something the calling orbital's grants do not cover"
-  },
-  {
-    "code": "ORB_OS_TARGET_NOT_STATIC",
-    "category": "effect",
-    "description": "an `os/` call's target (path, command, host, port, variable, flags) is not a literal"
-  },
-  {
-    "code": "ORB_OS_GRANT_UNUSED",
-    "category": "effect",
-    "description": "a declared `os/` grant entry that no `os/` call of the orbitals holding it uses (warning)"
-  },
-  {
-    "code": "ORB_OS_GRANT_ENTRY_INVALID",
-    "category": "effect",
-    "description": "a declared `os/` grant entry whose shape cannot match anything"
-  },
-  {
     "code": "ORB_PAGE_FACTS_UNREQUESTED_READ",
     "category": "effect",
     "description": "an event reads a page fact the `browser/page-facts` call did not request"
+  },
+  {
+    "code": "ORB_TAB_REQUEST_REFUSED",
+    "category": "effect",
+    "description": "a literal `browser/tab-*` request whose keys the op declares but whose values the kernel's tab-call parser refuses"
   },
   {
     "code": "ORB_EFF_SLOT_CONFLICT",
@@ -200,24 +140,9 @@
     "description": "Trait declares an event in its `emits[]` block but no transition fires it via `(emit X)` or operator emit-config success/failure. Usually a copy-paste leftover or a stale declaration after a rename; gap #2 defense in `docs/Almadar_Std_Verification.md`."
   },
   {
-    "code": "ORB_EMIT_CONTROL_UNHANDLED",
-    "category": "effect",
-    "description": "`orb validate --final`: a rendered control fires an event no trait handles — not the rendering trait, an embedder of it, nor a `listens` route (G-ORB-187)."
-  },
-  {
     "code": "ORB_EFF_MISSING_REQUIRED_EMIT",
     "category": "effect",
     "description": "Operator declares `requiresEmitSuccess: true` in canonical-operators.json but the effect call site is missing the trailing options object or its `emit.success` event key. Applies to fetch / persist / call-service by default; any future operator can opt in via the same JSON flag."
-  },
-  {
-    "code": "ORB_FETCH_DELIVER_IDS_ROWS_READ",
-    "category": "effect",
-    "description": "`deliver: ids` makes the success event's `data` a row-set reference; any use other than passing it whole as a `render-ui` prop value reads rows that were never delivered."
-  },
-  {
-    "code": "ORB_FETCH_TOTAL_NONE_READ",
-    "category": "effect",
-    "description": "`total: none` skips the count, so the success event's `totalCount` is never set."
   },
   {
     "code": "SEXPR_ARITY_MISMATCH",
@@ -348,26 +273,6 @@
     "code": "CIRCUIT_DEAD_END_COMPONENT",
     "category": "circuit",
     "description": "Interactive component missing itemActions"
-  },
-  {
-    "code": "ORB_CIRCUIT_VIEWER_STRANDED",
-    "category": "circuit",
-    "description": "The trait that OWNS a page's content region (`page_content_owner`'s `channel`/`sole-writer`) has a user-triggered arm that repaints its own main-slot body with something offering no way on: no content-body pattern, no registry event-kind prop bound to a live (non-lifecycle) event or an unresolved binding, and no `@trait.X` embed. \"User- triggered\" means the event is reachable from a rendered affordance or a `listens` route, transitively, minus async-result and lifecycle events. Exempt: an arm running its own `fetch`/`persist` (its result arm repaints); a non-self-transition escaping to a state with another producible, non-lifecycle arm. Ported from the JS wiring lint's `viewer-stranded`, predicate revised 2026-09-12 per the F31 live probe (`play_scene` on `ui-minigolf-board`/`std-chem-titration`): the JS's labelled-control test and `@`/`?` sigil branch were both heuristics and are dropped — a registry event-kind prop is the only test. Error severity."
-  },
-  {
-    "code": "ORB_S_INVARIANT_VIOLATED",
-    "category": "schema",
-    "description": "A spec proposition (`@invariant` on `expects entity`, `@holds` on an `expects trait` state) is broken: a write or transition of the program falsifies it on a counterexample the evaluator confirms."
-  },
-  {
-    "code": "ORB_S_INVARIANT_UNPROVED",
-    "category": "schema",
-    "description": "A spec proposition the prover could not decide (an expression outside the decidable fragment, or a write whose effect on the proposition is over-approximated). Never a pass."
-  },
-  {
-    "code": "ORB_U_CONFIG_UNKNOWN_KEY",
-    "category": "schema",
-    "description": "A `uses A from \"…\" { config { … } }` call-site override names a key the imported behavior's app-level `config {}` (`OrbitalSchema.config`, `Almadar_Orbital_Import.md` §4.5) does not declare."
   },
   {
     "code": "ORB_GEN_INVALID_REFERENCE",
@@ -645,6 +550,11 @@
     "description": "A self-overlaying pattern is rendered inside an overlay slot payload, stacking two overlay chromes"
   },
   {
+    "code": "ORB_CIRCUIT_VIEWER_STRANDED",
+    "category": "circuit",
+    "description": "A page's content owner repaints its region on a user-triggered event with a body that offers no way on"
+  },
+  {
     "code": "ORB_COMPOSED_STATE_UNREACHABLE",
     "category": "circuit",
     "description": "A composed trait can never enter some states because nothing in the program sends the events that enter them"
@@ -658,6 +568,11 @@
     "code": "ORB_CONFIG_DANGLING_REF",
     "category": "binding",
     "description": "An @config key is not declared by any config schema reachable from the trait chain"
+  },
+  {
+    "code": "ORB_CONTROL_VALUE_DISCARDED",
+    "category": "circuit",
+    "description": "A composed trait's rendered control fires an event carrying a value that no other trait hears and whose own handling reads none of it: the value the user entered is discarded (a form submission nothing keeps)."
   },
   {
     "code": "ORB_CREDENTIAL_REQUEST_INVALID",
@@ -800,6 +715,11 @@
     "description": "An emit config reference is invalid"
   },
   {
+    "code": "ORB_EMIT_CONTROL_UNHANDLED",
+    "category": "emit",
+    "description": "A rendered control fires an event nothing handles or routes."
+  },
+  {
     "code": "ORB_EMIT_UNROUTED_TO_HANDLER",
     "category": "trait_event",
     "description": "A trait emits an event another trait has an arm for, but no declared listens route delivers it"
@@ -920,9 +840,19 @@
     "description": "A fetch with deliver ids has no emit.success, so nothing carries the reference"
   },
   {
+    "code": "ORB_FETCH_DELIVER_IDS_ROWS_READ",
+    "category": "effect",
+    "description": "A fetch with deliver ids delivers a row-set reference as the success event's data; any use other than passing it whole as a render-ui prop value reads rows that were never delivered"
+  },
+  {
     "code": "ORB_FETCH_NEEDS_COMPOSITE_INDEX",
     "category": "effect",
     "description": "A fetch query needs a composite index that the store driver does not create and no index declaration covers"
+  },
+  {
+    "code": "ORB_FETCH_TOTAL_NONE_READ",
+    "category": "effect",
+    "description": "A fetch with total none skips the count, so the success event's totalCount is never set and may not be read"
   },
   {
     "code": "ORB_FETCH_UNINDEXED",
@@ -1085,6 +1015,11 @@
     "description": "An index path names a field that the entity does not declare"
   },
   {
+    "code": "ORB_LINT_FINDING_CODE_UNDECLARED",
+    "category": "lint",
+    "description": "A lint rule names a finding code that its declared codes record does not carry."
+  },
+  {
     "code": "ORB_LINT_INPUT_UNREAD",
     "category": "lint",
     "description": "A lint input file could not be read or lowered, so the lint rules did not run"
@@ -1098,6 +1033,16 @@
     "code": "ORB_LINT_OPERATOR_SHAPES_UNREAD",
     "category": "lint",
     "description": "The installed operator table could not be read or does not match the operator shape type, so a lint cannot run"
+  },
+  {
+    "code": "ORB_LINT_RULE_COUNT_MISMATCH",
+    "category": "lint",
+    "description": "A lint engine ruleCount knob differs from the rule traits whose LINT_FOUND it routes"
+  },
+  {
+    "code": "ORB_LINT_RULE_FAILED",
+    "category": "lint",
+    "description": "A lint rule met an input its own preconditions exclude and could not check it"
   },
   {
     "code": "ORB_LINT_SERVICE_REGISTRY_UNREAD",
@@ -1170,6 +1115,31 @@
     "description": "A time operator is given a unit that is not an accepted time unit"
   },
   {
+    "code": "ORB_OS_EGRESS_SCHEME_UNUSED",
+    "category": "os",
+    "description": "An egress entry whose scheme (redis, rediss, postgres, postgresql) no operator or fetch uses since the TCP protocol-target grants were retired; its net-grant replacement is named"
+  },
+  {
+    "code": "ORB_OS_GRANT_ENTRY_INVALID",
+    "category": "os",
+    "description": "A declared grant entry that can match nothing"
+  },
+  {
+    "code": "ORB_OS_GRANT_MISSING",
+    "category": "os",
+    "description": "An os/ call that the grants of its orbital (app level plus its own) do not cover"
+  },
+  {
+    "code": "ORB_OS_GRANT_UNUSED",
+    "category": "os",
+    "description": "A granted entry that no os/ call of the orbital (or of the program, at app level) uses; a warning"
+  },
+  {
+    "code": "ORB_OS_TARGET_NOT_STATIC",
+    "category": "os",
+    "description": "An os/ call target that is computed, so its grant cannot be checked at build time"
+  },
+  {
     "code": "ORB_O_CONFIG_DEAD_KNOB",
     "category": "orbital",
     "description": "A declared app-level config knob is not forwarded by any trait config default, so it has no effect"
@@ -1190,9 +1160,29 @@
     "description": "Two uses imports share the same alias"
   },
   {
+    "code": "ORB_O_ENTITY_EXPECT_AMBIGUOUS",
+    "category": "orbital_ref",
+    "description": "An entity an imported orbital expects of a sibling is provided by several sibling imports and no entities entry binds it"
+  },
+  {
     "code": "ORB_O_ENTITY_PERSISTENCE_LOCKED",
     "category": "orbital",
     "description": "An entity persistence or collection override on an orbital reference has no effect because the primary entity locks it"
+  },
+  {
+    "code": "ORB_O_ENTITY_TARGET_UNKNOWN",
+    "category": "orbital_ref",
+    "description": "An entities value names no entity the consumer schema declares"
+  },
+  {
+    "code": "ORB_O_ENTITY_UNKNOWN_KEY",
+    "category": "orbital_ref",
+    "description": "An entities key names no entity in the upstream out-of-orbital closure"
+  },
+  {
+    "code": "ORB_O_ENTITY_UNMAPPED",
+    "category": "orbital_ref",
+    "description": "A kept trait, relation or page references an out-of-orbital entity that entities {} never maps"
   },
   {
     "code": "ORB_O_EXTEND_FIELD_COLLISION",
@@ -1203,6 +1193,11 @@
     "code": "ORB_O_EXTEND_FIELD_UNREAD",
     "category": "orbital",
     "description": "A field added by an extend block is never read, set, rendered or forwarded by a config knob"
+  },
+  {
+    "code": "ORB_O_FIELD_RENAME_UNAPPLIED",
+    "category": "orbital_ref",
+    "description": "A fields rename left the pre-rename field name in a config default position the rewrite does not reach"
   },
   {
     "code": "ORB_O_MOCK_UNKNOWN_FIELD",
@@ -1230,6 +1225,16 @@
     "description": "A retype block names a field the entity materialized from the referenced orbital does not declare"
   },
   {
+    "code": "ORB_O_ROLE_TARGET_NOT_MEMBER",
+    "category": "orbital_ref",
+    "description": "A roles target is not a member of the consumer roster field vocabulary"
+  },
+  {
+    "code": "ORB_O_ROLE_UNKNOWN_UPSTREAM",
+    "category": "orbital_ref",
+    "description": "A roles key names no value in any upstream identity field vocabulary"
+  },
+  {
     "code": "ORB_O_TRAITS_OMITTED_TRAIT",
     "category": "orbital",
     "description": "A traits override names a trait that omit or only drops from the imported orbital"
@@ -1245,9 +1250,24 @@
     "description": "Several traits each render a content body into the main slot and none composes the others, so the page has no single content owner"
   },
   {
+    "code": "ORB_PAGE_CONTROL_OUTSIDE_SHELL",
+    "category": "page",
+    "description": "A trait paints a control into the main slot of a page whose shell shows another trait as its content, and nothing there embeds it"
+  },
+  {
     "code": "ORB_PAGE_FACTS_FIELD_INVALID",
     "category": "page",
     "description": "A browser/page-facts effect declares no facts"
+  },
+  {
+    "code": "ORB_PAGE_NOT_FOUND_DUPLICATE",
+    "category": "page",
+    "description": "A program declares more than one [notFound] page."
+  },
+  {
+    "code": "ORB_PAGE_NOT_FOUND_MISSING",
+    "category": "page",
+    "description": "A program with route pages declares no [notFound] page."
   },
   {
     "code": "ORB_PAGE_SECOND_CONTENT_BODY",
@@ -1313,11 +1333,6 @@
     "code": "ORB_PLACEMENT_UNIT_EMPTY",
     "category": "placement",
     "description": "A deployment unit lists no orbital"
-  },
-  {
-    "code": "ORB_POSTGRES_CALL_INVALID",
-    "category": "postgres",
-    "description": "A postgres call has an origin that is not a postgres or postgresql origin without a path"
   },
   {
     "code": "ORB_P_AUTH_NO_SIGN_IN",
@@ -1393,11 +1408,6 @@
     "code": "ORB_RANDOM_BYTES_COUNT",
     "category": "random",
     "description": "A random-bytes count argument is outside the allowed integer range"
-  },
-  {
-    "code": "ORB_REDIS_CALL_INVALID",
-    "category": "redis",
-    "description": "A redis call has an origin that is not a redis or rediss origin without a path"
   },
   {
     "code": "ORB_RENDER_ACTION_LIFECYCLE_EVENT",
@@ -1603,6 +1613,16 @@
     "code": "ORB_S_IDENTITY_NOT_UNIQUE",
     "category": "schema",
     "description": "More than one entity is tagged identity, making every @user field reference ambiguous"
+  },
+  {
+    "code": "ORB_S_INVARIANT_UNPROVED",
+    "category": "spec",
+    "description": "A spec proposition the prover cannot decide, so the program is not shown to keep it"
+  },
+  {
+    "code": "ORB_S_INVARIANT_VIOLATED",
+    "category": "spec",
+    "description": "A spec proposition (invariant, holds, ensures) is broken by a write, with a counterexample the evaluator confirms"
   },
   {
     "code": "ORB_S_MISSING_NAME",
@@ -1880,6 +1900,11 @@
     "description": "A user-identity value is bound into a slot that requires a value the viewer may not have"
   },
   {
+    "code": "ORB_U_CONFIG_UNKNOWN_KEY",
+    "category": "uses",
+    "description": "A uses config override names a knob the imported behavior app-level config never declared"
+  },
+  {
     "code": "ORB_W_LOOP_INVARIANT_PARSE",
     "category": "lint",
     "description": "A parse inside a lambda re-parses the same value for every element and should be bound once outside"
@@ -1928,6 +1953,11 @@
     "code": "ORB_X_LISTEN_TRIGGER_UNMATCHED",
     "category": "cross",
     "description": "A listens entry triggers an event that no transition in the same trait reacts to"
+  },
+  {
+    "code": "ORB_X_LLM_WIRE_UNROUTED",
+    "category": "cross",
+    "description": "A composed std-llm trait can emit a wire event that no trait in the program listens to"
   },
   {
     "code": "ORB_X_MISSING_ORBITAL_NAME",

@@ -4,11 +4,10 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeAll } from 'vitest';
-import { render, act, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { OrbitalSchema } from '@almadar/core';
 import { FlowCanvas } from '../FlowCanvas';
 import { EventBusProvider } from '../../../../core';
-import { useEventBus } from '../../../../core';
 
 beforeAll(() => {
   class ResizeObserverStub {
@@ -41,12 +40,17 @@ const schema: OrbitalSchema = {
   ],
 };
 
-let emit: (type: string, payload: Record<string, string | number>) => void = () => {};
-function BusHandle(): null {
-  const bus = useEventBus();
-  emit = (type, payload) => bus.emit(type, payload);
-  return null;
-}
+// A card's right-edge resize control, standing in for the library's pointer drag geometry: one click ends a resize at `resizeTo`.
+let resizeTo = 0;
+vi.mock('@xyflow/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@xyflow/react')>();
+  return {
+    ...actual,
+    NodeResizeControl: ({ onResizeEnd }: { onResizeEnd?: (event: unknown, params: { width: number }) => void }) => (
+      <button type="button" data-testid="card-resize" onClick={() => onResizeEnd?.(null, { width: resizeTo })} />
+    ),
+  };
+});
 
 function card(container: HTMLElement): HTMLElement {
   const el = container.querySelector<HTMLElement>('[class*="@container/preview"]');
@@ -68,26 +72,13 @@ describe('FlowCanvas — card frame width', () => {
     const onPositionsChange = vi.fn();
     const { container } = render(
       <EventBusProvider debug={false}>
-        <BusHandle />
         <FlowCanvas schema={schema} nodePositions={{ TaskBoard: { x: 40, y: 60 } }} onPositionsChange={onPositionsChange} />
       </EventBusProvider>,
     );
     await waitFor(() => card(container));
-    act(() => emit('UI:CANVAS_CARD_RESIZED', { nodeId: 'TaskBoard', width: 640 }));
+    resizeTo = 640;
+    fireEvent.click(screen.getByTestId('card-resize'));
     expect(onPositionsChange).toHaveBeenLastCalledWith({ TaskBoard: { x: 40, y: 60, width: 640 } });
     await waitFor(() => expect(card(container).style.width).toBe('640px'));
-  });
-
-  it('a resize of an unknown card changes nothing', async () => {
-    const onPositionsChange = vi.fn();
-    const { container } = render(
-      <EventBusProvider debug={false}>
-        <BusHandle />
-        <FlowCanvas schema={schema} onPositionsChange={onPositionsChange} />
-      </EventBusProvider>,
-    );
-    await waitFor(() => card(container));
-    act(() => emit('UI:CANVAS_CARD_RESIZED', { nodeId: 'Nope', width: 640 }));
-    expect(onPositionsChange).not.toHaveBeenCalled();
   });
 });

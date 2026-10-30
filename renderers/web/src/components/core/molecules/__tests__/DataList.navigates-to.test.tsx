@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DataList, type DataListItemAction } from '../DataList';
-import { EventBusProvider } from '../../../../core';
+import { EventBusProvider, NavStackProvider } from '../../../../core';
 import { useEventBus } from '../../../../core';
 
 type Fired = { name: string; payload: Record<string, unknown> };
@@ -22,8 +22,10 @@ const fields = [{ name: 'title', variant: 'h4' as const }];
 function renderList(actions: DataListItemAction[], fired: Fired[]) {
   render(
     <EventBusProvider debug={false}>
-      <Spy names={['UI:NAVIGATE', 'UI:VIEW']} fired={fired} />
-      <DataList entity={rows} fields={fields} itemActions={actions} />
+      <Spy names={['UI:VIEW']} fired={fired} />
+      <NavStackProvider pages={[]} currentPath="/" navigate={(url) => { fired.push({ name: 'NAVIGATE', payload: { url } }); }}>
+        <DataList entity={rows} fields={fields} itemActions={actions} />
+      </NavStackProvider>
     </EventBusProvider>,
   );
 }
@@ -33,7 +35,7 @@ describe('DataList row action navigatesTo', () => {
     const fired: Fired[] = [];
     renderList([{ label: 'Open', event: 'VIEW', navigatesTo: '/contacts/{{row.id}}', variant: 'primary' }], fired);
     fireEvent.click(screen.getByRole('button', { name: /Open/ }));
-    expect(fired.map((f) => f.name)).toEqual(['UI:NAVIGATE']);
+    expect(fired.map((f) => f.name)).toEqual(['NAVIGATE']);
     expect(fired[0].payload.url).toBe('/contacts/c42');
   });
 

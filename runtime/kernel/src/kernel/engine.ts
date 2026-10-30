@@ -3,14 +3,11 @@
  * (`@almadar/kernel`, WebAssembly) decides every execution step; this host answers the I/O it asks for
  * and nothing else. The continuation of a stopped dispatch never leaves the wasm instance.
  */
-import { installKernelEvaluator, isEntityReferenceAny, MountSeedSchema, type MountSeed, type EventPayload, type EventStreamItem, type MessageCatalogs, type OrbitalEventRequest, type OrbitalEventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext } from '@almadar/core';
-import { z } from 'zod';
+import { ExternalInputSchema, InboundAnswerSchema, InboundFoundSchema, InboundOnlySchema, NameListSchema, OptionalNameSchema, PayloadIssueSchema, PayloadJsonSchemaSchema, installKernelEvaluator, isEntityReferenceAny, MountSeedSchema, EntityRowSchema, EventPayloadSchema, type ExternalInput, type InboundAnswer, type InboundDelivery, type InboundRoute, type JsonSchema, type PayloadField, type PayloadIssue, type MountSeed, type EntityRow, type EventPayload, type EventStreamItem, type MessageCatalogs, type EventRequest, type EventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext, LiveBroadcastItemSchema, type LiveBroadcastItem } from '@almadar/core';
+import type { FiredTick } from '@almadar/core/kernel-wire';
 import { LaneHeldByParkedDispatch } from './lane.js';
 
-const DueTickSchema = z.object({ trait: z.string(), tick: z.string() });
-/** A tick the kernel's clock found due. */
-export type DueTick = z.infer<typeof DueTickSchema>;
-import { decodeNext, decodeProgress, decodeResolveProgress } from './decode.js';
+import { decodeDueTicks, decodeNext, decodeProgress, decodeResolveProgress } from './decode.js';
 import { answerRequest, declareCapabilities, type KernelAnswerScope, type KernelHostPorts } from './host.js';
 import type { OsCompletionEvent } from './os-port.js';
 import type { IoReplyWire, KernelModule, KernelServerHandle, ServerProgressWire } from './wire.js';
@@ -36,7 +33,8 @@ function declaredEntityTypes(schema: OrbitalSchema): string[] {
 export class KernelEngine {
   private handle: KernelServerHandle;
   private readonly turns = new Map<number, Turn>();
-  private tickMount: string[] = [];
+  private tickRelayIntervalMs: number | undefined;
+  private stateful = false;
   private messages: { locales: readonly string[]; catalogs: MessageCatalogs } = { locales: [], catalogs: {} };
 
   constructor(
@@ -66,7 +64,6 @@ export class KernelEngine {
    */
   fork(ports: KernelHostPorts = this.ports): KernelEngine {
     const forked = new KernelEngine(this.kernel, this.schemaJson, ports, this.entityTypes, this.handle, undefined, this.preserveProgramContext, this.lazyDir);
-    forked.tickMount = this.tickMount;
     forked.messages = this.messages;
     return forked;
   }
@@ -100,7 +97,8 @@ export class KernelEngine {
     this.handle.free();
     this.handle = contextualHandle ?? this.openServer();
     this.declare();
-    this.handle.setTickMount(JSON.stringify(this.tickMount));
+    if (this.tickRelayIntervalMs !== undefined) this.handle.setTickRelayInterval(this.tickRelayIntervalMs);
+    if (this.stateful) this.handle.setStateful(true);
     this.handle.setMessages(JSON.stringify(this.messages.locales), JSON.stringify(this.messages.catalogs));
     if (this.managedProgram !== undefined) this.handle.setManagedProgram(this.managedProgram);
   }
@@ -119,15 +117,51 @@ export class KernelEngine {
     this.handle.setMessages(JSON.stringify(locales), JSON.stringify(catalogs));
   }
 
-  /** The traits some client has mounted: a tick that is not `[background]` fires only for these. */
-  setTickMount(traits: string[]): void {
-    this.tickMount = traits;
-    this.handle.setTickMount(JSON.stringify(traits));
+  /** `client` mounted `traits` of `orbital`: their mount-scoped ticks fire while any client holds them. A request derives this itself; this is for a mount made outside a request. */
+  mountClient(client: string, orbital: string, traits: readonly string[]): void {
+    this.handle.mountClient(client, orbital, JSON.stringify(traits));
+  }
+
+  unmountClient(client: string, orbital: string, traits: readonly string[]): void {
+    this.handle.unmountClient(client, orbital, JSON.stringify(traits));
+  }
+
+  /** `client` is gone: everything it mounted is released. */
+  releaseClient(client: string): void {
+    this.handle.releaseClient(client);
+  }
+
+  /** This host holds the circuit state: the kernel takes a client's copy of it only on a delegated leg and refuses any other request carrying one. */
+  setStateful(): void {
+    this.stateful = true;
+    this.handle.setStateful(true);
+  }
+
+  /** Whether the program declares any tick: the host runs its timer only then. */
+  declaresTicks(): boolean {
+    return this.handle.declaresTicks();
+  }
+
+  /** Queue a tick-stamped dispatch for the coalesced peer relay; the ms after which to flush when it opened a window. */
+  relayTick(orbital: string, request: EventRequest): number | undefined {
+    const window: number | null = JSON.parse(this.handle.relayTick(orbital, JSON.stringify(request)));
+    return window ?? undefined;
+  }
+
+  /** The relay window's length in ms; the kernel's default is 50. */
+  setTickRelayInterval(intervalMs: number): void {
+    this.tickRelayIntervalMs = intervalMs;
+    this.handle.setTickRelayInterval(intervalMs);
+  }
+
+  /** Every item queued since the window opened, in first-arrival order; the window closes. */
+  flushTickRelay(): LiveBroadcastItem[] {
+    return LiveBroadcastItemSchema.array().parse(JSON.parse(this.handle.flushTickRelay()));
   }
 
   /** One pass of the kernel's tick clock: the ticks due at monotonic `nowMs` that this server runs (`[background]` ticks, and those of a mounted trait). The host starts each as a `runTick` request. */
-  tickPass(nowMs: number): DueTick[] {
-    return DueTickSchema.array().parse(JSON.parse(this.handle.tickPass(nowMs)));
+  tickPass(nowMs: number): FiredTick[] {
+    return decodeDueTicks(this.handle.tickPass(nowMs));
   }
 
   /** Stop the kernel's tick clock; its phase is kept. */
@@ -156,6 +190,86 @@ export class KernelEngine {
 
   dispose(): void {
     this.handle.free();
+  }
+
+  private contract<T>(schema: { parse(input: ReturnType<typeof JSON.parse>): T }, query: object): T {
+    return schema.parse(JSON.parse(this.handle.contractQuery(JSON.stringify(query))));
+  }
+
+  /** Every external input the program declares: what an outside client may send which trait. */
+  externalInputs(): ExternalInput[] {
+    return this.contract(ExternalInputSchema.array(), { kind: 'externalInputs' });
+  }
+
+  /** The entities a provider acting as the caller may read. */
+  readableEntities(): string[] {
+    return this.contract(NameListSchema, { kind: 'readableEntities' });
+  }
+
+  /** The declared input of `trait.event` in `orbital`, when there is one. */
+  findExternalInput(orbital: string, trait: string, event: string): ExternalInput | undefined {
+    return this.contract(ExternalInputSchema.nullable(), { kind: 'findExternalInput', orbital, trait, event }) ?? undefined;
+  }
+
+  /** The declared input a `listens`-addressed event names from `caller`'s position (`EVENT`, `Trait.EVENT`, `Orbital.Trait.EVENT`), when there is one. */
+  findInputByAddress(address: string, caller: { orbital: string; trait: string }): ExternalInput | undefined {
+    return this.contract(ExternalInputSchema.nullable(), { kind: 'findInputByAddress', address, caller }) ?? undefined;
+  }
+
+  /** A declared payload as the JSON Schema of one object: what a tool-calling model fills. */
+  payloadJsonSchema(fields: readonly PayloadField[]): JsonSchema {
+    return this.contract(PayloadJsonSchemaSchema, { kind: 'payloadSchemaToJsonSchema', fields });
+  }
+
+  /** The ways `value` misses the declared payload `fields`. */
+  payloadIssues(fields: readonly PayloadField[], value: EventPayload): PayloadIssue[] {
+    return this.contract(PayloadIssueSchema.array(), { kind: 'payloadIssues', fields, value });
+  }
+
+  /** The route a hook name is delivered to, or the answer to write for a hook the program does not serve. */
+  findInbound(name: string): { route: InboundRoute } | { answer: InboundAnswer } {
+    return this.contract(InboundFoundSchema, { kind: 'findInbound', name });
+  }
+
+  /** The trait that handles `event` as an inbound hook in `orbital`, with the refusal message, when a client-facing request names it. */
+  inboundOnly(orbital: string, trait: string | undefined, event: string): { trait: string; message: string } | undefined {
+    return this.contract(InboundOnlySchema, { kind: 'inboundOnly', orbital, ...(trait !== undefined ? { trait } : {}), event }) ?? undefined;
+  }
+
+  /** The payload an inbound event is delivered with. */
+  inboundPayload(route: InboundRoute, delivery: InboundDelivery, credential: string | null | undefined): EventPayload {
+    const headers = Object.fromEntries(Object.entries(delivery.headers).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])));
+    return this.contract(EventPayloadSchema, { kind: 'inboundPayload', route, headers, rawBody: delivery.rawBody, ...(typeof credential === 'string' ? { credential } : {}) });
+  }
+
+  /** The HTTP answer a finished dispatch produced for `route`. */
+  inboundAnswer(route: InboundRoute, emitted: readonly { event: string; payload?: EventPayload }[], error: string | undefined): InboundAnswer {
+    return this.contract(InboundAnswerSchema, { kind: 'inboundAnswer', route, emitted, ...(error !== undefined ? { error } : {}) });
+  }
+
+  /** The answer for a route whose credential the host holds no value for. */
+  credentialUnset(credential: string): InboundAnswer {
+    return this.contract(InboundAnswerSchema, { kind: 'credentialUnset', credential });
+  }
+
+  /** The answer for a delivery whose dispatch failed. */
+  dispatchFailed(message: string): InboundAnswer {
+    return this.contract(InboundAnswerSchema, { kind: 'dispatchFailed', message });
+  }
+
+  /** The name of the program's `[identity]` entity, when it declares one. */
+  identityEntity(): string | undefined {
+    return this.contract(OptionalNameSchema, { kind: 'identityEntity' }) ?? undefined;
+  }
+
+  /** The orbital that declares `entity` inline. */
+  entityOwnerOrbital(entity: string): string | undefined {
+    return this.contract(OptionalNameSchema, { kind: 'entityOwner', entity }) ?? undefined;
+  }
+
+  /** `rows` of `entity` as `user` reads them: narrowed by the entity's declared `@read`, which the kernel evaluates with `@user` bound to the viewer. */
+  readRows(entity: string, rows: readonly EntityRow[], user: UserContext | undefined): EntityRow[] {
+    return this.contract(EntityRowSchema.array(), { kind: 'readRows', entity, rows, viewer: user ?? null });
   }
 
   liveItemDelivered(item: object, viewer: object | null, clientId?: string): boolean {
@@ -226,7 +340,7 @@ export class KernelEngine {
    * dispatch holds the lane it answers `queued` and runs the work itself once the lane frees; this host only answers
    * what each dispatch asks.
    */
-  async evaluate(orbital: string, request: OrbitalEventRequest, scope: KernelAnswerScope): Promise<OrbitalEventResponse> {
+  async evaluate(orbital: string, request: EventRequest, scope: KernelAnswerScope): Promise<EventResponse> {
     const handle = this.handle;
     const streams = scope.onStream !== undefined;
     let running = await this.ran(handle.start(orbital, JSON.stringify(request)), streams);
@@ -305,7 +419,7 @@ export interface KernelEvaluation {
  * promoted to `targetTrait`, and the `_activeTraits` sidecar dropped (the kernel's mounted set is explicit,
  * not carried per request).
  */
-export function kernelRequest(request: OrbitalEventRequest, user: UserContext | undefined, locale: string | undefined): OrbitalEventRequest {
+export function kernelRequest(request: EventRequest, user: UserContext | undefined, locale: string | undefined): EventRequest {
   const { _activeTraits: _dropped, _targetTrait: sidecarTarget, ...rest }: EventPayload = request.payload ?? {};
   const payload: EventPayload = rest;
   const target = request.targetTrait ?? (typeof sidecarTarget === 'string' ? sidecarTarget : undefined);
@@ -320,7 +434,7 @@ export function kernelRequest(request: OrbitalEventRequest, user: UserContext | 
 }
 
 /** The requesting client stamped on each emit, as the JS host's emit stamp does: a client-driven cascade is told apart from a headless one. */
-function withOriginClient(response: OrbitalEventResponse, clientId: string | undefined): OrbitalEventResponse {
+function withOriginClient(response: EventResponse, clientId: string | undefined): EventResponse {
   if (clientId === undefined) return response;
   return {
     ...response,
@@ -331,10 +445,10 @@ function withOriginClient(response: OrbitalEventResponse, clientId: string | und
 
 export async function evaluateOnKernel(
   kernel: KernelEvaluation,
-  request: OrbitalEventRequest,
+  request: EventRequest,
   user: UserContext | undefined,
   locale: string | undefined,
-): Promise<OrbitalEventResponse> {
+): Promise<EventResponse> {
   return withOriginClient(await kernel.engine.evaluate(kernel.orbital, kernelRequest(request, user, locale), {
     orbital: kernel.orbital,
     ...(user !== undefined ? { user } : {}),

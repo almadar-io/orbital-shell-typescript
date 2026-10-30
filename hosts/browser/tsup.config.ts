@@ -6,7 +6,8 @@ export default defineConfig({
   "auth/index": "src/auth/index.ts",
   "storage/index": "src/storage/index.ts",
   "kv": "src/kv.ts",
-  "page-facts": "src/page-facts.ts"
+  "page-facts": "src/page-facts.ts",
+  "kernel-loader": "src/kernel-loader.ts"
 },
   format: ['esm'],
   dts: true,

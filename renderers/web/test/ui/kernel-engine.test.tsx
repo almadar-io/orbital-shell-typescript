@@ -7,7 +7,7 @@ import { act, renderHook } from '@testing-library/react';
 import type { OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
 import type { EventTransport, EventTransportRegisterResult } from '../../src';
-import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
+import type { EventRequest, EventResponse } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import { useEntityBindingSource } from '../../src/hooks/circuit/useEntityBindingSource';
@@ -50,11 +50,11 @@ const orbitals = (persistence: 'runtime' | 'persistent', bump: unknown[], traits
 const bindings: ResolvedTraitBinding[] = [{ trait: createEmptyResolvedTrait('Driver', 'schema'), linkedEntity: 'Board' }];
 
 class Server implements EventTransport {
-  readonly sent: OrbitalEventRequest[] = [];
-  constructor(private readonly answer: OrbitalEventResponse | Error) {}
+  readonly sent: EventRequest[] = [];
+  constructor(private readonly answer: EventResponse | Error) {}
   register(): Promise<EventTransportRegisterResult> { return Promise.resolve({ success: true, carriesCircuitState: false }); }
   unregister(): Promise<void> { return Promise.resolve(); }
-  send(_orbital: string, request: OrbitalEventRequest): Promise<OrbitalEventResponse> {
+  send(_orbital: string, request: EventRequest): Promise<EventResponse> {
     this.sent.push(request);
     return this.answer instanceof Error ? Promise.reject(this.answer) : Promise.resolve(this.answer);
   }
@@ -361,12 +361,12 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
   it('an unmounted trait stops ticking', async () => {
     const { result } = renderHook(() => useCircuitKernel([...bindings, rivalBinding], { stamp: TEST_STAMP, orbitals: rivalOrbitals(), engine: KERNEL_ENGINE }));
     const client = result.current.engine!;
-    await client.mount(['Driver', 'Rival']);
+    await client.enter(undefined, 'page', ['Driver', 'Rival']);
     await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Driver' });
     await client.frame(0);
     await client.frame(1000);
     expect(result.current.store.frames.get('Driver')?.score).toBe(101);
-    await client.unmount(['Rival']);
+    await client.enter(undefined, 'page', ['Driver']);
     await client.frame(2000);
     expect(result.current.store.frames.get('Driver')?.score).toBe(102);
   });

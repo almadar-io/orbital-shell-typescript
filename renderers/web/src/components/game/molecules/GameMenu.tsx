@@ -3,7 +3,7 @@ import * as React from "react";
 import type { A11yProps, EventKey, EventPayload, Asset } from "@almadar/core";
 import { domPassthrough } from '../../../core';
 import { cn } from '../../../core';
-import { useEventBus } from '../../../core';
+import { useEventBus, useNavStack } from '../../../core';
 import { useTranslate } from '../../../core';
 import { Box } from '../../../core';
 import { Card } from '../../../core';
@@ -79,6 +79,7 @@ export function GameMenu({
   const resolvedOptions = (options?.length ? options : undefined) ?? (menuItems?.length ? menuItems : undefined) ?? defaultOptions;
 
   const eventBus = useEventBus();
+  const navStack = useNavStack();
   const inOverlay = React.useContext(GameOverlayContext);
 
   const handleOptionClick = React.useCallback(
@@ -95,10 +96,10 @@ export function GameMenu({
 
       // Handle navigation if navigatesTo is specified
       if (option.navigatesTo) {
-        eventBus.emit('UI:NAVIGATE', { url: option.navigatesTo, option });
+        navStack.goTo(option.navigatesTo);
       }
     },
-    [eventBus, onSelect],
+    [eventBus, navStack, onSelect],
   );
 
   return (

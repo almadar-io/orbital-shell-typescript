@@ -14,6 +14,10 @@ export interface KernelInstance {
   openFlight(): number;
   /** `applyServerResponse` in flight order (EXEC-CONC-8): a `FoldProgressWire` as JSON, folded now or queued behind an older flight. */
   foldInOrder(flight: number, responseJson: string, alreadyDeliveredJson?: string, baseJson?: string): string;
+  /** `foldInOrder` for an emit that entered from outside the kernel (another client's push): delivered to its declared listeners only, a `FoldProgressWire` as JSON. */
+  deliverEmitToListeners(flight: number, emittedJson: string): string;
+  /** `deliverEmitToListeners` for a live message of this client's own running call, whose emitter ran its own arm as that call's progress dispatch: the emitter is not delivered its own emit a second time. */
+  deliverOriginEmit(flight: number, emittedJson: string): string;
   /** The oldest queued answer that can fold now, folded: a `FoldedNextWire` as JSON, or `undefined` when none waits. */
   nextFold(): string | undefined;
   /** The flight is done: its answers are folded, or the host gave up on them. */
@@ -52,8 +56,10 @@ export interface KernelInstance {
   /** The kernel's mounts for a client opening `routePath`: `MountSeed[]` as JSON. */
   routeMounts(routePath: string): string;
   mount(traitsJson: string): void;
-  remount(traitsJson: string): void;
-  unmount(traitsJson: string): void;
+  /** The page `mountKey` holds `traitsJson`, opened at `routePath` when it has one: an `Entered` as JSON (the seeds to mount, the traits that left with the legs that release them). */
+  enter(routePath: string | undefined, mountKey: string, traitsJson: string): string;
+  /** Every trait the page entered leaves: `Left[]` as JSON. */
+  leave(): string;
   /** The host's report of whether a trait's rendered output is on screen; gates its `[visible]` ticks. */
   setTraitOnScreen(traitName: string, onScreen: boolean): void;
   seed(entityType: string, rowsJson: string): void;
@@ -62,7 +68,7 @@ export interface KernelInstance {
 
 /**
  * What a host's loader resolves: the `@almadar/kernel` module with its WebAssembly already
- * initialised (`await init()` in a browser, `initSync` in Node). `@almadar/ui` never imports the
+ * initialised and its language installed (`loadBrowserKernel` in a browser, `initSync` in Node). `@almadar/ui` never imports the
  * package itself, so the default bundle carries none of it.
  */
 export interface KernelModule extends RuntimeKernelModule {
@@ -71,6 +77,4 @@ export interface KernelModule extends RuntimeKernelModule {
 
 export type KernelLoader = () => Promise<KernelModule>;
 
-/** Resolves the language bundle (`@almadar/core/language-data` `LanguageBundle`) as JSON text, for a kernel a browser opens over a local store. */
-export type LanguageLoader = () => Promise<string>;
 

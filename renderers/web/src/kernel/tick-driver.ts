@@ -4,7 +4,7 @@
  * frames; the kernel drops missed beats. The kernel orders what a frame's dispatches owe the host (EXEC-CONC-8). A hidden page pauses the kernel's clock and stops polling.
  */
 import type { LocalFoldKernel } from '@almadar/shell-runtime/client/client-kernel';
-import { applyFrame, type FrameApplied, type FramePostPort } from './frame-applier.js';
+import { applyFrame, type FrameApplied, type FramePostPort } from '@almadar/shell-runtime/kernel/frame-applier';
 
 export interface TickKernelPort {
   frame(nowMs: number): string | undefined;

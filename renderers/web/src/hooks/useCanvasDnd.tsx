@@ -10,9 +10,9 @@
  * Pointer-sensor based so it works inside React Flow nodes (the native
  * HTML5 DnD path was swallowed by React Flow's pan/zoom handlers).
  *
+ * The kind being dragged is React context (`useCanvasDragKind`), not a bus event.
+ *
  * Event contract (defaults — overridable via `CanvasDndProvider.onDrop`):
- *   - On drag start: emits `UI:DRAG_START` { kind, data }
- *   - On drag end:   emits `UI:DRAG_END`   { kind, data }
  *   - On 'pattern' drop:          emits `UI:PATTERN_DROP` { patternType, containerNode, parentPath?, index? }
  *   - On 'behavior' drop:         emits `UI:BEHAVIOR_DROP` { behaviorName, containerNode }
  *   - On 'pattern-instance' drop: emits `UI:PATTERN_MOVE` { fromPath, loc, toParentPath?, toIndex? } —
@@ -46,6 +46,13 @@ import {
 import { createLogger } from '@almadar/logger';
 
 const log = createLogger('almadar:ui:canvas-dnd');
+
+export const CanvasDragKindContext = React.createContext<CanvasDragKind | null>(null);
+
+/** The kind of the canvas drag in progress (`'pattern'`, `'pattern-instance'`, …), or `null` when nothing is dragged. */
+export function useCanvasDragKind(): CanvasDragKind | null {
+  return React.useContext(CanvasDragKindContext);
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -333,12 +340,11 @@ export function CanvasDndProvider({
     document.addEventListener('pointermove', trackPointer);
     if (payload) {
       setActivePayload(payload);
-      eventBus.emit('UI:DRAG_START', { kind: payload.kind, data: payload.data });
       log.info('dragStart', { id: e.active.id, kind: payload.kind });
     } else {
       log.warn('dragStart:missing-payload', { id: e.active.id });
     }
-  }, [eventBus, trackPointer]);
+  }, [trackPointer]);
 
   const handleDragEnd = React.useCallback((e: DragEndEvent) => {
     setActivePayload(null);
@@ -359,9 +365,6 @@ export function CanvasDndProvider({
       targetLevel: target?.level,
     });
 
-    if (payload) {
-      eventBus.emit('UI:DRAG_END', { kind: payload.kind, data: payload.data });
-    }
     if (!payload || !target) return;
     if (accepts && !accepts.includes(payload.kind)) {
       log.debug('dragEnd:rejected:kind', { kind: payload.kind, accepts: [...accepts] });
@@ -400,7 +403,7 @@ export function CanvasDndProvider({
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      {children}
+      <CanvasDragKindContext.Provider value={activePayload?.kind ?? null}>{children}</CanvasDragKindContext.Provider>
       {/* Floating preview portal — renders outside any overflow:hidden|auto
           ancestor so the dragged tile stays visible as the cursor leaves the
           palette column. Only mounts when the consumer provided a renderer. */}

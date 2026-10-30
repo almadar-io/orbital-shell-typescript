@@ -96,20 +96,6 @@ describe('node credential rows', () => {
     await expect(installNodeCredentialVault({ kernel: wasm, env: { ...env, ALMADAR_CREDENTIAL_MASTER_KEY: 'short' } })).rejects.toThrow('64 hex digits');
   });
 
-  it('two hosts on one file taking one held grant: exactly one gets it, and a lone taker gets it', async () => {
-    const { env } = workspace();
-    const first = await installNodeCredentialVault({ kernel: wasm, env });
-    const second = await installNodeCredentialVault({ kernel: wasm, env });
-    if (first === null || second === null) throw new Error('no vault');
-    await first.hold('oauth:grant:RACE', 'GRANT', Date.now() + 60_000, Date.now());
-    const taken = await Promise.all([first.take('oauth:grant:RACE', Date.now()), second.take('oauth:grant:RACE', Date.now())]);
-    expect(taken.filter((value) => value !== undefined)).toEqual(['GRANT']);
-
-    await first.hold('oauth:grant:LONE', 'ONE', Date.now() + 60_000, Date.now());
-    expect(await second.take('oauth:grant:LONE', Date.now())).toBe('ONE');
-    expect(await first.take('oauth:grant:LONE', Date.now())).toBeUndefined();
-  });
-
   it('answers the conditional delete: true for the call that removed the row, false after', async () => {
     const { file } = workspace();
     const rows = fileCredentialRows(file);

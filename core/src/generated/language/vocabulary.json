@@ -167,8 +167,6 @@
     "notify",
     "call-service",
     "http",
-    "redis",
-    "postgres",
     "cancel-call",
     "random-bytes",
     "credential-status",

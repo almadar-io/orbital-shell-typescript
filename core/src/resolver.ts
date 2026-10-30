@@ -48,30 +48,7 @@ interface EntityWithDefaults extends Entity {
  * when the consumer drops its reference to the schema, the entry is
  * garbage-collected automatically.
  */
-let schemaCache = new WeakMap<OrbitalSchema, ResolvedIR>();
-
-/**
- * Clear the schema resolution cache.
- *
- * With WeakMap-on-reference caching, cache entries die naturally when
- * the schema object is GC'd, so explicit clearing is rarely necessary.
- * Kept for hot-reload paths that want to force fresh resolution; since
- * WeakMap has no `clear()`, we swap in a fresh instance.
- */
-export function clearSchemaCache(): void {
-  schemaCache = new WeakMap<OrbitalSchema, ResolvedIR>();
-}
-
-/**
- * Get cache statistics (for debugging).
- *
- * WeakMap doesn't expose size or keys; the best we can do is signal
- * that the cache is identity-keyed. Kept for API parity with the old
- * Map-based cache.
- */
-export function getSchemaCacheStats(): { size: number; keys: string[] } {
-  return { size: -1, keys: [] };
-}
+const schemaCache = new WeakMap<OrbitalSchema, ResolvedIR>();
 
 // ============================================================================
 // Schema to IR Conversion
@@ -425,40 +402,8 @@ export function getPage(ir: ResolvedIR, pageName?: string): ResolvedPage | undef
   return ir.pages.get(pageName);
 }
 
-/**
- * Get all pages from resolved IR as an array
- *
- * @param ir - Resolved IR
- * @returns Array of resolved pages
- */
-export function getPages(ir: ResolvedIR): ResolvedPage[] {
-  return Array.from(ir.pages.values());
-}
-
-/**
- * Get a specific entity from resolved IR by name
- *
- * @param ir - Resolved IR
- * @param entityName - Entity name to find
- * @returns Resolved entity or undefined
- */
-export function getEntity(ir: ResolvedIR, entityName: string): ResolvedEntity | undefined {
-  return ir.entities.get(entityName);
-}
-
-/**
- * Get a specific trait from resolved IR by name
- *
- * @param ir - Resolved IR
- * @param traitName - Trait name to find
- * @returns Resolved trait or undefined
- */
-export function getTrait(ir: ResolvedIR, traitName: string): ResolvedTrait | undefined {
-  return ir.traits.get(traitName);
-}
-
 /** The declared page modifiers, omitting absent ones (never defaulted). */
-export function pageModifiers(
+function pageModifiers(
   page: Pick<Page, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf' | 'isInitial' | 'isNotFound'>,
 ): Pick<ResolvedPage, 'access' | 'indexing' | 'title' | 'description' | 'sourcePage' | 'translationOf' | 'isInitial' | 'isNotFound'> {
   return {

@@ -11,7 +11,7 @@ import { OrbPreview } from '../OrbPreview';
 import { I18nProvider, createTranslate } from '../../core';
 import { KernelLoaderMissingError } from '../../providers/KernelEngineContext';
 import { clientProgram } from '../../test-support/lolo-program';
-import { KERNEL_AVAILABLE, TEST_LANGUAGE, loadFreshClientKernel, loadTestKernel } from '../../test-support/kernel-engine';
+import { KERNEL_AVAILABLE, loadFreshClientKernel, loadTestKernel } from '../../test-support/kernel-engine';
 
 // The provider's own contract: the shared setup's test kernel is not used here.
 vi.unmock('../../providers/KernelEngineContext');
@@ -88,7 +88,7 @@ orbital Board {
       LOADED -> idle
         (render-ui main { type: "stack", children: [
           { type: "typography", content: "board ready" },
-          { type: "data-grid", entity: @payload.data, fields: ["title", "owner"] }
+          { type: "data-grid", entity: @payload.data, fields: [{ name: "title" }, { name: "owner" }] }
         ] })
     }
 
@@ -105,18 +105,12 @@ orbital Board {
 
 const board = (name: string): OrbitalSchema => ({ ...clientProgram(boardProgram), name });
 
-describeKernel('OrbPreview — languageLoader', () => {
-  it('opens the kernel over browser-stored rows with the language the host loads', async () => {
-    const language = vi.fn(() => Promise.resolve(TEST_LANGUAGE));
-    render(<OrbPreview schema={board(`language-loader-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} languageLoader={language} />);
+describeKernel('OrbPreview — a kernel the loader installed the language into', () => {
+  it('opens the kernel over browser-stored rows without installing the language again', async () => {
+    const loader = vi.fn(loadFreshClientKernel);
+    render(<OrbPreview schema={board(`language-loader-${Math.random()}`)} isolated kernelLoader={loader} />);
     expect(await screen.findByText('board ready', undefined, { timeout: 15_000 })).toBeTruthy();
-    expect(language).toHaveBeenCalledTimes(1);
-  }, 20_000);
-
-  it('control: with no language loader the mount fails naming it, not with a trap', async () => {
-    render(<OrbPreview schema={board(`language-loader-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} />);
-    expect(await screen.findByText(/No language loader/, undefined, { timeout: 15_000 })).toBeTruthy();
-    expect(screen.queryByText('unreachable')).toBeNull();
+    expect(loader).toHaveBeenCalledTimes(1);
   }, 20_000);
 });
 
@@ -150,14 +144,14 @@ describeKernel('OrbPreview — the client kernel paints i18n/t', () => {
     const messages = { 'site:hero.title': 'Hello from the catalog' };
     render(
       <I18nProvider value={{ locale: 'en', direction: 'ltr', t: createTranslate(messages), messages }}>
-        <OrbPreview schema={greeting(`i18n-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} languageLoader={() => Promise.resolve(TEST_LANGUAGE)} />
+        <OrbPreview schema={greeting(`i18n-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} />
       </I18nProvider>,
     );
     expect(await screen.findByText('Hello from the catalog', undefined, { timeout: 15_000 })).toBeTruthy();
   }, 20_000);
 
   it('control: with no catalog the message paints empty, never the declared key or another locale', async () => {
-    render(<OrbPreview schema={greeting(`i18n-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} languageLoader={() => Promise.resolve(TEST_LANGUAGE)} />);
+    render(<OrbPreview schema={greeting(`i18n-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} />);
     const main = await screen.findByTestId('ui-slot-main', undefined, { timeout: 15_000 });
     await waitFor(() => expect(main.getAttribute('data-slot-mode')).toBe('content'));
     expect(main.textContent).toBe('');

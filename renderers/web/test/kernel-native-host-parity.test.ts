@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { OrbitalSchemaSchema, type EventStreamItem } from '@almadar/core';
 import { untouchedPersistence } from './helpers/persistence.js';
-import { InFlightCalls } from '../src/effects/in-flight-calls.js';
+import { InFlightCalls } from '@almadar/shell-runtime/effects/in-flight-calls';
 import { KernelEngine } from '../src/kernel/engine.js';
 import type { KernelHostPorts } from '../src/kernel/host.js';
 import { loadTestKernel, TEST_TYPE_CONTRACT_VERSION } from '../src/test-support/kernel-engine.js';

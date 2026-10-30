@@ -11,7 +11,7 @@ import type { OrbitalSchema, Trait } from '@almadar/core';
 import { OrbPreviewNode, PatternSelectionContext, CanvasToolsContext, CanvasStatePickerContext, type CanvasStatePicker, type SelectedPattern } from '../OrbPreviewNode';
 import { stateOptionsOf, LIVE_STATE } from '../../../../lib/avl-preview-converter';
 import { CANVAS_TOOLS, type CanvasTool } from '../../../../lib/canvas-tools';
-import { CanvasDndProvider } from '../../../../hooks/useCanvasDnd';
+import { CanvasDndProvider, CanvasDragKindContext, type CanvasDragKind } from '../../../../hooks/useCanvasDnd';
 import { EventBusProvider } from '../../../../core';
 import { useEventBus } from '../../../../core';
 import type { EventPayload } from '@almadar/core';
@@ -335,38 +335,33 @@ describe('OrbPreviewNode — insertion line while dragging', () => {
   });
   afterEach(() => vi.restoreAllMocks());
 
-  function DragEmitter({ onReady }: { onReady: (emit: (type: string, payload: Record<string, string>) => void) => void }): null {
-    const bus = useEventBus();
-    React.useEffect(() => onReady((type, payload) => bus.emit(type, payload)), [bus, onReady]);
-    return null;
-  }
-
   it('shows where a dragged pattern would land, and clears when the drag ends', async () => {
-    let emit: (type: string, payload: Record<string, string>) => void = () => {};
     const data: PreviewNodeData = {
       orbitalName: 'Counter', traitName: 'Clicker', transitionEvent: 'INIT', fromState: 'idle', toState: 'idle',
       patterns: [], eventSources: [], _fullSchema: stackSchema('px-3'),
     };
-    render(
+    const card = (dragKind: CanvasDragKind | null) => (
       <EventBusProvider debug={false}>
-        <DragEmitter onReady={(fn) => { emit = fn; }} />
         <ReactFlowProvider>
           <CanvasDndProvider>
-            <PatternSelectionContext.Provider value={{ selected: null, select: () => {} }}>
-              <OrbPreviewNode {...nodeProps(data)} />
-            </PatternSelectionContext.Provider>
+            <CanvasDragKindContext.Provider value={dragKind}>
+              <PatternSelectionContext.Provider value={{ selected: null, select: () => {} }}>
+                <OrbPreviewNode {...nodeProps(data)} />
+              </PatternSelectionContext.Provider>
+            </CanvasDragKindContext.Provider>
           </CanvasDndProvider>
         </ReactFlowProvider>
-      </EventBusProvider>,
+      </EventBusProvider>
     );
+    const view = render(card(null));
     const go = await screen.findByText('Go');
     const originalElementsFromPoint = document.elementsFromPoint;
     document.elementsFromPoint = () => [go];
     try {
-      act(() => emit('UI:DRAG_START', { kind: 'pattern' }));
+      view.rerender(card('pattern'));
       fireEvent.pointerMove(go, { clientX: 50, clientY: 20, pointerId: 1 });
       expect(screen.getByTestId('orb-preview-insertion-line')).toBeTruthy();
-      act(() => emit('UI:DRAG_END', {}));
+      view.rerender(card(null));
       expect(screen.queryByTestId('orb-preview-insertion-line')).toBeNull();
     } finally {
       document.elementsFromPoint = originalElementsFromPoint;

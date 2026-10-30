@@ -28,14 +28,6 @@ export interface LoadKernelOptions {
   languageFrom: string;
 }
 
-/**
- * Loads the kernel and installs the language data the installed packages declare (the operator table that
- * routes `program/*` and the other host effects), as `orb` reads it. The first install in a process wins.
- */
-export async function loadKernelModule(kernelDir: string, options: LoadKernelOptions): Promise<LoadedKernel> {
-  return loadKernel(kernelDir, options);
-}
-
 const initialised = new WeakSet<LoadedKernel>();
 
 /**
@@ -52,23 +44,19 @@ function initOnce(loaded: LoadedKernel, wasm: Uint8Array | undefined, languageFr
 }
 
 /**
- * The kernel of the `@almadar/kernel` package this host installs, initialised synchronously with the language data
- * the packages under `languageFrom` declare. `languageFrom` is required; the first call in a process wins.
- */
-export function initKernelSync(languageFrom: string): typeof installedModule {
-  initOnce(installedModule, readFileSync(createRequire(import.meta.url).resolve('@almadar/kernel/kernel.wasm')), languageFrom);
-  return installedModule;
-}
-
-/**
  * The kernel of the `@almadar/kernel` package this host installs, loaded once per process with the language data
  * the packages under `languageFrom` declare. A host with no package installed rejects, never falls back.
  */
 export async function loadInstalledKernel(languageFrom: string): Promise<LoadedKernel> {
-  return initKernelSync(languageFrom);
+  return initOnce(installedModule, readFileSync(createRequire(import.meta.url).resolve('@almadar/kernel/kernel.wasm')), languageFrom);
 }
 
-async function loadKernel(kernelDir: string, options: LoadKernelOptions): Promise<LoadedKernel> {
+/**
+ * Loads the kernel from `kernelDir` (the one with `pkg/`) and installs the language data the installed packages declare
+ * (the operator table that routes `program/*` and the other host effects), as `orb` reads it. The first install in a
+ * process wins.
+ */
+export async function loadKernelModule(kernelDir: string, options: LoadKernelOptions): Promise<LoadedKernel> {
   const loaded: LoadedKernel = await import(pathToFileURL(join(kernelDir, 'pkg/orbital_wasm.js')).href);
   return initOnce(loaded, initialised.has(loaded) ? undefined : readFileSync(join(kernelDir, 'pkg/orbital_wasm_bg.wasm')), options.languageFrom);
 }

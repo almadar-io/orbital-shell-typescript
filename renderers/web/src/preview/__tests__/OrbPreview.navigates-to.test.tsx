@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 /**
  * A `navigatesTo` action rendered inside a trait (page-header actions,
- * shell top-bar actions, item actions) emits `UI:NAVIGATE`; the preview must
- * switch to the target page. The emit happens on the bus OrbitalProvider
- * mounts, so the preview has to listen inside that tree.
+ * shell top-bar actions, item actions) navigates through the nav stack the
+ * preview mounts; the preview must switch to the target page.
  */
 import { describe, it, expect } from 'vitest';
 import React from 'react';

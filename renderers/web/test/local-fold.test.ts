@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { OrbitalEventResponse } from '@almadar/core';
+import type { EventResponse } from '@almadar/core';
 import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import type { FrameDelta, FrameWire } from '@almadar/core/kernel-wire';
-import { applyFrame } from '../src/kernel/frame-applier.js';
+import { applyFrame } from '@almadar/shell-runtime/kernel/frame-applier';
 import { createLocalFold } from '@almadar/shell-runtime/client/local-fold';
 
-const response: OrbitalEventResponse = {
+const response: EventResponse = {
   success: true,
   transitioned: true,
   states: { T: 'running' },

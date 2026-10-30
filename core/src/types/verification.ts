@@ -83,7 +83,7 @@ export interface ServerResponseTrace {
   success: boolean;
   /**
    * The runtime's own verdict on whether ANY arm accepted this dispatch
-   * (`OrbitalEventResponse.transitioned`). `false` = the event was
+   * (`EventResponse.transitioned`). `false` = the event was
    * delivered but no transition fired — guard false, or no arm in the
    * current state — which a self-loop's unchanged state cannot reveal on
    * its own. Undefined only where the producing path does not report it
@@ -91,7 +91,7 @@ export interface ServerResponseTrace {
    */
   transitioned?: boolean;
   /**
-   * Server-side emits with their EVALUATED payloads (`OrbitalEventResponse.
+   * Server-side emits with their EVALUATED payloads (`EventResponse.
    * emittedEvents[].payload`). `emittedEvents` keeps the names for existing
    * consumers; observers that judge what an emit CARRIES read this — a
    * server-side `(emit SAVE {…})` never reaches the client bus log, and the

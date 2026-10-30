@@ -1,6 +1,6 @@
 import type { OnDeviceModelPorts } from '@almadar/core';
-import { embedOnDevice, promptOnDevice } from './on-device-model.js';
-import type { EffectHandlers } from '../runtime/types.js';
+import { embedOnDevice, promptOnDevice } from '@almadar/shell-runtime/effects/on-device-model';
+import type { EffectHandlers } from '@almadar/shell-runtime/runtime/types';
 
 /** The `browserPrompt` and `browserEmbed` handlers over a host's ports; absent ports answer `unconfigured`. */
 export function onDeviceHandlers(ports: OnDeviceModelPorts | undefined): Pick<EffectHandlers, 'browserPrompt' | 'browserEmbed'> {

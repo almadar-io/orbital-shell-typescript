@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FrameWire, RoutedLeg } from '@almadar/core/kernel-wire';
-import type { OrbitalEventResponse } from '@almadar/core';
-import { applyFrame, decodeFrame, type FramePostPort } from '../src/kernel/frame-applier.js';
+import type { EventResponse } from '@almadar/core';
+import { applyFrame, decodeFrame, type FramePostPort } from '@almadar/shell-runtime/kernel/frame-applier';
 
 const response = (states: Record<string, string>): FrameWire['response'] => ({
   success: true,
@@ -16,7 +16,7 @@ const leg: RoutedLeg = {
 };
 
 const withLeg: FrameWire = {
-  fired: [{ trait: 'Editor', tick: 'autosave' }],
+  fired: [{ orbital: 'Notes', trait: 'Editor', tick: 'autosave' }],
   response: response({ Editor: 'editing' }),
   dispatches: [{
     trait: 'Editor',
@@ -37,11 +37,11 @@ const withLeg: FrameWire = {
 };
 
 function fakeKernel() {
-  const folded: Array<{ response: OrbitalEventResponse; traceHops: boolean; notify: boolean }> = [];
+  const folded: Array<{ response: EventResponse; traceHops: boolean; notify: boolean }> = [];
   return {
     folded,
     kernel: {
-      foldLocalResponse: async (res: OrbitalEventResponse, traceHops: boolean, notify: boolean) => {
+      foldLocalResponse: async (res: EventResponse, traceHops: boolean, notify: boolean) => {
         folded.push({ response: res, traceHops, notify });
       },
     },

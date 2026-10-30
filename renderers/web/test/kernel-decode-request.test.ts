@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { IoRequestWire } from '@almadar/core/kernel-wire';
 import type { JsonValue } from '@almadar/core';
-import { decodeRequest } from '../src/kernel/decode.js';
+import { decodeRequest } from '@almadar/shell-runtime/kernel/decode';
 
 const site = { trait: 'T', followOn: false, emit: { success: 'OK', failure: 'BAD' } };
 const ref = { instance: 'i', orbital: 'O', trait: 'T' };
@@ -32,6 +32,7 @@ const SAMPLES: { readonly [K in IoRequestWire['kind']]: Extract<IoRequestWire, {
   credentialStatus: { kind: 'credentialStatus', name: 'n', principal: 'p' },
   credentialForget: { kind: 'credentialForget', name: 'n', principal: 'p' },
   clock: { kind: 'clock' },
+  sealed: { kind: 'sealed', op: 'rsa/sign', args: ['SIGNING', 'header.payload'] },
   credentialStoreList: { kind: 'credentialStoreList' },
   credentialStoreRead: { kind: 'credentialStoreRead', name: 'n' },
   credentialStoreWrite: { kind: 'credentialStoreWrite', service: 's', name: 'n', value: 'v' },
@@ -67,15 +68,6 @@ describe('decodeRequest follows what the Rust deserializer accepts and produces'
 
   it('rule 2: a field the type does not declare is dropped, as serde drops it', () => {
     expect(decodeRequest({ kind: 'listRows', entityType: 'E', extra: 1 })).toEqual({ kind: 'listRows', entityType: 'E' });
-  });
-
-  it('rule 3: a defaulted field is filled in when missing, and a wrong type is still refused', () => {
-    const grant = { provider: 'google', redirectUri: 'r', verifier: 'v', subject: null };
-    const decoded = decodeRequest({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant } });
-    expect(decoded).toEqual({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant: { ...grant, scopes: [] } } });
-    const kept = decodeRequest({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant: { ...grant, scopes: ['a'] } } });
-    expect(kept).toEqual({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant: { ...grant, scopes: ['a'] } } });
-    expect(() => decodeRequest({ kind: 'oauth', ask: { ask: 'pendingPut', state: 's', ttlMs: 5, grant: { ...grant, scopes: 'a' } } })).toThrow(/scopes: expected a list/);
   });
 
   it('a missing Option decodes to its absence, and a null Option is absent too', () => {

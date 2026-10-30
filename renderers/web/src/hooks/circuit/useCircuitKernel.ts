@@ -19,10 +19,8 @@
  * has no transport at all: every dispatch runs Client-env locally and
  * nothing is ever posted (`ClientKernelOpts.transport` omitted).
  *
- * Server-pushed cascade events (`EventTransport.subscribe`, e.g. another
- * client's persist envelope) fan out through the SAME `collectListenerTargets`
- * the composition's own in-band fan-out and `applyOrbitalEventResponse`'s
- * response fold use — one matching implementation, three entry points.
+ * Server-pushed cascade events (`EventTransport.subscribe`, e.g. another client's persist envelope) reach their
+ * listeners through `useTraitStateMachine` (G-ORBITAL-SHELL-TYPESCRIPT-104).
  *
  * @packageDocumentation
  */
@@ -38,16 +36,16 @@ import { createMemoryCircuitStore, type CircuitStore } from '@almadar/shell-runt
 import type { ClientKernel, ClientKernelOutcome } from '@almadar/shell-runtime/client/client-kernel';
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import type { TransitionObserver } from '@almadar/shell-runtime/client/trait-types';
-import { buildTraitIndex, collectListenerTargets, createLocalStoreTransport, createResidenceTransport, localStorePersistence, nativeMemoryPersistence, openLocalKernel } from '../../runtime';
+import { buildTraitIndex, createLocalStoreTransport, createResidenceTransport, localStorePersistence, nativeMemoryPersistence, openLocalKernel } from '../../runtime';
 import type { IndexedTrait, TraitIndex, SchemaMetadata } from '@almadar/core';
-import { UNMOUNT_EVENT, type OrbitalSchema, type PersistenceAdapter } from '@almadar/core';
+import type { OrbitalSchema, PersistenceAdapter } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { recordingTransport, verifierAttached } from '../../lib/verificationRegistry';
 import { createLazyKernelClient } from '../../lib/kernel-client-lazy';
 import type { KernelClient } from '../../lib/kernel-client';
 import type { KernelInstance } from '../../lib/kernel-wire';
 import { kernelOrbitals } from '../../lib/kernel-schema';
-import { KernelLoaderMissingError, LanguageLoaderMissingError, type KernelEngineValue } from '../../providers/KernelEngineContext';
+import { KernelLoaderMissingError, type KernelEngineValue } from '../../providers/KernelEngineContext';
 import { useTranslate, useRenderI18n } from '../../core';
 
 /** A program's type-contract stamp: the kernel refuses to register a program carrying neither field. */
@@ -124,14 +122,6 @@ export function getTabClientId(): string {
 
 const log = createLogger('almadar:ui:circuit-kernel');
 
-function postUnmounts(transport: EventTransport, traits: ReadonlyArray<readonly [string, string]>, locale: string): void {
-  for (const [traitName, orbitalName] of traits) {
-    transport
-      .send(orbitalName, { event: UNMOUNT_EVENT, targetTrait: traitName, clientId: getTabClientId(), locale })
-      .catch((err) => log.warn('unmount-post-failed', { trait: traitName, orbital: orbitalName, error: String(err) }));
-  }
-}
-
 /** Restrict a full-schema `TraitIndex` down to the traits this page mounts —
  *  the client's browser store only ever holds the current page's circuit,
  *  never an off-page trait it has nothing rendered for. */
@@ -176,28 +166,8 @@ export function useCircuitKernel(
     [activeTraitKey, fullTraitIndex],
   );
 
-  // Runtime Spec Clause 8.3: a trait leaving the page (or the page tearing down) is unmounted on
-  // the server, pausing its mount-scoped ticks. Held with dispatch until the topology registers.
-  const mountedRef = useRef(new Map<string, string>());
   const { locale } = useTranslate();
   const i18n = useRenderI18n();
-  const localeRef = useRef(locale);
-  localeRef.current = locale;
-  const transport = options.transport;
-  const topologyPending = options.awaitTopology === true;
-  useEffect(() => {
-    if (transport === undefined || topologyPending) return;
-    const mounted = mountedRef.current;
-    const dropped = [...mounted].filter(([name]) => !traitIndex.byName.has(name));
-    mounted.clear();
-    for (const [name, entry] of traitIndex.byName) mounted.set(name, entry.orbitalName);
-    postUnmounts(transport, dropped, localeRef.current);
-  }, [traitIndex, transport, topologyPending]);
-  useEffect(() => {
-    if (transport === undefined) return;
-    const mounted = mountedRef.current;
-    return () => postUnmounts(transport, [...mounted], localeRef.current);
-  }, [transport]);
 
   const store = useMemo(
     () => createMemoryCircuitStore(Array.from(traitIndex.byName.values(), (entry: IndexedTrait) => entry.traitDef), options.observer),
@@ -206,7 +176,6 @@ export function useCircuitKernel(
 
   if (options.engine === null) throw new KernelLoaderMissingError();
   const loadModule = options.engine.loadModule;
-  const loadLanguage = options.engine.loadLanguage;
   const orbitalName = orbitals[0]?.name ?? '';
   const metadata = options.metadata;
   const stamp = options.stamp;
@@ -214,13 +183,12 @@ export function useCircuitKernel(
   const localTransport = useCallback(
     (store: PersistenceAdapter): EventTransport => {
       const schema: OrbitalSchema = { name: orbitalName, orbitals: [...orbitals], ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) };
-      const language = loadLanguage !== undefined ? loadLanguage() : Promise.reject(new LanguageLoaderMissingError());
-      const kernelEngine = Promise.all([loadModule(), language]).then(([kernel, bundle]) => openLocalKernel({
+      const kernelEngine = loadModule().then((kernel) => openLocalKernel({
           kernel,
-          language: bundle,
           schema,
           persistence: localStorePersistence(schema, store, nativeMemoryPersistence(kernel)),
           ...(options.callService !== undefined ? { callService: options.callService } : {}),
+          ...(options.engine?.os !== undefined ? { os: options.engine.os } : {}),
           ...(i18n !== undefined ? { messages: { [i18n.locale]: i18n.messages } } : {}),
         }));
       // The failure reaches the first request through the transport; a store nothing dispatches to stays quiet.
@@ -231,7 +199,7 @@ export function useCircuitKernel(
         ...(options.user !== undefined ? { user: options.user } : {}),
       });
     },
-    [loadModule, loadLanguage, orbitalName, orbitals, metadata, stamp, options.callService, options.user, i18n],
+    [loadModule, orbitalName, orbitals, metadata, stamp, options.callService, options.engine?.os, options.user, i18n],
   );
   const offlineTransport = useMemo(
     () => (options.transport !== undefined || options.persistence === undefined ? undefined : localTransport(options.persistence)),
@@ -312,8 +280,11 @@ export function useCircuitKernel(
       store: rawKernel.store,
       dispatch: (request, hooks) => rawKernel.dispatch(stamp(request), hooks),
       dispatchMount: (seeds, hooks, base = {}) => rawKernel.dispatchMount(seeds, hooks, stamp(base)),
-      dispatchProgress: (request: import('@almadar/core').OrbitalEventRequest) => rawKernel.dispatchProgress(stamp(request)),
+      dispatchProgress: (request: import('@almadar/core').EventRequest) => rawKernel.dispatchProgress(stamp(request)),
       foldHostDispatch: (request, response) => rawKernel.foldHostDispatch(request, response),
+      deliverEmit: (emitted) => rawKernel.deliverEmit(emitted),
+      deliverToListeners: (emitted) => rawKernel.deliverToListeners(emitted),
+      deliverOriginEmit: (emitted) => rawKernel.deliverOriginEmit(emitted),
     };
   }, [rawKernel, locale]);
 

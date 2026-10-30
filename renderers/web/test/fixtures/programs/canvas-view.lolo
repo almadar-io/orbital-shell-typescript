@@ -1,0 +1,71 @@
+app canvas-view [
+  version: "1.0.0",
+  description: "Two orbitals for the canvas view: Tasks browses and imports a stat card, Notes listens to the Tasks trait's external emit."
+]
+uses Stat from "./stat-card"
+
+orbital Tasks {
+  entity Task [runtime] {
+    id : string!
+  }
+
+  trait Browse -> Task {
+    initial: browsing
+
+    emits {
+      TASK_OPENED -> external { }
+      STATS_STALE -> external { }
+    }
+
+    state browsing {
+      INIT -> browsing
+        (render-ui main { type: loading-state })
+      LOADED -> browsing
+        (render-ui main { type: data-list, entity: [] })
+      LOAD_FAILED -> browsing
+        (render-ui main { type: error-state })
+      SAVED -> browsing
+        (render-ui main { type: data-list, entity: [] })
+      EDIT -> editing
+        (render-ui main { type: form, fields: [id] })
+        (emit TASK_OPENED)
+        (emit STATS_STALE)
+    }
+
+    state editing {
+      CANCEL -> browsing
+        (set @entity.id x)
+      INIT -> browsing
+        (set @entity.id x)
+    }
+  }
+
+  trait Stats = Stat.traits.StatCardRender -> Task {
+    listens {
+      Browse.STATS_STALE -> REFRESH
+    }
+  }
+
+  page "/tasks" as TasksPage -> Browse, Stats
+}
+
+orbital Notes {
+  entity Note [runtime] {
+    id : string!
+  }
+
+  trait Listen -> Note {
+    initial: idle
+
+    listens {
+      Tasks.Browse.TASK_OPENED -> SHOW
+    }
+
+    state idle {
+      SHOW -> idle
+        (set @entity.id y)
+    }
+  }
+
+  page boot as NotesStart -> Listen
+}

@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import type { EventPayload, OrbitalEventResponse } from '@almadar/core';
+import type { EventPayload, EventResponse } from '@almadar/core';
 import type { OrbitalServerRuntime as OrbitalServerRuntimeType } from '@almadar/shell-node/OrbitalServerRuntime';
 import type { KernelModule } from '@almadar/shell-web';
 import type { EmitRecord, JsonValue, Scenario, ScenarioFixture, ScenarioHarness, ScenarioSession, ScenarioStep, TraceStep } from './types.js';
@@ -23,7 +23,7 @@ function toPayload(value: JsonValue | undefined): EventPayload {
   return JSON.parse(JSON.stringify(value ?? {}));
 }
 
-function toTraceStep(step: ScenarioStep, response: OrbitalEventResponse, states: Record<string, string>): TraceStep {
+function toTraceStep(step: ScenarioStep, response: EventResponse, states: Record<string, string>): TraceStep {
   const emits: EmitRecord[] = response.emittedEvents.map((e) => ({ event: e.event, payload: toJson(e.payload ?? null) }));
   const effects: JsonValue[] = (response.clientEffectsByTrait ?? []).map((frame) => toJson(frame.effect));
   return { trait: step.trait, event: step.event, states, effects, emits };

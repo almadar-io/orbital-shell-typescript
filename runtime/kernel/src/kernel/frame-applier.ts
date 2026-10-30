@@ -9,7 +9,7 @@
  */
 import type { FiredTick, FrameWire, RoutedLeg } from '@almadar/core/kernel-wire';
 import { isFrameWire } from '@almadar/core/kernel-wire';
-import type { JsonValue, OrbitalEventResponse } from '@almadar/core';
+import type { JsonValue, EventResponse } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import type { ClientKernelOutcome, LocalFoldKernel } from '../client/client-kernel.js';
 
@@ -23,7 +23,7 @@ export function decodeFrame(json: string | undefined): FrameWire | undefined {
   return value;
 }
 
-export type TickEffects = Pick<OrbitalEventResponse, 'clientEffectsByTrait'>;
+export type TickEffects = Pick<EventResponse, 'clientEffectsByTrait'>;
 
 export type FrameDispatch = FrameWire['dispatches'][number];
 
@@ -32,7 +32,7 @@ export interface FramePostPort {
   /** Posts one dispatch's server legs (or stateful leg); resolves to what the server's fold added. */
   postDispatch(dispatch: FrameDispatch): Promise<TickEffects>;
   /** Sends a leg the kernel routed to the browser store; `frameResponse` is the frame's aggregate response. */
-  sendBrowserLeg(leg: RoutedLeg, frameResponse: OrbitalEventResponse): Promise<TickEffects>;
+  sendBrowserLeg(leg: RoutedLeg, frameResponse: EventResponse): Promise<TickEffects>;
 }
 
 export interface FrameApplied {

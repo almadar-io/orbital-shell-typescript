@@ -82,7 +82,7 @@ export interface TopBarAction {
    *  `navigatesTo`. At least one of the two should be set; an entry with
    *  neither renders an inert button. */
   event?: EventKey;
-  /** Destination URL. Emits `UI:NAVIGATE` on click, the same mechanism
+  /** Destination URL. Navigates through the nav stack on click, the same mechanism
    *  `ButtonGroup` / `PageHeader` / `DocumentViewer` already use for their
    *  action descriptors — the top bar was the odd one out, which forced a
    *  navigation-only button to invent an event nothing listens for. Set
@@ -202,6 +202,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
 }) => {
   const eventBus = useEventBus();
+  const navStack = useNavStack();
   const { t } = useTranslate();
   const appName = appNameProp ?? t("dashboard.defaultAppName");
   // Search is shown when explicitly toggled OR a searchEvent is wired.
@@ -224,7 +225,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // independently optional, so one descriptor can do either or both.
   const handleTopBarActionClick = (action: TopBarAction) => {
     if (action.event) eventBus.emit(`UI:${action.event}`, {});
-    if (action.navigatesTo) eventBus.emit('UI:NAVIGATE', { url: action.navigatesTo });
+    if (action.navigatesTo) navStack.goTo(action.navigatesTo);
   };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -281,7 +282,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   }, [activePath]);
 
   // The declared navItems label the pages they reach in the breadcrumb trail.
-  const { registerNavItems } = useNavStack();
+  const { registerNavItems } = navStack;
   useEffect(() => {
     registerNavItems(navItems);
   }, [navItems, registerNavItems]);

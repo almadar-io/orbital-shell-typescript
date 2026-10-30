@@ -4,12 +4,17 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { EventBusProvider } from '../../core';
 import { TraitScopeProvider } from '../../core';
-import { NavStackRouterBridge } from '../../core';
+import { NavStackRouterBridge, useNavStack } from '../../core';
 import { useEventBus } from '../../core';
 
-function Emit({ type, payload }: { type: string; payload?: { url: string } }) {
+function Go({ url }: { url: string }) {
+  const navStack = useNavStack();
+  return <button type="button" onClick={() => navStack.goTo(url)}>go</button>;
+}
+
+function Emit({ type }: { type: string }) {
   const bus = useEventBus();
-  return <button type="button" onClick={() => bus.emit(type, payload)}>emit</button>;
+  return <button type="button" onClick={() => bus.emit(type)}>emit</button>;
 }
 
 function Listen({ type, onEvent }: { type: string; onEvent: () => void }) {
@@ -22,21 +27,7 @@ function Where() {
   return <span data-testid="where">{useLocation().pathname}</span>;
 }
 
-describe('UI:NAVIGATE from inside a trait scope', () => {
-  it('reaches the host listener on the bare key', () => {
-    const heard: string[] = [];
-    render(
-      <EventBusProvider isolated>
-        <Listen type="UI:NAVIGATE" onEvent={() => heard.push('bare')} />
-        <TraitScopeProvider orbital="Learn" trait="Body">
-          <Emit type="UI:NAVIGATE" payload={{ url: '/start' }} />
-        </TraitScopeProvider>
-      </EventBusProvider>,
-    );
-    act(() => { fireEvent.click(screen.getByText('emit')); });
-    expect(heard).toEqual(['bare']);
-  });
-
+describe('navigation from inside a trait scope', () => {
   it('control: a trait event is still qualified to its trait', () => {
     const heard: string[] = [];
     render(
@@ -52,21 +43,31 @@ describe('UI:NAVIGATE from inside a trait scope', () => {
     expect(heard).toEqual(['qualified']);
   });
 
-  it('moves the compiled-path router through NavStackRouterBridge', () => {
+  it('moves the compiled-path router through the nav stack NavStackRouterBridge provides', () => {
     render(
       <EventBusProvider isolated>
         <MemoryRouter initialEntries={['/']}>
           <NavStackRouterBridge pages={[{ path: '/', name: 'Home', orbital: 'Learn' }, { path: '/start', name: 'Start', orbital: 'Learn' }]}>
             <Where />
             <TraitScopeProvider orbital="Learn" trait="Body">
-              <Emit type="UI:NAVIGATE" payload={{ url: '/start' }} />
+              <Go url="/start" />
             </TraitScopeProvider>
           </NavStackRouterBridge>
         </MemoryRouter>
       </EventBusProvider>,
     );
     expect(screen.getByTestId('where').textContent).toBe('/');
-    act(() => { fireEvent.click(screen.getByText('emit')); });
+    act(() => { fireEvent.click(screen.getByText('go')); });
     expect(screen.getByTestId('where').textContent).toBe('/start');
+  });
+
+  it('control: outside a nav stack provider a navigation does nothing', () => {
+    render(
+      <EventBusProvider isolated>
+        <Go url="/start" />
+      </EventBusProvider>,
+    );
+    act(() => { fireEvent.click(screen.getByText('go')); });
+    expect(screen.getByText('go')).toBeTruthy();
   });
 });

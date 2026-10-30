@@ -1,0 +1,26 @@
+app canvas-guarded [
+  version: "1.0.0",
+  description: "One trait with two INIT arms on its initial state, told apart by their guards and rendering different screens."
+]
+orbital Shell {
+  entity Layout [runtime] {
+    id : string!
+  }
+
+  trait AppLayout -> Layout {
+    initial: composing
+
+    config {
+      mode: string = a
+    }
+
+    state composing {
+      INIT -> composing when (= @config.mode a)
+        (render-ui main { type: loading-state })
+      INIT -> composing when (= @config.mode b)
+        (render-ui main { type: error-state })
+    }
+  }
+
+  page "/" as ShellPage -> AppLayout
+}

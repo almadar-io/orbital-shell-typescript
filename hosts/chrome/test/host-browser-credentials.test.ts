@@ -2,8 +2,6 @@
 // answers raw rows; encryption, identity and every failure rule are the kernel's, so these tests run the built kernel.
 import { describe, expect, it } from 'vitest';
 import { EntityRowSchema, type EntityRow } from '@almadar/core';
-import { CredentialVault } from '@almadar/shell-web';
-import { createExtensionSecretPorts } from '../src/kernel/extension-ports.js';
 import {
   CHROME_CREDENTIAL_MASTER_KEY,
   CHROME_CREDENTIAL_ROWS_KEY,
@@ -91,60 +89,5 @@ describe('chrome credential rows', () => {
     await Promise.all(['A', 'B', 'C'].map((name) => vault.set('kernel', name, `value-${name}`)));
     const reopened = await createChromeCredentialVault(storage, kernel);
     expect(['A', 'B', 'C'].map((name) => reopened.resolve(name))).toEqual(['value-A', 'value-B', 'value-C']);
-  });
-});
-
-describe('chrome credential rows: a pending OAuth grant survives a worker restart', () => {
-  const grant = { provider: 'google', redirectUri: 'https://kflow.academy/', verifier: 'V-SECRET', subject: null, scopes: ['openid'] };
-  const MASTER = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
-
-  async function worker(storage: ChromeStorageArea) {
-    const vault = await CredentialVault.open(new kernel.CredentialVault(MASTER), chromeCredentialRows(storage));
-    return createExtensionSecretPorts({ credentials: Promise.resolve(vault) });
-  }
-
-  it('a new host instance over the same storage takes the grant stored before the restart', async () => {
-    const storage = storageArea();
-    const before = await worker(storage);
-    await before.oauth?.answer({ ask: 'pendingPut', state: 'S1', grant, ttlMs: 60_000 }, undefined);
-    expect(JSON.stringify(storage.held.get(CHROME_CREDENTIAL_ROWS_KEY))).not.toContain('V-SECRET');
-    const after = await worker(storage);
-    expect(await after.oauth?.answer({ ask: 'pendingTake', state: 'S1' }, undefined)).toEqual({ reply: 'taken', taken: { found: 'grant', grant } });
-  });
-
-  it('control: a consumed grant, and a state never stored, answer missing', async () => {
-    const storage = storageArea();
-    const before = await worker(storage);
-    await before.oauth?.answer({ ask: 'pendingPut', state: 'S2', grant, ttlMs: 60_000 }, undefined);
-    const after = await worker(storage);
-    await after.oauth?.answer({ ask: 'pendingTake', state: 'S2' }, undefined);
-    const again = await worker(storage);
-    expect(await again.oauth?.answer({ ask: 'pendingTake', state: 'S2' }, undefined)).toEqual({ reply: 'taken', taken: { found: 'missing' } });
-    expect(await again.oauth?.answer({ ask: 'pendingTake', state: 'never' }, undefined)).toEqual({ reply: 'taken', taken: { found: 'missing' } });
-  });
-
-  it('two instances on one storage taking one held grant: exactly one gets it, and a lone taker gets it', async () => {
-    const storage = storageArea();
-    const first = await createChromeCredentialVault(storage, kernel);
-    const second = await createChromeCredentialVault(storage, kernel);
-    await first.hold('oauth:grant:RACE', 'GRANT', Date.now() + 60_000, Date.now());
-    const taken = await Promise.all([first.take('oauth:grant:RACE', Date.now()), second.take('oauth:grant:RACE', Date.now())]);
-    expect(taken.filter((value) => value !== undefined)).toEqual(['GRANT']);
-    expect(storedRows(storage)).toEqual([]);
-
-    await first.hold('oauth:grant:LONE', 'ONE', Date.now() + 60_000, Date.now());
-    expect(await second.take('oauth:grant:LONE', Date.now())).toBe('ONE');
-    expect(await first.take('oauth:grant:LONE', Date.now())).toBeUndefined();
-  });
-
-  it('a held grant is a derived row beside the credentials: it is not a credential, and taking it leaves no row', async () => {
-    const storage = storageArea();
-    const vault = await createChromeCredentialVault(storage, kernel);
-    await vault.hold('oauth:grant:S3', 'GRANT', Date.now() + 60_000, Date.now());
-    expect(storedRows(storage).map((row) => row.kind)).toEqual(['derived']);
-    expect(vault.entries()).toEqual([]);
-    expect(vault.listing().entries).toEqual([]);
-    expect(await vault.take('oauth:grant:S3', Date.now())).toBe('GRANT');
-    expect(storedRows(storage)).toEqual([]);
   });
 });

@@ -6,15 +6,18 @@
  * consumer splices replacement text into the original source and every
  * comment, blank line and alignment survives untouched.
  *
- * The character classes below are copied from the Rust lexer rather than
- * re-derived — an identifier continues on `alphanumeric | _ | / | -` (so
- * `render-ui` and `str/upper` are ONE token), a sigil root continues on
- * `alphanumeric | _ | .`, and `true`/`false`/`null` are their own kinds.
- * `is_alphanumeric` there is Unicode, so the `u`-flagged `\p{L}`/`\p{N}`
- * classes here match it for Arabic and Slovenian identifiers.
+ * The character classes are generated from the Rust lexer
+ * (`generated/lolo-lexer-tables.ts`); `true`/`false`/`null` are their own kinds.
  *
  * @packageDocumentation
  */
+
+import {
+  IDENT_CONTINUE_RANGES,
+  IDENT_START_RANGES,
+  SIGIL_CONTINUE_RANGES,
+  type CodePointRange,
+} from '../generated/lolo-lexer-tables.js';
 
 export type LoloTokenKind =
   | 'comment'
@@ -42,10 +45,24 @@ export interface LoloToken {
   textStart: number;
 }
 
-const IDENT_START = /[\p{L}_]/u;
-const IDENT_CONTINUE = /[\p{L}\p{N}_/-]/u;
-const SIGIL_CONTINUE = /[\p{L}\p{N}_.]/u;
+function inRanges(ranges: readonly CodePointRange[], source: string, i: number): number {
+  const cp = source.codePointAt(i);
+  if (cp === undefined) return 0;
+  let lo = 0;
+  let hi = ranges.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const [first, last] = ranges[mid];
+    if (cp < first) hi = mid - 1;
+    else if (cp > last) lo = mid + 1;
+    else return cp > 0xffff ? 2 : 1;
+  }
+  return 0;
+}
 const DIGIT = /[0-9]/;
+const identStartWidth = (s: string, i: number): number => inRanges(IDENT_START_RANGES, s, i);
+const identContinueWidth = (s: string, i: number): number => inRanges(IDENT_CONTINUE_RANGES, s, i);
+const sigilWidth = (s: string, i: number): number => inRanges(SIGIL_CONTINUE_RANGES, s, i);
 
 /**
  * Tokenize a `.lolo` source. Never throws: an unterminated string or block
@@ -130,7 +147,7 @@ export function lexLolo(source: string): LoloToken[] {
         continue;
       }
       const nameStart = i;
-      while (i < n && SIGIL_CONTINUE.test(source[i])) i++;
+      for (let w = sigilWidth(source, i); i < n && w > 0; w = sigilWidth(source, i)) i += w;
       push('sigil', start, i, source.slice(nameStart, i), nameStart);
       continue;
     }
@@ -139,9 +156,9 @@ export function lexLolo(source: string): LoloToken[] {
     if (c === '?') {
       const start = i;
       i++;
-      if (i < n && IDENT_START.test(source[i])) {
+      if (i < n && identStartWidth(source, i) > 0) {
         const nameStart = i;
-        while (i < n && SIGIL_CONTINUE.test(source[i])) i++;
+        for (let w = sigilWidth(source, i); i < n && w > 0; w = sigilWidth(source, i)) i += w;
         push('payload-sigil', start, i, source.slice(nameStart, i), nameStart);
       } else {
         push('payload-sigil', start, i, '', i);
@@ -194,9 +211,9 @@ export function lexLolo(source: string): LoloToken[] {
       continue;
     }
 
-    if (IDENT_START.test(c)) {
+    if (identStartWidth(source, i) > 0) {
       const start = i;
-      while (i < n && IDENT_CONTINUE.test(source[i])) i++;
+      for (let w = identContinueWidth(source, i); i < n && w > 0; w = identContinueWidth(source, i)) i += w;
       const text = source.slice(start, i);
       push(text === 'true' || text === 'false' || text === 'null' ? 'literal' : 'identifier', start, i, text);
       continue;

@@ -36,7 +36,7 @@ import { ButtonGroup } from '../../core/molecules/ButtonGroup';
 import { IconButton } from '../../core/molecules/IconButton';
 import { useCompactLayout } from '../../core/organisms/layout/DockLayout';
 import { ElementEditAccessContext, type ElementEditAccessResolver } from '../../../lib/element-edit-access';
-import { OrbPreviewNode, ScreenSizeContext, PatternSelectionContext, CanvasToolsContext, CanvasStatePickerContext, CanvasVerifyContext, type CanvasStatePicker, type CanvasVerify, type SelectedPattern } from '../molecules/OrbPreviewNode';
+import { OrbPreviewNode, ScreenSizeContext, PatternSelectionContext, CanvasToolsContext, CanvasStatePickerContext, CanvasVerifyContext, CanvasCardWidthContext, type CanvasStatePicker, type CanvasVerify, type SelectedPattern } from '../molecules/OrbPreviewNode';
 import { CANVAS_TOOLS, type CanvasTool } from '../../../lib/canvas-tools';
 import { TraitCardNode, TraitCardSelectionContext, type TraitCardTransitionClick } from '../molecules/TraitCardNode';
 import { SystemNode, SystemBandNode, DependencyNode, DependencyColumnNode, SystemMapContext, useOpenTraits, type SystemMapContextValue } from '../molecules/SystemNode';
@@ -290,7 +290,7 @@ export interface FlowCanvasProps {
    */
   externalInspector?: boolean;
   /** A host that verifies from the canvas: cards show verify controls and the trait's verdict,
-   *  and follow `UI:CANVAS_SHOW_STATE` to the states a run reaches. */
+   *  and follow the states a run reaches (`verify.follow`). */
   verify?: CanvasVerify;
 }
 
@@ -837,28 +837,18 @@ function FlowCanvasInner({
   }, [onPositionsChange, placementsOf]);
 
   // A verification run reached a state: show it on the card, when the card has a screen for it.
-  useEffect(() => eventBus.on('UI:CANVAS_SHOW_STATE', (e) => {
-    const p = e.payload;
-    const orbital = p?.orbital;
-    const trait = p?.trait;
-    const event = p?.event;
-    const from = p?.from;
-    const to = p?.to;
-    if (typeof orbital !== 'string' || typeof trait !== 'string' || typeof event !== 'string' || typeof from !== 'string' || typeof to !== 'string') return;
+  useEffect(() => verify?.follow(({ orbital, trait, event, from, to }) => {
     const option = optionForPlayedStep(optionsOf(orbital), { trait, event, from, to });
     if (option) statePicker.choose(orbital, option);
-  }), [eventBus, optionsOf, statePicker]);
+  }), [verify, optionsOf, statePicker]);
 
   // A card's frame was resized (OrbPreviewNode's right-edge control).
-  useEffect(() => eventBus.on('UI:CANVAS_CARD_RESIZED', (e) => {
-    const nodeId = e.payload?.nodeId;
-    const width = e.payload?.width;
-    if (typeof nodeId !== 'string' || typeof width !== 'number') return;
+  const handleCardWidth = useCallback((nodeId: string, width: number) => {
     if (!nodesRef.current.some((n) => n.id === nodeId)) return;
     const next = nodesRef.current.map((n) => (n.id === nodeId ? withCardWidth(n, width) : n));
     setNodes(next);
     onPositionsChange?.(placementsOf(next));
-  }), [eventBus, setNodes, onPositionsChange, placementsOf]);
+  }, [setNodes, onPositionsChange, placementsOf]);
 
   const screenSizeKeys: ScreenSize[] = ['mobile', 'tablet', 'laptop', 'wide'];
   const isScreenSize = (value: string): value is ScreenSize => screenSizeKeys.some((k) => k === value);
@@ -922,6 +912,7 @@ function FlowCanvasInner({
     <CanvasToolsContext.Provider value={tools}>
     <CanvasStatePickerContext.Provider value={traitLevel || systemLevel ? null : statePicker}>
     <CanvasVerifyContext.Provider value={verify ?? null}>
+    <CanvasCardWidthContext.Provider value={handleCardWidth}>
     <SystemMapContext.Provider value={systemMapValue}>
     <ElementEditAccessContext.Provider value={elementAccess ?? null}>
     <PatternSelectionContext.Provider value={patternSelectionValue}>
@@ -1228,6 +1219,7 @@ function FlowCanvasInner({
     </PatternSelectionContext.Provider>
     </ElementEditAccessContext.Provider>
     </SystemMapContext.Provider>
+    </CanvasCardWidthContext.Provider>
     </CanvasVerifyContext.Provider>
     </CanvasStatePickerContext.Provider>
     </CanvasToolsContext.Provider>

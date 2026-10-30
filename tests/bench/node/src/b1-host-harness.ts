@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { OrbitalEventResponse } from '@almadar/core';
+import type { EventResponse } from '@almadar/core';
 import type { EmitRecord, JsonValue, Scenario, ScenarioFixture, ScenarioHarness, ScenarioSession, ScenarioStep, TraceStep } from './types.js';
 
 function toJson(value: object | null): JsonValue {
@@ -37,7 +37,7 @@ class HostSession implements ScenarioSession {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ event: step.event, payload: step.payload ?? {}, targetTrait: step.trait }),
     });
-    const response: OrbitalEventResponse = await reply.json();
+    const response: EventResponse = await reply.json();
     if (!reply.ok || response.error !== undefined) throw new Error(`${step.trait}.${step.event}: ${response.error ?? reply.status}`);
     const states: Record<string, string> = { ...(response.states ?? {}) };
     if (!(step.trait in states)) throw new Error(`B1-host: trait "${step.trait}" has no state in the response`);

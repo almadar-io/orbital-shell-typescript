@@ -4,8 +4,6 @@
  *
  * @packageDocumentation
  */
-import { LIFECYCLE_EVENTS, normalizeEventKey } from '@almadar/core';
-import type { EventId } from '@almadar/core';
 import type { TraitDefinition } from '@almadar/core';
 import type { RollbackCause, TraitState, TransitionObserver } from './trait-types.js';
 
@@ -24,34 +22,6 @@ export function createInitialTraitState(trait: TraitDefinition): TraitState {
     lastEvent: null,
     context: {},
   };
-}
-
-/**
- * Every transition out of `currentState` on the event, in declaration order. An event id is compared with a
- * transition's own id when both carry one, so an arm still matches after its event was renamed.
- */
-export function findMatchingTransitions(
-  trait: TraitDefinition,
-  currentState: string,
-  eventKey: string,
-  eventId?: EventId,
-): TraitDefinition['transitions'] {
-  return (trait.transitions ?? []).filter((t) => {
-    const fromMatches = Array.isArray(t.from) ? t.from.includes(currentState) : t.from === currentState;
-    if (!fromMatches) return false;
-    if (eventId && t.eventId) return t.eventId === eventId;
-    return t.event === eventKey;
-  });
-}
-
-/** The first transition out of `currentState` on the event, ignoring guards. */
-export function findTransition(
-  trait: TraitDefinition,
-  currentState: string,
-  eventKey: string,
-  eventId?: EventId,
-): TraitDefinition['transitions'][0] | undefined {
-  return findMatchingTransitions(trait, currentState, eventKey, eventId)[0];
 }
 
 const SINGLETON_SCOPE = '__singleton__';
@@ -82,32 +52,6 @@ export class StateBook {
       if (state !== undefined) out.set(name, state);
     }
     return out;
-  }
-
-  /** Whether the trait has an arm on the event from its current state. */
-  canHandleEvent(traitName: string, eventKey: string, entityId?: string, eventId?: EventId): boolean {
-    const trait = this.traits.get(traitName);
-    const state = this.getState(traitName, entityId);
-    if (trait === undefined || state === undefined) return false;
-    return findTransition(trait, state.currentState, normalizeEventKey(eventKey), eventId) !== undefined;
-  }
-
-  /**
-   * The lifecycle event an embedded child can be repainted with: the one it handles from its current state,
-   * provided every matching arm stays in that state and only renders.
-   */
-  repaintLifecycleEvent(traitName: string, entityId?: string): string | undefined {
-    const trait = this.traits.get(traitName);
-    const state = this.getState(traitName, entityId);
-    if (trait === undefined || state === undefined) return undefined;
-    for (const event of LIFECYCLE_EVENTS) {
-      const arms = findMatchingTransitions(trait, state.currentState, event);
-      if (arms.length === 0) continue;
-      const repaints = arms.every((t) => t.to === state.currentState
-        && (t.effects ?? []).every((effect) => Array.isArray(effect) && effect[0] === 'render-ui'));
-      return repaints ? event : undefined;
-    }
-    return undefined;
   }
 
   /** Record the state the kernel reports. No-op for a trait not on the page. */

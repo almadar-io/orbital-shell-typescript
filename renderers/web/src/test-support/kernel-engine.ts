@@ -59,10 +59,10 @@ export function loadTestKernel(): Promise<KernelModule> {
   return (shared ??= load());
 }
 
-export const KERNEL_ENGINE: KernelEngineValue = { loadModule: () => loadTestKernel(), loadLanguage: () => Promise.resolve(TEST_LANGUAGE) };
+export const KERNEL_ENGINE: KernelEngineValue = { loadModule: () => loadTestKernel() };
 export const ENGINES: ReadonlyArray<readonly [string, KernelEngineValue]> = KERNEL_AVAILABLE ? [['kernel', KERNEL_ENGINE]] : [];
 
-/** A client-build kernel instance of its own, as a browser loads it: nothing has installed language data into it. */
+/** A client-build kernel instance of its own, as a browser loads it: initialised, with the language installed once, as the browser kernel loader does. */
 export async function loadFreshClientKernel(): Promise<KernelModule> {
   const dir = process.env.ALMADAR_KERNEL_DIR;
   const files = dir !== undefined && dir !== ''
@@ -70,6 +70,7 @@ export async function loadFreshClientKernel(): Promise<KernelModule> {
     : { glue: resolveInstalled('@almadar/kernel/client'), wasm: resolveInstalled('@almadar/kernel/client.wasm') };
   const glue: WasmGlue = await import(/* @vite-ignore */ `${pathToFileURL(files.glue).href}?fresh=${Math.random()}`);
   glue.initSync({ module: readFileSync(files.wasm) });
+  glue.installLanguage(TEST_LANGUAGE);
   installKernelEvaluator(glue);
   return glue;
 }

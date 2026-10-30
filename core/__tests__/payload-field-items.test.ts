@@ -15,7 +15,11 @@ describe('payload field items', () => {
     if (parsed.success) expect(parsed.data.items?.type).toBe('union');
   });
 
-  it('control: an element without a name is refused, as any payload field is', () => {
-    expect(PayloadFieldSchema.safeParse({ name: 'via', type: 'array', items: { name: '', type: 'union' } }).success).toBe(false);
+  it('a list element has no name (the kernel decodes it the same: orbital-core payload_check tests)', () => {
+    expect(PayloadFieldSchema.safeParse({ name: 'via', type: 'array', items: { name: '', type: 'union' } }).success).toBe(true);
+  });
+
+  it('control: a payload field itself still needs a name', () => {
+    expect(PayloadFieldSchema.safeParse({ name: '', type: 'array' }).success).toBe(false);
   });
 });

@@ -6,8 +6,8 @@
  *
  * Event Contract:
  * - Emits: UI:COPY_CODE { language, success }
- * - Emits: UI:EDITOR_FOCUS { editorId }
- * - Emits: UI:EDITOR_BLUR { editorId }
+ * - Emits: UI:EDITOR_FOCUS { editorId }, UI:EDITOR_BLUR { editorId } (the declared `onEditorFocus` / `onEditorBlur`)
+ * - Reports focus and blur to EditorFocusContext, which the keyboard router reads
  *
  * The editor capability props (`onMotion` / `onOperate` / `onInsertText` /
  * `onSetMode`) are declarative bus LISTENS (`EventListen<P>`), not emits —
@@ -335,6 +335,7 @@ const EDITOR_LINE_PX = 19.5;
 import { Icon } from '../../../../core';
 import { useEventBus } from '../../../../core';
 import { keyChord, type EditorKeyEvent } from '../../../../hooks/useKeyboardRouter';
+import { useEditorFocus } from '../../../../providers/EditorFocusContext';
 import { useTranslate } from '../../../../core';
 import { useMediaQuery } from '../../../../core';
 import { useScopedMode } from '../../../../core';
@@ -1015,6 +1016,7 @@ export const CodeBlock = React.memo<CodeBlockProps>(
     const overCapacity = code.length > HIGHLIGHT_CAPACITY_BYTES;
     const plainCodeColor = plainCodeColorOf(activeStyle);
     const eventBus = useEventBus();
+    const editorFocus = useEditorFocus();
     const { t } = useTranslate();
     const resolvedMode = useScopedMode();
     const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -2181,11 +2183,17 @@ export const CodeBlock = React.memo<CodeBlockProps>(
               onKeyDown={handleEditableKeyDown}
               onFocus={() => {
                 setIsFocused(true);
-                if (editorId) eventBus.emit(`UI:${onEditorFocus}`, { editorId });
+                if (editorId) {
+                  editorFocus.focus(editorId);
+                  eventBus.emit(`UI:${onEditorFocus}`, { editorId });
+                }
               }}
               onBlur={() => {
                 setIsFocused(false);
-                if (editorId) eventBus.emit(`UI:${onEditorBlur}`, { editorId });
+                if (editorId) {
+                  editorFocus.blur(editorId);
+                  eventBus.emit(`UI:${onEditorBlur}`, { editorId });
+                }
               }}
               spellCheck={false}
               style={{

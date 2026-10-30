@@ -8,16 +8,15 @@ import { describe, it, expect } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { DashboardLayout, type TopBarAction } from '../DashboardLayout';
-import { EventBusProvider } from '../../../../core';
+import { EventBusProvider, NavStackProvider } from '../../../../core';
 import { useEventBus } from '../../../../core';
 
 function Probe({ seen }: { seen: string[] }): null {
   const bus = useEventBus();
   useEffect(() => {
-    const offNav = bus.on('UI:NAVIGATE', (e) => seen.push(`NAVIGATE:${String(e.payload?.url)}`));
     const offEvt = bus.on('UI:OPEN_PROFILE', () => seen.push('OPEN_PROFILE'));
     const offSignOut = bus.on('UI:SIGN_OUT', () => seen.push('SIGN_OUT'));
-    return () => { offNav(); offEvt(); offSignOut(); };
+    return () => { offEvt(); offSignOut(); };
   }, [bus, seen]);
   return null;
 }
@@ -26,10 +25,12 @@ function renderLayout(userMenuItems: TopBarAction[] | undefined, seen: string[] 
   return render(
     <EventBusProvider isolated>
       <MemoryRouter>
-        <Probe seen={seen} />
-        <DashboardLayout appName="Studio" user={{ name: 'Dana Designer', email: 'dana@example.com' }} userMenuItems={userMenuItems} onSignOut={onSignOut}>
-          <span>content</span>
-        </DashboardLayout>
+        <NavStackProvider pages={[]} currentPath="/" navigate={(path) => seen.push(`NAVIGATE:${path}`)}>
+          <Probe seen={seen} />
+          <DashboardLayout appName="Studio" user={{ name: 'Dana Designer', email: 'dana@example.com' }} userMenuItems={userMenuItems} onSignOut={onSignOut}>
+            <span>content</span>
+          </DashboardLayout>
+        </NavStackProvider>
       </MemoryRouter>
     </EventBusProvider>,
   );

@@ -6,9 +6,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
+import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
-import { collectCallsiteCaptureChildren, createEmptyResolvedTrait } from '@almadar/core';
+import { createEmptyResolvedTrait } from '@almadar/core';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const parent: Trait = {
@@ -50,7 +51,9 @@ function orbitals(): OrbitalSchema['orbitals'] {
 }
 
 function binding(name: string): ResolvedTraitBinding {
-  return { trait: createEmptyResolvedTrait(name, 'schema'), linkedEntity: 'Item' };
+  const trait = createEmptyResolvedTrait(name, 'schema');
+  trait.transitions = ([parent, ledger].find((t) => t.name === name)?.stateMachine?.transitions ?? []).map(({ from, to, event }) => ({ from, to, event, effects: [] }));
+  return { trait, linkedEntity: 'Item' };
 }
 
 function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
@@ -74,14 +77,14 @@ async function mounted() {
   const slots = stubSlots();
   const orbs = orbitals();
   const bindings = ['Catalog', 'Ledger'].map(binding);
-  const hook = renderHook(() => useTraitStateMachine(bindings, slots, {
+  let bus!: ReturnType<typeof useEventBus>;
+  const hook = renderHook(() => { bus = useEventBus(); return useTraitStateMachine(bindings, slots, {
     stamp: TEST_STAMP,
     orbitals: orbs,
-    callsiteCaptureChildrenByTrait: collectCallsiteCaptureChildren(orbs[0]),
-  }));
+  }); });
   await act(async () => undefined);
   const send = async (event: string) => {
-    hook.result.current.sendEvent(event);
+    bus.emit(`UI:PageOrbital.${({ LOADED: 'Ledger', CLOSE: 'Ledger', PING: 'Catalog' } as Record<string, string>)[event]}.${event}`, {});
     await act(async () => undefined);
   };
   const ledgerRenders = () => slots.render.mock.calls.filter(([arg]) => (arg as { sourceTrait?: string }).sourceTrait === 'Ledger').length;

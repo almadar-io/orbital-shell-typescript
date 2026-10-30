@@ -5,13 +5,12 @@
  * navigating Sprint -> Project -> Timesheets).
  *
  * `useTraitStateMachine`'s trait-bindings-changed effect (page navigation)
- * now diffs the previous render's active trait names against the new ones
- * and clears every dropped trait's slot contribution via `clearBySource`
- * before re-initializing — see `diffDroppedTraitNames` and the effect at
- * `hooks/useTraitStateMachine.ts` (the `[traitBindings]` `useEffect`).
+ * enters the page's traits with the kernel, which answers the traits that left;
+ * the hook clears every one's slot contribution via `clearBySource` before the
+ * entering traits paint (the `[traitBindings]` `useEffect` in
+ * `hooks/useTraitStateMachine.ts`).
  *
- * Coverage is in three layers: the exported pure diff function
- * (`diffDroppedTraitNames`); the real `useUISlotManager` mechanism the effect
+ * Coverage is in two layers: the real `useUISlotManager` mechanism the effect
  * relies on — `clearBySource` correctly un-stacking a multi-source slot
  * (`multi-source-slot-scope.test.ts`-style); and the wiring proof — mounting
  * the real `useTraitStateMachine` and swapping the active page's bindings
@@ -20,42 +19,11 @@
  */
 import { describe, it, expect, vi, type Mock } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { diffDroppedTraitNames } from '../../src/hooks/useTraitStateMachine';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import { useUISlotManager, ALL_SLOTS, type UISlotManager } from '../../src/hooks/useUISlots';
 import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
-
-describe('diffDroppedTraitNames — pure trait-set diff', () => {
-  it('names a trait present in prev but absent from next', () => {
-    const dropped = diffDroppedTraitNames(
-      new Set(['SprintOrbitalSprintAppLayout']),
-      new Set(['ProjectOrbitalProjectAppLayout']),
-    );
-    expect(dropped).toEqual(['SprintOrbitalSprintAppLayout']);
-  });
-
-  it('names nothing when every previously-active trait is still active', () => {
-    const dropped = diffDroppedTraitNames(
-      new Set(['TraitA', 'TraitB']),
-      new Set(['TraitA', 'TraitB', 'TraitC']),
-    );
-    expect(dropped).toEqual([]);
-  });
-
-  it('names every trait on the very first render (prev empty)', () => {
-    expect(diffDroppedTraitNames(new Set(), new Set(['TraitA']))).toEqual([]);
-  });
-
-  it('names multiple dropped traits, in prev-set iteration order', () => {
-    const dropped = diffDroppedTraitNames(
-      new Set(['TaskOrbitalTaskAppLayout', 'TaskOrbitalTaskBoard']),
-      new Set(['ProjectOrbitalProjectAppLayout']),
-    );
-    expect(dropped).toEqual(['TaskOrbitalTaskAppLayout', 'TaskOrbitalTaskBoard']);
-  });
-});
 
 describe('clearBySource on a real UISlotManager — un-stacking a dropped trait', () => {
   it('a two-source stack collapses back to the remaining single source once the other is cleared', () => {
@@ -104,8 +72,8 @@ describe('clearBySource on a real UISlotManager — un-stacking a dropped trait'
   });
 });
 
-// Wiring proof: the pure diff + the manager mechanism above only matter if
-// `useTraitStateMachine` actually CALLS them on a trait-set change (the
+// Wiring proof: the manager mechanism above only matters if
+// `useTraitStateMachine` actually CALLS it on a trait-set change (the
 // 910be296 refactor kept both but deleted the call site, re-introducing the
 // stacking this file exists to prevent). Mount the real hook, swap the
 // active page's bindings, and assert the dropped trait gets cleared from
@@ -178,7 +146,7 @@ function stubSlots(): UISlotManager & { clearBySource: Mock<UISlotManager['clear
 }
 
 describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
-  it('clears every slot for a trait dropped by a traitBindings change', () => {
+  it('clears every slot for a trait dropped by a traitBindings change', async () => {
     const slots = stubSlots();
     const orbitals = wiringOrbitals();
     const pageA = [wiringBinding('OldPageLayout')];
@@ -189,7 +157,12 @@ describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
         useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals }),
       { initialProps: { bindings: pageA } },
     );
-    rerender({ bindings: pageB });
+    await act(async () => {
+      rerender({ bindings: pageB });
+    });
+    await vi.waitFor(() => {
+      expect(slots.clearBySource.mock.calls.some(([, traitName]) => traitName === 'OldPageLayout')).toBe(true);
+    });
 
     const cleared = new Set(
       slots.clearBySource.mock.calls.map(([, traitName]) => traitName as string),
@@ -205,7 +178,7 @@ describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
     }
   });
 
-  it('clears nothing when the trait set is unchanged', () => {
+  it('clears nothing when the trait set is unchanged', async () => {
     const slots = stubSlots();
     const orbitals = wiringOrbitals();
     const pageA = [wiringBinding('OldPageLayout')];
@@ -215,8 +188,13 @@ describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
         useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals }),
       { initialProps: { bindings: pageA } },
     );
+    await act(async () => {
+      await Promise.resolve();
+    });
     slots.clearBySource.mockClear();
-    rerender({ bindings: pageA });
+    await act(async () => {
+      rerender({ bindings: pageA });
+    });
 
     expect(slots.clearBySource).not.toHaveBeenCalled();
   });

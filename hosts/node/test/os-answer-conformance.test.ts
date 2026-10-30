@@ -4,6 +4,7 @@
  * declared non-optional field present, each of its declared type), and every operator that declares a payload is
  * either run here or excused with its reason (G-ORBITAL-CORE-075).
  */
+import { createSocket } from 'node:dgram';
 import { createServer, type Server } from 'node:net';
 import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -31,6 +32,7 @@ const NOT_RUN: ReadonlyArray<readonly [string, string]> = [
   ['os/tty-size', 'needs a terminal'],
   ['os/tcp-listen', 'a stream: its first answer arrives through the stream callback (os-asks.json)'],
   ['os/tls-upgrade', 'a kernel op: the kernel answers it and a host implements no TLS'],
+  ['os/fetch', 'a browser host performs it; this host refuses it typed (node-host-ports.test.ts)'],
   ['os/dns-resolve', 'needs a resolver'],
   ['os/mmio-read', 'no devices on this host'],
   ['os/mmio-write', 'no devices on this host'],
@@ -180,9 +182,12 @@ describe('the Node os host answers the shapes the operator table declares', () =
       await run('os/shutdown', [sock]);
       await run('os/close', [sock]);
       const left = await run('os/udp-bind', ['127.0.0.1', 0]);
-      const right = await run('os/udp-bind', ['127.0.0.1', 0]);
+      const probe = createSocket('udp4');
+      const rightPort = await new Promise<number>((resolve) => probe.bind(0, '127.0.0.1', () => resolve(probe.address().port)));
+      await new Promise<void>((resolve) => probe.close(() => resolve()));
+      const right = await run('os/udp-bind', ['127.0.0.1', rightPort]);
       expect(typeof left.sock).toBe('number');
-      await run('os/sendto', [left.sock, 'cGluZw==', '127.0.0.1', right.port]);
+      await run('os/sendto', [left.sock, 'cGluZw==', '127.0.0.1', rightPort]);
       await run('os/recvfrom', [right.sock, 16]);
 
       const excused = new Set(NOT_RUN.map(([name]) => name));

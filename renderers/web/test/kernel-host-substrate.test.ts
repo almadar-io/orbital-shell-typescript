@@ -102,3 +102,41 @@ it('defers keyed substrate answers, preserves context and suppresses cancelled c
   const unparsed: KernelHostPorts = { ...refused, parseEventRequest: undefined };
   expect(await answerRequest(unparsed, decodeRequest({ kind: 'substrate', op: 'program/dispatch', args: ['Main.Worker.GO', {}, { orbital: 'Main', event: 'GO' }] }), { orbital: 'Main' })).toMatchObject({ kind: 'substrate', result: { error: { message: 'program/dispatch: this host has no kernel to parse an event request' } } });
 });
+
+it('frees a deferred os key at its completion at once, and after the parked TLS ask when the kernel owns TLS', async () => {
+  const delivered: DeferredCallOutcome[] = [];
+  let finishAsk: (outcome: Settled<JsonValue, OsError>) => void = () => undefined;
+  let completeOs: (outcome: Settled<JsonValue, OsError>) => void = () => undefined;
+  const calls = new InFlightCalls();
+  const base: KernelHostPorts = {
+    persistence: untouchedPersistence(), inFlightCalls: calls,
+    callService: async () => null,
+    programEffect: () => async () => ({ ok: true, result: 'value' }),
+    servicePorts: (caller, _user, message) => ({ caller, message, inputs: () => [], readableEntities: () => [], dispatchInput: async () => { throw new Error('unused'); }, read: async () => [] }),
+    deliverLive: () => undefined,
+    deferCallOutcome: () => (outcome) => { delivered.push(outcome); },
+    os: {
+      answer: () => new Promise((resolve) => { finishAsk = resolve; }),
+      defer: (_op, _args, _key, deliver) => { completeOs = deliver; return { ok: null }; },
+      cancel: () => true,
+      close: () => undefined,
+    },
+    osCompletions: { defers: () => true, streams: () => false, event: () => ({ event: 'OS_DONE', payload: {} }) },
+  };
+  const os = decodeRequest({ kind: 'os', op: 'os/wait', args: [1], key: 'tls', site: { trait: 'Worker', followOn: true, emit: { success: 'OS_DONE' } } });
+  expect(await answerRequest(base, os, { orbital: 'Main' })).toEqual({ kind: 'serviceDeferred' });
+  completeOs({ ok: 0 });
+  expect(calls.inFlight('tls')).toBe(false);
+  expect(delivered).toHaveLength(1);
+  let step = 0;
+  const owned: KernelHostPorts = { ...base, osTls: { complete: () => (step++ === 0 ? { ask: { op: 'os/recv', args: [] } } : { done: { ok: 1 } }) } };
+  expect(await answerRequest(owned, os, { orbital: 'Main' })).toEqual({ kind: 'serviceDeferred' });
+  completeOs({ ok: 0 });
+  await flush();
+  expect(calls.inFlight('tls')).toBe(true);
+  expect(delivered).toHaveLength(1);
+  finishAsk({ ok: 0 });
+  await flush();
+  expect(calls.inFlight('tls')).toBe(false);
+  expect(delivered).toHaveLength(2);
+});

@@ -53,10 +53,25 @@ export interface KernelServerHandle {
   bootMounts(side: string): string;
   /** The kernel's mounts for a client opening `routePath`: `MountSeed[]` as JSON. */
   routeMounts(routePath: string): string;
+  /** One question about the registered program (a `ContractQuery`: the declared inputs, inbound hooks, entity owner, scoped rows): its answer as JSON. */
+  contractQuery(queryJson: string): string;
   mount(traitsJson: string): void;
   remount(traitsJson: string): void;
-  setTickMount(traitsJson: string): void;
-  /** One pass of the kernel's tick clock at monotonic `nowMs`: the `(trait, tick)` pairs due that this server runs, as `[{ trait, tick }]` JSON. */
+  /** Whether the kernel holds the circuit state: a client's copy of it is then taken only on a delegated leg, and any other request carrying one is refused. */
+  setStateful(stateful: boolean): void;
+  /** `client` mounted the traits (`string[]` JSON) of `orbital`: their mount-scoped ticks fire while any client holds them. */
+  mountClient(client: string, orbital: string, traitsJson: string): void;
+  unmountClient(client: string, orbital: string, traitsJson: string): void;
+  /** `client` is gone: everything it mounted is released. */
+  releaseClient(client: string): void;
+  /** Queue the tick-stamped request (an `EventRequest` as JSON) of `orbital` for the coalesced peer relay: the window length in ms as JSON when it opened one, else `null`. */
+  relayTick(orbital: string, requestJson: string): string;
+  setTickRelayInterval(intervalMs: number): void;
+  /** Every queued relay item (`LiveBroadcastItem[]` as JSON); the window closes. */
+  flushTickRelay(): string;
+  /** Whether the program declares any tick. */
+  declaresTicks(): boolean;
+  /** One pass of the kernel's tick clock at monotonic `nowMs`: the `(orbital, trait, tick)` triples due that this server runs, as `FiredTick[]` JSON. */
   tickPass(nowMs: number): string;
   tickPause(): void;
   tickResume(): void;

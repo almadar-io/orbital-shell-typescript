@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
 import type { EventTransport, EventTransportRegisterResult } from '../../src';
-import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
+import type { EventRequest, EventResponse } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
 import { ENGINES, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
 import { clearVerification, getTransitions } from '../../src/lib/verificationRegistry';
@@ -29,7 +29,7 @@ const binding: ResolvedTraitBinding = {
   },
 };
 
-const answer: OrbitalEventResponse = {
+const answer: EventResponse = {
   success: true, transitioned: true, states: { Notes: 'idle' },
   emittedEvents: [{ event: 'SAVED', payload: { id: 'n1', title: 'x' } }],
   effectResults: [{ effect: 'persist', action: 'create', entityType: 'Note', success: true, data: { id: 'n1', title: 'x' } }],
@@ -37,11 +37,11 @@ const answer: OrbitalEventResponse = {
 };
 
 class Server implements EventTransport {
-  readonly sent: OrbitalEventRequest[] = [];
+  readonly sent: EventRequest[] = [];
   constructor(private readonly fail = false) {}
   register(): Promise<EventTransportRegisterResult> { return Promise.resolve({ success: true, carriesCircuitState: false }); }
   unregister(): Promise<void> { return Promise.resolve(); }
-  send(_orbital: string, request: OrbitalEventRequest): Promise<OrbitalEventResponse> {
+  send(_orbital: string, request: EventRequest): Promise<EventResponse> {
     this.sent.push(request);
     return this.fail ? Promise.reject(new Error('offline')) : Promise.resolve(answer);
   }

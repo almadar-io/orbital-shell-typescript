@@ -12,7 +12,7 @@ import type { OrbitalSchema, ServiceHostPorts } from '@almadar/core';
 import { createChannelTransport, serveChannel, type ChannelMessage, type TransportChannel } from '../../index';
 import { openBrowserHost } from '../../runtime';
 import { OrbPreview } from '../OrbPreview';
-import { TEST_LANGUAGE, loadTestKernel } from '../../test-support/kernel-engine';
+import { loadTestKernel } from '../../test-support/kernel-engine';
 import { clientProgram } from '../../test-support/lolo-program';
 
 function pair(): [TransportChannel, TransportChannel] {
@@ -120,7 +120,7 @@ orbital Pulse {
 describe('a view of a program its host runs entirely', () => {
   it('shows a declared input the host ran, opens no store of its own, and saves the row once', async () => {
     let lent: ServiceHostPorts | undefined;
-    const host = await openBrowserHost({ kernel: await loadTestKernel(), language: TEST_LANGUAGE,
+    const host = await openBrowserHost({ kernel: await loadTestKernel(),
       databaseName: 'almadar:host-runs-program',
       schema: program,
       callService: async (_s, _a, _p, context) => {
@@ -154,7 +154,7 @@ describe('a view of a program its host runs entirely', () => {
   }, 20_000);
 
   it('leaves the program\'s ticks to the host: the view sends none, and the host fires them once', async () => {
-    const host = await openBrowserHost({ kernel: await loadTestKernel(), language: TEST_LANGUAGE, databaseName: 'almadar:host-runs-ticks', schema: ticking, callService: async () => ({}) });
+    const host = await openBrowserHost({ kernel: await loadTestKernel(), databaseName: 'almadar:host-runs-ticks', schema: ticking, callService: async () => ({}) });
     const [viewEnd, hostEnd] = pair();
     const fromView: string[] = [];
     hostEnd.onMessage((m) => { if (m.almadarChannel === 'send') fromView.push(m.request.event); });
@@ -174,7 +174,7 @@ describe('a view of a program its host runs entirely', () => {
 
   it('control: a view whose host does not keep the browser store opens its own', async () => {
     const schema: OrbitalSchema = { ...program, name: 'view-keeps-store' };
-    const host = await openBrowserHost({ kernel: await loadTestKernel(), language: TEST_LANGUAGE, databaseName: 'almadar:view-keeps-store:host', schema, callService: async () => ({ watchId: 'w-1' }) });
+    const host = await openBrowserHost({ kernel: await loadTestKernel(), databaseName: 'almadar:view-keeps-store:host', schema, callService: async () => ({ watchId: 'w-1' }) });
     const [viewEnd, hostEnd] = pair();
     serveChannel(hostEnd, host, { schemaName: schema.name });
     render(<OrbPreview schema={schema} transport={createChannelTransport(viewEnd)} initialPagePath="/" />);

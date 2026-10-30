@@ -8,7 +8,7 @@ import { Box } from '../../../core';
 import { Icon } from '../../../core';
 import type { IconInput } from '../../../core';
 import { Typography } from '../../../core';
-import { useEventBus } from '../../../core';
+import { useEventBus, useNavStack } from '../../../core';
 import { useTranslate } from '../../../core';
 import { Menu } from "./Menu";
 import type { UiError } from '../../../core';
@@ -102,6 +102,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   ...rest
 }) => {
   const eventBus = useEventBus();
+  const navStack = useNavStack();
   const { t } = useTranslate();
   const statusBadge: PageHeaderStatus | undefined =
     typeof status === "string" ? (status ? { label: status } : undefined) : status;
@@ -119,7 +120,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
       eventBus.emit(`UI:${action.event}`);
     }
     if (action.navigatesTo) {
-      eventBus.emit('UI:NAVIGATE', { url: action.navigatesTo });
+      navStack.goTo(action.navigatesTo);
     }
     if (action.onClick) {
       action.onClick();

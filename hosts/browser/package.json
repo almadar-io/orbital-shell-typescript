@@ -26,6 +26,10 @@
     "./page-facts": {
       "types": "./dist/page-facts.d.ts",
       "import": "./dist/page-facts.js"
+    },
+    "./kernel-loader": {
+      "types": "./dist/kernel-loader.d.ts",
+      "import": "./dist/kernel-loader.js"
     }
   },
   "files": [

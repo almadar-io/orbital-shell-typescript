@@ -7,7 +7,7 @@ import { getEffectiveCredentialStore, getModeControl, resolveCredentialRef } fro
 import type { CredentialVault } from '../credentials/vault.js';
 
 /**
- * The host's secret store: a credential NAME in, its value out; `set` keeps a minted value (an OAuth2 token) for `ttlMs`.
+ * The host's secret store: a credential NAME in, its value out; `set` keeps a minted value for `ttlMs`.
  * `principal` is the signed-in user's id for a user-scoped credential (the kernel sets it from the dispatch's `@user`,
  * never the program); absent, the credential is app-wide.
  */
@@ -19,14 +19,10 @@ export interface SecretStore {
   rotate?(name: string, value: string, principal?: string): Promise<void>;
   /** Drop the credential, the minted value and the stored one. */
   forget(name: string, principal?: string): Promise<void>;
-  /** Keep `value` as the credential until it is forgotten, creating it when absent (an OAuth connection's tokens): unlike `rotate` it needs no existing entry. `label` is a non-secret account name stored beside it, never the value. */
+  /** Keep `value` as the credential until it is forgotten, creating it when absent: unlike `rotate` it needs no existing entry. `label` is a non-secret account name stored beside it, never the value. */
   persist?(name: string, value: string, principal?: string, label?: string): Promise<void>;
   /** The non-secret account label stored beside the credential; absent when its row carries none. */
   label?(name: string, principal?: string): Promise<string | undefined>;
-  /** Keep a one-use value (a pending OAuth grant) sealed in the credential store's rows, so it outlives the process and every instance on the same rows can take it; a host with no enabled store keeps it in memory. */
-  hold?(name: string, value: string, ttlMs: number, principal?: string): Promise<void>;
-  /** Remove and return a held value in one step, the single read of a one-use value; an expired one is consumed and not returned. */
-  take?(name: string, principal?: string): Promise<string | undefined>;
   /** Whether `persist` keeps a value on this host. */
   durable?(): Promise<boolean>;
 }
@@ -92,8 +88,7 @@ const installedSecretsHost: SecretStoreHost = {
 /**
  * The secrets of a host: minted values with an expiry (a memory tier that never reaches the rows), then the credential vault
  * the host holds (by default the one the host installed). Everything durable is the kernel's: `rotate`, `persist`, `label`,
- * `forget`, and a one-use value held sealed in the rows (`hold`, `take`). A host with no enabled vault holds a one-use value
- * in memory, as the native host does.
+ * and `forget`.
  */
 export function createSecretStore(now: () => number = Date.now, host: SecretStoreHost = installedSecretsHost): SecretStore {
   type Minted = Map<string, { value: string; expiresAt: number }>;
@@ -108,12 +103,6 @@ export function createSecretStore(now: () => number = Date.now, host: SecretStor
     return cache;
   };
   const slot = (name: string, principal: string | undefined): string => credentialStorageKey({ name, ...(principal !== undefined ? { principal } : {}) });
-  const takeMinted = (minted: Minted, key: string): string | undefined => {
-    const held = minted.get(key);
-    if (held === undefined) return undefined;
-    minted.delete(key);
-    return held.expiresAt > now() ? held.value : undefined;
-  };
   return {
     async get(name, principal) {
       const minted = cacheFor(await host.store());
@@ -142,27 +131,6 @@ export function createSecretStore(now: () => number = Date.now, host: SecretStor
       if (store === null || !store.enabled) throw new Error('this host keeps no credential store to persist into');
       cacheFor(store).delete(slot(name, principal));
       await store.persist(name, value, principal, label);
-    },
-    async hold(name, value, ttlMs, principal) {
-      const store = await host.store();
-      const minted = cacheFor(store);
-      const key = slot(name, principal);
-      if (store !== null && store.enabled) {
-        minted.delete(key);
-        if (ttlMs > 0) await store.hold(name, value, now() + ttlMs, now(), principal);
-        else await store.take(name, now(), principal);
-        return;
-      }
-      if (ttlMs <= 0) minted.delete(key);
-      else minted.set(key, { value, expiresAt: now() + ttlMs });
-    },
-    async take(name, principal) {
-      const store = await host.store();
-      if (store !== null && store.enabled) {
-        const shared = await store.take(name, now(), principal);
-        if (shared !== undefined) return shared;
-      }
-      return takeMinted(cacheFor(store), slot(name, principal));
     },
     async label(name, principal) {
       return (await host.store())?.label(name, principal);

@@ -23,7 +23,16 @@ import type {
   RowBindingWire,
   TraceEffectsWire,
 } from './generated/kernel-wire';
-import type { EntityRow, EventPayload, JsonObject, JsonValue, SExpr } from './types/index';
+import type { EntityRow, EventPayload, JsonObject, JsonValue, OrbitalSchema, SExpr } from './types/index';
+
+/** One delivery the program makes between two different traits: `emitterTrait` emits `event` and `listenerTrait` listens to it. */
+export interface EventWire {
+  emitterOrbital: string;
+  emitterTrait: string;
+  listenerOrbital: string;
+  listenerTrait: string;
+  event: string;
+}
 
 /** The evaluation functions `@almadar/kernel` (wasm) and the native add-on export, over JSON strings. */
 export interface KernelEvaluatorExports {
@@ -36,6 +45,7 @@ export interface KernelEvaluatorExports {
   scopeRows(bindingsJson: string, rowsJson: string, policyJson: string, filterJson: string, entityType: string): string;
   checkMutationAccess(operation: string, bindingsJson: string, rowJson: string, policyJson: string, entityType: string): string;
   resolveRowBinding(term: string, bindingsJson: string): string;
+  eventWires(schemaJson: string): string;
 }
 
 /** An expression the kernel's evaluator rejected. */
@@ -76,6 +86,8 @@ export interface KernelEvaluator {
   checkMutation(operation: MutationOpWire, bindings: EvalContextWire, row: EntityRow, policy: SExpr | undefined, entityType: string): MutationVerdictWire;
   /** What a `@user`/`@payload`/`@config`/`@now` term folds to for a row predicate. */
   resolveRowBinding(term: string, bindings: EvalContextWire): RowBindingWire;
+  /** Every emitter-to-listener delivery between two different traits of the program, in schema order, by the source rule the kernel delivers by. */
+  eventWires(schema: OrbitalSchema): EventWire[];
 }
 
 const optionalJson = (expr: SExpr | undefined): string => (expr === undefined ? '' : JSON.stringify(expr));
@@ -126,6 +138,9 @@ export function createKernelEvaluator(kernel: KernelEvaluatorExports): KernelEva
     },
     resolveRowBinding(term, bindings) {
       return JSON.parse(kernel.resolveRowBinding(term, JSON.stringify(bindings))) as RowBindingWire;
+    },
+    eventWires(schema) {
+      return JSON.parse(kernel.eventWires(JSON.stringify(schema))) as EventWire[];
     },
   };
 }
@@ -206,5 +221,6 @@ export function lazyKernelExports(load: () => KernelEvaluatorExports): KernelEva
     checkMutationAccess: (operation, bindings, row, policy, entityType) =>
       kernel().checkMutationAccess(operation, bindings, row, policy, entityType),
     resolveRowBinding: (term, bindings) => kernel().resolveRowBinding(term, bindings),
+    eventWires: (schemaJson) => kernel().eventWires(schemaJson),
   };
 }

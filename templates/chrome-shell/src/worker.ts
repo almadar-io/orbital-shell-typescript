@@ -6,7 +6,7 @@
  * the side panel connects over a port and renders the same running program.
  */
 import { getTraitName, parseOrbitalSchema } from '@almadar/core';
-import { holdUntilServed, serveChannel } from '@almadar/shell-web';
+import { createFetchOsHost, holdUntilServed, serveChannel } from '@almadar/shell-web';
 import { browserStoreName, openBrowserHost, type BrowserHost } from '@almadar/shell-web';
 import { chromePromptModel, chromeTabPort, type ChromeLanguageModel } from '@almadar/shell-chrome';
 import programText from './generated/program.orb?raw';
@@ -35,6 +35,7 @@ const hostReady: Promise<BrowserHost> = kernelReady.then((kernel) => {
     schema,
     kernel,
     tabs,
+    os: createFetchOsHost(fetch),
     ...(secretPorts !== undefined ? { secretPorts } : {}),
     onDevice: { model: promptModel, ...(embedder !== undefined ? { embedder } : {}) },
   });

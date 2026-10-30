@@ -40,7 +40,7 @@ export interface ProgramRun {
 }
 
 /** `ALMADAR_KERNEL_DIR`, else the `@almadar/kernel` package that `from` (default: the working directory) resolves. */
-export function resolveKernelDir(from: string = process.cwd()): string {
+function resolveKernelDir(from: string = process.cwd()): string {
   const named = process.env.ALMADAR_KERNEL_DIR;
   if (named !== undefined && named !== '') return named;
   const entry = createRequire(join(resolve(from), 'resolve.js')).resolve('@almadar/kernel');
@@ -147,7 +147,7 @@ export class KernelProgram {
 
   /** Deliver an `/api/hooks/<name>` request to the program and return the answer it gave (EXEC-INBOUND-1). */
   async deliverInbound(name: string, delivery: InboundDelivery): Promise<InboundAnswer> {
-    return dispatchInbound(this.schema, name, delivery, (orbital, request) => this.engine.evaluate(orbital, request, { orbital }), (credential) => this.secretPorts.secrets.get(credential, undefined));
+    return dispatchInbound(this.engine, name, delivery, (orbital, request) => this.engine.evaluate(orbital, request, { orbital }), (credential) => this.secretPorts.secrets.get(credential, undefined));
   }
 
   /** The rows the host's in-memory store holds for `entity` (empty when the native kernel keeps its own `store`). */

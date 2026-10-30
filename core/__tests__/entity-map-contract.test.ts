@@ -3,7 +3,6 @@ import { schemaToIR } from '../src/resolver.js';
 import { EntityFieldSchema, type EntityField } from '../src/types/field.js';
 import { createResolvedField } from '../src/types/ir.js';
 import type { OrbitalSchema } from '../src/types/schema.js';
-import { ownerFieldsFromSchema } from '../src/mock/identityOwners.js';
 
 const embeddedAsset: EntityField = {
   type: 'relation', intrinsic: true, relation: { entity: 'Asset', cardinality: 'one' },
@@ -42,9 +41,5 @@ describe('embedded entity map contract', () => {
     expect(createResolvedField({ ...field, name: 'asset' })).toMatchObject({
       intrinsic: true, relation: embeddedAsset.relation, properties: { url: { type: 'string' } },
     });
-  });
-
-  it('classifies only the direct foreign key as an owner column', () => {
-    expect(ownerFieldsFromSchema(schema)).toEqual(['Board.owner']);
   });
 });

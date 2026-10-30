@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { FrameWire } from '@almadar/core/kernel-wire';
-import type { OrbitalEventResponse } from '@almadar/core';
+import type { EventResponse } from '@almadar/core';
 import { createTickDriver, type TickKernelPort } from '../src/kernel/tick-driver.js';
 
 const flush = async (): Promise<void> => { for (let i = 0; i < 10; i += 1) await Promise.resolve(); };
 
 const frameJson = (n: number): string => {
   const frame: FrameWire = {
-    fired: [{ trait: 'T', tick: `t${n}` }],
+    fired: [{ orbital: "O", trait: "T", tick: `t${n}` }],
     response: { success: true, transitioned: true, states: { T: 's' }, emittedEvents: [] },
     dispatches: [],
     browserLegs: [],
@@ -36,7 +36,7 @@ function rig(ticks: number) {
   const driver = createTickDriver({
     kernel,
     client: {
-      foldLocalResponse: async (_response: OrbitalEventResponse) => {
+      foldLocalResponse: async (_response: EventResponse) => {
         folded.push('fold');
         await foldGate.current;
       },

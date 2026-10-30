@@ -4,16 +4,16 @@
  * page trait, and that trait's state, row and render ride on the same response.
  */
 import { describe, it, expect } from 'vitest';
-import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
+import type { EventRequest, EventResponse } from '@almadar/core';
 import { hostDispatchInView } from '../hostDispatchInView';
 
 const owned = new Set(['PageBuilder', 'PageTopBar']);
 const owns = (trait: string): boolean => owned.has(trait);
 const ownsFrame = (frame: string): boolean => owned.has(frame);
-const writes = (frame: string): OrbitalEventResponse['frames'] => ({ from: 0, to: 0, ops: [['set', { [frame]: { id: '1' } }]] });
+const writes = (frame: string): EventResponse['frames'] => ({ from: 0, to: 0, ops: [['set', { [frame]: { id: '1' } }]] });
 
-const response = (over: Partial<OrbitalEventResponse>): OrbitalEventResponse => ({ success: true, transitioned: true, states: {}, emittedEvents: [], ...over });
-const request = (targetTrait?: string): OrbitalEventRequest => ({ event: 'ANSWERED', ...(targetTrait !== undefined ? { targetTrait } : {}) });
+const response = (over: Partial<EventResponse>): EventResponse => ({ success: true, transitioned: true, states: {}, emittedEvents: [], ...over });
+const request = (targetTrait?: string): EventRequest => ({ event: 'ANSWERED', ...(targetTrait !== undefined ? { targetTrait } : {}) });
 
 describe('hostDispatchInView', () => {
   it('a target this view owns is in view', () => {

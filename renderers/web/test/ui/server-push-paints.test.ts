@@ -7,7 +7,7 @@ import { renderHook, act } from '@testing-library/react';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { EventTransport, EventTransportRegisterResult, HostDispatchListener, PushTarget } from '../../src';
-import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
+import type { EventRequest, EventResponse } from '@almadar/core';
 import type { ClientEffectTuple, EmittedEvent, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
@@ -37,7 +37,7 @@ class PushingServer implements EventTransport {
   push: ((emitted: EmittedEvent, target: PushTarget) => void) | undefined;
   register(): Promise<EventTransportRegisterResult> { return Promise.resolve({ success: true, carriesCircuitState: false }); }
   unregister(): Promise<void> { return Promise.resolve(); }
-  send(_orbital: string, _request: OrbitalEventRequest): Promise<OrbitalEventResponse> {
+  send(_orbital: string, _request: EventRequest): Promise<EventResponse> {
     return Promise.resolve({ success: true, transitioned: false, states: {}, emittedEvents: [] });
   }
   subscribe(onPush: (emitted: EmittedEvent, target: PushTarget) => void): () => void {
@@ -140,6 +140,37 @@ describe('a running call\'s own live message', () => {
 
   it('edge: a message whose calling trait is not on this page paints nothing', async () => {
     expect(await pushedToCaller('origin', 'Elsewhere')).toEqual([]);
+  });
+});
+
+// A calling trait that listens to its own live message hears it through its own arm: the kernel delivers the route
+// back to the emitter once, not once as the arm and again as the listener (twin of the exec_dist `deliver_origin_emit` tests).
+const selfHearing: Trait = {
+  ...creator,
+  listens: [{ event: 'GOAL_PROGRESS', source: { kind: 'trait', trait: 'Creator' }, triggers: 'GOAL_PROGRESS' }],
+};
+
+async function pushedToSelfHearing(target: PushTarget) {
+  const slots = stubSlots();
+  const server = new PushingServer();
+  const binding: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('Creator', 'schema'), linkedEntity: 'Turn' };
+  const orbitals: OrbitalSchema['orbitals'] = [{ ...creatorOrbitals[0], traits: [selfHearing] }];
+  renderHook(() => useTraitStateMachine([binding], slots, { stamp: TEST_STAMP, orbitals, transport: server }));
+  await settle();
+  slots.render.mockClear();
+  server.push?.({ event: 'GOAL_PROGRESS', payload: { text: 'Rust' }, source: { orbital: 'StartOrbital', trait: 'Creator' } }, target);
+  await settle();
+  await settle();
+  return slots.render.mock.calls.map(([arg]) => (arg as { props?: { content?: string } }).props?.content);
+}
+
+describe('a running call\'s own live message to a self-listening caller', () => {
+  it('runs the calling trait once', async () => {
+    expect(await pushedToSelfHearing('origin')).toEqual(['Rust']);
+  });
+
+  it('control: a peer push reaches the self-listening route once', async () => {
+    expect(await pushedToSelfHearing('peers')).toEqual(['Rust']);
   });
 });
 

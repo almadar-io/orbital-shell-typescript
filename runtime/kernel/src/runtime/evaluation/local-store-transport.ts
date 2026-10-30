@@ -3,12 +3,12 @@
  * (`openLocalKernel`), and this host answers its I/O. The offline preview and the browser-stored side of a
  * residence-routed host both use it.
  */
-import type { BrowserTabPort, MessageCatalogs, OnDeviceModelPorts, OrbitalEventRequest, OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef, UserContext } from '@almadar/core';
-import { applyRowAccess, entityOwnerOrbital, inlineTraitRefs, orbitalInlineEntities, readableEntitiesOf, storesRowsInBrowser, externalInputsOf } from '@almadar/core';
-import { entityAccessPolicies } from '@almadar/core/mock';
+import type { BrowserTabPort, MessageCatalogs, OnDeviceModelPorts, EventRequest, OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef, UserContext } from '@almadar/core';
+import { inlineTraitRefs, orbitalInlineEntities, storesRowsInBrowser } from '@almadar/core';
 import type { EffectHandlers } from '../types.js';
 import { KernelEngine, evaluateOnKernel } from '../../kernel/engine.js';
 import type { KernelHostPorts } from '../../kernel/host.js';
+import type { OsHostPort } from '../../kernel/os-port.js';
 import type { SecretPorts } from '../../kernel/secret-ports.js';
 import type { KernelModule } from '../../kernel/wire.js';
 import { createInProcessTransport, type EventTransport } from '../../client/EventTransport.js';
@@ -17,11 +17,12 @@ import { defaultCallService } from '../../service/default-call-service.js';
 import { routeByEntity } from './routed-persistence.js';
 import { buildTraitIndex } from '../traits/trait-index.js';
 
+/** The one client a local kernel serves. */
+const LOCAL_CLIENT = 'local';
+
 export interface LocalKernelOptions {
-  /** The initialised `@almadar/kernel` module. */
+  /** The initialised `@almadar/kernel` module with its language already installed (`loadBrowserKernel`): opening a kernel installs nothing. */
   kernel: KernelModule;
-  /** The language bundle as JSON (`LanguageBundle`), installed into `kernel` before it opens: a browser has no `node_modules` to read it from. */
-  language: string;
   schema: OrbitalSchema;
   /** Every row the kernel reads and writes (`localStorePersistence` over a browser store). */
   persistence: PersistenceAdapter;
@@ -36,6 +37,8 @@ export interface LocalKernelOptions {
   secretPorts?: SecretPorts;
   onDevice?: OnDeviceModelPorts;
   tabs?: BrowserTabPort;
+  /** The host's `os` port (`createFetchOsHost` in a browser); absent, every `os` ask is denied. */
+  os?: OsHostPort;
   /** The program's message catalogs, so `i18n/t` resolves for the request's locale. */
   messages?: MessageCatalogs;
 }
@@ -49,7 +52,6 @@ export function localStorePersistence(schema: OrbitalSchema, store: PersistenceA
 /** A kernel over a local store, answering its I/O with `persistence` and the given ports. */
 export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
   const { schema, persistence } = options;
-  options.kernel.installLanguage(options.language);
   const callService = options.callService ?? defaultCallService;
   const engine = KernelEngine.open(options.kernel, { ...schema, orbitals: inlineTraitRefs(schema.orbitals) }, {
     persistence,
@@ -59,10 +61,10 @@ export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
     servicePorts: options.servicePorts ?? ((caller, user, message) => ({
       caller,
       message,
-      inputs: () => externalInputsOf(schema),
-      readableEntities: () => readableEntitiesOf(schema),
+      inputs: () => engine.externalInputs(),
+      readableEntities: () => engine.readableEntities(),
       dispatchInput: () => Promise.reject(new Error('a local store host takes no input dispatch')),
-      read: async (entity) => applyRowAccess(await persistence.list(entity), entityAccessPolicies(schema, entity)?.read, undefined, { user }, entity),
+      read: async (entity) => engine.readRows(entity, await persistence.list(entity), user),
     })),
     deliverLive: () => undefined,
     deferCallOutcome: options.deferCallOutcome ?? (() => undefined),
@@ -71,10 +73,11 @@ export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
     ...(options.secretPorts !== undefined ? { secretPorts: options.secretPorts } : {}),
     ...(options.onDevice !== undefined ? { onDevice: options.onDevice } : {}),
     ...(options.tabs !== undefined ? { tabs: options.tabs } : {}),
+    ...(options.os !== undefined ? { os: options.os } : {}),
   });
   if (options.messages !== undefined) engine.setMessages(Object.keys(options.messages), options.messages);
   // One client is served, and the ticks it asks for (`runTick`) are of traits it mounted.
-  engine.setTickMount([...buildTraitIndex(schema.orbitals).byName.keys()]);
+  for (const [trait, indexed] of buildTraitIndex(schema.orbitals).byName) engine.mountClient(LOCAL_CLIENT, indexed.orbitalName, [trait]);
   return engine;
 }
 
@@ -89,7 +92,7 @@ export interface LocalStoreTransportOptions {
 
 export function createLocalStoreTransport(options: LocalStoreTransportOptions): EventTransport {
   return createInProcessTransport(
-    async (orbital: string, request: OrbitalEventRequest) => evaluateOnKernel(
+    async (orbital: string, request: EventRequest) => evaluateOnKernel(
       { engine: await options.kernelEngine, orbital },
       request,
       await options.user,
@@ -97,18 +100,18 @@ export function createLocalStoreTransport(options: LocalStoreTransportOptions): 
     ),
     {
       carriesCircuitState: false,
-      ...(options.schema !== undefined ? { resolveRows: resolveOn(options, options.schema) } : {}),
+      ...(options.schema !== undefined ? { resolveRows: resolveOn(options) } : {}),
     },
   );
 }
 
-function resolveOn(options: LocalStoreTransportOptions, schema: OrbitalSchema): (reference: RowSetRef) => Promise<RowQueryPage> {
-  return async (reference) => resolveLocalRows(await options.kernelEngine, schema, await options.user, reference);
+function resolveOn(options: LocalStoreTransportOptions): (reference: RowSetRef) => Promise<RowQueryPage> {
+  return async (reference) => resolveLocalRows(await options.kernelEngine, await options.user, reference);
 }
 
 /** `reference` resolved on a local kernel for `user`: the kernel applies the viewer's `@read`, the host answers its row reads. */
-export function resolveLocalRows(engine: KernelEngine, schema: OrbitalSchema, user: UserContext | undefined, reference: RowSetRef): Promise<RowQueryPage> {
-  const owner = entityOwnerOrbital(schema, reference.entityType);
+export function resolveLocalRows(engine: KernelEngine, user: UserContext | undefined, reference: RowSetRef): Promise<RowQueryPage> {
+  const owner = engine.entityOwnerOrbital(reference.entityType);
   if (owner === undefined) return Promise.reject(new Error(`${reference.entityType}: no orbital of the local program declares this entity`));
-  return engine.resolveRows(reference, { orbital: owner.name, ...(user !== undefined ? { user } : {}) });
+  return engine.resolveRows(reference, { orbital: owner, ...(user !== undefined ? { user } : {}) });
 }

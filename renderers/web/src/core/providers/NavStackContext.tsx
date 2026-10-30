@@ -24,7 +24,6 @@ import React, {
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { NavStackEntry } from '@almadar/core';
-import { useEventBus } from '../hooks/useEventBus';
 import {
   entriesFor,
   navLabelsFromItems,
@@ -228,15 +227,6 @@ export const NavStackRouterBridge: React.FC<NavStackRouterBridgeProps> = ({
       routerNavigate(path);
     },
     [routerNavigate],
-  );
-  const eventBus = useEventBus();
-  useEffect(
-    () =>
-      eventBus.on('UI:NAVIGATE', (event) => {
-        const url = event.payload?.url;
-        if (typeof url === 'string' && url.length > 0) routerNavigate(url);
-      }),
-    [eventBus, routerNavigate],
   );
   return (
     <NavStackProvider

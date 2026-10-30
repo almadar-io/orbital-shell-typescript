@@ -49,6 +49,7 @@ import { usePrefersReducedMotion } from '../../../core';
 import {
   useCanvasDroppable,
   useCanvasDraggable,
+  useCanvasDragKind,
   type CanvasDropTarget,
   type CanvasContainerNode,
 } from '../../../hooks/useCanvasDnd';
@@ -134,9 +135,23 @@ export interface CardVerdict {
 export interface CanvasVerify {
   verdictOf: (orbital: string, trait: string) => CardVerdict | undefined;
   playing: (orbital: string) => boolean;
+  /** Subscribe to the states a run reaches; a card with a screen for the step flips to it. Returns the unsubscribe. */
+  follow: (onStep: (step: CanvasStepReached) => void) => () => void;
+}
+
+/** A transition a verification run just took, on the trait of `orbital`. */
+export interface CanvasStepReached {
+  orbital: string;
+  trait: string;
+  event: string;
+  from: string;
+  to: string;
 }
 
 export const CanvasVerifyContext = createContext<CanvasVerify | null>(null);
+
+/** A card's frame was resized to `width` (its right-edge control); FlowCanvas provides it and persists the width with the positions. */
+export const CanvasCardWidthContext = createContext<(nodeId: string, width: number) => void>(() => undefined);
 
 const VERDICT_VARIANT: Record<CardVerdict['status'], 'success' | 'error' | 'warning' | 'info'> = {
   pass: 'success',
@@ -745,6 +760,7 @@ const OrbPreviewNodeInner: React.FC<NodeProps> = (props) => {
   const { select } = useContext(PatternSelectionContext);
   const { t } = useTranslate();
   const eventBus = useEventBus();
+  const setCardWidth = useContext(CanvasCardWidthContext);
   const reactFlow = useReactFlow();
   const cameraMs = usePrefersReducedMotion() ? 0 : 200;
   const contentRef = useRef<HTMLDivElement>(null);
@@ -1281,31 +1297,16 @@ const OrbPreviewNodeInner: React.FC<NodeProps> = (props) => {
     });
   }, [selectedAddress, eventBus]);
 
-  const [dragActive, setDragActive] = useState(false);
-
-  // Listen for drag start/end from PatternPalette to toggle container highlighting
-  useEffect(() => {
-    const unsub1 = eventBus.on('UI:DRAG_START', (e) => {
-      const kind = e.payload?.kind;
-      if (kind === 'pattern') setDragActive(true);
-    });
-    const unsub2 = eventBus.on('UI:DRAG_END', () => setDragActive(false));
-    return () => { unsub1(); unsub2(); };
-  }, [eventBus]);
+  // The canvas drag in progress (the CanvasDndProvider's context) toggles container highlighting for a palette grab.
+  const dragKind = useCanvasDragKind();
+  const dragActive = dragKind === 'pattern';
 
   // Same, but scoped to an L2 reorder grab (kept separate from `dragActive`
   // above so the L1 "drop to add and open" hint — which only applies to
   // `'pattern'` palette drops, L1 doesn't accept `'pattern-instance'` —
   // doesn't light up during a reorder). Drives only the L2 content area's
   // `drag-active` styling.
-  const [reorderDragActive, setReorderDragActive] = useState(false);
-  useEffect(() => {
-    const unsub1 = eventBus.on('UI:DRAG_START', (e) => {
-      if (e.payload?.kind === 'pattern-instance') setReorderDragActive(true);
-    });
-    const unsub2 = eventBus.on('UI:DRAG_END', () => setReorderDragActive(false));
-    return () => { unsub1(); unsub2(); };
-  }, [eventBus]);
+  const reorderDragActive = dragKind === 'pattern-instance';
 
   // L2 cursor-to-path resolver. Walks from the cursor's DOM element up to the
   // nearest `[data-accepts-children="true"]` container, then computes the
@@ -1960,7 +1961,7 @@ const OrbPreviewNodeInner: React.FC<NodeProps> = (props) => {
         maxWidth={CARD_MAX_WIDTH}
         shouldResize={(_event, params) => params.direction[0] !== 0}
         onResizeEnd={(_event, params) => {
-          eventBus.emit('UI:CANVAS_CARD_RESIZED', { nodeId: props.id, width: Math.round(params.width) });
+          setCardWidth(props.id, Math.round(params.width));
         }}
       />
 

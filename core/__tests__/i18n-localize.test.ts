@@ -95,7 +95,6 @@ describe('localizeLoloSource', () => {
     expect(out).toContain(t.keywords.state);
     expect(out).toContain(t.keywords.page);
     expect(out).toContain(t.tags.persistent);
-    expect(out).toContain(t.categories.interaction);
     expect(out).toContain(t.types.string);
     expect(out).toContain(t.effects.fetch);
     expect(out).toContain(t.effects['render-ui']);

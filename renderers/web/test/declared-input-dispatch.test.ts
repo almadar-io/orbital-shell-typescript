@@ -2,43 +2,24 @@
 // (the browser extension's worker): undeclared inputs are refused with the same response everywhere,
 // declared ones become an ordinary event request addressed to their trait.
 import { describe, it, expect } from 'vitest';
-import type { OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
+import type { EventRequest, EventResponse, ExternalInput } from '@almadar/core';
 import { dispatchDeclaredInput } from '@almadar/shell-runtime/client/declared-input-dispatch';
 
-const schema: OrbitalSchema = {
-  name: 'inputs',
-  version: '1.0.0',
-  orbitals: [
-    {
-      name: 'FeedOrbital',
-      pages: [],
-      entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string', primaryKey: true }] },
-      traits: [
-        {
-          name: 'Watcher',
-          linkedEntity: 'Item',
-          stateMachine: {
-            states: [{ name: 'idle', isInitial: true }],
-            events: [
-              { key: 'ITEM_SEEN', name: 'Item seen', input: true, payloadSchema: [{ name: 'elementId', type: 'string', required: true }] },
-              { key: 'CLEAR', name: 'Clear' },
-            ],
-            transitions: [
-              { from: 'idle', to: 'idle', event: 'ITEM_SEEN', effects: [] },
-              { from: 'idle', to: 'idle', event: 'CLEAR', effects: [] },
-            ],
-          },
-        },
-      ],
-    },
-  ],
-};
+// The kernel answers which inputs a program declares (`KernelEngine.findExternalInput`); a contract stands in for it.
+const declared: ExternalInput[] = [
+  { orbital: 'FeedOrbital', trait: 'Watcher', event: 'ITEM_SEEN', payloadSchema: [{ name: 'elementId', type: 'string', required: true }] },
+];
+const contract = (inputs: ExternalInput[]) => ({
+  findExternalInput: (orbital: string, trait: string, event: string): ExternalInput | undefined =>
+    inputs.find((i) => i.orbital === orbital && i.trait === trait && i.event === event),
+});
+const schema = contract(declared);
 
-const OK: OrbitalEventResponse = { success: true, transitioned: true, states: { Watcher: 'idle' }, emittedEvents: [] };
+const OK: EventResponse = { success: true, transitioned: true, states: { Watcher: 'idle' }, emittedEvents: [] };
 
 function recorder() {
-  const sent: Array<{ orbital: string; request: OrbitalEventRequest }> = [];
-  const send = async (orbital: string, request: OrbitalEventRequest) => {
+  const sent: Array<{ orbital: string; request: EventRequest }> = [];
+  const send = async (orbital: string, request: EventRequest) => {
     sent.push({ orbital, request });
     return OK;
   };
@@ -69,9 +50,9 @@ describe('dispatchDeclaredInput', () => {
     expect(sent).toEqual([]);
   });
 
-  it('edge: with no registered schema, every input is refused', async () => {
+  it('edge: a program that declares no input refuses every input', async () => {
     const { sent, send } = recorder();
-    const res = await dispatchDeclaredInput(undefined, 'FeedOrbital', { targetTrait: 'Watcher', event: 'ITEM_SEEN' }, send);
+    const res = await dispatchDeclaredInput(contract([]), 'FeedOrbital', { targetTrait: 'Watcher', event: 'ITEM_SEEN' }, send);
     expect(res.success).toBe(false);
     expect(sent).toEqual([]);
   });

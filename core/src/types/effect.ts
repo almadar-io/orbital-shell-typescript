@@ -877,7 +877,7 @@ export type BehaviorReflectionEffect = ['behavior/catalog' | 'behavior/describe'
  * evaluate one (validate, then instantiate). Run `orb` on the server.
  * @example ['program/eval', '@entity.program', { emit: { success: 'BUILT', failure: 'BUILD_FAILED' } }]
  */
-export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/prove' | 'program/compose' | 'program/step' | 'program/live' | 'program/self' | 'program/tick' | 'program/resolve-rows', ...SExpr[]];
+export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/prove' | 'program/os-grants' | 'program/compose' | 'program/step' | 'program/live' | 'program/self' | 'program/tick' | 'program/resolve-rows', ...SExpr[]];
 
 /**
  * Agent-port effects, the three abilities an LLM tool loop is written with: `program/inputs` lists the
@@ -900,6 +900,8 @@ export type TraceEffect = [`trace/${string}`, ...SExpr[]];
 export type MemoryEffect = [`memory/${string}`, ...SExpr[]];
 export type KvEffect = [`kv/${string}`, ...SExpr[]];
 export type ApplicationEffect = [`application/${string}`, ...SExpr[]];
+export type AudioEffect = [`audio/${string}`, ...SExpr[]];
+export type AuthEffect = [`auth/${string}`, ...SExpr[]];
 
 /** Effect operators the std registry declares that had no typed tuple (arity from the registry). */
 export type NotifyEffect = ['notify', SExpr] | ['notify', SExpr, SExpr];
@@ -952,6 +954,8 @@ export type TypedEffect =
     | MemoryEffect
     | KvEffect
     | ApplicationEffect
+    | AudioEffect
+    | AuthEffect
     | NotifyEffect
     | SendServerEffect
     | ProbSeedEffect
@@ -1000,14 +1004,14 @@ export const EFFECT_OPERATORS = [
   'notify', 'send-server',
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
   'workspace/write-schema', 'workspace/write-plan', 'workspace/archive-orbital', 'behavior/catalog',
-  'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'behavior/packages', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/prove', 'program/compose', 'program/step',
+  'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'behavior/packages', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/prove', 'program/os-grants', 'program/compose', 'program/step',
   'program/inputs', 'program/dispatch', 'program/live', 'program/self', 'program/tick', 'program/resolve-rows', 'persist/read-named',
 ] as const;
 
 /** Namespaced effect families (`<family>/<name>`, e.g. `llm/generate`) the {@link Effect} union declares. */
 export const EFFECT_OPERATOR_FAMILIES = [
   'agent', 'os', 'browser', 'llm', 'session', 'trace', 'memory', 'kv',
-  'application',
+  'application', 'audio', 'auth',
 ] as const;
 
 export type EffectOperator = (typeof EFFECT_OPERATORS)[number];
@@ -1026,7 +1030,7 @@ export type EffectOperatorsInSync = AssertTrue<
 
 /**
  * The effects a server reports an outcome for on
- * `OrbitalEventResponse.effectResults` (`ServerEffectResult.effect`). Every
+ * `EventResponse.effectResults` (`ServerEffectResult.effect`). Every
  * member is checked against the effect heads above at compile time, so a
  * name that is not an effect cannot be listed and a new server-reported
  * effect is added HERE only — the wire type, its zod twin and the

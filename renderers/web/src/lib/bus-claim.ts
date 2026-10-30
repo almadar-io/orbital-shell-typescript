@@ -22,3 +22,13 @@ export function claimDelivery(source: BusEventSource | undefined, trait: string,
   seen.add(key);
   return true;
 }
+
+const DISPATCH_CLAIM = '$dispatch';
+
+/**
+ * At-most-one kernel dispatch per physical emit: the kernel bubbles a dispatched event up the embed chain and fans it to
+ * its listeners, so the later keys one emit fans to (the host scopes of the chain) are the same event again.
+ */
+export function claimDispatch(source: BusEventSource | undefined, event: string): boolean {
+  return claimDelivery(source, DISPATCH_CLAIM, event);
+}

@@ -53,7 +53,7 @@ import type {
   ClientEffectByTrait,
   EntityRow,
   EventPayload,
-  OrbitalEventResponse,
+  EventResponse,
   OrbitalSchema,
   PersistenceAdapter,
   Trait,
@@ -75,7 +75,7 @@ import { useTranslate } from '../core';
 import { useUISlots, type UISlotManager, type SlotProps } from '../providers/UISlotContext';
 import type { EventTransport } from '../index';
 import type { KeyCaptureEntry, KeyCaptureTable } from '../hooks/useKeyboardRouter';
-import { KernelLoaderMissingError, LanguageLoaderMissingError, useKernelEngine, type KernelEngineValue } from '../providers/KernelEngineContext';
+import { KernelLoaderMissingError, useKernelEngine, type KernelEngineValue } from '../providers/KernelEngineContext';
 
 const log = createLogger('almadar:ui:plugin-host');
 
@@ -325,14 +325,12 @@ function openPluginKernel(
   denySet: ReadonlySet<PluginHostDenyVerb>,
 ): PluginLocalKernel {
   if (engine === null) throw new KernelLoaderMissingError();
-  const language = engine.loadLanguage !== undefined ? engine.loadLanguage() : Promise.reject(new LanguageLoaderMissingError());
   const schema = plugin.schema;
-  const opened = Promise.all([engine.loadModule(), language]).then(([kernel, bundle]) => {
+  const opened = engine.loadModule().then((kernel) => {
     const rows = nativeMemoryPersistence(kernel);
     const persistence = denySet.has('persist') ? writeDeniedStore(plugin.id, rows) : rows;
     const server = openLocalKernel({
       kernel,
-      language: bundle,
       schema,
       persistence,
       ...(denySet.has('call-service')
@@ -536,7 +534,7 @@ function PluginRuntimeMount({
   // One run's outcome, an inbound dispatch (`trigger`) or a tick frame (`null`): its client effects paint, its emits
   // reach the host bus, and the traits it moved are reported.
   const settle = useCallback(
-    (trigger: string | null, response: OrbitalEventResponse, orbital: string | undefined) => {
+    (trigger: string | null, response: EventResponse, orbital: string | undefined) => {
       if (!response.success) {
         onError(plugin.id, response.error ?? `${plugin.id}: ${trigger ?? 'tick'} failed`);
       }

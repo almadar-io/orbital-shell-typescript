@@ -6,7 +6,7 @@
  * React.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
+import type { EventRequest, EventResponse, OrbitalSchema } from '@almadar/core';
 import {
   createHttpTransport,
   createInProcessTransport,
@@ -98,8 +98,8 @@ describe('createHttpTransport', () => {
     expect(result.carriesCircuitState).toBe(true);
   });
 
-  it('send POSTs the exact OrbitalEventRequest to <serverUrl>/<orbital>/events and returns the response verbatim', async () => {
-    const response: OrbitalEventResponse = {
+  it('send POSTs the exact EventRequest to <serverUrl>/<orbital>/events and returns the response verbatim', async () => {
+    const response: EventResponse = {
       success: true,
       transitioned: true,
       states: { Cart: 'open' },
@@ -108,7 +108,7 @@ describe('createHttpTransport', () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(response));
     const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: fetchMock });
 
-    const request: OrbitalEventRequest = { event: 'ADD_ITEM', payload: { qty: 1 }, traits: [{ trait: 'Cart', from: 'idle' }] };
+    const request: EventRequest = { event: 'ADD_ITEM', payload: { qty: 1 }, traits: [{ trait: 'Cart', from: 'idle' }] };
     const result = await transport.send('ShoppingCart', request);
 
     expect(result).toEqual(response);
@@ -306,11 +306,11 @@ describe('createHttpTransport push subscribe', () => {
 
 describe('createInProcessTransport', () => {
   it('send delegates to the injected evaluator with the orbital name and request', async () => {
-    const response: OrbitalEventResponse = { success: true, transitioned: true, states: {}, emittedEvents: [] };
+    const response: EventResponse = { success: true, transitioned: true, states: {}, emittedEvents: [] };
     const evaluate = vi.fn(async () => response);
     const transport = createInProcessTransport(evaluate);
 
-    const request: OrbitalEventRequest = { event: 'INIT' };
+    const request: EventRequest = { event: 'INIT' };
     const result = await transport.send('Probe', request);
 
     expect(evaluate).toHaveBeenCalledWith('Probe', request);

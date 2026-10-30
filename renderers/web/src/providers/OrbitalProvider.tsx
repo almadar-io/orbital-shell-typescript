@@ -25,6 +25,7 @@ import { SelectionProvider } from './SelectionProvider';
 import { SuspenseConfigProvider, type SuspenseConfig } from '../components/core/organisms/UISlotRenderer';
 import { VerificationProvider } from './VerificationProvider';
 import { UserProvider, type UserData } from './UserContext';
+import { EditorFocusProvider } from './EditorFocusContext';
 
 // ============================================================================
 // Types
@@ -165,7 +166,7 @@ export function OrbitalProvider({
         <UserProvider user={user}>
           <SelectionProvider debug={debug}>
             <SuspenseConfigProvider config={suspenseConfig}>
-              {children}
+              <EditorFocusProvider>{children}</EditorFocusProvider>
             </SuspenseConfigProvider>
           </SelectionProvider>
         </UserProvider>
@@ -199,3 +200,4 @@ OrbitalProvider.displayName = 'OrbitalProvider';
 
 export { SelectionProvider } from './SelectionProvider';
 export { UserProvider, useUser } from './UserContext';
+export { EditorFocusProvider, useEditorFocus, type EditorFocus } from './EditorFocusContext';

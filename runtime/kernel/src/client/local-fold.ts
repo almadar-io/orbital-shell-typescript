@@ -4,7 +4,7 @@
  * One implementation for every response the kernel produces (a dispatch, a mount seed, a posted leg's fold,
  * a tick frame).
  */
-import type { OrbitalEventResponse } from '@almadar/core';
+import type { EventResponse } from '@almadar/core';
 import type { FrameDelta } from '@almadar/core/kernel-wire';
 import type { LocalFoldKernel } from './client-kernel.js';
 import type { CircuitStore } from './circuit-store.js';
@@ -13,13 +13,10 @@ import type { TransitionObserver } from './trait-types.js';
 /** A snapshot of the kernel's frames for a painter at `since` (the kernel's `framesSince`). */
 export type FramesSince = (since: number) => FrameDelta;
 
-/** Paint a response's states and sticky callsite payloads. Rows are the kernel's frame delta, painted by [`paintFrames`]. */
-export function paintStates(store: CircuitStore, response: OrbitalEventResponse): void {
+/** Paint a response's states. Rows are the kernel's frame delta, painted by [`paintFrames`]. */
+export function paintStates(store: CircuitStore, response: EventResponse): void {
   for (const [trait, state] of Object.entries(response.states)) {
     if (store.states.getState(trait)?.currentState !== state) store.states.seedState(trait, state);
-  }
-  for (const effect of response.clientEffectsByTrait ?? []) {
-    if (effect.callsitePayload !== undefined) store.callsitePayloads.set(effect.traitName, effect.callsitePayload);
   }
 }
 
@@ -30,12 +27,12 @@ export function paintFrames(store: CircuitStore, delta: FrameDelta | undefined, 
 }
 
 /** Paint a response the in-process kernel produced: its states, payloads and frames. */
-export function paintResponse(store: CircuitStore, framesSince: FramesSince, response: OrbitalEventResponse): void {
+export function paintResponse(store: CircuitStore, framesSince: FramesSince, response: EventResponse): void {
   paintStates(store, response);
   paintFrames(store, response.frames, framesSince);
 }
 
-export function traceResponse(observer: TransitionObserver | undefined, response: OrbitalEventResponse): void {
+export function traceResponse(observer: TransitionObserver | undefined, response: EventResponse): void {
   if (observer === undefined) return;
   for (const hop of response.transitions ?? []) {
     observer.onTransition({

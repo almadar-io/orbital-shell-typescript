@@ -4,17 +4,11 @@
  * useDraggable Hook
  *
  * Generic drag-source hook wrapping the HTML5 Drag & Drop API.
- * Returns props to spread onto a draggable element and emits
- * UI:DRAG_START / UI:DRAG_END via EventBus.
- *
- * Event Contract:
- * - Emits: UI:DRAG_START { kind, data }
- * - Emits: UI:DRAG_END   { kind, data }
+ * Returns props to spread onto a draggable element and tracks whether it is dragging.
  */
 
 import { useState, useCallback, useMemo } from 'react';
 import type { EventPayload } from '@almadar/core';
-import { useEventBus } from '../core';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -57,7 +51,6 @@ export const ALMADAR_DND_MIME = 'application/x-almadar-dnd';
 
 export function useDraggable({ payload, disabled = false }: UseDraggableOptions): UseDraggableResult {
   const [isDragging, setIsDragging] = useState(false);
-  const eventBus = useEventBus();
 
   const handleDragStart = useCallback(
     (e: React.DragEvent) => {
@@ -68,18 +61,16 @@ export function useDraggable({ payload, disabled = false }: UseDraggableOptions)
       e.dataTransfer.setData(ALMADAR_DND_MIME, JSON.stringify(payload));
       e.dataTransfer.effectAllowed = 'copy';
       setIsDragging(true);
-      eventBus.emit('UI:DRAG_START', { kind: payload.kind, data: payload.data });
     },
-    [disabled, payload, eventBus],
+    [disabled, payload],
   );
 
   const handleDragEnd = useCallback(
     (e: React.DragEvent) => {
       void e;
       setIsDragging(false);
-      eventBus.emit('UI:DRAG_END', { kind: payload.kind, data: payload.data });
     },
-    [payload, eventBus],
+    [],
   );
 
   const dragProps = useMemo(

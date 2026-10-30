@@ -340,16 +340,6 @@ export const CatalogEntrySchema = z.object({
 }).strict();
 export type CatalogEntry = z.infer<typeof CatalogEntrySchema>;
 
-/** One package and topic of a `behavior/catalog` listing with how many entries it holds (`topics: true`). */
-export const CatalogTopicSchema = z.object({
-  package: z.string(),
-  /** The registry prefix; the topic's folder is `<prefix>/<topic>`. */
-  prefix: z.string(),
-  topic: z.string(),
-  count: z.number().int().nonnegative(),
-}).strict();
-export type CatalogTopic = z.infer<typeof CatalogTopicSchema>;
-
 /** One knob of a described trait, with its shipped embedding vector. */
 export type TraitKnob = {
   key: string;

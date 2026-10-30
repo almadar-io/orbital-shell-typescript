@@ -6,6 +6,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
+import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { EventPayload, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
@@ -45,18 +46,22 @@ function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
   };
 }
 
-const binding = (name: string): ResolvedTraitBinding => ({ trait: createEmptyResolvedTrait(name, 'schema'), linkedEntity: 'Item' });
+const binding = (name: string): ResolvedTraitBinding => {
+  const trait = createEmptyResolvedTrait(name, 'schema');
+  trait.transitions = ([host, feed, leaf].find((t) => t.name === name)?.stateMachine?.transitions ?? []).map(({ from, to, event }) => ({ from, to, event, effects: [] }));
+  return { trait, linkedEntity: 'Item' };
+};
 
 async function mounted() {
   const slots = stubSlots();
-  const hook = renderHook(() => useTraitStateMachine(['Host', 'Feed', 'Leaf'].map(binding), slots, {
+  let bus!: ReturnType<typeof useEventBus>;
+  const hook = renderHook(() => { bus = useEventBus(); return useTraitStateMachine(['Host', 'Feed', 'Leaf'].map(binding), slots, {
     stamp: TEST_STAMP,
     orbitals,
-    callsiteCaptureChildrenByTrait: new Map([['Host', new Set(['Feed'])], ['Feed', new Set(['Leaf'])]]),
-  }));
+  }); });
   await act(async () => undefined);
   const send = async (event: string, payload: EventPayload) => {
-    hook.result.current.sendEvent(event, payload);
+    bus.emit(`UI:PageOrbital.${({ LOADED: 'Feed', PING: 'Host' } as Record<string, string>)[event]}.${event}`, payload);
     await act(async () => undefined);
   };
   const leafLabel = () => {

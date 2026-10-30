@@ -40,13 +40,7 @@ export {
 // Export schema resolution functions
 export {
   schemaToIR,
-  clearSchemaCache,
-  getSchemaCacheStats,
   getPage,
-  getPages,
-  getEntity,
-  getTrait,
-  pageModifiers,
 } from './src/resolver';
 
 // Embedded-trait adjacency and `@config.X` forward facts — read by
@@ -64,9 +58,7 @@ export {
   traitsEmbeddedByEffects,
   configForwardTokens,
   filterConfigToForwardedKeys,
-  unionOrganismConfigs,
   orbitalFileOf,
-  navItemHref,
 } from './src/embedded-trait-config';
 
 // Dot-notation nested value lookup — shared by `@almadar/ui` and emitted
@@ -89,11 +81,13 @@ export {
   type WireInput,
   applyListenMapping,
   lazyKernelExports,
+  type EventWire,
   type KernelEvaluator,
   type KernelEvaluatorExports,
 } from './src/kernel-evaluator';
 export {
   accessDeniedMessage,
+  accessContext,
   applyRowAccess,
   checkMutationAccess,
   rowAccess,
@@ -133,65 +127,42 @@ export {
 
 export * from './src/factory/index';
 
-// Export builders (compose behaviors, event wiring, layout strategy)
+// Export builders (reference-form builders and the plan's wiring and layout types)
 export {
   type LayoutStrategy,
-  detectLayoutStrategy,
   type EventWiringEntry,
-  applyEventWiring,
-  type ComposeBehaviorsInput,
-  type ComposeBehaviorsResult,
-  composeBehaviors,
   ORBITAL_VALUE_IMPORT_ALIAS,
   orbitalImportFromValue,
   parseProgram,
 } from './src/builders/index';
 
-// Export state machine graph algorithms (BFS, guard payloads, replay paths)
-// Note: PayloadFieldSchema is re-exported selectively to avoid collision with
-// the Zod PayloadFieldSchema from types/state-machine.ts
-export {
-  type StateEdge,
-  type BFSNode,
-  type BFSPathNode,
-  type ReplayStep,
-  type GuardPayload,
-  type GraphTransition,
-  buildStateGraph,
-  collectReachableStates,
-  walkStatePairs,
-  buildGuardPayloads,
-  extractPayloadFieldRef,
-  constTruth,
-  buildReplayPaths,
-  type ReplayTransition,
-  buildEdgeCoveringWalk,
-  type EdgeWalkTransition,
-  type WalkStep,
-} from './src/state-machine/index';
+// An orbital's inline entity definitions (access policies and entity ownership are the kernel's).
+export { orbitalInlineEntities } from './src/access/entityAccess';
 
-// Row-level entity access policies. Also reachable via `@almadar/core/mock`,
-// but server code (generated app servers, `@almadar/server`) must not import
-// through the mock door to read a production authorization contract.
+// Declared external inputs: what an outside client may send a trait (the kernel lists them; these are the shapes
+// of its answers and the addressing and payload helpers over them).
+export { type EventAddress } from './src/access/externalInputs';
 export {
-  type EntityAccessPolicies,
-  entityAccessPolicies,
-  entityAccessTable,
-  entityOwnerOrbital,
-  orbitalInlineEntities,
-} from './src/access/entityAccess';
-
-// Declared external inputs: what an outside client may send a trait.
-export { type EventAddress, type ExternalInput, externalInputsOf, findExternalInput, findInputByAddress, payloadIssues, payloadSchemaToJsonSchema, readableEntitiesOf, type PayloadIssue } from './src/access/externalInputs';
+  type ExternalInput,
+  ExternalInputSchema,
+  type InboundAnswer,
+  InboundAnswerSchema,
+  type InboundDelivery,
+  InboundFoundSchema,
+  InboundOnlySchema,
+  NameListSchema,
+  OptionalNameSchema,
+  type PayloadIssue,
+  PayloadIssueSchema,
+  PayloadJsonSchemaSchema,
+  type InboundRoute,
+  InboundRouteSchema,
+  type InboundDeclaration,
+  type InboundVerification,
+} from './src/access/contract';
 
 // The three kernel abilities an LLM tool loop is written with: program/inputs, program/dispatch, persist/read-named.
 
-// Declared inbound deliveries: the `/api/hooks/<name>` requests a program accepts.
-export { type InboundAnswer, type InboundDelivery, type InboundRoute, type InboundDeclaration, type InboundVerification, constantTimeEquals, credentialUnset, dispatchFailed, inboundOnlyMessage, inboundOnlyTrait, findInbound, inboundAnswerOf, inboundPayload, inboundRoutesOf, unknownHook } from './src/access/inbound';
-
-// `expects` shape union — the JS composer's merge (derivation itself lives in `orb`:
-// `orb behaviors expects` / `orb behaviors describe`).
-export { mergeExpectationShape } from './src/expectation-shape';
 
 // Route matching — the one path → page-pattern resolver.
 export { matchPath, comparePathSpecificity, matchPathAmong, defaultPage, notFoundPage, pathMatchesPattern } from './src/route-match';

@@ -1,7 +1,7 @@
 /**
  * Server-side effect result — the wire shape a server-executed effect
  * (`SERVER_REPORTED_EFFECTS` in `effect.ts`) reports back to the client,
- * closing the circuit on `OrbitalEventResponse.effectResults`.
+ * closing the circuit on `EventResponse.effectResults`.
  *
  * Promoted from `@almadar/runtime`'s `ServerEffectHandlers.ts` (the JS
  * interpreter's own definition, canonical per `CLAUDE.md`'s "converge on

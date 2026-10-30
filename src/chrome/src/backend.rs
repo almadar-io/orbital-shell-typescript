@@ -102,11 +102,12 @@ const SECRET_PORTS_STUB: &str = "import type { SecretPorts } from '@almadar/shel
 /// The wasm kernel the worker hosts the program on (the client build: no verifier, no raw-socket drivers), loaded from the
 /// `.wasm` the build copies into `dist/`: an MV3 worker
 /// cannot `eval`, so the module is fetched from its own `chrome.runtime.getURL` and compiled under the manifest's
-/// `wasm-unsafe-eval` CSP. The kernel then installs the language data (`language.json`, written by `finalize.mjs` from the
-/// installed packages) its operators are routed by; without it a program using `fn` or a host effect traps.
+/// `wasm-unsafe-eval` CSP. The shared browser loader (`@almadar/shell-browser/kernel-loader`) then installs the language data
+/// (`language.json`, written by `finalize.mjs` from the installed packages) its operators are routed by; without it a program
+/// using `fn` or a host effect traps.
 fn kernel_loader() -> String {
     format!(
-        "import initKernel, * as kernel from '@almadar/kernel/client';\n\nexport const kernelReady: Promise<typeof kernel> = initKernel({{ module_or_path: chrome.runtime.getURL('{wasm}') }})\n  .then(() => fetch(chrome.runtime.getURL('{language}')))\n  .then((response) => response.text())\n  .then((bundle) => {{\n    kernel.installLanguage(bundle);\n    return kernel;\n  }});\n",
+        "import initKernel, * as kernel from '@almadar/kernel/client';\nimport {{ loadBrowserKernel }} from '@almadar/shell-browser/kernel-loader';\n\nexport const kernelReady: Promise<typeof kernel> = loadBrowserKernel({{\n  init: initKernel,\n  glue: kernel,\n  wasm: chrome.runtime.getURL('{wasm}'),\n  language: chrome.runtime.getURL('{language}'),\n}});\n",
         wasm = KERNEL_WASM_ASSET.1,
         language = LANGUAGE_BUNDLE_FILE
     )
@@ -433,7 +434,8 @@ mod tests {
         );
         let files = embedder_files(&p);
         assert_eq!(files[3].path, "kernel.ts");
-        assert!(files[3].content.contains("initKernel({ module_or_path: chrome.runtime.getURL('orbital_wasm_bg.wasm') })"), "{}", files[3].content);
+        assert!(files[3].content.contains("wasm: chrome.runtime.getURL('orbital_wasm_bg.wasm')"), "{}", files[3].content);
+        assert!(files[3].content.contains("init: initKernel"), "{}", files[3].content);
         assert!(files[3].content.contains("export const kernelReady"), "{}", files[3].content);
         assert!(
             files[3].content.contains("from '@almadar/kernel/client'"),
@@ -449,11 +451,12 @@ mod tests {
     #[test]
     fn the_kernel_is_handed_the_language_data_the_build_writes_from_the_installed_packages() {
         let loader = &embedder_files(&program(&[], &[]))[3].content;
-        assert!(loader.contains("chrome.runtime.getURL('language.json')"), "{loader}");
-        assert!(loader.contains("kernel.installLanguage(bundle)"), "{loader}");
+        assert!(loader.contains("language: chrome.runtime.getURL('language.json')"), "{loader}");
+        assert!(loader.contains("loadBrowserKernel({") && loader.contains("from '@almadar/shell-browser/kernel-loader'"), "the one shared browser loader installs it: {loader}");
+        assert!(!loader.contains("installLanguage") && !loader.contains("fetch("), "the generated worker keeps no loader of its own: {loader}");
         assert!(FINALIZE.contains("readLanguageBundle(process.cwd())") && FINALIZE.contains("dist/language.json"), "the build writes no language bundle");
         let package: Value = serde_json::from_str(TEMPLATE_PACKAGE).expect("template package.json");
-        for dependency in ["@almadar/core", "@almadar/std", "@almadar/kernel"] {
+        for dependency in ["@almadar/core", "@almadar/std", "@almadar/kernel", "@almadar/shell-browser"] {
             assert!(package["dependencies"][dependency].is_string(), "the bundle is read from the installed {dependency}");
         }
     }

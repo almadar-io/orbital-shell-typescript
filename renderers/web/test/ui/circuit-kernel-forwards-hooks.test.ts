@@ -5,7 +5,7 @@ import { beforeAll, describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
 import type { EventTransport, EventTransportRegisterResult } from '../../src';
-import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
+import type { EventRequest, EventResponse } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
 import { ENGINES, warmKernel, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
 
@@ -31,12 +31,12 @@ const binding: ResolvedTraitBinding = {
 };
 
 class GatedServer implements EventTransport {
-  readonly sent: OrbitalEventRequest[] = [];
+  readonly sent: EventRequest[] = [];
   release: () => void = () => undefined;
   private readonly gate = new Promise<void>((r) => { this.release = r; });
   register(): Promise<EventTransportRegisterResult> { return Promise.resolve({ success: true, carriesCircuitState: true }); }
   unregister(): Promise<void> { return Promise.resolve(); }
-  async send(_orbital: string, request: OrbitalEventRequest): Promise<OrbitalEventResponse> {
+  async send(_orbital: string, request: EventRequest): Promise<EventResponse> {
     this.sent.push(request);
     await this.gate;
     return { success: true, transitioned: true, states: { Notes: 'idle' }, emittedEvents: [], effectResults: [] };

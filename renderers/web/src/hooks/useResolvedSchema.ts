@@ -18,7 +18,6 @@ import type { OrbitalSchema, Orbital, TraitEventListener } from '@almadar/core';
 // Import shared resolver and types from main orbital export
 import {
     schemaToIR as sharedSchemaToIR,
-    clearSchemaCache as sharedClearSchemaCache,
     getPage,
 } from '@almadar/core';
 
@@ -203,11 +202,4 @@ export function useResolvedSchema(
     }, [ir, pageName, loading, error, schema]);
 
     return result;
-}
-
-/**
- * Clear the schema resolution cache
- */
-export function clearSchemaCache(): void {
-    sharedClearSchemaCache();
 }

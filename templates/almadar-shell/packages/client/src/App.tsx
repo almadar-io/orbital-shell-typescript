@@ -20,7 +20,7 @@ import type { ClientManifest } from '@almadar/core';
 import { loadProgram } from './client-program';
 import { AuthProvider, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
-import { loadKernel, loadLanguage } from './kernel-host';
+import { loadKernel } from './kernel-host';
 import { ThemeProvider } from '@almadar/shell-web/core';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -84,6 +84,7 @@ export function App({ manifest, messages }: AppProps): React.ReactElement {
     () => ({ locale: manifest.locale, direction: manifest.direction, messages, t: createTranslate(messages) }),
     [manifest, messages],
   );
+  const loader = useCallback(() => loadKernel(manifest.language), [manifest.language]);
   const themeProps =
     manifest.themes.length > 0
       ? { themes: manifest.themes, defaultTheme: manifest.defaultTheme ?? undefined, defaultMode: manifest.defaultMode }
@@ -91,7 +92,7 @@ export function App({ manifest, messages }: AppProps): React.ReactElement {
   return (
     <I18nProvider value={i18nValue} documentRoot>
       <ThemeProvider {...themeProps}>
-        <KernelEngineProvider loader={loadKernel} {...(manifest.language ? { languageLoader: loadLanguage } : {})}>
+        <KernelEngineProvider loader={loader}>
           <AuthProvider>
             <BrowserRouter>
               <Routes>

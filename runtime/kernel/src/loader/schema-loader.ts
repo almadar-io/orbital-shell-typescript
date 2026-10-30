@@ -4,7 +4,6 @@
  * Abstract interface for loading OrbitalSchema files from various sources.
  * Implementations exist for:
  * - FileSystemLoader (Node.js) - uses fs module
- * - HttpLoader (Browser) - uses fetch API
  * - UnifiedLoader (Auto-detect) - routes to appropriate loader
  *
  * @packageDocumentation
@@ -80,20 +79,6 @@ export interface BaseLoaderOptions {
   scopedPaths?: Record<string, string>;
 }
 
-/**
- * Options for HTTP loading.
- */
-export interface HttpLoaderOptions extends BaseLoaderOptions {
-  /** Default fetch options */
-  fetchOptions?: RequestInit;
-
-  /** Request timeout in milliseconds */
-  timeout?: number;
-
-  /** Whether to use credentials (cookies, auth headers) */
-  credentials?: RequestCredentials;
-}
-
 // ============================================================================
 // SchemaLoader Interface
 // ============================================================================
@@ -109,10 +94,6 @@ export interface HttpLoaderOptions extends BaseLoaderOptions {
  * ```typescript
  * // Using FileSystemLoader (Node.js)
  * const loader: SchemaLoader = new FileSystemLoader({ basePath: "/schemas" });
- * const result = await loader.load("./my-schema.orb");
- *
- * // Using HttpLoader (Browser)
- * const loader: SchemaLoader = new HttpLoader({ basePath: "/api/schemas" });
  * const result = await loader.load("./my-schema.orb");
  *
  * // Using UnifiedLoader (auto-detect)

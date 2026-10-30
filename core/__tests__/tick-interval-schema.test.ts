@@ -74,12 +74,12 @@ describe('osGrants and deployment on the schema', () => {
     expect(r.success).toBe(true);
   });
 
-  it('rejects an unknown fs mode', () => {
+  it('passes an unknown fs mode on: the kernel decoder refuses it (orbital-core os_grants tests)', () => {
     const r = safeParseOrbitalSchema({
       ...base,
       osGrants: { fs: [{ glob: '/data/**', modes: ['execute'] }] },
     });
-    expect(r.success).toBe(false);
+    expect(r.success).toBe(true);
     expect(safeParseOrbitalSchema(base).success).toBe(true);
   });
 });

@@ -87,15 +87,6 @@ describe('CircuitStore — subscribe/notify', () => {
 });
 
 describe('StateBook — the states the kernel reports', () => {
-  const lifecycle: TraitDefinition = {
-    name: 'L',
-    states: [{ name: 'idle', isInitial: true }, { name: 'shown' }],
-    transitions: [
-      { from: 'idle', to: 'shown', event: 'INIT', effects: [['render-ui', 'main', { type: 'typography', content: 'x' }]] },
-      { from: 'shown', to: 'shown', event: 'INIT', effects: [['render-ui', 'main', { type: 'typography', content: 'y' }]] },
-    ],
-  };
-
   it('reads the initial state until a state is recorded, then the recorded one', () => {
     const book = new StateBook([trait('T')]);
     expect(book.getState('T')?.currentState).toBe('idle');
@@ -115,21 +106,6 @@ describe('StateBook — the states the kernel reports', () => {
     book.seedState('T', 'busy', 'row-1');
     expect(book.getState('T', 'row-1')?.currentState).toBe('busy');
     expect(book.getState('T')?.currentState).toBe('idle');
-  });
-
-  it('answers whether the current state has an arm on the event, with or without the UI: prefix', () => {
-    const book = new StateBook([trait('T')]);
-    expect(book.canHandleEvent('T', 'GO')).toBe(true);
-    expect(book.canHandleEvent('T', 'UI:GO')).toBe(true);
-    book.seedState('T', 'busy');
-    expect(book.canHandleEvent('T', 'GO')).toBe(false);
-  });
-
-  it('a lifecycle arm that moves the trait is no repaint; one that stays and only renders is', () => {
-    const book = new StateBook([lifecycle]);
-    expect(book.repaintLifecycleEvent('L')).toBeUndefined();
-    book.seedState('L', 'shown');
-    expect(book.repaintLifecycleEvent('L')).toBe('INIT');
   });
 
   it('reports a rollback hop to the observer, and none when the state does not change', () => {

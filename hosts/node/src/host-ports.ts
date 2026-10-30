@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { CredentialVault, CREDENTIAL_MASTER_KEY_ENV, CREDENTIAL_PREVIOUS_MASTER_KEY_ENV, installCredentialScopeStorage, installCredentialStore, type CredentialScopeStorage, type CredentialVaultModule } from '@almadar/shell-runtime';
 import { credentialsFilePath, fileCredentialRows } from './credential-rows.js';
-export function nodeCredentialScope(): CredentialScopeStorage {
+function nodeCredentialScope(): CredentialScopeStorage {
   return new AsyncLocalStorage<CredentialVault>();
 }
 

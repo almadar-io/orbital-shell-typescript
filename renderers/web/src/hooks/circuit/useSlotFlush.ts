@@ -12,7 +12,7 @@
  *   that already has one (`useClientTicks`, `useCallsiteCapture`, and the
  *   composer's own per-dispatch flush of `ClientKernelOutcome.response`).
  * - `applyClientEffects` — the per-trait `clientEffectsByTrait` list
- *   `OrbitalEventResponse` itself carries; used directly for every kernel
+ *   `EventResponse` itself carries; used directly for every kernel
  *   dispatch outcome.
  *
  * @packageDocumentation

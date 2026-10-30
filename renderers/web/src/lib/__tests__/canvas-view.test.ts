@@ -6,69 +6,10 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { OrbitalSchema } from '@almadar/core';
+import { composedProgram } from '../../../test/ui/helpers/composed-program';
 import { stateOptionsOf, canvasViewGraph, initialStateOf, LIVE_STATE, canvasViewChanged, optionForPlayedStep } from '../avl-preview-converter';
 
-const list = { type: 'data-list', entity: 'Task' };
-const schema = {
-  name: 'canvas-view',
-  version: '1.0.0',
-  orbitals: [
-    {
-      name: 'Tasks',
-      entity: { name: 'Task', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-      traits: [
-        {
-          name: 'Browse',
-          linkedEntity: 'Task',
-          emits: [{ event: 'TASK_OPENED', scope: 'external' }],
-          stateMachine: {
-            states: [{ name: 'browsing', isInitial: true }, { name: 'editing' }],
-            events: [],
-            transitions: [
-              { from: 'browsing', to: 'browsing', event: 'INIT', effects: [['render-ui', 'main', { type: 'loading-state' }]] },
-              { from: 'browsing', to: 'browsing', event: 'LOADED', effects: [['render-ui', 'main', list]] },
-              { from: 'browsing', to: 'browsing', event: 'LOAD_FAILED', effects: [['render-ui', 'main', { type: 'error-state' }]] },
-              { from: 'browsing', to: 'browsing', event: 'SAVED', effects: [['render-ui', 'main', list]] },
-              { from: 'browsing', to: 'editing', event: 'EDIT', effects: [['render-ui', 'main', { type: 'form' }]] },
-              { from: 'editing', to: 'browsing', event: 'CANCEL', effects: [['set', '@entity.id', 'x']] },
-            ],
-          },
-        },
-        {
-          name: 'Stats',
-          linkedEntity: 'Task',
-          sourceBehavior: { alias: 'Stat', behavior: 'std-stat-card' },
-          stateMachine: {
-            states: [{ name: 'idle', isInitial: true }],
-            events: [],
-            transitions: [
-              { from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'aside', { type: 'stat-card' }]] },
-              { from: 'idle', to: 'idle', event: 'REFRESH', effects: [['render-ui', 'aside', { type: 'stat-card', label: 'x' }]] },
-            ],
-          },
-        },
-      ],
-      pages: [{ name: 'Main', path: '/tasks', traits: [{ ref: 'Browse' }] }],
-    },
-    {
-      name: 'Notes',
-      entity: { name: 'Note', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-      traits: [
-        {
-          name: 'Listen',
-          linkedEntity: 'Note',
-          listens: [{ event: 'TASK_OPENED', triggers: 'SHOW', scope: 'external' }],
-          stateMachine: {
-            states: [{ name: 'idle', isInitial: true }],
-            events: [],
-            transitions: [{ from: 'idle', to: 'idle', event: 'SHOW', effects: [['set', '@entity.id', 'y']] }],
-          },
-        },
-      ],
-      pages: [{ name: 'Notes', path: '/notes', traits: [{ ref: 'Listen' }] }],
-    },
-  ],
-} as OrbitalSchema;
+const schema = composedProgram('canvas-view');
 
 const events = (opts: { data: { transitionEvent?: string } }[]) => opts.map((o) => o.data.transitionEvent);
 
@@ -96,7 +37,7 @@ describe('stateOptionsOf', () => {
 
   it('an imported behavior is an option group holding its own states', () => {
     const { groups } = stateOptionsOf(schema, 'Tasks', 'transitions');
-    expect(groups.map((g) => [g.alias, g.behaviorName])).toEqual([['Stat', 'std-stat-card']]);
+    expect(groups.map((g) => [g.alias, g.behaviorName])).toEqual([['Stat', './stat-card']]);
     expect(events(groups[0].options)).toEqual(['INIT', 'REFRESH']);
   });
 
@@ -141,26 +82,7 @@ describe('stateOptionsOf', () => {
 describe('stateOptionsOf — guarded arms of one transition (G-UI-059)', () => {
   // Two INIT arms on `composing` (as std-app-layout has), told apart by their guards
   // and rendering different screens.
-  const guarded = {
-    ...schema,
-    orbitals: [{
-      name: 'Shell',
-      entity: { name: 'Layout', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-      traits: [{
-        name: 'AppLayout',
-        linkedEntity: 'Layout',
-        stateMachine: {
-          states: [{ name: 'composing', isInitial: true }],
-          events: [],
-          transitions: [
-            { from: 'composing', to: 'composing', event: 'INIT', guard: ['=', '@config.mode', 'a'], effects: [['render-ui', 'main', { type: 'loading-state' }]] },
-            { from: 'composing', to: 'composing', event: 'INIT', guard: ['=', '@config.mode', 'b'], effects: [['render-ui', 'main', { type: 'error-state' }]] },
-          ],
-        },
-      }],
-      pages: [{ name: 'Main', path: '/', traits: [{ ref: 'AppLayout' }] }],
-    }],
-  } as OrbitalSchema;
+  const guarded = composedProgram('canvas-guarded');
 
   for (const view of ['screens', 'transitions'] as const) {
     it(`${view}: each arm is its own option — distinct ids and labels`, () => {
@@ -208,38 +130,7 @@ describe('initialStateOf', () => {
   // the screen the app opens on: it starts `closed`, so that INIT never runs on open. The
   // layout whose INIT fires from its initial state is.
   it('an INIT render counts as the opening screen only when it fires from its trait\'s initial state', () => {
-    const modalFirst = {
-      name: 'opening-screen',
-      version: '1.0.0',
-      orbitals: [{
-        name: 'Providers',
-        entity: { name: 'Provider', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-        traits: [
-          {
-            name: 'Create',
-            linkedEntity: 'Provider',
-            stateMachine: {
-              states: [{ name: 'closed', isInitial: true }, { name: 'open' }],
-              events: [],
-              transitions: [
-                { from: 'closed', to: 'open', event: 'CREATE', effects: [['render-ui', 'modal', { type: 'form' }]] },
-                { from: 'open', to: 'closed', event: 'INIT', effects: [['render-ui', 'modal', { type: 'box' }]] },
-              ],
-            },
-          },
-          {
-            name: 'Shell',
-            linkedEntity: 'Provider',
-            stateMachine: {
-              states: [{ name: 'composing', isInitial: true }],
-              events: [],
-              transitions: [{ from: 'composing', to: 'composing', event: 'INIT', effects: [['render-ui', 'main', list]] }],
-            },
-          },
-        ],
-        pages: [{ name: 'Providers', path: '/providers', traits: [{ ref: 'Create' }, { ref: 'Shell' }] }],
-      }],
-    } as OrbitalSchema;
+    const modalFirst = composedProgram('canvas-opening');
     expect(initialStateOf(stateOptionsOf(modalFirst, 'Providers', 'transitions'))).toBe('Shell:INIT:composing:composing');
     expect(initialStateOf(stateOptionsOf(modalFirst, 'Providers', 'screens'))).toBe('Shell:INIT:composing:composing');
   });

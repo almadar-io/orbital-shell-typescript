@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { parseOrbitalSchema, safeParseOrbitalSchema, HOST_SIGN_IN_ROUTE, isHostSignInRoute } from '../src/types/schema.js';
-import { schemaToIR, getPage, pageModifiers } from '../src/resolver.js';
+import { schemaToIR, getPage } from '../src/resolver.js';
 import { localeAlternates } from '../src/i18n/index.js';
 import { notFoundPage } from '../src/route-match.js';
 import { PageModifiersSchema } from '../src/types/page.js';
@@ -152,7 +152,8 @@ describe('localeAlternates (twin of orbital-compiler locale_alternates)', () => 
   });
 
   it('pageModifiers carries the source page onto the resolved page', () => {
-    expect(pageModifiers({ sourcePage: 'pag_home' })).toEqual({ sourcePage: 'pag_home' });
+    const schema = parseOrbitalSchema(app({ sourcePage: 'pag_home' }));
+    expect(getPage(schemaToIR(schema, false), 'HomePage')?.sourcePage).toBe('pag_home');
   });
 });
 

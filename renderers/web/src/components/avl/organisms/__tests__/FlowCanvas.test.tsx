@@ -8,7 +8,6 @@ import React from 'react';
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import type { EventPayload, OrbitalSchema } from '@almadar/core';
-import { useEventBus } from '../../../../core';
 import { FlowCanvas } from '../FlowCanvas';
 import { type PreviewNodeData } from '../../../../lib/avl-preview-converter';
 
@@ -177,11 +176,17 @@ const twoOrbitals: OrbitalSchema = {
   ],
 };
 
-let busEmit: (type: string, payload: EventPayload) => void = () => {};
-function BusHandle(): null {
-  busEmit = useEventBus().emit;
-  return null;
-}
+// A card's right-edge resize control, standing in for the library's pointer drag geometry: one click ends a resize at `resizeTo`.
+let resizeTo = 0;
+vi.mock('@xyflow/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@xyflow/react')>();
+  return {
+    ...actual,
+    NodeResizeControl: ({ onResizeEnd }: { onResizeEnd?: (event: unknown, params: { width: number }) => void }) => (
+      <button type="button" data-testid="card-resize" onClick={() => onResizeEnd?.(null, { width: resizeTo })} />
+    ),
+  };
+});
 
 const cardIds = (container: HTMLElement) =>
   Array.from(container.querySelectorAll('.react-flow__node')).map((n) => n.getAttribute('data-id'));
@@ -254,7 +259,6 @@ describe('FlowCanvas focus (local / world)', () => {
     const onPositionsChange = vi.fn();
     render(
       <>
-        <BusHandle />
         <FlowCanvas
           schema={twoOrbitals}
           nodePositions={{ Notes: { x: 5, y: 6 } }}
@@ -262,8 +266,8 @@ describe('FlowCanvas focus (local / world)', () => {
         />
       </>,
     );
-    // The card-resize bus event is the only placement change reachable without real drag geometry.
-    act(() => { busEmit('UI:CANVAS_CARD_RESIZED', { nodeId: 'TaskBoard', width: 700 }); });
+    resizeTo = 700;
+    fireEvent.click(screen.getByTestId('card-resize'));
     expect(onPositionsChange).toHaveBeenCalledWith(expect.objectContaining({ Notes: { x: 5, y: 6 }, TaskBoard: expect.objectContaining({ width: 700 }) }));
   });
 });

@@ -9,7 +9,7 @@
  * on one recorded shape. Separate from `packages/almadar-parity` (behaviour
  * traces across execution paths, not wire bytes).
  *
- * Each fixture is built as a typed `OrbitalEventRequest`/`OrbitalEventResponse`
+ * Each fixture is built as a typed `EventRequest`/`EventResponse`
  * (plus the SSE stream / live-push item shapes), validated against the zod
  * schemas `@almadar/core` owns (`src/types/bus.ts`), then written as stable,
  * 2-space, key-sorted JSON. A schema violation throws and exits non-zero —
@@ -28,17 +28,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  type OrbitalEventRequest,
-  type OrbitalEventResponse,
   type ClientEffectTuple,
   type EmittedEvent,
   type LiveBroadcastItem,
-  OrbitalEventRequestSchema,
-  OrbitalEventResponseSchema,
   ClientEffectTupleSchema,
   EmittedEventSchema,
   LiveBroadcastItemSchema,
 } from '../src/types/bus.js';
+import { decodeEventRequest, decodeEventResponse, type EventRequest, type EventResponse } from '../src/generated/kernel-wire.js';
 import { type ServerEffectResult, ServerEffectResultSchema } from '../src/types/effect-result.js';
 import { SERVER_REPORTED_EFFECTS } from '../src/types/effect.js';
 import { type SSEStreamItem, type EventWireFixture, EVENT_WIRE_FIXTURE_CASES, SSEStreamItemSchema } from '../src/fixtures.js';
@@ -64,7 +61,7 @@ const savingButtonEffect: ClientEffectTuple = ['render-ui', 'toolbar', { type: '
 
 const savedToastEffect: ClientEffectTuple = ['render-ui', 'toast', { type: 'toast-slot', variant: 'success', title: 'Note saved' }];
 
-const saveResponse: OrbitalEventResponse = {
+const saveResponse: EventResponse = {
   success: true,
   transitioned: true,
   states: { ...IDLE_STATES, NotePersistor: 'saved' },
@@ -405,11 +402,11 @@ function main(): void {
     mkdirSync(caseDir, { recursive: true });
 
     if (fixture.request) {
-      const validated = OrbitalEventRequestSchema.parse(fixture.request);
+      const validated = decodeEventRequest(fixture.request);
       writeJson(join(caseDir, 'request.json'), validated);
     }
     if (fixture.response) {
-      const validated = OrbitalEventResponseSchema.parse(fixture.response);
+      const validated = decodeEventResponse(fixture.response);
       writeJson(join(caseDir, 'response.json'), validated);
     }
     if (fixture.stream) {

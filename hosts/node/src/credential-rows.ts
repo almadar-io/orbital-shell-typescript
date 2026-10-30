@@ -4,7 +4,7 @@ import { EntityRowSchema, runRowWrite, type EntityRow, type JsonValue } from '@a
 import type { CredentialRowsPort } from '@almadar/shell-runtime';
 
 /** Where the credential rows live when no path is named: the file the native host reads (`FileCredentialRows`). */
-export const CREDENTIALS_FILE_ENV = 'ALMADAR_CREDENTIALS_FILE';
+const CREDENTIALS_FILE_ENV = 'ALMADAR_CREDENTIALS_FILE';
 export const DEFAULT_CREDENTIALS_FILE = '.almadar/dev-credentials.json';
 
 const CREDENTIAL_ROWS_ENTITY = 'AlmadarIntegrationCredential';

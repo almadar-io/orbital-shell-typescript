@@ -7,7 +7,7 @@
  * @packageDocumentation
  */
 import type { TransitionObserver } from '../index';
-import type { EffectTrace, OrbitalEventResponse, SExpr } from '@almadar/core';
+import type { EffectTrace, EventResponse, SExpr } from '@almadar/core';
 import { recordServerResponse, recordTransition, serverEffectTraces } from './verificationRegistry';
 
 /** The shape passed to `TransitionObserver.onTransition`. */
@@ -52,7 +52,7 @@ export function createCircuitVerificationObserver(): TransitionObserver {
 
 /** What one client-kernel dispatch came back with: its response, or the
  *  error it threw before producing one. */
-export type DispatchVerdict = { response: OrbitalEventResponse } | { error: Error | string };
+export type DispatchVerdict = { response: EventResponse } | { error: Error | string };
 
 /**
  * Record the runtime's own verdict for one dispatch on the verification

@@ -40,7 +40,7 @@ const MAX_DATAGRAM = 65_535;
 const SOCKET_HIGH_WATER = 1024 * 1024;
 
 const NET_OPS: ReadonlySet<OsOp> = new Set<OsOp>([
-  'os/tcp-connect', 'os/tcp-listen', 'os/tls-upgrade', 'os/send', 'os/recv', 'os/udp-bind', 'os/sendto', 'os/recvfrom', 'os/dns-resolve', 'os/shutdown', 'os/watch-port',
+  'os/tcp-connect', 'os/tcp-listen', 'os/tls-upgrade', 'os/send', 'os/recv', 'os/udp-bind', 'os/sendto', 'os/recvfrom', 'os/dns-resolve', 'os/shutdown', 'os/watch-port', 'os/fetch',
 ]);
 
 export function isNetOp(op: OsOp): boolean {
@@ -155,6 +155,8 @@ export class NetOps {
         return this.dnsResolve(op, args);
       case 'os/shutdown':
         return this.shutdown(op, args);
+      case 'os/fetch':
+        throw osFailure('unsupported', op, 'a browser host performs a fetch; this host speaks the protocol over os/tcp-connect and os/tls-upgrade');
       default:
         throw osFailure('unsupported', op, 'streaming host not implemented');
     }

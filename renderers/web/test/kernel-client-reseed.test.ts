@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import type { OrbitalEventRequest, OrbitalEventResponse, TraitIndex } from '@almadar/core';
+import type { EventRequest, EventResponse, TraitIndex } from '@almadar/core';
 import type { DispatchWire, MountWire } from '@almadar/core/kernel-wire';
 import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import { SessionEndedError, type EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import { createKernelClient } from '../src/lib/kernel-client';
 import type { KernelInstance } from '../src/lib/kernel-wire';
 
-const response = (over: Partial<OrbitalEventResponse> = {}): OrbitalEventResponse => ({ success: true, transitioned: true, states: { Viewer: 'idle' }, emittedEvents: [], ...over });
+const response = (over: Partial<EventResponse> = {}): EventResponse => ({ success: true, transitioned: true, states: { Viewer: 'idle' }, emittedEvents: [], ...over });
 const traitIndex: TraitIndex = { byName: new Map(), allEntities: [], orbitals: [] };
 
-const leg = (event: string): OrbitalEventRequest => ({ event, targetTrait: 'Viewer', clientId: 'tab-a' });
+const leg = (event: string): EventRequest => ({ event, targetTrait: 'Viewer', clientId: 'tab-a' });
 
 const mountWire: MountWire = {
   seeds: [{
@@ -46,8 +46,10 @@ function fakeKernel(reseeded: string[]): KernelInstance {
       return JSON.stringify({ event: 'INIT', mount: JSON.parse(seedsJson), clientId: 'tab-a', traits: [{ trait: 'Viewer', from: 'idle' }], entityByTrait: { Viewer: { topic: 'app' } } });
     },
     mount: () => undefined,
-    remount: () => undefined,
-    unmount: () => undefined,
+    enter: refuse,
+    leave: refuse,
+    deliverEmitToListeners: refuse,
+    deliverOriginEmit: refuse,
     getState: () => 'idle',
     dispatchMode: () => JSON.stringify('persistedAwaited'),
     restore: refuse, framesSince: refuse, tick: refuse, frame: refuse, framePause: refuse, frameResume: refuse, tickCount: refuse, traitConfig: refuse,
@@ -56,7 +58,7 @@ function fakeKernel(reseeded: string[]): KernelInstance {
   };
 }
 
-function clientOver(sent: OrbitalEventRequest[], endedOnce: boolean, reseeded: string[]) {
+function clientOver(sent: EventRequest[], endedOnce: boolean, reseeded: string[]) {
   let refusals = endedOnce ? 1 : 0;
   const transport: EventTransport = {
     register: async () => ({ success: true, carriesCircuitState: false }),
@@ -75,7 +77,7 @@ function clientOver(sent: OrbitalEventRequest[], endedOnce: boolean, reseeded: s
 
 describe('kernel client — a host that freed this client session', () => {
   it('mounts again with the frame and state the client holds, then sends the refused event once more', async () => {
-    const sent: OrbitalEventRequest[] = [];
+    const sent: EventRequest[] = [];
     const reseeded: string[] = [];
     const client = clientOver(sent, true, reseeded);
     await client.dispatchMount([{ trait: 'Viewer', event: 'INIT' }]);
@@ -87,7 +89,7 @@ describe('kernel client — a host that freed this client session', () => {
   });
 
   it('control: a live session sends the event once and mounts nothing again', async () => {
-    const sent: OrbitalEventRequest[] = [];
+    const sent: EventRequest[] = [];
     const reseeded: string[] = [];
     const client = clientOver(sent, false, reseeded);
     await client.dispatchMount([{ trait: 'Viewer', event: 'INIT' }]);
@@ -141,7 +143,7 @@ describe('kernel client — the viewer is bound before the first mount and dispa
 
 describe('kernel client — frames the host numbered past the version the kernel holds', () => {
   it('asks the host for the frames since that version, folds the snapshot, and asks once', async () => {
-    const sent: OrbitalEventRequest[] = [];
+    const sent: EventRequest[] = [];
     let folds = 0;
     const kernel: KernelInstance = {
       ...fakeKernel([]),
@@ -212,7 +214,7 @@ describe('kernel client — the kernel orders the folds of dispatches in flight 
     const transport: EventTransport = {
       register: async () => ({ success: true, carriesCircuitState: false }),
       unregister: async () => undefined,
-      send: (_orbital, request) => new Promise<OrbitalEventResponse>((resolve) => {
+      send: (_orbital, request) => new Promise<EventResponse>((resolve) => {
         sends.push(request.event);
         settle.set(request.event, () => resolve(response()));
       }),

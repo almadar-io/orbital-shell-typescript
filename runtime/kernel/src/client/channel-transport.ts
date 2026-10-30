@@ -4,16 +4,16 @@
  * pushes; the host half serves any EventTransport on the channel and pushes to its views. The
  * channel is two functions, so any postMessage-style port fits behind it.
  */
-import type { EmittedEvent, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
+import type { EmittedEvent, EventRequest, EventResponse, OrbitalSchema } from '@almadar/core';
 import type { EventTransport, HostDispatchListener, PushTarget } from './EventTransport.js';
 
 export type ChannelMessage =
   | { almadarChannel: 'register'; id: number; schemaName: string }
   | { almadarChannel: 'registered'; id: number; held: boolean }
-  | { almadarChannel: 'send'; id: number; orbitalName: string; request: OrbitalEventRequest }
-  | { almadarChannel: 'reply'; id: number; response: OrbitalEventResponse }
+  | { almadarChannel: 'send'; id: number; orbitalName: string; request: EventRequest }
+  | { almadarChannel: 'reply'; id: number; response: EventResponse }
   | { almadarChannel: 'push'; emitted: EmittedEvent; target: PushTarget }
-  | { almadarChannel: 'dispatched'; orbitalName: string; request: OrbitalEventRequest; response: OrbitalEventResponse };
+  | { almadarChannel: 'dispatched'; orbitalName: string; request: EventRequest; response: EventResponse };
 
 export interface TransportChannel {
   post(message: ChannelMessage): void;
@@ -98,7 +98,7 @@ export interface ServedChannel {
   /** Push a host-side event to the view (e.g. one a declared input caused while no view was asking). */
   push(emitted: EmittedEvent, target: PushTarget): void;
   /** Send the view the result of a dispatch the host ran on its own. */
-  pushDispatch(orbitalName: string, request: OrbitalEventRequest, response: OrbitalEventResponse): void;
+  pushDispatch(orbitalName: string, request: EventRequest, response: EventResponse): void;
   stop(): void;
 }
 

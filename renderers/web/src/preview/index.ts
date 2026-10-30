@@ -9,7 +9,7 @@
 
 // Core runtime hooks
 export { useTraitStateMachine, type UseTraitStateMachineOptions, type TraitStateMachineResult } from '../hooks/useTraitStateMachine';
-export { useResolvedSchema, type ResolvedSchemaResult, clearSchemaCache } from '../hooks/useResolvedSchema';
+export { useResolvedSchema, type ResolvedSchemaResult } from '../hooks/useResolvedSchema';
 
 // Context providers
 export {

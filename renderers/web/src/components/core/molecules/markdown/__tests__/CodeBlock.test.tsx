@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, fireEvent, act } from '@testing-library/react';
 import { CodeBlock, EDITOR_MOTIONS, EDITOR_OPERATORS, preloadCodeHighlighter } from '../CodeBlock';
 import { EventBusProvider } from '../../../../../core';
+import { EditorFocusProvider, useEditorFocus, type EditorFocus } from '../../../../../providers/EditorFocusContext';
 import { useEventBus, type EventBusContextType } from '../../../../../core';
 
 // Blocks paint highlighted only once the on-demand highlighter is in (G-UI-105).
@@ -312,6 +313,30 @@ describe('CodeBlock', () => {
       fireEvent.blur(textarea);
       expect(blurSpy).toHaveBeenCalledTimes(1);
       expect(blurSpy.mock.calls[0][0].payload).toEqual({ editorId: 'e1' });
+    });
+
+    it('reports its focus and blur to the editor focus context, and only when editorId is set', () => {
+      let store!: EditorFocus;
+      function Grab(): null {
+        store = useEditorFocus();
+        return null;
+      }
+      const { container } = render(
+        <Wrapper>
+          <EditorFocusProvider>
+            <Grab />
+            <CodeBlock code="hello" language="text" editable editorId="e1" />
+            <CodeBlock code="other" language="text" editable />
+          </EditorFocusProvider>
+        </Wrapper>,
+      );
+      const [withId, withoutId] = Array.from(container.querySelectorAll('textarea'));
+      fireEvent.focus(withoutId);
+      expect(store.focused()).toBeNull();
+      fireEvent.focus(withId);
+      expect(store.focused()).toBe('e1');
+      fireEvent.blur(withId);
+      expect(store.focused()).toBeNull();
     });
 
     it('UI:OPERATE delete word-forward changes the textarea value and calls onChange with it', () => {

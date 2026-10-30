@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { OrbitalSchema, Trait, TraitEventListener, TraitId } from '@almadar/core';
 import { isInlineTrait, isTraitId } from '@almadar/core';
 import { traitEventWires } from '../avl-event-wires';
+import { composedProgram } from '../../../test/ui/helpers/composed-program';
 
 const tid = (s: string): TraitId => {
   if (!isTraitId(s)) throw new Error(`not a trait id: ${s}`);
@@ -66,11 +67,7 @@ describe('traitEventWires — who the runtime actually delivers to', () => {
   });
 
   it('a composed trait is read through its resolved atom under its call-site name', () => {
-    const s = schema(
-      { name: 'A', traits: [{ ref: 'Lib.traits.Emitter', name: 'Sender', _resolved: trait('Emitter', ['GO'], []) }] },
-      { name: 'B', traits: [trait('Hear', [], [listen('GO', { kind: 'orbital', orbital: 'A', trait: 'Sender' })])] },
-    );
-    expect(pairs(s)).toEqual(['A.Sender->B.Hear:GO']);
+    expect(pairs(composedProgram('event-wires'))).toEqual(['A.Sender->B.Hear:GO']);
   });
 
   it('control: an unresolved ref contributes nothing', () => {

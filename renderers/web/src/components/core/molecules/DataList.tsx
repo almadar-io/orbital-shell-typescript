@@ -32,7 +32,7 @@ import { createLogger } from '@almadar/logger';
 const dataListLog = createLogger('almadar:ui:data-list');
 import { getNestedValue } from '../../../lib/getNestedValue';
 import { groupRows } from '../../../lib/groupRows';
-import { useEventBus } from '../../../core';
+import { useEventBus, useNavStack } from '../../../core';
 import { enterClassName } from '../../../lib/enter';
 import { useItemMoves } from '../../../lib/item-move';
 import { useRowActions, useRowActionPayload, useRowActionFire } from '../../../hooks/useRowActions';
@@ -305,6 +305,7 @@ export function DataList({
   ...rest
 }: DataListProps) {
   const eventBus = useEventBus();
+  const navStack = useNavStack();
   const moves = useItemMoves(itemEnter !== undefined && itemEnter !== 'none');
   const rowActions = useRowActions();
   const actionPayload = useRowActionPayload();
@@ -399,7 +400,7 @@ export function DataList({
       const url = action.navigatesTo.replace(/\{\{row\.(\w+(?:\.\w+)*)\}\}/g, (_, field: string) =>
         String(itemData[field] ?? ''),
       );
-      eventBus.emit('UI:NAVIGATE', { url, row: itemData });
+      navStack.goTo(url);
       return;
     }
     fireRowAction(action, itemData, String(itemData.id ?? ""));

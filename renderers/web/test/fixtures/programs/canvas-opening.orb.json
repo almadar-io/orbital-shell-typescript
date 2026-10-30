@@ -1,0 +1,703 @@
+{
+  "description": "A modal trait listed first whose only INIT render fires from its open state, and a shell whose INIT fires from its initial state.",
+  "ledger": {
+    "entries": {
+      "ent_2B2ZJ9VAD6N6K3QRVRWY5GKVGY": {
+        "bakedName": "Provider",
+        "curName": "Provider",
+        "id": "ent_2B2ZJ9VAD6N6K3QRVRWY5GKVGY",
+        "kind": "entity",
+        "owner": "workspace",
+        "renames": []
+      },
+      "evt_3F45QXTFQ67VK4JBYEQPG4W2NN": {
+        "bakedName": "GO",
+        "curName": "GO",
+        "id": "evt_3F45QXTFQ67VK4JBYEQPG4W2NN",
+        "kind": "event",
+        "owner": "workspace",
+        "parent": "trt_JTE7123A3MN1TDYEHST5VTPK0W",
+        "renames": []
+      },
+      "evt_AGRCDDPG3P81V0D227M7BPH7ST": {
+        "bakedName": "INIT",
+        "curName": "INIT",
+        "id": "evt_AGRCDDPG3P81V0D227M7BPH7ST",
+        "kind": "event",
+        "owner": "workspace",
+        "parent": "trt_JTE7123A3MN1TDYEHST5VTPK0W",
+        "renames": []
+      },
+      "evt_F4ZK5R65182GM2WC1YVBX9RD2H": {
+        "bakedName": "CREATE",
+        "curName": "CREATE",
+        "id": "evt_F4ZK5R65182GM2WC1YVBX9RD2H",
+        "kind": "event",
+        "owner": "workspace",
+        "parent": "trt_HG31BS2Q16BGKA1X6FYZFZ72X3",
+        "renames": []
+      },
+      "evt_ZRXEX4EMC4A62EN24VB04CHSJW": {
+        "bakedName": "INIT",
+        "curName": "INIT",
+        "id": "evt_ZRXEX4EMC4A62EN24VB04CHSJW",
+        "kind": "event",
+        "owner": "workspace",
+        "parent": "trt_HG31BS2Q16BGKA1X6FYZFZ72X3",
+        "renames": []
+      },
+      "orb_NFKD57XCYJPF91CJGYQBY6JAZA": {
+        "bakedName": "Providers",
+        "curName": "Providers",
+        "id": "orb_NFKD57XCYJPF91CJGYQBY6JAZA",
+        "kind": "orbital",
+        "owner": "workspace",
+        "renames": []
+      },
+      "pag_8V9D5V5TJNX9AMCTPNCAEAJT2A": {
+        "bakedName": "ProvidersPage",
+        "curName": "ProvidersPage",
+        "id": "pag_8V9D5V5TJNX9AMCTPNCAEAJT2A",
+        "kind": "page",
+        "owner": "workspace",
+        "renames": []
+      },
+      "pag_NYC7BGV5YDJZ6X63D1APVF5SSR": {
+        "bakedName": "CreatePage",
+        "curName": "CreatePage",
+        "id": "pag_NYC7BGV5YDJZ6X63D1APVF5SSR",
+        "kind": "page",
+        "owner": "workspace",
+        "renames": []
+      },
+      "trt_HG31BS2Q16BGKA1X6FYZFZ72X3": {
+        "bakedName": "Create",
+        "curName": "Create",
+        "id": "trt_HG31BS2Q16BGKA1X6FYZFZ72X3",
+        "kind": "trait",
+        "owner": "workspace",
+        "renames": []
+      },
+      "trt_JTE7123A3MN1TDYEHST5VTPK0W": {
+        "bakedName": "Shell",
+        "curName": "Shell",
+        "id": "trt_JTE7123A3MN1TDYEHST5VTPK0W",
+        "kind": "trait",
+        "owner": "workspace",
+        "renames": []
+      }
+    },
+    "schemaVersion": 1
+  },
+  "name": "canvas-opening",
+  "orbitals": [
+    {
+      "entity": {
+        "fields": [
+          {
+            "name": "id",
+            "nullable": false,
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "id": "ent_2B2ZJ9VAD6N6K3QRVRWY5GKVGY",
+        "name": "Provider",
+        "persistence": "runtime"
+      },
+      "id": "orb_NFKD57XCYJPF91CJGYQBY6JAZA",
+      "name": "Providers",
+      "pages": [
+        {
+          "id": "pag_8V9D5V5TJNX9AMCTPNCAEAJT2A",
+          "name": "ProvidersPage",
+          "path": "/providers",
+          "traits": [
+            {
+              "ref": "Shell",
+              "refId": "trt_JTE7123A3MN1TDYEHST5VTPK0W"
+            }
+          ]
+        },
+        {
+          "id": "pag_NYC7BGV5YDJZ6X63D1APVF5SSR",
+          "name": "CreatePage",
+          "path": "/create",
+          "traits": [
+            {
+              "ref": "Create",
+              "refId": "trt_HG31BS2Q16BGKA1X6FYZFZ72X3"
+            }
+          ]
+        }
+      ],
+      "traits": [
+        {
+          "effectRow": [
+            {
+              "kind": "render-ui",
+              "resource": "main"
+            },
+            {
+              "kind": "set",
+              "resource": "@entity.id"
+            }
+          ],
+          "entityRefIds": {
+            "Provider": "ent_2B2ZJ9VAD6N6K3QRVRWY5GKVGY"
+          },
+          "id": "trt_HG31BS2Q16BGKA1X6FYZFZ72X3",
+          "linkedEntity": "Provider",
+          "linkedEntityId": "ent_2B2ZJ9VAD6N6K3QRVRWY5GKVGY",
+          "name": "Create",
+          "sourceDeclaration": {
+            "fingerprint": "09f212e3cec9fc66dd53e2a36a4f7bb687b5e7089322112179580995a33b3723",
+            "traitId": "trt_HG31BS2Q16BGKA1X6FYZFZ72X3"
+          },
+          "stateMachine": {
+            "events": [
+              {
+                "id": "evt_ZRXEX4EMC4A62EN24VB04CHSJW",
+                "key": "INIT",
+                "name": "Initialize"
+              },
+              {
+                "id": "evt_F4ZK5R65182GM2WC1YVBX9RD2H",
+                "key": "CREATE",
+                "name": "Create"
+              }
+            ],
+            "states": [
+              {
+                "isInitial": true,
+                "name": "closed"
+              },
+              {
+                "name": "open"
+              }
+            ],
+            "transitions": [
+              {
+                "effects": [
+                  [
+                    "set",
+                    "@entity.id",
+                    "x"
+                  ]
+                ],
+                "event": "INIT",
+                "eventId": "evt_ZRXEX4EMC4A62EN24VB04CHSJW",
+                "from": "closed",
+                "to": "closed"
+              },
+              {
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "fields": [
+                        "id"
+                      ],
+                      "type": "form"
+                    }
+                  ]
+                ],
+                "event": "CREATE",
+                "eventId": "evt_F4ZK5R65182GM2WC1YVBX9RD2H",
+                "from": "closed",
+                "to": "open"
+              },
+              {
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "type": "box"
+                    }
+                  ]
+                ],
+                "event": "INIT",
+                "eventId": "evt_ZRXEX4EMC4A62EN24VB04CHSJW",
+                "from": "open",
+                "to": "closed"
+              },
+              {
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "fields": [
+                        "id"
+                      ],
+                      "type": "form"
+                    }
+                  ]
+                ],
+                "event": "CREATE",
+                "eventId": "evt_F4ZK5R65182GM2WC1YVBX9RD2H",
+                "from": "open",
+                "to": "open"
+              }
+            ]
+          }
+        },
+        {
+          "effectRow": [
+            {
+              "kind": "navigate",
+              "resource": "/create"
+            },
+            {
+              "kind": "render-ui",
+              "resource": "main"
+            }
+          ],
+          "entityRefIds": {
+            "Provider": "ent_2B2ZJ9VAD6N6K3QRVRWY5GKVGY"
+          },
+          "id": "trt_JTE7123A3MN1TDYEHST5VTPK0W",
+          "linkedEntity": "Provider",
+          "linkedEntityId": "ent_2B2ZJ9VAD6N6K3QRVRWY5GKVGY",
+          "name": "Shell",
+          "sourceDeclaration": {
+            "fingerprint": "be2bf92c3f84aba102dfaa6abf435d4eab6b479b6e70f5432f73cd500e8889b3",
+            "traitId": "trt_JTE7123A3MN1TDYEHST5VTPK0W"
+          },
+          "stateMachine": {
+            "events": [
+              {
+                "id": "evt_AGRCDDPG3P81V0D227M7BPH7ST",
+                "key": "INIT",
+                "name": "Initialize"
+              },
+              {
+                "id": "evt_3F45QXTFQ67VK4JBYEQPG4W2NN",
+                "key": "GO",
+                "name": "Go"
+              }
+            ],
+            "states": [
+              {
+                "isInitial": true,
+                "name": "composing"
+              }
+            ],
+            "transitions": [
+              {
+                "effects": [
+                  [
+                    "render-ui",
+                    "main",
+                    {
+                      "action": "GO",
+                      "label": "Create",
+                      "type": "button"
+                    }
+                  ]
+                ],
+                "event": "INIT",
+                "eventId": "evt_AGRCDDPG3P81V0D227M7BPH7ST",
+                "from": "composing",
+                "to": "composing"
+              },
+              {
+                "effects": [
+                  [
+                    "navigate",
+                    "/create"
+                  ]
+                ],
+                "event": "GO",
+                "eventId": "evt_3F45QXTFQ67VK4JBYEQPG4W2NN",
+                "from": "composing",
+                "to": "composing"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "resolved": {
+    "orb": "18.0.5",
+    "typeContractVersion": 1
+  },
+  "schemaVersion": 1,
+  "themeDefinitions": [
+    {
+      "displayName": "Minimalist",
+      "name": "minimalist",
+      "tokens": {
+        "colors": {
+          "accent": "#18181b",
+          "accent-foreground": "#fafafa",
+          "background": "#f8fafc",
+          "border": "#e4e4e7",
+          "card": "#ffffff",
+          "card-foreground": "#18181b",
+          "diagram-axis": "#65656e",
+          "diagram-fill": "#f4f4f5",
+          "diagram-grid": "#e4e4e7",
+          "diagram-guide": "#8d8d96",
+          "diagram-highlight": "#2563eb",
+          "diagram-ink": "#18181b",
+          "diagram-label": "#65656e",
+          "error": "#dc2626",
+          "error-foreground": "#ffffff",
+          "foreground": "#18181b",
+          "info": "#2563eb",
+          "info-foreground": "#ffffff",
+          "input": "#d4d4d8",
+          "muted": "#f4f4f5",
+          "muted-foreground": "#65656e",
+          "primary": "#18181b",
+          "primary-foreground": "#fafafa",
+          "primary-hover": "#27272a",
+          "ring": "#18181b",
+          "scrim": "rgba(0, 0, 0, 0.6)",
+          "secondary": "#fafafa",
+          "secondary-foreground": "#18181b",
+          "secondary-hover": "#f4f4f5",
+          "series-1": "#0b618e",
+          "series-2": "#b45f3a",
+          "series-3": "#589373",
+          "series-4": "#8a5a9a",
+          "series-5": "#a3902c",
+          "series-6": "#536d73",
+          "series-7": "#a04a5a",
+          "series-8": "#3a8a9a",
+          "success": "#15803d",
+          "success-foreground": "#ffffff",
+          "surface": "#f4f4f5",
+          "warning": "#ca8a04",
+          "warning-foreground": "#000000"
+        },
+        "density": {
+          "buttonHeightLg": "44px",
+          "buttonHeightMd": "44px",
+          "buttonHeightSm": "28px",
+          "cardPaddingLg": "40px",
+          "cardPaddingMd": "32px",
+          "cardPaddingSm": "12px",
+          "dialogPadding": "24px",
+          "inputHeightLg": "44px",
+          "inputHeightMd": "44px",
+          "inputHeightSm": "28px",
+          "rowHeightCompact": "32px",
+          "rowHeightNormal": "52px",
+          "rowHeightSpacious": "48px",
+          "sectionGap": "64px",
+          "spacing": {
+            "space0": "0px",
+            "space1": "4px",
+            "space10": "40px",
+            "space11": "44px",
+            "space12": "48px",
+            "space2": "8px",
+            "space3": "12px",
+            "space4": "16px",
+            "space5": "20px",
+            "space6": "24px",
+            "space7": "28px",
+            "space8": "32px",
+            "space9": "36px"
+          }
+        },
+        "diagram": {
+          "corner": "0px",
+          "dash": "3 3",
+          "dot": "1 3",
+          "fillOpacity": "0.08",
+          "fillStyle": "outline",
+          "glow": "0",
+          "labelCase": "none",
+          "labelFont": "body",
+          "labelSize": "xs",
+          "labelWeight": "400",
+          "lineCap": "butt",
+          "lineJoin": "miter",
+          "marker": "line",
+          "roughness": "0",
+          "shadow": "none",
+          "strokeBold": "2",
+          "strokeNormal": "1",
+          "strokeThin": "1"
+        },
+        "elevation": {
+          "cardElevation": "none",
+          "dialogElevation": "none",
+          "interactiveElevation": "none",
+          "popoverElevation": "none",
+          "pressedElevation": "none",
+          "toastElevation": "none"
+        },
+        "geometry": {
+          "borderHairline": "1px",
+          "borderHeavy": "1px",
+          "borderStandard": "1px",
+          "borderStyle": "none",
+          "borderStyleInteractive": "solid",
+          "cornerShape": "round",
+          "cornerShapePill": "round",
+          "radiusContainer": "0px",
+          "radiusInteractive": "0px",
+          "radiusPill": "9999px"
+        },
+        "iconography": {
+          "defaultSize": "16px",
+          "family": "lucide",
+          "strokeWidth": "1.5"
+        },
+        "motion": {
+          "durations": {
+            "dramatic": "600ms",
+            "fast": "var(--transition-fast)",
+            "instant": "0ms",
+            "normal": "var(--transition-normal)",
+            "slow": "var(--transition-slow)"
+          },
+          "easings": {
+            "emphasized": "cubic-bezier(0.2, 0, 0, 1)",
+            "linear": "linear",
+            "spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+            "standard": "var(--transition-timing)"
+          },
+          "shapes": {
+            "modalEnter": "none",
+            "modalExit": "none",
+            "pageEnter": "none",
+            "popoverEnter": "none",
+            "popoverExit": "none",
+            "toastEnter": "none",
+            "toastExit": "none"
+          }
+        },
+        "radii": {
+          "full": "9999px",
+          "lg": "0px",
+          "md": "0px",
+          "none": "0px",
+          "sm": "0px",
+          "xl": "0px"
+        },
+        "scene": {
+          "fog": "0",
+          "lightAmbient": "0.7",
+          "lightKey": "0.8",
+          "lightKeyColor": "#ffffff",
+          "materialFlat": "0",
+          "materialMetalness": "0",
+          "materialOutline": "0",
+          "materialRoughness": "0.8"
+        },
+        "shadows": {
+          "active": "none",
+          "hover": "none",
+          "inner": "none",
+          "lg": "none",
+          "main": "none",
+          "none": "none",
+          "sm": "none"
+        },
+        "surface": {
+          "accentImage": "linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 8%, var(--color-background)), var(--color-background))",
+          "edgeHeight": "clamp(16px, 4vw, 56px)",
+          "edgeMask": "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 100' preserveAspectRatio='none'><path d='M0 100 Q720 0 1440 100 Z'/></svg>\")",
+          "textureMask": "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><path d='M0 .5H40M.5 0V40' stroke='black' stroke-width='1' fill='none'/></svg>\")",
+          "textureSize": "40px 40px"
+        },
+        "typeScale": {
+          "bodyFamily": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "displayFamily": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontImport": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap",
+          "headingShadow": "none",
+          "headingStyle": "normal",
+          "headingTracking": "-0.03em",
+          "headingTransform": "none",
+          "headingWeight": "300",
+          "intents": {
+            "bodyDefault": {
+              "size": "sm",
+              "slot": "body",
+              "weight": "normal"
+            },
+            "bodyEmphasis": {
+              "size": "base",
+              "slot": "body",
+              "weight": "medium"
+            },
+            "bodyQuiet": {
+              "size": "sm",
+              "slot": "body",
+              "weight": "normal"
+            },
+            "caption": {
+              "size": "xs",
+              "slot": "body",
+              "weight": "normal"
+            },
+            "headingMajor": {
+              "size": "2xl",
+              "slot": "display",
+              "weight": "bold"
+            },
+            "headingMinor": {
+              "size": "lg",
+              "slot": "display",
+              "weight": "bold"
+            },
+            "numeric": {
+              "size": "sm",
+              "slot": "mono",
+              "weight": "medium"
+            }
+          },
+          "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          "scale": {
+            "2xl": {
+              "lineHeight": "32px",
+              "size": "24px"
+            },
+            "3xl": {
+              "lineHeight": "36px",
+              "size": "30px"
+            },
+            "4xl": {
+              "lineHeight": "40px",
+              "size": "36px"
+            },
+            "base": {
+              "lineHeight": "24px",
+              "size": "16px"
+            },
+            "display-1": {
+              "lineHeight": "52px",
+              "size": "48px"
+            },
+            "display-2": {
+              "lineHeight": "64px",
+              "size": "60px"
+            },
+            "lg": {
+              "lineHeight": "28px",
+              "size": "18px"
+            },
+            "sm": {
+              "lineHeight": "20px",
+              "size": "14px"
+            },
+            "xl": {
+              "lineHeight": "28px",
+              "size": "20px"
+            },
+            "xs": {
+              "lineHeight": "16px",
+              "size": "12px"
+            }
+          }
+        },
+        "typography": {
+          "active-scale": "0.99",
+          "active-translate-y": "0",
+          "border-width": "1px",
+          "border-width-thick": "1px",
+          "border-width-thin": "1px",
+          "focus-ring-color": "#18181b",
+          "focus-ring-offset": "2px",
+          "focus-ring-width": "2px",
+          "font-family": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "font-weight-bold": "600",
+          "font-weight-medium": "500",
+          "font-weight-normal": "400",
+          "hover-scale": "1.01",
+          "hover-translate-x": "0",
+          "hover-translate-y": "-1px",
+          "icon-color": "currentColor",
+          "letter-spacing": "-0.005em",
+          "line-height": "1.75",
+          "transition-fast": "150ms",
+          "transition-normal": "240ms",
+          "transition-slow": "400ms",
+          "transition-timing": "cubic-bezier(0.4, 0, 0.2, 1)"
+        }
+      },
+      "variants": {
+        "dark": {
+          "colors": {
+            "accent": "#fafafa",
+            "accent-foreground": "#18181b",
+            "background": "#09090b",
+            "border": "#27272a",
+            "card": "#18181b",
+            "card-foreground": "#fafafa",
+            "diagram-axis": "#a1a1aa",
+            "diagram-fill": "#27272a",
+            "diagram-grid": "#27272a",
+            "diagram-guide": "#78787f",
+            "diagram-highlight": "#60a5fa",
+            "diagram-ink": "#fafafa",
+            "diagram-label": "#a1a1aa",
+            "error": "#f87171",
+            "error-foreground": "#000000",
+            "foreground": "#fafafa",
+            "info": "#60a5fa",
+            "info-foreground": "#000000",
+            "input": "#3f3f46",
+            "muted": "#27272a",
+            "muted-foreground": "#a1a1aa",
+            "primary": "#fafafa",
+            "primary-foreground": "#18181b",
+            "primary-hover": "#e4e4e7",
+            "ring": "#fafafa",
+            "scrim": "rgba(0, 0, 0, 0.7)",
+            "secondary": "#27272a",
+            "secondary-foreground": "#fafafa",
+            "secondary-hover": "#3f3f46",
+            "series-1": "#929bdf",
+            "series-2": "#e0906a",
+            "series-3": "#6fc09a",
+            "series-4": "#c49ad4",
+            "series-5": "#cebb6b",
+            "series-6": "#758996",
+            "series-7": "#de8aa1",
+            "series-8": "#6fbfd0",
+            "success": "#4ade80",
+            "success-foreground": "#000000",
+            "surface": "#27272a",
+            "warning": "#fbbf24",
+            "warning-foreground": "#000000"
+          },
+          "typography": {
+            "active-scale": "0.99",
+            "active-translate-y": "0",
+            "border-width": "1px",
+            "border-width-thick": "1px",
+            "border-width-thin": "1px",
+            "focus-ring-color": "#fafafa",
+            "focus-ring-offset": "2px",
+            "focus-ring-width": "2px",
+            "font-family": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "font-weight-bold": "600",
+            "font-weight-medium": "500",
+            "font-weight-normal": "400",
+            "hover-scale": "1.01",
+            "hover-translate-x": "0",
+            "hover-translate-y": "-1px",
+            "icon-color": "currentColor",
+            "letter-spacing": "-0.005em",
+            "line-height": "1.75",
+            "transition-fast": "150ms",
+            "transition-normal": "240ms",
+            "transition-slow": "400ms",
+            "transition-timing": "cubic-bezier(0.4, 0, 0.2, 1)"
+          }
+        }
+      }
+    }
+  ],
+  "typeContractVersion": 1,
+  "version": "1.0.0"
+}

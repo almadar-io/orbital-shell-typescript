@@ -1,7 +1,7 @@
 /**
  * Verification on canvas cards: a host that opts in (`verify`) gets, on each card, controls to
  * verify the transition the card shows or the whole trait's walk, and the trait's verdict. A
- * run flips the card to each state it reaches (`UI:CANVAS_SHOW_STATE`).
+ * run flips the card to each state it reaches (`verify.follow`).
  */
 import React, { useEffect } from 'react';
 import { describe, it, expect, vi, beforeAll } from 'vitest';
@@ -9,7 +9,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import type { EventPayload, OrbitalSchema } from '@almadar/core';
 import { useEventBus } from '../../../../core';
 import { FlowCanvas } from '../FlowCanvas';
-import type { CanvasVerify } from '../../molecules/OrbPreviewNode';
+import type { CanvasStepReached, CanvasVerify } from '../../molecules/OrbPreviewNode';
 
 beforeAll(() => {
   class ResizeObserverStub {
@@ -42,10 +42,8 @@ const schema: OrbitalSchema = {
 };
 
 const heard: Array<{ type: string; payload: EventPayload | undefined }> = [];
-let busEmit: ((type: string, payload?: EventPayload) => void) | null = null;
 function Bus(): null {
   const bus = useEventBus();
-  busEmit = bus.emit;
   useEffect(() => {
     const offs = ['UI:CARD_VERIFY_STEP', 'UI:CARD_VERIFY_TRAIT'].map((type) => bus.on(type, (e) => { heard.push({ type, payload: e.payload }); }));
     return () => offs.forEach((off) => off());
@@ -53,9 +51,16 @@ function Bus(): null {
   return null;
 }
 
+let followers: Array<(step: CanvasStepReached) => void> = [];
+const reach = (step: CanvasStepReached) => followers.forEach((onStep) => onStep(step));
+
 const verify: CanvasVerify = {
   verdictOf: (_orbital, trait) => (trait === 'TaskList' ? { status: 'fail', detail: 'guard failed' } : undefined),
   playing: () => false,
+  follow: (onStep) => {
+    followers.push(onStep);
+    return () => { followers = followers.filter((f) => f !== onStep); };
+  },
 };
 
 describe('canvas card verification', () => {
@@ -83,7 +88,7 @@ describe('canvas card verification', () => {
   it('flips the card to the state a played step reached', () => {
     render(<><Bus /><FlowCanvas schema={schema} initialOrbital="TaskBoard" verify={verify} /></>);
     const select = screen.getByTestId('canvas-state-TaskBoard');
-    act(() => { busEmit?.('UI:CANVAS_SHOW_STATE', { orbital: 'TaskBoard', trait: 'TaskList', event: 'EDIT', from: 'loaded', to: 'editing' }); });
+    act(() => { reach({ orbital: 'TaskBoard', trait: 'TaskList', event: 'EDIT', from: 'loaded', to: 'editing' }); });
     expect(select).toHaveValue('TaskList:EDIT:loaded:editing');
   });
 
@@ -91,7 +96,7 @@ describe('canvas card verification', () => {
     render(<><Bus /><FlowCanvas schema={schema} initialOrbital="TaskBoard" verify={verify} /></>);
     const select = screen.getByTestId('canvas-state-TaskBoard');
     const before = (select as HTMLSelectElement).value;
-    act(() => { busEmit?.('UI:CANVAS_SHOW_STATE', { orbital: 'TaskBoard', trait: 'TaskList', event: 'SAVE', from: 'editing', to: 'saving' }); });
+    act(() => { reach({ orbital: 'TaskBoard', trait: 'TaskList', event: 'SAVE', from: 'editing', to: 'saving' }); });
     expect(select).toHaveValue(before);
   });
 });

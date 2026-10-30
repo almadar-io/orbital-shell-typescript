@@ -121,7 +121,6 @@ export {
   type LedgerEntry,
   type IdentityLedger,
   mintId,
-  deriveId,
   isOrbitalId,
   asOrbitalId,
   isEntityId,
@@ -1241,8 +1240,6 @@ export {
   ClientNavigateBackTupleSchema,
   ClientEffectTupleSchema,
   // Event dispatch wire — canonical = the TS runtime's implementation
-  type OrbitalEventRequest,
-  type OrbitalEventResponse,
   type ClientEffectByTrait,
   type TransitionRejection,
   type TransitionRejectionCode,
@@ -1254,8 +1251,6 @@ export {
   type DispatchRequestOutcome,
   type EventStreamItem,
   EventStreamItemSchema,
-  OrbitalEventRequestSchema,
-  OrbitalEventResponseSchema,
   LIFECYCLE_EVENTS,
   type LifecycleEvent,
   SYSTEM_UI_EVENTS,
@@ -1274,19 +1269,11 @@ export {
   // Live broadcast wire (server → other connected clients)
   type LiveBroadcastItem,
   LiveBroadcastItemSchema,
-  /** @deprecated use OrbitalEventRequest */
-  type EventDispatchRequest,
-  /** @deprecated use OrbitalEventRequestSchema */
-  EventDispatchRequestSchema,
-  /** @deprecated use OrbitalEventResponse */
-  type EventDispatchResponse,
-  /** @deprecated use OrbitalEventResponseSchema */
-  EventDispatchResponseSchema,
 } from "./bus.js";
+export type { EventRequest, EventResponse } from "../generated/kernel-wire.js";
 
 export { dispatchVisitKey, DispatchVisits } from "./visit-key.js";
-export { type DeliveryRecord, type DispatchLog, DeliveryRecordSchema, DispatchLogSchema, deliveryRecordValue } from "./bus.js";
-export { DispatchMemory, dispatchScopeOf, type DispatchScope } from "./dispatch-memory.js";
+export { type DeliveryRecord, type DispatchLog, DeliveryRecordSchema, DispatchLogSchema } from "./bus.js";
 export { guardHolds } from "./guard-holds.js";
 
 // Server-side effect result — the wire shape effectResults carries

@@ -9,8 +9,8 @@
  * be switched onto this port at the W5b build checkpoint (see the plan);
  * until then this file has no consumers outside this package.
  *
- * The wire shapes are `@almadar/core`'s existing `OrbitalEventRequest` /
- * `OrbitalEventResponse` — no shadow types.
+ * The wire shapes are `@almadar/core`'s existing `EventRequest` /
+ * `EventResponse` — no shadow types.
  *
  * @packageDocumentation
  */
@@ -20,8 +20,8 @@ import {
   OrbitalRegisterResponseSchema,
   RowQueryPageSchema,
   type EmittedEvent,
-  type OrbitalEventRequest,
-  type OrbitalEventResponse,
+  type EventRequest,
+  type EventResponse,
   type OrbitalSchema,
   type RowQueryPage,
   type RowSetRef,
@@ -75,7 +75,7 @@ export interface EventTransport {
   register(schema: OrbitalSchema): Promise<EventTransportRegisterResult>;
   unregister(): Promise<void>;
   /** Play one event through the orbital named `orbitalName`. */
-  send(orbitalName: string, request: OrbitalEventRequest): Promise<OrbitalEventResponse>;
+  send(orbitalName: string, request: EventRequest): Promise<EventResponse>;
   /**
    * A row-set reference resolved by the host that holds the rows, for the viewer the transport is signed in as (the
    * host applies `@read`): the rows that still match, in the reference's order. Absent when the transport has no
@@ -106,7 +106,7 @@ export interface EventTransport {
 }
 
 /** A dispatch the host ran on its own, with its result. */
-export type HostDispatchListener = (orbitalName: string, request: OrbitalEventRequest, response: OrbitalEventResponse) => void;
+export type HostDispatchListener = (orbitalName: string, request: EventRequest, response: EventResponse) => void;
 
 // ============================================================================
 // HTTP transport
@@ -147,15 +147,15 @@ interface ServerPushEnvelope {
   source?: EmittedEvent['source'];
   target?: PushTarget;
   orbitalName?: string;
-  request?: OrbitalEventRequest;
-  response?: OrbitalEventResponse;
+  request?: EventRequest;
+  response?: EventResponse;
 }
 
 function isBusPushEnvelope(value: ServerPushEnvelope): value is ServerPushEnvelope & { type: 'bus'; event: string } {
   return value.type === 'bus' && typeof value.event === 'string';
 }
 
-function isDispatchPushEnvelope(value: ServerPushEnvelope): value is ServerPushEnvelope & { type: 'dispatch'; orbitalName: string; request: OrbitalEventRequest; response: OrbitalEventResponse } {
+function isDispatchPushEnvelope(value: ServerPushEnvelope): value is ServerPushEnvelope & { type: 'dispatch'; orbitalName: string; request: EventRequest; response: EventResponse } {
   return value.type === 'dispatch' && typeof value.orbitalName === 'string' && value.request !== undefined && value.response !== undefined;
 }
 
@@ -387,7 +387,7 @@ export function createHttpTransport(options: HttpTransportOptions): EventTranspo
         getAccessToken,
         compress,
       );
-      const body: OrbitalEventResponse & RefusalBody = await res.json();
+      const body: EventResponse & RefusalBody = await res.json();
       if (res.status === 409 && body.code === 'SESSION_ENDED') throw new SessionEndedError(body.error ?? 'the session ended');
       return body;
     },
@@ -417,7 +417,7 @@ export function createHttpTransport(options: HttpTransportOptions): EventTranspo
 // ============================================================================
 
 /** Evaluates one event against an orbital with no wire in between — the unified `evaluateOrbitalEvent` (a separate, in-progress unit) is a valid `OrbitalEvaluator`. */
-export type OrbitalEvaluator = (orbitalName: string, request: OrbitalEventRequest) => Promise<OrbitalEventResponse>;
+export type OrbitalEvaluator = (orbitalName: string, request: EventRequest) => Promise<EventResponse>;
 
 export interface InProcessTransportOptions {
   onRegister?: (schema: OrbitalSchema) => Promise<void> | void;

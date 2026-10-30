@@ -1,10 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LazyPage } from '@almadar/core';
+import { describe, expect, it } from 'vitest';
+import type { LazyPage, OrbitalSchema } from '@almadar/core';
 
-import { HttpLoader } from '../src/loader/http-loader.js';
-import { loadLazyPage } from '../src/loader/lazy-page.js';
+import type { LoadResult, LoadedSchema, SchemaLoader } from '@almadar/shell-runtime/loader/schema-loader';
+import { loadLazyPage } from '@almadar/shell-runtime/loader/lazy-page';
 
-const post = {
+const post: OrbitalSchema = {
   name: 'BlogWhy',
   orbitals: [
     {
@@ -18,48 +18,45 @@ const post = {
 
 const page: LazyPage = { path: '/blog/why', orbital: 'BlogWhy', orbRef: 'lazy/BlogWhy.orb' };
 
-function serve(files: Record<string, unknown>): string[] {
+function serve(files: Record<string, OrbitalSchema>): { loader: SchemaLoader; requested: string[] } {
   const requested: string[] = [];
-  vi.stubGlobal('fetch', async (url: string) => {
-    requested.push(url);
-    const body = files[url];
-    return body === undefined
-      ? new Response('missing', { status: 404, statusText: 'Not Found' })
-      : new Response(JSON.stringify(body), { status: 200 });
-  });
-  return requested;
+  const loader: SchemaLoader = {
+    async load(importPath, fromPath): Promise<LoadResult<LoadedSchema>> {
+      const sourcePath = new URL(importPath, fromPath).href;
+      requested.push(sourcePath);
+      const body = files[sourcePath];
+      return body === undefined
+        ? { success: false, error: `${sourcePath}: 404 Not Found` }
+        : { success: true, data: { schema: body, sourcePath, importPath } };
+    },
+    async loadOrbital() {
+      throw new Error('loadLazyPage loads whole schemas');
+    },
+    resolvePath: (importPath, fromPath) => ({ success: true, data: new URL(importPath, fromPath).href }),
+    clearCache: () => undefined,
+    getCacheStats: () => ({ size: 0 }),
+  };
+  return { loader, requested };
 }
 
-const loader = () => new HttpLoader({ basePath: 'https://site.test/' });
-
 describe('loadLazyPage', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
   it('loads the behavior behind a lazy page, relative to the importer .orb', async () => {
-    const requested = serve({ 'https://site.test/app/lazy/BlogWhy.orb': post });
-    const result = await loadLazyPage(loader(), page, 'https://site.test/app/site.orb');
+    const { loader, requested } = serve({ 'https://site.test/app/lazy/BlogWhy.orb': post });
+    const result = await loadLazyPage(loader, page, 'https://site.test/app/site.orb');
     expect(result.success && result.data.name).toBe('BlogWhy');
     expect(requested).toEqual(['https://site.test/app/lazy/BlogWhy.orb']);
   });
 
   it('fails when the loaded .orb does not carry the expected orbital', async () => {
-    serve({ 'https://site.test/app/lazy/BlogWhy.orb': { ...post, orbitals: [{ ...post.orbitals[0], name: 'Other' }] } });
-    const result = await loadLazyPage(loader(), page, 'https://site.test/app/site.orb');
+    const { loader } = serve({ 'https://site.test/app/lazy/BlogWhy.orb': { ...post, orbitals: [{ ...post.orbitals[0], name: 'Other' }] } });
+    const result = await loadLazyPage(loader, page, 'https://site.test/app/site.orb');
     expect(result.success).toBe(false);
     expect(!result.success && result.error).toContain('BlogWhy');
   });
 
   it('fails with the url when the .orb is missing', async () => {
-    serve({});
-    const result = await loadLazyPage(loader(), page, 'https://site.test/app/site.orb');
+    const { loader } = serve({});
+    const result = await loadLazyPage(loader, page, 'https://site.test/app/site.orb');
     expect(!result.success && result.error).toContain('https://site.test/app/lazy/BlogWhy.orb');
-  });
-
-  it('edge: a second load of the same page is served from the loader cache', async () => {
-    const requested = serve({ 'https://site.test/app/lazy/BlogWhy.orb': post });
-    const shared = loader();
-    await loadLazyPage(shared, page, 'https://site.test/app/site.orb');
-    await loadLazyPage(shared, page, 'https://site.test/app/site.orb');
-    expect(requested).toHaveLength(1);
   });
 });

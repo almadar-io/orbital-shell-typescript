@@ -2,7 +2,7 @@
  * The `orb` block a behavior package declares in its `package.json`
  * (`docs/Almadar_Behavior_Packages.md` §3) and the one resolver for the files it
  * declares. Readers resolve sidecars through these declared paths, never through
- * a hardcoded package layout. TS mirror of `orbital_core::behavior_packages`.
+ * a hardcoded package layout. The walk over installed packages is `orb list --json --ancestors` (`orbital_core::behavior_packages::discover`).
  *
  * Node-only (reads `package.json` with `node:fs`): exported from the
  * `@almadar/core/behavior-package` subpath only, never the main entry, so browser
@@ -16,16 +16,14 @@
 import * as nodeCrypto from 'node:crypto';
 import * as nodeChildProcess from 'node:child_process';
 import * as nodeFs from 'node:fs';
-import * as nodeModule from 'node:module';
 import * as nodeOs from 'node:os';
 import * as nodePath from 'node:path';
 import { z } from 'zod';
 
 const { createHash } = nodeCrypto;
 const { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, utimesSync, writeFileSync } = nodeFs;
-const { createRequire } = nodeModule;
 const { homedir } = nodeOs;
-const { dirname, isAbsolute, join, relative, resolve, sep } = nodePath;
+const { dirname, isAbsolute, join, relative, resolve } = nodePath;
 
 export const BehaviorPackageOrbBlockSchema = z
   .object({
@@ -219,9 +217,6 @@ export function userStoreDir(): string {
   return join(homedir(), '.orb');
 }
 
-/** The `orb` fields only a behavior package declares (`@almadar/core`'s language block is not one). */
-const BEHAVIOR_BLOCK_FIELDS = ['prefix', 'registry', 'source'];
-
 function packageDirs(nodeModules: string): string[] {
   if (!existsSync(nodeModules)) return [];
   const out: Array<[string, string]> = [];
@@ -235,12 +230,6 @@ function packageDirs(nodeModules: string): string[] {
     }
   }
   return out.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).map(([, path]) => path);
-}
-
-function isBehaviorManifest(manifestPath: string): boolean {
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { orb?: Record<string, object> | null };
-  const orb = manifest.orb;
-  return orb !== undefined && orb !== null && typeof orb === 'object' && BEHAVIOR_BLOCK_FIELDS.some((field) => field in orb);
 }
 
 /**
@@ -267,37 +256,64 @@ export function installedPackageDirs(startDir: string, userStore: string = userS
   return out;
 }
 
+/** One row of `orb list --json --ancestors`: an installed behavior package, as the kernel's discovery reads it. */
+const DiscoveredRowSchema = z.object({
+  name: z.string(),
+  version: z.string(),
+  root: z.string(),
+  prefix: z.string().min(1),
+  registry: z.string().min(1).optional(),
+  source: z.string().min(1).optional(),
+  vectors: z.string().min(1).optional(),
+  compiler: z.string().min(1),
+  lock: SidecarLockSchema.optional(),
+});
+
+export interface DiscoverOptions {
+  /** The `orb` binary; default {@link resolveOrbBinary} from `startDir`. */
+  orbBin?: string;
+  /** The home whose `.orb` is the user store (the last rung); default the process's. */
+  home?: string;
+}
+
 /**
- * Every installed behavior package, the same rule as `orb`
- * (`orbital-core` `behavior_packages::discover`): every package
- * ({@link installedPackageDirs}) whose `package.json` carries a behavior `orb`
- * block; nearest wins per name; two packages claiming one prefix is an error.
+ * Every installed behavior package, as `orb` discovers them (`orbital-core` `behavior_packages::discover`, the std
+ * `orb list --json --ancestors` command): each ancestor `node_modules` of `startDir`, nearest first, then the user
+ * store's; nearest wins per name; two packages claiming one prefix is an error.
  */
-export function discoverBehaviorPackages(startDir: string, userStore: string = userStoreDir()): BehaviorPackage[] {
-  const found: BehaviorPackage[] = [];
-  const seen = new Set<string>();
-  for (const dir of installedPackageDirs(startDir, userStore)) {
-    if (!isBehaviorManifest(join(dir, 'package.json'))) continue;
-    const pkg = readBehaviorPackage(dir);
-    if (seen.has(pkg.name)) continue;
-    seen.add(pkg.name);
-    found.push(pkg);
-  }
-  const byPrefix = new Map<string, BehaviorPackage>();
-  for (const pkg of found) {
-    const other = byPrefix.get(pkg.orb.prefix);
-    if (other && other.name !== pkg.name) {
-      throw new BehaviorPackageError(`prefix \`${pkg.orb.prefix}\` is claimed by ${other.name} (${other.root}) and ${pkg.name} (${pkg.root})`);
-    }
-    byPrefix.set(pkg.orb.prefix, pkg);
-  }
-  return found;
+export function discoverBehaviorPackages(startDir: string, options: DiscoverOptions = {}): BehaviorPackage[] {
+  const start = resolve(startDir);
+  const orbBin = options.orbBin ?? resolveOrbBinary(start);
+  const run = nodeChildProcess.spawnSync(orbBin, ['list', '--json', '--ancestors'], {
+    cwd: start,
+    encoding: 'utf8',
+    maxBuffer: 1024 * 1024 * 64,
+    env: options.home !== undefined ? { ...process.env, HOME: options.home } : process.env,
+  });
+  if (run.error !== undefined) throw new BehaviorPackageError(`${orbBin} list --ancestors: ${run.error.message}`);
+  if (run.status !== 0) throw new BehaviorPackageError(`${orbBin} list --ancestors exited ${run.status}: ${run.stderr.trim()}`);
+  return DiscoveredRowSchema.array()
+    .parse(JSON.parse(run.stdout))
+    .map((row) => ({
+      name: row.name,
+      version: row.version,
+      root: row.root,
+      orb: {
+        prefix: row.prefix,
+        compiler: row.compiler,
+        ...(row.registry !== undefined ? { registry: row.registry } : {}),
+        ...(row.source !== undefined ? { source: row.source } : {}),
+        ...(row.vectors !== undefined ? { vectors: row.vectors } : {}),
+      },
+      lock: row.lock ?? null,
+    }));
 }
 
 /** Resolve an installed behavior package by name, node-style, from `fromDir`. */
 export function findInstalledBehaviorPackage(name: string, fromDir: string): BehaviorPackage {
-  const req = createRequire(join(resolve(fromDir), 'noop.js'));
-  return readBehaviorPackage(dirname(req.resolve(`${name}/package.json`)));
+  const found = discoverBehaviorPackages(fromDir).find((pkg) => pkg.name === name);
+  if (found === undefined) throw new BehaviorPackageError(`${name} is not an installed behavior package from ${resolve(fromDir)}`);
+  return found;
 }
 
 /** The absolute path of a file (or the registry directory) the package declares. Fails when it is missing. */
@@ -350,8 +366,6 @@ export function derivedCacheDir(): string {
 export interface RegistryDirOptions {
   orbBin?: string;
   cacheDir?: string;
-  /** How many files one `orb lower` run takes. */
-  batch?: number;
 }
 
 const fileHashes = new Map<string, string>();
@@ -390,34 +404,6 @@ function lowererKey(orbBin: string, pkgRoot: string): string {
     hash.update(`\0${field}\0${fileHash(path)}`);
   }
   return hash.digest('hex');
-}
-
-function filesWithExtension(dir: string, extension: string): string[] {
-  if (!existsSync(dir)) return [];
-  const out: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...filesWithExtension(path, extension));
-    else if (entry.name.endsWith(extension)) out.push(path);
-  }
-  return out.sort();
-}
-
-/** A source file's path in the mirror: a `.lolo` becomes its lowered `.orb`; a message catalog keeps its path. */
-function mirrorPath(rel: string): string {
-  return rel.replace(/\.lolo$/, '.orb');
-}
-
-interface SourceStamp {
-  sha256: string;
-  mtimeMs: number;
-  size: number;
-}
-
-interface LoweredLine {
-  path: string;
-  orb?: object;
-  error?: string;
 }
 
 /** Where a live package's mirror lives: keyed by its root and what lowers it ({@link lowererKey}). */
@@ -519,52 +505,15 @@ export function behaviorRegistryDir(pkg: BehaviorPackage, options: RegistryDirOp
   utimesSync(out, usedAt, usedAt);
   mirrorsInUse.add(out);
   evictOldMirrors(dirname(out), mirrorsInUse);
-  const hashesPath = join(out, '.hashes.json');
-  const previous: Record<string, SourceStamp> = existsSync(hashesPath) ? (JSON.parse(readFileSync(hashesPath, 'utf8')) as Record<string, SourceStamp>) : {};
-  const current: Record<string, SourceStamp> = {};
-  const stale: string[] = [];
-  const staleCatalogs: string[] = [];
-  const catalogs = filesWithExtension(source, '.json').filter((file) => relative(source, file).split(sep).includes('locales'));
-  for (const file of [...filesWithExtension(source, '.lolo'), ...catalogs]) {
-    const rel = relative(source, file);
-    const { mtimeMs, size } = statSync(file);
-    const before = previous[rel];
-    // Hash only a file whose stat moved: an unchanged tree costs one stat per file.
-    const sha256 =
-      before && before.mtimeMs === mtimeMs && before.size === size ? before.sha256 : createHash('sha256').update(readFileSync(file)).digest('hex');
-    current[rel] = { sha256, mtimeMs, size };
-    if (before?.sha256 === sha256 && existsSync(join(out, mirrorPath(rel)))) continue;
-    if (rel.endsWith('.lolo')) stale.push(file);
-    else staleCatalogs.push(file);
-  }
-  const batch = options.batch ?? 200;
-  for (let i = 0; i < stale.length; i += batch) {
-    const files = stale.slice(i, i + batch);
-    const run = nodeChildProcess.spawnSync(orbBin, ['lower', ...files], { cwd: pkg.root, encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024 });
-    if (run.status !== 0) throw new BehaviorPackageError(`${pkg.name}: \`orb lower\` failed: ${run.stderr}`);
-    for (const line of run.stdout.split('\n').filter((l) => l.trim() !== '')) {
-      const lowered = JSON.parse(line) as LoweredLine;
-      if (lowered.error !== undefined || lowered.orb === undefined) {
-        throw new BehaviorPackageError(`${pkg.name}: ${lowered.path} does not lower: ${lowered.error ?? 'no program'}`);
-      }
-      const target = join(out, mirrorPath(relative(source, lowered.path)));
-      mkdirSync(dirname(target), { recursive: true });
-      const temp = `${target}.${process.pid}.tmp`;
-      writeFileSync(temp, JSON.stringify(lowered.orb));
-      renameSync(temp, target);
-    }
-  }
-  for (const file of staleCatalogs) {
-    const target = join(out, relative(source, file));
-    mkdirSync(dirname(target), { recursive: true });
-    copyFileSync(file, target);
-  }
-  for (const rel of Object.keys(previous)) {
-    if (!(rel in current)) rmSync(join(out, mirrorPath(rel)), { force: true });
-  }
-  mkdirSync(out, { recursive: true });
-  const stamps = JSON.stringify(current);
-  if (stale.length > 0 || staleCatalogs.length > 0 || stamps !== JSON.stringify(previous)) writeFileSync(hashesPath, stamps);
+  const cache = options.cacheDir ?? derivedCacheDir();
+  const run = nodeChildProcess.spawnSync(orbBin, ['materialize', relative(cache, out)], {
+    cwd: source,
+    encoding: 'utf8',
+    maxBuffer: 1024 * 1024 * 64,
+    env: { ...process.env, ALMADAR_DERIVED_CACHE: cache },
+  });
+  if (run.error !== undefined) throw new BehaviorPackageError(`${pkg.name}: ${orbBin} materialize: ${run.error.message}`);
+  if (run.status !== 0) throw new BehaviorPackageError(`${pkg.name}: \`orb materialize\` failed: ${run.stderr.trim()}`);
   return out;
 }
 

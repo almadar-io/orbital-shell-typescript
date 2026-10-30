@@ -11,12 +11,12 @@
 
 import orbNotationRaw from './orb-notation.json';
 import enRaw from './en.json';
+import { LOLO_FIRST_TOKEN_KEYWORDS, RTL_LOCALES } from '../generated/i18n-tables.js';
 
 /** A language's code (`en`, `ar`, `pt-BR`, …). `en` is the canonical language. */
 export type LanguageCode = string;
 
-/** Locales written right to left (twin of orbital-core `messages::RTL_LOCALES`). */
-export const RTL_LOCALES: readonly string[] = ['ar', 'he', 'fa', 'ur'];
+export { RTL_LOCALES, LOLO_FIRST_TOKEN_KEYWORDS };
 
 export function localeDirection(locale: string): 'ltr' | 'rtl' {
   return RTL_LOCALES.includes(locale) ? 'rtl' : 'ltr';
@@ -231,10 +231,7 @@ export function parseOperatorTables(raw: unknown, source: string): OperatorTable
  * the spacing and type scales, density, elevation, geometry, motion,
  * iconography and illustration token names.
  *
- * Derived, not curated — a key whose every path through `OrbitalSchema` lies
- * under a theme `tokens` node. Regenerate with
- * `pnpm --filter @almadar/core run gen:orb-notation`; the universe test
- * re-derives it and fails if this file drifts.
+ * A byte copy of orbital-core `lang/i18n/orb-notation.json`, which owns it.
  */
 export const ORB_NOTATION_KEYS: ReadonlySet<string> = new Set(
   parseNotationKeys(orbNotationRaw, 'orb-notation.json'),
@@ -330,10 +327,6 @@ export function aliasMap(
   return map;
 }
 
-/** The token equals exactly one language's `keywords.app` value. */
-/** The keywords that can legally open a `.lolo` program (top-level structure, LOLO.md §3). */
-export const LOLO_FIRST_TOKEN_KEYWORDS = ['app', 'uses', 'expects', 'type', 'theme', 'orbital'] as const;
-
 /** A `.lolo` program's language: its first token is one language's translation of a first-token keyword. */
 export function languageOfLoloFirstToken(token: string): LanguageCode | undefined {
   const matches = installedLanguages().filter((lang) =>
@@ -396,7 +389,7 @@ export function checkI18nCoverage(input: I18nCoverageInput): { ok: boolean; prob
   // so the type-walk that builds the section will re-introduce them on any
   // schema change unless something says no. Owner ruling 2026-09-07: the
   // vocabulary is what the LANGUAGE defines; a library's API surface stays
-  // English. See ORB_NOTATION_KEYS / scripts/gen-orb-notation.mts.
+  // English. See ORB_NOTATION_KEYS.
   for (const lang of Object.keys(core)) {
     for (const key of Object.keys(core[lang].orb)) {
       if (ORB_NOTATION_KEYS.has(key)) {

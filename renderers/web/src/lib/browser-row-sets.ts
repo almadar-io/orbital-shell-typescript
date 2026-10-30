@@ -7,7 +7,7 @@
 import type { OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef, UserContext } from '@almadar/core';
 import { localStorePersistence, nativeMemoryPersistence, openLocalKernel, resolveLocalRows } from '../runtime';
 import type { KernelEngine } from '../kernel/engine.js';
-import { LanguageLoaderMissingError, type KernelEngineValue } from '../providers/KernelEngineContext';
+import { type KernelEngineValue } from '../providers/KernelEngineContext';
 
 export interface BrowserRowSets {
   resolve(reference: RowSetRef): Promise<RowQueryPage>;
@@ -23,18 +23,15 @@ export function browserRowSets(
   let opened: Promise<KernelEngine> | undefined;
   let disposed = false;
   const open = (): Promise<KernelEngine> => {
-    opened ??= Promise.all([
-      engine.loadModule(),
-      engine.loadLanguage !== undefined ? engine.loadLanguage() : Promise.reject(new LanguageLoaderMissingError()),
-    ]).then(([kernel, bundle]) => {
-      const kernelEngine = openLocalKernel({ kernel, language: bundle, schema, persistence: localStorePersistence(schema, store, nativeMemoryPersistence(kernel)) });
+    opened ??= engine.loadModule().then((kernel) => {
+      const kernelEngine = openLocalKernel({ kernel, schema, persistence: localStorePersistence(schema, store, nativeMemoryPersistence(kernel)) });
       if (disposed) kernelEngine.dispose();
       return kernelEngine;
     });
     return opened;
   };
   return {
-    resolve: (reference) => open().then((kernelEngine) => resolveLocalRows(kernelEngine, schema, user, reference)),
+    resolve: (reference) => open().then((kernelEngine) => resolveLocalRows(kernelEngine, user, reference)),
     dispose() {
       disposed = true;
       void opened?.then((kernelEngine) => kernelEngine.dispose(), () => undefined);

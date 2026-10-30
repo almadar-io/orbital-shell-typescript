@@ -8,7 +8,7 @@ import './helpers/kernel-evaluator.setup.js';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FrameDelta } from '@almadar/core/kernel-wire';
 import type { EntityRow, EventPayload, JsonValue, OrbitalSchema, PersistenceAdapter, ServiceHostPorts } from '@almadar/core';
-import { OrbitalServerRuntime } from '../../src/runtime/OrbitalServerRuntime.js';
+import { OrbitalServerRuntime, type LiveBroadcastItem } from '../../src/runtime/OrbitalServerRuntime.js';
 import { InFlightCalls, type NativeMemoryPersistenceAdapter } from '@almadar/shell-runtime';
 import { answerRequest, type DeferredCallOutcome, type KernelAnswerScope, type KernelHostPorts } from '@almadar/shell-runtime';
 import type { KernelModule } from '@almadar/shell-runtime';
@@ -261,6 +261,88 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
     const response = await runtime.processOrbitalEvent('Main', { event: 'SAVE', targetTrait: 'Draft', locale: 'fr' });
     expect(response.success).toBe(false);
     expect(response.error).toMatch(/locale "fr"/);
+  });
+
+  // Twins of orbital-core `exec_tick::server_tick` (the mount ledger and the relay), `exec_dist::server_leg_seed` (stateful admission)
+  // and `exec_render::server_messages` (the typed locale refusal): G-ORBITAL-SHELL-TYPESCRIPT-114.
+  describe('the kernel owns the mount ledger, the tick relay and request admission', () => {
+    const pulsing = (): OrbitalSchema => ({
+      name: 'pulsing',
+      typeContractVersion: 1,
+      version: '1.0.0',
+      locales: ['en', 'ar'],
+      orbitals: [{
+        name: 'Board',
+        pages: [],
+        entity: { name: 'Cell', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+        traits: [{
+          name: 'Scoped',
+          linkedEntity: 'Cell',
+          stateMachine: {
+            states: [{ name: 'idle', isInitial: true }],
+            events: [{ key: 'INIT', name: 'INIT' }, { key: 'GO', name: 'GO' }],
+            transitions: [{ from: 'idle', to: 'idle', event: 'INIT' }, { from: 'idle', to: 'idle', event: 'GO' }],
+          },
+          ticks: [{ name: 'beat', interval: 10, effects: [['emit', 'PULSE', {}]] }],
+          emits: [{ event: 'PULSE' }],
+        }],
+      }],
+    });
+    const tick = { event: '$TICK_beat', runTick: { trait: 'Scoped', tick: 'beat' }, targetTrait: 'Scoped' };
+    const pulses = (response: { emittedEvents: readonly { event: string }[] }): string[] => response.emittedEvents.map((e) => e.event);
+
+    it('a mount request enters the client\'s ledger and $UNMOUNT leaves it: the trait\'s tick fires only between', async () => {
+      const runtime = await open(pulsing());
+      expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual([]);
+      await runtime.processOrbitalEvent('Board', { event: 'INIT', clientId: 'tab-1', mount: [{ trait: 'Scoped', event: 'INIT' }] });
+      expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual(['PULSE']);
+      const left = await runtime.processOrbitalEvent('Board', { event: '$UNMOUNT', clientId: 'tab-1', targetTrait: 'Scoped' });
+      expect(left).toMatchObject({ success: true, transitioned: false });
+      expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual([]);
+    });
+
+    it('control: a mount naming no client is no client\'s, and a second client keeps the trait mounted', async () => {
+      const runtime = await open(pulsing());
+      await runtime.processOrbitalEvent('Board', { event: 'INIT', mount: [{ trait: 'Scoped', event: 'INIT' }] });
+      expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual([]);
+      await runtime.processOrbitalEvent('Board', { event: 'INIT', clientId: 'tab-1', mount: [{ trait: 'Scoped', event: 'INIT' }] });
+      await runtime.processOrbitalEvent('Board', { event: 'INIT', clientId: 'tab-2', mount: [{ trait: 'Scoped', event: 'INIT' }] });
+      await runtime.processOrbitalEvent('Board', { event: '$UNMOUNT', clientId: 'tab-1', targetTrait: 'Scoped' });
+      expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual(['PULSE']);
+    });
+
+    it('a host refuses nothing itself: carried circuit state outside a delegated leg is the kernel\'s typed refusal', async () => {
+      const runtime = await open(pulsing());
+      const carried = { event: 'GO', traits: [{ trait: 'Scoped', from: 'idle' }] };
+      const refused = await runtime.processOrbitalEvent('Board', carried);
+      expect(refused.success).toBe(false);
+      expect(refused.rejections?.[0]?.code).toBe('client-circuit-state-refused');
+      const delegated = await runtime.processOrbitalEvent('Board', { ...carried, targetTrait: 'Scoped' });
+      expect(delegated.success).toBe(true);
+    });
+
+    it('an undeclared locale answers the kernel\'s typed refusal, which the events route maps to LOCALE_NOT_DECLARED', async () => {
+      const runtime = await open(pulsing());
+      const refused = await runtime.dispatchEventRequest('Board', { event: 'GO', targetTrait: 'Scoped', locale: 'fr' }, false, undefined);
+      expect(refused).toMatchObject({ ok: false, code: 'LOCALE_NOT_DECLARED', status: 400 });
+      const admitted = await runtime.dispatchEventRequest('Board', { event: 'GO', targetTrait: 'Scoped', locale: 'ar' }, false, undefined);
+      expect(admitted).toMatchObject({ ok: true });
+    });
+
+    it('tick-stamped dispatches are relayed coalesced by the kernel: the newest per client and event, once per window', async () => {
+      const runtime = await open(pulsing(), { tickRelayIntervalMs: 20 });
+      const relayed: LiveBroadcastItem[] = [];
+      runtime.setLiveBroadcastSink((item) => { relayed.push(item); });
+      const stamped = (x: number) => ({ event: 'GO', targetTrait: 'Scoped', clientId: 'tab-1', sourceTrait: 'Scoped', tick: 'beat', payload: { x } });
+      await runtime.processOrbitalEvent('Board', stamped(1));
+      await runtime.processOrbitalEvent('Board', stamped(2));
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      expect(relayed).toHaveLength(1);
+      expect(relayed[0]).toMatchObject({ event: 'GO', payload: { x: 2 }, originClientId: 'tab-1', target: 'peers' });
+      await runtime.processOrbitalEvent('Board', { event: 'GO', targetTrait: 'Scoped', clientId: 'tab-1', payload: { x: 3 } });
+      await new Promise((resolve) => setTimeout(resolve, 60));
+      expect(relayed, 'control: a dispatch with no tick is never relayed').toHaveLength(1);
+    });
   });
 
   it('resetCircuitState returns the kernel to boot (every trait back at its initial state, EXEC-SEED-6)', async () => {

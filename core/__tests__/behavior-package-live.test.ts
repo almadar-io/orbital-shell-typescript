@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -14,23 +14,45 @@ import {
 } from '../src/behavior-package.js';
 
 /**
- * A stand-in `orb`: `--version` prints a version; `lower <files…>` appends one
- * line per call to `calls.log` (the files it was asked for) and prints the NDJSON
- * contract, failing any file whose content contains `BROKEN`.
+ * The stand-in `orb`'s `materialize <out>`: logs the call (out, working directory, cache) to `calls.log`,
+ * writes each `.lolo` of the working directory as its program under `$ALMADAR_DERIVED_CACHE/<out>` and copies
+ * each locale catalog; a file containing `BROKEN` fails the call, naming it. The real algorithm (incremental
+ * hashes, pruning) is the std command's own: its goldens and `orb materialize` runs pin it.
  */
+function materializeScript(dir: string): string {
+  return `
+const program = (f) => { const t = fs.readFileSync(f, 'utf8').trim(); return t.startsWith('{') ? JSON.parse(t) : { name: t }; };
+if (args[0] === 'materialize') {
+  const out = path.join(process.env.ALMADAR_DERIVED_CACHE, args[1]);
+  fs.appendFileSync(${JSON.stringify(join(dir, 'calls.log'))}, ['materialize', args[1], process.cwd(), process.env.ALMADAR_DERIVED_CACHE].join(' ') + '\\n');
+  const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  for (const f of walk(process.cwd())) {
+    const rel = path.relative(process.cwd(), f);
+    const isCatalog = f.endsWith('.json') && rel.split(path.sep).includes('locales');
+    if (!f.endsWith('.lolo') && !isCatalog) continue;
+    if (f.endsWith('.lolo') && fs.readFileSync(f, 'utf8').includes('BROKEN')) { console.error(rel + ' does not lower: parse error'); process.exit(1); }
+    const target = path.join(out, f.endsWith('.lolo') ? rel.replace(/\\.lolo$/, '.orb') : rel);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, f.endsWith('.lolo') ? JSON.stringify(program(f)) : fs.readFileSync(f));
+  }
+  console.log(args[1]);
+  process.exit(0);
+}
+`;
+}
+
+/** A stand-in `orb`: `--version` prints a version; `materialize` as {@link materializeScript}. */
 function fakeOrb(dir: string): string {
   const bin = join(dir, 'orb');
   writeFileSync(
     bin,
     `#!/usr/bin/env node
 const fs = require('fs');
+const path = require('path');
 const args = process.argv.slice(2);
 if (args[0] === '--version') { console.log('orb 9.9.9'); process.exit(0); }
-fs.appendFileSync(${JSON.stringify(join(dir, 'calls.log'))}, args.slice(1).map((f) => require('path').basename(f)).join(',') + '\\n');
-for (const f of args.slice(1)) {
-  const text = fs.readFileSync(f, 'utf8');
-  console.log(JSON.stringify(text.includes('BROKEN') ? { path: f, error: 'parse error' } : { path: f, orb: { name: text.trim() } }));
-}
+${materializeScript(dir)}
+process.exit(2);
 `,
   );
   chmodSync(bin, 0o755);
@@ -66,30 +88,25 @@ describe('behaviorRegistryDir — a live package (orb.source)', () => {
     expect(JSON.parse(readFileSync(join(dir, 'app/organisms/b.orb'), 'utf8'))).toEqual({ name: 'B' });
   });
 
-  it('a second call with nothing changed lowers nothing; an edit re-lowers only that file', () => {
-    const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A', 'app/atoms/b.lolo': 'B' });
-    const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
-    const pkg = readBehaviorPackage(root);
-    behaviorRegistryDir(pkg, opts);
-    behaviorRegistryDir(pkg, opts);
-    expect(calls(work)).toEqual(['a.lolo,b.lolo']);
-    writeFileSync(join(root, 'behaviors/lolo/app/atoms/b.lolo'), 'B2');
-    const dir = behaviorRegistryDir(pkg, opts);
-    expect(calls(work)).toEqual(['a.lolo,b.lolo', 'b.lolo']);
-    expect(JSON.parse(readFileSync(join(dir, 'app/atoms/b.orb'), 'utf8'))).toEqual({ name: 'B2' });
+  it('asks orb to materialize into the mirror under the cache, with the source tree as working directory', () => {
+    const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A' });
+    const cache = join(work, 'cache');
+    const dir = behaviorRegistryDir(readBehaviorPackage(root), { orbBin: fakeOrb(work), cacheDir: cache });
+    const [call] = calls(work);
+    expect(call).toBe(`materialize ${dir.slice(cache.length + 1)} ${realpathSync(join(root, 'behaviors/lolo'))} ${cache}`);
   });
 
-  it('a rebuilt orb with the same version string re-lowers everything', () => {
+  it('a rebuilt orb with the same version string reads another mirror', () => {
     const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A' });
     const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
     const pkg = readBehaviorPackage(root);
-    behaviorRegistryDir(pkg, opts);
+    const first = behaviorRegistryDir(pkg, opts);
+    expect(behaviorRegistryDir(pkg, opts)).toBe(first);
     writeFileSync(opts.orbBin, `${readFileSync(opts.orbBin, 'utf8')}\n// rebuilt\n`);
-    behaviorRegistryDir(pkg, opts);
-    expect(calls(work)).toEqual(['a.lolo', 'a.lolo']);
+    expect(behaviorRegistryDir(pkg, opts)).not.toBe(first);
   });
 
-  it('a change to the installed core language data re-lowers everything', () => {
+  it('a change to the installed core language data reads another mirror', () => {
     const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A' });
     const core = join(work, 'node_modules/@almadar/core');
     mkdirSync(core, { recursive: true });
@@ -97,49 +114,17 @@ describe('behaviorRegistryDir — a live package (orb.source)', () => {
     writeFileSync(join(core, 'p.json'), '{"patterns":{}}');
     const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
     const pkg = readBehaviorPackage(root);
-    behaviorRegistryDir(pkg, opts);
-    behaviorRegistryDir(pkg, opts);
+    const first = behaviorRegistryDir(pkg, opts);
+    expect(behaviorRegistryDir(pkg, opts)).toBe(first);
     writeFileSync(join(core, 'p.json'), '{"patterns":{"new-pattern":{}}}');
-    behaviorRegistryDir(pkg, opts);
-    expect(calls(work)).toEqual(['a.lolo', 'a.lolo']);
+    expect(behaviorRegistryDir(pkg, opts)).not.toBe(first);
   });
 
-  it('a removed .lolo is pruned from the mirror', () => {
-    const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A', 'app/atoms/gone.lolo': 'G' });
-    const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
-    const pkg = readBehaviorPackage(root);
-    behaviorRegistryDir(pkg, opts);
-    rmSync(join(root, 'behaviors/lolo/app/atoms/gone.lolo'));
-    const dir = behaviorRegistryDir(pkg, opts);
-    expect(existsSync(join(dir, 'app/atoms/gone.orb'))).toBe(false);
-    expect(existsSync(join(dir, 'app/atoms/a.orb'))).toBe(true);
-  });
-
-  it('a behavior message catalog is mirrored beside its program, and an edit to it is seen', () => {
+  it('a behavior message catalog is mirrored beside its program', () => {
     const { root, work } = livePackage({ 'kflow/atoms/a.lolo': 'A', 'kflow/atoms/locales/en/a.json': '{"t":"Hi"}' });
-    const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
-    const pkg = readBehaviorPackage(root);
-    let dir = behaviorRegistryDir(pkg, opts);
+    const dir = behaviorRegistryDir(readBehaviorPackage(root), { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') });
     expect(readFileSync(join(dir, 'kflow/atoms/locales/en/a.json'), 'utf8')).toBe('{"t":"Hi"}');
-    writeFileSync(join(root, 'behaviors/lolo/kflow/atoms/locales/en/a.json'), '{"t":"Hello"}');
-    dir = behaviorRegistryDir(pkg, opts);
-    expect(readFileSync(join(dir, 'kflow/atoms/locales/en/a.json'), 'utf8')).toBe('{"t":"Hello"}');
-    expect(calls(work)).toEqual(['a.lolo']);
-  });
-
-  it('a removed catalog is pruned; control: json outside locales/ is not mirrored', () => {
-    const { root, work } = livePackage({
-      'kflow/atoms/a.lolo': 'A',
-      'kflow/atoms/locales/en/a.json': '{}',
-      'kflow/.hand-authored.json': '[]',
-    });
-    const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
-    const pkg = readBehaviorPackage(root);
-    behaviorRegistryDir(pkg, opts);
-    rmSync(join(root, 'behaviors/lolo/kflow/atoms/locales/en/a.json'));
-    const dir = behaviorRegistryDir(pkg, opts);
-    expect(existsSync(join(dir, 'kflow/atoms/locales/en/a.json'))).toBe(false);
-    expect(existsSync(join(dir, 'kflow/.hand-authored.json'))).toBe(false);
+    expect(existsSync(join(dir, 'kflow/atoms/a.orb'))).toBe(true);
   });
 
   it('a file that does not lower fails the call, naming it', () => {
@@ -169,7 +154,7 @@ describe('behaviorRegistryDir — a live package (orb.source)', () => {
 });
 
 describe('materializeRegistry — publishing a live package', () => {
-  /** `lower` as in fakeOrb; `emit orb <lolo> --output <out>` writes the program plus a merged `<stem>.en.json` catalog. */
+  /** `materialize` as in fakeOrb; `emit orb <lolo> --output <out>` writes the program plus a merged `<stem>.en.json` catalog. */
   function publishOrb(dir: string): string {
     const bin = join(dir, 'orb');
     writeFileSync(
@@ -179,8 +164,7 @@ const fs = require('fs');
 const path = require('path');
 const args = process.argv.slice(2);
 if (args[0] === '--version') { console.log('orb 9.9.9'); process.exit(0); }
-const program = (f) => { const t = fs.readFileSync(f, 'utf8').trim(); return t.startsWith('{') ? JSON.parse(t) : { name: t }; };
-if (args[0] === 'lower') { for (const f of args.slice(1)) console.log(JSON.stringify({ path: f, orb: program(f) })); process.exit(0); }
+${materializeScript(dir)}
 if (args[0] === 'emit') {
   fs.appendFileSync(${JSON.stringify(join(dir, 'emits.log'))}, path.basename(args[2]) + '\\n');
   const out = args[args.indexOf('--output') + 1];

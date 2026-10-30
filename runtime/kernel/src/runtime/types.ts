@@ -37,18 +37,10 @@ import type {
     UserContext,
     NavItem,
     RuntimeValue,
-    OrbitalDefinition,
     RowSetRef,
 } from '@almadar/core';
 import type { HopObservation } from '@almadar/core/kernel-wire';
 import type { ProgramEffectName, ProgramEffectOutcome } from '../kernel/program-effects.js';
-import type {
-    ComposeBehaviorsInput,
-    ComposeBehaviorsResult,
-    EventWiringEntry,
-    LayoutStrategy,
-    PipeStep,
-} from './effects/composition/index.js';
 
 // ============================================================================
 // Runtime Data Types (re-exported from @almadar/core)
@@ -65,7 +57,7 @@ export type PatternProps = ResolvedPatternProps;
  * configs (children, slot props that are themselves render-ui nodes)
  * round-trip without an `unknown` escape hatch.
  */
-export type RuntimePatternValue =
+type RuntimePatternValue =
     | string
     | number
     | boolean
@@ -84,7 +76,7 @@ export type RuntimePatternValue =
  * not just primitives. Used by render-ui observability helpers to narrow
  * safely without `unknown` casts.
  */
-export interface RuntimeRenderPattern {
+interface RuntimeRenderPattern {
     readonly [prop: string]: RuntimePatternValue;
 }
 
@@ -97,9 +89,7 @@ export interface RuntimeRenderPattern {
  * flow through the binding context without type widening.
  */
 import type { BrowserPageFacts, PageFactField, TraitConfig } from '@almadar/core';
-import type { RunsOn } from '@almadar/std';
-import { getOperatorRunsOn, getStdEffectOperators } from '@almadar/std/registry';
-export type ConfigContext = TraitConfig;
+type ConfigContext = TraitConfig;
 
 // ============================================================================
 // Event Bus Types
@@ -139,29 +129,6 @@ export interface IEventBus {
 // ============================================================================
 
 
-/**
- * Result of processing an event through a state machine
- */
-export interface TransitionResult {
-    /** Whether a transition was executed */
-    executed: boolean;
-    /** New state after transition (same as current if not executed) */
-    newState: string;
-    /** Previous state before transition */
-    previousState: string;
-    /** Effects to execute (empty if guard failed or no transition found) */
-    effects: SExpr[];
-    /** The transition that was executed (undefined if none) */
-    transition?: {
-        from: string;
-        to: string;
-        event: string;
-    };
-    /** Guard evaluation result (undefined if no guard) */
-    guardResult?: boolean;
-}
-
-
 // ============================================================================
 // Effect Handler Types
 // ============================================================================
@@ -174,7 +141,7 @@ export interface TransitionResult {
  */
 
 /** What one `http` effect came to: the `<METHOD> <origin><path>` it addressed and, on failure, the declared `emit.failure` event the program routed it to. */
-export interface HttpEffectReport {
+interface HttpEffectReport {
     success: boolean;
     target: string;
     error?: string;
@@ -367,16 +334,6 @@ export interface EffectHandlers {
     /** Log a message */
     log?: (message: string, level?: 'log' | 'warn' | 'error', data?: RuntimeValue) => void;
 
-    // === Composition handlers (compile-time, optional) ===
-    /** Compose multiple orbitals into one schema. Compile-time only. */
-    composeBehaviors?: (input: ComposeBehaviorsInput) => ComposeBehaviorsResult;
-    /** Apply cross-orbital event wiring. Compile-time only. */
-    applyEventWiring?: (orbitals: OrbitalDefinition[], wiring: EventWiringEntry[]) => OrbitalDefinition[];
-    /** Auto-detect layout strategy. Compile-time only. */
-    detectLayoutStrategy?: (orbitals: OrbitalDefinition[], wiring?: EventWiringEntry[]) => LayoutStrategy;
-    /** Left-to-right behavior pipeline. Compile-time only. */
-    pipeBehaviors?: <T>(seed: T, ...steps: Array<PipeStep<T, T>>) => T;
-
     // === Browser device handlers (client-side only) ===
     //
     // User-initiated, async device APIs. The executor wraps each in
@@ -422,35 +379,6 @@ export interface EffectHandlers {
     agentPorts?: () => ServiceHostPorts | undefined;
 }
 
-/**
- * What a `batch` persist hands back — the shape `canonical-operators.json`
- * declares for persist's batch branch, so the `emit: { success }` envelope
- * carries exactly what the type system promises. Before this existed the
- * envelope emitted the raw INPUT array, so `?completedCount` / `?totalCount`
- * read `undefined` at runtime.
- *
- * Structurally an {@link EntityRow} — `operations` is an array of rows and the
- * counts are numbers, all valid `FieldValue`s — so `EffectHandlers.persist`
- * needs no widened return type and no cast: a batch summary reaches the bus by
- * the same path a create/update row does.
- *
- * Declared as a `type` alias, NOT an `interface`, deliberately: only an object
- * type alias gets TypeScript's implicit index signature, which is what makes it
- * assignable to `EntityRow`'s `Record<string, FieldValue | undefined>` half. As
- * an interface it fails that assignment (TS2322) and the only way to ship it
- * would be a cast — which the type-safety rule forbids, and rightly: the cast
- * would have hidden that the contract, not the value, was wrong.
- */
-export type PersistBatchSummary = {
-    /** One result row per attempted operation, in submission order. */
-    operations: EntityRow[];
-    /** How many operations completed before the batch stopped. */
-    completedCount: number;
-    /** How many were submitted. */
-    totalCount: number;
-};
-
-
 // ============================================================================
 // Browser Device Handler Types (client host path)
 // ============================================================================
@@ -460,7 +388,7 @@ export type PersistBatchSummary = {
 // uniform `{ result }` emit payload (EventPayload-compatible) without casts.
 
 /** Options for `browser/open-file-picker`. */
-export interface BrowserFilePickerOptions {
+interface BrowserFilePickerOptions {
     /** Allow selecting multiple files. */
     multiple?: boolean;
     /** MIME type filter (e.g. "image/*"). Best-effort; host may ignore. */
@@ -468,7 +396,7 @@ export interface BrowserFilePickerOptions {
 }
 
 /** Metadata for a file chosen via `browser/open-file-picker`. */
-export interface BrowserFileMeta {
+interface BrowserFileMeta {
     name: string;
     size: number;
     type: string;
@@ -476,14 +404,14 @@ export interface BrowserFileMeta {
 }
 
 /** Options for `browser/geolocation-current` (subset of PositionOptions). */
-export interface BrowserGeolocationOptions {
+interface BrowserGeolocationOptions {
     enableHighAccuracy?: boolean;
     timeout?: number;
     maximumAge?: number;
 }
 
 /** Position returned by `browser/geolocation-current`. */
-export interface BrowserGeolocationPosition {
+interface BrowserGeolocationPosition {
     latitude: number;
     longitude: number;
     accuracy: number;
@@ -509,11 +437,11 @@ export interface BindingContext {
     user?: UserContext;
     /** The dispatch's one `now` stamp (ms epoch) — every guard, effect and time operator in it reads this. */
     now?: number;
-    /** `@locale`: the viewer's locale (`OrbitalEventRequest.locale`, else the program's first declared locale). */
+    /** `@locale`: the viewer's locale (`EventRequest.locale`, else the program's first declared locale). */
     locale?: string;
     /** That locale's catalog — `i18n/t` reads it. */
     messages?: Readonly<Record<string, string>>;
-    /** `@event`: the delivery being processed (`deliveryRecordValue`, Runtime Spec Clause 5.5). */
+    /** `@event`: the delivery being processed (Runtime Spec Clause 5.5). */
     event?: EventPayload;
     /** `@prevEvents`: deliveries this trait already received this dispatch. */
     prevEvents?: EventPayload[];
@@ -572,59 +500,6 @@ export interface BindingContext {
  */
 export type Effect = [string, ...RuntimeValue[]];
 
-/**
- * Type guard: is this value an executable effect tuple (operator + args)?
- * Narrows wire-level `SExpr` effect lists to the executor-input `Effect`
- * without a cast. (Parameter is `RuntimeValue`, not `SExpr`, because a type
- * predicate's type must be assignable to its parameter's type — `Effect`'s
- * `RuntimeValue` tail is wider than `SExpr`. Every `SExpr` is a `RuntimeValue`,
- * so call sites pass either.)
- */
-export function isEffectTuple(value: RuntimeValue): value is Effect {
-    return Array.isArray(value) && typeof value[0] === 'string';
-}
-
-/**
- * Effect execution context
- */
-export interface EffectContext {
-    /** Trait name */
-    traitName: string;
-    /** Orbital that owns the firing trait. Used to stamp the source
-     * metadata on emits so source-scoped listens (`TraitName EVENT` for
-     * intra-orbital, `Orbital.TraitName EVENT` for cross-orbital) can
-     * filter by emitter identity. */
-    orbitalName?: string;
-    /**
-     * V4 dual-carry id sibling of `traitName` — stamped onto emit sources
-     * so id-scoped `listens` (`buildSourceMatcher`) match by id,
-     * rename-proof. The matcher compares ids ONLY when the listen source
-     * carries one, so a name-only stamp never matches a `traitId`-carrying
-     * listen (the chat SAVE → DO_CREATE relay died on the stateful path,
-     * 2026-09-22). Parity with `OrbitalServerRuntime`'s emit stamp.
-     */
-    traitId?: TraitId;
-    /**
-     * V4 dual-carry id sibling of `orbitalName` — same contract as
-     * `traitId`, for `kind: 'orbital'` listen sources.
-     */
-    orbitalId?: OrbitalId;
-    /**
-     * The trait's emit contracts — the emit-source stamp reads `eventId`
-     * from the matching contract (parity with `OrbitalServerRuntime`'s
-     * `emitContract?.eventId`).
-     */
-    emits?: ReadonlyArray<{ event: string; eventId?: EventId }>;
-    /** Current state */
-    state: string;
-    /** Transition description */
-    transition: string;
-    /** Linked entity name */
-    linkedEntity?: string;
-    /** Entity ID (if available) */
-    entityId?: string;
-}
-
 // ============================================================================
 // Effect Result Types (RCG-04)
 // ============================================================================
@@ -653,37 +528,6 @@ export interface EffectResult {
 // ============================================================================
 
 /**
- * Runtime configuration for strictness and safety modes.
- *
- * These options control how the runtime handles edge cases:
- * - `strictBindings`: Log warnings when bindings resolve to undefined (RCG-01)
- * - `maxEventDepth`: Prevent infinite event loops (RCG-05)
- */
-export interface RuntimeConfig {
-    /**
-     * When true, log warnings when bindings like @entity.field resolve to undefined.
-     * Helps detect typos and missing fields early. (RCG-01)
-     * @default false
-     */
-    strictBindings?: boolean;
-
-
-    /**
-     * Maximum event emission depth before triggering circuit breaker. (RCG-05)
-     * Prevents infinite loops from circular emit/listen chains.
-     * @default 10
-     */
-    maxEventDepth?: number;
-
-    /**
-     * Additional fields to spread onto every EvaluationContext.
-     * Used to inject module contexts (e.g., { agent: AgentContext }).
-     * The evaluator dispatches agent/* operators to ctx.agent.
-     */
-    contextExtensions?: EvaluationContextExtensions;
-}
-
-/**
  * Typed extensions that get spread onto every EvaluationContext.
  * Each field here corresponds to an optional field on EvaluationContext.
  */
@@ -699,42 +543,7 @@ export interface EvaluationContextExtensions {
 }
 
 // ============================================================================
-// Handler Manifest Types (RCG-03)
-// ============================================================================
-
-/**
- * Execution context for handler manifest validation.
- * Defines which effect handlers should be available in each environment.
- */
-export type ExecutionEnvironment = "client" | "server" | "test" | "ssr";
-
-// ============================================================================
 // Transition Observer Types (Verification Registry Wiring)
 // ============================================================================
 
 
-/** JS-only effect spellings and the registry operator each aliases (G-RUNTIME-043). */
-const EFFECT_ALIASES: Record<string, string> = { render: 'render-ui' };
-
-/** `ops` plus every alias whose target is in it, sorted. */
-function withAliases(ops: string[]): string[] {
-    const aliases = Object.keys(EFFECT_ALIASES).filter((alias) => ops.includes(EFFECT_ALIASES[alias]));
-    return [...ops, ...aliases].sort();
-}
-
-/** Effect operators whose registry `runsOn` is not `site`. */
-function effectsNotOn(site: RunsOn): string[] {
-    return withAliases(getStdEffectOperators().filter((op) => getOperatorRunsOn(op) !== site));
-}
-
-/**
- * Effect handlers each execution environment is expected to carry. `client`
- * and `server` derive from the registry's `runsOn`; `ssr` is a render mode
- * (one server-side page render), not an execution site, so it stays listed.
- */
-export const HANDLER_MANIFEST: Record<ExecutionEnvironment, string[]> = {
-    client: effectsNotOn('server'),
-    server: effectsNotOn('client'),
-    test: withAliases(getStdEffectOperators()),
-    ssr: withAliases(["render-ui", "fetch", "emit", "set", "log", "ref", "deref"]),
-};

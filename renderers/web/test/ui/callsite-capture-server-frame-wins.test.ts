@@ -6,9 +6,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
+import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { EventTransport, EventTransportRegisterResult } from '../../src';
-import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
+import type { EventRequest, EventResponse } from '@almadar/core';
 import type { EntityRow, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
@@ -48,7 +49,7 @@ const orbitals: OrbitalSchema['orbitals'] = [{
   traits: [feed, body],
 }];
 
-const loaded: OrbitalEventResponse = {
+const loaded: EventResponse = {
   success: true,
   transitioned: true,
   states: { Feed: 'browsing', Body: 'idle' },
@@ -62,7 +63,7 @@ const loaded: OrbitalEventResponse = {
 class Server implements EventTransport {
   register(): Promise<EventTransportRegisterResult> { return Promise.resolve({ success: true, carriesCircuitState: false }); }
   unregister(): Promise<void> { return Promise.resolve(); }
-  send(_orbital: string, request: OrbitalEventRequest): Promise<OrbitalEventResponse> {
+  send(_orbital: string, request: EventRequest): Promise<EventResponse> {
     const mountsFeed = request.mount?.some((m) => m.trait === 'Feed' && m.event === 'INIT') ?? false;
     if (!mountsFeed && (request.event !== 'INIT' || request.targetTrait !== 'Feed')) {
       return Promise.resolve({ success: true, transitioned: false, states: {}, emittedEvents: [] });
@@ -88,24 +89,28 @@ function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
   };
 }
 
-const binding = (name: string): ResolvedTraitBinding => ({ trait: createEmptyResolvedTrait(name, 'schema'), linkedEntity: 'Entry' });
+const binding = (name: string): ResolvedTraitBinding => {
+  const trait = createEmptyResolvedTrait(name, 'schema');
+  trait.transitions = ([feed, body].find((t) => t.name === name)?.stateMachine?.transitions ?? []).map(({ from, to, event }) => ({ from, to, event, effects: [] }));
+  return { trait, linkedEntity: 'Entry' };
+};
 
 async function mounted() {
   const slots = stubSlots();
-  const hook = renderHook(() => useTraitStateMachine(['Feed', 'Body'].map(binding), slots, {
+  let bus!: ReturnType<typeof useEventBus>;
+  const hook = renderHook(() => { bus = useEventBus(); return useTraitStateMachine(['Feed', 'Body'].map(binding), slots, {
     stamp: TEST_STAMP,
     orbitals,
     routePath: '/diary',
     transport: new Server(),
-    callsiteCaptureChildrenByTrait: new Map([['Feed', new Set(['Body'])]]),
-  }));
+  }); });
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
   const lastBody = () => {
     const calls = slots.render.mock.calls.filter(([arg]) => (arg as { sourceTrait?: string }).sourceTrait === 'Body');
     return calls.length > 0 ? (calls[calls.length - 1][0] as { props?: { entity?: EntityRow[] } }) : undefined;
   };
   const send = async (event: string, payload?: Record<string, EntityRow[]>) => {
-    hook.result.current.sendEvent(event, payload);
+    bus.emit(`UI:DiaryOrbital.Feed.${event}`, payload);
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
   };
   return { hook, lastBody, send };

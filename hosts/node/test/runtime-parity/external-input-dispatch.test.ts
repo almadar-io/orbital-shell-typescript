@@ -118,6 +118,26 @@ describeWithMemoryKernel('OrbitalServerRuntime.dispatchExternalInput', () => {
   });
 });
 
+describeWithMemoryKernel('OrbitalServerRuntime with no program registered', () => {
+  const bare = async () => new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
+
+  it('answers a typed not-an-external-input, never a thrown error', async () => {
+    const res = await (await bare()).dispatchExternalInput('TaskOrbital', { targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: {}, user: ALICE });
+    expect(res.success).toBe(false);
+    expect(res.rejections).toEqual([{ code: 'not-an-external-input', trait: 'TaskPersistor', event: 'DO_CREATE' }]);
+  });
+
+  it('answers an inbound delivery with the kernel\'s 404', async () => {
+    const answer = await (await bare()).deliverInbound('hook', { headers: {}, rawBody: '{}' });
+    expect(answer.status).toBe(404);
+  });
+
+  it('control: once a program is registered the same input is declared', async () => {
+    const res = await (await setup()).dispatchExternalInput('TaskOrbital', { targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: { title: 'x' }, user: ALICE });
+    expect(res.success).toBe(true);
+  });
+});
+
 describeWithMemoryKernel('OrbitalServerRuntime.dispatchEventRequest (program/dispatch event requests)', () => {
   const tasks = async (runtime: OrbitalServerRuntime) =>
     (await runtime.persistence.list('Task')).map((row) => row['title']);

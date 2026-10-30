@@ -72,7 +72,7 @@ export type RawUserClaims = {
   permissions?: string[] | null;
 } & { [key: string]: FieldValue };
 
-/** Zod twin of `RawUserClaims` — the wire shape of `OrbitalEventRequest.user`. */
+/** Zod twin of `RawUserClaims` — the wire shape of `EventRequest.user`. */
 export const RawUserClaimsSchema: z.ZodType<RawUserClaims> = z
   .object({
     id: z.string().optional(),

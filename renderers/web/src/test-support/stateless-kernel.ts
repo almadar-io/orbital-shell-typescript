@@ -2,7 +2,7 @@ import type { OrbitalSchema, UserContext } from '@almadar/core';
 import { createInProcessTransport, type EventTransport } from '@almadar/shell-runtime';
 import { nativeMemoryPersistence, openLocalKernel } from '../runtime/index.js';
 import { evaluateOnKernel, type KernelEngine } from '@almadar/shell-runtime';
-import { TEST_LANGUAGE, loadTestKernel } from './kernel-engine.js';
+import { loadTestKernel } from './kernel-engine.js';
 
 /**
  * The hosted playground's stateless topology: the program is registered once, and every request runs on a fresh
@@ -15,7 +15,7 @@ export function statelessKernelTransport(
   let template: Promise<KernelEngine> | undefined;
   return createInProcessTransport(async (orbital, request) => {
     const viewer = await user();
-    template ??= loadTestKernel().then((kernel) => openLocalKernel({ kernel, language: TEST_LANGUAGE, schema, persistence: nativeMemoryPersistence(kernel) }));
+    template ??= loadTestKernel().then((kernel) => openLocalKernel({ kernel, schema, persistence: nativeMemoryPersistence(kernel) }));
     const engine = (await template).fork();
     try {
       return await evaluateOnKernel({ engine, orbital }, request, viewer, request.locale);

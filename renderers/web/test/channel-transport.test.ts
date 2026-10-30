@@ -2,7 +2,7 @@
 // events into a program hosted in another context, and receives that host's pushes. The host half
 // serves any EventTransport (here an in-process one) on the channel.
 import { describe, it, expect } from 'vitest';
-import type { EmittedEvent, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
+import type { EmittedEvent, EventRequest, EventResponse, OrbitalSchema } from '@almadar/core';
 import { createChannelTransport, holdUntilServed, serveChannel, type ChannelMessage, type TransportChannel } from '@almadar/shell-runtime/client/channel-transport';
 import { createInProcessTransport, type PushTarget } from '@almadar/shell-runtime/client/EventTransport';
 
@@ -21,13 +21,13 @@ function pair(): [TransportChannel, TransportChannel] {
 
 const schema: OrbitalSchema = { name: 'app', version: '1.0.0', orbitals: [] };
 
-function host(handle: (orbital: string, req: OrbitalEventRequest) => Promise<OrbitalEventResponse>) {
+function host(handle: (orbital: string, req: EventRequest) => Promise<EventResponse>) {
   const [viewEnd, hostEnd] = pair();
   const served = serveChannel(hostEnd, createInProcessTransport(handle), { schemaName: 'app' });
   return { view: createChannelTransport(viewEnd), served };
 }
 
-const ok = (event: string): OrbitalEventResponse => ({ success: true, transitioned: true, states: { T: event }, emittedEvents: [] });
+const ok = (event: string): EventResponse => ({ success: true, transitioned: true, states: { T: event }, emittedEvents: [] });
 
 describe('channel transport', () => {
   it('register confirms the host holds the program and owns its state', async () => {

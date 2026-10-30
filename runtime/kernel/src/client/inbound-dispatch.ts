@@ -1,31 +1,34 @@
 /**
- * The one dispatcher for inbound deliveries (EXEC-INBOUND-1). A host carries `{name, headers,
- * rawBody}` from `/api/hooks/<name>`; this decides whether the name is served, delivers the
- * handler event with the declared payload, and answers with the handler's own emit of its
- * `answers` event. Twin of `RuntimeKernel::deliver_inbound` (`orbital-core` `kernel/inbound.rs`).
+ * The dispatcher for inbound deliveries (EXEC-INBOUND-1). A host carries `{name, headers,
+ * rawBody}` from `/api/hooks/<name>`; the kernel decides whether the name is served, what payload the
+ * handler event is delivered with and what answer the handler's emit of its `answers` event is; this
+ * delivers the event through the host's own dispatch and writes what the kernel said.
  */
-import { credentialUnset, dispatchFailed, findInbound, inboundAnswerOf, inboundPayload, unknownHook } from '@almadar/core';
-import type { InboundAnswer, InboundDelivery, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
+import type { InboundAnswer, InboundDelivery, EventRequest, EventResponse } from '@almadar/core';
+import type { KernelEngine } from '../kernel/engine.js';
+
+export type InboundContract = Pick<KernelEngine, 'findInbound' | 'inboundPayload' | 'inboundAnswer' | 'credentialUnset' | 'dispatchFailed'>;
 
 export async function dispatchInbound(
-  schema: OrbitalSchema | null | undefined,
+  contract: InboundContract,
   name: string,
   delivery: InboundDelivery,
-  send: (orbitalName: string, request: OrbitalEventRequest) => Promise<OrbitalEventResponse>,
+  send: (orbitalName: string, request: EventRequest) => Promise<EventResponse>,
   credential: (name: string) => Promise<string | null | undefined>,
 ): Promise<InboundAnswer> {
-  const route = schema ? findInbound(schema, name) : undefined;
-  if (route === undefined) return unknownHook(name);
+  const found = contract.findInbound(name);
+  if (!('route' in found)) return found.answer;
+  const { route } = found;
   try {
     const held = route.verifies !== undefined ? await credential(route.verifies.credential) : undefined;
-    if (route.verifies !== undefined && (held === undefined || held === null || held === '')) return credentialUnset(route.verifies.credential);
+    if (route.verifies !== undefined && (held === undefined || held === null || held === '')) return contract.credentialUnset(route.verifies.credential);
     const response = await send(route.orbital, {
       event: route.event,
-      payload: inboundPayload(route, delivery, held),
+      payload: contract.inboundPayload(route, delivery, held),
       targetTrait: route.trait,
     });
-    return inboundAnswerOf(route, response.emittedEvents, response.error);
+    return contract.inboundAnswer(route, response.emittedEvents, response.error);
   } catch (error) {
-    return dispatchFailed(error instanceof Error ? error.message : String(error));
+    return contract.dispatchFailed(error instanceof Error ? error.message : String(error));
   }
 }

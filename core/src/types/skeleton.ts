@@ -67,14 +67,4 @@ export const AwaitRenderSchema = z.object({
   skeleton: SkeletonNodeSchema,
 });
 
-/**
- * Kernel contract: a non-local trait is awaiting from its server leg's send
- * until the fold (or error), keyed by the transition its local run took.
- * Local/hybrid traits and tick legs are never awaiting.
- */
-export type AwaitingTrait = {
-  trait: string;
-  event: string;
-  /** `from` state of the transition the local run took (with `event`, identifies its `awaitRender`). */
-  from: string;
-};
+export type { AwaitingTrait } from '../generated/kernel-wire.js';

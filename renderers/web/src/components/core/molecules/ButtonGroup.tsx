@@ -10,7 +10,7 @@
 import React from 'react';
 import { cn } from '../../../core';
 import { Button } from '../../../core';
-import { useEventBus } from '../../../core';
+import { useEventBus, useNavStack } from '../../../core';
 import { createLogger } from '@almadar/logger';
 import type { FilterDefinition } from './FilterGroup';
 import type { EventKey, A11yProps } from "@almadar/core";
@@ -135,6 +135,7 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
   ...rest
 }) => {
   const eventBus = useSafeEventBus();
+  const navStack = useNavStack();
   const variantClasses = {
     default: 'gap-0',
     segmented: 'gap-0 [&>button]:rounded-none [&>button:first-child]:rounded-l-interactive [&>button:last-child]:rounded-r-interactive [&>button:not(:first-child)]:border-l-0',
@@ -154,7 +155,7 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
     }
     // Navigate if specified
     if (action.navigatesTo) {
-      eventBus.emit('UI:NAVIGATE', { url: action.navigatesTo });
+      navStack.goTo(action.navigatesTo);
     }
   };
 

@@ -1,0 +1,41 @@
+app canvas-opening [
+  version: "1.0.0",
+  description: "A modal trait listed first whose only INIT render fires from its open state, and a shell whose INIT fires from its initial state."
+]
+orbital Providers {
+  entity Provider [runtime] {
+    id : string!
+  }
+
+  trait Create -> Provider {
+    initial: closed
+
+    state closed {
+      INIT -> closed
+        (set @entity.id x)
+      CREATE -> open
+        (render-ui main { type: form, fields: [id] })
+    }
+
+    state open {
+      INIT -> closed
+        (render-ui main { type: box })
+      CREATE -> open
+        (render-ui main { type: form, fields: [id] })
+    }
+  }
+
+  trait Shell -> Provider {
+    initial: composing
+
+    state composing {
+      INIT -> composing
+        (render-ui main { type: button, label: Create, action: GO })
+      GO -> composing
+        (navigate "/create")
+    }
+  }
+
+  page "/providers" as ProvidersPage -> Shell
+  page "/create" as CreatePage -> Create
+}

@@ -6,6 +6,7 @@ import { answerRequest, finishTls, type DeferredCallOutcome, type KernelHostPort
 import { decodeRequest } from '../src/kernel/decode.js';
 import { kernelOsTls, type OsHostPort, type OsTlsPort, type OsTlsStep } from '../src/kernel/os-port.js';
 import type { PersistenceAdapter } from '@almadar/core';
+import type { SecretStore } from '../src/kernel/secret-ports.js';
 
 type Outcome = Settled<JsonValue, OsError>;
 
@@ -124,5 +125,132 @@ describe('a keyed routed os/recv the host defers', () => {
     expect(delivered).toHaveLength(1);
     expect(delivered[0]?.event).toBe('GOT');
     expect(delivered[0]?.payload).toEqual({ data: 'cG9uZw==', eof: false, key: 'r1' });
+  });
+
+  function deferringHost(osTls: OsTlsPort | undefined, parked: { deliver?: (outcome: Outcome) => void }, calls: InFlightCalls, delivered: DeferredCallOutcome[]): KernelHostPorts {
+    return {
+      persistence, inFlightCalls: calls,
+      callService: async () => null,
+      programEffect: () => undefined,
+      servicePorts: (caller) => ({ caller, inputs: () => [], readableEntities: () => [], dispatchInput: async () => { throw new Error('unused'); }, read: async () => [] }),
+      deliverLive: () => undefined,
+      deferCallOutcome: () => (outcome) => { delivered.push(outcome); },
+      os: {
+        answer: () => new Promise(() => undefined),
+        defer: (_op, _args, _key, deliver) => { parked.deliver = deliver; return { ok: null }; },
+        cancel: () => true,
+        close: () => undefined,
+      },
+      osCompletions: { defers: () => true, streams: () => false, event: () => ({ event: 'GOT', payload: {} }) },
+      ...(osTls !== undefined ? { osTls } : {}),
+    };
+  }
+  const waitRequest = decodeRequest({ kind: 'os', op: 'os/wait', args: [1], key: 'k1', site: { orbital: 'Main', trait: 'Host', followOn: true, emit: { success: 'GOT' } } });
+
+  it('releases the key and delivers in the completion call itself when the kernel parks nothing (a plain socket)', async () => {
+    const calls = new InFlightCalls();
+    const delivered: DeferredCallOutcome[] = [];
+    const parked: { deliver?: (outcome: Outcome) => void } = {};
+    const host = deferringHost(tlsPort([null], []), parked, calls, delivered);
+    expect(await answerRequest(host, waitRequest, { orbital: 'Main' })).toEqual({ kind: 'serviceDeferred' });
+    expect(calls.inFlight('k1')).toBe(true);
+    parked.deliver?.(raw);
+    expect(calls.inFlight('k1')).toBe(false);
+    expect(delivered).toHaveLength(1);
+  });
+
+  it('releases the key in the completion call itself when the kernel answers done without a further raw ask', async () => {
+    const calls = new InFlightCalls();
+    const delivered: DeferredCallOutcome[] = [];
+    const parked: { deliver?: (outcome: Outcome) => void } = {};
+    const host = deferringHost(tlsPort([{ done: decrypted }], []), parked, calls, delivered);
+    await answerRequest(host, waitRequest, { orbital: 'Main' });
+    parked.deliver?.(raw);
+    expect(calls.inFlight('k1')).toBe(false);
+    expect(delivered).toHaveLength(1);
+  });
+
+  it('control: holds the key until the raw ask a parked TLS operation needs is answered', async () => {
+    const calls = new InFlightCalls();
+    const delivered: DeferredCallOutcome[] = [];
+    const parked: { deliver?: (outcome: Outcome) => void } = {};
+    let answer: (outcome: Outcome) => void = () => undefined;
+    const base = deferringHost(tlsPort([{ ask: { op: 'os/recv', args: [5, 1] } }, { done: decrypted }], []), parked, calls, delivered);
+    const host: KernelHostPorts = { ...base, os: { ...base.os!, answer: () => new Promise((resolve) => { answer = resolve; }) } };
+    await answerRequest(host, waitRequest, { orbital: 'Main' });
+    parked.deliver?.(raw);
+    expect(calls.inFlight('k1')).toBe(true);
+    expect(delivered).toHaveLength(0);
+    answer(raw);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls.inFlight('k1')).toBe(false);
+    expect(delivered).toHaveLength(1);
+  });
+});
+
+describe('a keyed os/send with a credential segment', () => {
+  function sendHost(calls: InFlightCalls, started: string[], secrets: SecretStore): KernelHostPorts {
+    return {
+      persistence, inFlightCalls: calls,
+      callService: async () => null,
+      programEffect: () => undefined,
+      servicePorts: (caller) => ({ caller, inputs: () => [], readableEntities: () => [], dispatchInput: async () => { throw new Error('unused'); }, read: async () => [] }),
+      deliverLive: () => undefined,
+      deferCallOutcome: () => () => undefined,
+      secretPorts: { random: { bytes: () => new Uint8Array(0) }, secrets },
+      os: {
+        answer: async () => ({ error: { kind: 'unsupported', message: 'unused' } }),
+        defer: (_op, _args, key) => { started.push(key); return { ok: null }; },
+        cancel: () => true,
+        close: () => undefined,
+      },
+      osCompletions: { defers: () => true, streams: () => false, event: () => ({ event: 'GOT', payload: {} }) },
+    };
+  }
+  const sendRequest = decodeRequest({ kind: 'os', op: 'os/send', args: [5, [{ credential: 'tok' }]], key: 'k1', site: { orbital: 'Main', trait: 'Host', followOn: true, emit: { success: 'GOT' } } });
+  const storeOf = (get: SecretStore['get']): SecretStore => ({ get, set: async () => undefined, forget: async () => undefined });
+
+  it('holds its key from arrival, so a cancel-call during the credential read stops the op and frees the key', async () => {
+    const calls = new InFlightCalls();
+    const started: string[] = [];
+    let release: (value: string) => void = () => undefined;
+    const host = sendHost(calls, started, storeOf(() => new Promise((resolve) => { release = resolve; })));
+    const pending = answerRequest(host, sendRequest, { orbital: 'Main' });
+    expect(calls.inFlight('k1')).toBe(true);
+    expect(calls.cancel('k1')).toBe(true);
+    release('secret');
+    expect(await pending).toEqual({ kind: 'serviceCancelled' });
+    expect(started).toEqual([]);
+    expect(calls.inFlight('k1')).toBe(false);
+  });
+
+  it('refuses a second ask under the same key while the first is still reading its credential', async () => {
+    const calls = new InFlightCalls();
+    let release: (value: string) => void = () => undefined;
+    const host = sendHost(calls, [], storeOf(() => new Promise((resolve) => { release = resolve; })));
+    const first = answerRequest(host, sendRequest, { orbital: 'Main' });
+    const second = await answerRequest(host, sendRequest, { orbital: 'Main' });
+    expect(second).toEqual({ kind: 'os', result: { error: { kind: 'invalid', message: 'os/send: key k1 already has a completion pending' } } });
+    release('secret');
+    await first;
+  });
+
+  it('control: with no cancel the op runs once and the key stays held until its completion', async () => {
+    const calls = new InFlightCalls();
+    const started: string[] = [];
+    const host = sendHost(calls, started, storeOf(async () => 'secret'));
+    expect(await answerRequest(host, sendRequest, { orbital: 'Main' })).toEqual({ kind: 'serviceDeferred' });
+    expect(started).toEqual(['k1']);
+    expect(calls.inFlight('k1')).toBe(true);
+  });
+
+  it('control: a credential that is not held fails the ask and frees the key', async () => {
+    const calls = new InFlightCalls();
+    const started: string[] = [];
+    const host = sendHost(calls, started, storeOf(async () => undefined));
+    const answer = await answerRequest(host, sendRequest, { orbital: 'Main' });
+    expect(answer).toEqual({ kind: 'os', result: { error: { kind: 'denied', message: 'os/send: credential tok is not held' } } });
+    expect(started).toEqual([]);
+    expect(calls.inFlight('k1')).toBe(false);
   });
 });

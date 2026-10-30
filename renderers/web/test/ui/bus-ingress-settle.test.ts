@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
 import { buildTraitIndex } from '../../src/runtime';
-import { useBusIngress, type BusDispatch } from '../../src/hooks/circuit/useBusIngress';
+import { useBusIngress, type BusDispatch, type BusEmitDelivery } from '../../src/hooks/circuit/useBusIngress';
 import { useEventBus } from '../../src/core';
 
 function orbitals(): OrbitalSchema['orbitals'] {
@@ -31,62 +31,76 @@ function binding(): ResolvedTraitBinding {
 }
 
 describe('useBusIngress', () => {
-  it('settles a click, skips its own republished emit, accepts a foreign one', () => {
+  it('settles a click, skips its own republished emit, hands a foreign one to the kernel', () => {
     const settle = vi.fn<BusDispatch>(async () => {});
+    const deliver = vi.fn<BusEmitDelivery>(async () => {});
     const traitIndex = buildTraitIndex(orbitals());
     const bindings = [binding()];
     const { result: bus } = renderHook(() => useEventBus());
-    renderHook(() => useBusIngress(bindings, traitIndex, settle, bus.current, new Set(["Picker"])));
+    renderHook(() => useBusIngress(bindings, traitIndex, settle, deliver, bus.current, new Set(["Picker"])));
 
     bus.current.emit('UI:IngressOrbital.Picker.PICK', { id: 'a' });
     expect(settle).toHaveBeenCalledWith('Picker', 'PICK', { id: 'a' }, undefined);
+    expect(deliver).not.toHaveBeenCalled();
 
     settle.mockClear();
     bus.current.emit('UI:PICK', { id: 'b' }, { trait: 'Picker', dispatched: true });
     expect(settle).not.toHaveBeenCalled();
+    expect(deliver).not.toHaveBeenCalled();
 
-    bus.current.emit('UI:PICK', { id: 'c' }, { trait: 'OtherHostTrait', dispatched: true });
-    expect(settle).toHaveBeenCalledWith('Picker', 'PICK', { id: 'c' }, undefined);
+    const foreign = { trait: 'OtherHostTrait', dispatched: true };
+    bus.current.emit('UI:PICK', { id: 'c' }, foreign);
+    expect(settle).not.toHaveBeenCalled();
+    expect(deliver).toHaveBeenCalledWith({ event: 'PICK', payload: { id: 'c' }, source: foreign });
   });
 
-  it('an echo from an off-page trait of the SAME app is never re-delivered by bare name', () => {
+  it('an echo from an off-page trait of the SAME app is never re-delivered', () => {
     // std-contract: saving a contract cascades the off-page audit list's own
     // BrowseItemLoaded; the page's list must not render those rows.
     const settle = vi.fn<BusDispatch>(async () => {});
+    const deliver = vi.fn<BusEmitDelivery>(async () => {});
     const traitIndex = buildTraitIndex(orbitals());
     const appTraitNames = new Set(['Picker', 'AuditList']);
     const { result: bus } = renderHook(() => useEventBus());
-    renderHook(() => useBusIngress([binding()], traitIndex, settle, bus.current, appTraitNames));
+    renderHook(() => useBusIngress([binding()], traitIndex, settle, deliver, bus.current, appTraitNames));
 
     bus.current.emit('UI:PICK', { id: 'audit' }, { trait: 'AuditList', dispatched: true });
     expect(settle).not.toHaveBeenCalled();
+    expect(deliver).not.toHaveBeenCalled();
 
-    // Control: an echo from a host outside this app still arrives by name.
+    // Control: an echo from a host outside this app is the kernel's to route.
     bus.current.emit('UI:PICK', { id: 'other' }, { trait: 'OtherHostTrait', dispatched: true });
-    expect(settle).toHaveBeenCalledWith('Picker', 'PICK', { id: 'other' }, undefined);
+    expect(deliver).toHaveBeenCalledTimes(1);
   });
 
-  it('a tick emit does not reach a sibling that only has an arm of that name (G-UI-103 retired)', () => {
+  it('a bare emit is never fanned to a trait by name: the kernel is handed it whole', () => {
     const settle = vi.fn<BusDispatch>(async () => {});
+    const deliver = vi.fn<BusEmitDelivery>(async () => {});
     const { result: bus } = renderHook(() => useEventBus());
-    renderHook(() => useBusIngress([binding()], buildTraitIndex(orbitals()), settle, bus.current, new Set(['Picker', 'Ticker'])));
-    bus.current.emit('UI:PICK', { id: 'beat' }, { trait: 'Ticker', tick: 'beat' });
+    renderHook(() => useBusIngress([binding()], buildTraitIndex(orbitals()), settle, deliver, bus.current, new Set(['Picker', 'Ticker'])));
+    const source = { trait: 'Ticker', tick: 'beat' };
+    bus.current.emit('UI:PICK', { id: 'beat' }, source);
     expect(settle).not.toHaveBeenCalled();
+    expect(deliver).toHaveBeenCalledWith({ event: 'PICK', payload: { id: 'beat' }, source });
   });
 
-  it('control: a trait\'s own tick emit still reaches its own arm', () => {
+  it('edge: a sourceless bare emit goes to the kernel as an emit with no emitter', () => {
     const settle = vi.fn<BusDispatch>(async () => {});
+    const deliver = vi.fn<BusEmitDelivery>(async () => {});
     const { result: bus } = renderHook(() => useEventBus());
-    renderHook(() => useBusIngress([binding()], buildTraitIndex(orbitals()), settle, bus.current, new Set(['Picker'])));
-    bus.current.emit('UI:PICK', { id: 'beat' }, { trait: 'Picker', tick: 'beat' });
-    expect(settle).toHaveBeenCalledWith('Picker', 'PICK', { id: 'beat' }, 'beat');
-  });
-
-  it('edge: a user event (not a server echo) still reaches the trait by bare name', () => {
-    const settle = vi.fn<BusDispatch>(async () => {});
-    const { result: bus } = renderHook(() => useEventBus());
-    renderHook(() => useBusIngress([binding()], buildTraitIndex(orbitals()), settle, bus.current, new Set(['Picker', 'AuditList'])));
+    renderHook(() => useBusIngress([binding()], buildTraitIndex(orbitals()), settle, deliver, bus.current, new Set(['Picker', 'AuditList'])));
     bus.current.emit('UI:PICK', { id: 'click' });
-    expect(settle).toHaveBeenCalledWith('Picker', 'PICK', { id: 'click' }, undefined);
+    expect(settle).not.toHaveBeenCalled();
+    expect(deliver).toHaveBeenCalledWith({ event: 'PICK', payload: { id: 'click' } });
+  });
+
+  it('control: an event no trait of the page names is subscribed by nobody', () => {
+    const settle = vi.fn<BusDispatch>(async () => {});
+    const deliver = vi.fn<BusEmitDelivery>(async () => {});
+    const { result: bus } = renderHook(() => useEventBus());
+    renderHook(() => useBusIngress([binding()], buildTraitIndex(orbitals()), settle, deliver, bus.current, new Set(['Picker'])));
+    bus.current.emit('UI:UNRELATED', {});
+    expect(settle).not.toHaveBeenCalled();
+    expect(deliver).not.toHaveBeenCalled();
   });
 });

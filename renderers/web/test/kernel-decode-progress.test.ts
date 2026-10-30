@@ -2,7 +2,7 @@
 // from the Rust `EventResponse` (`isEventResponse` in `@almadar/core/kernel-wire`), and refuses a malformed one.
 import { describe, expect, it } from 'vitest';
 import { isEventResponse } from '@almadar/core/kernel-wire';
-import { decodeProgress } from '../src/kernel/decode.js';
+import { decodeProgress } from '@almadar/shell-runtime/kernel/decode';
 
 const response = { success: true, transitioned: true, states: { Src: 'idle' }, emittedEvents: [{ event: 'X', payload: { n: 1 }, source: { orbital: 'Main', trait: 'Src', dispatched: true } }] };
 const done = (body: object): string => JSON.stringify({ status: 'done', response: body });

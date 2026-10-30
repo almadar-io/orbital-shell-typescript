@@ -3,7 +3,7 @@
  * key aborts every one of them (the compiled path's `cancelKeyedCall` does the same).
  */
 import { describe, it, expect } from 'vitest';
-import { InFlightCalls } from '../src/effects/in-flight-calls.js';
+import { InFlightCalls } from '@almadar/shell-runtime/effects/in-flight-calls';
 
 const never = (signal: AbortSignal) => new Promise<string>((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
 

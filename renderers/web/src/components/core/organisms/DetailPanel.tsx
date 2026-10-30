@@ -557,6 +557,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
 }) => {
   const contentSurface = useContentSurface(surface);
   const eventBus = useEventBus();
+  const navigateStack = useNavStack();
   const rowActions = useRowActions();
   const actionPayload = useRowActionPayload();
   const { t, locale } = useTranslate();
@@ -608,7 +609,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
         const url = action.navigatesTo.replace(/\{\{(\w+)\}\}/g, (_, key) =>
           String(record?.[key] ?? ""),
         );
-        eventBus.emit('UI:NAVIGATE', { url, ...(record !== undefined ? { row: record } : {}) });
+        navigateStack.goTo(url);
         return;
       }
       if (action.event) {
@@ -618,7 +619,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
         action.onClick();
       }
     },
-    [eventBus, actionPayload],
+    [eventBus, navigateStack, actionPayload],
   );
 
   // entity is now the data itself (single record or first element of array)

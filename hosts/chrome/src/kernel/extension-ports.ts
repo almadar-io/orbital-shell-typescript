@@ -5,17 +5,10 @@
  */
 import { createBrowserSecretPorts, createSecretStore, type CredentialVault, type SecretPorts } from '@almadar/shell-web';
 
-/** A credential the host keeps because a sign-in succeeded: the value stays with the host, `label` is the non-secret account name. */
-export interface SignedInCredential {
-  name: string;
-  value: string;
-  label: string;
-}
-
 export interface ExtensionSecretPortsOptions {
   /** The kernel's credential vault of this browser profile, its rows read. */
   credentials: Promise<CredentialVault>;
-  /** Credentials the build supplies (an OAuth client id), read when the store holds none and only for the app-wide credential. */
+  /** Credentials the build supplies (a client id), read when the store holds none and only for the app-wide credential. */
   provisioned?: Readonly<Record<string, string>>;
 }
 

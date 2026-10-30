@@ -86,7 +86,7 @@ export { computeTraitLayout, edgePath, type LayoutNode, type LayoutEdge, type El
 // V3 Revised: UI Projection components
 export { type ViewLevel, type PreviewNodeData, type EventEdgeData, type PatternEventSource, type RenderUIEntry } from '../lib/avl-preview-converter';
 export { schemaToOverviewGraph, stateOptionsOf, canvasViewGraph, initialStateOf, optionForPlayedStep, LIVE_STATE, type PlayedStep, type CanvasStateView, type CanvasStateOption, type CanvasStateGroup, type CanvasStateOptions, type CanvasViewOptions } from '../lib/avl-preview-converter';
-export { OrbPreviewNode, CanvasVerifyContext, type SelectedPattern, type CanvasVerify, type CardVerdict } from '../components/avl/molecules/OrbPreviewNode';
+export { OrbPreviewNode, CanvasVerifyContext, type SelectedPattern, type CanvasVerify, type CanvasStepReached, type CardVerdict } from '../components/avl/molecules/OrbPreviewNode';
 export { EventFlowEdge } from '../components/avl/molecules/EventFlowEdge';
 
 // DOM → EditFocus (inspect primitive). Reads `data-orb-*` (incl. `data-orb-orbital`

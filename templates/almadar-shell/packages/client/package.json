@@ -17,6 +17,7 @@
     "@almadar/core": "^10.129.0",
     "@almadar/kernel": "^18.0.0",
     "@almadar/logger": "^1.18.0",
+    "@almadar/shell-browser": "^0.1.0",
     "@almadar/shell-runtime": "^0.1.0",
     "@almadar/shell-web": "^0.1.0",
     "@almadar/syntax": "^1.21.0",

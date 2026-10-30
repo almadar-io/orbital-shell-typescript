@@ -17,10 +17,24 @@ import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import { createLogger } from '@almadar/logger';
+import {
+  decodeOsGrantsReport,
+  decodeProveReport,
+  decodeStepRefusal,
+  decodeStepReport,
+  decodeValidationJsonOutput,
+  isStepRefusal,
+  type OsGrantsReport,
+  type ProveReport,
+  type StepOutcome,
+  type StepRefusal,
+  type StepReport,
+  type ValidationJsonError,
+  type ValidationJsonWarning,
+} from '@almadar/core/kernel-wire';
 import { discoverBehaviorPackages, resolveOrbBinary } from '@almadar/core/behavior-package';
 import {
   CatalogEntrySchema,
-  CatalogTopicSchema,
   ProgramInspectionSchema,
   CatalogScopeSchema,
   TraitValueSchema,
@@ -29,17 +43,13 @@ import {
   BehaviorDescriptionSchema,
   DescribeTargetSchema,
   formatTraitValueLiteral,
-  defaultPage,
   dependencyGraphOf,
   importsOf,
   type BehaviorTier,
   type DependencyGraph,
   type CircuitStepResult,
-  SExprSchema,
   EventPayloadSchema,
-  mergeCallSiteConfigOverrides,
   type CatalogEntry,
-  type CatalogTopic,
   type CatalogScope,
   type EvaluatedProgram,
   type JsonValue,
@@ -49,19 +59,8 @@ import {
   type BehaviorDescription,
   type DescribeTarget,
   type TraitValue,
-  type TraitValueMountResult,
-  type BehaviorRef,
-  type BehaviorValueMountResult,
-  isRoutePage,
 } from '@almadar/core';
-import {
-  atomTraitResolver,
-  composeAppFromFiles,
-  orbitalImportResolver,
-  organismOrderResolver,
-  type LayoutStrategy,
-} from '@almadar/core/builders';
-import type { OrbitalDefinition } from '@almadar/core';
+import type { LayoutStrategy } from '@almadar/core/builders';
 import type { ServiceCallContext } from '@almadar/shell-runtime';
 import type { PlayedStep, ProgramEffectName, ProgramEffectOutcome, ProgramValidationReport, StepRequest } from '@almadar/shell-runtime';
 import { installedWorkspaceHost, workspaceOwnerSegment } from './workspace-host.js';
@@ -128,6 +127,20 @@ function parseJson<T>(schema: SafeParser<T>, run: OrbRun, what: string): T {
   return parsed.data;
 }
 
+/** What `orb` printed, read by the decoder generated from the Rust type that prints it; a throw names the failing path. */
+function decodeJson<T>(decode: (value: JsonValue) => T, run: OrbRun, what: string): T {
+  if (run.code !== 0) throw new Error(`${what}: orb exited ${run.code}: ${run.stderr.trim()}`);
+  try {
+    return decode(JSON.parse(run.stdout));
+  } catch (error) {
+    throw new Error(`${what}: unexpected orb output: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function issueOf(finding: ValidationJsonError | ValidationJsonWarning): ProgramValidationIssue {
+  return { code: finding.code, message: finding.message, path: finding.path, ...(finding.line !== undefined ? { line: finding.line } : {}), ...(finding.column !== undefined ? { column: finding.column } : {}) };
+}
+
 function withTempFile<T>(name: string, content: string, use: (path: string) => Promise<T>): Promise<T> {
   const dir = mkdtempSync(join(tmpdir(), 'almadar-program-'));
   const path = join(dir, name);
@@ -142,19 +155,11 @@ function withProjectFile<T>(cwd: string, name: string, content: string, use: (pa
   return use(path).finally(() => rmSync(path, { force: true }));
 }
 
-/** `behavior/catalog`: installed behaviors under registry folders; `vectors: false` omits the vectors (`--no-vectors`),
- * `traits: false` each entry's traits (`--no-traits`); `topics: true` answers each package and topic with its count. */
-export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions, options: { readonly vectors?: boolean; readonly topics: true }): Promise<CatalogTopic[]>;
-export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions, options?: { readonly vectors?: boolean; readonly traits?: boolean }): Promise<CatalogEntry[]>;
-export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions, options: { readonly vectors?: boolean; readonly traits?: boolean; readonly topics?: true } = {}): Promise<CatalogEntry[] | CatalogTopic[]> {
+/** `behavior/catalog`: installed behaviors under registry folders; `traits: false` omits each entry's traits (`--no-traits`). */
+export async function behaviorCatalog(scope: CatalogScope, opts: ProgramHostOptions, options: { readonly traits?: boolean } = {}): Promise<CatalogEntry[]> {
   const exposure = (scope.exposure ?? []).flatMap((e) => ['--exposure', e]);
-  const noVectors = options.vectors === false ? ['--no-vectors'] : [];
-  if (options.topics === true) {
-    const run = await runOrb(['behaviors', 'catalog', '--json', '--topics', ...noVectors, ...scope.paths, ...exposure], opts);
-    return parseJson(CatalogTopicSchema.array(), run, 'behavior/catalog');
-  }
   const noTraits = options.traits === false ? ['--no-traits'] : [];
-  const run = await runOrb(['behaviors', 'catalog', '--json', ...noVectors, ...noTraits, ...scope.paths, ...exposure], opts);
+  const run = await runOrb(['behaviors', 'catalog', '--json', ...noTraits, ...scope.paths, ...exposure], opts);
   return parseJson(CatalogEntrySchema.array(), run, 'behavior/catalog');
 }
 
@@ -164,34 +169,19 @@ export function behaviorCatalogSync(scope: CatalogScope, opts: ProgramHostOption
   return parseJson(CatalogEntrySchema.array(), runOrbSync(['behaviors', 'catalog', '--json', ...scope.paths, ...exposure], opts), 'behavior/catalog');
 }
 
-/** `behavior/describe`: a trait value's knobs and events; an orbital value's or a whole behavior's orbitals.
- * `knobVectors: true` attaches a trait's knob vectors (`--knob-vectors`). */
-export async function behaviorDescribe(value: TraitValue, opts: ProgramHostOptions, options?: { readonly knobVectors?: boolean }): Promise<TraitDescription>;
-export async function behaviorDescribe(value: DescribeTarget, opts: ProgramHostOptions, options?: { readonly knobVectors?: boolean }): Promise<TraitDescription | BehaviorDescription>;
-export async function behaviorDescribe(value: DescribeTarget, opts: ProgramHostOptions, options: { readonly knobVectors?: boolean } = {}): Promise<TraitDescription | BehaviorDescription> {
-  const knobVectors = options.knobVectors === true ? ['--knob-vectors'] : [];
+/** `behavior/describe`: a trait value's knobs and events; an orbital value's or a whole behavior's orbitals. */
+export async function behaviorDescribe(value: TraitValue, opts: ProgramHostOptions): Promise<TraitDescription>;
+export async function behaviorDescribe(value: DescribeTarget, opts: ProgramHostOptions): Promise<TraitDescription | BehaviorDescription>;
+export async function behaviorDescribe(value: DescribeTarget, opts: ProgramHostOptions): Promise<TraitDescription | BehaviorDescription> {
   if ('trait' in value) {
-    const run = await runOrb(['behaviors', 'describe', '--json', ...knobVectors, formatTraitValueLiteral(value)], opts);
+    const run = await runOrb(['behaviors', 'describe', '--json', formatTraitValueLiteral(value)], opts);
     return parseJson(TraitDescriptionSchema, run, 'behavior/describe');
   }
   const spec = 'orbital' in value ? `${value.behavior}.orbitals.${value.orbital}` : value.behavior;
-  return parseJson(BehaviorDescriptionSchema, await runOrb(['behaviors', 'describe', '--json', ...knobVectors, spec], opts), 'behavior/describe');
+  return parseJson(BehaviorDescriptionSchema, await runOrb(['behaviors', 'describe', '--json', spec], opts), 'behavior/describe');
 }
 
-/** The one boolean option an op takes, from its options argument; any other key, or a non-boolean, is refused. */
-function booleanOption(op: string, raw: JsonValue | undefined, key: string): { readonly value?: boolean } | string {
-  const options = raw ?? {};
-  if (options === null || typeof options !== 'object' || Array.isArray(options)) return `${op}: options must be an object`;
-  let value: boolean | undefined;
-  for (const [k, v] of Object.entries(options)) {
-    if (k !== key) return `${op}: unsupported option "${k}"`;
-    if (typeof v !== 'boolean') return `${op}: ${key} must be a boolean`;
-    value = v;
-  }
-  return value === undefined ? {} : { value };
-}
-
-/** {@link booleanOption} over a set of keys: each present key must be one of `keys` and a boolean. */
+/** The boolean options an op takes, from its options argument: each present key must be one of `keys` and a boolean; any other key, or a non-boolean, is refused. */
 function booleanOptions<K extends string>(op: string, raw: JsonValue | undefined, keys: readonly K[]): Partial<Record<K, boolean>> | string {
   const options = raw ?? {};
   if (options === null || typeof options !== 'object' || Array.isArray(options)) return `${op}: options must be an object`;
@@ -229,8 +219,8 @@ async function programReadOutcome(text: string, opts: ProgramHostOptions): Promi
     if (run.code !== 0) return fail(`program/read: orb exited ${run.code}: ${run.stderr.trim()}`);
     const parsed = ProgramParser.safeParse(JSON.parse(run.stdout));
     if (parsed.success) return { ok: true, result: parsed.data };
-    const report = parseJson(ValidateReportSchema, await runOrb(['validate', '--json', '--deny-warnings', path], opts), 'program/read');
-    const issues = [...(report.errors ?? []), ...(report.warnings ?? [])];
+    const report = decodeJson(decodeValidationJsonOutput, await runOrb(['validate', '--json', '--deny-warnings', path], opts), 'program/read');
+    const issues = [...(report.errors ?? []), ...(report.warnings ?? [])].map(issueOf);
     if (issues.length === 0) return fail(`program/read: not a program: ${parsed.error.message}`);
     return { ok: false, error: `program/read: ${issues.length} validation issue(s): ${issues.map((e) => e.message).join('; ')}`, errors: issues };
   });
@@ -260,39 +250,11 @@ export function programPrint(program: OrbitalSchema, opts: ProgramHostOptions): 
   });
 }
 
-const IssueSchema = z.object({
-  code: z.string(),
-  message: z.string(),
-  path: z.string().optional(),
-  line: z.number().optional(),
-  column: z.number().optional(),
-});
-const ValidateReportSchema = z.object({
-  valid: z.boolean(),
-  errors: z.array(IssueSchema).optional(),
-  warnings: z.array(IssueSchema).optional(),
-});
-
-const ProveFindingSchema = z.object({
-  verdict: z.enum(['violated', 'unproved']),
-  reason: z.string(),
-  counterexample: SExprSchema.optional(),
-  site: z.string(),
-  proposition: z.object({
-    kind: z.enum(['row', 'state', 'transition']),
-    entity: z.string().optional(),
-    trait: z.string().optional(),
-    state: z.string().optional(),
-    from: z.string().optional(),
-    event: z.string().optional(),
-    to: z.string().optional(),
-    expr: SExprSchema,
-  }),
-});
-const ProveReportSchema = z.object({ findings: z.array(ProveFindingSchema) });
+/** What `program/os-grants` returns: the static `os/` grant check's typed findings. */
+export type ProgramOsGrantsReport = OsGrantsReport;
 
 /** What `program/prove` returns: every spec proposition the program cannot be shown to keep. */
-export type ProgramProveReport = z.infer<typeof ProveReportSchema>;
+export type ProgramProveReport = ProveReport;
 
 /** Who runs a program effect: the signed-in caller, as `call-service` receives it. */
 export type ProgramCallContext = Pick<ServiceCallContext, 'principal' | 'role'>;
@@ -355,9 +317,9 @@ async function stampAndValidate(program: OrbitalSchema, opts: Pick<ProgramEvalOp
     return { ok: false, errors: [{ code: 'PROGRAM_STAMP_FAILED', message: stamp.stderr.trim() }] };
   }
   const validateArgs = ['validate', '--json', '--deny-warnings', ...(opts.final === true ? ['--final'] : []), stamped];
-  const report = parseJson(ValidateReportSchema, await runOrb(validateArgs, opts), caller);
-  const errors = report.errors ?? [];
-  const warnings = report.warnings ?? [];
+  const report = decodeJson(decodeValidationJsonOutput, await runOrb(validateArgs, opts), caller);
+  const errors = (report.errors ?? []).map(issueOf);
+  const warnings = (report.warnings ?? []).map(issueOf);
   return { ok: true, stamped, errors, warnings, valid: report.valid && errors.length === 0 && warnings.length === 0 };
 }
 
@@ -382,9 +344,21 @@ export async function programValidate(program: OrbitalSchema, opts: Pick<Program
  * the file directly.
  */
 export async function programProve(target: { readonly program: OrbitalSchema } | { readonly path: string }, opts: ProgramHostOptions): Promise<ProgramProveReport> {
-  if ('path' in target) return parseJson(ProveReportSchema, await runOrb(['prove', target.path], opts), 'program/prove');
+  if ('path' in target) return decodeJson(decodeProveReport, await runOrb(['prove', target.path], opts), 'program/prove');
   if (!PROGRAM_NAME.test(target.program.name)) throw new Error(`program/prove: program name "${target.program.name}" is not a file name`);
-  return withTempFile(`${target.program.name}.orb`, JSON.stringify(target.program), async (file) => parseJson(ProveReportSchema, await runOrb(['prove', file], opts), 'program/prove'));
+  return withTempFile(`${target.program.name}.orb`, JSON.stringify(target.program), async (file) => decodeJson(decodeProveReport, await runOrb(['prove', file], opts), 'program/prove'));
+}
+
+/**
+ * `program/os-grants`: the kernel's static `os/` grant findings on a program, asked of `orb os-grants` (the check is the
+ * kernel's, so the node host carries no copy of it). `final` checks the finished program, where a config-fed target is a
+ * literal. A program value is written to a temp file and resolved like any file; `path` names the file directly.
+ */
+export async function programOsGrants(target: { readonly program: OrbitalSchema } | { readonly path: string }, opts: ProgramHostOptions & { readonly final?: boolean }): Promise<ProgramOsGrantsReport> {
+  const flags = opts.final === true ? ['--final'] : [];
+  if ('path' in target) return decodeJson(decodeOsGrantsReport, await runOrb(['os-grants', target.path, ...flags], opts), 'program/os-grants');
+  if (!PROGRAM_NAME.test(target.program.name)) throw new Error(`program/os-grants: program name "${target.program.name}" is not a file name`);
+  return withTempFile(`${target.program.name}.orb`, JSON.stringify(target.program), async (file) => decodeJson(decodeOsGrantsReport, await runOrb(['os-grants', file, ...flags], opts), 'program/os-grants'));
 }
 
 /**
@@ -442,117 +416,34 @@ export interface ProgramComposeOptions {
   readonly theme?: string;
 }
 
-/** The behavior an import orbital takes its source from (`reference.ref`'s alias through the orbital's `uses`). */
-function importSource(orbital: OrbitalDefinition): { from: string; orbital: string } | undefined {
-  const ref = orbital.reference?.ref;
-  if (ref === undefined) return undefined;
-  const [alias, kind, name] = ref.split('.');
-  if (kind !== 'orbitals' || name === undefined) return undefined;
-  const use = (orbital.uses ?? []).find((u) => u.as === alias);
-  return use === undefined ? undefined : { from: use.from, orbital: name };
-}
-
-const behaviorName = (from: string): string => from.split('/').pop() ?? from;
-
 /**
  * `program/compose`: assemble programs, in the order given, into one app
- * program — core `composeAppFromFiles` (pages, layout, wiring, the app nav).
- * The composer's registry lookups (an import's source orbital, an atom's trait,
- * an organism's orbital order) are served from `orb behaviors source` for every
- * behavior the programs import, loaded once up front.
+ * program. The composer is `orb compose` (the Rust composer, `program/compose`
+ * of the kernel's program host): the programs are written to a scratch folder
+ * and handed to it, and its JSON is the answer. Pages, layout, wiring, the app
+ * nav and every registry read are `orb`'s.
  */
 export async function programCompose(
   programs: readonly OrbitalSchema[],
   options: ProgramComposeOptions,
   opts: ProgramHostOptions,
 ): Promise<OrbitalSchema> {
-  const sources = new Set<string>();
-  for (const program of programs) {
-    for (const orbital of program.orbitals) for (const use of orbital.uses ?? []) sources.add(use.from);
-  }
-  const loaded = new Map<string, OrbitalSchema>();
-  for (const from of sources) loaded.set(behaviorName(from), await behaviorSource({ behavior: from }, opts));
-  const load = (name: string): OrbitalSchema | null => loaded.get(name) ?? null;
-
-  const byName = new Map<string, OrbitalDefinition>();
-  for (const program of programs) for (const orbital of program.orbitals) byName.set(orbital.name, orbital);
-  const catalogOrbitalOf = (name: string): { organism: string; orbital: string } | undefined => {
-    const orbital = byName.get(name);
-    const source = orbital === undefined ? undefined : importSource(orbital);
-    return source === undefined ? undefined : { organism: behaviorName(source.from), orbital: source.orbital };
-  };
-
-  const composed = composeAppFromFiles(programs, {
-    appName: options.appName,
-    ...(options.layout !== undefined ? { layoutStrategy: options.layout } : {}),
-    organismOf: (name) => catalogOrbitalOf(name)?.organism,
-    organismOrderOf: organismOrderResolver(catalogOrbitalOf, load),
-    atomTraitOf: atomTraitResolver(load),
-    importedOrbitalOf: orbitalImportResolver(load),
-    importedProgramOf: (orbital) => {
-      const source = importSource(orbital);
-      return source === undefined ? undefined : (load(behaviorName(source.from)) ?? undefined);
-    },
-  });
-  return options.theme !== undefined ? { ...composed.schema, theme: options.theme } : composed.schema;
-}
-
-/**
- * Turn a trait value into a program a host can run: a one-orbital wrapper that
- * imports the value's owning orbital with `only { T }` and the value's overrides
- * as `traits { T { … } }` (LOLO §8b), validated at the 0/0 bar (the binding's
- * admission check) and resolved by `orb`. A project-relative behavior
- * (`./orbitals/X`) is imported relatively from a wrapper written at `cwd`, since
- * `orb`'s loader refuses an absolute import.
- */
-export async function mountTraitValue(value: TraitValue, opts: ProgramHostOptions, context?: ProgramCallContext): Promise<TraitValueMountResult> {
-  const denied = workspaceAccessError(value.behavior, opts, context);
-  if (denied !== undefined) return { ok: false, error: denied };
-  let source: OrbitalSchema;
+  const dir = mkdtempSync(join(tmpdir(), 'almadar-compose-'));
   try {
-    source = await behaviorSource(value, opts);
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    const files = programs.map((program, index) => {
+      const file = join(dir, `${index}.orb`);
+      writeFileSync(file, JSON.stringify(program));
+      return file;
+    });
+    const flags = [
+      '--app-name', options.appName,
+      ...(options.layout !== undefined ? ['--layout', options.layout] : []),
+      ...(options.theme !== undefined ? ['--theme', options.theme] : []),
+    ];
+    return parseJson(ProgramParser, await runOrb(['compose', ...flags, ...files], opts), 'program/compose');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
-  const owner = source.orbitals.find((o) =>
-    o.traits.some((t) => typeof t === 'object' && !('ref' in t) && t.name === value.trait),
-  );
-  if (owner === undefined) {
-    return { ok: false, error: `behavior "${value.behavior}" declares no inline trait "${value.trait}"` };
-  }
-  const { behavior, trait, config, ...rest } = value;
-  const overrides = config !== undefined ? { ...rest, config: mergeCallSiteConfigOverrides({}, config) } : rest;
-  const projectRelative = behavior.startsWith('./');
-  const page = (owner.pages ?? []).find((p) => typeof p === 'object' && 'path' in p && isRoutePage(p) && (p.traits ?? []).some((t) => (typeof t === 'string' ? t : 'ref' in t ? t.ref : t.name) === trait));
-  const wrapper = {
-    name: `Mount${trait}`,
-    orbitals: [
-      {
-        name: 'Mounted',
-        entity: `Bound.orbitals.${owner.name}.entity`,
-        reference: {
-          ref: `Bound.orbitals.${owner.name}`,
-          only: [trait],
-          ...(Object.keys(overrides).length > 0 ? { traits: { [trait]: overrides } } : {}),
-        },
-        traits: [],
-        pages: [],
-        uses: [{ as: 'Bound', from: behavior }],
-      },
-    ],
-  };
-  const check = async (path: string): Promise<TraitValueMountResult> => {
-    const report = parseJson(ValidateReportSchema, await runOrb(['validate', '--json', '--deny-warnings', path], opts), 'mount');
-    const issues = [...(report.errors ?? []), ...(report.warnings ?? [])];
-    if (!report.valid || issues.length > 0) {
-      return { ok: false, error: `trait value ${formatTraitValueLiteral(value)} does not validate where it is bound`, errors: issues };
-    }
-    const schema = parseJson(ProgramParser, await runOrb(['resolve', path], opts), 'mount');
-    const pagePath = page !== undefined && typeof page === 'object' && 'path' in page ? page.path : undefined;
-    return { ok: true, mounted: { schema, orbital: 'Mounted', trait: `Mounted${trait}`, ...(pagePath !== undefined ? { pagePath } : {}) } };
-  };
-  const text = JSON.stringify(wrapper);
-  return projectRelative ? withProjectFile(opts.cwd, 'mount.orb', text, check) : withTempFile('mount.orb', text, check);
 }
 
 const WHICH_LINE = /^(\/\S+\.(?:orb|lolo)) \((.+)\)$/;
@@ -568,27 +459,6 @@ async function behaviorFile(behavior: string, opts: ProgramHostOptions): Promise
   const match = WHICH_LINE.exec(line);
   if (run.code !== 0 || match === null) return { error: `behavior "${behavior}" is not installed${run.stderr.trim() ? `: ${run.stderr.trim()}` : ''}` };
   return match[1];
-}
-
-/**
- * Make a behavior value runnable: the program as written is validated at the
- * 0/0 bar (the embed's admission check) and resolved by `orb`; the frame opens
- * it on its default page (the one marked `initial`, else the first).
- */
-export async function mountBehaviorValue(value: BehaviorRef, opts: ProgramHostOptions, context?: ProgramCallContext): Promise<BehaviorValueMountResult> {
-  const denied = workspaceAccessError(value.behavior, opts, context);
-  if (denied !== undefined) return { ok: false, error: denied };
-  const file = await behaviorFile(value.behavior, opts);
-  if (typeof file !== 'string') return { ok: false, error: file.error };
-  const report = parseJson(ValidateReportSchema, await runOrb(['validate', '--json', '--deny-warnings', file], opts), 'mount');
-  const issues = [...(report.errors ?? []), ...(report.warnings ?? [])];
-  if (!report.valid || issues.length > 0) {
-    return { ok: false, error: `behavior ${value.behavior} does not validate`, errors: issues };
-  }
-  const schema = parseJson(ProgramParser, await runOrb(['resolve', file], opts), 'mount');
-  const firstPage = defaultPage(schema)?.page.path;
-  if (firstPage === undefined) return { ok: false, error: `behavior ${value.behavior} has no page to open` };
-  return { ok: true, mounted: { schema, firstPage } };
 }
 
 /** A program file resolved by `orb` (every import flattened, every composed trait inlined): what a host registers. */
@@ -662,23 +532,6 @@ const StepRequestSchema: z.ZodType<StepRequest> = z.object({
   viewer: EventPayloadSchema.nullable().optional(),
 });
 
-const StepOutcomeSchema = z.object({
-  orbital: z.string(),
-  trait: z.string(),
-  event: z.string(),
-  executed: z.boolean(),
-  previousState: z.string(),
-  newState: z.string(),
-  emits: z.array(z.object({ event: z.string(), payload: EventPayloadSchema.nullable() })),
-  firedArm: z.number().int().nullable(),
-  guards: z.array(z.object({ arm: z.number().int(), guard: SExprSchema, passed: z.boolean(), error: z.string().optional() })),
-  effects: z.array(z.object({ type: z.string(), args: z.array(SExprSchema), status: z.enum(['executed', 'failed', 'skipped']), error: z.string().optional() })),
-});
-const StepReportSchema = z.union([
-  z.object({ success: z.literal(true), steps: z.array(z.object({ outcomes: z.array(StepOutcomeSchema), entityAfter: EventPayloadSchema.nullable() })) }),
-  z.object({ success: z.literal(false), error: z.string() }),
-]);
-
 /**
  * `program/step`: play each request against the program in one run of `orb`'s kernel, each from
  * its own `from` state, and report the circuit it ran — the arm that fired, every guard tried
@@ -686,11 +539,22 @@ const StepReportSchema = z.union([
  * effect of the fired arm and the events it emitted. Each request comes back played: as asked, with its `result`.
  */
 
-function effectsOf(effects: z.infer<typeof StepOutcomeSchema>['effects']): PlayedStep['result']['effects'] {
+/** `orb execute --steps` printed a replay's report, or the std command's `{ success: false, error }` when it could not run. */
+function decodeStepOutput(run: OrbRun): StepReport | StepRefusal {
+  if (run.code !== 0) throw new Error(`program/step: orb exited ${run.code}: ${run.stderr.trim()}`);
+  try {
+    const printed: JsonValue = JSON.parse(run.stdout);
+    return isStepRefusal(printed) ? decodeStepRefusal(printed) : decodeStepReport(printed);
+  } catch (error) {
+    throw new Error(`program/step: unexpected orb output: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function effectsOf(effects: StepOutcome['effects']): PlayedStep['result']['effects'] {
   return effects.map((e) => ({ type: e.type, args: e.args, status: e.status, ...(e.error !== undefined ? { error: e.error } : {}) }));
 }
 
-function emittedOf(emits: z.infer<typeof StepOutcomeSchema>['emits'], step: number): PlayedStep['result']['emitted'] {
+function emittedOf(emits: StepOutcome['emits'], step: number): PlayedStep['result']['emitted'] {
   return emits.map((e) => ({ type: e.event, ...(e.payload !== null ? { payload: e.payload } : {}), timestamp: step }));
 }
 
@@ -698,7 +562,7 @@ export async function programStep(program: OrbitalSchema, requests: readonly Ste
   const steps = requests.map((r) => ({ trait: r.trait, event: r.event, payload: r.payload, from: r.from, ...(r.entity !== undefined ? { entity: r.entity } : {}), ...(r.config !== undefined ? { config: r.config } : {}), ...(r.now !== undefined ? { now: r.now } : {}), ...(r.settleMs !== undefined ? { settleMs: r.settleMs } : {}), ...(r.viewer !== undefined ? { viewer: r.viewer } : {}) }));
   return withTempFile('program.orb', JSON.stringify(program), async (path) => {
     const run = await runOrb(['execute', path, '--steps', JSON.stringify(steps), ...(live ? ['--live'] : [])], opts);
-    const report = parseJson(StepReportSchema, run, 'program/step');
+    const report = decodeStepOutput(run);
     if (!report.success) return { error: report.error };
     const results: PlayedStep[] = [];
     for (const [i, request] of requests.entries()) {
@@ -752,20 +616,18 @@ export async function runProgramEffect(op: ProgramEffectName, args: readonly Eff
       case 'behavior/catalog': {
         const scope = CatalogScopeSchema.safeParse(args[0]);
         if (!scope.success) return fail(`behavior/catalog: ${issuesOf(scope.error)}`);
-        const options = booleanOptions(op, args[1], ['vectors', 'traits', 'topics'] as const);
+        const options = booleanOptions(op, args[1], ['traits'] as const);
         if (typeof options === 'string') return fail(options);
-        const vectorOption = options.vectors === undefined ? {} : { vectors: options.vectors };
-        if (options.topics === true) return { ok: true, result: await behaviorCatalog(scope.data, opts, { ...vectorOption, topics: true }) };
-        return { ok: true, result: await behaviorCatalog(scope.data, opts, { ...vectorOption, ...(options.traits === undefined ? {} : { traits: options.traits }) }) };
+        return { ok: true, result: await behaviorCatalog(scope.data, opts, options.traits === undefined ? {} : { traits: options.traits }) };
       }
       case 'behavior/describe': {
         const value = DescribeTargetSchema.safeParse(args[0]);
         if (!value.success) return fail(`${op}: ${issuesOf(value.error)}`);
-        const knobVectors = booleanOption(op, args[1], 'knobVectors');
-        if (typeof knobVectors === 'string') return fail(knobVectors);
+        const none = booleanOptions(op, args[1], [] as const);
+        if (typeof none === 'string') return fail(none);
         const denied = workspaceAccessError(value.data.behavior, opts, context);
         if (denied !== undefined) return fail(`${op}: ${denied}`);
-        return { ok: true, result: await behaviorDescribe(value.data, opts, knobVectors.value === undefined ? {} : { knobVectors: knobVectors.value }) };
+        return { ok: true, result: await behaviorDescribe(value.data, opts) };
       }
       case 'behavior/source': {
         const value = DescribeTargetSchema.safeParse(args[0]);
@@ -866,6 +728,22 @@ export async function runProgramEffect(op: ProgramEffectName, args: readonly Eff
         const program = programArg(op, args[0]);
         if (typeof program === 'string') return fail(program);
         return { ok: true, result: await programProve({ program }, opts) };
+      }
+      case 'program/os-grants': {
+        const options = args[1] ?? {};
+        if (options === null || typeof options !== 'object' || Array.isArray(options)) return fail('program/os-grants: options must be an object');
+        for (const key of Object.keys(options)) if (key !== 'path' && key !== 'final') return fail(`program/os-grants: unsupported option "${key}"`);
+        const final = options['final'];
+        if (final !== undefined && typeof final !== 'boolean') return fail('program/os-grants: final must be a boolean');
+        const pass = final === true ? { final } : {};
+        const path = options['path'];
+        if (path !== undefined) {
+          if (typeof path !== 'string' || !isAbsolute(path)) return fail('program/os-grants: path must be an absolute path');
+          return { ok: true, result: await programOsGrants({ path }, { ...opts, ...pass }) };
+        }
+        const program = programArg(op, args[0]);
+        if (typeof program === 'string') return fail(program);
+        return { ok: true, result: await programOsGrants({ program }, { ...opts, ...pass }) };
       }
       case 'program/eval': {
         const program = programArg(op, args[0]);

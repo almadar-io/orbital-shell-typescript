@@ -27,52 +27,9 @@ import { mergeCallSiteConfigOverrides } from './types/trait.js';
 import { parseOrbitalSchema } from './types/schema.js';
 import type { EntityId } from './types/identity.js';
 
-// Re-export compose-behaviors module
 export { applyTraitConfigOverrides } from './builders/apply-config-overrides.js';
-export { type LayoutStrategy, detectLayoutStrategy } from './builders/layout-strategy.js';
-export { type EventWiringEntry, applyEventWiring } from './builders/event-wiring.js';
-export {
-  type ComposeBehaviorsInput,
-  type ComposeBehaviorsResult,
-  composeBehaviors,
-  mergeLedgers,
-} from './builders/compose-behaviors.js';
-export {
-  type ComposeAppFromFilesOptions,
-  type ComposeAppFromFilesResult,
-  type ComposedSurface,
-  type ComposeSurfaceOptions,
-  type ConfigNavItemsNarrowResult,
-  type IdentityDedupeResult,
-  type IdentityDemotion,
-  type IdentityExpectsRewrite,
-  type IdentityRelationRetarget,
-  type IdentityRoleUnion,
-  type LandingNavResult,
-  type OrganismRename,
-  type UnrenamableCollision,
-  type NavItemsNarrowResult,
-  type SurfaceRename,
-  asEntityObject,
-  composeAppFromFiles,
-  composeOrbitalSurface,
-  dedupeComposedIdentity,
-  dedupeComposedSurface,
-  identityVocabularyDelta,
-  type IdentityVocabularyDelta,
-  orbitalEntityName,
-  orbitalImportResolver,
-  organismOrderResolver,
-} from './builders/compose-app.js';
-export { type EntityRenameBlocker, type RenameEntityOptions, atomTraitResolver, entityRenameBlockers, renameEntity, renameEntityInSchema, renameOrbital } from './builders/rename-entity.js';
-export { orbitalRouteSlug } from './builders/route-slug.js';
-export { collectOwnedSurface, findDanglingRefs } from './builders/owned-surface.js';
-export {
-  type FieldBindingContext,
-  collectFieldComparisonLiterals,
-  collectOwnerComparedFields,
-  collectOwnerStampedFields,
-} from './builders/field-comparison-literals.js';
+export type { LayoutStrategy } from './builders/layout-strategy.js';
+export type { EventWiringEntry } from './builders/event-wiring.js';
 // LayoutTrait + slot-embedding helpers (Phase 7.6 — atom-composition recipe path).
 export {
   type MakeLayoutTraitOpts,

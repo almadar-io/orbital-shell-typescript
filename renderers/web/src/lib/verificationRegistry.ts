@@ -20,8 +20,8 @@ import type {
   EffectTrace,
   EventLogEntry,
   EventPayload,
-  OrbitalEventRequest,
-  OrbitalEventResponse,
+  EventRequest,
+  EventResponse,
   OrbitalVerificationAPI,
   ServerEffectResult,
   ServerResponseTrace,
@@ -323,7 +323,7 @@ export function serverEffectTraces(results: readonly ServerEffectResult[] | unde
 }
 
 /** Record one answered server leg on the timeline as a `server:<orbital>` trace. */
-export function recordOrbitalResponse(orbitalName: string, request: OrbitalEventRequest, response: OrbitalEventResponse): void {
+export function recordOrbitalResponse(orbitalName: string, request: EventRequest, response: EventResponse): void {
   recordServerResponse(orbitalName, request.event, {
     success: response.success,
     transitioned: response.transitioned,

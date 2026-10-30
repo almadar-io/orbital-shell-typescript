@@ -14,7 +14,7 @@ import { EventBus } from "@almadar/shell-runtime";
 import { eventRouteKey } from "@almadar/shell-runtime";
 import { stampEmitSource } from "@almadar/shell-runtime";
 import { evaluateOnKernel } from "@almadar/shell-runtime";
-import { LIFECYCLE_EVENTS, UNMOUNT_EVENT, tickEventKey } from "@almadar/core";
+import { tickEventKey } from "@almadar/core";
 import { parseOrbitalTraits } from "@almadar/shell-runtime";
 import { createLogger } from '@almadar/logger';
 import type { createProgramHandlers as CreateProgramHandlersFn } from "../program/createProgramHandlers.js";
@@ -42,10 +42,9 @@ const registerLog = createLogger("almadar:runtime:register");
 /** How often the host asks the kernel's tick clock which ticks are due. */
 const TICK_PASS_MS = 16;
 
-import type { TraitState, TransitionObserver } from "@almadar/shell-runtime";
+import type { TraitState } from "@almadar/shell-runtime";
 import type {
   EffectHandlers,
-  EntityRow,
   EventPayload,
   EvaluationContextExtensions,
 } from "@almadar/shell-runtime";
@@ -55,7 +54,6 @@ import type {
   OrbitalDefinition,
   Entity,
   Trait,
-  TraitTick,
   TraitConfig,
   BusEventSource,
   UserContext,
@@ -63,9 +61,7 @@ import type {
   DispatchRequestOutcome,
   EventStreamItem,
 } from "@almadar/core";
-import { entityAccessPolicies } from "@almadar/core/mock";
-import { entityOwnerOrbital, RowSetRefSchema, type RowQueryPage } from "@almadar/core";
-import type { EventRequest } from "@almadar/core/kernel-wire";
+import { RowSetRefSchema, type RowQueryPage } from "@almadar/core";
 
 // Single upstream owner (`@almadar/core`'s `types/bus.ts`) — both execution
 // paths (this runtime and orbital-shell-typescript's generated handlers,
@@ -73,18 +69,18 @@ import type { EventRequest } from "@almadar/core/kernel-wire";
 // drift. Re-exported here so every existing importer of these names from
 // `@almadar/runtime` keeps working unchanged.
 export type {
-  OrbitalEventRequest,
-  OrbitalEventResponse,
+  EventRequest,
+  EventResponse,
   ClientEffectTuple,
   ClientRenderUITuple,
   ClientNavigateTuple,
   ClientNavigateBackTuple,
   TransitionRejection,
 } from "@almadar/core";
-import { applyRowAccess, inlineTraitRefs, installKernelEvaluator } from "@almadar/core";
+import { inlineTraitRefs, installKernelEvaluator } from "@almadar/core";
 import type {
-  OrbitalEventRequest,
-  OrbitalEventResponse,
+  EventRequest,
+  EventResponse,
   ClientEffectTuple,
   ExternalInput,
   ExternalInputRequest,
@@ -92,12 +88,10 @@ import type {
   InboundDelivery,
 } from "@almadar/core";
 import type { MountSeed } from "@almadar/core";
-import { externalInputsOf, inboundOnlyMessage, inboundOnlyTrait, readableEntitiesOf } from "@almadar/core";
 import { dispatchDeclaredInput } from "@almadar/shell-runtime";
 import { dispatchInbound } from "@almadar/shell-runtime";
-import { isEntityCall, normalizeUserContext, personaFromIdentityRow, ANONYMOUS_USER
+import { isEntityCall, normalizeUserContext, ANONYMOUS_USER
 } from "@almadar/core";
-import { identityEntityName } from "@almadar/core/mock";
 import { defaultCallService } from "@almadar/shell-runtime";
 import { KernelEngine, type KernelHostPorts } from "@almadar/shell-runtime";
 import { kernelEventRequestParser, kernelOsCompletions, kernelOsGrants, kernelOsTls, type OsGrantPort, type OsHostPort } from "@almadar/shell-runtime";
@@ -118,7 +112,7 @@ function isNodeEnv(): boolean {
 // Types
 // ============================================================================
 
-// Uses OrbitalSchema, OrbitalDefinition, Trait, TraitTick from @almadar/core directly.
+// Uses OrbitalSchema, OrbitalDefinition, Trait from @almadar/core directly.
 // No redundant runtime-specific types.
 
 /** @deprecated Use OrbitalSchema from @almadar/core */
@@ -127,8 +121,6 @@ export type RuntimeOrbitalSchema = OrbitalSchema;
 export type RuntimeOrbital = OrbitalDefinition;
 /** @deprecated Use Trait from @almadar/core */
 export type RuntimeTrait = Trait;
-/** @deprecated Use TraitTick from @almadar/core */
-export type RuntimeTraitTick = TraitTick;
 
 
 /**
@@ -142,20 +134,6 @@ export type PushItem =
 /**
  * Registered orbital with runtime state
  */
-/** One registered orbital as the API lists it. */
-export interface OrbitalSummary {
-  name: string;
-  entityName: string | undefined;
-  traits: string[];
-}
-
-/** One registered orbital as the API describes it: its entity and each trait's current state, states and events. */
-export interface OrbitalInfo {
-  name: string;
-  entity: Entity;
-  traits: { name: string; currentState: string | undefined; states: string[]; events: string[] }[];
-}
-
 export interface RegisteredOrbital {
   schema: OrbitalDefinition;
   /** Resolved entity (never a string ref at runtime) */
@@ -172,7 +150,7 @@ export interface RegisteredOrbital {
   configByTrait: Map<string, TraitConfig>;
 }
 
-// `OrbitalEventRequest` — event sent from client to server — is owned by
+// `EventRequest` — event sent from client to server — is owned by
 // `@almadar/core` (re-exported above).
 
 /**
@@ -203,12 +181,12 @@ export interface LiveBroadcastItem {
  */
 export interface HostDispatchItem {
   orbitalName: string;
-  request: OrbitalEventRequest;
-  response: OrbitalEventResponse;
+  request: EventRequest;
+  response: EventResponse;
   originClientId?: string;
 }
 
-// `OrbitalEventResponse` — response from event processing — is owned by
+// `EventResponse` — response from event processing — is owned by
 // `@almadar/core` (re-exported above).
 
 /**
@@ -352,15 +330,6 @@ function needsResolving(schema: OrbitalSchema): boolean {
 }
 
 
-/**
- * Internal tick binding for tracking active ticks
- */
-interface TickBinding {
-  orbitalName: string;
-  traitName: string;
-  tick: RuntimeTraitTick;
-}
-
 /** What `register` takes beside the schema: the program's catalogs and the folder its `uses lazy` behaviors sit beside (EXEC-LOAD-1). */
 export interface RegisterOptions {
   messages?: MessageCatalogs;
@@ -405,20 +374,13 @@ export class OrbitalServerRuntime {
     return store;
   }
 
-  private tickBindings: TickBinding[] = [];
   /** The kernel running the registered program; null before a program is registered. */
   private kernelEngine: KernelEngine | null = null;
+  private noProgramEngine: KernelEngine | null = null;
   /** The `os` handles of the program the kernel runs; closed when that program is replaced, reset or dropped. */
   private kernelOs: OsHostPort | undefined;
-  /** `orbital::trait` → the clients that have it mounted (Runtime Spec Clause 8.3). */
-  private readonly mountedBy = new Map<string, Set<string>>();
   /** Drives the kernel's one tick clock: every pass asks `KernelEngine.tickPass` which ticks are due. */
   private tickTimer: ReturnType<typeof setInterval> | null = null;
-  private readonly transitionObservers = new Set<TransitionObserver>();
-  private readonly transitionFanout: TransitionObserver = {
-    onTransition: (trace) => { for (const o of this.transitionObservers) o.onTransition(trace); },
-    onRollback: (trace) => { for (const o of this.transitionObservers) o.onRollback?.(trace); },
-  };
   private programHandlersPromise: Promise<void> | null = null;
   private resolvedSchema: OrbitalSchema | null = null;
 
@@ -432,14 +394,8 @@ export class OrbitalServerRuntime {
   private readonly liveSubscribers = new Set<(item: LiveBroadcastItem) => void>();
   private liveBroadcastSink: ((item: LiveBroadcastItem) => void) | null = null;
   private hostDispatchSink: ((item: HostDispatchItem) => void) | null = null;
-  /**
-   * Tick-broadcast relay (T6): newest pending item per
-   * (originClientId, orbital, event), flushed to the live-broadcast sink on
-   * the `tickRelayIntervalMs` cadence — other tabs get the latest position
-   * at snapshot rate, never 1:1 with emissions.
-   */
-  private readonly tickRelayPending = new Map<string, LiveBroadcastItem>();
-  private tickRelayTimer: ReturnType<typeof setInterval> | null = null;
+  /** The one-shot timer that flushes the kernel's coalesced tick relay window. */
+  private tickRelayTimer: ReturnType<typeof setTimeout> | null = null;
   constructor(config: OrbitalServerRuntimeConfig) {
     installNodeHostPorts();
     this.config = {
@@ -563,8 +519,6 @@ export class OrbitalServerRuntime {
       await this.registerOrbitalAsync(orbital);
     }
 
-    // Set up scheduled ticks
-    this.setupTicks();
     await this.openKernel(schema);
 
     // Stash the post-preprocessing schema so HTTP layers (e.g. a playground
@@ -577,29 +531,6 @@ export class OrbitalServerRuntime {
   private openOwnedStore(kernel: KernelModule): void {
     if (this.config.persistence !== undefined || this.ownedStore !== undefined) return;
     this.ownedStore = nativeMemoryOf(kernel);
-  }
-
-  /**
-   * Returns the schema that this runtime is currently executing, post-
-   * preprocessing. Safe to expose from an HTTP `/api/schema` endpoint — every
-   * cross-orbital trait ref will have an inline `stateMachine` already, which
-   * is what the browser's `schema-to-ir` resolver needs to wire button clicks
-   * back to state transitions.
-   *
-   * Returns `null` if `register()` hasn't run yet.
-   */
-  /** The registered program's name, or null when nothing is registered (none yet, or after `unregisterAll`). */
-  registeredSchemaName(): string | null {
-    return this.orbitals.size > 0 ? (this.resolvedSchema?.name ?? null) : null;
-  }
-
-  getResolvedSchema(): OrbitalSchema | null {
-    return this.resolvedSchema;
-  }
-
-  /** The registered program's message catalogs (locale → qualified key → message), for a host's client. */
-  getMessages(): MessageCatalogs {
-    return this.messages;
   }
 
   /**
@@ -771,8 +702,9 @@ export class OrbitalServerRuntime {
     this.kernelOs = this.config.osHost?.(kernelOsGrants(kernel, () => this.requireKernelEngine()));
     this.kernelEngine = KernelEngine.open(kernel, schema, this.kernelPorts(), this.lazyDir);
     this.kernelEngine.setMessages(this.appLocales, this.messages);
-    if (this.managedProgram !== undefined) this.kernelEngine.setManagedProgram(this.managedProgram);
-    this.syncTickMount();
+    this.kernelEngine.setStateful();
+    if (this.config.tickRelayIntervalMs !== undefined) this.kernelEngine.setTickRelayInterval(this.config.tickRelayIntervalMs);
+    this.restartTickClock();
     await this.mountBootEndpoints();
   }
 
@@ -798,15 +730,11 @@ export class OrbitalServerRuntime {
     }
   }
 
-  private managedProgram: OrbitalSchema | undefined;
-
-  /**
-   * Name the program whose declared credentials this runtime's credential effects manage beside its own: an
-   * integrations console serving the app a host shows saves and tests that app's keys. Naming another replaces it.
-   */
-  manageCredentialsOf(program: OrbitalSchema): void {
-    this.managedProgram = program;
-    this.kernelEngine?.setManagedProgram(program);
+  /** The kernel that answers the declared contract: the registered program's, else one holding no program, whose answers refuse every input and hook. */
+  private async contractEngine(): Promise<KernelEngine> {
+    if (this.kernelEngine !== null) return this.kernelEngine;
+    this.noProgramEngine ??= KernelEngine.open(await this.kernelModule(), { name: 'no-program', version: '1.0.0', orbitals: [] }, this.kernelPorts(), this.lazyDir);
+    return this.noProgramEngine;
   }
 
   private requireKernelEngine(): KernelEngine {
@@ -814,132 +742,57 @@ export class OrbitalServerRuntime {
     return this.kernelEngine;
   }
 
-  /**
-   * Set up scheduled ticks for all traits
-   */
-  private setupTicks(): void {
-    // Clean up existing ticks
-    this.cleanupTicks();
-
-    // For each orbital's traits with `ticks`
-    for (const [orbitalName, registered] of this.orbitals) {
-      for (const trait of registered.traits || []) {
-        if (!trait.ticks || trait.ticks.length === 0) continue;
-
-        for (const tick of trait.ticks) {
-          this.registerTick(orbitalName, trait.name, tick);
-        }
-      }
-    }
-
-    this.startTickClock();
-    if (this.config.debug && this.tickBindings.length > 0) {
-      registerLog.debug('register:ticks', { count: this.tickBindings.length });
-    }
-  }
-
-  /** Record a tick the kernel's clock runs; the kernel parses its interval or cron expression. */
-  private registerTick(
-    orbitalName: string,
-    traitName: string,
-    tick: RuntimeTraitTick,
-  ): void {
-    if (this.config.debug) {
-      registerLog.debug('register:tick', { orbital: orbitalName, trait: traitName, tick: tick.name, interval: tick.interval });
-    }
-    this.tickBindings.push({ orbitalName, traitName, tick });
-  }
-
-  /** Ask the kernel's clock which ticks are due and start each as a `runTick` request. */
+  /** Ask the kernel's clock which ticks are due and start each as a `runTick` request to the orbital it names. */
   private tickPass(): void {
     const engine = this.kernelEngine;
     if (engine === null) return;
     for (const due of engine.tickPass(performance.now())) {
-      const binding = this.tickBindings.find((b) => b.traitName === due.trait && b.tick.name === due.tick);
-      if (binding === undefined) continue;
-      void this.executeTick(binding.orbitalName, binding.traitName, binding.tick);
+      void this.executeTick(due.orbital, due.trait, due.tick);
     }
   }
 
-  private startTickClock(): void {
-    if (this.tickTimer !== null || this.tickBindings.length === 0) return;
+  /** Run the kernel's clock on this host's timer when the program declares a tick. */
+  private restartTickClock(): void {
+    this.cleanupTicks();
+    if (this.kernelEngine?.declaresTicks() !== true) return;
     this.tickTimer = setInterval(() => this.tickPass(), TICK_PASS_MS);
   }
 
   /** A tick: the host owns the timer, the kernel decides whether and over which rows it fires. */
-  private async executeTick(orbitalName: string, traitName: string, tick: RuntimeTraitTick): Promise<void> {
+  private async executeTick(orbitalName: string, traitName: string, tickName: string): Promise<void> {
     const response = await this.processOrbitalEvent(orbitalName, {
-      event: tickEventKey(tick.name),
-      runTick: { trait: traitName, tick: tick.name },
+      event: tickEventKey(tickName),
+      runTick: { trait: traitName, tick: tickName },
       targetTrait: traitName,
     });
     if (!response.success) {
-      effectLog.error('tick:execute-error', { tick: tick.name, error: response.error ?? 'the kernel refused the tick' });
+      effectLog.error('tick:execute-error', { tick: tickName, error: response.error ?? 'the kernel refused the tick' });
     }
   }
 
-  /** Tell the kernel which traits some client has mounted, so it can pause the other traits' ticks. */
-  private syncTickMount(): void {
-    if (this.kernelEngine === null) return;
-    const traits = new Set<string>();
-    for (const key of this.mountedBy.keys()) traits.add(key.split('::')[1] ?? '');
-    this.kernelEngine.setTickMount([...traits]);
-  }
-
   /**
-   * Clean up all active ticks
+   * Stop the host's timers
    */
   private cleanupTicks(): void {
     if (this.tickTimer !== null) clearInterval(this.tickTimer);
     this.tickTimer = null;
-    this.tickBindings = [];
+    if (this.tickRelayTimer !== null) clearTimeout(this.tickRelayTimer);
+    this.tickRelayTimer = null;
   }
 
   /**
    * Unregister all orbitals and clean up
    */
-  /** A client mounts a trait by dispatching its lifecycle event and releases it with `$UNMOUNT`. */
-  private recordMount(orbitalName: string, request: OrbitalEventRequest, mounted: boolean): void {
-    // A mount that names no client (the host's own boot mount) is no client's: browser-run ticks fire only while a client has the trait mounted (EXEC-TICK-4).
-    const client = request.clientId;
-    if (client === undefined) return;
-    const traits = request.mount !== undefined
-      ? request.mount.map((m) => m.trait)
-      : request.targetTrait !== undefined ? [request.targetTrait] : (request.traits ?? []).map((t) => t.trait);
-    for (const traitName of traits) {
-      const key = `${orbitalName}::${traitName}`;
-      const clients = this.mountedBy.get(key) ?? new Set<string>();
-      if (mounted) clients.add(client);
-      else clients.delete(client);
-      if (clients.size > 0) this.mountedBy.set(key, clients);
-      else this.mountedBy.delete(key);
-    }
-    this.syncTickMount();
-  }
-
-  /** Drop every mount a disconnected client held, so its traits' mount-scoped ticks pause. */
-  releaseClient(clientId: string): void {
-    for (const [key, clients] of this.mountedBy) {
-      clients.delete(clientId);
-      if (clients.size === 0) this.mountedBy.delete(key);
-    }
-    this.syncTickMount();
-  }
-
-  /** True while at least one client has `traitName` mounted. */
-  isTraitMounted(orbitalName: string, traitName: string): boolean {
-    return (this.mountedBy.get(`${orbitalName}::${traitName}`)?.size ?? 0) > 0;
-  }
-
   unregisterAll(): void {
     // Clean up ticks
     this.cleanupTicks();
-    this.mountedBy.clear();
 
     this.orbitals.clear();
     this.inFlightCalls.cancelAll();
     this.kernelEngine?.dispose();
     this.kernelEngine = null;
+    this.noProgramEngine?.dispose();
+    this.noProgramEngine = null;
     this.kernelOs?.close();
     this.kernelOs = undefined;
     this.eventBus.clear();
@@ -1068,7 +921,7 @@ export class OrbitalServerRuntime {
   }
 
   /** Run a follow-on step's call outcome as its own dispatch, and hand its result to the host-dispatch sink. */
-  private runDeferredOutcome(orbitalName: string, request: OrbitalEventRequest): void {
+  private runDeferredOutcome(orbitalName: string, request: EventRequest): void {
     void this.processOrbitalEvent(orbitalName, request).then(
       (response) => this.hostDispatchSink?.({ orbitalName, request, response, ...(request.clientId !== undefined ? { originClientId: request.clientId } : {}) }),
       (error: Error) => effectLog.error('deferred-outcome:failed', { orbitalName, event: request.event, trait: request.targetTrait, error: error.message }),
@@ -1085,44 +938,26 @@ export class OrbitalServerRuntime {
     this.config.defaultUser = user;
   }
 
-  /** The viewer a dev host is currently presenting the app as. */
-  getDefaultUser(): UserContext | undefined {
-    return this.config.defaultUser;
-  }
-
   /**
-   * Queue a tick-stamped dispatch for coalesced snapshot relay (T6). Newest
-   * per (originClientId, orbital, event) wins between flushes — the standard
-   * netcode position-broadcast discipline.
+   * A tick-stamped dispatch is a latest-state broadcast (T6): the kernel coalesces it with the others of the window
+   * (newest per origin client, orbital and event) and says how long the window stays open; this host only runs
+   * the timer.
    */
-  private queueTickRelay(orbitalName: string, request: OrbitalEventRequest): void {
-    const key = `${request.clientId ?? ''}:${orbitalName}:${request.event}`;
-    this.tickRelayPending.set(key, {
-      event: request.event,
-      payload: request.payload,
-      source: { orbital: orbitalName, trait: request.sourceTrait, tick: request.tick },
-      originClientId: request.clientId,
-      target: 'peers',
-    });
-    if (this.tickRelayTimer === null) {
-      const timer = setInterval(() => this.flushTickRelay(), this.config.tickRelayIntervalMs ?? 50);
-      // Never hold a Node process open for the relay.
-      if (typeof timer === 'object' && typeof timer.unref === 'function') timer.unref();
-      this.tickRelayTimer = timer;
-    }
+  private queueTickRelay(orbitalName: string, request: EventRequest): void {
+    const engine = this.requireKernelEngine();
+    const window = engine.relayTick(orbitalName, request);
+    if (window === undefined) return;
+    const timer = setTimeout(() => this.flushTickRelay(), window);
+    // Never hold a Node process open for the relay.
+    if (typeof timer === 'object' && typeof timer.unref === 'function') timer.unref();
+    this.tickRelayTimer = timer;
   }
 
   private flushTickRelay(): void {
-    if (this.tickRelayPending.size === 0) {
-      if (this.tickRelayTimer !== null) {
-        clearInterval(this.tickRelayTimer);
-        this.tickRelayTimer = null;
-      }
-      return;
-    }
-    const items = Array.from(this.tickRelayPending.values());
-    this.tickRelayPending.clear();
-    for (const item of items) this.publishLiveItem(item);
+    this.tickRelayTimer = null;
+    const engine = this.kernelEngine;
+    if (engine === null) return;
+    for (const item of engine.flushTickRelay()) this.publishLiveItem({ ...item, target: 'peers' });
   }
 
   /**
@@ -1140,21 +975,10 @@ export class OrbitalServerRuntime {
    * `POST /:orbital/../resolve-rows` as the signed-in viewer.
    */
   async resolveRows(reference: RowSetRef, user: UserContext): Promise<RowQueryPage> {
-    const schema = this.resolvedSchema;
-    const owner = schema === null ? undefined : entityOwnerOrbital(schema, reference.entityType);
-    if (schema === null || owner === undefined) throw new Error(`${reference.entityType}: no registered orbital declares this entity`);
-    return this.requireKernelEngine().resolveRows(reference, { orbital: owner.name, user });
-  }
-
-  async getIdentityRoster(): Promise<UserContext[]> {
-    const schema = this.resolvedSchema;
-    if (!schema) return [];
-    const entityName = identityEntityName(schema);
-    if (!entityName) return [];
-    const rows = await this.persistence.list(entityName);
-    return rows
-      .map((row) => personaFromIdentityRow(row))
-      .filter((p): p is UserContext => p !== undefined);
+    const engine = this.kernelEngine;
+    const owner = engine === null ? undefined : engine.entityOwnerOrbital(reference.entityType);
+    if (engine === null || owner === undefined) throw new Error(`${reference.entityType}: no registered orbital declares this entity`);
+    return engine.resolveRows(reference, { orbital: owner, user });
   }
 
   // ==========================================================================
@@ -1235,46 +1059,9 @@ export class OrbitalServerRuntime {
     }
   }
 
-  /** The registered orbitals as `GET /` lists them. */
-  listOrbitalSummaries(): OrbitalSummary[] {
-    return Array.from(this.orbitals.entries()).map(([name, reg]) => ({
-      name,
-      entityName: reg.entity?.name,
-      traits: (reg.traits || []).map((t) => t.name),
-    }));
-  }
-
-  /** One orbital as `GET /:orbital` describes it, awaiting an in-flight swap first (G-RUNTIME-038); `undefined` when it is not registered. */
-  async describeOrbital(orbitalName: string): Promise<OrbitalInfo | undefined> {
-    const registered = await this.resolveRegisteredOrbital(orbitalName);
-    if (!registered) return undefined;
-    const states: Record<string, string> = {};
-    for (const trait of registered.traits) {
-      const currentState = this.kernelEngine?.stateOf(trait.name) ?? '';
-      if (currentState !== '') states[trait.name] = currentState;
-    }
-    return {
-      name: orbitalName,
-      entity: registered.entity,
-      traits: registered.traits.map((t) => ({
-        name: t.name,
-        currentState: states[t.name],
-        states: (t.stateMachine?.states || []).map((s) => s.name),
-        events: [...new Set((t.stateMachine?.transitions || []).map((tr) => tr.event))],
-      })),
-    };
-  }
-
-  /** An entity's full row set as `GET /:orbital/entities/:entityType` answers it (verification and tooling only); `undefined` when the orbital is not registered. */
-  async entityRows(orbitalName: string, entityType: string): Promise<EntityRow[] | undefined> {
-    const registered = await this.resolveRegisteredOrbital(orbitalName);
-    if (!registered) return undefined;
-    return this.persistence.list(entityType);
-  }
-
   /** The program's declared external inputs: what an outside client may send which trait. */
   listExternalInputs(): ExternalInput[] {
-    return this.resolvedSchema ? externalInputsOf(this.resolvedSchema) : [];
+    return this.kernelEngine?.externalInputs() ?? [];
   }
 
   /**
@@ -1299,14 +1086,13 @@ export class OrbitalServerRuntime {
       caller,
       message,
       inputs: () => this.listExternalInputs(),
-      readableEntities: () => (this.resolvedSchema ? readableEntitiesOf(this.resolvedSchema) : []),
+      readableEntities: () => this.kernelEngine?.readableEntities() ?? [],
       dispatchInput: (orbital, request) => {
         assertReentry?.();
         return this.dispatchExternalInput(orbital, { ...request, ...(user !== undefined ? { user } : {}) });
       },
       read: async (entity) => {
-        const readPolicy = this.resolvedSchema ? entityAccessPolicies(this.resolvedSchema, entity)?.read : undefined;
-        return applyRowAccess(await this.persistence.list(entity), readPolicy, undefined, { user });
+        return this.requireKernelEngine().readRows(entity, await this.persistence.list(entity), user);
       },
       supportsDispatchStream: true,
       dispatchRequest: (orbital, request, input, stream) => {
@@ -1329,14 +1115,14 @@ export class OrbitalServerRuntime {
     caller: UserContext | undefined,
     stream = false,
   ): Promise<DispatchRequestOutcome> {
-    const request: OrbitalEventRequest = parsed;
+    const request: EventRequest = parsed;
     const streamItems: EventStreamItem[] = [];
     const onPush = stream ? (item: PushItem): void => { streamItems.push({ ...item, timestamp: item.timestamp ?? Date.now() }); } : undefined;
-    const answer = (response: OrbitalEventResponse): DispatchRequestOutcome => ({
+    const answer = (response: EventResponse): DispatchRequestOutcome => ({
       ok: true, response,
       ...(stream ? { streamItems: [...streamItems, { type: 'complete', data: response, timestamp: Date.now() }] } : {}),
     });
-    if ((await this.describeOrbital(orbital)) === undefined) {
+    if ((await this.resolveRegisteredOrbital(orbital)) === undefined) {
       return { ok: false, error: `Orbital not found: ${orbital}`, code: 'ORBITAL_NOT_FOUND', status: 404 };
     }
     const user = request.user ?? caller;
@@ -1355,19 +1141,19 @@ export class OrbitalServerRuntime {
     }
     const refusal = this.refuseInboundOnly(orbital, request);
     if (refusal !== undefined) return answer(refusal);
-    if (request.locale !== undefined && this.appLocales.length > 0 && !this.appLocales.includes(request.locale)) {
-      const error = `locale "${request.locale}" is not one of the program's declared locales [${this.appLocales.join(', ')}]`;
-      return { ok: false, error, code: 'LOCALE_NOT_DECLARED', status: 400 };
+    const response = await this.processOrbitalEvent(orbital, user !== undefined ? { ...request, user } : request, onPush);
+    if (response.rejections?.[0]?.code === 'locale-not-declared') {
+      return { ok: false, error: response.error ?? 'the locale is not declared', code: 'LOCALE_NOT_DECLARED', status: 400 };
     }
-    return answer(await this.processOrbitalEvent(orbital, user !== undefined ? { ...request, user } : request, onPush));
+    return answer(response);
   }
 
   async dispatchExternalInput(
     orbitalName: string,
     request: ExternalInputRequest,
     onPush?: (item: PushItem) => void,
-  ): Promise<OrbitalEventResponse> {
-    return dispatchDeclaredInput(this.resolvedSchema, orbitalName, request, (orbital, req) => this.processOrbitalEvent(orbital, req, onPush));
+  ): Promise<EventResponse> {
+    return dispatchDeclaredInput(await this.contractEngine(), orbitalName, request, (orbital, req) => this.processOrbitalEvent(orbital, req, onPush));
   }
 
   /**
@@ -1378,28 +1164,29 @@ export class OrbitalServerRuntime {
    * An event that is an inbound hook's is delivered only by `deliverInbound`: the app's own event
    * route refuses it, as the input channel refuses an event that is no declared input.
    */
-  refuseInboundOnly(orbitalName: string, request: Pick<OrbitalEventRequest, 'event' | 'targetTrait'>): OrbitalEventResponse | undefined {
-    const trait = this.resolvedSchema ? inboundOnlyTrait(this.resolvedSchema, orbitalName, request.targetTrait, request.event) : undefined;
-    if (trait === undefined) return undefined;
+  refuseInboundOnly(orbitalName: string, request: Pick<EventRequest, 'event' | 'targetTrait'>): EventResponse | undefined {
+    const only = this.kernelEngine?.inboundOnly(orbitalName, request.targetTrait, request.event);
+    if (only === undefined) return undefined;
+    const { trait } = only;
     return {
       success: false,
       transitioned: false,
       states: {},
       emittedEvents: [],
-      error: inboundOnlyMessage(trait, request.event),
+      error: only.message,
       rejections: [{ code: 'inbound-only-event', trait, event: request.event }],
     };
   }
 
   async deliverInbound(name: string, delivery: InboundDelivery, onPush?: (item: PushItem) => void): Promise<InboundAnswer> {
-    return dispatchInbound(this.resolvedSchema, name, delivery, (orbital, req) => this.processOrbitalEvent(orbital, req, onPush), (credential) => (this.secretPorts()?.secrets ?? createSecretStore()).get(credential, undefined));
+    return dispatchInbound(await this.contractEngine(), name, delivery, (orbital, req) => this.processOrbitalEvent(orbital, req, onPush), (credential) => (this.secretPorts()?.secrets ?? createSecretStore()).get(credential, undefined));
   }
 
   async processOrbitalEvent(
     orbitalName: string,
-    request: OrbitalEventRequest,
+    request: EventRequest,
     onPush?: (item: PushItem) => void,
-  ): Promise<OrbitalEventResponse> {
+  ): Promise<EventResponse> {
     // Gap 4 (Almadar_Rabit_V3_Deepseek_Gaps.md #4): this whole body used to
     // have no top-level error boundary, so a throw deep in an effect
     // handler (e.g. an LLM abort inside emitLoloBody) escaped as an
@@ -1419,14 +1206,6 @@ export class OrbitalServerRuntime {
         emittedEvents: [],
         error: `Orbital not found: ${orbitalName}`,
       };
-    }
-
-    if (request.event === UNMOUNT_EVENT) {
-      this.recordMount(orbitalName, request, false);
-      return { success: true, transitioned: false, states: {}, emittedEvents: [] };
-    }
-    if (request.mount !== undefined || (LIFECYCLE_EVENTS as readonly string[]).includes(request.event)) {
-      this.recordMount(orbitalName, request, true);
     }
 
     const response = await this.evaluateForOrbital(registered, request, onPush);
@@ -1464,9 +1243,9 @@ export class OrbitalServerRuntime {
    */
   private async evaluateForOrbital(
     registered: RegisteredOrbital,
-    request: OrbitalEventRequest,
+    request: EventRequest,
     onPush?: (item: PushItem) => void,
-  ): Promise<OrbitalEventResponse> {
+  ): Promise<EventResponse> {
     const orbitalName = registered.schema.name;
     // Trace every server-side event entry. If the runtime path is
     // re-firing render-ui during a typing session, the smoking gun
@@ -1509,33 +1288,6 @@ export class OrbitalServerRuntime {
     // user always wins; `defaultUser` only fills the gap for a dev host
     // that has no auth (see the config field's doc).
     const viewer = normalizeUserContext(request.user) ?? this.config.defaultUser;
-    if (request.locale !== undefined && this.appLocales.length > 0 && !this.appLocales.includes(request.locale)) {
-      throw new Error(`locale "${request.locale}" is not one of the program's declared locales [${this.appLocales.join(', ')}]`);
-    }
-
-    // A TARGETED request carrying circuit state is the client role's
-    // delegated server leg — the composition's own delegated-leg semantics
-    // apply (empty relay mask: the server runs the whole circuit,
-    // G-RUNTIME-029). Anything else is server-authoritative: strip
-    // client-carried circuit state so a non-targeted request can't inject
-    // client-held states into the session manager. The legacy client's
-    // `_targetTrait` payload sidecar is PROMOTED to the canonical
-    // first-class field here: the composition's sidecar fallback only
-    // guesses an initial state for single-state traits (a stateless-server
-    // protection), which would silently drop the multi-state scoped
-    // deliveries the old stateful path served from its held states.
-    const isDelegatedLeg = (request.targetTrait !== undefined || request.mount !== undefined) &&
-      (request.traits !== undefined || request.entityByTrait !== undefined);
-    let serverRequest = request;
-    if (!isDelegatedLeg && request.targetTrait === undefined) {
-      const sidecarTarget = (request.payload as EventPayload | undefined)?.['_targetTrait'] as string | undefined;
-      if (sidecarTarget !== undefined || request.traits !== undefined || request.entityByTrait !== undefined) {
-        serverRequest = { ...request, ...(sidecarTarget !== undefined ? { targetTrait: sidecarTarget } : {}) };
-        delete serverRequest.traits;
-        delete serverRequest.entityByTrait;
-      }
-    }
-
     // This host HOLDS every trait's state, so it runs every listener itself
     // (G-RUNTIME-031's off-page listeners included); the client's mounted
     // set only scopes which renders come back (`_activeTraits`, read by the
@@ -1543,7 +1295,7 @@ export class OrbitalServerRuntime {
     // host's held state stale (G-RUNTIME-042).
     const response = await evaluateOnKernel(
       { engine: this.requireKernelEngine(), orbital: registered.schema.name, ...(onPush !== undefined ? { onStream: (item: EventStreamItem): void => { if (item.type === 'event' || item.type === 'effect') onPush(item); } } : {}) },
-      serverRequest,
+      request,
       viewer,
       request.locale,
     );
@@ -1557,10 +1309,7 @@ export class OrbitalServerRuntime {
    * Feed the host sinks from a kernel response: the kernel answers a dispatch whole, so each emit reaches the
    * event bus (the public firehose) and `onPush` once the dispatch is done, in the order the response carries them.
    */
-  private publishKernelResponse(response: OrbitalEventResponse, onPush: ((item: PushItem) => void) | undefined, originClientId?: string): void {
-    for (const hop of response.transitions ?? []) {
-      this.transitionFanout.onTransition({ traitName: hop.trait, from: hop.from, to: hop.to, event: hop.event, ...(hop.firedArm !== undefined ? { firedArm: hop.firedArm } : {}), ...(hop.guardResult !== undefined ? { guardResult: hop.guardResult } : {}), effects: hop.effects });
-    }
+  private publishKernelResponse(response: EventResponse, onPush: ((item: PushItem) => void) | undefined, originClientId?: string): void {
     for (const emitted of response.emittedEvents) {
       this.eventBus.emit(emitted.event, emitted.payload, emitted.source, eventRouteKey(emitted.event, emitted.source?.eventId));
       if (emitted.source?.persistSuccess === true) {
@@ -1584,12 +1333,6 @@ export class OrbitalServerRuntime {
    */
   getEventBus(): EventBus {
     return this.eventBus;
-  }
-
-  /** Observe every executed hop (listener deliveries included) on every orbital; returns the unsubscribe. */
-  observeTransitions(observer: TransitionObserver): () => void {
-    this.transitionObservers.add(observer);
-    return () => { this.transitionObservers.delete(observer); };
   }
 
   /**
@@ -1631,48 +1374,6 @@ export class OrbitalServerRuntime {
     return this.orbitals.has(name);
   }
 
-  /**
-   * Get information about active ticks
-   */
-  getActiveTicks(): Array<{
-    orbital: string;
-    trait: string;
-    tick: string;
-    interval: number | string;
-    hasGuard: boolean;
-  }> {
-    return this.tickBindings.map((binding) => ({
-      orbital: binding.orbitalName,
-      trait: binding.traitName,
-      tick: binding.tick.name,
-      interval: binding.tick.interval,
-      hasGuard: !!binding.tick.guard,
-    }));
-  }
-
-  /** Halt the kernel's tick clock. */
-  pauseTicks(): void {
-    this.kernelEngine?.tickPause();
-  }
-
-  /** Resume ticks halted by `pauseTicks()`; the paused span is never counted. */
-  resumeTicks(): void {
-    this.kernelEngine?.tickResume();
-  }
-
-  /** True while the kernel's tick clock is paused. */
-  areTicksPaused(): boolean {
-    return this.kernelEngine?.tickPaused() ?? false;
-  }
-}
-
-/**
- * Factory function to create a runtime instance
- */
-export function createOrbitalServerRuntime(
-  config: OrbitalServerRuntimeConfig,
-): OrbitalServerRuntime {
-  return new OrbitalServerRuntime(config);
 }
 
 // ============================================================================

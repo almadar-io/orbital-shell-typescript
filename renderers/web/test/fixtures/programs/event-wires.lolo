@@ -1,0 +1,33 @@
+app event-wires
+uses Wire from "./wire-emitter"
+
+orbital A {
+  entity Source [runtime] {
+    id : string!
+  }
+
+  trait Sender = Wire.traits.Emitter -> Source {}
+
+  page boot as SenderBoot -> Sender
+}
+
+orbital B {
+  entity Row [runtime] {
+    id : string!
+  }
+
+  trait Hear -> Row {
+    initial: idle
+
+    listens {
+      A.Sender.GO -> GO
+    }
+
+    state idle {
+      GO -> idle
+        (set @entity.id y)
+    }
+  }
+
+  page boot as HearBoot -> Hear
+}

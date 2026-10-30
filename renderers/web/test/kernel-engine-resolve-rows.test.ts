@@ -5,10 +5,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import { type EventStreamItem, type EntityRow, type PersistenceAdapter, type RowSetRef } from '@almadar/core';
-import { InFlightCalls } from '../src/effects/in-flight-calls.js';
+import { InFlightCalls } from '@almadar/shell-runtime/effects/in-flight-calls';
 import { KernelEngine } from '../src/kernel/engine.js';
 import type { KernelHostPorts } from '../src/kernel/host.js';
-import type { KernelModule, KernelServerHandle } from '../src/kernel/wire.js';
+import type { KernelModule, KernelServerHandle } from '@almadar/shell-runtime/kernel/wire';
 import { stubKernelModule } from '../src/test-support/stub-kernel-module.js';
 import { fixtureRows, untouchedPersistence } from './helpers/persistence.js';
 
@@ -55,6 +55,7 @@ function scripted(log: string[], service = false): KernelModule {
     abandon(flight: number): boolean { log.push(`abandon ${flight}`); return true; }
     bootMounts(): string { return '[]'; }
     routeMounts(_routePath: string): string { return '[]'; }
+    contractQuery(_queryJson: string): string { return 'null'; }
     start(_orbital: string, request: string): string {
       if (this.held) {
         log.push(`queue ${JSON.parse(request).event}`);
@@ -98,7 +99,14 @@ function scripted(log: string[], service = false): KernelModule {
     setDefaultUser(): void {}
     mount(): void {}
     remount(): void {}
-    setTickMount(): void {}
+    mountClient(): void {}
+    unmountClient(): void {}
+    releaseClient(): void {}
+    setStateful(): void {}
+    relayTick(): string { return 'null'; }
+    setTickRelayInterval(): void {}
+    flushTickRelay(): string { return '[]'; }
+    declaresTicks(): boolean { return false; }
     tickPass(): string { return '[]'; }
     tickPause(): void {}
     tickResume(): void {}
@@ -109,6 +117,7 @@ function scripted(log: string[], service = false): KernelModule {
     lastError(): string { return ''; }
     osAllows(): boolean { return false; }
     setOsAnchors(): string { return '[]'; }
+    tlsComplete(): string { return 'null'; }
     osResolveArgs(_op: string, argsJson: string): string { return JSON.stringify({ ok: JSON.parse(argsJson) }); }
     fork(): KernelServerHandle { throw new Error('unused'); }
     forkProgram(): KernelServerHandle { throw new Error('unused'); }

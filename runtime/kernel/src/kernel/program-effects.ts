@@ -1,7 +1,6 @@
 import type {
   BehaviorDescription,
   CatalogEntry,
-  CatalogTopic,
   CircuitStepResult,
   DependencyGraph,
   EvaluatedProgram,
@@ -11,6 +10,7 @@ import type {
   ProgramInspection,
   TraitDescription,
 } from '@almadar/core';
+import type { OsGrantsReport, ProveReport } from '@almadar/core/kernel-wire';
 
 /** The effects the language trio routes to this host. */
 export const PROGRAM_EFFECTS = [
@@ -24,6 +24,7 @@ export const PROGRAM_EFFECTS = [
   'program/eval',
   'program/validate',
   'program/prove',
+  'program/os-grants',
   'program/compose',
   'program/step',
 ] as const;
@@ -81,5 +82,5 @@ export type PlayedStep = StepRequest & { result: CircuitStepResult & { outcomes:
 
 /** The outcome of one program effect: the value for `{ result }`, or the failure (`errors` for eval's validator issues). */
 export type ProgramEffectOutcome =
-  | { readonly ok: true; readonly result: ProgramInspection | CatalogEntry[] | CatalogTopic[] | TraitDescription | BehaviorDescription | OrbitalSchema | string | EvaluatedProgram | ProgramValidationReport | DependencyGraph | PlayedStep[] }
+  | { readonly ok: true; readonly result: ProgramInspection | CatalogEntry[] | TraitDescription | BehaviorDescription | OrbitalSchema | string | EvaluatedProgram | ProgramValidationReport | ProveReport | OsGrantsReport | DependencyGraph | PlayedStep[] }
   | { readonly ok: false; readonly error: string; readonly errors?: readonly ProgramValidationIssue[] };

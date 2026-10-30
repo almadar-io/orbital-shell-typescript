@@ -1,17 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  type OrbitalEventRequest,
-  type OrbitalEventResponse,
-  OrbitalEventRequestSchema,
-  OrbitalEventResponseSchema,
   ClientEffectTupleSchema,
   ClientRenderUITupleSchema,
   ClientNavigateTupleSchema,
   EmittedEventSchema,
-  type EventDispatchRequest,
-  type EventDispatchResponse,
 } from '../src/types/bus.js';
+import { decodeEventRequest, decodeEventResponse, isEventRequest, type EventRequest, type EventResponse } from '../src/generated/kernel-wire.js';
 import { ServerEffectResultSchema } from '../src/types/effect-result.js';
 import { SERVER_REPORTED_EFFECTS } from '../src/types/effect.js';
 import { asEventId } from '../src/types/identity.js';
@@ -22,37 +17,37 @@ import { asEventId } from '../src/types/identity.js';
  * tests pin the request/response shapes and the client-effect tuple
  * grammar's exact arities so the wire cannot silently drift.
  */
-describe('OrbitalEventRequestSchema', () => {
+describe('decodeEventRequest', () => {
   it('accepts a mount batch: each seed names its trait and its own lifecycle event', () => {
-    const request: OrbitalEventRequest = {
+    const request: EventRequest = {
       event: 'INIT',
       payload: { id: 'inv-1' },
       mount: [{ trait: 'InvoiceManage', event: 'INIT' }, { trait: 'InvoiceStats', event: 'LOAD' }, { trait: 'Clock', event: '$MOUNT' }],
       traits: [{ trait: 'InvoiceManage', from: 'loading' }],
     };
-    expect(OrbitalEventRequestSchema.parse(request)).toEqual(request);
+    expect(decodeEventRequest(request)).toEqual(request);
   });
 
   it('control: a mount seed with a non-lifecycle event is rejected', () => {
-    expect(OrbitalEventRequestSchema.safeParse({ event: 'INIT', mount: [{ trait: 'A', event: 'SAVE' }] }).success).toBe(false);
+    expect(isEventRequest({ event: 'INIT', mount: [{ trait: 'A', event: 'SAVE' }] })).toBe(false);
   });
 
   it('carries the viewer locale so servers resolve i18n/t for that viewer', () => {
-    const request: OrbitalEventRequest = { event: 'INIT', locale: 'ar' };
-    expect(OrbitalEventRequestSchema.parse(request)).toEqual(request);
+    const request: EventRequest = { event: 'INIT', locale: 'ar' };
+    expect(decodeEventRequest(request)).toEqual(request);
   });
 
   it('control: a non-string locale is rejected', () => {
-    expect(OrbitalEventRequestSchema.safeParse({ event: 'INIT', locale: 3 }).success).toBe(false);
+    expect(isEventRequest({ event: 'INIT', locale: 3 })).toBe(false);
   });
 
   it('accepts a minimal request (only the required `event` field)', () => {
-    const request: OrbitalEventRequest = { event: 'INIT' };
-    expect(OrbitalEventRequestSchema.parse(request)).toEqual(request);
+    const request: EventRequest = { event: 'INIT' };
+    expect(decodeEventRequest(request)).toEqual(request);
   });
 
   it('accepts the full stateless-addressing shape (traits[]/entityByTrait/behavior)', () => {
-    const request: OrbitalEventRequest = {
+    const request: EventRequest = {
       event: 'CREATE_DRAFT',
       eventId: asEventId('evt_abc123'),
       payload: { title: 'New note' },
@@ -69,30 +64,29 @@ describe('OrbitalEventRequestSchema', () => {
       entityByTrait: { NotePersistor: { id: 'note-1', title: 'Draft' } },
       behavior: 'NoteOrbital',
     };
-    expect(OrbitalEventRequestSchema.parse(request)).toEqual(request);
+    expect(decodeEventRequest(request)).toEqual(request);
   });
 
   it('rejects a request with no `event`', () => {
-    expect(() => OrbitalEventRequestSchema.parse({})).toThrow();
+    expect(() => decodeEventRequest({})).toThrow();
   });
 });
 
-describe('OrbitalEventResponseSchema', () => {
-  it('requires `emittedEvents` — always present, `[]` when none', () => {
-    const response: OrbitalEventResponse = {
+describe('decodeEventResponse', () => {
+  it('carries `emittedEvents`; the Rust serde default fills `[]` when the wire omits it', () => {
+    const response: EventResponse = {
       success: true,
       transitioned: true,
       states: { NotePersistor: 'saved' },
       emittedEvents: [],
     };
-    expect(OrbitalEventResponseSchema.parse(response)).toEqual(response);
-    expect(() =>
-      OrbitalEventResponseSchema.parse({ success: true, transitioned: true, states: {} }),
-    ).toThrow();
+    expect(decodeEventResponse(response)).toEqual(response);
+    expect(decodeEventResponse({ success: true, transitioned: true, states: {} }).emittedEvents).toEqual([]);
+    expect(() => decodeEventResponse({ success: 'yes', transitioned: true, states: {} })).toThrow();
   });
 
   it('accepts the full response shape (frames/clientEffectsByTrait/effectResults/guardFailed)', () => {
-    const response: OrbitalEventResponse = {
+    const response: EventResponse = {
       success: false,
       transitioned: false,
       states: { NoteForm: 'idle' },
@@ -104,7 +98,7 @@ describe('OrbitalEventResponseSchema', () => {
       guardFailed: 'NoteForm.SAVE',
       error: 'guard failed',
     };
-    expect(OrbitalEventResponseSchema.parse(response)).toEqual(response);
+    expect(decodeEventResponse(response)).toEqual(response);
   });
 });
 
@@ -182,15 +176,6 @@ describe('ServerEffectResultSchema', () => {
 
   it('rejects an unknown effect kind', () => {
     expect(() => ServerEffectResultSchema.parse({ effect: 'unknown', success: true })).toThrow();
-  });
-});
-
-describe('EventDispatchRequest/Response — deprecated aliases', () => {
-  it('are structurally the same shape as OrbitalEventRequest/Response', () => {
-    const request: EventDispatchRequest = { event: 'INIT' };
-    const response: EventDispatchResponse = { success: true, transitioned: false, states: {}, emittedEvents: [] };
-    expect(OrbitalEventRequestSchema.parse(request)).toEqual(request);
-    expect(OrbitalEventResponseSchema.parse(response)).toEqual(response);
   });
 });
 

@@ -11,16 +11,17 @@
 import { createContext, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { installKernelEvaluator } from '@almadar/core';
-import type { KernelLoader, KernelModule, LanguageLoader } from '../lib/kernel-wire';
+import type { KernelLoader, KernelModule } from '../lib/kernel-wire';
 import type { FrameScheduler } from '../lib/kernel-frames';
+import type { OsHostPort } from '@almadar/shell-runtime/kernel/os-port';
 
 export interface KernelEngineValue {
-  /** Resolves the initialised `@almadar/kernel` module; shared by every circuit under the provider. */
+  /** Resolves the initialised `@almadar/kernel` module, its language installed (`@almadar/shell-browser/kernel-loader`); shared by every circuit under the provider. */
   loadModule: () => Promise<KernelModule>;
-  /** Resolves the language bundle a local-store kernel is opened with; fetched once, on the first such kernel. */
-  loadLanguage?: LanguageLoader;
   /** Supplies the frame clock the kernel's ticks run on; absent = `requestAnimationFrame`. */
   scheduleFrame?: FrameScheduler;
+  /** The host's `os` port (`createFetchOsHost(fetch)`) every local-store kernel under the provider is opened with; absent, a program's `os` asks are denied. */
+  os?: OsHostPort;
 }
 
 export const KernelEngineContext = createContext<KernelEngineValue | null>(null);
@@ -37,21 +38,14 @@ export class KernelLoaderMissingError extends Error {
   }
 }
 
-/** A program whose rows live in the browser opened a kernel there, and no `languageLoader` supplies its language. */
-export class LanguageLoaderMissingError extends Error {
-  constructor() {
-    super('No language loader: a program storing rows in the browser opens a kernel there, which needs the language bundle; pass languageLoader to <KernelEngineProvider> (or OrbPreview)');
-  }
-}
-
 export interface KernelEngineProviderProps {
   loader: KernelLoader;
-  languageLoader?: LanguageLoader;
   scheduleFrame?: FrameScheduler;
+  os?: OsHostPort;
   children?: ReactNode;
 }
 
-export function KernelEngineProvider({ loader, languageLoader, scheduleFrame, children }: KernelEngineProviderProps): React.ReactElement {
+export function KernelEngineProvider({ loader, scheduleFrame, os, children }: KernelEngineProviderProps): React.ReactElement {
   const value = useMemo<KernelEngineValue>(() => {
     let module: Promise<KernelModule> | undefined;
     const load = (): Promise<KernelModule> =>
@@ -59,12 +53,11 @@ export function KernelEngineProvider({ loader, languageLoader, scheduleFrame, ch
         installKernelEvaluator(loaded);
         return loaded;
       });
-    let language: Promise<string> | undefined;
     return {
       loadModule: () => (module ??= load()),
-      ...(languageLoader !== undefined ? { loadLanguage: () => (language ??= languageLoader()) } : {}),
       ...(scheduleFrame !== undefined ? { scheduleFrame } : {}),
+      ...(os !== undefined ? { os } : {}),
     };
-  }, [loader, languageLoader, scheduleFrame]);
+  }, [loader, scheduleFrame, os]);
   return <KernelEngineContext.Provider value={value}>{children}</KernelEngineContext.Provider>;
 }

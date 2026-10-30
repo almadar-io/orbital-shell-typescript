@@ -22,6 +22,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import type {
+  EmittedEvent,
   EntityRow,
   EventPayload,
   MountSeed,
@@ -33,7 +34,6 @@ import type {
 } from '@almadar/core';
 import { TraitMountError } from '@almadar/shell-runtime/client/trait-mount-error';
 import type { EventTransport } from '../index';
-import { collectListenerTargets } from '../runtime';
 import type { ClientKernelOutcome, TraitState } from '../index';
 import { createLogger } from '@almadar/logger';
 import { useEventBus } from '../core';
@@ -47,7 +47,7 @@ import { registerTrait, unregisterTrait, type TraitDebugInfo } from '../lib/trai
 import { bindTraitStateGetter, registerTraitSnapshot } from '../lib/verificationRegistry';
 import { createCircuitVerificationObserver, recordDispatchVerdict } from '../lib/circuitVerificationObserver';
 import { hostDispatchInView } from '../lib/hostDispatchInView';
-import { normalizeEventKey, TRAIT_MOUNT_ERROR_TESTID, configReferencesCallsitePayload, traitReferencesCallsitePayload, type TraitStateSnapshot, type PersistenceAdapter, type TransitionRejection } from '@almadar/core';
+import { TRAIT_MOUNT_ERROR_TESTID, type TraitStateSnapshot, type PersistenceAdapter, type TransitionRejection } from '@almadar/core';
 import type { useUISlots } from '../providers/UISlotContext';
 import { getTabClientId, useCircuitKernel, type ProgramStamp } from './circuit/useCircuitKernel';
 import { useBusIngress } from './circuit/useBusIngress';
@@ -61,29 +61,10 @@ const MOUNT_ERROR_SOURCE = '$mount';
 
 const stateLog = createLogger('almadar:ui:state-transitions');
 
-/** Trait names present in `prev` but absent from `next` — used to clear a
- *  dropped trait's stale slot content on page nav (unchanged pure helper,
- *  see `trait-binding-slot-cleanup.test.ts`). */
-export function diffDroppedTraitNames(
-  prev: ReadonlySet<string>,
-  next: ReadonlySet<string>,
-): string[] {
-  const dropped: string[] = [];
-  for (const name of prev) {
-    if (!next.has(name)) dropped.push(name);
-  }
-  return dropped;
-}
-
 export interface TraitStateMachineResult {
   /** Current state for each trait. */
   traitStates: Map<string, TraitState>;
-  /** Send an event — broadcasts to every currently-mounted trait that can
-   *  handle it, decomposed into one targeted `kernel.dispatch` per trait
-   *  (the client role requires exactly one seed trait per call). */
-  sendEvent: (eventKey: string, payload?: EventPayload) => void;
   getTraitState: (traitName: string) => TraitState | undefined;
-  canHandleEvent: (traitName: string, eventKey: string) => boolean;
   /** Live per-trait binding surface for `EntityBindingContext`. */
   entityBindingSource: EntityBindingSource;
   /** Awaiting-server skeletons for `AwaitingSkeletonContext`. */
@@ -117,7 +98,6 @@ export interface UseTraitStateMachineOptions {
   browserStore?: PersistenceAdapter;
   callService?: (service: string, action: string, params?: ServiceParams) => Promise<EventPayload>;
   embeddedTraits?: ReadonlySet<string>;
-  callsiteCaptureChildrenByTrait?: ReadonlyMap<string, ReadonlySet<string>>;
   debug?: boolean;
   logContext?: { behavior?: string; orbitalName?: string };
   /** Explicit viewer override (e.g. a persona switcher's picked identity
@@ -293,6 +273,21 @@ export function useTraitStateMachine(
     await settleOutcome(traitName, eventKey, payload, outcome);
   }, [kernel, slotFlush, traitIndex, store, options.navigate, options.navigateBack, settleOutcome]);
 
+  // An emit that entered from outside the kernel: the kernel decides who hears it, the view paints its answer.
+  // 'listeners' is another client's push: its declared listeners hear it here and nothing else. 'origin' is the live
+  // message of this client's own running call, whose emitter already ran its own arm as the progress dispatch.
+  const deliverAndSettle = useCallback(async (emitted: EmittedEvent, delivery: 'emit' | 'listeners' | 'origin' = 'emit'): Promise<void> => {
+    const outcome = await (delivery === 'origin'
+      ? kernel.deliverOriginEmit(emitted)
+      : delivery === 'listeners' ? kernel.deliverToListeners(emitted) : kernel.deliverEmit(emitted));
+    slotFlush.applyClientEffects(outcome.response.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+    for (const echoed of outcome.response.emittedEvents) {
+      eventBus.emit(`UI:${echoed.event}`, echoed.payload, { ...(echoed.source ?? {}), dispatched: true });
+    }
+    stateLog.debug('emit:settled', { event: emitted.event, emitted: outcome.response.emittedEvents.map((e) => e.event) });
+    await afterSettle(emitted.event, emitted.payload);
+  }, [kernel, slotFlush, eventBus, options.navigate, options.navigateBack, afterSettle]);
+
   // One kernel frame's outcomes: the head is the frame's merged response, each following one a tick's
   // listener cascade (its server legs settle on their own and paint when they land).
   const settleFrame = useCallback((outcomes: ClientKernelOutcome[]): void => {
@@ -329,24 +324,25 @@ export function useTraitStateMachine(
   }, [kernel, store, settleOutcome]);
 
   // Server-pushed events (Almadar_Live_Push.md) reach their listeners through
-  // the same settle as a bus-entered dispatch, so they repaint.
+  // the same settle as a bus-entered dispatch, so they repaint. The kernel decides who hears a push.
   useEffect(() => {
     if (!transport?.subscribe) return;
     return transport.subscribe((emitted, target) => {
-      const listeners = collectListenerTargets(traitIndex, emitted.source, emitted.event, emitted.payload);
       if (target !== 'origin') {
-        for (const t of listeners) void dispatchAndSettle(t.listenerTrait, t.triggers, t.payload);
+        void deliverAndSettle(emitted, 'listeners');
         return;
       }
       // A call-service `onMessage` event is the calling trait's own (like `success`): it runs
       // there, and on any trait that listens to it.
       const caller = emitted.source?.trait;
-      if (caller !== undefined && traitIndex.byName.has(caller) && !listeners.some((t) => t.listenerTrait === caller && t.triggers === emitted.event)) {
+      if (caller !== undefined && traitIndex.byName.has(caller)) {
         void progressAndSettle(caller, emitted.event, emitted.payload);
+        void deliverAndSettle(emitted, 'origin');
+        return;
       }
-      for (const t of listeners) void progressAndSettle(t.listenerTrait, t.triggers, t.payload);
+      void deliverAndSettle(emitted, 'listeners');
     }, { clientId: getTabClientId() });
-  }, [transport, traitIndex, progressAndSettle, dispatchAndSettle]);
+  }, [transport, traitIndex, progressAndSettle, deliverAndSettle]);
 
   // A dispatch the host ran on its own (a declared input) shows here as the host's result; it never
   // runs again in this view.
@@ -404,108 +400,27 @@ export function useTraitStateMachine(
     return [...outcome.seeds.flatMap((seed) => seed.local.rejections ?? []), ...outcome.rejections].find((r) => r.code === 'effect-failed');
   }, [kernel, slotFlush, traitIndex, store, eventBus, options.navigate, options.navigateBack, afterSettle]);
 
-  useBusIngress(traitBindings, traitIndex, dispatchAndSettle, eventBus, appTraitNames);
-
-  const sendEvent = useCallback((eventKey: string, payload?: EventPayload): void => {
-    const normalized = normalizeEventKey(eventKey);
-    for (const [traitName] of traitIndex.byName) {
-      if (!store.states.canHandleEvent(traitName, normalized)) continue;
-      void dispatchAndSettle(traitName, normalized, payload);
-    }
-  }, [traitIndex, store, dispatchAndSettle]);
+  useBusIngress(traitBindings, traitIndex, dispatchAndSettle, deliverAndSettle, eventBus, appTraitNames);
 
   const getTraitState = useCallback((traitName: string) => store.states.getState(traitName), [store]);
 
-  const canHandleEvent = useCallback((traitName: string, eventKey: string): boolean =>
-    store.states.canHandleEvent(traitName, normalizeEventKey(eventKey)), [store]);
-
-  // Page nav: a trait that drops out of `traitBindings` never emits an
-  // empty render of its own, so its last paint would stack with the new
-  // page's writes into the same slot. Clear dropped traits from every slot
-  // before the mount-lifecycle effect below re-initializes.
-  const prevActiveTraitNamesRef = useRef<ReadonlySet<string>>(new Set());
-  useEffect(() => {
-    const nextActiveTraitNames = new Set(
-      traitBindings.map((b) => b.trait.name).filter((n): n is string => !!n),
-    );
-    const dropped = diffDroppedTraitNames(prevActiveTraitNamesRef.current, nextActiveTraitNames);
-    if (dropped.length > 0) {
-      for (const traitName of dropped) {
-        for (const slot of ALL_SLOTS) {
-          uiSlots.clearBySource(slot, traitName);
-        }
-      }
-    }
-    prevActiveTraitNamesRef.current = nextActiveTraitNames;
-  }, [traitBindings, uiSlots]);
-
-  // Mount-time lifecycle (INIT/LOAD/$MOUNT): each trait's own matching
-  // lifecycle event dispatches ONCE, targeted — naturally O(traits), no
-  // broadcast-then-filter N² shape (the old hook's own concern) since a
-  // targeted `kernel.dispatch` never touches an unrelated trait.
-  // Once per mount: a new page, new route params or a new circuit store is a remount; identity churn is not.
-  const mountedRef = useRef<{ key: string; store: typeof store; initialized: Set<string> } | null>(null);
+  // A page's traits are entered once per mount: the kernel answers the seeds of the traits not entered yet and the traits
+  // that left, whose last paint is cleared from every slot before the entering traits paint (a dropped trait emits no
+  // empty render of its own, so its content would stack with the new page's writes into the same slot).
   // A mount still settling when the host unmounts must not render into the torn-down tree.
   const aliveRef = useRef(true);
   useEffect(() => {
     aliveRef.current = true;
     return () => { aliveRef.current = false; };
   }, []);
-  // The kernel's tick clock runs mounted traits only: a page leaving takes its ticks with it.
   const kernelClientRef = useRef(kernelClient);
   kernelClientRef.current = kernelClient;
-  const declaredOnRef = useRef<typeof kernelClient | undefined>(undefined);
   useEffect(() => () => {
-    const client = kernelClientRef.current;
-    const mounted = mountedRef.current;
-    if (mounted === null) return;
-    void client.unmount([...mounted.initialized]).catch((err: Error) => stateLog.warn('unmount:failed', { error: err.message }));
+    void kernelClientRef.current.leave().catch((err: Error) => stateLog.warn('unmount:failed', { error: err.message }));
   }, []);
+  // A new page, new route params or a new circuit store is a new mount; identity churn is not.
   const mountKey = `${options.mountKey ?? ''}\u0000${JSON.stringify(Object.entries(options.initPayload ?? {}).sort(([a], [b]) => a.localeCompare(b)))}`;
   useEffect(() => {
-    const prev = mountedRef.current;
-    const continuing = prev !== null && prev.key === mountKey && prev.store === store;
-    const mount = continuing
-      ? prev
-      : { key: mountKey, store, initialized: new Set<string>() };
-    const active = new Set(traitBindings.map((b) => b.trait.name));
-    // Declared before the first frame: the kernel's tick clock must not tick traits this page never mounted.
-    const fresh = !continuing || declaredOnRef.current !== kernelClient;
-    const declared = fresh ? [...active] : [...active].filter((name) => !mount.initialized.has(name));
-    declaredOnRef.current = kernelClient;
-    if (fresh || declared.length > 0) void (fresh ? kernelClient.remount(declared) : kernelClient.mount(declared)).catch((err: Error) => stateLog.warn('mount:declare-failed', { error: err.message }));
-    const left = [...mount.initialized].filter((traitName) => !active.has(traitName));
-    for (const traitName of left) mount.initialized.delete(traitName);
-    if (left.length > 0) void kernelClient.unmount(left).catch((err: Error) => stateLog.warn('unmount:failed', { error: err.message }));
-    // Every entering trait awaits its own lifecycle event BEFORE any of them
-    // dispatches: a sibling's INIT cascade must not reach it first.
-    const candidates: string[] = [];
-    const embeddedChildren = new Set([...(options.callsiteCaptureChildrenByTrait?.values() ?? [])].flatMap((c) => [...c]));
-    for (const binding of traitBindings) {
-      const traitName = binding.trait.name;
-      if (mount.initialized.has(traitName)) continue;
-      mount.initialized.add(traitName);
-      // An embedded child that reads its composer's payload and only repaints on mount waits
-      // for that composer (the capture pass paints it), as the compiled path renders it inline.
-      const indexed = traitIndex.byName.get(traitName);
-      if (
-        embeddedChildren.has(traitName) &&
-        indexed !== undefined &&
-        (traitReferencesCallsitePayload(indexed.irTrait) || configReferencesCallsitePayload(kernelClient.traitConfig(traitName))) &&
-        store.states.repaintLifecycleEvent(traitName) !== undefined &&
-        !store.callsitePayloads.has(traitName)
-      ) {
-        continue;
-      }
-      candidates.push(traitName);
-    }
-    if (candidates.length > 0 && options.routePath !== undefined) {
-      void kernelClient.routeMounts(options.routePath).then((seeds) => {
-        const entering = seeds.filter((seed) => candidates.includes(seed.trait));
-        if (entering.length === 0) return;
-        mountEntering(entering);
-      }, (err: Error) => stateLog.warn('mount:route-mounts-failed', { error: err.message }));
-    }
     function mountEntering(entering: MountSeed[]): void {
       uiSlots.clearBySource('main', MOUNT_ERROR_SOURCE);
       void mountAndSettle(entering, { ...(options.initPayload ?? {}) }).then((failure) => {
@@ -534,8 +449,13 @@ export function useTraitStateMachine(
         });
       });
     }
-    mountedRef.current = mount;
-  }, [traitBindings, store, mountAndSettle, mountKey, uiSlots, traitIndex, options.callsiteCaptureChildrenByTrait, options.routePath, t, kernelClient]);
+    void kernelClient.enter(options.routePath, mountKey, traitBindings.map((b) => b.trait.name)).then(({ seeds, left }) => {
+      for (const traitName of left) {
+        for (const slot of ALL_SLOTS) uiSlots.clearBySource(slot, traitName);
+      }
+      if (seeds.length > 0) mountEntering(seeds);
+    }, (err: Error) => stateLog.warn('mount:enter-failed', { error: err.message }));
+  }, [traitBindings, mountAndSettle, mountKey, uiSlots, options.routePath, t, kernelClient]);
 
   // Re-render on every committed circuit change (mirrors the old hook's own
   // `setTraitStates(manager.getAllStates())` after each dispatch) — the
@@ -544,5 +464,5 @@ export function useTraitStateMachine(
   useSyncExternalStore(store.subscribe, store.getVersion, store.getVersion);
   const traitStates = useMemo(() => store.states.getAllStates(), [store, store.getVersion()]);
 
-  return { traitStates, sendEvent, getTraitState, canHandleEvent, entityBindingSource, awaitingSkeletonSource };
+  return { traitStates, getTraitState, entityBindingSource, awaitingSkeletonSource };
 }

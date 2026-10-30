@@ -34,7 +34,6 @@ import {
 
     // Resolver
     schemaToIR,
-    clearSchemaCache,
 } from '../index';
 
 // ============================================================================
@@ -488,7 +487,6 @@ describe('ProtocolSpecSchema', () => {
 
 describe('schemaToIR', () => {
     it('resolves a minimal schema to IR', () => {
-        clearSchemaCache();
         const schema = parseOrbitalSchema({
             name: 'test-app',
             orbitals: [VALID_ORBITAL],

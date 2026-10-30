@@ -26,10 +26,10 @@ import { CurrentPagePathProvider } from '../providers/CurrentPagePathContext';
 import { VerificationProvider } from '../providers/VerificationProvider';
 import { UISlotProvider, useUISlots } from '../providers/UISlotContext';
 import { UISlotRenderer } from '../components/core/organisms/UISlotRenderer';
-import { useEventBus } from '../core';
 import { useTranslate } from '../core';
+import { useEventBus } from '../core';
 import type { OrbitalSchema, EntityData, ResolvedTraitBinding, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
-import { getPage, orbitalInlineEntities, storesRowsInBrowser, collectCallsiteCaptureChildren, isHostSignInRoute, localeAlternates, notFoundPage } from '@almadar/core';
+import { getPage, orbitalInlineEntities, storesRowsInBrowser, isHostSignInRoute, localeAlternates, notFoundPage } from '@almadar/core';
 import { useResolvedSchema } from '../hooks/useResolvedSchema';
 import { matchPathAmong } from '../core';
 import { collectEmbeddedTraits, collectTraitRefsFromResolvedTrait } from '../lib/embedded-traits';
@@ -53,7 +53,7 @@ import { useBrowserStore } from '../hooks/circuit/useBrowserStore';
 import { programStamp, type ProgramStamp } from '../hooks/circuit/useCircuitKernel';
 import { KernelEngineProvider, useKernelEngine } from '../providers/KernelEngineContext';
 import { ClientTicksPausedContext } from '../hooks/circuit/useClientTicks';
-import type { KernelLoader, LanguageLoader } from '../lib/kernel-wire';
+import type { KernelLoader } from '../lib/kernel-wire';
 import { RowSetResolverProvider } from '../providers/RowSetResolverContext';
 import { createCircuitRowSetResolver } from '../lib/store-row-set-resolver';
 import { browserRowSets } from '../lib/browser-row-sets';
@@ -116,7 +116,7 @@ function appPathFromHref(href: string, hostHrefBase: string): string | null {
  * its own `sendEvent`/mount-time dispatch resolves — this component only
  * decides WHICH transport (or none) the kernel dispatches through.
  */
-function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, metadata, stamp, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, embeddedTraits, callsiteCaptureChildrenByTrait, hasBridge, children }: {
+function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, metadata, stamp, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, embeddedTraits, hasBridge, children }: {
   traits: ResolvedTraitBinding[];
   /** Route params from a parameterized page path — merged into every INIT payload. */
   routeParams?: Record<string, string>;
@@ -150,13 +150,6 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
    * the layout owns the slot and embeds via TraitFrame.
    */
   embeddedTraits?: ReadonlySet<string>;
-  /**
-   * Referrer trait name → the DIRECT children (via `@trait.X`) that need
-   * their lifecycle transition re-run under the referrer's payload whenever
-   * the referrer's own transition fires — forwarded to
-   * `useTraitStateMachine`'s `useCallsiteCapture`.
-   */
-  callsiteCaptureChildrenByTrait?: ReadonlyMap<string, ReadonlySet<string>>;
   /** True when OrbPreview was given a `serverUrl`/`transport` — gates
    *  whether this page dispatches through the bridge's transport. */
   hasBridge: boolean;
@@ -188,7 +181,6 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
     ...(onNavigate !== undefined ? { navigate: onNavigate } : {}),
     ...(onNavigateBack !== undefined ? { navigateBack: onNavigateBack } : {}),
     ...(embeddedTraits !== undefined ? { embeddedTraits } : {}),
-    ...(callsiteCaptureChildrenByTrait !== undefined ? { callsiteCaptureChildrenByTrait } : {}),
     initPayload: routeParams,
     ...(mountKey !== undefined ? { mountKey } : {}),
     ...(routePath !== undefined ? { routePath } : {}),
@@ -454,26 +446,6 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
     });
   }, [pageName, allPageTraits, orbitalsByTrait, pageOrbitalNames]);
 
-  // Referrer trait name → the DIRECT children (via `@trait.X`) that need
-  // their lifecycle transition re-run under the referrer's payload whenever
-  // the referrer's own transition fires (`@almadar/core`'s
-  // `collectCallsiteCaptureChildren`, threaded to `useTraitStateMachine`'s
-  // `reRenderCallsiteCaptureChildren`). Merged across every orbital in the
-  // schema, same flattening `orbitalsByTrait` uses —
-  // trait names are unique within one running schema.
-  const callsiteCaptureChildrenByTrait = useMemo<ReadonlyMap<string, ReadonlySet<string>>>(() => {
-    const merged = new Map<string, ReadonlySet<string>>();
-    const orbitals: OrbitalDefinition[] | undefined = schema?.orbitals;
-    if (orbitals) {
-      for (const orbital of orbitals) {
-        for (const [referrer, children] of collectCallsiteCaptureChildren(orbital)) {
-          merged.set(referrer, children);
-        }
-      }
-    }
-    return merged;
-  }, [schema]);
-
   // V2 Phase 6: EntityStore is gone. Standalone-preview (no serverUrl) with
   // `mockData` no longer hydrates a shared store; mock data now flows through
   // the event bus the same way a real server response does — i.e. traits
@@ -541,7 +513,6 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
           stamp={stamp}
           hasBridge={Boolean(serverUrl || transport)}
           embeddedTraits={embeddedTraits}
-          callsiteCaptureChildrenByTrait={callsiteCaptureChildrenByTrait}
           onNavigate={onNavigate}
           onNavigateBack={onNavigateBack}
           onLocalFallback={onLocalFallback}
@@ -624,8 +595,6 @@ export interface OrbPreviewProps {
    * preview runs under whatever engine the host's own `KernelEngineProvider` selects.
    */
   kernelLoader?: KernelLoader;
-  /** Resolves the language bundle a kernel opened over browser-stored rows needs (forwarded to `KernelEngineProvider`); keep its identity stable. */
-  languageLoader?: LanguageLoader;
   /**
    * How long (ms) to wait for the server bridge to connect before assuming
    * it's unreachable and falling back to local-only execution. Default
@@ -674,7 +643,7 @@ export interface OrbPreviewProps {
   fit?: boolean | 'content';
   /**
    * Called with the page path on every in-preview page switch (link click,
-   * navigate effect, `UI:NAVIGATE`), for a host that tracks the page in its
+   * navigate effect, `navigatesTo`), for a host that tracks the page in its
    * own router. When set, it replaces the built-in `?page=` URL sync.
    */
   onPageChange?: (path: string) => void;
@@ -757,26 +726,7 @@ export function resolvePreviewTheme(
  * ```
  */
 
-/**
- * `UI:NAVIGATE` consumer (`navigatesTo` on page-header, top-bar and item
- * actions). Mounted inside OrbitalProvider: that provider owns the bus the
- * rendered components emit on, so a listener on the preview's outer bus
- * never hears them.
- */
-function NavigateListener({ onNavigate }: { onNavigate: (path: string) => void }): null {
-  const bus = useEventBus();
-  useEffect(
-    () =>
-      bus.on('UI:NAVIGATE', (event) => {
-        const url = event.payload?.url;
-        if (typeof url === 'string' && url.length > 0) onNavigate(url);
-      }),
-    [bus, onNavigate],
-  );
-  return null;
-}
-
-/** `UI:SIGN_OUT` consumer: the host ends the viewer's session. Mounted inside OrbitalProvider, as NavigateListener. */
+/** `UI:SIGN_OUT` consumer: the host ends the viewer's session. Mounted inside OrbitalProvider. */
 function SignOutListener({ onSignOut }: { onSignOut: () => void }): null {
   const bus = useEventBus();
   useEffect(() => bus.on('UI:SIGN_OUT', () => onSignOut()), [bus, onSignOut]);
@@ -793,7 +743,6 @@ export function OrbPreview({
   transport,
   getAccessToken,
   kernelLoader,
-  languageLoader,
   initialPagePath,
   isolated = false,
   fit = false,
@@ -1084,7 +1033,7 @@ export function OrbPreview({
 
   // Effect-facing navigate: stages the nav-stack crumb (when the navigate
   // effect carried one) before the page switch; the provider's sync consumes
-  // it on arrival. Anchor clicks / UI:NAVIGATE keep plain handleNavigate.
+  // it on arrival. Anchor clicks / navigatesTo keep plain handleNavigate.
   const handleNavigateEffect = useCallback(
     (path: string, params?: Record<string, string>, crumb?: string) => {
       navStackRef.current?.beginNavigate(path, crumb);
@@ -1161,7 +1110,7 @@ export function OrbPreview({
       </ServerBridgeProvider>
     ) : node;
     const engined = kernelLoader !== undefined ? (
-      <KernelEngineProvider loader={kernelLoader} {...(languageLoader !== undefined ? { languageLoader } : {})}>{bridged}</KernelEngineProvider>
+      <KernelEngineProvider loader={kernelLoader}>{bridged}</KernelEngineProvider>
     ) : bridged;
     return <ClientTicksPausedContext.Provider value={paused}>{engined}</ClientTicksPausedContext.Provider>;
   };
@@ -1224,7 +1173,6 @@ export function OrbPreview({
         >
         <NavStackRefBridge apiRef={navStackRef} />
         <OrbitalProvider initialData={effectiveMockData} skipTheme verification isolated={isolated} user={user}>
-          <NavigateListener onNavigate={handleNavigate} />
           {onSignOut !== undefined && <SignOutListener onSignOut={onSignOut} />}
           <UISlotProvider>
             <PageAccessHost

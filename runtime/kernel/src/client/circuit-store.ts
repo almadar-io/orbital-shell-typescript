@@ -13,7 +13,7 @@
  */
 import { AwaitingRegistry } from './awaiting.js';
 import { StateBook } from './state-book.js';
-import type { EntityRow, EventPayload } from '@almadar/core';
+import type { EntityRow } from '@almadar/core';
 import type { FrameDelta } from '@almadar/core/kernel-wire';
 import type { TraitDefinition } from '@almadar/core';
 import type { RollbackCause, TransitionObserver } from './trait-types.js';
@@ -49,8 +49,6 @@ export interface CircuitStore {
    * (`from` 0 with a leading `clear`) always lands. The store merges nothing by its own rules.
    */
   applyFrames(delta: FrameDelta): FrameOutcome;
-  /** Embedded child → the payload its composer last composed it with (sticky `@callsitePayload`). */
-  readonly callsitePayloads: Map<string, EventPayload>;
   /** Traits awaiting a server round trip (per-trait subscriptions; see `AwaitingRegistry`). */
   readonly awaiting: AwaitingRegistry;
   /**
@@ -132,7 +130,6 @@ export function createMemoryCircuitStore(
       }
       return 'applied';
     },
-    callsitePayloads: new Map<string, EventPayload>(),
     awaiting: new AwaitingRegistry(),
     snapshot(trait, entityId, frameKey) {
       const key = frameKey ?? trait;

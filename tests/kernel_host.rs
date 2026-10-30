@@ -126,7 +126,7 @@ fn the_server_is_the_templates_node_host_and_the_compile_ships_only_its_served_p
 fn the_client_hosts_the_kernel_through_the_ui_engine_provider() {
     let app = &template("packages/client/src/App.tsx");
     assert!(
-        app.contains("<KernelEngineProvider loader={loadKernel} {...(manifest.language ? { languageLoader: loadLanguage } : {})}>"),
+        app.contains("<KernelEngineProvider loader={loader}>") && app.contains("loadKernel(manifest.language)"),
         "{app}"
     );
     assert!(!app.contains("engine="), "the kernel is the only engine: {app}");
@@ -159,8 +159,9 @@ fn a_program_storing_rows_in_the_browser_ships_the_language_its_browser_kernel_i
     let manifest: serde_json::Value = serde_json::from_str(file(&files, "packages/client/public/client.json")).expect("client.json");
     assert_eq!(manifest["language"], true, "{manifest}");
     let loader = &template("packages/client/src/kernel-host.ts");
-    assert!(loader.contains("export async function loadLanguage(): Promise<string>"), "{loader}");
-    assert!(loader.contains("fetch(`${import.meta.env.BASE_URL}language.json`)"), "{loader}");
+    assert!(loader.contains("from '@almadar/shell-browser/kernel-loader'") && loader.contains("loadBrowserKernel({"), "{loader}");
+    assert!(loader.contains("language: `${import.meta.env.BASE_URL}language.json`"), "{loader}");
+    assert!(!loader.contains("loadLanguage") && !loader.contains("fetch("), "the template keeps no loader of its own: {loader}");
 }
 
 /// A lazy page's behavior is loaded after compile and may bring its own browser-stored entity, so a program with
@@ -235,7 +236,7 @@ fn control_a_program_declaring_no_theme_ships_the_runtime_default_preset_and_no_
 fn the_client_loader_hands_the_renderer_the_whole_kernel_module_its_evaluator_reads() {
     let loader = &template("packages/client/src/kernel-host.ts");
     assert!(loader.contains("import init, * as kernel from '@almadar/kernel/client';"), "{loader}");
-    assert!(loader.contains("return kernel;"), "the renderer's evaluator calls evaluateMany and its siblings on the module: {loader}");
+    assert!(loader.contains("glue: kernel,"), "the renderer's evaluator calls evaluateMany and its siblings on the module, so the whole namespace is the glue the shared loader returns: {loader}");
     assert!(!loader.contains("return { Kernel };"), "only the Kernel class leaves the evaluator exports out: {loader}");
 }
 

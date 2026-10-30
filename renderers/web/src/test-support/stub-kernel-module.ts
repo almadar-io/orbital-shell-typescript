@@ -1,4 +1,4 @@
-import type { KernelModule, KernelServerClass } from '../kernel/wire.js';
+import type { KernelModule, KernelServerClass } from '@almadar/shell-runtime/kernel/wire';
 
 /**
  * A whole `KernelModule` around a scripted `Server`, for tests that drive the engine without the wasm. Every member a
@@ -28,6 +28,7 @@ export function stubKernelModule(Server: KernelServerClass, overrides: Partial<O
     scopeRows: unexpected('scopeRows'),
     checkMutationAccess: unexpected('checkMutationAccess'),
     resolveRowBinding: unexpected('resolveRowBinding'),
+    eventWires: unexpected('eventWires'),
     ...overrides,
   };
 }

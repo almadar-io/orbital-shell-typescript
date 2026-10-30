@@ -1,18 +1,19 @@
 /**
- * The one dispatcher for declared external inputs. The server runtime and the in-process host (a
- * browser extension's worker) both route outside-client inputs through it, so an undeclared input is
- * refused identically everywhere and a declared one is an ordinary event addressed to its trait.
+ * The dispatcher for declared external inputs. The server runtime and the in-process host (a
+ * browser extension's worker) both route outside-client inputs through it: the kernel says whether the
+ * input is declared, an undeclared one is refused identically everywhere and a declared one is an ordinary
+ * event addressed to its trait.
  */
-import { findExternalInput } from '@almadar/core';
-import type { ExternalInputRequest, OrbitalEventRequest, OrbitalEventResponse, OrbitalSchema } from '@almadar/core';
+import type { ExternalInputRequest, EventRequest, EventResponse } from '@almadar/core';
+import type { KernelEngine } from '../kernel/engine.js';
 
 export async function dispatchDeclaredInput(
-  schema: OrbitalSchema | null | undefined,
+  contract: Pick<KernelEngine, 'findExternalInput'>,
   orbitalName: string,
   request: ExternalInputRequest,
-  send: (orbitalName: string, request: OrbitalEventRequest) => Promise<OrbitalEventResponse>,
-): Promise<OrbitalEventResponse> {
-  const declared = schema ? findExternalInput(schema, orbitalName, request.targetTrait, request.event) : undefined;
+  send: (orbitalName: string, request: EventRequest) => Promise<EventResponse>,
+): Promise<EventResponse> {
+  const declared = contract.findExternalInput(orbitalName, request.targetTrait, request.event);
   if (!declared) {
     return {
       success: false,

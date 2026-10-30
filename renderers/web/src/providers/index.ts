@@ -49,6 +49,9 @@ export {
   type UserProviderProps,
 } from './UserContext';
 
+// Editor focus (the keyboard router reads which editor holds focus)
+export { EditorFocusProvider, useEditorFocus, type EditorFocus } from './EditorFocusContext';
+
 // Entity schema provider (its hooks are pulled into the providers chunk via
 // OrbitalProvider → UISlotRenderer, and the dedupe redirect routes every other
 // chunk's import of them through this barrel, so they must be re-exported here).
@@ -92,9 +95,9 @@ export { SelectionProvider, SelectionContext, useSelection, useSelectionOptional
 export type { SelectionContextType } from './SelectionProvider';
 export { EntityBindingContext, useEntityBindingSnapshot } from './EntityBindingContext';
 export type { EntityBindingSource } from './EntityBindingContext';
-export { KernelEngineContext, KernelEngineProvider, KernelLoaderMissingError, LanguageLoaderMissingError, useKernelEngine } from './KernelEngineContext';
+export { KernelEngineContext, KernelEngineProvider, KernelLoaderMissingError, useKernelEngine } from './KernelEngineContext';
 export type { KernelEngineValue, KernelEngineProviderProps } from './KernelEngineContext';
-export type { KernelLoader, KernelModule, KernelInstance, LanguageLoader } from '../lib/kernel-wire';
+export type { KernelLoader, KernelModule, KernelInstance } from '../lib/kernel-wire';
 export { AwaitingSkeletonContext, useAwaitingSkeleton } from './AwaitingSkeletonContext';
 export type { AwaitingSkeletonSource } from './AwaitingSkeletonContext';
 

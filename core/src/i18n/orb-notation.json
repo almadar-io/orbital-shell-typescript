@@ -1,5 +1,4 @@
 {
-  "reason": "Design-system token NAMES reachable only under a theme `tokens` node. They are keys of the .orb schema but notation, not language vocabulary, so they are excluded from the `orb` i18n section (owner ruling 2026-09-07). Regenerate with: pnpm --filter @almadar/core run gen:orb-notation",
   "keys": [
     "2xl",
     "3xl",

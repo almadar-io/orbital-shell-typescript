@@ -10,6 +10,7 @@
     "@almadar/core": "^10.116.0",
     "@almadar/kernel": "^18.0.0",
     "@almadar/runtime": "^6.112.0",
+    "@almadar/shell-browser": "^0.1.0",
     "@almadar/shell-chrome": "^0.1.0",
     "@almadar/shell-web": "^0.1.0",
     "@almadar/std": "^16.255.0",

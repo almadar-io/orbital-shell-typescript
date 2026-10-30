@@ -28,10 +28,6 @@ export interface CredentialVaultKernel {
   persist(name: string, value: string, principal?: string, label?: string): string;
   remove(name: string, principal?: string): boolean;
   rotate(): string;
-  hold(name: string, value: string, expiresAt: number, now: number, principal?: string): void;
-  takeBegin(name: string, principal?: string): string | undefined;
-  takeFinish(ticket: number, now: number): string | undefined;
-  takeCancel(ticket: number): void;
   takeWrites(): string;
 }
 
@@ -108,7 +104,7 @@ function writeOf(item: JsonValue): RowWrite {
 
 /**
  * The host's handle on the kernel's encrypted credential store. The kernel keeps the rows the host last listed, runs every
- * operation (set, remove, rotate, hold, take, resolution, masking) and records what changed; this handle lists the rows into
+ * operation (set, remove, rotate, resolution, masking) and records what changed; this handle lists the rows into
  * it and applies the recorded writes to the host's medium, one operation at a time. A row the kernel cannot read fails
  * `open` and every operation after it: nothing here reads a broken store as an empty one.
  */
@@ -185,7 +181,7 @@ export class CredentialVault {
     return next;
   }
 
-  private exclusive<T>(fresh: boolean, work: () => T, principal?: string, notify = true): Promise<T> {
+  private exclusive<T>(fresh: boolean, work: () => T, principal?: string): Promise<T> {
     return this.serial(async () => {
       if (fresh || this.broken) await this.reload();
       let result: T;
@@ -196,7 +192,7 @@ export class CredentialVault {
         throw error;
       }
       await this.apply();
-      if (notify) this.notify(principal);
+      this.notify(principal);
       return result;
     });
   }
@@ -263,39 +259,5 @@ export class CredentialVault {
   async rotate(): Promise<CredentialRotation> {
     const counts = objectOf(await this.exclusive(true, () => this.kernel.rotate()), 'rotation');
     return { rotated: numberOf(counts.rotated, 'rotated'), alreadyCurrent: numberOf(counts.alreadyCurrent, 'alreadyCurrent'), unreadable: numberOf(counts.unreadable, 'unreadable') };
-  }
-
-  /** Keep `value` sealed in the rows as a one-use value until `expiresAt` (epoch ms), so any instance on the same rows can take it once. */
-  async hold(name: string, value: string, expiresAt: number, now: number, principal?: string): Promise<void> {
-    await this.exclusive(true, () => this.kernel.hold(name, value, expiresAt, now, principal), principal, false);
-  }
-
-  /**
-   * Remove and return a held value, the single read of it. The kernel finds the row without opening it, the medium's
-   * conditional delete removes it, and only the taker whose delete removed it gets the value, so of several instances on
-   * one medium exactly one does. An expired value is consumed and not returned.
-   */
-  take(name: string, now: number, principal?: string): Promise<string | undefined> {
-    return this.serial(async () => {
-      await this.reload();
-      const begun = this.kernel.takeBegin(name, principal);
-      if (begun === undefined) return undefined;
-      const held = objectOf(begun, 'take');
-      const ticket = numberOf(held.ticket, 'take ticket');
-      const id = textOf(held.id, 'take id');
-      let removed: boolean;
-      try {
-        removed = await this.rows.delete(id);
-      } catch (error) {
-        this.kernel.takeCancel(ticket);
-        this.broken = true;
-        throw error;
-      }
-      if (!removed) {
-        this.kernel.takeCancel(ticket);
-        return undefined;
-      }
-      return this.kernel.takeFinish(ticket, now);
-    });
   }
 }

@@ -495,18 +495,24 @@ async function pageFacts(ports: KernelHostPorts, request: Extract<IoRequestWire,
  * it decrypts or encrypts the raw outcome and, while it needs more raw bytes, asks the host's `os` port for them. Any
  * other key's outcome is returned as it stands.
  */
-export async function finishTls(ports: KernelHostPorts, os: OsHostPort, key: string, raw: Settled<JsonValue, OsError>): Promise<Settled<JsonValue, OsError>> {
+export function finishTls(ports: KernelHostPorts, os: OsHostPort, key: string, raw: Settled<JsonValue, OsError>): Promise<Settled<JsonValue, OsError>> {
+  return new Promise((resolve) => completeTls(ports, os, key, raw, resolve));
+}
+
+/**
+ * The same loop, handing the outcome to `finish` in the calling turn whenever the kernel needs no further raw ask
+ * (nothing parked, or done at once); only a parked operation's follow-up ask makes it wait (EXEC-QUEUE-10/13).
+ */
+export function completeTls(ports: KernelHostPorts, os: OsHostPort, key: string, raw: Settled<JsonValue, OsError>, finish: (outcome: Settled<JsonValue, OsError>) => void): void {
   const tls = ports.osTls;
-  if (tls === undefined) return raw;
-  let outcome = raw;
-  let parked = false;
-  for (;;) {
-    const step = tls.complete(key, outcome);
-    if (step === null) return parked ? { error: { kind: 'tls', message: 'the TLS operation vanished' } } : outcome;
-    if ('done' in step) return step.done;
-    parked = true;
-    outcome = await os.answer(step.ask.op, step.ask.args);
-  }
+  if (tls === undefined) { finish(raw); return; }
+  const step = (outcome: Settled<JsonValue, OsError>, parked: boolean): void => {
+    const next = tls.complete(key, outcome);
+    if (next === null) { finish(parked ? { error: { kind: 'tls', message: 'the TLS operation vanished' } } : outcome); return; }
+    if ('done' in next) { finish(next.done); return; }
+    void os.answer(next.ask.op, next.ask.args).then((answered) => step(answered, true));
+  };
+  step(raw, false);
 }
 
 /**
@@ -514,17 +520,67 @@ export async function finishTls(ports: KernelHostPorts, os: OsHostPort, key: str
  * completion-deferring op under a declared route is started and answered `serviceDeferred` when the host can run its
  * outcome as a dispatch of its own (EXEC-QUEUE-10); its completion event is the kernel's.
  */
+const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+
+/**
+ * An `os/send` whose data operand is a list of segments (standard base64 text, or `{ credential }`) becomes one bytes
+ * operand here, at the boundary: the credential's value is read from the host's secret store and exists only in this
+ * call, never in program data, the journal or the answer.
+ */
+async function withCredentialSegments(ports: KernelHostPorts, op: string, args: JsonValue[]): Promise<{ args: JsonValue[] } | { error: OsError }> {
+  const segments = args[1];
+  if (op !== 'os/send' || !Array.isArray(segments)) return { args };
+  const parts: Uint8Array[] = [];
+  for (const [at, segment] of segments.entries()) {
+    if (typeof segment === 'string') {
+      if (!CANONICAL_BASE64.test(segment)) return { error: { kind: 'invalid', message: `${op}: segment ${at + 1} is not standard base64` } };
+      parts.push(Uint8Array.from(atob(segment), (c) => c.charCodeAt(0)));
+      continue;
+    }
+    const name = isJsonObject(segment) ? segment['credential'] : undefined;
+    if (typeof name !== 'string') return { error: { kind: 'invalid', message: `${op}: segment ${at + 1} is neither bytes nor a credential` } };
+    const store = ports.secretPorts?.secrets;
+    if (store === undefined) return { error: { kind: 'denied', message: `${op}: no credential source is configured` } };
+    let held: string | undefined | null;
+    try {
+      held = await store.get(name, undefined);
+    } catch (error) {
+      return { error: { kind: 'io', message: `${op}: credential ${name}: ${error instanceof Error ? error.message : String(error)}` } };
+    }
+    if (held === undefined || held === null) return { error: { kind: 'denied', message: `${op}: credential ${name} is not held` } };
+    parts.push(new TextEncoder().encode(held));
+  }
+  const bytes = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+  let offset = 0;
+  for (const part of parts) { bytes.set(part, offset); offset += part.length; }
+  return { args: [args[0] ?? null, base64Standard(bytes), ...args.slice(2)] };
+}
+
 async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'os' }>, scope: KernelAnswerScope): Promise<IoAnswerWire> {
   const { os } = ports;
   if (os === undefined) return { kind: 'os', result: { error: { kind: 'denied', message: `${request.op}: no os host configured` } } };
-  const { op, args, key, site } = request;
+  const { op, key, site } = request;
   const completions = ports.osCompletions;
   const sink = ports.deferCallOutcome();
   const message = ports.substrateMessage;
-  if (key !== undefined && site !== undefined && completions !== undefined && sink !== undefined && message !== undefined && os.stream !== undefined && completions.streams(op)) {
+  const streaming = key !== undefined && site !== undefined && completions !== undefined && sink !== undefined && message !== undefined && os.stream !== undefined && completions.streams(op);
+  const deferring = !streaming && key !== undefined && site !== undefined && completions !== undefined && sink !== undefined && os.defer !== undefined && completions.defers(op);
+  const lease = (streaming || deferring) && key !== undefined ? ports.inFlightCalls.reserve(key) : undefined;
+  if ((streaming || deferring) && lease === undefined) {
+    return { kind: 'os', result: { error: { kind: 'invalid', message: `${op}: key ${key} already has ${streaming ? 'a stream open' : 'a completion pending'}` } } };
+  }
+  const segmented = await withCredentialSegments(ports, op, request.args);
+  if ('error' in segmented) {
+    lease?.release();
+    return { kind: 'os', result: segmented };
+  }
+  if (lease?.signal.aborted === true) {
+    lease.release();
+    return { kind: 'serviceCancelled' };
+  }
+  const { args } = segmented;
+  if (lease !== undefined && streaming && key !== undefined && site !== undefined && completions !== undefined && sink !== undefined && message !== undefined && os.stream !== undefined) {
     const orbital = site.orbital ?? scope.orbital;
-    const lease = ports.inFlightCalls.reserve(key);
-    if (lease === undefined) return { kind: 'os', result: { error: { kind: 'invalid', message: `${op}: key ${key} already has a stream open` } } };
     const stop = (): void => { os.cancel?.(key); lease.release(); };
     lease.signal.addEventListener('abort', stop, { once: true });
     const deliver = (fired: OsCompletionEvent | null): boolean => {
@@ -540,31 +596,29 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
     if ('error' in started) { lease.release(); lease.signal.removeEventListener('abort', stop); }
     return { kind: 'os', result: started };
   }
-  if (key !== undefined && site !== undefined && completions !== undefined && sink !== undefined && os.defer !== undefined && completions.defers(op)) {
+  if (lease !== undefined && deferring && key !== undefined && site !== undefined && completions !== undefined && sink !== undefined && os.defer !== undefined) {
     const orbital = site.orbital ?? scope.orbital;
-    const lease = ports.inFlightCalls.reserve(key);
-    if (lease === undefined) return { kind: 'os', result: { error: { kind: 'invalid', message: `${op}: key ${key} already has a completion pending` } } };
     const cancel = (): void => { os.cancel?.(key); lease.release(); };
     lease.signal.addEventListener('abort', cancel, { once: true });
+    const finish = (outcome: Settled<JsonValue, OsError>): void => {
+      lease.release();
+      lease.signal.removeEventListener('abort', cancel);
+      if (lease.signal.aborted) return;
+      const fired = completions.event(site, key, outcome);
+      if (fired === null) return;
+      sink({
+        orbital,
+        traitName: site.trait,
+        event: fired.event,
+        payload: isJsonObject(fired.payload) ? fired.payload : undefined,
+        entityId: site.entityId,
+        originClientId: scope.originClientId,
+        user: scope.user,
+        locale: scope.locale,
+      });
+    };
     const started = os.defer(op, args, key, (raw) => {
-      void (async (): Promise<void> => {
-        const outcome = await finishTls(ports, os, key, raw);
-        lease.release();
-        lease.signal.removeEventListener('abort', cancel);
-        if (lease.signal.aborted) return;
-        const fired = completions.event(site, key, outcome);
-        if (fired === null) return;
-        sink({
-          orbital,
-          traitName: site.trait,
-          event: fired.event,
-          payload: isJsonObject(fired.payload) ? fired.payload : undefined,
-          entityId: site.entityId,
-          originClientId: scope.originClientId,
-          user: scope.user,
-          locale: scope.locale,
-        });
-      })();
+      completeTls(ports, os, key, raw, finish);
     });
     if ('error' in started) { lease.release(); lease.signal.removeEventListener('abort', cancel); }
     return 'error' in started ? { kind: 'os', result: started } : { kind: 'serviceDeferred' };
@@ -764,6 +818,8 @@ export async function answerRequest(ports: KernelHostPorts, request: IoRequestWi
       return osAnswer(ports, request, scope);
     case 'clock':
       return { kind: 'clock', result: { ok: (ports.now ?? Date.now)() } };
+    case 'sealed':
+      return { kind: 'sealed', result: { error: `${request.op}: a sealed operator is answered by the kernel, never by a host` } };
     case 'deliver':
       return { kind: 'deliver', result: { error: { kind: 'down', id: request.envelope.id } } };
     case 'credentialStatus':

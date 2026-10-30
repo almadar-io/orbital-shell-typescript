@@ -30,9 +30,10 @@ import { renderHook, act } from '@testing-library/react';
 import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
 import { createEmptyResolvedTrait } from '@almadar/core';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
+import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
 import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
-import { TEST_STAMP } from '../../src/test-support/kernel-engine';
+import { ENGINES, TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 function gatewayOrbitals(): OrbitalSchema['orbitals'] {
   return [{
@@ -184,5 +185,44 @@ describe('listen-source bus routing — the emitter declares the event', () => {
 
   it('edge: the emitter declares the event only in another state — the listener still runs once', async () => {
     expect(await saveOnce(['closed', 'open'], { from: 'open', to: 'closed', event: 'SAVE' })).toBe(1);
+  });
+});
+
+/**
+ * Twin of orbital-core `a_listen_source_dispatch_delivers_the_listener_with_the_states_the_web_shell_gets`
+ * (client/client_kernel/tests.rs): the same program, the same dispatch, the same literal answer. The web shell routes
+ * nothing; the delivery is whatever the kernel answers, and the Rust host's kernel answers the same.
+ */
+describe.each(ENGINES)('listen-source delivery is the kernel\'s answer [%s engine] — twin of the Rust host', (_name, engine) => {
+  const catalog = { name: 'RouteCatalog', transitions: [] as ResolvedTraitBinding['trait']['transitions'] };
+  const create = {
+    name: 'RouteCreate',
+    transitions: [{ from: 'closed', to: 'open', event: 'CREATE', effects: [] as never[] }],
+    listens: [{ event: 'CREATE', source: { kind: 'trait' as const, trait: 'RouteCatalog' }, triggers: 'CREATE' }],
+  };
+
+  it('dispatching the source answers the listener\'s delivery: RouteCatalog browsing, RouteCreate open', async () => {
+    const bindings = [binding(catalog.name, catalog.transitions), binding(create.name, create.transitions, create.listens)];
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: gatewayOrbitals(), engine }));
+    let answer!: Awaited<ReturnType<typeof result.current.kernel.dispatch>>;
+    await act(async () => {
+      answer = await result.current.kernel.dispatch({ event: 'CREATE', targetTrait: 'RouteCatalog' });
+    });
+    expect(answer.response.transitioned).toBe(true);
+    expect(Object.entries(answer.response.states).sort(([a], [b]) => a.localeCompare(b))).toEqual([
+      ['RouteCatalog', 'browsing'],
+      ['RouteCreate', 'open'],
+    ]);
+  });
+
+  it('control: an event nobody listens to delivers nothing', async () => {
+    const bindings = [binding(catalog.name, catalog.transitions), binding(create.name, create.transitions, create.listens)];
+    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: gatewayOrbitals(), engine }));
+    let answer!: Awaited<ReturnType<typeof result.current.kernel.dispatch>>;
+    await act(async () => {
+      answer = await result.current.kernel.dispatch({ event: 'UNRELATED', targetTrait: 'RouteCatalog' });
+    });
+    expect(answer.response.transitioned).toBe(false);
+    expect(answer.response.states['RouteCreate'] ?? 'closed').toBe('closed');
   });
 });

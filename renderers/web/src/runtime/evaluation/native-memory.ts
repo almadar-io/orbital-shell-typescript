@@ -1,6 +1,6 @@
 import type { KernelMemoryStoreExports } from '@almadar/core';
 import { NativeMemoryPersistenceAdapter } from '@almadar/shell-runtime/persistence/native-memory';
-import type { KernelModule } from '../../kernel/wire.js';
+import type { KernelModule } from '@almadar/shell-runtime/kernel/wire';
 
 function hasMemoryStore(kernel: KernelModule): kernel is KernelModule & KernelMemoryStoreExports {
   return 'MemoryStore' in kernel;

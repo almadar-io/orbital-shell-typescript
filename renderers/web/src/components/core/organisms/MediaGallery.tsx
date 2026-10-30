@@ -23,7 +23,7 @@ import { LoadingState } from "../molecules/LoadingState";
 import { ErrorState } from "../molecules/ErrorState";
 import { EmptyState } from "../molecules/EmptyState";
 import { Lightbox } from "../molecules/Lightbox";
-import { useEventBus, useEventListener } from '../../../core';
+import { useEventBus } from '../../../core';
 import { useContentSurface } from '../../../core';
 import type { SurfaceMode } from '@almadar/core';
 import { useTranslate } from '../../../core';
@@ -124,7 +124,6 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({
     const [failedIds, setFailedIds] = useState<ReadonlySet<string>>(new Set());
 
     const closeLightbox = useCallback(() => setLightboxIndex(null), []);
-    useEventListener("UI:LIGHTBOX_CLOSE", closeLightbox);
 
     const handleImageError = useCallback((id: string) => {
         setFailedIds((prev) => {
@@ -340,7 +339,6 @@ export const MediaGallery: React.FC<MediaGalleryProps> = ({
                 currentIndex={lightboxIndex ?? 0}
                 isOpen={lightboxIndex !== null}
                 onClose={closeLightbox}
-                closeAction="LIGHTBOX_CLOSE"
             />
         </>,
     );

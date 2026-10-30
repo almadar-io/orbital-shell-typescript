@@ -4,7 +4,7 @@
  * refuses a dispatch that needs both; this transport derives nothing from a trait's effects. A leg with no
  * `residence` (a stateful leg) carries no row work and goes to the server when there is one, else runs in-process.
  */
-import type { OrbitalEventRequest } from '@almadar/core';
+import type { EventRequest } from '@almadar/core';
 import { storesRowsInBrowser } from '@almadar/core';
 import type { EventTransport } from '../../client/EventTransport.js';
 import type { TraitIndex } from '@almadar/core';
@@ -22,7 +22,7 @@ export function createResidenceTransport(options: ResidenceTransportOptions): Ev
   const { local, remote, traitIndex } = options;
   const browserStored = new Set(traitIndex.allEntities.filter(storesRowsInBrowser).map((e) => e.name));
 
-  const route = (orbitalName: string, request: OrbitalEventRequest): EventTransport => {
+  const route = (orbitalName: string, request: EventRequest): EventTransport => {
     if (request.residence === 'browser') return local;
     if (request.residence === 'server') {
       if (remote === undefined) throw new Error(`residence: a ${orbitalName} ${request.event} leg needs server data, and this host has no server`);
