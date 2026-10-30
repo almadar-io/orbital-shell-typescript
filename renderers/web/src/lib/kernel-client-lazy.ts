@@ -21,6 +21,7 @@ export function createLazyKernelClient(opts: KernelClientOptions): KernelClient 
     deliverOriginEmit: (emitted) => client.then((c) => c.deliverOriginEmit(emitted)),
     dispatchMount: (seeds, hooks, base) => client.then((c) => c.dispatchMount(seeds, hooks, base)),
     routeMounts: (routePath) => client.then((c) => c.routeMounts(routePath)),
+    pageCircuit: (page, route) => client.then((c) => c.pageCircuit(page, route)),
     enter: (routePath, mountKey, traits) => client.then((c) => c.enter(routePath, mountKey, traits)),
     leave: () => client.then((c) => c.leave()),
     frame: (nowMs) => client.then((c) => c.frame(nowMs)),

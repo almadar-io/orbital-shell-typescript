@@ -28,14 +28,10 @@ import { VerificationProvider } from '../providers/VerificationProvider';
 import { UISlotProvider, useUISlots } from '../providers/UISlotContext';
 import { UISlotRenderer } from '../components/core/organisms/UISlotRenderer';
 import { useTranslate } from '../core';
-import type { OrbitalSchema, EntityData, ResolvedTraitBinding, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
-import { getPage, orbitalInlineEntities, storesRowsInBrowser, isHostSignInRoute, localeAlternates, notFoundPage } from '@almadar/core';
-import { useResolvedSchema } from '../hooks/useResolvedSchema';
+import type { OrbitalSchema, EntityData, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
+import { orbitalInlineEntities, storesRowsInBrowser, isHostSignInRoute, localeAlternates, notFoundPage } from '@almadar/core';
 import { matchPathAmong } from '../core';
-import { collectEmbeddedTraits, collectTraitRefsFromResolvedTrait } from '../lib/embedded-traits';
 import { useTraitStateMachine } from '../hooks/useTraitStateMachine';
-import { buildOrbitalsByTrait } from '../lib/orbitalsByTrait';
-import { buildTraitLinkedEntities } from '../runtime';
 import { EntitySchemaProvider } from '../providers/EntitySchemaContext';
 import { EntityBindingContext } from '../providers/EntityBindingContext';
 import { AwaitingSkeletonContext } from '../providers/AwaitingSkeletonContext';
@@ -116,13 +112,13 @@ function appPathFromHref(href: string, hostHrefBase: string): string | null {
  * its own `sendEvent`/mount-time dispatch resolves — this component only
  * decides WHICH transport (or none) the kernel dispatches through.
  */
-function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, metadata, stamp, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, embeddedTraits, hasBridge, children }: {
-  traits: ResolvedTraitBinding[];
+function TraitInitializer({ pageName, routeParams, mountKey, orbitals, metadata, stamp, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, hasBridge, children }: {
+  /** The page the kernel answers the circuit of; absent: the initial page. */
+  pageName?: string;
   /** Route params from a parameterized page path — merged into every INIT payload. */
   routeParams?: Record<string, string>;
   /** The mounted page's identity — keys the once-per-mount INIT guard. */
   mountKey?: string;
-  routePath?: string;
   /** The resolved schema's full orbital set — `useCircuitKernel`'s one input. */
   orbitals: readonly OrbitalDefinition[];
   /** The program's `_metadata`: a compiled client program's operator sites and dispatch facts ride it into the kernel. */
@@ -149,7 +145,6 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
    * the flush updates only the per-trait sidecar and skips the slot write —
    * the layout owns the slot and embeds via TraitFrame.
    */
-  embeddedTraits?: ReadonlySet<string>;
   /** True when OrbPreview was given a `serverUrl`/`transport` — gates
    *  whether this page dispatches through the bridge's transport. */
   hasBridge: boolean;
@@ -174,23 +169,35 @@ function TraitInitializer({ traits, routeParams, mountKey, routePath, orbitals, 
     return () => clearTimeout(timer);
   }, [hasBridge, bridge.connected, onLocalFallback, localFallbackTimeoutMs]);
 
-  const { entityBindingSource, awaitingSkeletonSource } = useTraitStateMachine(traits, uiSlots, {
+  const { entityBindingSource, awaitingSkeletonSource, circuit } = useTraitStateMachine(uiSlots, {
     orbitals,
+    ...(pageName !== undefined ? { page: pageName } : {}),
     ...(metadata !== undefined ? { metadata } : {}),
     ...(stamp !== undefined ? { stamp } : {}),
     ...(onNavigate !== undefined ? { navigate: onNavigate } : {}),
     ...(onNavigateBack !== undefined ? { navigateBack: onNavigateBack } : {}),
-    ...(embeddedTraits !== undefined ? { embeddedTraits } : {}),
     initPayload: routeParams,
     ...(mountKey !== undefined ? { mountKey } : {}),
-    ...(routePath !== undefined ? { routePath } : {}),
     ...(hasBridge ? { transport: bridge.transport, carriesCircuitState: bridge.carriesCircuitState, awaitTopology: !bridge.topologyKnown } : {}),
     ...(browserStore !== undefined ? { browserStore } : {}),
   });
 
+  const orbitalsByTrait = useMemo<ReadonlyMap<string, string>>(() => {
+    if (circuit.status !== 'ready') return new Map();
+    const map = new Map<string, string>();
+    for (const name of Object.keys(circuit.page.orbitalByTrait)) map.set(name, circuit.page.orbitalByTrait[name]);
+    xOrbitalLog.info('SchemaRunner:mount', { pageName, traitNames: [...map.keys()].join(','), embedded: circuit.page.embedded.join(',') });
+    return map;
+  }, [circuit, pageName]);
+
+  if (circuit.status === 'pending') return <LoadingState />;
+  if (circuit.status === 'failed') return <ErrorState data-testid="page-circuit-error" message={circuit.error.message} />;
+
   return (
     <EntityBindingContext.Provider value={entityBindingSource}>
-      <AwaitingSkeletonContext.Provider value={awaitingSkeletonSource}>{children}</AwaitingSkeletonContext.Provider>
+      <AwaitingSkeletonContext.Provider value={awaitingSkeletonSource}>
+        <EntitySchemaProvider orbitalsByTrait={orbitalsByTrait}>{children}</EntitySchemaProvider>
+      </AwaitingSkeletonContext.Provider>
     </EntityBindingContext.Provider>
   );
 }
@@ -301,150 +308,11 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   /** See OrbPreviewProps.themeOverride. */
   themeOverride?: string;
 }) {
-  const { traits, allEntities, allTraits, ir } = useResolvedSchema(schema, pageName);
-
-  // Gap #13: orbitals are bound to pages, so trait subscriptions must be
-  // route-scoped. Pre-fix, this branch collected traits from every page on
-  // initial load — so on standalone preview (where no `navigate` effect
-  // ever fires) ALL orbitals' traits mounted simultaneously. A bare CREATE
-  // dispatched on the Deals page reached ContactCreate too, opening the
-  // wrong modal (gap #13 evidence: runtime-verify and orbital-verify
-  // frames showed Contact modals on Deal walks).
-  //
-  // Fix: when no page is explicitly active, mount only the FIRST page's
-  // traits — a single orbital's worth, matching the compiled-shell
-  // route-mounted layout. Cross-orbital channels still flow via the
-  // qualified `UI:Orbital.Trait.EVENT` bus key (Phase 4 unification);
-  // orbital isolation is now enforced at both subscription and dispatch
-  // layers.
-  const allPageTraits = useMemo<ResolvedTraitBinding[]>(() => {
-    // Resolve the page's directly-composed trait bindings.
-    let base: ResolvedTraitBinding[];
-    if (pageName && traits.length > 0) {
-      base = traits;
-    } else if (!ir?.pages || ir.pages.size <= 1) {
-      // Single-page schemas: the resolved traits are already the right set.
-      base = traits;
-    } else {
-      // Initial load with multiple pages: pick the initial page's traits.
-      const firstPage = getPage(ir);
-      if (!firstPage) {
-        base = traits;
-      } else {
-        const firstPageTraits: ResolvedTraitBinding[] = [];
-        const seen = new Set<string>();
-        for (const binding of firstPage.traits) {
-          const name = binding.trait.name;
-          if (name && !seen.has(name)) {
-            seen.add(name);
-            firstPageTraits.push(binding);
-          }
-        }
-        base = firstPageTraits.length > 0 ? firstPageTraits : traits;
-      }
-    }
-    // Append embed-routed `@trait.X` siblings (e.g. a calendar pulled into the
-    // orbital by the compiler's sibling-pull and rendered via `@trait` inside a
-    // page trait). They are NOT page bindings, so without this they'd never get
-    // a state machine — their own fetch-success (e.g. CalendarEventLoaded) would
-    // fire with no subscriber and the trait would stick in `loading`. Look each
-    // referenced sibling up in the full resolved-trait map and bind it (rebound
-    // to its resolved linkedEntity), recursively, deduped.
-    const byName = new Set(base.map((b) => b.trait.name));
-    const extra: ResolvedTraitBinding[] = [];
-    const queue = [...base];
-    while (queue.length > 0) {
-      const binding = queue.shift();
-      if (!binding) continue;
-      for (const refName of collectTraitRefsFromResolvedTrait(binding.trait)) {
-        if (byName.has(refName)) continue;
-        const rt = allTraits.get(refName);
-        if (!rt) continue;
-        byName.add(refName);
-        const sibling: ResolvedTraitBinding = { trait: rt, linkedEntity: rt.linkedEntity };
-        extra.push(sibling);
-        queue.push(sibling);
-      }
-    }
-    return extra.length > 0 ? [...base, ...extra] : base;
-  }, [ir, traits, pageName, allTraits]);
-
   // Gap #13: trait-name → owning-orbital-name map. Built from
   // `schema.orbitals[].traits[]` so `useTraitStateMachine` can construct
   // the qualified `UI:Orbital.Trait.EVENT` bus key at both subscribe and
   // emit sites — same scope shape the compiled codegen produces.
   const stamp = useMemo(() => programStamp(schema), [schema]);
-  const orbitalsByTrait = useMemo<Record<string, string>>(
-    () =>
-      buildOrbitalsByTrait(
-        schema,
-        ir
-          ? Array.from(ir.pages.values()).map((p) => ({
-              path: p.path,
-              traitNames: p.traits.map((b) => b.trait.name),
-            }))
-          : [],
-      ),
-    [schema, ir],
-  );
-
-  const mountRoute = useMemo<string | undefined>(() => {
-    return ir ? getPage(ir, pageName)?.path : undefined;
-  }, [ir, pageName]);
-
-  // Per-trait linkedEntity map for EntitySchemaProvider — page bindings plus embedded traits (G-UI-086).
-  const traitLinkedEntitiesMap = useMemo<ReadonlyMap<string, string>>(
-    () => (ir ? buildTraitLinkedEntities(ir) : new Map<string, string>()),
-    [ir],
-  );
-
-  // `orbitalsByTrait` shaped as a `ReadonlyMap` for EntitySchemaProvider.
-  // Same source of truth as the Record above (`orbitalsByTrait`), just
-  // the Map shape the provider's context expects. Memoized against the
-  // Record so it only rebuilds when the schema changes.
-  const orbitalsByTraitMap = useMemo<ReadonlyMap<string, string>>(
-    () => new Map(Object.entries(orbitalsByTrait)),
-    [orbitalsByTrait],
-  );
-
-  // Stable array of resolved entities for EntitySchemaProvider. Without
-  // memoization the inline `Array.from(...)` allocation produces a new
-  // array reference per render, busting downstream `useMemo` deps.
-  const entitiesArray = useMemo(() => Array.from(allEntities.values()), [allEntities]);
-
-  // Gap #11: orbitals whose traits are mounted on the active page. The
-  // server-bridge fan-out (both user-event and INIT) restricts to this
-  // subset so off-page orbitals don't initialize server-side and leak
-  // their `(render-ui main {...})` patterns into the active page's slot.
-  // Cross-orbital `listens` still fire because the server has every
-  // orbital registered; this only narrows the client's dispatch breadth.
-  const pageOrbitalNames = useMemo<string[]>(() => {
-    const set = new Set<string>();
-    for (const binding of allPageTraits) {
-      const orb = orbitalsByTrait[binding.trait.name];
-      if (orb) set.add(orb);
-    }
-    return Array.from(set);
-  }, [allPageTraits, orbitalsByTrait]);
-
-  // Gap #11: emit allPageTraits at mount/page-change so runtime-verify's
-  // console capture shows which traits the runtime path believes belong on
-  // the active page. Compare against the .lolo `page "X" -> ...` declaration
-  // and against compiled codegen to detect under-mount or over-mount.
-  useEffect(() => {
-    const traitNames = allPageTraits.map((b) => b.trait.name);
-    const orbitalsByTraitForPage: Record<string, string> = {};
-    for (const name of traitNames) {
-      const orb = orbitalsByTrait[name];
-      if (orb) orbitalsByTraitForPage[name] = orb;
-    }
-    xOrbitalLog.info('SchemaRunner:mount', {
-      pageName,
-      traitNames: traitNames.join(','),
-      orbitalsByTraitForPage,
-      pageOrbitalNames: pageOrbitalNames.join(','),
-    });
-  }, [pageName, allPageTraits, orbitalsByTrait, pageOrbitalNames]);
 
   // V2 Phase 6: EntityStore is gone. Standalone-preview (no serverUrl) with
   // `mockData` no longer hydrates a shared store; mock data now flows through
@@ -453,22 +321,6 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   // `@payload.data` on the success emit. See Almadar_Entity_V2_Plan.md §13
   // for the deferred standalone-preview mock-data wiring.
   void mockData;
-
-  // Embed-aware slot routing: walk the resolved schema once, collect
-  // every trait name referenced via `@trait.X` by some sibling layout's
-  // render-ui. `applyServerEffects` uses this to route those traits'
-  // render outputs to per-trait sidecars instead of the global slot.
-  // Mirrors compiled-path codegen which inlines atom views as JSX
-  // inside the layout's pattern rather than writing a shared slot.
-  const embeddedTraits = useMemo(() => {
-    const set = collectEmbeddedTraits(schema);
-    xOrbitalLog.info('SchemaRunner:embeddedTraits', {
-      pageName,
-      embedded: Array.from(set),
-      embeddedCount: set.size,
-    });
-    return set;
-  }, [schema, pageName]);
 
   const activeOrbitalTheme = useMemo(() => resolvePreviewTheme(schema, pageName), [schema, pageName]);
   const { locale } = useTranslate();
@@ -498,21 +350,14 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
 
   const circuit = (
     <VerificationProvider enabled>
-      <EntitySchemaProvider
-        entities={entitiesArray}
-        traitLinkedEntities={traitLinkedEntitiesMap}
-        orbitalsByTrait={orbitalsByTraitMap}
-      >
-        <TraitInitializer
-          traits={allPageTraits}
+              <TraitInitializer
+          pageName={pageName}
           routeParams={routeParams}
           mountKey={pageName}
-          {...(mountRoute !== undefined ? { routePath: mountRoute } : {})}
           orbitals={schema.orbitals}
           {...(schema._metadata !== undefined ? { metadata: schema._metadata } : {})}
           stamp={stamp}
           hasBridge={Boolean(serverUrl || transport)}
-          embeddedTraits={embeddedTraits}
           onNavigate={onNavigate}
           onNavigateBack={onNavigateBack}
           onLocalFallback={onLocalFallback}
@@ -545,7 +390,6 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
           </Box>
         </OrbitalThemeProvider>
         </TraitInitializer>
-      </EntitySchemaProvider>
     </VerificationProvider>
   );
 

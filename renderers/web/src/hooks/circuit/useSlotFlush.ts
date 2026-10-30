@@ -143,8 +143,8 @@ export function useSlotFlush(
     onNavigate?: (path: string, params?: Record<string, string>, crumb?: string) => void,
     onNavigateBack?: () => void,
     /**
-     * Traits mounted on THIS page (`useCircuitKernel`'s restricted
-     * `TraitIndex`). `applyOrbitalEventResponse`'s fold returns
+     * Traits mounted on THIS page (`useCircuitKernel`'s page circuit,
+     * the kernel's answer). `applyOrbitalEventResponse`'s fold returns
      * `clientEffectsByTrait` verbatim off the server's
      * response with no page filter of its own (a REAL multi-page stateful
      * server initializes every trait it holds, not just this page's) — this

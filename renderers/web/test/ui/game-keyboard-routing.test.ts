@@ -23,9 +23,9 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
-import { createEmptyResolvedTrait } from '@almadar/core';
+import type { OrbitalId, OrbitalSchema, Trait } from '@almadar/core';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
+import { machineReady } from '../../src/test-support/circuit';
 import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
@@ -75,12 +75,6 @@ function withListen(orbitals: OrbitalSchema['orbitals']): OrbitalSchema['orbital
   return orbitals;
 }
 
-function binding(name: string, transitions: unknown[]): ResolvedTraitBinding {
-  const trait = createEmptyResolvedTrait(name, 'schema');
-  trait.transitions = transitions as ResolvedTraitBinding['trait']['transitions'];
-  return { trait, linkedEntity: 'Snake' };
-}
-
 function stubSlots(): UISlotManager {
   return {
     slots: {},
@@ -102,24 +96,15 @@ describe('game keyboard input — qualified key fans reach the domain trait', ()
   it('a key event fanned from the embedded canvas scope steers SnakeMechanic', async () => {
     const slots = stubSlots();
     const orbitals = withListen(snakeOrbitals());
-    const bindings = [
-      binding('SnakePlay', [
-        { from: 'playing', to: 'playing', event: 'UP', effects: [['emit', 'TURN', { dir: 'up' }]] },
-      ]),
-      binding('SnakeMechanic', [
-        { from: 'playing', to: 'playing', event: 'STEER', effects: [['set', '@entity.dir', '@payload.dir']] },
-      ]),
-      binding('SnakeCanvas', []),
-    ];
-
     let bus!: ReturnType<typeof useEventBus>;
     const { result } = renderHook(() => {
       bus = useEventBus();
-      return useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals, routePath: '/' });
+      return useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals, routePath: '/' });
     });
 
     // The exact keys `useEventBus`'s R-EMBEDDED-EMIT-BUBBLE fan-out
     // produces for a KeyW keydown inside SnakeCanvas's TraitFrame.
+    await machineReady(result);
     await act(async () => {
       bus.emit('UI:SnakeOrbital.SnakeCanvas.UP', {});
       bus.emit('UI:SnakeOrbital.SnakePlay.UP', {});
@@ -133,25 +118,17 @@ describe('game keyboard input — qualified key fans reach the domain trait', ()
   it('the mechanic steers exactly once per key press (no double-fire)', async () => {
     const slots = stubSlots();
     const orbitals = withListen(snakeOrbitals());
-    const bindings = [
-      binding('SnakePlay', [
-        { from: 'playing', to: 'playing', event: 'UP', effects: [['emit', 'TURN', { dir: 'up' }]] },
-      ]),
-      binding('SnakeMechanic', [
-        { from: 'playing', to: 'playing', event: 'STEER', effects: [['set', '@entity.dir', '@payload.dir']] },
-      ]),
-    ];
-
     let bus!: ReturnType<typeof useEventBus>;
     const { result } = renderHook(() => {
       bus = useEventBus();
-      return useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals, routePath: '/' });
+      return useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals, routePath: '/' });
     });
 
     // The real fan emits the SAME semantic event on BOTH the embedded scope
     // and the composer's scope; ingress must settle each trait's dispatch
     // once (the SnakePlay.UP subscription fires once — SnakeCanvas.UP has no
     // subscriber) and the mechanic's arm must apply exactly one steering set.
+    await machineReady(result);
     await act(async () => {
       bus.emit('UI:SnakeOrbital.SnakeCanvas.UP', {});
       bus.emit('UI:SnakeOrbital.SnakePlay.UP', {});

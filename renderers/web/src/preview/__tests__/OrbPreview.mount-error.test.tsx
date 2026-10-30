@@ -6,11 +6,11 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { TRAIT_MOUNT_ERROR_TESTID, type OrbitalSchema } from '@almadar/core';
+import { TRAIT_MOUNT_ERROR_TESTID, type OrbitalSchema, type Trait } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
 import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
-const footer = {
+const footer: Trait = {
   name: 'Footer', linkedEntity: 'Item',
   stateMachine: {
     states: [{ name: 'idle', isInitial: true }], events: [],
@@ -19,7 +19,7 @@ const footer = {
 };
 
 function schemaWith(items: string | string[]): OrbitalSchema {
-  return JSON.parse(JSON.stringify({
+  return {
     typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: 'nav-app',
     version: '1.0.0',
@@ -40,7 +40,7 @@ function schemaWith(items: string | string[]): OrbitalSchema {
       }, footer],
       pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Footer' }, { ref: 'Layout' }] }],
     }],
-  }));
+  };
 }
 
 describe('OrbPreview — a trait that fails to start', () => {

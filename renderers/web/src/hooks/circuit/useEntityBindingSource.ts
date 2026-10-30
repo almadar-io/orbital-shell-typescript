@@ -5,8 +5,8 @@
  * `CircuitStore` frames, subscribed via `useSyncExternalStore(store.subscribe,
  * store.getVersion)`. Replaces the old hook's dual-track
  * `bindingSnapshotsRef`/`sharedEntityStore` split entirely: `frames` is
- * already keyed by `IndexedTrait.frameKey` (`$shared::<entity>` for a
- * `[shared]` entity, the trait's own name otherwise — `trait-index.ts`), so
+ * already keyed by `TraitSurface.frameKey` (`$shared::<entity>` for a
+ * `[shared]` entity, the trait's own name otherwise — the kernel's answer), so
  * a shared entity's traits already read/write the SAME frame with no
  * separate store. `@config` is the kernel's own resolved config (`traitConfig`).
  *
@@ -14,7 +14,7 @@
  */
 import { useMemo, useSyncExternalStore } from 'react';
 import type { EntityRow } from '@almadar/core';
-import type { TraitIndex } from '@almadar/core';
+import type { CircuitSurface } from '../../lib/circuit-surface';
 import type { CircuitStore } from '../../index';
 import type { EntityBindingSource } from '../../providers/EntityBindingContext';
 import type { KernelClient } from '../../lib/kernel-client';
@@ -23,7 +23,7 @@ const EMPTY_ENTITY: EntityRow = {};
 
 export function useEntityBindingSource(
   store: CircuitStore,
-  traitIndex: TraitIndex,
+  traitIndex: CircuitSurface,
   /** The kernel engine's client: its trait states are the source of `@state`; rows arrive through the store it mirrors into. */
   kernel?: Pick<KernelClient, 'traitState' | 'traitConfig'>,
 ): EntityBindingSource {

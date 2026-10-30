@@ -32,8 +32,6 @@ import {
     getTraitName,
     normalizeTraitRef,
 
-    // Resolver
-    schemaToIR,
 } from '../index';
 
 // ============================================================================
@@ -480,21 +478,6 @@ describe('ProtocolSpecSchema', () => {
 });
 
 
-
-// ============================================================================
-// Schema resolver
-// ============================================================================
-
-describe('schemaToIR', () => {
-    it('resolves a minimal schema to IR', () => {
-        const schema = parseOrbitalSchema({
-            name: 'test-app',
-            orbitals: [VALID_ORBITAL],
-        });
-        const ir = schemaToIR(schema);
-        expect(ir).toBeDefined();
-    });
-});
 
 // ============================================================================
 // Phase 3.5.G.F.4 — Reference type refines and ServiceRefObject guard

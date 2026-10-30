@@ -63,5 +63,5 @@ export async function answerHostAsk(op: string, args: readonly JsonValue[], comp
     log.error('host-ask has no dispatch to return its answer to', { op, trait: returned.trait, event: returned.event });
     return;
   }
-  await dispatch(returned.trait, returned.event, returned.entity !== undefined ? { ...returned.payload, entityId: returned.entity } : returned.payload);
+  await dispatch(returned.trait, returned.event, returned.entityId !== undefined ? { ...returned.payload, entityId: returned.entityId } : returned.payload);
 }

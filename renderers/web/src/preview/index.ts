@@ -9,7 +9,6 @@
 
 // Core runtime hooks
 export { useTraitStateMachine, type UseTraitStateMachineOptions, type TraitStateMachineResult } from '../hooks/useTraitStateMachine';
-export { useResolvedSchema, type ResolvedSchemaResult } from '../hooks/useResolvedSchema';
 
 // Context providers
 export {
@@ -19,16 +18,6 @@ export {
     type EntitySchemaContextValue,
     type EntitySchemaProviderProps,
 } from '../providers/EntitySchemaContext';
-
-export {
-    TraitProvider,
-    TraitContext,
-    useTraitContext,
-    useTrait,
-    type TraitContextValue,
-    type TraitInstance,
-    type TraitProviderProps,
-} from '../providers/TraitProvider';
 
 // Slot pattern types — the runtime now writes directly to `useUISlots`
 // (re-exported from `../context/UISlotContext`); the previous
@@ -75,15 +64,6 @@ export {
 
 // ServerBridge — client-server bridge for dual execution
 export { ServerBridgeProvider, useServerBridge, type ServerBridgeContextValue, type ServerBridgeTransport, type AccessTokenProvider } from '../providers/ServerBridge';
-
-// Types
-export type {
-    ResolvedTraitBinding,
-    ResolvedTrait,
-    ResolvedEntity,
-    ResolvedPage,
-    ResolvedIR,
-} from '../types/runtime-types';
 
 // Perf instrumentation (workstream 2 of Almadar_Studio_Performance.md).
 // Gated behind createLogger('almadar:perf:canvas'); production strips the work.

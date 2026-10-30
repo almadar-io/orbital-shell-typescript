@@ -7,8 +7,7 @@ import {
   decodeServerProgressWire,
 } from '@almadar/core/kernel-wire';
 import type { JsonValue } from '@almadar/core';
-import type { FiredTick } from '@almadar/core/kernel-wire';
-import type { NextWire, ResolveProgressWire, ServerProgressWire } from './wire.js';
+import type { FiredByOrbital, NextWire, ResolveProgressWire, ServerProgressWire } from './wire.js';
 
 export { decodeIoRequestWire as decodeRequest };
 
@@ -25,8 +24,13 @@ export function decodeResolveProgress(json: string): ResolveProgressWire {
   return decodeResolveProgressWire(JSON.parse(json));
 }
 
-export function decodeDueTicks(json: string): FiredTick[] {
+export function decodeDueTicks(json: string): FiredByOrbital {
   const value: JsonValue = JSON.parse(json);
-  if (!Array.isArray(value)) throw new Error('tickPass: the kernel answered a non-list');
-  return value.map(decodeFiredTick);
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error('tickPass: the kernel answered a non-object');
+  const byOrbital: FiredByOrbital = {};
+  for (const [orbital, ticks] of Object.entries(value)) {
+    if (!Array.isArray(ticks)) throw new Error(`tickPass: the kernel answered a non-list for orbital ${orbital}`);
+    byOrbital[orbital] = ticks.map(decodeFiredTick);
+  }
+  return byOrbital;
 }

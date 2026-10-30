@@ -4,12 +4,12 @@
 // the same settle a bus-entered dispatch gets.
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { machineReady } from '../../src/test-support/circuit';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { EventTransport, EventTransportRegisterResult, HostDispatchListener, PushTarget } from '../../src';
 import type { EventRequest, EventResponse } from '@almadar/core';
-import type { ClientEffectTuple, EmittedEvent, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
-import { createEmptyResolvedTrait } from '@almadar/core';
+import type { ClientEffectTuple, EmittedEvent, OrbitalId, OrbitalSchema, Trait } from '@almadar/core';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const chat: Trait = {
@@ -28,7 +28,7 @@ const chat: Trait = {
 const orbitals: OrbitalSchema['orbitals'] = [{
   name: 'ChatOrbital',
   id: 'orb_chat' as OrbitalId,
-  pages: [],
+  pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Chat' }] }],
   entity: { name: 'Turn', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
   traits: [chat],
 }];
@@ -68,9 +68,8 @@ const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)
 async function pushed(event: string, target: PushTarget) {
   const slots = stubSlots();
   const server = new PushingServer();
-  const binding: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('Chat', 'schema'), linkedEntity: 'Turn' };
-  renderHook(() => useTraitStateMachine([binding], slots, { stamp: TEST_STAMP, orbitals, transport: server }));
-  await settle();
+  const { result } = renderHook(() => useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals, transport: server, routePath: '/' }));
+  await machineReady(result);
   slots.render.mockClear();
   server.push?.({ event, payload: { text: 'reading Task' }, source: { orbital: 'ChatOrbital', trait: 'Loop' } }, target);
   await settle();
@@ -111,7 +110,7 @@ const creator: Trait = {
 const creatorOrbitals: OrbitalSchema['orbitals'] = [{
   name: 'StartOrbital',
   id: 'orb_start' as OrbitalId,
-  pages: [],
+  pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Creator' }] }],
   entity: { name: 'Turn', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
   traits: [creator],
 }];
@@ -119,9 +118,8 @@ const creatorOrbitals: OrbitalSchema['orbitals'] = [{
 async function pushedToCaller(target: PushTarget, sourceTrait: string) {
   const slots = stubSlots();
   const server = new PushingServer();
-  const binding: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('Creator', 'schema'), linkedEntity: 'Turn' };
-  renderHook(() => useTraitStateMachine([binding], slots, { stamp: TEST_STAMP, orbitals: creatorOrbitals, transport: server }));
-  await settle();
+  const { result } = renderHook(() => useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals: creatorOrbitals, transport: server, routePath: '/' }));
+  await machineReady(result);
   slots.render.mockClear();
   server.push?.({ event: 'GOAL_PROGRESS', payload: { text: 'Rust' }, source: { orbital: 'StartOrbital', trait: sourceTrait } }, target);
   await settle();
@@ -153,10 +151,9 @@ const selfHearing: Trait = {
 async function pushedToSelfHearing(target: PushTarget) {
   const slots = stubSlots();
   const server = new PushingServer();
-  const binding: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('Creator', 'schema'), linkedEntity: 'Turn' };
   const orbitals: OrbitalSchema['orbitals'] = [{ ...creatorOrbitals[0], traits: [selfHearing] }];
-  renderHook(() => useTraitStateMachine([binding], slots, { stamp: TEST_STAMP, orbitals, transport: server }));
-  await settle();
+  const { result } = renderHook(() => useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals, transport: server, routePath: '/' }));
+  await machineReady(result);
   slots.render.mockClear();
   server.push?.({ event: 'GOAL_PROGRESS', payload: { text: 'Rust' }, source: { orbital: 'StartOrbital', trait: 'Creator' } }, target);
   await settle();
@@ -191,7 +188,7 @@ const builder: Trait = {
 const builderOrbitals: OrbitalSchema['orbitals'] = [{
   name: 'BuildOrbital',
   id: 'orb_build' as OrbitalId,
-  pages: [],
+  pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Builder' }] }],
   entity: { name: 'Turn', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
   traits: [builder],
 }];
@@ -210,9 +207,8 @@ describe('a host-run dispatch (a follow-on call\'s outcome)', () => {
   it('lands in the view: the trait repaints with the host\'s result, on the tab\'s own channel', async () => {
     const slots = stubSlots();
     const server = new DispatchingServer();
-    const binding: ResolvedTraitBinding = { trait: createEmptyResolvedTrait('Builder', 'schema'), linkedEntity: 'Turn' };
-    renderHook(() => useTraitStateMachine([binding], slots, { stamp: TEST_STAMP, orbitals: builderOrbitals, transport: server }));
-    await settle();
+      const { result } = renderHook(() => useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals: builderOrbitals, transport: server, routePath: '/' }));
+    await machineReady(result);
     slots.render.mockClear();
     expect(typeof server.dispatchParams?.clientId).toBe('string');
     const effect: ClientEffectTuple = ['render-ui', 'main', { type: 'typography', content: 'Built' }];

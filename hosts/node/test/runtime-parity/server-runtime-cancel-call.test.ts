@@ -48,7 +48,7 @@ async function runtimeWith(signals: Array<AbortSignal | undefined>, finishers: A
 }
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-describeWithMemoryKernel('OrbitalServerRuntime cancel-call', () => {
+describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, traitId, emits] OrbitalServerRuntime cancel-call', () => {
   it('a STOP dispatched mid-call aborts the call started by START, which routes to cancelled with { key }', async () => {
     const signals: Array<AbortSignal | undefined> = [];
     const runtime = await runtimeWith(signals, []);

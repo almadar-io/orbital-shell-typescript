@@ -39,7 +39,7 @@ import { decodeEventRequest, decodeEventResponse, type EventRequest, type EventR
 import { type ServerEffectResult, ServerEffectResultSchema } from '../src/types/effect-result.js';
 import { SERVER_REPORTED_EFFECTS } from '../src/types/effect.js';
 import { type SSEStreamItem, type EventWireFixture, EVENT_WIRE_FIXTURE_CASES, SSEStreamItemSchema } from '../src/fixtures.js';
-import type { JsonObject, JsonValue } from '../src/types/json.js';
+import { toPayloadValue, type JsonObject, type JsonValue } from '../src/types/json.js';
 
 
 const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -381,10 +381,9 @@ function sortKeysDeep(value: JsonValue): JsonValue {
   return value;
 }
 
-// The file content IS the JSON serialization, so re-parsing the stringified
-// value types it as `JsonValue` exactly — no cast.
+// The file content IS the value's JSON form, typed as `JsonValue` exactly — no cast.
 function writeJson(path: string, value: object): void {
-  const json: JsonValue = JSON.parse(JSON.stringify(value));
+  const json: JsonValue = toPayloadValue(value);
   writeFileSync(path, `${JSON.stringify(sortKeysDeep(json), null, 2)}\n`, 'utf8');
 }
 

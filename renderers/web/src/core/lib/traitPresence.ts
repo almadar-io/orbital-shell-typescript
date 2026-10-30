@@ -8,7 +8,7 @@
  * in a layout-neutral `display: contents` element only while some tick runner
  * watches that trait, so programs without `[visible]` ticks render unchanged.
  */
-import type { TraitIndex } from '@almadar/core';
+import type { TraitSurface } from '@almadar/core/kernel-wire';
 
 export type TraitPresenceState = 'absent' | 'on-screen' | 'off-screen';
 
@@ -118,8 +118,8 @@ export function getTraitPresence(): TraitPresence {
 }
 
 /** The traits whose output decides `traitName`'s presence: itself, or every trait sharing its `[shared]` entity's frame (LOLO §11). */
-export function presenceGroup(traitIndex: TraitIndex, traitName: string): string[] {
+export function presenceGroup(traitIndex: { byName: ReadonlyMap<string, Pick<TraitSurface, 'shared' | 'frameKey'>> }, traitName: string): string[] {
   const entry = traitIndex.byName.get(traitName);
-  if (entry === undefined || !entry.isSharedEntity) return [traitName];
+  if (entry === undefined || !entry.shared) return [traitName];
   return [...traitIndex.byName].filter(([, e]) => e.frameKey === entry.frameKey).map(([name]) => name);
 }

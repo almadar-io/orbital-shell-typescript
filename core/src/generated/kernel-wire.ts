@@ -260,11 +260,7 @@ cascadeTruncated?: Array<string>,
  */
 transitions?: Array<TransitionHop>, error?: string, };
 
-export type FiredTick = { 
-/**
- * The orbital that declares the tick: the one the `runTick` request is addressed to.
- */
-orbital: string, trait: string, tick: string, };
+export type FiredTick = { trait: string, tick: string, };
 
 export type FoldProgressWire = { "status": "applied", fold: AppliedWire, } | { "status": "queued", ticket: number, };
 
@@ -289,7 +285,11 @@ foldSeeded: Array<string>, };
 
 export type FrameOp = ["put", string, EntityRow] | ["set", { [key in string]: EntityRow }] | ["del", string] | ["clear"]
 
-export type FrameWire = { fired: Array<FiredTick>, response: EventResponse, dispatches: Array<FrameDispatch>, 
+export type FrameWire = { 
+/**
+ * The fired ticks under the orbital that declares them: the one a `runTick` request is addressed to.
+ */
+fired: { [key in string]: Array<FiredTick> }, response: EventResponse, dispatches: Array<FrameDispatch>, 
 /**
  * The `runTick` legs of fired ticks that write browser-stored data, for the host that owns the store.
  */
@@ -315,7 +315,7 @@ export type HopEffectStatus = "executed" | "failed" | "skipped";
 
 export type HopObservation = { payload: JsonValue, entityBefore: JsonValue, entityAfter: JsonValue, };
 
-export type HostAskCompletion = { trait: string, entity?: string, key?: string, success?: string, failure?: string, };
+export type HostAskCompletion = { trait: string, entityId?: string, key?: string, success?: string, failure?: string, };
 
 export type IndexRealization = "runtime" | "deploy" | "none";
 
@@ -413,6 +413,8 @@ export type OsGrantsReport = { findings: Array<OsGrantFinding>, };
 
 export type OsOp = "os/read-file" | "os/write-file" | "os/append-file" | "os/open" | "os/close" | "os/read" | "os/write" | "os/seek" | "os/truncate" | "os/fsync" | "os/copy" | "os/rename" | "os/remove" | "os/link" | "os/symlink" | "os/readlink" | "os/watch-files" | "os/mkdir" | "os/rmdir" | "os/list-dir" | "os/glob" | "os/mktemp" | "os/realpath" | "os/cwd" | "os/chdir" | "os/stat" | "os/lstat" | "os/access" | "os/exists" | "os/chmod" | "os/chown" | "os/utimes" | "os/spawn" | "os/wait" | "os/kill" | "os/pid" | "os/ppid" | "os/current-exe" | "os/watch-process" | "os/watch-signal" | "os/getenv" | "os/setenv" | "os/unsetenv" | "os/environ" | "os/watch-env" | "os/stdin-read" | "os/stdout-write" | "os/stderr-write" | "os/isatty" | "os/tty-size" | "os/tcp-connect" | "os/tcp-listen" | "os/tls-upgrade" | "os/send" | "os/recv" | "os/udp-bind" | "os/sendto" | "os/recvfrom" | "os/dns-resolve" | "os/shutdown" | "os/watch-port" | "os/fetch" | "os/clock-monotonic" | "os/uid" | "os/gid" | "os/username" | "os/group-of" | "os/watch-cron" | "os/cpu-usage" | "os/memory-info" | "os/uptime" | "os/load-avg" | "os/hostname" | "os/uname" | "os/disk-usage" | "os/mounts" | "os/disk-io" | "os/network-interfaces" | "os/network-stats" | "os/network-connected" | "os/default-gateway" | "os/battery-status" | "os/ac-power" | "os/thermal-zones" | "os/notify" | "os/speak" | "os/brightness-get" | "os/brightness-set" | "os/volume-get" | "os/volume-set" | "os/volume-mute" | "os/suspend" | "os/hibernate" | "os/mmio-read" | "os/mmio-write" | "os/irq-wait" | "os/irq-ack" | "kv/get" | "kv/put" | "kv/delete" | "kv/scan" | "kv/batch";
 
+export type PageCircuit = { route?: string, page?: string, notFound: boolean, mounts: Array<MountSeed>, embedded: Array<string>, embeddedBy: Array<string>, orbitalByTrait: { [key in string]: string }, linkedEntityByTrait: { [key in string]: string }, };
+
 export type PageFactFieldWire = "hostname" | "referrer" | "screenWidth" | "href";
 
 export type PageFactsWire = { available: boolean, hostname: string, referrer: string, screenWidth: number | null, href: string, };
@@ -449,6 +451,8 @@ export type PlayedGuard = {
  */
 arm: number, guard: JsonValue, passed: boolean, trace: Array<EvalStepWire>, error?: string, };
 
+export type PlayedOutcome = { orbital: string, trait: string, event: string, from: string, to: string, arm?: number, fired: boolean, effects: Array<PlayedEffect>, emitted: Array<PlayedEmit>, };
+
 export type PlayedResult = { trait: string, event: string, 
 /**
  * A failed guard is never a transition, even for a self-loop.
@@ -465,11 +469,25 @@ ensures: Array<PlayedEnsures>,
 /**
  * The slots the played trait filled, walked by the kernel's render probe; present when `options.render` asked.
  */
-rendered?: Array<RenderedSlot>, };
+rendered?: Array<RenderedSlot>, 
+/**
+ * Why the requested trait's step failed, when it did.
+ */
+failure?: string, 
+/**
+ * The step's row after its effects.
+ */
+entityAfter: EventPayload | null, pendingAsks: Array<PendingAsk>, 
+/**
+ * Every trait the request's event moved, the requested one among them.
+ */
+outcomes: Array<PlayedOutcome>, };
 
 export type PlayedState = { before: string | null, after: string | null, };
 
-export type PlayedStep = { orbital: string, trait: string, from: string, event: string, payload: EventPayload, result: PlayedResult, };
+export type PlayedStep = { orbital: string, trait: string, from: string, event: string, payload: EventPayload, result: PlayedResult, entity?: { [key in string]: JsonValue }, config?: { [key in string]: JsonValue }, now?: number, settleMs?: number, viewer?: { [key in string]: JsonValue } | null, credentials?: { [key in string]: string }, };
+
+export type ProgramSurface = { traits: Array<TraitSurface>, browserEntities: Array<string>, };
 
 export type PropositionBindings = { entity: JsonValue, fromEntity: JsonValue, payload: JsonValue, };
 
@@ -650,7 +668,7 @@ export type StepGuard = { arm: number, guard: JsonValue, passed: boolean, error?
 
 export type StepOutcome = { trait: string, executed: boolean, previousState: string, newState: string, emits: Array<StepEmit>, firedArm: number | null, guards: Array<StepGuard>, effects: Array<PlayedEffect>, failure: string | null, orbital: string, event: string, ensures: Array<PlayedEnsures>, };
 
-export type StepRefusal = { success: false, error: string, };
+export type StepRefusal = { success: false, error: string, trait: string | null, outcomes: Array<StepOutcome>, };
 
 export type StepReport = { success: true, steps: Array<StepResult>, dispatchModes: { [key in string]: DispatchMode }, };
 
@@ -661,6 +679,16 @@ export type StoreListing = { enabled: boolean, entries: Array<StoredName>, };
 export type StoredName = { service: string, name: string, };
 
 export type SubstrateFailureWire = { message: string, errors: Array<JsonValue>, };
+
+export type SurfaceEmit = { event: string, eventId?: string, };
+
+export type SurfaceListen = { event: string, source?: SurfaceListenSource, };
+
+export type SurfaceListenSource = { orbital: string, trait: string, };
+
+export type SurfaceTick = { name: string, whileVisible: boolean, runsInBackground: boolean, };
+
+export type SurfaceTransition = { from: string, to: string, event: string, guard?: JsonValue, awaitRender?: JsonValue, };
 
 export type SysKind = "cpu" | "memory" | "disk" | "network" | "power-state" | "identity";
 
@@ -699,6 +727,8 @@ resolved: boolean,
 overlayOnly: boolean, };
 
 export type TraitSnapshot = { state: string, entity: JsonValue }
+
+export type TraitSurface = { name: string, orbital: string, orbitalId?: string, traitId?: string, entity?: string, shared: boolean, browser: boolean, frameKey: string, ticks: Array<SurfaceTick>, states: Array<string>, initial?: string, events: Array<string>, emits: Array<SurfaceEmit>, listens: Array<SurfaceListen>, transitions: Array<SurfaceTransition>, };
 
 export type TransitionHop = { trait: string, from: string, to: string, event: string, 
 /**
@@ -968,8 +998,24 @@ function checkEntered(v: JsonValue | undefined): boolean {
   return (isRecord(v) && (Array.isArray(v["seeds"]) && v["seeds"].every((e) => checkMountSeed(e))) && (Array.isArray(v["left"]) && v["left"].every((e) => checkLeft(e))));
 }
 
+function checkEntityBinding(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && checkEntityBindingKind(v["kind"]) && typeof v["entity"] === 'string' && typeof v["rows"] === 'number' && typeof v["readGated"] === 'boolean');
+}
+
+function checkEntityBindingKind(v: JsonValue | undefined): boolean {
+  return (v === "none" || v === "absent" || v === "malformed" || v === "inline" || v === "named" || v === "payload-unresolved" || v === "context-unresolved");
+}
+
 function checkEnvelope(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["id"] === 'string' && checkInstanceRef(v["from"]) && checkInstanceRef(v["to"]) && typeof v["event"] === 'string' && accepts((x, q) => any(x, q), v["payload"]) && typeof v["causalId"] === 'string' && typeof v["hop"] === 'number');
+}
+
+function checkEvalStepKind(v: JsonValue | undefined): boolean {
+  return (v === "enter" || v === "exit" || v === "iter" || v === "skip");
+}
+
+function checkEvalStepWire(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && checkEvalStepKind(v["kind"]) && (Array.isArray(v["path"]) && v["path"].every((e) => (typeof e === 'number' || typeof e === 'string'))) && (v["value"] === undefined || accepts((x, q) => any(x, q), v["value"])) && (v["error"] === undefined || typeof v["error"] === 'string'));
 }
 
 function checkEventRequest(v: JsonValue | undefined): boolean {
@@ -981,7 +1027,7 @@ function checkEventResponse(v: JsonValue | undefined): boolean {
 }
 
 function checkFiredTick(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["orbital"] === 'string' && typeof v["trait"] === 'string' && typeof v["tick"] === 'string');
+  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["tick"] === 'string');
 }
 
 function checkFoldProgressWire(v: JsonValue | undefined): boolean {
@@ -1005,11 +1051,15 @@ function checkFrameOp(v: JsonValue | undefined): boolean {
 }
 
 function checkFrameWire(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && (Array.isArray(v["fired"]) && v["fired"].every((e) => checkFiredTick(e))) && checkEventResponse(v["response"]) && (Array.isArray(v["dispatches"]) && v["dispatches"].every((e) => checkFrameDispatch(e))) && (Array.isArray(v["browserLegs"]) && v["browserLegs"].every((e) => checkRoutedLeg(e))) && typeof v["droppedServerEffects"] === 'number' && (Array.isArray(v["errors"]) && v["errors"].every((e) => typeof e === 'string')));
+  return (isRecord(v) && (isRecord(v["fired"]) && Object.values(v["fired"]).every((e) => (Array.isArray(e) && e.every((e) => checkFiredTick(e))))) && checkEventResponse(v["response"]) && (Array.isArray(v["dispatches"]) && v["dispatches"].every((e) => checkFrameDispatch(e))) && (Array.isArray(v["browserLegs"]) && v["browserLegs"].every((e) => checkRoutedLeg(e))) && typeof v["droppedServerEffects"] === 'number' && (Array.isArray(v["errors"]) && v["errors"].every((e) => typeof e === 'string')));
 }
 
 function checkFramesResync(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["session"] === 'string' && typeof v["since"] === 'number');
+}
+
+function checkGuardVerdict(v: JsonValue | undefined): boolean {
+  return (v === "pass" || v === "fail" || v === "none");
 }
 
 function checkHopEffect(v: JsonValue | undefined): boolean {
@@ -1025,7 +1075,7 @@ function checkHopObservation(v: JsonValue | undefined): boolean {
 }
 
 function checkHostAskCompletion(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["trait"] === 'string' && (v["entity"] === undefined || typeof v["entity"] === 'string') && (v["key"] === undefined || typeof v["key"] === 'string') && (v["success"] === undefined || typeof v["success"] === 'string') && (v["failure"] === undefined || typeof v["failure"] === 'string'));
+  return (isRecord(v) && typeof v["trait"] === 'string' && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["key"] === undefined || typeof v["key"] === 'string') && (v["success"] === undefined || typeof v["success"] === 'string') && (v["failure"] === undefined || typeof v["failure"] === 'string'));
 }
 
 function checkInstanceRef(v: JsonValue | undefined): boolean {
@@ -1140,8 +1190,32 @@ function checkPlayedEffectStatus(v: JsonValue | undefined): boolean {
   return (v === "executed" || v === "failed" || v === "skipped");
 }
 
+function checkPlayedEmit(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["type"] === 'string' && (v["payload"] === undefined || accepts((x, q) => rec(x, q), v["payload"])) && typeof v["timestamp"] === 'number');
+}
+
 function checkPlayedEnsures(v: JsonValue | undefined): boolean {
   return (isRecord(v) && accepts((x, q) => any(x, q), v["proposition"]) && checkEnsuresVerdict(v["verdict"]) && (v["reason"] === undefined || typeof v["reason"] === 'string') && (v["counterexample"] === undefined || checkPropositionBindings(v["counterexample"])));
+}
+
+function checkPlayedGuard(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["arm"] === 'number' && accepts((x, q) => any(x, q), v["guard"]) && typeof v["passed"] === 'boolean' && (Array.isArray(v["trace"]) && v["trace"].every((e) => checkEvalStepWire(e))) && (v["error"] === undefined || typeof v["error"] === 'string'));
+}
+
+function checkPlayedOutcome(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["orbital"] === 'string' && typeof v["trait"] === 'string' && typeof v["event"] === 'string' && typeof v["from"] === 'string' && typeof v["to"] === 'string' && (v["arm"] === undefined || typeof v["arm"] === 'number') && typeof v["fired"] === 'boolean' && (Array.isArray(v["effects"]) && v["effects"].every((e) => checkPlayedEffect(e))) && (Array.isArray(v["emitted"]) && v["emitted"].every((e) => checkPlayedEmit(e))));
+}
+
+function checkPlayedResult(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["event"] === 'string' && typeof v["transitionFired"] === 'boolean' && checkGuardVerdict(v["guard"]) && (v["firedArm"] === undefined || typeof v["firedArm"] === 'number') && checkPlayedState(v["state"]) && (Array.isArray(v["effects"]) && v["effects"].every((e) => checkPlayedEffect(e))) && (Array.isArray(v["emitted"]) && v["emitted"].every((e) => checkPlayedEmit(e))) && (Array.isArray(v["guards"]) && v["guards"].every((e) => checkPlayedGuard(e))) && (Array.isArray(v["ensures"]) && v["ensures"].every((e) => checkPlayedEnsures(e))) && (v["rendered"] === undefined || (Array.isArray(v["rendered"]) && v["rendered"].every((e) => checkRenderedSlot(e)))) && (v["failure"] === undefined || typeof v["failure"] === 'string') && (accepts((x, q) => rec(x, q), v["entityAfter"]) || v["entityAfter"] === null) && (Array.isArray(v["pendingAsks"]) && v["pendingAsks"].every((e) => checkPendingAsk(e))) && (Array.isArray(v["outcomes"]) && v["outcomes"].every((e) => checkPlayedOutcome(e))));
+}
+
+function checkPlayedState(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && (typeof v["before"] === 'string' || v["before"] === null) && (typeof v["after"] === 'string' || v["after"] === null));
+}
+
+function checkPlayedStep(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["orbital"] === 'string' && typeof v["trait"] === 'string' && typeof v["from"] === 'string' && typeof v["event"] === 'string' && accepts((x, q) => rec(x, q), v["payload"]) && checkPlayedResult(v["result"]) && (v["entity"] === undefined || (isRecord(v["entity"]) && Object.values(v["entity"]).every((e) => accepts((x, q) => any(x, q), e)))) && (v["config"] === undefined || (isRecord(v["config"]) && Object.values(v["config"]).every((e) => accepts((x, q) => any(x, q), e)))) && (v["now"] === undefined || typeof v["now"] === 'number') && (v["settleMs"] === undefined || typeof v["settleMs"] === 'number') && (v["viewer"] === undefined || ((isRecord(v["viewer"]) && Object.values(v["viewer"]).every((e) => accepts((x, q) => any(x, q), e))) || v["viewer"] === null)) && (v["credentials"] === undefined || (isRecord(v["credentials"]) && Object.values(v["credentials"]).every((e) => typeof e === 'string'))));
 }
 
 function checkPropositionBindings(v: JsonValue | undefined): boolean {
@@ -1162,6 +1236,14 @@ function checkProveVerdict(v: JsonValue | undefined): boolean {
 
 function checkProvedProposition(v: JsonValue | undefined): boolean {
   return ((isRecord(v) && v["kind"] === "row" && typeof v["entity"] === 'string' && accepts((x, q) => any(x, q), v["expr"])) || (isRecord(v) && v["kind"] === "state" && typeof v["trait"] === 'string' && typeof v["state"] === 'string' && accepts((x, q) => any(x, q), v["expr"])) || (isRecord(v) && v["kind"] === "transition" && typeof v["trait"] === 'string' && typeof v["from"] === 'string' && typeof v["event"] === 'string' && typeof v["to"] === 'string' && accepts((x, q) => any(x, q), v["expr"])));
+}
+
+function checkRenderedNode(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["pattern"] === 'string' && typeof v["dynamic"] === 'boolean' && typeof v["supported"] === 'boolean' && typeof v["stub"] === 'boolean' && checkEntityBinding(v["binding"]) && (Array.isArray(v["traitRefs"]) && v["traitRefs"].every((e) => checkTraitRef(e))));
+}
+
+function checkRenderedSlot(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["slot"] === 'string' && typeof v["sourceTrait"] === 'string' && typeof v["ownerEntity"] === 'string' && (Array.isArray(v["nodes"]) && v["nodes"].every((e) => checkRenderedNode(e))));
 }
 
 function checkRepaintReason(v: JsonValue | undefined): boolean {
@@ -1301,7 +1383,7 @@ function checkStepOutcome(v: JsonValue | undefined): boolean {
 }
 
 function checkStepRefusal(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && v["success"] === false && typeof v["error"] === 'string');
+  return (isRecord(v) && v["success"] === false && typeof v["error"] === 'string' && (typeof v["trait"] === 'string' || v["trait"] === null) && (Array.isArray(v["outcomes"]) && v["outcomes"].every((e) => checkStepOutcome(e))));
 }
 
 function checkStepReport(v: JsonValue | undefined): boolean {
@@ -1366,6 +1448,10 @@ function checkTabStyle(v: JsonValue | undefined): boolean {
 
 function checkTraitFrom(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["from"] === 'string' && (v["event"] === undefined || typeof v["event"] === 'string'));
+}
+
+function checkTraitRef(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["name"] === 'string' && typeof v["resolved"] === 'boolean' && typeof v["overlayOnly"] === 'boolean');
 }
 
 function checkTraitSnapshot(v: JsonValue | undefined): boolean {
@@ -1484,8 +1570,24 @@ function buildEntered(v: JsonValue | undefined, p: string): Entered {
   return obj(v, p, null, (r0) => ({ "seeds": list(r0["seeds"], p + '.seeds', (e1, q1) => buildMountSeed(e1, q1)), "left": list(r0["left"], p + '.left', (e1, q1) => buildLeft(e1, q1)) }));
 }
 
+function buildEntityBinding(v: JsonValue | undefined, p: string): EntityBinding {
+  return obj(v, p, null, (r0) => ({ "kind": buildEntityBindingKind(r0["kind"], p + '.kind'), "entity": str(r0["entity"], p + '.entity'), "rows": int(r0["rows"], p + '.rows', 0, 4294967295, "u32"), "readGated": bool(r0["readGated"], p + '.readGated') }));
+}
+
+function buildEntityBindingKind(v: JsonValue | undefined, p: string): EntityBindingKind {
+  return oneOf(v, p, ["none", "absent", "malformed", "inline", "named", "payload-unresolved", "context-unresolved"]);
+}
+
 function buildEnvelope(v: JsonValue | undefined, p: string): Envelope {
   return obj(v, p, null, (r0) => ({ "id": str(r0["id"], p + '.id'), "from": buildInstanceRef(r0["from"], p + '.from'), "to": buildInstanceRef(r0["to"], p + '.to'), "event": str(r0["event"], p + '.event'), "payload": any(r0["payload"], p + '.payload'), "causalId": str(r0["causalId"], p + '.causalId'), "hop": int(r0["hop"], p + '.hop', 0, 4294967295, "u32") }));
+}
+
+function buildEvalStepKind(v: JsonValue | undefined, p: string): EvalStepKind {
+  return oneOf(v, p, ["enter", "exit", "iter", "skip"]);
+}
+
+function buildEvalStepWire(v: JsonValue | undefined, p: string): EvalStepWire {
+  return obj(v, p, null, (r0) => ({ "kind": buildEvalStepKind(r0["kind"], p + '.kind'), "path": list(r0["path"], p + '.path', (e1, q1) => (typeof e1 === 'number' ? num(e1, q1) : typeof e1 === 'string' ? str(e1, q1) : fail(miss(q1, "a number | a string")))), ...(r0["value"] === undefined || r0["value"] === null ? {} : { "value": any(r0["value"], p + '.value') }), ...(r0["error"] === undefined || r0["error"] === null ? {} : { "error": str(r0["error"], p + '.error') }) }));
 }
 
 function buildEventRequest(v: JsonValue | undefined, p: string): EventRequest {
@@ -1497,7 +1599,7 @@ function buildEventResponse(v: JsonValue | undefined, p: string): EventResponse 
 }
 
 function buildFiredTick(v: JsonValue | undefined, p: string): FiredTick {
-  return obj(v, p, null, (r0) => ({ "orbital": str(r0["orbital"], p + '.orbital'), "trait": str(r0["trait"], p + '.trait'), "tick": str(r0["tick"], p + '.tick') }));
+  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "tick": str(r0["tick"], p + '.tick') }));
 }
 
 function buildFoldProgressWire(v: JsonValue | undefined, p: string): FoldProgressWire {
@@ -1521,11 +1623,15 @@ function buildFrameOp(v: JsonValue | undefined, p: string): FrameOp {
 }
 
 function buildFrameWire(v: JsonValue | undefined, p: string): FrameWire {
-  return obj(v, p, null, (r0) => ({ "fired": list(r0["fired"], p + '.fired', (e1, q1) => buildFiredTick(e1, q1)), "response": buildEventResponse(r0["response"], p + '.response'), "dispatches": list(r0["dispatches"], p + '.dispatches', (e1, q1) => buildFrameDispatch(e1, q1)), "browserLegs": list(r0["browserLegs"], p + '.browserLegs', (e1, q1) => buildRoutedLeg(e1, q1)), "droppedServerEffects": int(r0["droppedServerEffects"], p + '.droppedServerEffects', 0, Number.MAX_SAFE_INTEGER, "usize"), "errors": list(r0["errors"], p + '.errors', (e1, q1) => str(e1, q1)) }));
+  return obj(v, p, null, (r0) => ({ "fired": dict(r0["fired"], p + '.fired', (e1, q1) => list(e1, q1, (e2, q2) => buildFiredTick(e2, q2))), "response": buildEventResponse(r0["response"], p + '.response'), "dispatches": list(r0["dispatches"], p + '.dispatches', (e1, q1) => buildFrameDispatch(e1, q1)), "browserLegs": list(r0["browserLegs"], p + '.browserLegs', (e1, q1) => buildRoutedLeg(e1, q1)), "droppedServerEffects": int(r0["droppedServerEffects"], p + '.droppedServerEffects', 0, Number.MAX_SAFE_INTEGER, "usize"), "errors": list(r0["errors"], p + '.errors', (e1, q1) => str(e1, q1)) }));
 }
 
 function buildFramesResync(v: JsonValue | undefined, p: string): FramesResync {
   return obj(v, p, null, (r0) => ({ "session": str(r0["session"], p + '.session'), "since": int(r0["since"], p + '.since', 0, Number.MAX_SAFE_INTEGER, "u64") }));
+}
+
+function buildGuardVerdict(v: JsonValue | undefined, p: string): GuardVerdict {
+  return oneOf(v, p, ["pass", "fail", "none"]);
 }
 
 function buildHopEffect(v: JsonValue | undefined, p: string): HopEffect {
@@ -1541,7 +1647,7 @@ function buildHopObservation(v: JsonValue | undefined, p: string): HopObservatio
 }
 
 function buildHostAskCompletion(v: JsonValue | undefined, p: string): HostAskCompletion {
-  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), ...(r0["entity"] === undefined || r0["entity"] === null ? {} : { "entity": str(r0["entity"], p + '.entity') }), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["success"] === undefined || r0["success"] === null ? {} : { "success": str(r0["success"], p + '.success') }), ...(r0["failure"] === undefined || r0["failure"] === null ? {} : { "failure": str(r0["failure"], p + '.failure') }) }));
+  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), ...(r0["entityId"] === undefined || r0["entityId"] === null ? {} : { "entityId": str(r0["entityId"], p + '.entityId') }), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["success"] === undefined || r0["success"] === null ? {} : { "success": str(r0["success"], p + '.success') }), ...(r0["failure"] === undefined || r0["failure"] === null ? {} : { "failure": str(r0["failure"], p + '.failure') }) }));
 }
 
 function buildInstanceRef(v: JsonValue | undefined, p: string): InstanceRef {
@@ -1656,8 +1762,32 @@ function buildPlayedEffectStatus(v: JsonValue | undefined, p: string): PlayedEff
   return oneOf(v, p, ["executed", "failed", "skipped"]);
 }
 
+function buildPlayedEmit(v: JsonValue | undefined, p: string): PlayedEmit {
+  return obj(v, p, null, (r0) => ({ "type": str(r0["type"], p + '.type'), ...(r0["payload"] === undefined || r0["payload"] === null ? {} : { "payload": rec(r0["payload"], p + '.payload') }), "timestamp": int(r0["timestamp"], p + '.timestamp', 0, Number.MAX_SAFE_INTEGER, "u64") }));
+}
+
 function buildPlayedEnsures(v: JsonValue | undefined, p: string): PlayedEnsures {
   return obj(v, p, null, (r0) => ({ "proposition": any(r0["proposition"], p + '.proposition'), "verdict": buildEnsuresVerdict(r0["verdict"], p + '.verdict'), ...(r0["reason"] === undefined || r0["reason"] === null ? {} : { "reason": str(r0["reason"], p + '.reason') }), ...(r0["counterexample"] === undefined || r0["counterexample"] === null ? {} : { "counterexample": buildPropositionBindings(r0["counterexample"], p + '.counterexample') }) }));
+}
+
+function buildPlayedGuard(v: JsonValue | undefined, p: string): PlayedGuard {
+  return obj(v, p, null, (r0) => ({ "arm": int(r0["arm"], p + '.arm', 0, 4294967295, "u32"), "guard": any(r0["guard"], p + '.guard'), "passed": bool(r0["passed"], p + '.passed'), "trace": list(r0["trace"], p + '.trace', (e1, q1) => buildEvalStepWire(e1, q1)), ...(r0["error"] === undefined || r0["error"] === null ? {} : { "error": str(r0["error"], p + '.error') }) }));
+}
+
+function buildPlayedOutcome(v: JsonValue | undefined, p: string): PlayedOutcome {
+  return obj(v, p, null, (r0) => ({ "orbital": str(r0["orbital"], p + '.orbital'), "trait": str(r0["trait"], p + '.trait'), "event": str(r0["event"], p + '.event'), "from": str(r0["from"], p + '.from'), "to": str(r0["to"], p + '.to'), ...(r0["arm"] === undefined || r0["arm"] === null ? {} : { "arm": int(r0["arm"], p + '.arm', 0, 4294967295, "u32") }), "fired": bool(r0["fired"], p + '.fired'), "effects": list(r0["effects"], p + '.effects', (e1, q1) => buildPlayedEffect(e1, q1)), "emitted": list(r0["emitted"], p + '.emitted', (e1, q1) => buildPlayedEmit(e1, q1)) }));
+}
+
+function buildPlayedResult(v: JsonValue | undefined, p: string): PlayedResult {
+  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "event": str(r0["event"], p + '.event'), "transitionFired": bool(r0["transitionFired"], p + '.transitionFired'), "guard": buildGuardVerdict(r0["guard"], p + '.guard'), ...(r0["firedArm"] === undefined || r0["firedArm"] === null ? {} : { "firedArm": int(r0["firedArm"], p + '.firedArm', 0, 4294967295, "u32") }), "state": buildPlayedState(r0["state"], p + '.state'), "effects": list(r0["effects"], p + '.effects', (e1, q1) => buildPlayedEffect(e1, q1)), "emitted": list(r0["emitted"], p + '.emitted', (e1, q1) => buildPlayedEmit(e1, q1)), "guards": list(r0["guards"], p + '.guards', (e1, q1) => buildPlayedGuard(e1, q1)), "ensures": list(r0["ensures"], p + '.ensures', (e1, q1) => buildPlayedEnsures(e1, q1)), ...(r0["rendered"] === undefined || r0["rendered"] === null ? {} : { "rendered": list(r0["rendered"], p + '.rendered', (e1, q1) => buildRenderedSlot(e1, q1)) }), ...(r0["failure"] === undefined || r0["failure"] === null ? {} : { "failure": str(r0["failure"], p + '.failure') }), "entityAfter": (r0["entityAfter"] === null ? null : rec(r0["entityAfter"], p + '.entityAfter')), "pendingAsks": list(r0["pendingAsks"], p + '.pendingAsks', (e1, q1) => buildPendingAsk(e1, q1)), "outcomes": list(r0["outcomes"], p + '.outcomes', (e1, q1) => buildPlayedOutcome(e1, q1)) }));
+}
+
+function buildPlayedState(v: JsonValue | undefined, p: string): PlayedState {
+  return obj(v, p, null, (r0) => ({ "before": r0["before"] === undefined ? null : (r0["before"] === null ? null : str(r0["before"], p + '.before')), "after": r0["after"] === undefined ? null : (r0["after"] === null ? null : str(r0["after"], p + '.after')) }));
+}
+
+function buildPlayedStep(v: JsonValue | undefined, p: string): PlayedStep {
+  return obj(v, p, null, (r0) => ({ "orbital": str(r0["orbital"], p + '.orbital'), "trait": str(r0["trait"], p + '.trait'), "from": str(r0["from"], p + '.from'), "event": str(r0["event"], p + '.event'), "payload": rec(r0["payload"], p + '.payload'), "result": buildPlayedResult(r0["result"], p + '.result'), ...(r0["entity"] === undefined || r0["entity"] === null ? {} : { "entity": dict(r0["entity"], p + '.entity', (e1, q1) => any(e1, q1)) }), ...(r0["config"] === undefined || r0["config"] === null ? {} : { "config": dict(r0["config"], p + '.config', (e1, q1) => any(e1, q1)) }), ...(r0["now"] === undefined || r0["now"] === null ? {} : { "now": num(r0["now"], p + '.now') }), ...(r0["settleMs"] === undefined || r0["settleMs"] === null ? {} : { "settleMs": num(r0["settleMs"], p + '.settleMs') }), ...(r0["viewer"] === undefined || r0["viewer"] === null ? {} : { "viewer": (r0["viewer"] === null ? null : dict(r0["viewer"], p + '.viewer', (e1, q1) => any(e1, q1))) }), ...(r0["credentials"] === undefined || r0["credentials"] === null ? {} : { "credentials": dict(r0["credentials"], p + '.credentials', (e1, q1) => str(e1, q1)) }) }));
 }
 
 function buildPropositionBindings(v: JsonValue | undefined, p: string): PropositionBindings {
@@ -1678,6 +1808,14 @@ function buildProveVerdict(v: JsonValue | undefined, p: string): ProveVerdict {
 
 function buildProvedProposition(v: JsonValue | undefined, p: string): ProvedProposition {
   return (rec(v, p)["kind"] === "row" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "row"), "entity": str(r0["entity"], p + '.entity'), "expr": any(r0["expr"], p + '.expr') })) : rec(v, p)["kind"] === "state" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "state"), "trait": str(r0["trait"], p + '.trait'), "state": str(r0["state"], p + '.state'), "expr": any(r0["expr"], p + '.expr') })) : rec(v, p)["kind"] === "transition" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "transition"), "trait": str(r0["trait"], p + '.trait'), "from": str(r0["from"], p + '.from'), "event": str(r0["event"], p + '.event'), "to": str(r0["to"], p + '.to'), "expr": any(r0["expr"], p + '.expr') })) : fail(unknownTag(p, "kind", rec(v, p)["kind"])));
+}
+
+function buildRenderedNode(v: JsonValue | undefined, p: string): RenderedNode {
+  return obj(v, p, null, (r0) => ({ "pattern": str(r0["pattern"], p + '.pattern'), "dynamic": bool(r0["dynamic"], p + '.dynamic'), "supported": bool(r0["supported"], p + '.supported'), "stub": bool(r0["stub"], p + '.stub'), "binding": buildEntityBinding(r0["binding"], p + '.binding'), "traitRefs": list(r0["traitRefs"], p + '.traitRefs', (e1, q1) => buildTraitRef(e1, q1)) }));
+}
+
+function buildRenderedSlot(v: JsonValue | undefined, p: string): RenderedSlot {
+  return obj(v, p, null, (r0) => ({ "slot": str(r0["slot"], p + '.slot'), "sourceTrait": str(r0["sourceTrait"], p + '.sourceTrait'), "ownerEntity": str(r0["ownerEntity"], p + '.ownerEntity'), "nodes": list(r0["nodes"], p + '.nodes', (e1, q1) => buildRenderedNode(e1, q1)) }));
 }
 
 function buildRepaintReason(v: JsonValue | undefined, p: string): RepaintReason {
@@ -1817,7 +1955,7 @@ function buildStepOutcome(v: JsonValue | undefined, p: string): StepOutcome {
 }
 
 function buildStepRefusal(v: JsonValue | undefined, p: string): StepRefusal {
-  return obj(v, p, null, (r0) => ({ "success": lit(r0["success"], p + '.success', false), "error": str(r0["error"], p + '.error') }));
+  return obj(v, p, null, (r0) => ({ "success": lit(r0["success"], p + '.success', false), "error": str(r0["error"], p + '.error'), "trait": r0["trait"] === undefined ? null : (r0["trait"] === null ? null : str(r0["trait"], p + '.trait')), "outcomes": list(r0["outcomes"], p + '.outcomes', (e1, q1) => buildStepOutcome(e1, q1)) }));
 }
 
 function buildStepReport(v: JsonValue | undefined, p: string): StepReport {
@@ -1882,6 +2020,10 @@ function buildTabStyle(v: JsonValue | undefined, p: string): TabStyle {
 
 function buildTraitFrom(v: JsonValue | undefined, p: string): TraitFrom {
   return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "from": str(r0["from"], p + '.from'), ...(r0["event"] === undefined || r0["event"] === null ? {} : { "event": str(r0["event"], p + '.event') }) }));
+}
+
+function buildTraitRef(v: JsonValue | undefined, p: string): TraitRef {
+  return obj(v, p, null, (r0) => ({ "name": str(r0["name"], p + '.name'), "resolved": bool(r0["resolved"], p + '.resolved'), "overlayOnly": bool(r0["overlayOnly"], p + '.overlayOnly') }));
 }
 
 function buildTraitSnapshot(v: JsonValue | undefined, p: string): TraitSnapshot {
@@ -2054,6 +2196,16 @@ export function isOsGrantsReport(value: JsonValue): value is JsonValue & OsGrant
 /** The `OsGrantsReport` the host received, as serde reads it: integers in range, defaults filled in, unknown fields dropped (or refused where the type denies them); a throw names the first path that is not one. */
 export function decodeOsGrantsReport(value: JsonValue): OsGrantsReport {
   return buildOsGrantsReport(value, 'OsGrantsReport');
+}
+
+/** The check of a kernel `PlayedStep` at the host boundary: every field, and every wire type nested in it. */
+export function isPlayedStep(value: JsonValue): value is JsonValue & PlayedStep {
+  return checkPlayedStep(value);
+}
+
+/** The `PlayedStep` the host received, as serde reads it: integers in range, defaults filled in, unknown fields dropped (or refused where the type denies them); a throw names the first path that is not one. */
+export function decodePlayedStep(value: JsonValue): PlayedStep {
+  return buildPlayedStep(value, 'PlayedStep');
 }
 
 /** The check of a kernel `ProveReport` at the host boundary: every field, and every wire type nested in it. */

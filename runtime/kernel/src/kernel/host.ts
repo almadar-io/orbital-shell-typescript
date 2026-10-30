@@ -24,6 +24,7 @@ import {
   type ServiceHostPorts,
   type ServiceParams,
   type UserContext,
+  toPayloadValue,
 } from '@almadar/core';
 import { untilAborted, type InFlightCalls } from '../effects/in-flight-calls.js';
 import type { ServiceCallContext } from '../service/service-provider.js';
@@ -107,10 +108,10 @@ export interface KernelHostActions {
 /** A host ask's answer: the payload of its success route, or the error and kind of its failure route. */
 export type HostAskOutcome = { ok: JsonObject } | { error: string; kind: HostAskFailureKind };
 
-/** The event a host's answer dispatches: to `trait` (on `entity` when the frame is a row), carrying `payload`. */
+/** The event a host's answer dispatches: to `trait` (on `entityId` when the frame is a row), carrying `payload`. */
 export interface HostAskReturn {
   trait: string;
-  entity?: string;
+  entityId?: string;
   event: string;
   payload: JsonObject;
 }
@@ -166,7 +167,7 @@ export interface KernelAnswerScope {
 
 /** A program effect's document (a program, an inspection, a catalog) as the JSON it travels as; the one clone left, for documents that are no wire type. */
 function programDocumentJson(document: ProgramEffectResult): JsonValue {
-  return JSON.parse(JSON.stringify(document));
+  return typeof document === 'string' ? document : toPayloadValue(document);
 }
 
 /** The kernel's typed parse of a `program/dispatch` event request: the request, or the reason it is none. */
@@ -446,7 +447,7 @@ export function hostAskReturn(completion: HostAskCompletion, outcome: HostAskOut
   const event = 'ok' in outcome ? completion.success : completion.failure;
   if (event === undefined) return undefined;
   const payload: JsonObject = 'ok' in outcome ? { ...outcome.ok, ...keyed } : { error: outcome.error, kind: outcome.kind, ...keyed };
-  return { trait: completion.trait, ...(completion.entity !== undefined ? { entity: completion.entity } : {}), event, payload };
+  return { trait: completion.trait, ...(completion.entityId !== undefined ? { entityId: completion.entityId } : {}), event, payload };
 }
 
 async function hostAction(
@@ -524,7 +525,7 @@ async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs' | 'prog
     if (second !== null && !isViewerRecord(second)) return { ok: false, error: 'program/resolve-rows: the viewer is a record with an id, or null' };
     if (host.resolveRows === undefined) return { ok: false, error: 'program/resolve-rows: this host resolves no row sets' };
     const page = await host.resolveRows(reference.data, second);
-    return { ok: true, result: JSON.parse(JSON.stringify(page)) };
+    return { ok: true, result: toPayloadValue(page) };
   }
   if (op === 'program/inputs') {
     const steps = args.length === 1 && isJsonObject(first) ? first['trace'] : undefined;
@@ -657,23 +658,34 @@ export function completeTls(ports: KernelHostPorts, os: OsHostPort, key: string,
  */
 const CANONICAL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
+const SEGMENT_ENCODERS: Readonly<Record<string, (value: string) => string>> = {
+  base64: (value) => base64Standard(new TextEncoder().encode(value)),
+  uri: (value) => encodeURIComponent(value),
+  form: (value) => encodeURIComponent(value).replace(/[!'()~]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`).replace(/%20/g, '+'),
+};
+
 /**
- * An `os/send` whose data operand is a list of segments (standard base64 text, or `{ credential }`) becomes one bytes
- * operand here, at the boundary: the credential's value is read from the host's secret store and exists only in this
- * call, never in program data, the journal or the answer.
+ * An `os/send` whose data operand is a list of `{ bytes, credential, encode? }` segments becomes one bytes operand here, at
+ * the boundary: each segment is its standard base64 `bytes` followed by the value of the credential it names (passed through
+ * its `encode`; an empty name is bytes alone). The credential's value is read from the host's secret store and exists only in
+ * this call, never in program data, the journal or the answer. Mirrors `resolve_credential_segments` in orbital-core.
  */
 async function withCredentialSegments(ports: KernelHostPorts, op: string, args: JsonValue[]): Promise<{ args: JsonValue[] } | { error: OsError }> {
   const segments = args[1];
   if (op !== 'os/send' || !Array.isArray(segments)) return { args };
   const parts: Uint8Array[] = [];
   for (const [at, segment] of segments.entries()) {
-    if (typeof segment === 'string') {
-      if (!CANONICAL_BASE64.test(segment)) return { error: { kind: 'invalid', message: `${op}: segment ${at + 1} is not standard base64` } };
-      parts.push(Uint8Array.from(atob(segment), (c) => c.charCodeAt(0)));
-      continue;
-    }
-    const name = isJsonObject(segment) ? segment['credential'] : undefined;
-    if (typeof name !== 'string') return { error: { kind: 'invalid', message: `${op}: segment ${at + 1} is neither bytes nor a credential` } };
+    const invalid = (what: string): { error: OsError } => ({ error: { kind: 'invalid', message: `${op}: segment ${at + 1} ${what}` } });
+    if (!isJsonObject(segment)) return invalid('is not a { bytes, credential } object');
+    const text = segment['bytes'];
+    const name = segment['credential'];
+    if (typeof text !== 'string' || typeof name !== 'string') return invalid('needs a bytes text and a credential name');
+    if (!CANONICAL_BASE64.test(text)) return invalid('bytes are not standard base64');
+    parts.push(Uint8Array.from(atob(text), (c) => c.charCodeAt(0)));
+    const requested = segment['encode'];
+    const encoder = requested === undefined ? undefined : typeof requested === 'string' && Object.hasOwn(SEGMENT_ENCODERS, requested) ? SEGMENT_ENCODERS[requested] : null;
+    if (encoder === null) return invalid(`encode must be one of ${Object.keys(SEGMENT_ENCODERS).join(', ')}`);
+    if (name === '') continue;
     const store = ports.secretPorts?.secrets;
     if (store === undefined) return { error: { kind: 'denied', message: `${op}: no credential source is configured` } };
     let held: string | undefined | null;
@@ -683,7 +695,7 @@ async function withCredentialSegments(ports: KernelHostPorts, op: string, args: 
       return { error: { kind: 'io', message: `${op}: credential ${name}: ${error instanceof Error ? error.message : String(error)}` } };
     }
     if (held === undefined || held === null) return { error: { kind: 'denied', message: `${op}: credential ${name} is not held` } };
-    parts.push(new TextEncoder().encode(held));
+    parts.push(new TextEncoder().encode(encoder === undefined ? held : encoder(held)));
   }
   const bytes = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
   let offset = 0;

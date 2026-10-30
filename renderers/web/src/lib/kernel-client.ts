@@ -30,13 +30,13 @@ import {
   type TickFramePorts,
   type VisibilityPort,
 } from '../kernel/tick-driver';
-import type { TraitIndex } from '@almadar/core';
+import type { CircuitSurface } from './circuit-surface';
 import { TraitMountError } from '@almadar/shell-runtime/client/trait-mount-error';
 import { SessionEndedError } from '@almadar/shell-runtime/client/EventTransport';
 import { createLogger } from '@almadar/logger';
 import type { FrameScheduler } from './kernel-frames';
 import { getTraitPresence, presenceGroup } from '../core';
-import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, Entered, FoldedNextWire, FoldProgressWire, FrameDelta, Left, MountWire, TraitSnapshot } from '@almadar/core/kernel-wire';
+import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, Entered, FoldedNextWire, FoldProgressWire, FrameDelta, Left, MountWire, PageCircuit, TraitSnapshot } from '@almadar/core/kernel-wire';
 import type { KernelInstance } from './kernel-wire';
 
 const log = createLogger('almadar:ui:kernel-client');
@@ -67,6 +67,8 @@ export interface KernelClient extends ClientKernel {
   leave(): Promise<void>;
   /** The kernel's mounts for a client opening `routePath`: the traits to mount and the lifecycle event each runs. */
   routeMounts(routePath: string): Promise<MountSeed[]>;
+  /** The kernel's circuit for `page` or `route` (neither: the initial page): the page it resolved, its mounts, and the owner of each trait. */
+  pageCircuit(page?: string, route?: string): Promise<PageCircuit>;
   /** The kernel's current state of a trait; `undefined` until the WebAssembly is loaded. */
   traitState(traitName: string): string | undefined;
   /** The config the kernel binds as `@config` for a trait (render markers resolve against it); `undefined` until the WebAssembly is loaded. */
@@ -86,7 +88,7 @@ let nextClientSerial = 0;
 export interface KernelClientOptions {
   instance: Promise<KernelInstance>;
   store: CircuitStore;
-  traitIndex: TraitIndex;
+  traitIndex: CircuitSurface;
   transport?: EventTransport;
   /** The transport's confirmed topology: a stateful host is posted legs without the circuit state they carry. */
   topology: Promise<{ carriesCircuitState: boolean }>;
@@ -124,7 +126,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
 
   // A `[visible]` tick's trait with the traits whose output it follows.
   const visibleGroups: Array<[string, string[]]> = [...traitIndex.byName]
-    .filter(([, entry]) => (entry.irTrait.ticks ?? []).some((tick) => tick.whileVisible === true))
+    .filter(([, entry]) => entry.ticks.some((tick) => tick.whileVisible))
     .map(([name]) => [name, presenceGroup(traitIndex, name)]);
 
   // The kernel orders the answers of the dispatches that owe the host a leg (EXEC-CONC-8): an answer that
@@ -597,6 +599,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       }
     },
     routeMounts: async (routePath) => parse<MountSeed[]>((await ready).routeMounts(routePath)),
+    pageCircuit: async (page, route) => parse<PageCircuit>((await ready).pageCircuit(page, route)),
     enter: (routePath, mountKey, traits) => {
       const entered = scopeTail.then(() => ready).then((k) => parse<Entered>(k.enter(routePath, `${clientSerial}\u0000${mountKey}`, JSON.stringify(traits))));
       scopeTail = entered.then(() => undefined, () => undefined);

@@ -13,6 +13,7 @@ module.exports = [
     plugins: { almadar: almadarPlugin },
     rules: {
       "almadar/no-as-any": "error",
+      "almadar/no-json-roundtrip": "error",
       "almadar/no-as-unknown-as": "error",
       "almadar/no-import-generated": "error",
       "almadar/no-record-string-unknown": "error",
@@ -27,6 +28,7 @@ module.exports = [
     plugins: { almadar: almadarPlugin },
     rules: {
       "almadar/no-as-any": "error",
+      "almadar/no-json-roundtrip": "error",
       "almadar/no-as-unknown-as": "error",
     },
   },

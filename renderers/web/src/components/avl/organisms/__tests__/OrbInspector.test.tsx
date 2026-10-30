@@ -608,7 +608,7 @@ describe('OrbInspector — what the element lets you change', () => {
 });
 
 describe('OrbInspector — every prop is reachable', () => {
-  const buttonSchema: OrbitalSchema = JSON.parse(JSON.stringify(schema));
+  const buttonSchema: OrbitalSchema = structuredClone(schema);
   buttonSchema.orbitals[0].traits = [{
     name: 'TaskList',
     stateMachine: {
@@ -690,7 +690,7 @@ describe('OrbInspector Settings — the behavior an element belongs to', () => {
   });
 
   it("a prop that is one of the call site's knobs is edited in Settings, not listed again in Props", () => {
-    const bound: OrbitalSchema = JSON.parse(JSON.stringify(schema));
+    const bound: OrbitalSchema = structuredClone(schema);
     const trait = bound.orbitals[0].traits[0];
     if (typeof trait === 'string' || !('stateMachine' in trait) || !trait.stateMachine) throw new Error('fixture');
     // Resolved: the knob's value is already in the render — the host says it's the `title` knob.

@@ -4,13 +4,13 @@
  * and nothing else. The continuation of a stopped dispatch never leaves the wasm instance.
  */
 import { ExternalInputSchema, InboundAnswerSchema, InboundFoundSchema, InboundOnlySchema, NameListSchema, OptionalNameSchema, PayloadIssueSchema, PayloadJsonSchemaSchema, installKernelEvaluator, isEntityReferenceAny, MountSeedSchema, EntityRowSchema, EventPayloadSchema, type ExternalInput, type InboundAnswer, type InboundDelivery, type InboundRoute, type JsonSchema, type PayloadField, type PayloadIssue, type MountSeed, type EntityRow, type EventPayload, type EventStreamItem, type MessageCatalogs, type EventRequest, type EventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext, LiveBroadcastItemSchema, type LiveBroadcastItem } from '@almadar/core';
-import type { FiredTick } from '@almadar/core/kernel-wire';
+import type { ProgramSurface } from '@almadar/core/kernel-wire';
 import { LaneHeldByParkedDispatch } from './lane.js';
 
 import { decodeDueTicks, decodeNext, decodeProgress, decodeResolveProgress } from './decode.js';
 import { answerRequest, declareCapabilities, type KernelAnswerScope, type KernelHostPorts } from './host.js';
 import type { OsCompletionEvent } from './os-port.js';
-import type { IoReplyWire, KernelModule, KernelServerHandle, ServerProgressWire } from './wire.js';
+import type { FiredByOrbital, IoReplyWire, KernelModule, KernelServerHandle, ServerProgressWire } from './wire.js';
 
 /** Where a dispatch stands once the kernel runs it, with the stream of a finished one read the moment it finished. */
 /** What the kernel's dispatch stream carries: event and effect items; the response comes in the dispatch's own answer. */
@@ -25,10 +25,46 @@ interface Turn {
   readonly failed: (error: Error) => void;
 }
 
+/** The kernel's `programSurface` answer, typed by the generated wire type. */
+const PROGRAM_SURFACE = {
+  parse(input: ReturnType<typeof JSON.parse>): ProgramSurface {
+    return input;
+  },
+};
+
 function declaredEntityTypes(schema: OrbitalSchema): string[] {
   return schema.orbitals.flatMap((orbital) =>
     [orbital.entity, ...(orbital.auxiliaryEntities ?? [])].flatMap((entity) => isEntityReferenceAny(entity) ? [] : [entity.name]));
 }
+
+type ContractAsk = <T>(schema: { parse(input: ReturnType<typeof JSON.parse>): T }, query: object) => T;
+
+function contractAnswers(ask: ContractAsk) {
+  return {
+    findExternalInput(orbital: string, trait: string, event: string): ExternalInput | undefined {
+      return ask(ExternalInputSchema.nullable(), { kind: 'findExternalInput', orbital, trait, event }) ?? undefined;
+    },
+    findInbound(name: string): { route: InboundRoute } | { answer: InboundAnswer } {
+      return ask(InboundFoundSchema, { kind: 'findInbound', name });
+    },
+    inboundPayload(route: InboundRoute, delivery: InboundDelivery, credential: string | null | undefined): EventPayload {
+      const headers = Object.fromEntries(Object.entries(delivery.headers).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])));
+      return ask(EventPayloadSchema, { kind: 'inboundPayload', route, headers, rawBody: delivery.rawBody, ...(typeof credential === 'string' ? { credential } : {}) });
+    },
+    inboundAnswer(route: InboundRoute, emitted: readonly { event: string; payload?: EventPayload }[], error: string | undefined): InboundAnswer {
+      return ask(InboundAnswerSchema, { kind: 'inboundAnswer', route, emitted, ...(error !== undefined ? { error } : {}) });
+    },
+    credentialUnset(credential: string): InboundAnswer {
+      return ask(InboundAnswerSchema, { kind: 'credentialUnset', credential });
+    },
+    dispatchFailed(message: string): InboundAnswer {
+      return ask(InboundAnswerSchema, { kind: 'dispatchFailed', message });
+    },
+  };
+}
+
+/** The declared-contract answers of a host holding no program: the kernel's own answers on an empty kernel. */
+export type ProgramlessContract = ReturnType<typeof contractAnswers>;
 
 export class KernelEngine {
   private handle: KernelServerHandle;
@@ -85,6 +121,11 @@ export class KernelEngine {
   private declare(): void {
     const handle = this.handle;
     declareCapabilities(this.ports.persistence, (entityType, queryJson, writeJson) => handle.setCapabilities(entityType, queryJson, writeJson), this.entityTypes);
+  }
+
+  /** The contract answers for a host with no program registered yet: the kernel's, asked with no program. */
+  static withoutProgram(kernel: KernelModule): ProgramlessContract {
+    return contractAnswers((schema, query) => schema.parse(JSON.parse(kernel.contractQueryWithoutProgram(JSON.stringify(query)))));
   }
 
   static open(kernel: KernelModule, schema: OrbitalSchema, ports: KernelHostPorts, lazyDir?: string): KernelEngine {
@@ -159,8 +200,8 @@ export class KernelEngine {
     return LiveBroadcastItemSchema.array().parse(JSON.parse(this.handle.flushTickRelay()));
   }
 
-  /** One pass of the kernel's tick clock: the ticks due at monotonic `nowMs` that this server runs (`[background]` ticks, and those of a mounted trait). The host starts each as a `runTick` request. */
-  tickPass(nowMs: number): FiredTick[] {
+  /** One pass of the kernel's tick clock: the ticks due at monotonic `nowMs` that this server runs (`[background]` ticks, and those of a mounted trait), keyed by the orbital each `runTick` request is addressed to. */
+  tickPass(nowMs: number): FiredByOrbital {
     return decodeDueTicks(this.handle.tickPass(nowMs));
   }
 
@@ -192,6 +233,8 @@ export class KernelEngine {
     this.handle.free();
   }
 
+  private readonly answers = contractAnswers((schema, query) => this.contract(schema, query));
+
   private contract<T>(schema: { parse(input: ReturnType<typeof JSON.parse>): T }, query: object): T {
     return schema.parse(JSON.parse(this.handle.contractQuery(JSON.stringify(query))));
   }
@@ -201,6 +244,11 @@ export class KernelEngine {
     return this.contract(ExternalInputSchema.array(), { kind: 'externalInputs' });
   }
 
+  /** What the kernel holds of every trait of the program, in name order, and the browser-stored entities. */
+  programSurface(): ProgramSurface {
+    return this.contract(PROGRAM_SURFACE, { kind: 'programSurface' });
+  }
+
   /** The entities a provider acting as the caller may read. */
   readableEntities(): string[] {
     return this.contract(NameListSchema, { kind: 'readableEntities' });
@@ -208,7 +256,7 @@ export class KernelEngine {
 
   /** The declared input of `trait.event` in `orbital`, when there is one. */
   findExternalInput(orbital: string, trait: string, event: string): ExternalInput | undefined {
-    return this.contract(ExternalInputSchema.nullable(), { kind: 'findExternalInput', orbital, trait, event }) ?? undefined;
+    return this.answers.findExternalInput(orbital, trait, event);
   }
 
   /** The declared input a `listens`-addressed event names from `caller`'s position (`EVENT`, `Trait.EVENT`, `Orbital.Trait.EVENT`), when there is one. */
@@ -228,7 +276,7 @@ export class KernelEngine {
 
   /** The route a hook name is delivered to, or the answer to write for a hook the program does not serve. */
   findInbound(name: string): { route: InboundRoute } | { answer: InboundAnswer } {
-    return this.contract(InboundFoundSchema, { kind: 'findInbound', name });
+    return this.answers.findInbound(name);
   }
 
   /** The trait that handles `event` as an inbound hook in `orbital`, with the refusal message, when a client-facing request names it. */
@@ -238,23 +286,22 @@ export class KernelEngine {
 
   /** The payload an inbound event is delivered with. */
   inboundPayload(route: InboundRoute, delivery: InboundDelivery, credential: string | null | undefined): EventPayload {
-    const headers = Object.fromEntries(Object.entries(delivery.headers).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])));
-    return this.contract(EventPayloadSchema, { kind: 'inboundPayload', route, headers, rawBody: delivery.rawBody, ...(typeof credential === 'string' ? { credential } : {}) });
+    return this.answers.inboundPayload(route, delivery, credential);
   }
 
   /** The HTTP answer a finished dispatch produced for `route`. */
   inboundAnswer(route: InboundRoute, emitted: readonly { event: string; payload?: EventPayload }[], error: string | undefined): InboundAnswer {
-    return this.contract(InboundAnswerSchema, { kind: 'inboundAnswer', route, emitted, ...(error !== undefined ? { error } : {}) });
+    return this.answers.inboundAnswer(route, emitted, error);
   }
 
   /** The answer for a route whose credential the host holds no value for. */
   credentialUnset(credential: string): InboundAnswer {
-    return this.contract(InboundAnswerSchema, { kind: 'credentialUnset', credential });
+    return this.answers.credentialUnset(credential);
   }
 
   /** The answer for a delivery whose dispatch failed. */
   dispatchFailed(message: string): InboundAnswer {
-    return this.contract(InboundAnswerSchema, { kind: 'dispatchFailed', message });
+    return this.answers.dispatchFailed(message);
   }
 
   /** The name of the program's `[identity]` entity, when it declares one. */

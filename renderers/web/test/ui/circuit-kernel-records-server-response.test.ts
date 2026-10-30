@@ -1,15 +1,16 @@
 // Every server leg the circuit client posts is recorded on the verification timeline as a `server:<orbital>` trace, so runtime-verify can credit server-side outcomes (G-UI-021).
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import type { OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
+import type { OrbitalSchema } from '@almadar/core';
 import type { EventTransport, EventTransportRegisterResult } from '../../src';
 import type { EventRequest, EventResponse } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
 import { ENGINES, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
 import { clearVerification, getTransitions } from '../../src/lib/verificationRegistry';
+import { circuitReady } from '../../src/test-support/circuit';
 
 const orbitals: OrbitalSchema['orbitals'] = [{
-  name: 'Main', pages: [],
+  name: 'Main', pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Notes' }] }],
   entity: { name: 'Note', persistence: 'persistent', collection: 'notes', fields: [{ name: 'id', type: 'string' }, { name: 'title', type: 'string' }] },
   traits: [{
     name: 'Notes', linkedEntity: 'Note',
@@ -21,13 +22,6 @@ const orbitals: OrbitalSchema['orbitals'] = [{
     },
   }],
 }];
-
-const binding: ResolvedTraitBinding = {
-  trait: {
-    name: 'Notes', source: 'schema', states: [{ name: 'idle', isInitial: true, isFinal: false }], events: [],
-    transitions: [{ from: 'idle', to: 'idle', event: 'SAVE', effects: [] }], guards: [], ticks: [], listens: [], dataEntities: [],
-  },
-};
 
 const answer: EventResponse = {
   success: true, transitioned: true, states: { Notes: 'idle' },
@@ -54,7 +48,8 @@ describe.each(ENGINES)('the circuit client records server responses [%s engine]'
 
   it("a posted leg's response lands on the timeline with its emits, effect outcomes and data", async () => {
     const server = new Server();
-    const { result } = renderHook(() => useCircuitKernel([binding], { stamp: TEST_STAMP, orbitals, transport: server, engine }));
+    const { result } = renderHook(() => useCircuitKernel({ stamp: TEST_STAMP, orbitals, transport: server, engine }));
+    await circuitReady(result);
     await result.current.kernel.dispatch({ event: 'SAVE', targetTrait: 'Notes' });
     expect(server.sent.length).toBeGreaterThan(0);
     const [trace] = serverTraces();
@@ -65,7 +60,8 @@ describe.each(ENGINES)('the circuit client records server responses [%s engine]'
   });
 
   it('control: a failed post records nothing', async () => {
-    const { result } = renderHook(() => useCircuitKernel([binding], { stamp: TEST_STAMP, orbitals, transport: new Server(true), engine }));
+    const { result } = renderHook(() => useCircuitKernel({ stamp: TEST_STAMP, orbitals, transport: new Server(true), engine }));
+    await circuitReady(result);
     await result.current.kernel.dispatch({ event: 'SAVE', targetTrait: 'Notes' }).catch(() => undefined);
     expect(serverTraces()).toEqual([]);
   });

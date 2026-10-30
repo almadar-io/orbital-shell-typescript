@@ -48,6 +48,7 @@ module.exports = [
       //                        string key. The entity has a typed interface
       //                        — emit against that.
       "almadar/no-as-any": "error",
+      "almadar/no-json-roundtrip": "error",
       "almadar/no-unknown-type": "error",
       "almadar/no-record-string-unknown": "error",
       "almadar/no-import-generated": "error",

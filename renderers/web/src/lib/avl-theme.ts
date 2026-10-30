@@ -205,7 +205,8 @@ export const OPERATOR_CATEGORY_COLORS: Record<OperatorCategory, string> = {
   'std-anim': avlBlend('var(--color-accent)', 60, 'var(--color-background)'), 'std-ease': avlBlend('var(--color-accent)', 50, 'var(--color-info)'),
   'std-noise': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-accent)'), 'std-path': avlBlend('var(--color-success)', 60, 'var(--color-primary)'),
   'std-llm': avlBlend('var(--color-accent)', 70, 'var(--color-primary)'), 'std-workspace': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-warning)'),
-  'std-session': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-success)'), 'std-memory': avlBlend('var(--color-info)', 60, 'var(--color-accent)'),
+  'std-session': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-success)'),
+  'std-audio': avlBlend('var(--color-accent)', 50, 'var(--color-warning)'), 'std-auth': avlBlend('var(--color-warning)', 60, 'var(--color-primary)'),
   'std-trace': 'var(--color-muted-foreground)', 'std-behavior': avlBlend('var(--color-accent)', 60, 'var(--color-success)'),
 };
 

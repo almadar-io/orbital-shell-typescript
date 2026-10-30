@@ -17,6 +17,7 @@ module.exports = [
     },
     rules: {
       "almadar/no-as-any": "error",
+      "almadar/no-json-roundtrip": "error",
       "almadar/no-unknown-type": "error",
       "almadar/no-record-string-unknown": "error",
       "almadar/no-import-generated": "error",

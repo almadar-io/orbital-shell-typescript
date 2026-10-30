@@ -34,8 +34,6 @@ export * from './runtime/evaluation/local-store-transport.js';
 export * from './runtime/evaluation/residence-transport.js';
 export * from './runtime/evaluation/routed-persistence.js';
 export * from './runtime/events/identity/routing.js';
-export * from './runtime/traits/OrbitalTraitParsing.js';
-export * from './runtime/traits/trait-index.js';
 export * from './runtime/types.js';
 export * from './service/default-call-service.js';
 export * from './service/service-provider.js';

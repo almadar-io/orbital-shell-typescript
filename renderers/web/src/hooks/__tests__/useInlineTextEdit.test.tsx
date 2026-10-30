@@ -6,7 +6,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import type { OrbitalSchema } from '@almadar/core';
+import { parseOrbitalSchema, type OrbitalSchema } from '@almadar/core';
 import { EventBusProvider } from '../../core';
 import { useEventBus } from '../../core';
 import { useInlineTextEdit } from '../useInlineTextEdit';
@@ -14,11 +14,11 @@ import { Typography } from '../../core';
 import { ElementEditAccessContext, EDITABLE, type ElementEditAccessResolver } from '../../lib/element-edit-access';
 
 function schema(content: string): OrbitalSchema {
-  return JSON.parse(JSON.stringify({
+  return parseOrbitalSchema({
     name: 'App',
     orbitals: [{
       name: 'Widgets',
-      entity: { name: 'Widget', fields: [] },
+      entity: { name: 'Widget', fields: [{ name: 'id', type: 'string' }] },
       traits: [{
         name: 'WidgetInteraction',
         stateMachine: {
@@ -29,7 +29,7 @@ function schema(content: string): OrbitalSchema {
       }],
       pages: [],
     }],
-  }));
+  });
 }
 
 function Spy({ event, onEvent }: { event: string; onEvent: (payload: unknown) => void }): null {

@@ -63,7 +63,7 @@ export function createTickDriver(ports: TickDriverPorts): TickDriver {
 
   const runFrame = async (): Promise<void> => {
     const applied = await runTickFrame(ports, ports.now);
-    if (applied.fired.length > 0 || applied.errors.length > 0) ports.onApplied?.(applied);
+    if (applied.firedCount > 0 || applied.errors.length > 0) ports.onApplied?.(applied);
   };
 
   function onFrame(): void {

@@ -9,23 +9,23 @@
  * @packageDocumentation
  */
 import { useMemo } from 'react';
-import type { AwaitRender } from '@almadar/core';
-import type { TraitIndex } from '@almadar/core';
+import { AwaitRenderSchema, type AwaitRender } from '@almadar/core';
+import type { CircuitSurface } from '../../lib/circuit-surface';
 import type { CircuitStore } from '../../index';
 import type { AwaitingSkeletonSource } from '../../providers/AwaitingSkeletonContext';
 
 export function useAwaitingSkeletonSource(
   store: CircuitStore,
-  traitIndex: TraitIndex,
+  traitIndex: CircuitSurface,
   embeddedTraits: ReadonlySet<string> | undefined,
 ): AwaitingSkeletonSource {
   return useMemo<AwaitingSkeletonSource>(() => {
     const activeRenders = (): AwaitRender[] => {
       const renders: AwaitRender[] = [];
       for (const awaiting of store.awaiting.list()) {
-        const transitions = traitIndex.byName.get(awaiting.trait)?.irTrait.stateMachine?.transitions ?? [];
+        const transitions = traitIndex.byName.get(awaiting.trait)?.transitions ?? [];
         const taken = transitions.find((t) => t.event === awaiting.event && t.from === awaiting.from);
-        if (taken?.awaitRender) renders.push(...taken.awaitRender);
+        if (taken?.awaitRender !== undefined) renders.push(...AwaitRenderSchema.array().parse(taken.awaitRender));
       }
       return renders;
     };

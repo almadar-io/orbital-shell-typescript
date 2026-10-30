@@ -1,0 +1,135 @@
+[
+  {
+    "orbital": "Gating",
+    "trait": "G",
+    "from": "ready",
+    "event": "OPEN",
+    "payload": {},
+    "entity": {
+      "owner": "ann"
+    },
+    "now": 5,
+    "viewer": {
+      "id": "u"
+    },
+    "result": {
+      "trait": "G",
+      "event": "OPEN",
+      "transitionFired": true,
+      "guard": "pass",
+      "firedArm": 0,
+      "state": {
+        "before": "ready",
+        "after": "open"
+      },
+      "effects": [
+        {
+          "type": "set",
+          "args": [
+            "@entity.mode",
+            "open"
+          ],
+          "status": "executed",
+          "routed": false
+        }
+      ],
+      "emitted": [],
+      "guards": [
+        {
+          "arm": 0,
+          "guard": [
+            "=",
+            "@entity.owner",
+            "ann"
+          ],
+          "passed": true,
+          "trace": []
+        }
+      ],
+      "ensures": [],
+      "failure": null,
+      "entityAfter": {
+        "owner": "ann",
+        "mode": "open"
+      },
+      "pendingAsks": [],
+      "outcomes": [
+        {
+          "orbital": "Gating",
+          "trait": "G",
+          "event": "OPEN",
+          "from": "ready",
+          "to": "open",
+          "arm": 0,
+          "fired": true,
+          "effects": [
+            {
+              "type": "set",
+              "args": [
+                "@entity.mode",
+                "open"
+              ],
+              "status": "executed",
+              "routed": false
+            }
+          ],
+          "emitted": []
+        }
+      ]
+    }
+  },
+  {
+    "orbital": "Gating",
+    "trait": "G",
+    "from": "ready",
+    "event": "OPEN",
+    "payload": {},
+    "entity": {
+      "owner": "bob"
+    },
+    "result": {
+      "trait": "G",
+      "event": "OPEN",
+      "transitionFired": false,
+      "guard": "fail",
+      "state": {
+        "before": "ready",
+        "after": "ready"
+      },
+      "effects": [],
+      "emitted": [],
+      "guards": [
+        {
+          "arm": 0,
+          "guard": [
+            "=",
+            "@entity.owner",
+            "ann"
+          ],
+          "passed": false,
+          "trace": []
+        }
+      ],
+      "ensures": [],
+      "failure": null,
+      "entityAfter": {
+        "owner": "bob",
+        "mode": "open"
+      },
+      "pendingAsks": [],
+      "outcomes": [
+        {
+          "orbital": "Gating",
+          "trait": "G",
+          "event": "OPEN",
+          "from": "ready",
+          "to": "ready",
+          "arm": null,
+          "fired": false,
+          "effects": [],
+          "emitted": []
+        }
+      ]
+    }
+  }
+]

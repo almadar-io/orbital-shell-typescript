@@ -15,7 +15,6 @@ import type { DeferredCallOutcome } from '../../kernel/host.js';
 import { nativeMemoryPersistence } from './native-memory.js';
 import { persistedMemory } from './persisted-memory.js';
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
-import { buildTraitIndex } from '@almadar/shell-runtime/runtime/traits/trait-index';
 import { createLocalStoreTransport, localStorePersistence, openLocalKernel } from './local-store-transport.js';
 import { tickEventKey } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
@@ -148,7 +147,6 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
   const browserStore = await openBrowserStore(options.databaseName, options.schema.orbitals, options.factory);
   const memory = nativeMemoryPersistence(options.kernel);
   const persistence = localStorePersistence(options.schema, browserStore === null ? memory : await persistedMemory(options.kernel, browserStore, browserEntities(options.schema.orbitals), options.locale), memory);
-  const traitIndex = buildTraitIndex(options.schema.orbitals);
   const { schema } = options;
   let transport: EventTransport | undefined;
   const listeners = new Set<InputDispatchListener>();
@@ -207,9 +205,9 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
   };
 
   const runnable = new Map<string, { orbitalName: string; traitName: string; tickName: string }>();
-  for (const entry of traitIndex.byName.values()) {
-    for (const tick of entry.irTrait.ticks ?? []) {
-      runnable.set(`${entry.traitDef.name}::${tick.name}`, { orbitalName: entry.orbitalName, traitName: entry.traitDef.name, tickName: tick.name });
+  for (const trait of kernelEngine.programSurface().traits) {
+    for (const tick of trait.ticks) {
+      runnable.set(`${trait.name}::${tick.name}`, { orbitalName: trait.orbital, traitName: trait.name, tickName: tick.name });
     }
   }
   // The kernel's one tick clock decides what is due; a firing waits its turn, and while one is queued or running the
@@ -235,7 +233,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
     });
   };
   const timer = runnable.size === 0 ? undefined : setInterval(() => {
-    for (const due of kernelEngine.tickPass(performance.now())) {
+    for (const due of Object.values(kernelEngine.tickPass(performance.now())).flat()) {
       const key = `${due.trait}::${due.tick}`;
       const tick = runnable.get(key);
       if (tick !== undefined) fire(key, tick);

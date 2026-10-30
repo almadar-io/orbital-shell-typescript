@@ -8,15 +8,14 @@
  */
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { buildTraitIndex } from '../../src/runtime';
+import { NO_CIRCUIT } from '../../src/lib/circuit-surface';
 import { createMemoryCircuitStore } from '../../src';
 import type { EntityRow } from '@almadar/core';
 import { useEntityBindingSource } from '../../src/hooks/circuit/useEntityBindingSource';
 
 function setup() {
   const store = createMemoryCircuitStore();
-  const traitIndex = buildTraitIndex([]);
-  const { result } = renderHook(() => useEntityBindingSource(store, traitIndex));
+  const { result } = renderHook(() => useEntityBindingSource(store, NO_CIRCUIT));
   return { store, source: result.current };
 }
 

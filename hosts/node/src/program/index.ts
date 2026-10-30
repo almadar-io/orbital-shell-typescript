@@ -20,15 +20,13 @@ import { createLogger } from '@almadar/logger';
 import {
   decodeOsGrantsReport,
   decodeProveReport,
+  decodePlayedStep,
   decodeStepRefusal,
-  decodeStepReport,
   decodeValidationJsonOutput,
   isStepRefusal,
   type OsGrantsReport,
   type ProveReport,
-  type StepOutcome,
   type StepRefusal,
-  type StepReport,
   type ValidationJsonError,
   type ValidationJsonWarning,
 } from '@almadar/core/kernel-wire';
@@ -539,53 +537,27 @@ const StepRequestSchema: z.ZodType<StepRequest> = z.object({
  * effect of the fired arm and the events it emitted. Each request comes back played: as asked, with its `result`.
  */
 
-/** `orb execute --steps` printed a replay's report, or the std command's `{ success: false, error }` when it could not run. */
-function decodeStepOutput(run: OrbRun): StepReport | StepRefusal {
+/** `orb execute --played` printed the kernel's played answer, or the typed {@link StepRefusal} when it could not run. */
+function decodePlayedSteps(printed: JsonValue): PlayedStep[] {
+  if (!Array.isArray(printed)) throw new Error('program/step: expected an array of played steps');
+  return printed.map((step) => decodePlayedStep(step));
+}
+
+function decodePlayedOutput(run: OrbRun): PlayedStep[] | StepRefusal {
   if (run.code !== 0) throw new Error(`program/step: orb exited ${run.code}: ${run.stderr.trim()}`);
   try {
     const printed: JsonValue = JSON.parse(run.stdout);
-    return isStepRefusal(printed) ? decodeStepRefusal(printed) : decodeStepReport(printed);
+    return isStepRefusal(printed) ? decodeStepRefusal(printed) : decodePlayedSteps(printed);
   } catch (error) {
     throw new Error(`program/step: unexpected orb output: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-function effectsOf(effects: StepOutcome['effects']): PlayedStep['result']['effects'] {
-  return effects.map((e) => ({ type: e.type, args: e.args, status: e.status, ...(e.error !== undefined ? { error: e.error } : {}) }));
-}
-
-function emittedOf(emits: StepOutcome['emits'], step: number): PlayedStep['result']['emitted'] {
-  return emits.map((e) => ({ type: e.event, ...(e.payload !== null ? { payload: e.payload } : {}), timestamp: step }));
-}
-
-export async function programStep(program: OrbitalSchema, requests: readonly StepRequest[], opts: ProgramHostOptions, live = false): Promise<PlayedStep[] | { error: string }> {
-  const steps = requests.map((r) => ({ trait: r.trait, event: r.event, payload: r.payload, from: r.from, ...(r.entity !== undefined ? { entity: r.entity } : {}), ...(r.config !== undefined ? { config: r.config } : {}), ...(r.now !== undefined ? { now: r.now } : {}), ...(r.settleMs !== undefined ? { settleMs: r.settleMs } : {}), ...(r.viewer !== undefined ? { viewer: r.viewer } : {}) }));
+export async function programStep(program: OrbitalSchema, requests: readonly StepRequest[], opts: ProgramHostOptions, live = false): Promise<PlayedStep[] | StepRefusal> {
+  const steps = requests.map((r) => ({ orbital: r.orbital, trait: r.trait, event: r.event, payload: r.payload, from: r.from, ...(r.entity !== undefined ? { entity: r.entity } : {}), ...(r.config !== undefined ? { config: r.config } : {}), ...(r.now !== undefined ? { now: r.now } : {}), ...(r.settleMs !== undefined ? { settleMs: r.settleMs } : {}), ...(r.viewer !== undefined ? { viewer: r.viewer } : {}) }));
   return withTempFile('program.orb', JSON.stringify(program), async (path) => {
-    const run = await runOrb(['execute', path, '--steps', JSON.stringify(steps), ...(live ? ['--live'] : [])], opts);
-    const report = decodeStepOutput(run);
-    if (!report.success) return { error: report.error };
-    const results: PlayedStep[] = [];
-    for (const [i, request] of requests.entries()) {
-      const moved = report.steps[i]?.outcomes ?? [];
-      const outcome = moved.find((o) => o.trait === request.trait);
-      if (outcome === undefined) return { error: `trait "${request.trait}" did not run` };
-      const firedGuarded = outcome.firedArm !== null && outcome.guards.some((g) => g.arm === outcome.firedArm);
-      results.push({ ...request, result: {
-        trait: outcome.trait,
-        event: request.event,
-        transitionFired: outcome.executed,
-        guard: firedGuarded ? 'pass' : outcome.firedArm === null && outcome.guards.length > 0 ? 'fail' : 'none',
-        ...(outcome.firedArm !== null ? { firedArm: outcome.firedArm } : {}),
-        state: { before: outcome.previousState, after: outcome.newState },
-        effects: effectsOf(outcome.effects),
-        emitted: emittedOf(outcome.emits, i),
-        guards: outcome.guards.map((g) => ({ arm: g.arm, guard: g.guard, passed: g.passed, trace: [], ...(g.error !== undefined ? { error: g.error } : {}) })),
-        entityAfter: report.steps[i]?.entityAfter ?? null,
-        pendingAsks: report.steps[i]?.pendingAsks ?? [],
-        outcomes: moved.map((o) => ({ orbital: o.orbital, trait: o.trait, event: o.event, from: o.previousState, to: o.newState, arm: o.firedArm, fired: o.executed, effects: effectsOf(o.effects), emitted: emittedOf(o.emits, i) })),
-      } });
-    }
-    return results;
+    const run = await runOrb(['execute', path, '--steps', JSON.stringify(steps), '--played', ...(live ? ['--live'] : [])], opts);
+    return decodePlayedOutput(run);
   });
 }
 

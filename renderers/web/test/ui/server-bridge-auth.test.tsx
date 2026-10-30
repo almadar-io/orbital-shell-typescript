@@ -70,7 +70,7 @@ const SLOTS: UISlotManager = {
  *  across renders, as `OrbPreview`'s memoized caller does. */
 function KernelConsumer(): null {
   const bridge = useServerBridge();
-  useTraitStateMachine(NO_TRAITS, SLOTS, { orbitals: schema.orbitals, ...(bridge.transport !== undefined ? { transport: bridge.transport } : {}), carriesCircuitState: bridge.carriesCircuitState });
+  useTraitStateMachine(SLOTS, { orbitals: schema.orbitals, ...(bridge.transport !== undefined ? { transport: bridge.transport } : {}), carriesCircuitState: bridge.carriesCircuitState });
   return null;
 }
 

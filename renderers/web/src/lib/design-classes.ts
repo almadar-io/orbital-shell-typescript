@@ -12,7 +12,7 @@
  * callers that convert pixels pass the rendered size of each step.
  */
 
-import type { JsonValue, OrbitalDefinition, OrbitalSchema } from '@almadar/core';
+import { toPayloadValue, type JsonValue, type OrbitalDefinition, type OrbitalSchema } from '@almadar/core';
 
 /** Color tokens the preset maps to `--color-<token>` (`tailwind-preset.cjs` `colors`). */
 export const DESIGN_COLOR_TOKENS = [
@@ -491,7 +491,7 @@ function collectClasses(value: JsonValue, found: Set<string>): void {
 /** One boundary hop from a typed schema part to plain JSON, then its classes. */
 function classesOfPart(part: object): string[] {
   const found = new Set<string>();
-  collectClasses(JSON.parse(JSON.stringify(part)), found);
+  collectClasses(toPayloadValue(part), found);
   return [...found];
 }
 

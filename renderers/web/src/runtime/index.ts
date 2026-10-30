@@ -14,8 +14,6 @@ export type {
 
 export { eventRouteKey } from '@almadar/shell-runtime/runtime/events/identity/routing';
 
-export { buildTraitIndex } from '@almadar/shell-runtime/runtime/traits/trait-index';
-export { parseOrbitalTraits, type ParsedOrbitalTraits } from '@almadar/shell-runtime/runtime/traits/OrbitalTraitParsing';
 
 
 export { nativeMemoryPersistence } from './evaluation/native-memory.js';

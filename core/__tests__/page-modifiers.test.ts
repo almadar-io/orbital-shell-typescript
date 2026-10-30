@@ -1,11 +1,10 @@
 /**
  * Page modifiers (`access`, `indexing`, `title`, `description`) and the app
- * `site` modifiers: the schema accepts exactly the declared shapes, and the
- * resolver carries them onto the ResolvedPage without defaulting absent ones.
+ * `site` modifiers: the schema accepts exactly the declared shapes. The kernel carries them
+ * onto the route table (orbital-compiler `route_manifest`).
  */
 import { describe, it, expect } from 'vitest';
 import { parseOrbitalSchema, safeParseOrbitalSchema, HOST_SIGN_IN_ROUTE, isHostSignInRoute } from '../src/types/schema.js';
-import { schemaToIR, getPage } from '../src/resolver.js';
 import { localeAlternates } from '../src/i18n/index.js';
 import { notFoundPage } from '../src/route-match.js';
 import { PageModifiersSchema } from '../src/types/page.js';
@@ -27,55 +26,25 @@ function app(page: Record<string, string | string[]>, site?: Record<string, stri
 }
 
 describe('page modifiers', () => {
-  it('resolves declared modifiers onto the page', () => {
+  it('accepts declared modifiers on the page and the site', () => {
     const schema = parseOrbitalSchema(
       app(
         { access: 'public', indexing: 'index', title: 'Home', description: ['i18n/t', 'app:meta.home'] },
         { origin: 'https://example.org', signIn: '/login', name: 'Example', icon: '/icon.svg' },
       ),
     );
-    const page = getPage(schemaToIR(schema, false), 'HomePage');
-    expect(page?.access).toBe('public');
-    expect(page?.indexing).toBe('index');
-    expect(page?.title).toBe('Home');
-    expect(page?.description).toEqual(['i18n/t', 'app:meta.home']);
     expect(schema.site?.signIn).toBe('/login');
   });
 
-  it('getPage without a name returns the page marked initial, else the first', () => {
-    const base = app({});
-    const orbital = base.orbitals[0]!;
-    const withPages = (second: Record<string, string | boolean>) => ({
-      ...base,
-      orbitals: [{ ...orbital, pages: [{ name: 'HomePage', path: '/', traits: [] }, { name: 'Scorecard', path: '/scorecard', traits: [], ...second }] }],
-    });
-    const marked = schemaToIR(parseOrbitalSchema(withPages({ isInitial: true })), false);
-    expect(getPage(marked)?.name).toBe('Scorecard');
-    expect(marked.pages.get('HomePage')?.isInitial).toBeUndefined();
-    const unmarked = schemaToIR(parseOrbitalSchema(withPages({})), false);
-    expect(getPage(unmarked)?.name).toBe('HomePage');
-  });
-
-  it('a page declared notFound is carried onto the resolved page and found by notFoundPage', () => {
+  it('a page declared notFound is found by notFoundPage', () => {
     const base = app({});
     const orbital = base.orbitals[0]!;
     const schema = parseOrbitalSchema({
       ...base,
       orbitals: [{ ...orbital, pages: [{ name: 'HomePage', path: '/', traits: [] }, { name: 'Missing', path: '/missing', traits: [], isNotFound: true }] }],
     });
-    const ir = schemaToIR(schema, false);
-    expect(ir.pages.get('Missing')?.isNotFound).toBe(true);
-    expect(ir.pages.get('HomePage')?.isNotFound).toBeUndefined();
     expect(notFoundPage(schema)?.page.name).toBe('Missing');
     expect(notFoundPage(parseOrbitalSchema(app({})))).toBeNull();
-  });
-
-  it('control: omitted modifiers stay absent on the resolved page', () => {
-    const page = getPage(schemaToIR(parseOrbitalSchema(app({})), false), 'HomePage');
-    expect(page).toBeDefined();
-    for (const key of ['access', 'indexing', 'title', 'description'] as const) {
-      expect(page && key in page).toBe(false);
-    }
   });
 
   it('rejects an unknown access or indexing value', () => {
@@ -149,11 +118,6 @@ describe('localeAlternates (twin of orbital-compiler locale_alternates)', () => 
     const mixed = pages.map((p) => (p.path === '/sl' ? { ...p, indexing: 'noindex' as const } : p.path === '/ar' ? { ...p, access: 'authenticated' as const } : p));
     expect(localeAlternates(mixed, mixed[0], locales)).toBeUndefined();
     expect(localeAlternates(mixed, mixed[2], locales)).toBeUndefined();
-  });
-
-  it('pageModifiers carries the source page onto the resolved page', () => {
-    const schema = parseOrbitalSchema(app({ sourcePage: 'pag_home' }));
-    expect(getPage(schemaToIR(schema, false), 'HomePage')?.sourcePage).toBe('pag_home');
   });
 });
 

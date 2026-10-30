@@ -20,7 +20,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { z } from 'zod';
-import { JsonValueSchema, type JsonObject } from '@almadar/core';
+import { JsonValueSchema, toPayloadValue, type JsonObject } from '@almadar/core';
 
 export interface BrowserAuthConfig {
   /** A distinct name per signed-in surface, so two apps on one page never share a session. */
@@ -72,7 +72,7 @@ async function signedIn(user: User): Promise<SignedInUser> {
     ...(user.email !== null ? { email: user.email } : {}),
     ...(user.displayName !== null ? { name: user.displayName } : {}),
     ...(user.photoURL !== null ? { photoURL: user.photoURL } : {}),
-    claims: ClaimsSchema.parse(JSON.parse(JSON.stringify(claims))),
+    claims: ClaimsSchema.parse(toPayloadValue(claims)),
   };
 }
 

@@ -5,17 +5,17 @@
 import { describe, expect, it } from 'vitest';
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
-import type { OrbitalSchema } from '@almadar/core';
+import type { OrbitalSchema, TypedEffect } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
 import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 class ResizeObserverStub { observe(): void {} unobserve(): void {} disconnect(): void {} }
 (globalThis as { ResizeObserver?: unknown }).ResizeObserver ??= ResizeObserverStub;
 
-const show = ['render-ui', 'main', { type: 'typography', content: ['str/concat', 'n=', '@entity.n'] }];
+const show: TypedEffect = ['render-ui', 'main', { type: 'typography', content: ['str/concat', 'n=', '@entity.n'] }];
 
 function ticking(): OrbitalSchema {
-  return JSON.parse(JSON.stringify({
+  return {
     typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: `paused-${Math.random()}`, version: '1.0.0',
     orbitals: [{
@@ -28,7 +28,7 @@ function ticking(): OrbitalSchema {
       }],
       pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Clock' }] }],
     }],
-  }));
+  };
 }
 
 const count = (): number => Number((screen.getByText(/^n=/).textContent ?? 'n=0').slice(2));

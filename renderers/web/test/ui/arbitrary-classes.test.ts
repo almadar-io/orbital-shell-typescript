@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import type { JsonObject, OrbitalSchema } from '@almadar/core';
+import { parseOrbitalSchema, toPayloadValue, type JsonObject, type OrbitalSchema } from '@almadar/core';
 import { arbitraryClassesOf, isArbitraryClass } from '../../src/lib/design-classes';
+
+vi.mock('@almadar/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@almadar/core')>();
+  return { ...actual, toPayloadValue: vi.fn(actual.toPayloadValue) };
+});
 
 function schemaWith(render: JsonObject): OrbitalSchema {
   const json: JsonObject = {
@@ -8,7 +13,7 @@ function schemaWith(render: JsonObject): OrbitalSchema {
     orbitals: [
       {
         name: 'Tasks',
-        entity: { name: 'Task', fields: [] },
+        entity: { name: 'Task', fields: [{ name: 'id', type: 'string' }] },
         traits: [
           {
             name: 'TaskFlow',
@@ -23,7 +28,7 @@ function schemaWith(render: JsonObject): OrbitalSchema {
       },
     ],
   };
-  return JSON.parse(JSON.stringify(json));
+  return parseOrbitalSchema(json);
 }
 
 describe('arbitraryClassesOf', () => {
@@ -59,7 +64,7 @@ describe('arbitraryClassesOf — one walk per orbital, however many previews sha
   it('every preview schema built around the same orbital walks that orbital once', () => {
     const app = schemaWith({ type: 'box', className: 'w-[10px]' });
     const [orbital] = app.orbitals;
-    const spy = vi.spyOn(JSON, 'stringify');
+    const spy = vi.mocked(toPayloadValue);
     const previews = Array.from({ length: 5 }, (_, i) => ({ ...app, name: `App__${i}`, orbitals: [orbital] }));
     for (const preview of previews) expect(arbitraryClassesOf(preview)).toEqual(['w-[10px]']);
     expect(spy.mock.calls.filter(([v]) => v === orbital)).toHaveLength(1);
@@ -74,7 +79,7 @@ describe('arbitraryClassesOf — one walk per orbital, however many previews sha
 
   it('classes outside the orbitals (a custom pattern) still count', () => {
     const app = schemaWith({ type: 'box', className: 'w-[10px]' });
-    const withCustom: OrbitalSchema = JSON.parse(JSON.stringify({ ...app, customPatterns: { hero: { type: 'box', className: 'h-[90vh]' } } }));
+    const withCustom: OrbitalSchema = parseOrbitalSchema({ ...app, customPatterns: { hero: { type: 'custom', component: 'div', className: 'h-[90vh]' } } });
     expect(arbitraryClassesOf(withCustom)).toEqual(['h-[90vh]', 'w-[10px]']);
   });
 });

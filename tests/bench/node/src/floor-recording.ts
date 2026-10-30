@@ -54,7 +54,7 @@ function ok<T>(value: T): { ok: T } {
 }
 
 function rowCopy(row: EntityRow): EntityRow {
-  return JSON.parse(JSON.stringify(row));
+  return structuredClone(row);
 }
 
 function rowValue(row: EntityRow | undefined): EntityRow | null {
@@ -89,7 +89,7 @@ class FloorHost {
       case 'createRow': {
         const data = typeof request.data === 'object' && request.data !== null && !Array.isArray(request.data) ? request.data : {};
         this.minted += 1;
-        const row: EntityRow = { ...JSON.parse(JSON.stringify(data)), id: typeof data.id === 'string' ? data.id : `floor-${this.minted}` };
+        const row: EntityRow = { ...structuredClone(data), id: typeof data.id === 'string' ? data.id : `floor-${this.minted}` };
         this.table(request.entityType).push(row);
         return { kind: 'row', result: ok(rowValue(row)) };
       }
@@ -98,7 +98,7 @@ class FloorHost {
         const at = table.findIndex((row) => row.id === request.id);
         if (at === -1) return { kind: 'row', result: { error: `no ${request.entityType} row "${request.id}"` } };
         const data = typeof request.data === 'object' && request.data !== null && !Array.isArray(request.data) ? request.data : {};
-        table[at] = { ...table[at], ...JSON.parse(JSON.stringify(data)), id: request.id };
+        table[at] = { ...table[at], ...structuredClone(data), id: request.id };
         return { kind: 'row', result: ok(rowValue(table[at])) };
       }
       case 'deleteRow': {

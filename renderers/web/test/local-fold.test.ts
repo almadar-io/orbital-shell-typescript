@@ -42,7 +42,7 @@ describe('local fold', () => {
     store.subscribe(() => { notified += 1; });
     const fold = createLocalFold({ store, framesSince: () => ({ session: '$program', from: 0, to: 0, ops: [] }) });
     const frame: FrameWire = {
-      fired: [], response, droppedServerEffects: 0, errors: [], browserLegs: [],
+      fired: {}, response, droppedServerEffects: 0, errors: [], browserLegs: [],
       dispatches: [1, 2].map(() => ({
         trait: 'T', orbital: 'Main', seed: { trait: 'T', event: 'GO' }, response, serverLegs: [],
         mode: 'hybridClientOnly' as const, snapshot: null, alreadyDelivered: [], awaiting: [], statefulLeg: null, foldSeeded: [],

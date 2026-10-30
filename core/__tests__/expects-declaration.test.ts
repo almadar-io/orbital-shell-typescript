@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { OrbitalDefinitionSchema } from '../src/types/orbital.js';
+import { toPayloadValue } from '../src/types/json.js';
 
 /**
  * `z.object()` STRIPS unknown keys rather than rejecting them (the trap
@@ -72,7 +73,7 @@ describe('orbital expects declarations survive the zod parse', () => {
 
     it('round-trips through JSON without loss', () => {
         const parsed = OrbitalDefinitionSchema.parse({ ...base, expects });
-        const reparsed = OrbitalDefinitionSchema.parse(JSON.parse(JSON.stringify(parsed)));
+        const reparsed = OrbitalDefinitionSchema.parse(toPayloadValue(parsed));
         expect(reparsed.expects).toEqual(parsed.expects);
     });
     it('keeps strict on every declaration kind (spec obligations)', () => {

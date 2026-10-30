@@ -241,6 +241,11 @@ impl Server {
         self.api.get().map_err(js)?.api().route_mounts(&route_path).map_err(js)
     }
 
+    #[napi]
+    pub fn page_circuit(&self, page: Option<String>, route: Option<String>) -> napi::Result<String> {
+        self.api.get().map_err(js)?.api().page_circuit(page.as_deref(), route.as_deref()).map_err(js)
+    }
+
     /// One question about the registered program (a `ContractQuery` as JSON): its answer as JSON.
     #[napi]
     pub fn contract_query(&self, query_json: String) -> napi::Result<String> {
@@ -381,6 +386,11 @@ pub fn event_wires(schema_json: String) -> napi::Result<String> {
 #[napi]
 pub fn tab_url_matches(pattern: String, url: String) -> bool {
     api::tab_url_matches(&pattern, &url)
+}
+
+#[napi]
+pub fn contract_query_without_program(query_json: String) -> napi::Result<String> {
+    api::contract_query_without_program(&query_json).map_err(js)
 }
 
 #[napi]

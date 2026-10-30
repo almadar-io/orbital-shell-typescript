@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { IoRequestWire } from '@almadar/core/kernel-wire';
-import type { JsonValue } from '@almadar/core';
+import { toPayloadValue, type JsonValue } from '@almadar/core';
 import { decodeRequest } from '@almadar/shell-runtime/kernel/decode';
 
 const site = { trait: 'T', followOn: false, emit: { success: 'OK', failure: 'BAD' } };
@@ -43,7 +43,7 @@ const SAMPLES: { readonly [K in IoRequestWire['kind']]: Extract<IoRequestWire, {
 };
 
 function wire(sample: IoRequestWire): JsonValue {
-  return JSON.parse(JSON.stringify(sample));
+  return toPayloadValue(sample);
 }
 
 describe('decodeRequest', () => {

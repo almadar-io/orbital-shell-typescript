@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { isProgramEffect } from '@almadar/shell-runtime';
 import { behaviorCatalog, behaviorDescribe, behaviorSource, programCompose, programEval, programPrint, programRead, programValidate, runProgramEffect } from '../src/program/index.js';
-import { BehaviorDescriptionSchema, JsonValueSchema, parseProgram, type JsonValue } from '@almadar/core';
+import { BehaviorDescriptionSchema, parseProgram, toPayloadValue, type JsonValue } from '@almadar/core';
 import { installWorkspaceHost, installedWorkspaceHost, uninstallWorkspaceHost, workspaceOwnerSegment, type WorkspaceHost } from '../src/program/workspace-host.js';
 
 // The program host runs the real `orb` (no mock of the thing under test). It
@@ -15,7 +15,7 @@ const ORB = process.env['ORB_BIN'] ?? join(process.env['HOME'] ?? '', 'bin', 'or
 const TMP_ROOT = join(import.meta.dirname, '.tmp-program-host');
 
 /** A program as an effect argument: plain JSON, where an absent field is no key. */
-const arg = (value: object): JsonValue => JsonValueSchema.parse(JSON.parse(JSON.stringify(value)));
+const arg = (value: object): JsonValue => toPayloadValue(value);
 function stdReachable(from: string): boolean {
   for (let dir = from; ; dir = dirname(dir)) {
     if (existsSync(join(dir, 'node_modules', '@almadar', 'std', 'package.json'))) return true;
@@ -500,12 +500,12 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     ]], { cwd: project(), orbBin: ORB });
     expect(out).toEqual({ ok: true, result: [
       { orbital: 'Editor', trait: 'Modes', from: 'NORMAL', event: 'KEY', payload: { key: 'i' }, result:
-        { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 0, entityAfter: { mode: 'insert' }, state: { before: 'NORMAL', after: 'INSERT' },
-          effects: [{ type: 'set', args: ['@entity.mode', 'insert'], status: 'executed' }], emitted: [],
+        { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 0, entityAfter: { mode: 'insert' }, state: { before: 'NORMAL', after: 'INSERT' }, ensures: [], pendingAsks: [],
+          effects: [{ type: 'set', args: ['@entity.mode', 'insert'], status: 'executed', routed: false }], emitted: [],
           guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: true, trace: [] }],
-          outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'INSERT', arm: 0, fired: true, effects: [{ type: 'set', args: ['@entity.mode', 'insert'], status: 'executed' }], emitted: [] }] } },
+          outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'INSERT', arm: 0, fired: true, effects: [{ type: 'set', args: ['@entity.mode', 'insert'], status: 'executed', routed: false }], emitted: [] }] } },
       { orbital: 'Editor', trait: 'Modes', from: 'NORMAL', event: 'KEY', payload: { key: 'v' }, result:
-        { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 1, entityAfter: { mode: 'insert' }, state: { before: 'NORMAL', after: 'VISUAL' },
+        { trait: 'Modes', event: 'KEY', transitionFired: true, guard: 'pass', firedArm: 1, entityAfter: { mode: 'insert' }, state: { before: 'NORMAL', after: 'VISUAL' }, ensures: [], pendingAsks: [],
           effects: [], emitted: [],
           guards: [{ arm: 0, guard: ['=', '@payload.key', 'i'], passed: false, trace: [] }, { arm: 1, guard: ['=', '@payload.key', 'v'], passed: true, trace: [] }],
           outcomes: [{ orbital: 'Editor', trait: 'Modes', event: 'KEY', from: 'NORMAL', to: 'VISUAL', arm: 1, fired: true, effects: [], emitted: [] }] } },

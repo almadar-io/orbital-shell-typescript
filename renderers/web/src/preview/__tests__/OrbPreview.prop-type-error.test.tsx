@@ -12,7 +12,7 @@ import { OrbPreview } from '../OrbPreview';
 import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
 function schemaWith(items: string | Array<{ title: string; content: string }>): OrbitalSchema {
-  return JSON.parse(JSON.stringify({
+  return {
     typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: 'layout-app',
     version: '1.0.0',
@@ -30,7 +30,7 @@ function schemaWith(items: string | Array<{ title: string; content: string }>): 
       }],
       pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Layout' }] }],
     }],
-  }));
+  };
 }
 
 describe('OrbPreview — a prop value of the wrong shape', () => {

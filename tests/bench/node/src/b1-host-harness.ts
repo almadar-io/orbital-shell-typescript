@@ -3,11 +3,11 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { EventResponse } from '@almadar/core';
+import { toPayloadValue, type EventResponse } from '@almadar/core';
 import type { EmitRecord, JsonValue, Scenario, ScenarioFixture, ScenarioHarness, ScenarioSession, ScenarioStep, TraceStep } from './types.js';
 
 function toJson(value: object | null): JsonValue {
-  return JSON.parse(JSON.stringify(value));
+  return toPayloadValue(value);
 }
 
 async function freePort(): Promise<number> {

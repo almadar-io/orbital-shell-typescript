@@ -64,7 +64,7 @@ async function setup() {
   return runtime;
 }
 
-describeWithMemoryKernel('OrbitalServerRuntime.dispatchExternalInput', () => {
+describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, traitId, emits] OrbitalServerRuntime.dispatchExternalInput', () => {
   it('runs a declared input as the given user', async () => {
     const runtime = await setup();
     const res = await runtime.dispatchExternalInput('TaskOrbital', {
@@ -118,7 +118,7 @@ describeWithMemoryKernel('OrbitalServerRuntime.dispatchExternalInput', () => {
   });
 });
 
-describeWithMemoryKernel('OrbitalServerRuntime with no program registered', () => {
+describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, traitId, emits] OrbitalServerRuntime with no program registered', () => {
   const bare = async () => new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
 
   it('answers a typed not-an-external-input, never a thrown error', async () => {
@@ -138,7 +138,7 @@ describeWithMemoryKernel('OrbitalServerRuntime with no program registered', () =
   });
 });
 
-describeWithMemoryKernel('OrbitalServerRuntime.dispatchEventRequest (program/dispatch event requests)', () => {
+describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, traitId, emits] OrbitalServerRuntime.dispatchEventRequest (program/dispatch event requests)', () => {
   const tasks = async (runtime: OrbitalServerRuntime) =>
     (await runtime.persistence.list('Task')).map((row) => row['title']);
 

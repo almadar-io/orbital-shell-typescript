@@ -55,6 +55,10 @@ export interface KernelInstance {
   bootMounts(side: string): string;
   /** The kernel's mounts for a client opening `routePath`: `MountSeed[]` as JSON. */
   routeMounts(routePath: string): string;
+  /** The circuit a client mounts for `page` or `route` (neither: the initial page): a `PageCircuit` as JSON. */
+  pageCircuit(page?: string, route?: string): string;
+  /** One question about the registered program (a `ContractQuery` as JSON): its answer as JSON. */
+  contractQuery(queryJson: string): string;
   mount(traitsJson: string): void;
   /** The page `mountKey` holds `traitsJson`, opened at `routePath` when it has one: an `Entered` as JSON (the seeds to mount, the traits that left with the legs that release them). */
   enter(routePath: string | undefined, mountKey: string, traitsJson: string): string;

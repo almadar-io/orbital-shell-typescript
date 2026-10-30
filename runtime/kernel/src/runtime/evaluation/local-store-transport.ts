@@ -15,7 +15,6 @@ import { createInProcessTransport, type EventTransport } from '../../client/Even
 import { InFlightCalls } from '../../effects/in-flight-calls.js';
 import { defaultCallService } from '../../service/default-call-service.js';
 import { routeByEntity } from './routed-persistence.js';
-import { buildTraitIndex } from '../traits/trait-index.js';
 
 /** The one client a local kernel serves. */
 const LOCAL_CLIENT = 'local';
@@ -77,7 +76,7 @@ export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
   });
   if (options.messages !== undefined) engine.setMessages(Object.keys(options.messages), options.messages);
   // One client is served, and the ticks it asks for (`runTick`) are of traits it mounted.
-  for (const [trait, indexed] of buildTraitIndex(schema.orbitals).byName) engine.mountClient(LOCAL_CLIENT, indexed.orbitalName, [trait]);
+  for (const trait of engine.programSurface().traits) engine.mountClient(LOCAL_CLIENT, trait.orbital, [trait.name]);
   return engine;
 }
 

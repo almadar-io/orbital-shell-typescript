@@ -6,12 +6,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
+import { machineReady } from '../../src/test-support/circuit';
 import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { EventTransport, EventTransportRegisterResult } from '../../src';
 import type { EventRequest, EventResponse } from '@almadar/core';
-import type { EntityRow, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
-import { createEmptyResolvedTrait } from '@almadar/core';
+import type { EntityRow, OrbitalId, OrbitalSchema, Trait } from '@almadar/core';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const rows: EntityRow[] = [{ id: 't1', title: 'Pour' }, { id: 't2', title: 'Frame' }];
@@ -73,9 +73,11 @@ class Server implements EventTransport {
 }
 
 function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
+  // An embedded trait paints its sidecar (`updateTraitContent`); both channels are the trait's paints here.
+  const render = vi.fn((_content: object) => 'id');
   return {
     slots: {},
-    render: vi.fn(() => 'id'),
+    render,
     clear: vi.fn(),
     clearBySource: vi.fn(),
     clearById: vi.fn(),
@@ -85,25 +87,21 @@ function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
     getContent: vi.fn(() => null),
     getTraitContent: vi.fn(() => null),
     subscribeTrait: vi.fn(() => () => undefined),
-    updateTraitContent: vi.fn(() => 'id'),
+    updateTraitContent: vi.fn((traitName: string, content: object) => render({ ...content, sourceTrait: traitName })),
   };
 }
-
-const binding = (name: string): ResolvedTraitBinding => {
-  const trait = createEmptyResolvedTrait(name, 'schema');
-  trait.transitions = ([feed, body].find((t) => t.name === name)?.stateMachine?.transitions ?? []).map(({ from, to, event }) => ({ from, to, event, effects: [] }));
-  return { trait, linkedEntity: 'Entry' };
-};
 
 async function mounted() {
   const slots = stubSlots();
   let bus!: ReturnType<typeof useEventBus>;
-  const hook = renderHook(() => { bus = useEventBus(); return useTraitStateMachine(['Feed', 'Body'].map(binding), slots, {
+  const transport = new Server();
+  const hook = renderHook(() => { bus = useEventBus(); return useTraitStateMachine(slots, {
     stamp: TEST_STAMP,
     orbitals,
     routePath: '/diary',
-    transport: new Server(),
+    transport,
   }); });
+  await machineReady(hook.result);
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
   const lastBody = () => {
     const calls = slots.render.mock.calls.filter(([arg]) => (arg as { sourceTrait?: string }).sourceTrait === 'Body');

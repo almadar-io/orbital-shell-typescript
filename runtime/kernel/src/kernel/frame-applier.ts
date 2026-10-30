@@ -7,7 +7,7 @@
  * through the injected `FramePostPort`; the answers settle off the frame (`tickSettled`) so a tick round trip
  * never delays the next frame.
  */
-import type { FiredTick, FrameWire, RoutedLeg } from '@almadar/core/kernel-wire';
+import type { FrameWire, RoutedLeg } from '@almadar/core/kernel-wire';
 import { isFrameWire } from '@almadar/core/kernel-wire';
 import type { JsonValue, EventResponse } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
@@ -36,7 +36,9 @@ export interface FramePostPort {
 }
 
 export interface FrameApplied {
-  fired: FiredTick[];
+  fired: FrameWire['fired'];
+  /** How many ticks fired, across every orbital. */
+  firedCount: number;
   folded: number;
   browserLegs: number;
   droppedServerEffects: number;
@@ -45,7 +47,7 @@ export interface FrameApplied {
   errors: string[];
 }
 
-const NOTHING: FrameApplied = { fired: [], folded: 0, browserLegs: 0, droppedServerEffects: 0, outcomes: [], errors: [] };
+const NOTHING: FrameApplied = { fired: {}, firedCount: 0, folded: 0, browserLegs: 0, droppedServerEffects: 0, outcomes: [], errors: [] };
 
 const settle = (posted: Promise<TickEffects>, failure: string, trait: string): Promise<TickEffects | undefined> =>
   posted.then<TickEffects | undefined, TickEffects | undefined>(
@@ -84,6 +86,7 @@ export async function applyFrame(
   }
   return {
     fired: frame.fired,
+    firedCount: Object.values(frame.fired).reduce((n, ticks) => n + ticks.length, 0),
     folded: frame.dispatches.length + 1,
     browserLegs: frame.browserLegs.length,
     droppedServerEffects: frame.droppedServerEffects,

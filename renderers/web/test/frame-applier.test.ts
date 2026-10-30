@@ -16,7 +16,7 @@ const leg: RoutedLeg = {
 };
 
 const withLeg: FrameWire = {
-  fired: [{ orbital: 'Notes', trait: 'Editor', tick: 'autosave' }],
+  fired: { Notes: [{ trait: 'Editor', tick: 'autosave' }] },
   response: response({ Editor: 'editing' }),
   dispatches: [{
     trait: 'Editor',
@@ -97,7 +97,7 @@ describe('frame applier', () => {
     const result = await applyFrame(undefined, kernel, post);
     expect(folded).toEqual([]);
     expect(sent).toEqual([]);
-    expect(result).toEqual({ fired: [], folded: 0, browserLegs: 0, droppedServerEffects: 0, outcomes: [], errors: [] });
+    expect(result).toEqual({ fired: {}, firedCount: 0, folded: 0, browserLegs: 0, droppedServerEffects: 0, outcomes: [], errors: [] });
   });
 
   it('a frame with only frame writes folds its response and sends no leg', async () => {

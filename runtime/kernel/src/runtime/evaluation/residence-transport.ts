@@ -5,22 +5,19 @@
  * `residence` (a stateful leg) carries no row work and goes to the server when there is one, else runs in-process.
  */
 import type { EventRequest } from '@almadar/core';
-import { storesRowsInBrowser } from '@almadar/core';
 import type { EventTransport } from '../../client/EventTransport.js';
-import type { TraitIndex } from '@almadar/core';
 
 export interface ResidenceTransportOptions {
   /** In-process transport over the browser store. */
   local: EventTransport;
   /** The server; absent on a static host. */
   remote?: EventTransport;
-  /** The program's entities, for where a row-set reference's rows live. */
-  traitIndex: TraitIndex;
+  /** The program's browser-stored entities (the kernel's `programSurface`): a row-set reference to one of them is resolved in-process. */
+  browserEntities: ReadonlySet<string>;
 }
 
 export function createResidenceTransport(options: ResidenceTransportOptions): EventTransport {
-  const { local, remote, traitIndex } = options;
-  const browserStored = new Set(traitIndex.allEntities.filter(storesRowsInBrowser).map((e) => e.name));
+  const { local, remote, browserEntities } = options;
 
   const route = (orbitalName: string, request: EventRequest): EventTransport => {
     if (request.residence === 'browser') return local;
@@ -44,7 +41,7 @@ export function createResidenceTransport(options: ResidenceTransportOptions): Ev
       return route(orbitalName, request).send(orbitalName, request);
     },
     async resolveRows(reference) {
-      const owner = browserStored.has(reference.entityType) ? local : remote;
+      const owner = browserEntities.has(reference.entityType) ? local : remote;
       if (owner?.resolveRows === undefined) throw new Error(`residence: no transport resolves ${reference.entityType} row sets`);
       return owner.resolveRows(reference);
     },

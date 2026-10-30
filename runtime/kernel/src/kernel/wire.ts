@@ -1,5 +1,8 @@
 import type { KernelEvaluatorExports } from '@almadar/core';
-import type { EventRequest } from '@almadar/core/kernel-wire';
+import type { EventRequest, FrameWire } from '@almadar/core/kernel-wire';
+
+/** Fired ticks keyed by the orbital that declares them: the one a `runTick` request is addressed to. */
+export type FiredByOrbital = FrameWire['fired'];
 
 /**
  * The server-role kernel's wire is `@almadar/core/kernel-wire` (generated from orbital-core `embed::wire`);
@@ -71,7 +74,7 @@ export interface KernelServerHandle {
   flushTickRelay(): string;
   /** Whether the program declares any tick. */
   declaresTicks(): boolean;
-  /** One pass of the kernel's tick clock at monotonic `nowMs`: the `(orbital, trait, tick)` triples due that this server runs, as `FiredTick[]` JSON. */
+  /** One pass of the kernel's tick clock at monotonic `nowMs`: the `(trait, tick)` pairs due that this server runs, keyed by orbital, as `FiredByOrbital` JSON. */
   tickPass(nowMs: number): string;
   tickPause(): void;
   tickResume(): void;
@@ -100,6 +103,8 @@ export interface KernelModule extends KernelEvaluatorExports {
   osGlobMatches(glob: string, path: string): boolean;
   /** `is_public_address`: the rule an outbound host name must pass. */
   isPublicAddress(ip: string): boolean;
+  /** One `ContractQuery` (as JSON) answered for a host with no registered program: the kernel's own answer on an empty kernel, as JSON. */
+  contractQueryWithoutProgram(queryJson: string): string;
   /** The `os/` operations whose keyed call may defer its completion (`OsOp::defers_completion`), as a JSON array of names. */
   osDeferringOps(): string;
   /** The `os/` operations whose keyed call is a stream (`OsOp::is_stream`), as a JSON array of names. */

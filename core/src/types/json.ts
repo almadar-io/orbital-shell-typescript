@@ -104,11 +104,29 @@ export function isJsonArray(value: JsonValue): value is JsonValue[] {
   return Array.isArray(value);
 }
 
+/** The JSON form of a runtime value, as `JSON.stringify` would write it; `undefined` when JSON drops the value (undefined, function, symbol). */
+function jsonFormOf(value: RuntimeValue): JsonValue | undefined {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'bigint') throw new TypeError('A bigint has no JSON form');
+  if (value === undefined || typeof value === 'function' || typeof value === 'symbol') return undefined;
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map((item: RuntimeValue) => jsonFormOf(item) ?? null);
+  const out: JsonObject = {};
+  for (const [key, item] of Object.entries(value)) {
+    const form = jsonFormOf(item);
+    if (form !== undefined) out[key] = form;
+  }
+  return out;
+}
+
 /**
  * A rich value the UI hands back (a program schema, a selected node) as an event payload value:
  * its JSON form, which is what the event wire carries. `JsonValue` is a payload value.
  */
 export function toPayloadValue(value: object | null | undefined): EventPayloadValue {
   if (value === null || value === undefined) return null;
-  return JsonValueSchema.parse(JSON.parse(JSON.stringify(value)));
+  const form = jsonFormOf(value);
+  if (form === undefined) throw new TypeError('A function has no JSON form');
+  return form;
 }

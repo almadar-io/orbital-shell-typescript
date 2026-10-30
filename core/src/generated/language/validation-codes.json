@@ -125,6 +125,11 @@
     "description": "a literal `browser/tab-*` request whose keys the op declares but whose values the kernel's tab-call parser refuses"
   },
   {
+    "code": "ORB_X_DISPATCH_MIXED_RESIDENCE",
+    "category": "effect",
+    "description": "one dispatch's delegated effects reach browser-stored rows and server work"
+  },
+  {
     "code": "ORB_EFF_SLOT_CONFLICT",
     "category": "effect",
     "description": "Multiple render_ui effects targeting same slot"
@@ -558,6 +563,11 @@
     "code": "ORB_CONFIG_DANGLING_REF",
     "category": "binding",
     "description": "An @config key is not declared by any config schema reachable from the trait chain"
+  },
+  {
+    "code": "ORB_CONTROL_NO_CONSEQUENCE",
+    "category": "emit",
+    "description": "A rendered control fires an event whose handlers change nothing the app or the viewer can observe."
   },
   {
     "code": "ORB_CONTROL_VALUE_DISCARDED",
@@ -1003,6 +1013,11 @@
     "code": "ORB_INDEX_PATH_INVALID",
     "category": "entity",
     "description": "An index path names a field that the entity does not declare"
+  },
+  {
+    "code": "ORB_JSON_ROUNDTRIP",
+    "category": "lint",
+    "description": "json/parse re-parses what json/stringify just serialized; a stringify→parse round trip launders a value's type past the checker (owner hard rule, CLAUDE.md). Narrow with `as`."
   },
   {
     "code": "ORB_LINT_FINDING_CODE_UNDECLARED",

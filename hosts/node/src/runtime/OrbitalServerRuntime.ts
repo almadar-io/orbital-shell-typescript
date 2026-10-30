@@ -14,8 +14,7 @@ import { EventBus } from "@almadar/shell-runtime";
 import { eventRouteKey } from "@almadar/shell-runtime";
 import { stampEmitSource } from "@almadar/shell-runtime";
 import { evaluateOnKernel } from "@almadar/shell-runtime";
-import { tickEventKey } from "@almadar/core";
-import { parseOrbitalTraits } from "@almadar/shell-runtime";
+import { tickEventKey, toPayloadValue } from "@almadar/core";
 import { createLogger } from '@almadar/logger';
 import type { createProgramHandlers as CreateProgramHandlersFn } from "../program/createProgramHandlers.js";
 
@@ -52,9 +51,6 @@ import type {
   OrbitalSchema,
   MessageCatalogs,
   OrbitalDefinition,
-  Entity,
-  Trait,
-  TraitConfig,
   BusEventSource,
   UserContext,
   ServiceHostPorts,
@@ -88,12 +84,13 @@ import type {
   InboundDelivery,
 } from "@almadar/core";
 import type { MountSeed } from "@almadar/core";
+import type { ProgramSurface, TraitSurface } from "@almadar/core/kernel-wire";
 import { dispatchDeclaredInput } from "@almadar/shell-runtime";
 import { dispatchInbound } from "@almadar/shell-runtime";
-import { isEntityCall, normalizeUserContext, ANONYMOUS_USER
+import { asEventId, asTraitId, normalizeUserContext, orbitalInlineEntities, ANONYMOUS_USER
 } from "@almadar/core";
 import { defaultCallService } from "@almadar/shell-runtime";
-import { KernelEngine, type KernelHostPorts } from "@almadar/shell-runtime";
+import { KernelEngine, type InboundContract, type KernelHostPorts } from "@almadar/shell-runtime";
 import { kernelEventRequestParser, kernelOsCompletions, kernelOsGrants, kernelOsTls, type OsGrantPort, type OsHostPort } from "@almadar/shell-runtime";
 import { createSecretPorts, createSecretStore, InFlightCalls, type SecretPorts, type SecretPortsOptions, type KernelModule } from "@almadar/shell-runtime";
 import { installNodeHostPorts } from "../host-ports.js";
@@ -119,8 +116,6 @@ function isNodeEnv(): boolean {
 export type RuntimeOrbitalSchema = OrbitalSchema;
 /** @deprecated Use OrbitalDefinition from @almadar/core */
 export type RuntimeOrbital = OrbitalDefinition;
-/** @deprecated Use Trait from @almadar/core */
-export type RuntimeTrait = Trait;
 
 
 /**
@@ -136,18 +131,6 @@ export type PushItem =
  */
 export interface RegisteredOrbital {
   schema: OrbitalDefinition;
-  /** Resolved entity (never a string ref at runtime) */
-  entity: Entity;
-  /** Resolved inline traits (string refs filtered out) */
-  traits: Trait[];
-  /**
-   * Call-site `config: { ... }` attached to each trait ref, keyed by trait
-   * name. Used to populate the `@config.X` binding when running that trait's
-   * effects. Preserved from the preprocessed schema's trait-ref wrapper
-   * (`{ ref, config, linkedEntity, _resolved }`) before the wrapper is
-   * unwrapped to its inline form.
-   */
-  configByTrait: Map<string, TraitConfig>;
 }
 
 // `EventRequest` — event sent from client to server — is owned by
@@ -376,7 +359,8 @@ export class OrbitalServerRuntime {
 
   /** The kernel running the registered program; null before a program is registered. */
   private kernelEngine: KernelEngine | null = null;
-  private noProgramEngine: KernelEngine | null = null;
+  /** What the kernel holds of every trait of the registered program, read once when the kernel opens. */
+  private programSurface: ProgramSurface | undefined;
   /** The `os` handles of the program the kernel runs; closed when that program is replaced, reset or dropped. */
   private kernelOs: OsHostPort | undefined;
   /** Drives the kernel's one tick clock: every pass asks `KernelEngine.tickPass` which ticks are due. */
@@ -575,19 +559,8 @@ export class OrbitalServerRuntime {
    * Register a single orbital
    */
   private async registerOrbitalAsync(orbital: OrbitalDefinition): Promise<void> {
-    // Trait unwrap + config-by-trait + entity resolution — shared with the
-    // stateless per-request transition path, see OrbitalTraitParsing.ts.
-    const { inlineTraits, configByTrait, entity } = parseOrbitalTraits(orbital);
-
-    this.orbitals.set(orbital.name, {
-      schema: orbital,
-      entity,
-      traits: inlineTraits,
-      configByTrait,
-    });
-
-    const auxiliary = (orbital.auxiliaryEntities ?? []).filter((ref): ref is Entity => typeof ref !== 'string' && !isEntityCall(ref));
-    bindDeclaredCollections(this.persistence, [entity, ...auxiliary]);
+    this.orbitals.set(orbital.name, { schema: orbital });
+    bindDeclaredCollections(this.persistence, orbitalInlineEntities(orbital));
 
     if (this.config.debug) {
       registerLog.debug('register:orbital', {
@@ -632,7 +605,7 @@ export class OrbitalServerRuntime {
             const engine = this.requireKernelEngine();
             const stream = clientId !== undefined ? engine.openSessionStream(clientId) : undefined;
             const receive = (item: LiveBroadcastItem): void => {
-              if (engine.liveItemDelivered(item, viewer, clientId)) message(JSON.parse(JSON.stringify({ event: item.event, ...(item.payload !== undefined ? { payload: item.payload } : {}), source: item.source })));
+              if (engine.liveItemDelivered(item, viewer, clientId)) message(toPayloadValue({ event: item.event, ...(item.payload !== undefined ? { payload: item.payload } : {}), source: item.source }));
             };
             this.liveSubscribers.add(receive);
             return () => {
@@ -659,17 +632,22 @@ export class OrbitalServerRuntime {
   /** One live message of a running `call-service`, stamped as its calling trait, to the requesting tab only. */
   private deliverLiveMessage(site: { orbital: string; trait: string; event: string }, payload: EventPayload, originClientId: string | undefined): void {
     const registered = this.orbitals.get(site.orbital);
-    const callingTrait = registered?.traits.find((t) => t.name === site.trait);
+    const callingTrait = this.traitsOf(site.orbital).find((t) => t.name === site.trait);
     const stamp = stampEmitSource(undefined, {
       orbitalName: site.orbital,
       traitName: site.trait,
       orbitalId: registered?.schema.id,
-      traitId: callingTrait?.id,
-      emitContractEventId: callingTrait?.emits?.find((e) => e.event === site.event)?.eventId,
+      traitId: callingTrait?.traitId === undefined ? undefined : asTraitId(callingTrait.traitId),
+      emitContractEventId: ((eventId) => (eventId === undefined ? undefined : asEventId(eventId)))(callingTrait?.emits.find((e) => e.event === site.event)?.eventId),
       originClientId,
     });
     this.eventBus.emit(site.event, payload, stamp, eventRouteKey(site.event, stamp.eventId));
     this.publishLiveItem({ event: site.event, payload, source: stamp, originClientId, target: 'origin' });
+  }
+
+  /** The traits of one orbital as the kernel holds them. */
+  private traitsOf(orbital: string): TraitSurface[] {
+    return (this.programSurface?.traits ?? []).filter((trait) => trait.orbital === orbital);
   }
 
   /** The project root this runtime hands `orb` and the kernel's language data: the program host's cwd, else the loader base path. */
@@ -703,6 +681,7 @@ export class OrbitalServerRuntime {
     this.kernelEngine = KernelEngine.open(kernel, schema, this.kernelPorts(), this.lazyDir);
     this.kernelEngine.setMessages(this.appLocales, this.messages);
     this.kernelEngine.setStateful();
+    this.programSurface = this.kernelEngine.programSurface();
     if (this.config.tickRelayIntervalMs !== undefined) this.kernelEngine.setTickRelayInterval(this.config.tickRelayIntervalMs);
     this.restartTickClock();
     await this.mountBootEndpoints();
@@ -711,8 +690,9 @@ export class OrbitalServerRuntime {
   /** Run the kernel's boot mounts for the server side (EXEC-ENDPOINT-3): the host sends what the kernel lists and chooses nothing. */
   private async mountBootEndpoints(): Promise<void> {
     const owners = new Map<string, RegisteredOrbital>();
-    for (const registered of this.orbitals.values()) {
-      for (const trait of registered.traits) owners.set(trait.name, registered);
+    for (const trait of this.programSurface?.traits ?? []) {
+      const registered = this.orbitals.get(trait.orbital);
+      if (registered !== undefined) owners.set(trait.name, registered);
     }
     const batches = new Map<RegisteredOrbital, MountSeed[]>();
     for (const seed of this.requireKernelEngine().bootMounts('server')) {
@@ -730,11 +710,9 @@ export class OrbitalServerRuntime {
     }
   }
 
-  /** The kernel that answers the declared contract: the registered program's, else one holding no program, whose answers refuse every input and hook. */
-  private async contractEngine(): Promise<KernelEngine> {
-    if (this.kernelEngine !== null) return this.kernelEngine;
-    this.noProgramEngine ??= KernelEngine.open(await this.kernelModule(), { name: 'no-program', version: '1.0.0', orbitals: [] }, this.kernelPorts(), this.lazyDir);
-    return this.noProgramEngine;
+  /** What answers the declared contract: the registered program's kernel, else the kernel's own program-less answers, which refuse every input and hook. */
+  private async contractEngine(): Promise<Pick<KernelEngine, 'findExternalInput'> & InboundContract> {
+    return this.kernelEngine ?? KernelEngine.withoutProgram(await this.kernelModule());
   }
 
   private requireKernelEngine(): KernelEngine {
@@ -746,8 +724,8 @@ export class OrbitalServerRuntime {
   private tickPass(): void {
     const engine = this.kernelEngine;
     if (engine === null) return;
-    for (const due of engine.tickPass(performance.now())) {
-      void this.executeTick(due.orbital, due.trait, due.tick);
+    for (const [orbital, ticks] of Object.entries(engine.tickPass(performance.now()))) {
+      for (const due of ticks) void this.executeTick(orbital, due.trait, due.tick);
     }
   }
 
@@ -791,8 +769,7 @@ export class OrbitalServerRuntime {
     this.inFlightCalls.cancelAll();
     this.kernelEngine?.dispose();
     this.kernelEngine = null;
-    this.noProgramEngine?.dispose();
-    this.noProgramEngine = null;
+    this.programSurface = undefined;
     this.kernelOs?.close();
     this.kernelOs = undefined;
     this.eventBus.clear();
@@ -1274,12 +1251,12 @@ export class OrbitalServerRuntime {
       event: request.event,
       payload: JSON.stringify(request.payload ?? null),
       entityId: request.entityId,
-      traitStates: JSON.stringify(registered.traits.map((trait) => ({ traitName: trait.name, currentState: this.kernelEngine?.stateOf(trait.name) ?? '' }))),
+      traitStates: JSON.stringify(this.traitsOf(orbitalName).map((trait) => ({ traitName: trait.name, currentState: this.kernelEngine?.stateOf(trait.name) ?? '' }))),
     }));
     xOrbitalLog.debug('processOrbitalEvent:enter', () => ({
       orbital: orbitalName,
       event: request.event,
-      traitsInOrbital: registered.traits.map((t) => t.name).join(','),
+      traitsInOrbital: this.traitsOf(orbitalName).map((t) => t.name).join(','),
       payloadActiveTraits: JSON.stringify(
         (request.payload as EventPayload | undefined)?.['_activeTraits'] ?? null,
       ),
@@ -1354,7 +1331,7 @@ export class OrbitalServerRuntime {
     };
     if (traitName) return stateOf(traitName);
     const states: Record<string, TraitState> = {};
-    for (const trait of registered.traits) {
+    for (const trait of this.traitsOf(orbitalName)) {
       const state = stateOf(trait.name);
       if (state !== undefined) states[trait.name] = state;
     }

@@ -104,7 +104,7 @@ describe('auth/sign-in: the host ask whose answer returns to the asking trait (E
     const denied = await performHostAnswer({ signIn: async () => { throw new HostAskError('denied', 'wrong password'); } }, 'auth/sign-in', [{ method: 'google' }]);
     expect(denied).toEqual({ error: 'wrong password', kind: 'denied' });
     expect(hostAskReturn(completion, denied)).toEqual({ trait: 'SignIn', event: 'SIGN_IN_FAILED', payload: { error: 'wrong password', kind: 'denied', key: 'k1' } });
-    expect(hostAskReturn({ trait: 'SignIn', entity: 'row-1', success: 'SIGNED_IN' }, ok)).toEqual({ trait: 'SignIn', entity: 'row-1', event: 'SIGNED_IN', payload: { uid: 'u1', email: 'a@b.c' } });
+    expect(hostAskReturn({ trait: 'SignIn', entityId: 'row-1', success: 'SIGNED_IN' }, ok)).toEqual({ trait: 'SignIn', entityId: 'row-1', event: 'SIGNED_IN', payload: { uid: 'u1', email: 'a@b.c' } });
   });
 
   it('control: an outcome whose route the ask did not declare fires nothing, and a host with no sign-in fails unavailable', async () => {

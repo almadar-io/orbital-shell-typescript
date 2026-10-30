@@ -15,7 +15,7 @@
 import React, { useMemo, useState, useCallback, useContext, createContext, useRef, useEffect } from 'react';
 import { Handle, NodeResizeControl, Position, ResizeControlVariant, useReactFlow, type NodeProps } from '@xyflow/react';
 import type { OrbitalSchema, OrbitalDefinition, Trait, Transition, Effect, EntityData, EntityRow, EventPayloadField, TraitEventContract, EventPayload, EventPayloadValue, PageRef } from '@almadar/core';
-import { isInlineTrait, isPageReference } from '@almadar/core';
+import { isInlineTrait, isPageReference, toPayloadValue } from '@almadar/core';
 import type { EditFocus, EntityRef, TraitRef } from '@almadar/core';
 import { collectEmbeddedTraits } from '../../../lib/embedded-traits';
 
@@ -370,9 +370,9 @@ function substitutePayloadBindings(
   };
   // Effects are JSON-serialisable trees of strings, numbers, booleans, arrays
   // and objects — structurally a subset of EventPayloadValue, the canonical
-  // recursive JSON shape from @almadar/core. Round-trip via JSON to obtain a
-  // typed view, substitute, then narrow back to Effect on the way out.
-  const tree: EventPayloadValue = JSON.parse(JSON.stringify(effects)) as EventPayloadValue;
+  // recursive JSON shape from @almadar/core. Take its typed JSON form,
+  // substitute, then narrow back to Effect on the way out.
+  const tree: EventPayloadValue = toPayloadValue(effects);
   const substituted = replaceValue(tree);
   return substituted as Effect[];
 }
@@ -440,7 +440,7 @@ function buildTransitionSchema(
   const orbital = (fullSchema.orbitals ?? []).find((o: OrbitalDefinition) => o.name === orbitalName);
   if (!orbital) return fullSchema;
 
-  const clonedOrbital: OrbitalDefinition = JSON.parse(JSON.stringify(orbital));
+  const clonedOrbital: OrbitalDefinition = structuredClone(orbital);
 
   const traits = clonedOrbital.traits ?? [];
   for (let ti = 0; ti < traits.length; ti++) {

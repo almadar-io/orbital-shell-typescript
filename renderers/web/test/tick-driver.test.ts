@@ -7,7 +7,7 @@ const flush = async (): Promise<void> => { for (let i = 0; i < 10; i += 1) await
 
 const frameJson = (n: number): string => {
   const frame: FrameWire = {
-    fired: [{ orbital: "O", trait: "T", tick: `t${n}` }],
+    fired: { O: [{ trait: "T", tick: `t${n}` }] },
     response: { success: true, transitioned: true, states: { T: 's' }, emittedEvents: [] },
     dispatches: [],
     browserLegs: [],

@@ -2,10 +2,10 @@
 // Runtime Spec Clause 4.1: a trait's mount lifecycle event fires exactly once per mount and again on remount.
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { machineReady } from '../../src/test-support/circuit';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
-import type { EventPayload, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
-import { createEmptyResolvedTrait } from '@almadar/core';
+import type { EventPayload, OrbitalId, OrbitalSchema, Trait } from '@almadar/core';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const WITH_INIT = ['Header', 'Detail', 'Sidebar'];
@@ -35,10 +35,6 @@ function orbitals(): OrbitalSchema['orbitals'] {
   }];
 }
 
-function binding(name: string): ResolvedTraitBinding {
-  return { trait: createEmptyResolvedTrait(name, 'schema'), linkedEntity: 'Item' };
-}
-
 function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
   return {
     slots: {},
@@ -58,14 +54,14 @@ function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
 
 const ROUTES: Record<string, string> = { DetailPage: '/detail', PageA: '/a', PageB: '/b' };
 
-type Props = { names: string[]; mountKey?: string; initPayload?: EventPayload };
+type Props = { mountKey?: string; initPayload?: EventPayload };
 
 function mount(initial: Props) {
   const slots = stubSlots();
   const orbs = orbitals();
   const hook = renderHook(
-    ({ names, mountKey, initPayload }: Props) =>
-      useTraitStateMachine(names.map(binding), slots, {
+    ({ mountKey, initPayload }: Props) =>
+      useTraitStateMachine(slots, {
         stamp: TEST_STAMP,
         orbitals: orbs,
         ...(mountKey !== undefined ? { mountKey, routePath: ROUTES[mountKey] } : {}),
@@ -77,76 +73,67 @@ function mount(initial: Props) {
     slots.render.mock.calls.filter(([arg]) => (arg as { sourceTrait?: string }).sourceTrait === trait).length;
   const rerender = async (next: Props) => {
     hook.rerender(next);
-    await act(async () => undefined);
+    await machineReady(hook.result);
   };
-  return { inits, rerender };
+  return { inits, rerender, ready: () => machineReady(hook.result) };
 }
 
 async function mounted(initial: Props) {
   const m = mount(initial);
-  await act(async () => undefined);
+  await m.ready();
   return m;
 }
 
 describe('useTraitStateMachine — once-per-mount lifecycle', () => {
   it('fires each trait\'s INIT exactly once on first mount', async () => {
-    const m = await mounted({ names: ['Header', 'Detail'], mountKey: 'DetailPage' });
+    const m = await mounted({ mountKey: 'DetailPage' });
     expect(m.inits('Header')).toBe(1);
     expect(m.inits('Detail')).toBe(1);
   });
 
   it('does not re-fire when the bindings array identity churns with the same traits', async () => {
-    const m = await mounted({ names: ['Header', 'Detail'], mountKey: 'DetailPage', initPayload: { id: 'a' } });
-    await m.rerender({ names: ['Header', 'Detail'], mountKey: 'DetailPage', initPayload: { id: 'a' } });
-    await m.rerender({ names: ['Detail', 'Header'], mountKey: 'DetailPage', initPayload: { id: 'a' } });
+    const m = await mounted({ mountKey: 'DetailPage', initPayload: { id: 'a' } });
+    await m.rerender({ mountKey: 'DetailPage', initPayload: { id: 'a' } });
+    await m.rerender({ mountKey: 'DetailPage', initPayload: { id: 'a' } });
     expect(m.inits('Header')).toBe(1);
     expect(m.inits('Detail')).toBe(1);
   });
 
   it('treats an equal route-param object (any key order) as the same mount', async () => {
-    const m = await mounted({ names: ['Detail'], mountKey: 'DetailPage', initPayload: { id: 'a', tab: 'x' } });
-    await m.rerender({ names: ['Detail'], mountKey: 'DetailPage', initPayload: { tab: 'x', id: 'a' } });
+    const m = await mounted({ mountKey: 'DetailPage', initPayload: { id: 'a', tab: 'x' } });
+    await m.rerender({ mountKey: 'DetailPage', initPayload: { tab: 'x', id: 'a' } });
     expect(m.inits('Detail')).toBe(1);
   });
 
   it('re-fires when the route params change on the same page (/items/a -> /items/b)', async () => {
-    const m = await mounted({ names: ['Detail'], mountKey: 'DetailPage', initPayload: { id: 'a' } });
-    await m.rerender({ names: ['Detail'], mountKey: 'DetailPage', initPayload: { id: 'b' } });
+    const m = await mounted({ mountKey: 'DetailPage', initPayload: { id: 'a' } });
+    await m.rerender({ mountKey: 'DetailPage', initPayload: { id: 'b' } });
     expect(m.inits('Detail')).toBe(2);
   });
 
   it('re-fires every trait on a page change, including one bound on both pages', async () => {
-    const m = await mounted({ names: ['Header', 'Detail'], mountKey: 'PageA' });
-    await m.rerender({ names: ['Header', 'Sidebar'], mountKey: 'PageB' });
+    const m = await mounted({ mountKey: 'PageA' });
+    await m.rerender({ mountKey: 'PageB' });
     expect(m.inits('Header')).toBe(2);
     expect(m.inits('Sidebar')).toBe(1);
     expect(m.inits('Detail')).toBe(1);
   });
 
-  it('re-fires a trait that unmounts and remounts within the same page', async () => {
-    const m = await mounted({ names: ['Header', 'Detail'], mountKey: 'PageA' });
-    await m.rerender({ names: ['Header'], mountKey: 'PageA' });
-    await m.rerender({ names: ['Header', 'Detail'], mountKey: 'PageA' });
-    expect(m.inits('Detail')).toBe(2);
-    // A trait-set change rebuilds the circuit store, resetting the survivor too, so it re-inits (G-UI-015).
-    expect(m.inits('Header')).toBe(3);
-  });
-
   it('dispatches nothing for a trait with no lifecycle event', async () => {
-    const m = await mounted({ names: ['NoInit', 'Header'], mountKey: 'PageA' });
+    const m = await mounted({ mountKey: 'PageA' });
     expect(m.inits('NoInit')).toBe(0);
     expect(m.inits('Header')).toBe(1);
   });
 
   it('mounts only the opened route\'s traits, the kernel\'s list, not every bound trait', async () => {
-    const m = await mounted({ names: ['Header', 'Detail', 'Sidebar'], mountKey: 'PageA' });
+    const m = await mounted({ mountKey: 'PageA' });
     expect(m.inits('Header')).toBe(1);
     expect(m.inits('Detail')).toBe(1);
     expect(m.inits('Sidebar')).toBe(0);
   });
 
-  it('mounts nothing when the host names no route', async () => {
-    const m = await mounted({ names: ['Header'] });
-    expect(m.inits('Header')).toBe(0);
+  it('mounts the kernel\'s initial page when the host names no route', async () => {
+    const m = await mounted({});
+    expect(m.inits('Header')).toBe(1);
   });
 });

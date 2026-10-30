@@ -24,11 +24,10 @@
  *
  * @packageDocumentation
  */
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   EventPayload,
   OrbitalDefinition,
-  ResolvedTraitBinding,
   ServiceParams,
   UserContext,
 } from '@almadar/core';
@@ -36,8 +35,10 @@ import { createMemoryCircuitStore, type CircuitStore } from '@almadar/shell-runt
 import type { ClientKernel, ClientKernelOutcome } from '@almadar/shell-runtime/client/client-kernel';
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import type { TransitionObserver } from '@almadar/shell-runtime/client/trait-types';
-import { buildTraitIndex, createLocalStoreTransport, createResidenceTransport, localStorePersistence, nativeMemoryPersistence, openLocalKernel } from '../../runtime';
-import type { IndexedTrait, TraitIndex, SchemaMetadata } from '@almadar/core';
+import { createLocalStoreTransport, createResidenceTransport, localStorePersistence, nativeMemoryPersistence, openLocalKernel } from '../../runtime';
+import type { SchemaMetadata } from '@almadar/core';
+import type { PageCircuit } from '@almadar/core/kernel-wire';
+import { memoryTraitDefinitions, NO_CIRCUIT, resolveCircuit, type CircuitSurface, type ResolvedCircuit } from '../../lib/circuit-surface';
 import type { OrbitalSchema, PersistenceAdapter } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { recordingTransport, verifierAttached } from '../../lib/verificationRegistry';
@@ -60,10 +61,11 @@ export function programStamp(schema: ProgramStamp): ProgramStamp {
 }
 
 export interface UseCircuitKernelOptions {
-  /** The resolved schema's full orbital set (`OrbitalSchema.orbitals`) —
-   *  the one input `buildTraitIndex` needs; the trait index is then
-   *  restricted to the traits `traitBindings` actually mounts. */
+  /** The program's orbitals (`OrbitalSchema.orbitals`): the kernel is built from them, and it answers the page's circuit. */
   orbitals: readonly OrbitalDefinition[];
+  /** The page the kernel answers the circuit of; neither `page` nor `route`: the initial page. */
+  page?: string;
+  route?: string;
   /** The program's `_metadata`: a compiled client program carries its operator sites and dispatch facts there, which a
    *  browser kernel (no operator table) needs to register the program. */
   metadata?: SchemaMetadata;
@@ -93,10 +95,18 @@ export interface UseCircuitKernelOptions {
   engine: KernelEngineValue | null;
 }
 
+/** The kernel's answer for the page: nothing mounts until it is ready. */
+export type CircuitState =
+  | { status: 'pending' }
+  | { status: 'ready'; page: PageCircuit }
+  | { status: 'failed'; error: Error };
+
 export interface CircuitKernelHandle {
   kernel: ClientKernel;
   store: CircuitStore;
-  traitIndex: TraitIndex;
+  /** The page's traits as the kernel answers them: empty until `circuit` is ready. */
+  traitIndex: CircuitSurface;
+  circuit: CircuitState;
   /** Every trait of the app (all pages); `traitIndex` is the current page's. */
   appTraitNames: ReadonlySet<string>;
   /** The server the kernel posts to; its pushes are settled by the caller. */
@@ -122,17 +132,6 @@ export function getTabClientId(): string {
 
 const log = createLogger('almadar:ui:circuit-kernel');
 
-/** Restrict a full-schema `TraitIndex` down to the traits this page mounts —
- *  the client's browser store only ever holds the current page's circuit,
- *  never an off-page trait it has nothing rendered for. */
-function restrictTraitIndex(full: TraitIndex, activeNames: ReadonlySet<string>): TraitIndex {
-  const byName = new Map<string, IndexedTrait>();
-  for (const [name, entry] of full.byName) {
-    if (activeNames.has(name)) byName.set(name, entry);
-  }
-  return { byName, allEntities: full.allEntities, orbitals: full.orbitals };
-}
-
 /** The previous orbital set while a new array carries the same content: a host that rebuilds the array each render must not rebuild the circuit. */
 function useContentStable(orbitals: readonly OrbitalDefinition[]): readonly OrbitalDefinition[] {
   const held = useRef<{ value: readonly OrbitalDefinition[]; key: string } | null>(null);
@@ -146,39 +145,66 @@ function useContentStable(orbitals: readonly OrbitalDefinition[]): readonly Orbi
 }
 
 export function useCircuitKernel(
-  traitBindings: readonly ResolvedTraitBinding[],
   options: UseCircuitKernelOptions,
 ): CircuitKernelHandle {
   const orbitals = useContentStable(options.orbitals);
-  const fullTraitIndex = useMemo(
-    () => buildTraitIndex(orbitals),
-    [orbitals],
-  );
-  const appTraitNames = useMemo(() => new Set(fullTraitIndex.byName.keys()), [fullTraitIndex]);
-  // Keyed on the active trait SET, not the bindings array identity: a same-traits re-render must not rebuild the store.
-  const activeTraitKey = traitBindings
-    .map((b) => b.trait.name)
-    .filter((n): n is string => !!n)
-    .sort()
-    .join('\u0000');
-  const traitIndex = useMemo(
-    () => restrictTraitIndex(fullTraitIndex, new Set(activeTraitKey === '' ? [] : activeTraitKey.split('\u0000'))),
-    [activeTraitKey, fullTraitIndex],
-  );
-
-  const { locale } = useTranslate();
-  const i18n = useRenderI18n();
-
-  const store = useMemo(
-    () => createMemoryCircuitStore(Array.from(traitIndex.byName.values(), (entry: IndexedTrait) => entry.traitDef), options.observer),
-    [traitIndex, options.observer],
-  );
-
   if (options.engine === null) throw new KernelLoaderMissingError();
   const loadModule = options.engine.loadModule;
   const orbitalName = orbitals[0]?.name ?? '';
   const metadata = options.metadata;
   const stamp = options.stamp;
+
+  const kernelInstance = useMemo<Promise<KernelInstance>>(() => {
+    const instance = loadModule().then((mod) => {
+      const kernel = new mod.Kernel(JSON.stringify({ name: orbitalName, orbitals: kernelOrbitals(orbitals), ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) }), getTabClientId());
+      // Every host this view posts to runs the whole worklist, listeners of a dispatched emit included.
+      kernel.setHostFansOut(true);
+      // A verifier judges each hop's `@ensures` on the entity before and after it; the kernel records them only then.
+      if (verifierAttached()) {
+        kernel.setRecordEntityAfter(true);
+        kernel.setFrameEffectResults(true);
+      }
+      return kernel;
+    });
+    // A failure surfaces on the first dispatch that awaits it; a circuit with nothing to run never does.
+    instance.catch((err) => log.error('kernel-load-failed', { error: String(err) }));
+    return instance;
+  }, [loadModule, orbitalName, orbitals, metadata, stamp]);
+
+  // The kernel's answer for the page, asked of the one instance: the traits it mounts and what it holds of each.
+  const [answered, setAnswered] = useState<{ instance: Promise<KernelInstance>; page: string | undefined; route: string | undefined; state: { status: 'ready'; resolved: ResolvedCircuit } | { status: 'failed'; error: Error } } | undefined>(undefined);
+  const { page, route } = options;
+  useEffect(() => {
+    let live = true;
+    kernelInstance.then(
+      (k) => {
+        const resolved = resolveCircuit(k, page, route);
+        if (live) setAnswered({ instance: kernelInstance, page, route, state: { status: 'ready', resolved } });
+      },
+    ).catch((error: Error) => {
+      log.error('circuit:failed', { error: error.message });
+      if (live) setAnswered({ instance: kernelInstance, page, route, state: { status: 'failed', error } });
+    });
+    return () => { live = false; };
+  }, [kernelInstance, page, route]);
+  const current = answered !== undefined && answered.instance === kernelInstance && answered.page === page && answered.route === route ? answered.state : undefined;
+  const resolved = current?.status === 'ready' ? current.resolved : undefined;
+  const traitIndex = resolved?.surface ?? NO_CIRCUIT;
+  const appTraitNames = useMemo<ReadonlySet<string>>(() => resolved?.appTraitNames ?? new Set(), [resolved]);
+  const browserEntities = resolved?.browserEntities;
+  const circuit = useMemo<CircuitState>(() => {
+    if (current === undefined) return { status: 'pending' };
+    return current.status === 'ready' ? { status: 'ready', page: current.resolved.page } : current;
+  }, [current]);
+
+  const { locale } = useTranslate();
+  const i18n = useRenderI18n();
+
+  const store = useMemo(
+    () => createMemoryCircuitStore(memoryTraitDefinitions(traitIndex), options.observer),
+    [traitIndex, options.observer],
+  );
+
   // A local leg runs on a kernel of its own over its store, with the viewer's catalog for `i18n/t`.
   const localTransport = useCallback(
     (store: PersistenceAdapter): EventTransport => {
@@ -206,11 +232,11 @@ export function useCircuitKernel(
     [options.transport, options.persistence, localTransport],
   );
   const routedTransport = useMemo(() => {
-    if (options.browserStore === undefined) return undefined;
+    if (options.browserStore === undefined || browserEntities === undefined) return undefined;
     const local = localTransport(options.browserStore);
     const remote = options.transport ?? offlineTransport;
-    return createResidenceTransport({ local, ...(remote !== undefined ? { remote } : {}), traitIndex: fullTraitIndex });
-  }, [options.browserStore, options.transport, offlineTransport, fullTraitIndex, localTransport]);
+    return createResidenceTransport({ local, ...(remote !== undefined ? { remote } : {}), browserEntities });
+  }, [options.browserStore, options.transport, offlineTransport, browserEntities, localTransport]);
 
   const baseTransport = routedTransport ?? options.transport ?? offlineTransport;
   const effectiveTransport = useMemo(
@@ -231,22 +257,6 @@ export function useCircuitKernel(
     if (!awaitTopology) topology.resolve({ carriesCircuitState: confirmedCarries });
   }, [awaitTopology, confirmedCarries, topology]);
 
-  const kernelInstance = useMemo<Promise<KernelInstance>>(() => {
-    const instance = loadModule().then((mod) => {
-      const kernel = new mod.Kernel(JSON.stringify({ name: orbitalName, orbitals: kernelOrbitals(orbitals), ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) }), getTabClientId());
-      // Every host this view posts to runs the whole worklist, listeners of a dispatched emit included.
-      kernel.setHostFansOut(true);
-      // A verifier judges each hop's `@ensures` on the entity before and after it; the kernel records them only then.
-      if (verifierAttached()) {
-        kernel.setRecordEntityAfter(true);
-        kernel.setFrameEffectResults(true);
-      }
-      return kernel;
-    });
-    // A failure surfaces on the first dispatch that awaits it; a circuit with nothing to run never does.
-    instance.catch((err) => log.error('kernel-load-failed', { error: String(err) }));
-    return instance;
-  }, [loadModule, orbitalName, orbitals, metadata, stamp]);
   // A transition the client paints locally resolves `i18n/t` against the viewer's catalog, as the server leg does.
   useEffect(() => {
     if (i18n === undefined) return;
@@ -288,5 +298,5 @@ export function useCircuitKernel(
     };
   }, [rawKernel, locale]);
 
-  return { kernel, store, traitIndex, appTraitNames, transport: effectiveTransport, engine: kernelClient };
+  return { kernel, store, traitIndex, circuit, appTraitNames, transport: effectiveTransport, engine: kernelClient };
 }

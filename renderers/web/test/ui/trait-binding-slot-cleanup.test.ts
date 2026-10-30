@@ -21,8 +21,8 @@ import { describe, it, expect, vi, type Mock } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import { useUISlotManager, ALL_SLOTS, type UISlotManager } from '../../src/hooks/useUISlots';
-import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
-import { createEmptyResolvedTrait } from '@almadar/core';
+import type { OrbitalId, OrbitalSchema, Trait } from '@almadar/core';
+import { machineReady } from '../../src/test-support/circuit';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 describe('clearBySource on a real UISlotManager — un-stacking a dropped trait', () => {
@@ -91,7 +91,10 @@ function wiringOrbitals(): OrbitalSchema['orbitals'] {
   return [{
     name: 'NavOrbital',
     id: 'orb_nav' as OrbitalId,
-    pages: [],
+    pages: [
+      { name: 'OldPage', path: '/old', traits: [{ ref: 'OldPageLayout' }] },
+      { name: 'NewPage', path: '/new', traits: [{ ref: 'NewPageLayout' }] },
+    ],
     entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [mkTrait('OldPageLayout'), mkTrait('NewPageLayout')],
   }];
@@ -113,19 +116,16 @@ function wiringOrbitalsWithInit(): OrbitalSchema['orbitals'] {
   return [{
     name: 'NavOrbital',
     id: 'orb_nav' as OrbitalId,
-    pages: [{ name: 'NewPage', path: '/new', traits: [{ ref: 'NewPageLayout' }] }],
+    pages: [
+      { name: 'OldPage', path: '/old', traits: [{ ref: 'OldPageLayout' }] },
+      { name: 'NewPage', path: '/new', traits: [{ ref: 'NewPageLayout' }] },
+    ],
     entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
     traits: [
       mkTrait('OldPageLayout', [{ from: 'idle', to: 'idle', event: 'PING', effects: [] }]),
       mkTrait('NewPageLayout', [{ from: 'idle', to: 'idle', event: 'INIT', effects: [['render-ui', 'main', { type: 'box' }]] }]),
     ],
   }];
-}
-
-function wiringBinding(name: string): ResolvedTraitBinding {
-  const trait = createEmptyResolvedTrait(name, 'schema');
-  trait.transitions = [{ from: 'idle', to: 'idle', event: 'PING', effects: [] }];
-  return { trait, linkedEntity: 'Item' };
 }
 
 function stubSlots(): UISlotManager & { clearBySource: Mock<UISlotManager['clearBySource']>; render: Mock<UISlotManager['render']> } {
@@ -146,19 +146,17 @@ function stubSlots(): UISlotManager & { clearBySource: Mock<UISlotManager['clear
 }
 
 describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
-  it('clears every slot for a trait dropped by a traitBindings change', async () => {
+  it('clears every slot for a trait dropped by a page change', async () => {
     const slots = stubSlots();
     const orbitals = wiringOrbitals();
-    const pageA = [wiringBinding('OldPageLayout')];
-    const pageB = [wiringBinding('NewPageLayout')];
-
-    const { rerender } = renderHook(
-      ({ bindings }: { bindings: ResolvedTraitBinding[] }) =>
-        useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals }),
-      { initialProps: { bindings: pageA } },
+    const { result, rerender } = renderHook(
+      ({ route }: { route: string }) =>
+        useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals, mountKey: route, routePath: route }),
+      { initialProps: { route: '/old' } },
     );
+    await machineReady(result);
     await act(async () => {
-      rerender({ bindings: pageB });
+      rerender({ route: '/new' });
     });
     await vi.waitFor(() => {
       expect(slots.clearBySource.mock.calls.some(([, traitName]) => traitName === 'OldPageLayout')).toBe(true);
@@ -181,19 +179,15 @@ describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
   it('clears nothing when the trait set is unchanged', async () => {
     const slots = stubSlots();
     const orbitals = wiringOrbitals();
-    const pageA = [wiringBinding('OldPageLayout')];
-
-    const { rerender } = renderHook(
-      ({ bindings }: { bindings: ResolvedTraitBinding[] }) =>
-        useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals }),
-      { initialProps: { bindings: pageA } },
+    const { result, rerender } = renderHook(
+      ({ route }: { route: string }) =>
+        useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals, mountKey: route, routePath: route }),
+      { initialProps: { route: '/old' } },
     );
-    await act(async () => {
-      await Promise.resolve();
-    });
+    await machineReady(result);
     slots.clearBySource.mockClear();
     await act(async () => {
-      rerender({ bindings: pageA });
+      rerender({ route: '/old' });
     });
 
     expect(slots.clearBySource).not.toHaveBeenCalled();
@@ -207,17 +201,15 @@ describe('useTraitStateMachine — dropped-trait slot cleanup wiring', () => {
   it('clears the dropped trait BEFORE the new page\'s INIT paints into the slot', async () => {
     const slots = stubSlots();
     const orbitals = wiringOrbitalsWithInit();
-    const pageA = [wiringBinding('OldPageLayout')];
-    const pageB = [wiringBinding('NewPageLayout')];
-
-    const { rerender } = renderHook(
-      ({ bindings }: { bindings: ResolvedTraitBinding[] }) =>
-        useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals, routePath: '/new' }),
-      { initialProps: { bindings: pageA } },
+    const { result, rerender } = renderHook(
+      ({ route }: { route: string }) =>
+        useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals, mountKey: route, routePath: route }),
+      { initialProps: { route: '/old' } },
     );
+    await machineReady(result);
 
     await act(async () => {
-      rerender({ bindings: pageB });
+      rerender({ route: '/new' });
     });
     await vi.waitFor(() => {
       expect(slots.render).toHaveBeenCalled();

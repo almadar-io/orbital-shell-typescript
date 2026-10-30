@@ -27,13 +27,14 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
-import { createEmptyResolvedTrait } from '@almadar/core';
+import type { OrbitalId, OrbitalSchema } from '@almadar/core';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
+import { machineReady } from '../../src/test-support/circuit';
 import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import { ENGINES, TEST_STAMP } from '../../src/test-support/kernel-engine';
+import { circuitReady } from '../../src/test-support/circuit';
 
 function gatewayOrbitals(): OrbitalSchema['orbitals'] {
   return [{
@@ -67,17 +68,6 @@ function gatewayOrbitals(): OrbitalSchema['orbitals'] {
   }];
 }
 
-function binding(
-  name: string,
-  transitions: ResolvedTraitBinding['trait']['transitions'],
-  listens?: ResolvedTraitBinding['trait']['listens'],
-): ResolvedTraitBinding {
-  const trait = createEmptyResolvedTrait(name, 'schema');
-  trait.transitions = transitions;
-  if (listens !== undefined) trait.listens = listens;
-  return { trait, linkedEntity: 'Route' };
-}
-
 function stubSlots(): UISlotManager {
   return {
     slots: {},
@@ -99,22 +89,16 @@ describe('listen-source bus routing — RouteCatalog.CREATE -> RouteCreate', () 
   it('a click fanned onto the listen-source key opens the form trait', async () => {
     const slots = stubSlots();
     const orbitals = gatewayOrbitals();
-    const bindings = [
-      binding('RouteCatalog', []),
-      binding('RouteCreate', [
-        { from: 'closed', to: 'open', event: 'CREATE', effects: [['set', '@entity.formOpen', true]] },
-      ], [{ event: 'CREATE', source: { kind: 'trait', trait: 'RouteCatalog' }, triggers: 'CREATE' }]),
-    ];
-
     let bus!: ReturnType<typeof useEventBus>;
     const { result } = renderHook(() => {
       bus = useEventBus();
-      return useTraitStateMachine(bindings, slots, { stamp: TEST_STAMP, orbitals, routePath: '/' });
+      return useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals, routePath: '/' });
     });
 
     // The exact key the Button's scope-chain fan-out produces (the button
     // renders inside RouteCatalog's subtree; RouteCatalog declares no CREATE
     // transition of its own).
+    await machineReady(result);
     await act(async () => {
       bus.emit('UI:RouteOrbital.RouteCatalog.CREATE', {});
     });
@@ -158,15 +142,12 @@ describe('listen-source bus routing — the emitter declares the event', () => {
 
   async function saveOnce(formStates: string[], formArm: { from: string; to: string; event: string }): Promise<number> {
     const orbitals = crmOrbitals(formStates, formArm);
-    const bindings: ResolvedTraitBinding[] = [
-      { ...binding('ContactCreate', [{ ...formArm, effects: [] }]), linkedEntity: 'Contact' },
-      { ...binding('ContactPersistor', [{ from: 'idle', to: 'idle', event: 'DO_CREATE', effects: [['set', '@entity.created', ['+', '@entity.created', 1]]] }], listens), linkedEntity: 'Contact' },
-    ];
     let bus!: ReturnType<typeof useEventBus>;
     const { result } = renderHook(() => {
       bus = useEventBus();
-      return useTraitStateMachine(bindings, stubSlots(), { stamp: TEST_STAMP, orbitals, routePath: '/' });
+      return useTraitStateMachine(stubSlots(), { stamp: TEST_STAMP, orbitals, routePath: '/' });
     });
+    await machineReady(result);
     await act(async () => {
       bus.emit('UI:ContactOrbital.ContactCreate.SAVE', {});
     });
@@ -194,16 +175,9 @@ describe('listen-source bus routing — the emitter declares the event', () => {
  * nothing; the delivery is whatever the kernel answers, and the Rust host's kernel answers the same.
  */
 describe.each(ENGINES)('listen-source delivery is the kernel\'s answer [%s engine] — twin of the Rust host', (_name, engine) => {
-  const catalog = { name: 'RouteCatalog', transitions: [] as ResolvedTraitBinding['trait']['transitions'] };
-  const create = {
-    name: 'RouteCreate',
-    transitions: [{ from: 'closed', to: 'open', event: 'CREATE', effects: [] as never[] }],
-    listens: [{ event: 'CREATE', source: { kind: 'trait' as const, trait: 'RouteCatalog' }, triggers: 'CREATE' }],
-  };
-
   it('dispatching the source answers the listener\'s delivery: RouteCatalog browsing, RouteCreate open', async () => {
-    const bindings = [binding(catalog.name, catalog.transitions), binding(create.name, create.transitions, create.listens)];
-    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: gatewayOrbitals(), engine }));
+    const { result } = renderHook(() => useCircuitKernel({ stamp: TEST_STAMP, orbitals: gatewayOrbitals(), engine }));
+    await circuitReady(result);
     let answer!: Awaited<ReturnType<typeof result.current.kernel.dispatch>>;
     await act(async () => {
       answer = await result.current.kernel.dispatch({ event: 'CREATE', targetTrait: 'RouteCatalog' });
@@ -216,8 +190,8 @@ describe.each(ENGINES)('listen-source delivery is the kernel\'s answer [%s engin
   });
 
   it('control: an event nobody listens to delivers nothing', async () => {
-    const bindings = [binding(catalog.name, catalog.transitions), binding(create.name, create.transitions, create.listens)];
-    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals: gatewayOrbitals(), engine }));
+    const { result } = renderHook(() => useCircuitKernel({ stamp: TEST_STAMP, orbitals: gatewayOrbitals(), engine }));
+    await circuitReady(result);
     let answer!: Awaited<ReturnType<typeof result.current.kernel.dispatch>>;
     await act(async () => {
       answer = await result.current.kernel.dispatch({ event: 'UNRELATED', targetTrait: 'RouteCatalog' });

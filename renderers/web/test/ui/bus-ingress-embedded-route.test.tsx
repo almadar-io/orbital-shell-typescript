@@ -3,10 +3,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import React from 'react';
-import type { OrbitalId, OrbitalSchema, ResolvedTraitBinding, TraitEventListener } from '@almadar/core';
-import { createEmptyResolvedTrait } from '@almadar/core';
-import { buildTraitIndex } from '../../src/runtime';
+import type { TraitEventListener } from '@almadar/core';
 import { useBusIngress, type BusDispatch, type BusEmitDelivery } from '../../src/hooks/circuit/useBusIngress';
+import type { TraitSurface } from '@almadar/core/kernel-wire';
 import { useEventBus } from '../../src/core';
 import { EventBusProvider } from '../../src/core';
 import { TraitScopeProvider } from '../../src/core';
@@ -14,26 +13,21 @@ import { TraitScopeProvider } from '../../src/core';
 const ORBITAL = 'EmbedOrbital';
 const idle = [{ name: 'idle', isInitial: true }];
 
-function orbitals(routes: TraitEventListener[]): OrbitalSchema['orbitals'] {
-  const transitions = [{ from: 'idle', to: 'idle', event: 'REQUEST', effects: [] }];
-  return [{
-    name: ORBITAL,
-    id: 'orb_embed' as OrbitalId,
-    pages: [],
-    entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
-    traits: [
-      { name: 'Child', linkedEntity: 'Item', stateMachine: { states: idle, events: [], transitions: [] } },
-      { name: 'Other', linkedEntity: 'Item', stateMachine: { states: idle, events: [], transitions: [] } },
-      { name: 'Host', linkedEntity: 'Item', listens: routes, stateMachine: { states: idle, events: [], transitions } },
-    ],
-  }];
-}
-
-function bindings(routes: TraitEventListener[]): ResolvedTraitBinding[] {
-  const host = createEmptyResolvedTrait('Host', 'schema');
-  host.transitions = [{ from: 'idle', to: 'idle', event: 'REQUEST', effects: [] }];
-  host.listens = routes;
-  return [{ trait: host, linkedEntity: 'Item' }];
+function surfaces(routes: TraitEventListener[]): ReadonlyMap<string, TraitSurface> {
+  return new Map([['Host', {
+    name: 'Host',
+    orbital: ORBITAL,
+    shared: false,
+    browser: false,
+    frameKey: 'Host',
+    ticks: [],
+    emits: [],
+    states: ['idle'],
+    initial: 'idle',
+    events: ['REQUEST'],
+    listens: routes.flatMap((r) => (r.source?.kind === 'trait' ? [{ event: r.event, source: { orbital: ORBITAL, trait: r.source.trait } }] : [])),
+    transitions: [{ from: 'idle', to: 'idle', event: 'REQUEST' }],
+  }]]);
 }
 
 function route(source: string, event: string, triggers: string): TraitEventListener {
@@ -43,8 +37,8 @@ function route(source: string, event: string, triggers: string): TraitEventListe
 function mount(routes: TraitEventListener[], chain: string[]) {
   const settle = vi.fn<BusDispatch>(async () => {});
   const deliver = vi.fn<BusEmitDelivery>(async () => {});
-  const traitIndex = buildTraitIndex(orbitals(routes));
-  const bs = bindings(routes);
+  const bs = surfaces(routes);
+  const traitIndex = { byName: bs };
   const wrapper = ({ children }: { children?: React.ReactNode }): React.JSX.Element => (
     <EventBusProvider isolated>
       {chain.reduceRight<React.JSX.Element>(

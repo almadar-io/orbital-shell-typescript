@@ -6,10 +6,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
+import { machineReady } from '../../src/test-support/circuit';
 import { useEventBus } from '../../src/core';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
-import type { EventPayload, OrbitalId, OrbitalSchema, ResolvedTraitBinding, Trait } from '@almadar/core';
-import { createEmptyResolvedTrait } from '@almadar/core';
+import type { EventPayload, OrbitalId, OrbitalSchema, Trait } from '@almadar/core';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const host: Trait = {
@@ -33,33 +33,30 @@ const leaf: Trait = {
 };
 
 const orbitals: OrbitalSchema['orbitals'] = [{
-  name: 'PageOrbital', id: 'orb_page' as OrbitalId, pages: [],
+  name: 'PageOrbital', id: 'orb_page' as OrbitalId, pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Host' }, { ref: 'Feed' }, { ref: 'Leaf' }] }],
   entity: { name: 'Item', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
   traits: [host, feed, leaf],
 }];
 
 function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
+  // An embedded trait paints its sidecar (`updateTraitContent`); both channels are the trait's paints here.
+  const render = vi.fn((_content: object) => 'id');
   return {
-    slots: {}, render: vi.fn(() => 'id'), clear: vi.fn(), clearBySource: vi.fn(), clearById: vi.fn(), clearAll: vi.fn(),
+    slots: {}, render, clear: vi.fn(), clearBySource: vi.fn(), clearById: vi.fn(), clearAll: vi.fn(),
     subscribe: vi.fn(() => () => undefined), hasContent: vi.fn(() => false), getContent: vi.fn(() => null),
-    getTraitContent: vi.fn(() => null), subscribeTrait: vi.fn(() => () => undefined), updateTraitContent: vi.fn(() => 'id'),
+    getTraitContent: vi.fn(() => null), subscribeTrait: vi.fn(() => () => undefined), updateTraitContent: vi.fn((traitName: string, content: object) => render({ ...content, sourceTrait: traitName })),
   };
 }
-
-const binding = (name: string): ResolvedTraitBinding => {
-  const trait = createEmptyResolvedTrait(name, 'schema');
-  trait.transitions = ([host, feed, leaf].find((t) => t.name === name)?.stateMachine?.transitions ?? []).map(({ from, to, event }) => ({ from, to, event, effects: [] }));
-  return { trait, linkedEntity: 'Item' };
-};
 
 async function mounted() {
   const slots = stubSlots();
   let bus!: ReturnType<typeof useEventBus>;
-  const hook = renderHook(() => { bus = useEventBus(); return useTraitStateMachine(['Host', 'Feed', 'Leaf'].map(binding), slots, {
+  const hook = renderHook(() => { bus = useEventBus(); return useTraitStateMachine(slots, {
     stamp: TEST_STAMP,
     orbitals,
+    routePath: '/',
   }); });
-  await act(async () => undefined);
+  await machineReady(hook.result);
   const send = async (event: string, payload: EventPayload) => {
     bus.emit(`UI:PageOrbital.${({ LOADED: 'Feed', PING: 'Host' } as Record<string, string>)[event]}.${event}`, payload);
     await act(async () => undefined);

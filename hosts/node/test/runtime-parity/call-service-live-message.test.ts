@@ -100,7 +100,7 @@ function crossOrbitalSchema(): OrbitalSchema {
   };
 }
 
-describeWithMemoryKernel('call-service live messages', () => {
+describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, traitId, emits] call-service live messages', () => {
   it('a cross-orbital relay hop runs as the requesting viewer, not the default user', async () => {
     const principals: Array<string | undefined> = [];
     const runtime = new OrbitalServerRuntime({

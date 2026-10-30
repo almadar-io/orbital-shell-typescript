@@ -10,7 +10,7 @@ import { OrbPreview } from '../OrbPreview';
 import { ArbitraryClassCompilerProvider, resetArbitraryClassStyles } from '../../providers/ArbitraryClassCompiler';
 import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
-const schema: OrbitalSchema = JSON.parse(JSON.stringify({
+const schema: OrbitalSchema = {
   typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
   name: 'styled-app',
   version: '1.0.0',
@@ -28,7 +28,7 @@ const schema: OrbitalSchema = JSON.parse(JSON.stringify({
     }],
     pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Show' }] }],
   }],
-}));
+};
 
 afterEach(() => resetArbitraryClassStyles());
 

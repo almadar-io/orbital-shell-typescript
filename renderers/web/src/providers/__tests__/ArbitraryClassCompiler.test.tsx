@@ -6,7 +6,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
-import type { OrbitalSchema } from '@almadar/core';
+import { parseOrbitalSchema, type OrbitalSchema } from '@almadar/core';
 import {
   ArbitraryClassCompilerProvider,
   useArbitraryClassStyles,
@@ -15,11 +15,11 @@ import {
 } from '../ArbitraryClassCompiler';
 
 function schemaWith(className: string): OrbitalSchema {
-  return JSON.parse(JSON.stringify({
+  return parseOrbitalSchema({
     name: 'App',
     orbitals: [{
       name: 'Tasks',
-      entity: { name: 'Task', fields: [] },
+      entity: { name: 'Task', fields: [{ name: 'id', type: 'string' }] },
       traits: [{
         name: 'TaskFlow',
         stateMachine: {
@@ -30,7 +30,7 @@ function schemaWith(className: string): OrbitalSchema {
       }],
       pages: [],
     }],
-  }));
+  });
 }
 
 function Probe({ schema }: { schema: OrbitalSchema }): null {

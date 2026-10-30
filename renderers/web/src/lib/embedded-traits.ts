@@ -5,6 +5,5 @@
  * @packageDocumentation
  */
 export {
-  collectTraitRefsFromResolvedTrait,
   collectEmbeddedTraits,
 } from '../runtime';

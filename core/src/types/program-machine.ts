@@ -14,11 +14,13 @@ import type {
   GuardVerdict,
   MachineRow,
   PayloadSlot,
+  PendingAsk,
   PlayedEffect,
   PlayedEffectStatus,
   PlayedEmit,
   PlayedEnsures,
   PlayedGuard,
+  PlayedOutcome,
   PlayedResult,
   PlayedState,
   PlayedStep,
@@ -37,11 +39,13 @@ export type {
   GuardVerdict,
   MachineRow,
   PayloadSlot,
+  PendingAsk,
   PlayedEffect,
   PlayedEffectStatus,
   PlayedEmit,
   PlayedEnsures,
   PlayedGuard,
+  PlayedOutcome,
   PlayedResult,
   PlayedState,
   PlayedStep,
@@ -145,6 +149,27 @@ const RenderedSlotSchema: z.ZodType<RenderedSlot> = z.object({
 
 const PlayedStateSchema: z.ZodType<PlayedState> = z.object({ before: z.string().nullable(), after: z.string().nullable() });
 
+const PendingAskSchema: z.ZodType<PendingAsk> = z.object({
+  trait: z.string(),
+  operator: z.string(),
+  args: z.array(JsonValueSchema),
+  key: z.string(),
+});
+
+const PlayedOutcomeSchema: z.ZodType<PlayedOutcome> = z.object({
+  orbital: z.string(),
+  trait: z.string(),
+  event: z.string(),
+  from: z.string(),
+  to: z.string(),
+  arm: z.number().optional(),
+  fired: z.boolean(),
+  effects: z.array(PlayedEffectSchema),
+  emitted: z.array(PlayedEmitSchema),
+});
+
+const JsonRecordSchema = z.record(z.string(), JsonValueSchema);
+
 const PlayedResultSchema: z.ZodType<PlayedResult> = z.object({
   trait: z.string(),
   event: z.string(),
@@ -157,6 +182,10 @@ const PlayedResultSchema: z.ZodType<PlayedResult> = z.object({
   guards: z.array(PlayedGuardSchema),
   ensures: z.array(PlayedEnsuresSchema),
   rendered: z.array(RenderedSlotSchema).optional(),
+  failure: z.string().optional(),
+  entityAfter: EventPayloadSchema.nullable(),
+  pendingAsks: z.array(PendingAskSchema),
+  outcomes: z.array(PlayedOutcomeSchema),
 });
 
 export const PlayedStepSchema: z.ZodType<PlayedStep> = z.object({
@@ -166,4 +195,10 @@ export const PlayedStepSchema: z.ZodType<PlayedStep> = z.object({
   event: z.string(),
   payload: EventPayloadSchema,
   result: PlayedResultSchema,
+  entity: JsonRecordSchema.optional(),
+  config: JsonRecordSchema.optional(),
+  now: z.number().optional(),
+  settleMs: z.number().optional(),
+  viewer: JsonRecordSchema.nullable().optional(),
+  credentials: z.record(z.string(), z.string()).optional(),
 });

@@ -43,7 +43,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import type { EffectHandlers } from '../runtime';
-import { buildTraitIndex, createLocalStoreTransport, nativeMemoryPersistence, openLocalKernel } from '../runtime';
+import { createLocalStoreTransport, nativeMemoryPersistence, openLocalKernel } from '../runtime';
 import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import type { ClientKernelOutcome } from '@almadar/shell-runtime/client/client-kernel';
 import type { TraitState } from '@almadar/shell-runtime/client/trait-types';
@@ -65,6 +65,7 @@ import { createLazyKernelClient } from '../lib/kernel-client-lazy';
 import type { KernelClient } from '../lib/kernel-client';
 import type { KernelInstance } from '../lib/kernel-wire';
 import { kernelOrbitals } from '../lib/kernel-schema';
+import { memoryTraitDefinitions, programCircuit } from '../lib/circuit-surface';
 import { getTabClientId, programStamp } from '../hooks/circuit/useCircuitKernel';
 import { useClientTicks } from '../hooks/circuit/useClientTicks';
 import { PatternConfigSchema, UI_SLOTS, isRoutePage } from '@almadar/core';
@@ -319,48 +320,39 @@ interface PluginLocalKernel {
  * One plugin's local kernel: its schema over an in-memory store, the denied
  * verbs answered by the host's ports, and a client-role kernel over it, as an offline `OrbPreview` circuit runs.
  */
-function openPluginKernel(
+async function openPluginKernel(
   plugin: PluginHostPlugin,
-  engine: KernelEngineValue | null,
+  engine: KernelEngineValue,
   denySet: ReadonlySet<PluginHostDenyVerb>,
-): PluginLocalKernel {
-  if (engine === null) throw new KernelLoaderMissingError();
+): Promise<PluginLocalKernel> {
   const schema = plugin.schema;
-  const opened = engine.loadModule().then((kernel) => {
-    const rows = nativeMemoryPersistence(kernel);
-    const persistence = denySet.has('persist') ? writeDeniedStore(plugin.id, rows) : rows;
-    const server = openLocalKernel({
-      kernel,
-      schema,
-      persistence,
-      ...(denySet.has('call-service')
-        ? {
-            callService: async (service: string, action: string) => {
-              log.warn('call-service:denied', { pluginId: plugin.id, service, action });
-              return null;
-            },
-          }
-        : {}),
-    });
-    return { kernel, server };
+  const kernel = await engine.loadModule();
+  const rows = nativeMemoryPersistence(kernel);
+  const persistence = denySet.has('persist') ? writeDeniedStore(plugin.id, rows) : rows;
+  const server = openLocalKernel({
+    kernel,
+    schema,
+    persistence,
+    ...(denySet.has('call-service')
+      ? {
+          callService: async (service: string, action: string) => {
+            log.warn('call-service:denied', { pluginId: plugin.id, service, action });
+            return null;
+          },
+        }
+      : {}),
   });
-  // The failure reaches the first dispatch through the transport (and the registration below).
-  opened.catch(() => undefined);
-  const kernelEngine = opened.then((o) => o.server);
-  kernelEngine.catch(() => undefined);
+  const kernelEngine = Promise.resolve(server);
   const transport = createLocalStoreTransport({ kernelEngine });
-  const instance = opened.then(({ kernel }) => {
-    const k = new kernel.Kernel(JSON.stringify({ name: schema.name, orbitals: kernelOrbitals(schema.orbitals), ...programStamp(schema), ...(schema._metadata !== undefined ? { _metadata: schema._metadata } : {}) }), getTabClientId());
-    // The local kernel runs the whole worklist of every leg it is posted, listeners of a dispatched emit included.
-    k.setHostFansOut(true);
-    return k;
-  });
-  instance.catch(() => undefined);
-  const traitIndex = buildTraitIndex(schema.orbitals);
+  const opened = new kernel.Kernel(JSON.stringify({ name: schema.name, orbitals: kernelOrbitals(schema.orbitals), ...programStamp(schema), ...(schema._metadata !== undefined ? { _metadata: schema._metadata } : {}) }), getTabClientId());
+  // The local kernel runs the whole worklist of every leg it is posted, listeners of a dispatched emit included.
+  opened.setHostFansOut(true);
+  const instance = Promise.resolve(opened);
+  const circuit = programCircuit(opened);
   const client = createLazyKernelClient({
     instance,
-    store: createMemoryCircuitStore(Array.from(traitIndex.byName.values(), (entry) => entry.traitDef)),
-    traitIndex,
+    store: createMemoryCircuitStore(memoryTraitDefinitions(circuit)),
+    traitIndex: circuit,
     transport,
     topology: Promise.resolve({ carriesCircuitState: false }),
   });
@@ -435,19 +427,39 @@ function PluginRuntimeMount({
     navigateRef,
   })));
   const denyRef = useRef(deny);
-  const local = useMemo(
-    () => (mode !== 'mock' ? undefined : openPluginKernel(plugin, kernelEngineValue, new Set(denyRef.current ?? []))),
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+  if (mode === 'mock' && kernelEngineValue === null) throw new KernelLoaderMissingError();
+  // The plugin's program on a kernel of its own, opened once per program (held in the memo as the in-process playground's
+  // runtime is); nothing runs until the kernel has answered its circuit.
+  const opening = useMemo<Promise<PluginLocalKernel> | undefined>(() => {
+    if (mode !== 'mock' || kernelEngineValue === null) return undefined;
+    const opened = openPluginKernel(plugin, kernelEngineValue, new Set(denyRef.current ?? []));
+    opened.catch(() => undefined);
+    return opened;
     // The kernel is the plugin's program: a new schema opens a new one.
-    [mode, plugin.id, plugin.schema, kernelEngineValue],
-  );
+  }, [mode, plugin.id, plugin.schema, kernelEngineValue]);
+  const [local, setLocal] = useState<PluginLocalKernel | undefined>(undefined);
+  useEffect(() => {
+    setLocal(undefined);
+    if (opening === undefined) return undefined;
+    let live = true;
+    opening.then(
+      (opened) => { if (live) setLocal(opened); },
+      (err: Error) => { if (live) onErrorRef.current(plugin.id, err.message); },
+    );
+    return () => { live = false; };
+  }, [opening, plugin.id]);
   const activeTransport = local?.transport ?? (mode === 'server' ? transport : undefined);
   const engineRef = useRef<KernelInstance | undefined>(undefined);
 
   const registrationReady = useMemo(async () => {
-    if (activeTransport === undefined) return;
-    await activeTransport.register(plugin.schema);
-    if (local !== undefined) engineRef.current = await local.instance;
-  }, [activeTransport, local, plugin.schema]);
+    const opened = opening !== undefined ? await opening : undefined;
+    const target = opened?.transport ?? (mode === 'server' ? transport : undefined);
+    if (target === undefined) return;
+    await target.register(plugin.schema);
+    if (opened !== undefined) engineRef.current = await opened.instance;
+  }, [opening, mode, transport, plugin.schema]);
 
   useEffect(() => {
     if (mode === 'server' && !transport) {
@@ -458,21 +470,26 @@ function PluginRuntimeMount({
   // Deferred unmount cleanup — in-process-playground precedent. React
   // StrictMode's dev double-mount runs setup → cleanup → setup; an immediate
   // teardown here would release the kernel the real mount still needs.
-  const teardownRef = useRef<{ transport: EventTransport | undefined; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const teardownRef = useRef<{ owner: object | undefined; timer: ReturnType<typeof setTimeout> } | null>(null);
   useEffect(() => {
-    // A remount of the same transport (StrictMode) cancels its pending teardown; a replaced one is torn down.
-    if (teardownRef.current !== null && teardownRef.current.transport === activeTransport) {
+    const hostTransport = mode === 'server' ? transport : undefined;
+    const owner = opening ?? hostTransport;
+    // A remount of the same kernel or transport (StrictMode) cancels its pending teardown; a replaced one is torn down.
+    if (teardownRef.current !== null && teardownRef.current.owner === owner) {
       clearTimeout(teardownRef.current.timer);
       teardownRef.current = null;
     }
     return () => {
       const timer = setTimeout(() => {
         if (teardownRef.current?.timer === timer) teardownRef.current = null;
-        if (activeTransport !== undefined) void activeTransport.unregister();
-        void local?.kernelEngine.then((engine) => engine.dispose(), () => undefined);
-        void local?.instance.then((instance) => {
-          if (engineRef.current === instance) engineRef.current = undefined;
-          instance.free();
+        if (hostTransport !== undefined) void hostTransport.unregister();
+        void opening?.then((opened) => {
+          void opened.transport.unregister();
+          void opened.kernelEngine.then((engine) => engine.dispose(), () => undefined);
+          void opened.instance.then((instance) => {
+            if (engineRef.current === instance) engineRef.current = undefined;
+            instance.free();
+          }, () => undefined);
         }, () => undefined);
         // Restore whatever stock/fallback content the host had for every
         // slot this plugin rendered into — a disabled plugin must not leave
@@ -481,9 +498,9 @@ function PluginRuntimeMount({
           slotsRef.current.clearBySource(slot, plugin.id);
         }
       }, 0);
-      teardownRef.current = { transport: activeTransport, timer };
+      teardownRef.current = { owner, timer };
     };
-  }, [activeTransport, local, plugin.id]);
+  }, [opening, mode, transport, plugin.id]);
 
   const ownOrbitals = useMemo(
     () => new Set(plugin.schema.orbitals.map((o) => o.name)),
@@ -553,7 +570,7 @@ function PluginRuntimeMount({
       }
 
       // A cascade moves sibling traits the response does not name: a local kernel reports every trait it holds.
-      const states: Array<readonly [string, string, TraitState]> = local !== undefined
+      const states: Array<readonly [string, string, TraitState]> = opening !== undefined
         ? snapshotAllStates(trigger)
         : orbital === undefined
           ? []
@@ -563,7 +580,7 @@ function PluginRuntimeMount({
       }
       onDispatched(plugin.id, trigger, states);
     },
-    [local, mockHandlers, plugin, ownOrbitals, inboundVocabulary, relay, snapshotAllStates, onError, onTransition, onDispatched],
+    [opening, mockHandlers, plugin, ownOrbitals, inboundVocabulary, relay, snapshotAllStates, onError, onTransition, onDispatched],
   );
 
   // The plugin program's own route pages say what mounts: for each one the kernel names the seeds, which run in its lifecycle
@@ -572,28 +589,30 @@ function PluginRuntimeMount({
   settleRef.current = settle;
   const mounted = useMemo(async () => {
     await registrationReady;
-    if (local === undefined) return;
+    const opened = opening !== undefined ? await opening : undefined;
+    if (opened === undefined) return;
     const paths = [...new Set(plugin.schema.orbitals.flatMap((orbital) => (orbital.pages ?? []).flatMap((page) => (typeof page !== 'string' && isRoutePage(page) && page.path !== undefined ? [page.path] : []))))];
     for (const path of paths) {
-      const seeds = await local.client.routeMounts(path);
+      const seeds = await opened.client.routeMounts(path);
       if (seeds.length === 0) continue;
-      const outcome = await local.client.dispatchMount(seeds);
+      const outcome = await opened.client.dispatchMount(seeds);
       for (const seed of outcome.seeds) settleRef.current(seed.event, seed.local, undefined);
     }
-  }, [registrationReady, local, plugin.schema]);
+  }, [registrationReady, opening, plugin.schema]);
 
   const dispatch = useCallback(
     async (row: PluginHostInbound, payload: EventPayload | undefined) => {
       await mounted;
       const request = { event: row.trigger, payload, targetTrait: row.trait, locale };
-      if (local !== undefined) {
-        settle(row.trigger, (await local.client.dispatch(request)).response, row.orbital);
+      const opened = opening !== undefined ? await opening : undefined;
+      if (opened !== undefined) {
+        settle(row.trigger, (await opened.client.dispatch(request)).response, row.orbital);
         return;
       }
       if (activeTransport === undefined) return;
       settle(row.trigger, await activeTransport.send(row.orbital, request), row.orbital);
     },
-    [mounted, activeTransport, local, locale, settle],
+    [mounted, activeTransport, opening, locale, settle],
   );
 
   // The plugin's `ticks {}` run on its client kernel's tick clock (the one browser tick driver); a server-mode

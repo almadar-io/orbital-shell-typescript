@@ -37,12 +37,6 @@ export {
   type DigestEncoding,
 } from './src/codec';
 
-// Export schema resolution functions
-export {
-  schemaToIR,
-  getPage,
-} from './src/resolver';
-
 // Embedded-trait adjacency and `@config.X` forward facts — read by
 // the render substrate (`@almadar/ui`); config itself is the kernel's.
 export {

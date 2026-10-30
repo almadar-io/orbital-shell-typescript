@@ -15,6 +15,7 @@ module.exports = [
       // Zero escape hatches in emitted shell code — same rule set as client;
       // see docs/Almadar_Compiler_Gaps.md for the per-rule codegen fix.
       "almadar/no-as-any": "error",
+      "almadar/no-json-roundtrip": "error",
       "almadar/no-unknown-type": "error",
       "almadar/no-record-string-unknown": "error",
       "almadar/no-import-generated": "error",

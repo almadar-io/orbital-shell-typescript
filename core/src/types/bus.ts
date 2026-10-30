@@ -313,11 +313,11 @@ export type ClientHostAskTuple = ['host-ask', string, JsonValue[]] | ['host-ask'
 
 /**
  * The return address of a `host-ask` that declared `emit` routes (EXEC-DIST-13): the host answers once by dispatching
- * the event of the outcome it reached to `trait` (on `entity` when the frame is a row); an absent route fires nothing.
+ * the event of the outcome it reached to `trait` (on `entityId` when the frame is a row); an absent route fires nothing.
  */
 export type HostAskCompletion = {
   trait: string;
-  entity?: string;
+  entityId?: string;
   key?: string;
   success?: string;
   failure?: string;
@@ -350,7 +350,7 @@ export const ClientNavigateBackTupleSchema = z.tuple([z.literal('navigate-back')
 /** Zod twin of `ClientHostAskTuple`. */
 export const HostAskCompletionSchema = z.object({
   trait: z.string(),
-  entity: z.string().optional(),
+  entityId: z.string().optional(),
   key: z.string().optional(),
   success: z.string().optional(),
   failure: z.string().optional(),

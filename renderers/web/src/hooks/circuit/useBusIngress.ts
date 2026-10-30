@@ -16,12 +16,12 @@
  */
 import { claimDispatch } from '../../lib/bus-claim';
 import { useEffect } from 'react';
-import type { BusEventSource, EmittedEvent, EventPayload, ResolvedTraitBinding } from '@almadar/core';
-import { LIFECYCLE_EVENTS } from '@almadar/core';
-import type { TraitIndex } from '@almadar/core';
+import type { BusEventSource, EmittedEvent, EventPayload } from '@almadar/core';
+import type { CircuitSurface } from '../../lib/circuit-surface';
 import { createLogger } from '@almadar/logger';
 import type { EventBusContextType } from '../../core';
 import { beginPending, endPending } from '../../core';
+import type { TraitSurface } from '@almadar/core/kernel-wire';
 
 const log = createLogger('almadar:ui:circuit:bus-ingress');
 
@@ -36,8 +36,9 @@ export type BusDispatch = (
 export type BusEmitDelivery = (emitted: EmittedEvent) => Promise<void>;
 
 export function useBusIngress(
-  traitBindings: readonly ResolvedTraitBinding[],
-  traitIndex: TraitIndex,
+  /** What the kernel holds of each page trait. */
+  surfaces: ReadonlyMap<string, TraitSurface>,
+  traitIndex: CircuitSurface,
   settle: BusDispatch,
   deliver: BusEmitDelivery,
   eventBus: EventBusContextType,
@@ -107,25 +108,14 @@ export function useBusIngress(
       }));
     };
 
-    for (const binding of traitBindings) {
-      const traitName = binding.trait.name;
-      const orbitalName = traitIndex.byName.get(traitName)?.orbitalName;
-      if (orbitalName === undefined) continue;
-      for (const transition of binding.trait.transitions) {
-        const eventKey = transition.event;
-        if ((LIFECYCLE_EVENTS as readonly string[]).includes(eventKey)) continue;
-        subscribeQualified(orbitalName, traitName, eventKey);
+    for (const [traitName, surface] of surfaces) {
+      for (const eventKey of surface.events) {
+        subscribeQualified(surface.orbital, traitName, eventKey);
         subscribeBare(eventKey);
       }
       // A listen's source key is the emitter's own dispatch: the kernel fans it out to the listeners.
-      const ownOrbital = orbitalName;
-      for (const listen of binding.trait.listens ?? []) {
-        const src = listen.source;
-        if (src === undefined || src.kind === 'any') {
-          subscribeBare(listen.event);
-          continue;
-        }
-        subscribeQualified((src.kind === 'orbital' ? src.orbital : undefined) ?? ownOrbital, src.trait, listen.event);
+      for (const listen of surface.listens) {
+        if (listen.source !== undefined) subscribeQualified(listen.source.orbital, listen.source.trait, listen.event);
         subscribeBare(listen.event);
       }
     }
@@ -133,5 +123,5 @@ export function useBusIngress(
     return () => {
       for (const unsub of unsubscribes) unsub();
     };
-  }, [traitBindings, traitIndex, settle, deliver, eventBus, appTraitNames]);
+  }, [surfaces, traitIndex, settle, deliver, eventBus, appTraitNames]);
 }

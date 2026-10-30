@@ -12,7 +12,7 @@
  * @packageDocumentation
  */
 
-import type { JsonValue, ToolArgs } from './types/json.js';
+import { toPayloadValue, type JsonValue, type ToolArgs } from './types/json.js';
 import type { SemanticChangeKind } from './types/changeset.js';
 import type { LlmCallMeta } from './types/sse.js';
 import { EventPayloadSchema, type EventPayload } from './types/expression.js';
@@ -154,7 +154,7 @@ export function selectTraceActivities(
  * (`ServiceHostPorts.message`): `{ activity }`. Absent optional fields are dropped.
  */
 export function traceActivityPayload(activity: TraceActivity): EventPayload {
-  return EventPayloadSchema.parse({ activity: JSON.parse(JSON.stringify(activity)) });
+  return EventPayloadSchema.parse({ activity: toPayloadValue(activity) });
 }
 
 // ----------------------------------------------------------------------------

@@ -1,7 +1,6 @@
 import type {
   BehaviorDescription,
   CatalogEntry,
-  CircuitStepResult,
   DependencyGraph,
   EvaluatedProgram,
   EventPayload,
@@ -10,7 +9,9 @@ import type {
   ProgramInspection,
   TraitDescription,
 } from '@almadar/core';
-import type { OsGrantsReport, PendingAsk, ProveReport } from '@almadar/core/kernel-wire';
+import type { OsGrantsReport, PlayedStep, ProveReport } from '@almadar/core/kernel-wire';
+
+export type { PlayedStep };
 
 /** The effects the language trio routes to this host. */
 export const PROGRAM_EFFECTS = [
@@ -60,25 +61,6 @@ export interface StepRequest {
   /** The user the request dispatches as (`@user`); null or absent is nobody. */
   viewer?: EventPayload | null;
 }
-
-/** One trait the step's dispatch cascade moved, in dispatch order. */
-export interface CascadeOutcome {
-  orbital: string;
-  trait: string;
-  /** The event this trait handled (a listener's own triggered event). */
-  event: string;
-  from: string;
-  to: string;
-  /** The arm that fired; null when none did. */
-  arm: number | null;
-  fired: boolean;
-  /** The effects of the arm this trait fired, as the top-level `effects` report them. */
-  effects: CircuitStepResult['effects'];
-  emitted: CircuitStepResult['emitted'];
-}
-
-/** A played request: the request as asked, and the circuit it ran, with every trait its cascade moved. */
-export type PlayedStep = StepRequest & { result: CircuitStepResult & { outcomes: CascadeOutcome[]; entityAfter: EventPayload | null; pendingAsks: PendingAsk[] } };
 
 /** The outcome of one program effect: the value for `{ result }`, or the failure (`errors` for eval's validator issues). */
 export type ProgramEffectOutcome =

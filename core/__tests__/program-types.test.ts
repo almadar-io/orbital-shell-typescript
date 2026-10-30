@@ -1,5 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+
+import { decodePlayedStep } from '../src/generated/kernel-wire.js';
+import { JsonValueSchema } from '../src/types/json.js';
+import { PlayedStepSchema } from '../src/types/program-machine.js';
 
 import { buildProgramTypes, projectProgramType, ProgramTypeError, type ProgramTypeField } from '../src/program-types.js';
 
@@ -135,5 +141,20 @@ describe('native metadata projection', () => {
       id: { type: 'string' }, maybe: { type: 'string', nullable: true, required: true }, optionalNullable: { type: 'number', nullable: true },
     }, additionalProperties: { type: 'boolean', nullable: true } });
     expect(projectProgramType('ClosedControl', z.object({ id: z.string() }))).toEqual({ type: 'object', properties: { id: { type: 'string', required: true } } });
+  });
+});
+
+describe('PlayedStepSchema against the kernel', () => {
+  const printed = JsonValueSchema.parse(JSON.parse(readFileSync(fileURLToPath(new URL('../fixtures/kernel-wire/played-step.json', import.meta.url)), 'utf-8')));
+  const steps = z.array(JsonValueSchema).parse(printed).map(decodePlayedStep);
+
+  it('keeps every field of a PlayedStep `orb execute --played` printed', () => {
+    expect(steps.length).toBe(2);
+    for (const step of steps) expect(PlayedStepSchema.parse(step)).toEqual(step);
+  });
+
+  it('control: the fixture exercises the request echo, the circuit and the outcomes', () => {
+    expect(steps[0]).toMatchObject({ entity: { owner: 'ann' }, now: 5, viewer: { id: 'u' }, result: { entityAfter: { mode: 'open' }, pendingAsks: [] } });
+    expect(steps[0]?.result.outcomes.length).toBe(1);
   });
 });

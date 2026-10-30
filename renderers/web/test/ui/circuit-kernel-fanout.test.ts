@@ -23,13 +23,14 @@ import { renderHook, act } from '@testing-library/react';
 import type { OrbitalId, OrbitalSchema } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
 import { ENGINES, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
+import { circuitReady } from '../../src/test-support/circuit';
 
 function fixtureOrbitals(): OrbitalSchema['orbitals'] {
   return [
     {
       name: 'FanoutOrbital',
       id: 'orb_fanout' as OrbitalId,
-      pages: [],
+      pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Writer' }, { ref: 'Chart' }] }],
       entity: {
         name: 'Board',
         persistence: 'runtime',
@@ -78,12 +79,8 @@ function fixtureOrbitals(): OrbitalSchema['orbitals'] {
 describe.each(ENGINES)('useCircuitKernel [%s engine] — cross-trait dispatch through the client role (no ui-local relay)', (_name, engine) => {
   it('a listens{} subscriber transitions from the SAME kernel.dispatch call that produced its trigger', async () => {
     const orbitals = fixtureOrbitals();
-    const bindings = [
-      { trait: { name: 'Writer', id: undefined, states: [{ name: 'idle' }], events: [], transitions: [{ from: 'idle', to: 'idle', event: 'COMPUTE' }], guards: [], ticks: [], listens: [], emits: [], source: 'schema' } },
-      { trait: { name: 'Chart', id: undefined, states: [{ name: 'idle' }, { name: 'listened' }], events: [], transitions: [{ from: 'idle', to: 'listened', event: 'RENDER' }], guards: [], ticks: [], listens: [{ event: 'POINTS_READY', triggers: 'RENDER', source: { kind: 'trait', trait: 'Writer' } }], emits: [], source: 'schema' } },
-    ] as never;
-
-    const { result } = renderHook(() => useCircuitKernel(bindings, { stamp: TEST_STAMP, orbitals, engine }));
+    const { result } = renderHook(() => useCircuitKernel({ stamp: TEST_STAMP, orbitals, engine }));
+    await circuitReady(result);
 
     await act(async () => {
       await result.current.kernel.dispatch({ event: 'COMPUTE', payload: { points: '[1,2,3]' }, targetTrait: 'Writer' });

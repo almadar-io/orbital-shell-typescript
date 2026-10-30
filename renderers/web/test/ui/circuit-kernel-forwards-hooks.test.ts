@@ -3,14 +3,15 @@
 // round trip. Dropping it leaves the slot empty for the whole leg.
 import { beforeAll, describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import type { OrbitalSchema, ResolvedTraitBinding } from '@almadar/core';
+import type { OrbitalSchema } from '@almadar/core';
 import type { EventTransport, EventTransportRegisterResult } from '../../src';
 import type { EventRequest, EventResponse } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
 import { ENGINES, warmKernel, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
+import { circuitReady } from '../../src/test-support/circuit';
 
 const orbitals: OrbitalSchema['orbitals'] = [{
-  name: 'Main', pages: [],
+  name: 'Main', pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Notes' }] }],
   entity: { name: 'Note', persistence: 'persistent', collection: 'notes', fields: [{ name: 'id', type: 'string' }] },
   traits: [{
     name: 'Notes', linkedEntity: 'Note',
@@ -22,13 +23,6 @@ const orbitals: OrbitalSchema['orbitals'] = [{
     },
   }],
 }];
-
-const binding: ResolvedTraitBinding = {
-  trait: {
-    name: 'Notes', source: 'schema', states: [{ name: 'idle', isInitial: true, isFinal: false }], events: [],
-    transitions: [{ from: 'idle', to: 'idle', event: 'INIT', effects: [] }], guards: [], ticks: [], listens: [], dataEntities: [],
-  },
-};
 
 class GatedServer implements EventTransport {
   readonly sent: EventRequest[] = [];
@@ -47,7 +41,8 @@ describe.each(ENGINES)('useCircuitKernel [%s engine] forwards dispatch hooks', (
   beforeAll(warmKernel);
   it('onLocal sees the local render before the server leg settles', async () => {
     const server = new GatedServer();
-    const { result } = renderHook(() => useCircuitKernel([binding], { stamp: TEST_STAMP, orbitals, transport: server, carriesCircuitState: true, engine }));
+    const { result } = renderHook(() => useCircuitKernel({ stamp: TEST_STAMP, orbitals, transport: server, carriesCircuitState: true, engine }));
+    await circuitReady(result);
     const painted: string[] = [];
     const done = result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Notes' }, {
       onLocal: (local) => { painted.push(...(local.clientEffectsByTrait ?? []).map((e) => String(e.effect[0]))); },
@@ -60,7 +55,8 @@ describe.each(ENGINES)('useCircuitKernel [%s engine] forwards dispatch hooks', (
 
   it('while the topology is pending the local arm paints and only the post waits', async () => {
     const server = new GatedServer();
-    const { result, rerender } = renderHook(({ pending }) => useCircuitKernel([binding], { stamp: TEST_STAMP, orbitals, transport: server, carriesCircuitState: true, awaitTopology: pending, engine }), { initialProps: { pending: true } });
+    const { result, rerender } = renderHook(({ pending }) => useCircuitKernel({ stamp: TEST_STAMP, orbitals, transport: server, carriesCircuitState: true, awaitTopology: pending, engine }), { initialProps: { pending: true } });
+    await circuitReady(result);
     let localSeen = false;
     const done = result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Notes' }, { onLocal: () => { localSeen = true; } });
     await new Promise((r) => setTimeout(r, 0));
@@ -76,7 +72,8 @@ describe.each(ENGINES)('useCircuitKernel [%s engine] forwards dispatch hooks', (
 
   it('the kernel survives the topology resolving: one dispatch is posted once, never dropped or duplicated', async () => {
     const server = new GatedServer();
-    const { result, rerender } = renderHook(({ pending }) => useCircuitKernel([binding], { stamp: TEST_STAMP, orbitals, transport: server, carriesCircuitState: true, awaitTopology: pending, engine }), { initialProps: { pending: true } });
+    const { result, rerender } = renderHook(({ pending }) => useCircuitKernel({ stamp: TEST_STAMP, orbitals, transport: server, carriesCircuitState: true, awaitTopology: pending, engine }), { initialProps: { pending: true } });
+    await circuitReady(result);
     const before = result.current.kernel;
     const done = before.dispatch({ event: 'INIT', targetTrait: 'Notes' });
     rerender({ pending: false });

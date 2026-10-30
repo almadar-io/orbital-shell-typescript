@@ -25,4 +25,9 @@ describe('G-CROSS-131 typed prop bridge (core)', () => {
     expect(toPayloadValue(null)).toBeNull();
     expect(toPayloadValue(undefined)).toBeNull();
   });
+
+  it('toPayloadValue follows JSON for arrays, non-finite numbers and bigint', () => {
+    expect(toPayloadValue([1, undefined, Number.NaN])).toEqual([1, null, null]);
+    expect(() => toPayloadValue({ n: 1n })).toThrow(TypeError);
+  });
 });

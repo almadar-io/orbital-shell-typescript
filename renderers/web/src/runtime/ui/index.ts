@@ -32,11 +32,9 @@ export {
   buildOrbitalsByTrait,
   type ResolvedPageTraits,
 } from './orbitalsByTrait';
-export { buildTraitLinkedEntities } from './traitLinkedEntities';
 
 // @trait.X static analysis for embed-aware routing
 export {
-  collectTraitRefsFromResolvedTrait,
   collectEmbeddedTraits,
 } from './embedded-traits';
 

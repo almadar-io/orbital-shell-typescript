@@ -77,16 +77,6 @@ export {
   type AccessTokenProvider,
 } from './ServerBridge';
 
-export {
-  TraitProvider,
-  TraitContext,
-  useTraitContext,
-  useTrait,
-  type TraitInstance,
-  type TraitContextValue,
-  type TraitProviderProps,
-} from './TraitProvider';
-
 // Individual providers (for advanced use cases)
 
 

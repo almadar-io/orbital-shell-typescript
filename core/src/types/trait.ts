@@ -445,8 +445,7 @@ export const ConfigFieldDeclarationSchema: z.ZodType<ConfigFieldDeclaration, obj
 
 /**
  * Map of declared config fields keyed by name. Lives on `Trait.config`
- * and `ResolvedTrait.config` for atoms/molecules that expose typed
- * configuration to consumers.
+ * for atoms/molecules that expose typed configuration to consumers.
  */
 export type DeclaredTraitConfig = Readonly<Record<string, ConfigFieldDeclaration>>;
 

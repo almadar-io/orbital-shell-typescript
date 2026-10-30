@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { OrbitalSchema, SExpr } from '@almadar/core';
+import { parseOrbitalSchema, type OrbitalSchema, type SExpr } from '@almadar/core';
 import type { JsonValue, Scenario, ScenarioFixture } from './types.js';
 
 export const LARGE_TABLE_ROWS = 100_000;
@@ -184,7 +184,7 @@ function schemaFor(name: string, entity: string, rows: readonly LargeTableRow[],
       },
     ],
   };
-  return JSON.parse(JSON.stringify(schema));
+  return parseOrbitalSchema(schema);
 }
 
 function scenario(name: string, trait: string): Scenario {

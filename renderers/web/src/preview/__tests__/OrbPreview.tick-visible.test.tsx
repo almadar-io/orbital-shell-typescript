@@ -6,7 +6,7 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
-import type { OrbitalSchema } from '@almadar/core';
+import type { OrbitalSchema, TypedEffect } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
 import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
@@ -29,10 +29,10 @@ const setOnScreen = (v: boolean) => act(() => { onScreen = v; for (const o of ob
 // The page keeps one presence observer across tests, so the stubs' observers outlive a test too.
 afterEach(() => { vi.unstubAllGlobals(); onScreen = true; });
 
-const show = ['render-ui', 'main', { type: 'typography', content: ['str/concat', 'n=', '@entity.n'] }];
+const show: TypedEffect = ['render-ui', 'main', { type: 'typography', content: ['str/concat', 'n=', '@entity.n'] }];
 
 function ownTick(): OrbitalSchema {
-  return JSON.parse(JSON.stringify({
+  return {
     typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: `own-${Math.random()}`, version: '1.0.0',
     orbitals: [{
@@ -45,11 +45,11 @@ function ownTick(): OrbitalSchema {
       }],
       pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Clock' }] }],
     }],
-  }));
+  };
 }
 
 function sharedWriter(): OrbitalSchema {
-  return JSON.parse(JSON.stringify({
+  return {
     typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
     name: `shared-${Math.random()}`, version: '1.0.0',
     orbitals: [{
@@ -69,7 +69,7 @@ function sharedWriter(): OrbitalSchema {
       ],
       pages: [{ name: 'Home', path: '/', traits: [{ ref: 'View' }, { ref: 'Art' }] }],
     }],
-  }));
+  };
 }
 
 const count = (): number => Number((screen.getByText(/^n=/).textContent ?? 'n=0').slice(2));

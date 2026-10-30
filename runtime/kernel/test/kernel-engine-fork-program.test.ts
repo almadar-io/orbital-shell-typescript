@@ -1,7 +1,7 @@
 import type { FrameDelta } from '@almadar/core/kernel-wire';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { EntityRowSchema, JsonValueSchema, OrbitalSchemaSchema, eventPayloadOf, isJsonObject, orbitalInlineEntities, type EventPayload, type JsonValue, type OrbitalSchema, type QueryCapabilities } from '@almadar/core';
+import { EntityRowSchema, JsonValueSchema, OrbitalSchemaSchema, eventPayloadOf, isJsonObject, orbitalInlineEntities, toPayloadValue, type EventPayload, type JsonValue, type OrbitalSchema, type QueryCapabilities } from '@almadar/core';
 import { KernelEngine } from '../src/kernel/engine.js';
 import type { KernelHostPorts } from '../src/kernel/host.js';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
@@ -131,10 +131,10 @@ for (const implementation of implementations) {
       const seed = app.forkProgram(seedProgram);
       try {
         for (const [locale, expectedId] of [[undefined, 'default'], ['ar', 'arabic'], ['empty', undefined]]) {
-          const payload = eventPayloadOf(JsonValueSchema.parse(JSON.parse(JSON.stringify({
+          const payload = eventPayloadOf(toPayloadValue({
             program: appProgram, count: 1, seed: 42, nowMs: 1780272000000, viewerId: 'viewer',
             ownerPairs: [{ entity: 'Task', column: 'ownerId' }], ...(locale === undefined ? {} : { locale }),
-          }))));
+          }));
           const response = await seed.evaluate('MockSeedOrbital', { event: 'DATASET_INPUT', targetTrait: 'MockSeed', payload }, { orbital: 'MockSeedOrbital', user: { id: 'viewer' } });
           expect(response.success).toBe(true);
           expect(response.emittedEvents.filter((event) => ['DATASET_FAILED', 'DS_OWNS_ENV', 'DS_OWNS_ENV_FAILED'].includes(event.event))).toEqual([]);

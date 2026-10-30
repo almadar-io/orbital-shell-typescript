@@ -14,9 +14,9 @@ describe('decodeProgress on a done response', () => {
   });
 
   it('the generated check accepts the response and refuses each malformed shape', () => {
-    expect(isEventResponse(JSON.parse(JSON.stringify(response)))).toBe(true);
+    expect(isEventResponse(response)).toBe(true);
     for (const bad of [null, [], 'done', { ...response, success: 'yes' }, { ...response, transitioned: 1 }, { ...response, states: [] }, { ...response, emittedEvents: {} }, { transitioned: true, states: {}, emittedEvents: [] }]) {
-      expect(isEventResponse(JSON.parse(JSON.stringify(bad)))).toBe(false);
+      expect(isEventResponse(bad)).toBe(false);
     }
   });
 
@@ -48,7 +48,7 @@ describe('decodeProgress on a done response', () => {
       { ...response, dataRefs: { Item: { entityType: 'Item', ids: [1], total: 1, query: {} } } },
     ];
     for (const bad of nested) {
-      expect(isEventResponse(JSON.parse(JSON.stringify(bad)))).toBe(false);
+      expect(isEventResponse(bad)).toBe(false);
       expect(() => decodeProgress(done(bad)), JSON.stringify(bad)).toThrow(/kernel wire: .*response/);
     }
   });
@@ -65,7 +65,7 @@ describe('decodeProgress on a done response', () => {
       rejections: [{ code: 'guard-rejected', trait: 'a' }],
       dataRefs: { Item: { entityType: 'Item', ids: ['1'], total: 1, query: { limit: 3 } } },
     };
-    expect(isEventResponse(JSON.parse(JSON.stringify(full)))).toBe(true);
+    expect(isEventResponse(full)).toBe(true);
     expect(decodeProgress(done(full))).toEqual({ status: 'done', response: full });
   });
 

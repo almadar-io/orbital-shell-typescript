@@ -11,7 +11,7 @@
  * @packageDocumentation
  */
 
-import type { PatternConfig, EventSource, ResolvedTrait, FieldValue, SExpr, ResolvedPatternProps } from '@almadar/core';
+import type { PatternConfig, EventSource, FieldValue, SExpr, ResolvedPatternProps } from '@almadar/core';
 import type { SlotPropValue } from '../hooks/useUISlots';
 import { createLogger } from '@almadar/logger';
 
@@ -64,5 +64,4 @@ export interface SlotSource extends EventSource {
   state: string;
   transition: string;
   effects: SExpr[];
-  traitDefinition: ResolvedTrait;
 }

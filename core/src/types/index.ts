@@ -1173,48 +1173,6 @@ export {
   type RowBindingScalar,
 } from "../row-predicate.js";
 
-// ============================================================================
-// IR Types (Intermediate Representation)
-// ============================================================================
-
-export {
-  // Transition types
-  type TransitionFrom,
-  // Field types
-  type ResolvedField,
-  // Entity types
-  type ResolvedEntity,
-  type ResolvedEntityBinding,
-  // Trait types
-  type ResolvedTraitState,
-  type ResolvedTraitEvent,
-  type ResolvedTraitTransition,
-  type ResolvedTraitGuard,
-  type ResolvedTraitTick,
-  type ResolvedTraitListener,
-  type ResolvedTraitDataEntity,
-  type ResolvedTraitUIBinding,
-  type ResolvedTrait,
-  type ResolvedTraitEmit,
-  type ResolvedTraitBinding,
-  // Pattern & Section types
-  type ResolvedPattern,
-  type ResolvedSectionEvent,
-  type ResolvedSection,
-  // Page types
-  type ResolvedNavigation,
-  type ResolvedPage,
-  // IR types
-  type ResolvedIR,
-  // Factory functions
-  createEmptyResolvedTrait,
-  createEmptyResolvedPage,
-  createResolvedField,
-  inferTsType,
-  // Type guards
-  isResolvedIR,
-} from "./ir.js";
-
 // Context Extensions (declaration-merging surface for consumers)
 export { type ContextExtensions } from "./context.js";
 
@@ -1514,6 +1472,6 @@ export {
   type PlayedStep,
 } from "./program-machine.js";
 
-export type { TraitDefinition, IndexedTrait, TraitIndex } from "./trait-index.js";
+export type { TraitDefinition } from "./trait-index.js";
 
 export * from "./program-inspection.js";

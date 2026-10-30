@@ -99,7 +99,7 @@ function accountingSchema(): OrbitalSchema {
   };
 }
 
-describeWithMemoryKernel('OrbitalServerRuntime — registration-mutation bracket', () => {
+describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, traitId, emits] OrbitalServerRuntime — registration-mutation bracket', () => {
   it('negative control: the unbracketed unregister→resolve→register window still 404s', async () => {
     const rt = new OrbitalServerRuntime({ debug: false, kernel: await memoryKernel(), persistence: await nativeMemory() });
     await rt.register(oldAppSchema());

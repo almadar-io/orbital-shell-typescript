@@ -55,6 +55,7 @@ function scripted(log: string[], service = false): KernelModule {
     abandon(flight: number): boolean { log.push(`abandon ${flight}`); return true; }
     bootMounts(): string { return '[]'; }
     routeMounts(_routePath: string): string { return '[]'; }
+    pageCircuit(_page?: string, _route?: string): string { throw new Error('not used by this test'); }
     contractQuery(_queryJson: string): string { return 'null'; }
     start(_orbital: string, request: string): string {
       if (this.held) {
@@ -107,7 +108,7 @@ function scripted(log: string[], service = false): KernelModule {
     setTickRelayInterval(): void {}
     flushTickRelay(): string { return '[]'; }
     declaresTicks(): boolean { return false; }
-    tickPass(): string { return '[]'; }
+    tickPass(): string { return '{}'; }
     tickPause(): void {}
     tickResume(): void {}
     tickPaused(): boolean { return false; }

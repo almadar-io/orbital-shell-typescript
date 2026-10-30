@@ -10,6 +10,7 @@ import { decodeEventRequest, decodeEventResponse, isEventRequest, type EventRequ
 import { ServerEffectResultSchema } from '../src/types/effect-result.js';
 import { SERVER_REPORTED_EFFECTS } from '../src/types/effect.js';
 import { asEventId } from '../src/types/identity.js';
+import { toPayloadValue } from '../src/types/json.js';
 
 /**
  * A0 (Program A, §156): `@almadar/core` becomes the single owner of the
@@ -114,7 +115,7 @@ describe('ClientEffectTupleSchema — exact tuple arities', () => {
   });
 
   it('empty slots are null on the wire (JSON.stringify writes null for undefined)', () => {
-    expect(ClientEffectTupleSchema.parse(JSON.parse(JSON.stringify(['render-ui', 'main', undefined])))).toEqual(['render-ui', 'main', null]);
+    expect(ClientEffectTupleSchema.parse(toPayloadValue(['render-ui', 'main', undefined]))).toEqual(['render-ui', 'main', null]);
     expect(ClientEffectTupleSchema.parse(['navigate', '/tasks', null])).toBeTruthy();
     expect(() => ClientEffectTupleSchema.parse(['navigate', '/tasks', undefined])).toThrow();
   });

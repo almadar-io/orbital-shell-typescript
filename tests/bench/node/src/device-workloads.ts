@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { loadScenarioFixtures } from './fixtures.js';
+import { toPayloadValue } from '@almadar/core';
 import type { JsonValue } from './types.js';
 
 export const DISPATCH_EVENTS = 10_000;
@@ -83,7 +84,7 @@ export async function buildDeviceWorkloads(sources: DeviceWorkloadSources): Prom
   const dispatch: DispatchWorkloadSpec = {
     id: 'dispatch-1e4',
     kind: 'dispatch',
-    schema: JSON.parse(JSON.stringify(fixture.schema)) as JsonValue,
+    schema: toPayloadValue(fixture.schema),
     orbital: scenario.orbital,
     steps: scenario.steps.map((s) => ({ trait: s.trait, event: s.event, payload: s.payload ?? {} })),
     events: DISPATCH_EVENTS,

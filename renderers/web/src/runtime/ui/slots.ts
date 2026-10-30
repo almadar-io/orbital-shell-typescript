@@ -14,7 +14,6 @@ import type {
   AnyPatternConfig,
   ResolvedPatternProps,
   EventSource,
-  ResolvedTrait,
   SExpr,
   RuntimeValue,
 } from '@almadar/core';
@@ -34,8 +33,6 @@ export interface SlotSource extends EventSource {
   transition: string;
   /** Effects executed during the transition. */
   effects: SExpr[];
-  /** Resolved trait definition that owns the transition (optional attribution). */
-  traitDefinition?: ResolvedTrait;
 }
 
 /**

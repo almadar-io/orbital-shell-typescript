@@ -7,6 +7,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toPayloadValue } from '@almadar/core';
 import { ImportSourcePicker, type ImportSourceOption } from '../import/ImportSourcePicker';
 import { EventBusProvider } from '../../../../core';
 import { MemoryRouter } from 'react-router-dom';
@@ -84,7 +85,7 @@ describe('ImportSourcePicker', () => {
     const files = onFilesSelected.mock.calls[0][0];
     expect(files.map((f: { name: string }) => f.name)).toEqual(['one.md', 'two.md']);
     expect(files.every((f: object) => !(f instanceof File))).toBe(true);
-    expect(JSON.parse(JSON.stringify(files))).toEqual(files);
+    expect(toPayloadValue(files)).toEqual(files);
   });
 
   it('control: cancelling the picker (no files) emits nothing', () => {

@@ -9,7 +9,7 @@ import type { OrbitalSchema } from '@almadar/core';
 import { OrbPreview } from '../OrbPreview';
 import { TEST_TYPE_CONTRACT_VERSION } from '../../test-support/kernel-engine';
 
-const schema: OrbitalSchema = JSON.parse(JSON.stringify({
+const schema: OrbitalSchema = {
   typeContractVersion: TEST_TYPE_CONTRACT_VERSION,
   name: 'button-app',
   version: '1.0.0',
@@ -27,7 +27,7 @@ const schema: OrbitalSchema = JSON.parse(JSON.stringify({
     }],
     pages: [{ name: 'Home', path: '/', traits: [{ ref: 'Show' }] }],
   }],
-}));
+};
 
 describe('OrbPreview fit modes', () => {
   it('fit="content" fits the rendered component and still renders it', async () => {

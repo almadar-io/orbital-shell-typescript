@@ -20,6 +20,7 @@ import {
   ledgerResolveName,
   ledgerRename,
   ledgerCurName,
+  toPayloadValue,
   type IdKind,
   type IdentityLedger,
   type LedgerEntry,
@@ -182,7 +183,7 @@ describe('identity: ledger resolve / rename / curName', () => {
 });
 
 describe('identity: schema JSON round-trip (id-present and id-absent)', () => {
-  it('a schema carrying ids survives JSON.parse(JSON.stringify) with types intact', () => {
+  it('a schema carrying ids survives its JSON form with types intact', () => {
     const orb = mintId('orbital');
     const ent = mintId('entity');
     const pag = mintId('page');
@@ -219,8 +220,8 @@ describe('identity: schema JSON round-trip (id-present and id-absent)', () => {
       ],
     };
 
-    const round = JSON.parse(JSON.stringify(withIds)) as OrbitalSchema;
-    expect(round).toEqual(withIds);
+    const round: OrbitalSchema = structuredClone(withIds);
+    expect(toPayloadValue(round)).toEqual(withIds);
     expect(round.schemaVersion).toBe(1);
     expect(round.ledger?.entries[orb].curName).toBe('App');
     // Ids survive as their string values and re-narrow through the guards.
@@ -239,8 +240,8 @@ describe('identity: schema JSON round-trip (id-present and id-absent)', () => {
         },
       ],
     };
-    const round = JSON.parse(JSON.stringify(noIds)) as OrbitalSchema;
-    expect(round).toEqual(noIds);
+    const round: OrbitalSchema = structuredClone(noIds);
+    expect(toPayloadValue(round)).toEqual(noIds);
     expect(round.schemaVersion).toBeUndefined();
     expect(round.ledger).toBeUndefined();
     expect(round.orbitals[0].id).toBeUndefined();
