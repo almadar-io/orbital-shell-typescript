@@ -117,6 +117,7 @@ function scripted(log: string[], service = false): KernelModule {
     setManagedProgram(): void {}
     lastError(): string { return ''; }
     osAllows(): boolean { return false; }
+    egressAllows(): boolean { return false; }
     setOsAnchors(): string { return '[]'; }
     tlsComplete(): string { return 'null'; }
     osResolveArgs(_op: string, argsJson: string): string { return JSON.stringify({ ok: JSON.parse(argsJson) }); }

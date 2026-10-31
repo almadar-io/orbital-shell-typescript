@@ -95,6 +95,7 @@ import { kernelEventRequestParser, kernelOsCompletions, kernelOsGrants, kernelOs
 import { createSecretPorts, createSecretStore, InFlightCalls, type SecretPorts, type SecretPortsOptions, type KernelModule } from "@almadar/shell-runtime";
 import { installNodeHostPorts } from "../host-ports.js";
 import { nativeMemoryOf } from "../kernel-loader.js";
+import { createNodeTokenPost } from "../token-post.js";
 import { bindDeclaredCollections } from "@almadar/shell-runtime";
 // Node-detection helper. Used to guard call sites of express, fs/path/net,
 // and child_process — those modules are stubbed by the package.json `browser`
@@ -573,7 +574,11 @@ export class OrbitalServerRuntime {
   /** The adapters the kernel's I/O is answered with: this runtime's persistence, services and program host. */
   private secretPorts(): SecretPorts | undefined {
     const options = this.config.secretPorts;
-    return options === undefined ? undefined : createSecretPorts(options);
+    if (options === undefined) return undefined;
+    const kernel = this.config.kernel;
+    if (kernel === undefined || options.tokenPost !== undefined) return createSecretPorts(options);
+    const tokenPost = createNodeTokenPost({ egressAllows: (url) => this.requireKernelEngine().egressAllows(url), isPublicAddress: (ip) => kernel.isPublicAddress(ip) });
+    return createSecretPorts({ tokenPost, ...options });
   }
 
   private kernelPorts(): KernelHostPorts {

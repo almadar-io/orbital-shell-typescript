@@ -3,6 +3,7 @@ export * from './credential-rows.js';
 export * from './dev-master-key.js';
 export * from './os-node.js';
 export * from './kv-node.js';
+export * from './token-post.js';
 export * from './kernel-loader.js';
 export * from './program/index.js';
 export * from './kernel-program.js';

@@ -43,6 +43,8 @@ export interface KernelServerHandle {
   abandon(flight: number): boolean;
   /** `OsGrants::allows` over the grants the registered program declares; `requirementJson` is an `OsRequirement`. */
   osAllows(requirementJson: string): boolean;
+  /** Whether `url`'s origin is one the program declares in `egress`. */
+  egressAllows(url: string): boolean;
   /** Place the program's anchored grants and arguments under the host's anchors; answers `[{ path, message }]` for what grants nothing. */
   setOsAnchors(anchorsJson: string): string;
   /** Feed a deferred raw `os` outcome (`Settled`) into the TLS operation parked under `key`: `null`, `{ ask }` or `{ done }`. */

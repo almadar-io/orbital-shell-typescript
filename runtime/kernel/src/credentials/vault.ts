@@ -1,4 +1,5 @@
-import { EntityRowSchema, isJsonObject, type EntityRow, type JsonValue } from '@almadar/core';
+import { credentialStorageKey, EntityRowSchema, isJsonObject, type EntityRow, type JsonValue } from '@almadar/core';
+import type { ConnectFailure, ConnectFailureKind, CredentialGrantWire, CredentialStanding } from '@almadar/core/kernel-wire';
 
 /**
  * The credential rows a host keeps over its medium (`chrome.storage`, files, Firestore). It answers four raw asks and
@@ -29,6 +30,56 @@ export interface CredentialVaultKernel {
   remove(name: string, principal?: string): boolean;
   rotate(): string;
   takeWrites(): string;
+  connectBegin(grantJson: string): string;
+  refreshBegin(name: string, principal?: string): string;
+  connectFinish(ticket: number, status: number, body: string): string;
+  connectAbandon(ticket: number): boolean;
+}
+
+/** What the kernel asks a host to POST to a token endpoint. The host decides nothing about it. */
+export interface TokenRequest {
+  endpoint: string;
+  headers: Array<[string, string]>;
+  body: string;
+}
+
+export interface TokenReply {
+  status: number;
+  body: string;
+}
+
+/** The host's one network capability the credential exchange needs: a form POST to an https token endpoint, no redirects followed. */
+export type TokenEndpointPost = (request: TokenRequest) => Promise<TokenReply>;
+
+/** A token exchange the kernel's store refused or the host could not carry; `kind` is the kernel's `ConnectFailureKind`. */
+export class CredentialExchangeError extends Error {
+  constructor(readonly kind: ConnectFailureKind, message: string) {
+    super(message);
+    this.name = 'CredentialExchangeError';
+  }
+}
+
+const FAILURE_KINDS: readonly ConnectFailureKind[] = ['unavailable', 'unsigned', 'denied', 'invalid_grant', 'invalid_client', 'transport', 'malformed', 'refused'];
+
+function failureOf(value: JsonValue | undefined): ConnectFailure {
+  if (!isJsonObject(value)) throw new Error('the kernel connect failure is not an object');
+  const kind = FAILURE_KINDS.find((known) => known === value.kind);
+  if (kind === undefined) throw new Error('the kernel connect failure has an unknown kind');
+  return { kind, message: textOf(value.message, 'failure message') };
+}
+
+function standingOf(value: JsonValue | undefined): CredentialStanding {
+  if (!isJsonObject(value) || typeof value.connected !== 'boolean') throw new Error('the kernel credential standing is malformed');
+  return { connected: value.connected, ...(typeof value.label === 'string' ? { label: value.label } : {}) };
+}
+
+function requestOf(value: JsonValue | undefined): { request: TokenRequest; ticket: number } {
+  if (!isJsonObject(value) || !Array.isArray(value.headers)) throw new Error('the kernel token request is malformed');
+  const headers: Array<[string, string]> = value.headers.map((pair) => {
+    if (!Array.isArray(pair) || pair.length !== 2) throw new Error('the kernel token request header is malformed');
+    return [textOf(pair[0], 'header name'), textOf(pair[1], 'header value')];
+  });
+  return { request: { endpoint: textOf(value.endpoint, 'token endpoint'), headers, body: textOf(value.body, 'token body') }, ticket: numberOf(value.ticket, 'exchange ticket') };
 }
 
 /** A kernel module that carries the vault class: `import * as kernel from '@almadar/kernel/client'`. */
@@ -254,6 +305,92 @@ export class CredentialVault {
   /** Delete one credential row; whether one existed. */
   remove(envVar: string, principal?: string): Promise<boolean> {
     return this.exclusive(false, () => this.kernel.remove(envVar, principal), principal);
+  }
+
+  private readonly flights = new Map<string, Promise<string | undefined>>();
+  private readonly turns = new Map<string, Promise<CredentialStanding>>();
+
+  private async post(post: TokenEndpointPost, begun: { request: TokenRequest; ticket: number }): Promise<TokenReply> {
+    try {
+      return await post(begun.request);
+    } catch (error) {
+      this.kernel.connectAbandon(begun.ticket);
+      throw new CredentialExchangeError('transport', error instanceof Error ? error.message : 'the token endpoint could not be reached');
+    }
+  }
+
+  private async finish(ticket: number, reply: TokenReply): Promise<CredentialStanding> {
+    const settled = objectOf(await this.exclusive(false, () => this.kernel.connectFinish(ticket, reply.status, reply.body)), 'connect outcome');
+    if (settled.error !== undefined) {
+      const failure = failureOf(settled.error);
+      throw new CredentialExchangeError(failure.kind, failure.message);
+    }
+    return standingOf(settled.ok);
+  }
+
+  /** Exchange `grant` at its token endpoint through `post` and keep the result as the credential: the kernel builds the request and settles the reply, the host only sends. */
+  async connect(grant: CredentialGrantWire, post: TokenEndpointPost): Promise<{ ok: CredentialStanding } | { error: ConnectFailure }> {
+    try {
+      const run = async (): Promise<CredentialStanding> => {
+        const begun = objectOf(this.current().connectBegin(JSON.stringify(grant)), 'connect request');
+        if (begun.error !== undefined) {
+          const failure = failureOf(begun.error);
+          throw new CredentialExchangeError(failure.kind, failure.message);
+        }
+        const request = requestOf(begun.ok);
+        return this.finish(request.ticket, await this.post(post, request));
+      };
+      if (grant.grant !== 'refresh_token') return { ok: await run() };
+      const key = credentialStorageKey({ name: grant.name, ...(grant.principal !== undefined ? { principal: grant.principal } : {}) });
+      const previous = this.turns.get(key);
+      const mine = (async (): Promise<CredentialStanding> => {
+        await previous?.catch(() => undefined);
+        return run();
+      })();
+      this.turns.set(key, mine);
+      try {
+        return { ok: await mine };
+      } finally {
+        if (this.turns.get(key) === mine) this.turns.delete(key);
+      }
+    } catch (error) {
+      if (error instanceof CredentialExchangeError) return { error: { kind: error.kind, message: error.message } };
+      throw error;
+    }
+  }
+
+  /** The credential `envVar` for `principal`, refreshed first through `post` when it is past its expiry; concurrent resolves share one refresh. Undefined when nothing is held, nothing can renew it, or the provider refused (which drops the row). */
+  async resolveFresh(envVar: string, principal: string | undefined, post: TokenEndpointPost): Promise<string | undefined> {
+    const begun = objectOf(this.current().refreshBegin(envVar, principal), 'refresh outcome');
+    if (begun.error !== undefined) {
+      const failure = failureOf(begun.error);
+      throw new CredentialExchangeError(failure.kind, failure.message);
+    }
+    const ok = begun.ok;
+    if (!isJsonObject(ok)) throw new Error('the kernel refresh outcome is malformed');
+    if (ok.exchange === undefined) return typeof ok.resolved === 'string' ? ok.resolved : undefined;
+    const key = credentialStorageKey({ name: envVar, ...(principal !== undefined ? { principal } : {}) });
+    const running = this.flights.get(key);
+    if (running !== undefined) {
+      this.current().connectAbandon(requestOf(ok.exchange).ticket);
+      return running;
+    }
+    const request = requestOf(ok.exchange);
+    const flight = (async (): Promise<string | undefined> => {
+      try {
+        await this.finish(request.ticket, await this.post(post, request));
+      } catch (error) {
+        if (error instanceof CredentialExchangeError && error.kind === 'invalid_grant') return undefined;
+        throw error;
+      }
+      return this.resolve(envVar, principal);
+    })();
+    this.flights.set(key, flight);
+    try {
+      return await flight;
+    } finally {
+      this.flights.delete(key);
+    }
   }
 
   /** Re-encrypt every row under the current master key; a row the kernel cannot read fails it before any row changes. */

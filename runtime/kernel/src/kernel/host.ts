@@ -884,6 +884,16 @@ async function credentialForget(ports: KernelHostPorts, request: Extract<IoReque
   }) };
 }
 
+async function credentialConnect(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'credentialConnect' }>): Promise<IoAnswerWire> {
+  const connect = ports.secretPorts?.connect;
+  if (connect === undefined) return { kind: 'credentialConnect', result: { error: { kind: 'unavailable', message: CREDENTIAL_CONNECT_UNAVAILABLE } } };
+  try {
+    return { kind: 'credentialConnect', result: await connect(request.grant) };
+  } catch (error) {
+    return { kind: 'credentialConnect', result: { error: { kind: 'unavailable', message: failureMessage(error) } } };
+  }
+}
+
 async function credentialEnvTails(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'credentialEnvTails' }>): Promise<IoAnswerWire> {
   const env = ports.secretPorts?.env;
   if (env === undefined) return { kind: 'credentialEnvTails', result: { ok: { kind: 'unsupported' } } };
@@ -1036,7 +1046,7 @@ export async function answerRequest(ports: KernelHostPorts, request: IoRequestWi
     case 'credentialForget':
       return credentialForget(ports, request);
     case 'credentialConnect':
-      return { kind: 'credentialConnect', result: { error: { kind: 'unavailable', message: CREDENTIAL_CONNECT_UNAVAILABLE } } };
+      return credentialConnect(ports, request);
     case 'credentialStoreList':
       return { kind: request.kind, result: await credentialAdmin(ports, (port) => port.list()) };
     case 'credentialEnvTails':

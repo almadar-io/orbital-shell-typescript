@@ -4,7 +4,8 @@
  */
 import { credentialStatusConnected, credentialStorageKey, resolveCredentialStatusIdentity, type CredentialPayload, type RuntimeValue } from '@almadar/core';
 import { getEffectiveCredentialStore, getModeControl, resolveCredentialRef } from '../credentials/scope.js';
-import type { CredentialVault } from '../credentials/vault.js';
+import type { CredentialVault, TokenEndpointPost } from '../credentials/vault.js';
+import type { ConnectFailure, CredentialGrantWire, CredentialStanding } from '@almadar/core/kernel-wire';
 
 /**
  * The host's secret store: a credential NAME in, its value out; `set` keeps a minted value for `ttlMs`.
@@ -71,6 +72,9 @@ export function envTailsOf(env: Readonly<Record<string, string | undefined>>): E
   };
 }
 
+/** The host's answer to a `credentialConnect` ask: the kernel's store builds the exchange and settles it, the host only sends it. */
+export type CredentialConnectPort = (grant: CredentialGrantWire) => Promise<{ ok: CredentialStanding } | { error: ConnectFailure }>;
+
 export interface SecretPorts {
   /** The host CSPRNG `random-bytes` and the driver's `Random` ask draw from. */
   random: RandomSource;
@@ -79,6 +83,8 @@ export interface SecretPorts {
   credentials?: CredentialAdminPort;
   /** The host's own environment, for `credential-list`; absent, the host answers `unsupported` (a browser reads none). */
   env?: EnvTailsPort;
+  /** Carries a `credentialConnect`; absent, the ask answers `unavailable`. */
+  connect?: CredentialConnectPort;
 }
 
 export interface SecretPortsOptions {
@@ -88,6 +94,8 @@ export interface SecretPortsOptions {
   credentials?: CredentialAdminPort;
   /** Defaults to the process environment. */
   env?: EnvTailsPort;
+  /** The host's POST to a token endpoint; with it the credential store connects and refreshes OAuth credentials, without it neither is attempted. */
+  tokenPost?: TokenEndpointPost;
 }
 
 /** Where the secrets' durable credentials live: the store a host installed, and how a name resolves through it. */
@@ -111,7 +119,7 @@ const installedSecretsHost: SecretStoreHost = {
  * the host holds (by default the one the host installed). Everything durable is the kernel's: `rotate`, `persist`, `label`,
  * and `forget`.
  */
-export function createSecretStore(now: () => number = Date.now, host: SecretStoreHost = installedSecretsHost): SecretStore {
+export function createSecretStore(now: () => number = Date.now, host: SecretStoreHost = installedSecretsHost, tokenPost?: TokenEndpointPost): SecretStore {
   type Minted = Map<string, { value: string; expiresAt: number }>;
   const environmentMinted: Minted = new Map();
   const storeMinted = new WeakMap<CredentialVault, Minted>();
@@ -126,12 +134,17 @@ export function createSecretStore(now: () => number = Date.now, host: SecretStor
   const slot = (name: string, principal: string | undefined): string => credentialStorageKey({ name, ...(principal !== undefined ? { principal } : {}) });
   return {
     async get(name, principal) {
-      const minted = cacheFor(await host.store());
+      const store = await host.store();
+      const minted = cacheFor(store);
       const key = slot(name, principal);
       const held = minted.get(key);
       if (held !== undefined) {
         if (held.expiresAt > now()) return held.value;
         minted.delete(key);
+      }
+      if (store !== null && store.enabled && tokenPost !== undefined) {
+        const fresh = await store.resolveFresh(name, principal, tokenPost);
+        if (fresh !== undefined) return fresh;
       }
       return host.resolve(name, principal);
     },
@@ -167,6 +180,15 @@ export function createSecretStore(now: () => number = Date.now, host: SecretStor
       minted.delete(key);
       await store?.remove(name, principal);
     },
+  };
+}
+
+/** `credentialConnect` over the installed credential store and the host's token POST. */
+export function createCredentialConnectPort(post: TokenEndpointPost): CredentialConnectPort {
+  return async (grant) => {
+    const store = getEffectiveCredentialStore();
+    if (store === null || !store.enabled) return { error: { kind: 'unavailable', message: 'this host holds no credential store that can connect' } };
+    return store.connect(grant, post);
   };
 }
 
@@ -280,9 +302,10 @@ export async function credentialForgetPayload(
 export function createSecretPorts(options: SecretPortsOptions = {}): SecretPorts {
   return {
     random: options.random ?? systemRandom,
-    secrets: options.secrets ?? createSecretStore(),
+    secrets: options.secrets ?? createSecretStore(Date.now, installedSecretsHost, options.tokenPost),
     credentials: options.credentials ?? createCredentialAdminPort(),
     env: options.env ?? ((names) => envTailsOf(process.env)(names)),
+    ...(options.tokenPost !== undefined ? { connect: createCredentialConnectPort(options.tokenPost) } : {}),
   };
 }
 

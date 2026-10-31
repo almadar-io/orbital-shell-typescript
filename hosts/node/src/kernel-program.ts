@@ -10,6 +10,7 @@ import { dispatchInbound, KernelEngine, NativeMemoryPersistenceAdapter, createSe
 import { resolveOrbBinary } from '@almadar/core/behavior-package';
 import { tickEventKey } from '@almadar/core';
 import { installNodeHostPorts } from './host-ports.js';
+import { createNodeTokenPost } from './token-post.js';
 import { createNodeOsHost } from './os-node.js';
 import { loadKernelModule, loadNativeKernelModule, resolveNativeAddon, type LoadedKernel } from './kernel-loader.js';
 
@@ -93,16 +94,17 @@ export class KernelProgram {
     const kernelDir = addon === undefined ? (options.kernelDir ?? resolveKernelDir()) : '';
     const kernel: KernelModule & KernelMemoryStoreExports = addon ?? (await loadKernelModule(kernelDir, languageFrom));
     installNodeHostPorts();
-    const secretPorts = createSecretPorts({ ...options.secretPorts });
-    const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
-    for (const [entityType, rows] of Object.entries(options.seed ?? {})) {
-      for (const row of rows) await persistence.writeWhere({ kind: 'upsert', entityType, data: row });
-    }
     let engine: KernelEngine | undefined;
     const requireEngine = (): KernelEngine => {
       if (engine === undefined) throw new Error('KernelProgram: an os ask arrived before the program opened');
       return engine;
     };
+    const tokenPost = createNodeTokenPost({ egressAllows: (url) => requireEngine().egressAllows(url), isPublicAddress: (ip) => kernel.isPublicAddress(ip) });
+    const secretPorts = createSecretPorts({ tokenPost, ...options.secretPorts });
+    const persistence = new NativeMemoryPersistenceAdapter(new kernel.MemoryStore());
+    for (const [entityType, rows] of Object.entries(options.seed ?? {})) {
+      for (const row of rows) await persistence.writeWhere({ kind: 'upsert', entityType, data: row });
+    }
     const os = options.os === true ? createNodeOsHost(kernelOsGrants(kernel, requireEngine)) : undefined;
     const ports: KernelHostPorts = {
       persistence,

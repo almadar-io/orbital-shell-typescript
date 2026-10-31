@@ -328,6 +328,11 @@ export class KernelEngine {
     return this.handle.osAllows(requirementJson);
   }
 
+  /** Whether `url`'s origin is declared in the program's `egress` (the kernel's rule). */
+  egressAllows(url: string): boolean {
+    return this.handle.egressAllows(url);
+  }
+
   /** Place the program's anchored grants and arguments under the host's anchors. */
   setOsAnchors(anchorsJson: string): string {
     return this.handle.setOsAnchors(anchorsJson);

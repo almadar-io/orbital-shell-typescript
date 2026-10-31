@@ -101,6 +101,11 @@ impl Server {
     }
 
     #[napi]
+    pub fn egress_allows(&self, url: String) -> napi::Result<bool> {
+        Ok(self.api.get().map_err(js)?.api().egress_allows(&url))
+    }
+
+    #[napi]
     pub fn set_os_anchors(&self, anchors_json: String) -> napi::Result<String> {
         self.api.get().map_err(js)?.api().set_os_anchors(&anchors_json).map_err(js)
     }
