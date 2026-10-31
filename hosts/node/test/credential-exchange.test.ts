@@ -125,3 +125,47 @@ describe('refresh on resolve on the node host', () => {
     expect(await createSecretStore(Date.now, hostOf(store)).get('DRIVE', 'u1')).toBe('ACCESS-OLD');
   });
 });
+
+describe('the jwt-bearer, json-token and stored refresh-token grants on the node host', () => {
+  const FIXTURE = JSON.parse(readFileSync(new URL('../../../../orbital-core/tests/fixtures/security/jwt-bearer.json', import.meta.url), 'utf8')) as { privateKeyPem: string };
+  const base = { tokenEndpoint: 'https://auth.example/token', code: '', redirectUri: '', clientId: '', clientAuth: 'none' as const };
+
+  it('signs the assertion in the store and posts only the jwt-bearer form', async () => {
+    const store = await vault();
+    await store.set('google', 'SA_KEY', FIXTURE.privateKeyPem);
+    const grant = { ...base, name: 'SA_TOKEN', grant: 'jwt-bearer', scopes: ['https://a/x'], assertion: { signingKey: 'SA_KEY', audience: 'https://auth.example/token', ttlSeconds: 3600 } };
+    const { post, seen } = scripted([{ status: 200, body: '{"access_token":"SA-ACCESS","token_type":"Bearer","expires_in":3600}' }]);
+    expect(await store.connect(grant, post)).toEqual({ ok: { connected: true } });
+    expect(seen[0]?.body).toMatch(/^grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=[\w-]+\.[\w-]+\.[\w-]+$/);
+    expect(seen[0]?.body).not.toContain('BEGIN');
+    expect(store.resolve('SA_TOKEN', undefined)).toBe('SA-ACCESS');
+  });
+
+  it('posts the declared JSON body for a json-token grant', async () => {
+    const store = await vault();
+    await store.set('bank', 'BANK_ID', 'id-123456');
+    await store.set('bank', 'BANK_KEY', 'key-abcdef');
+    const grant = {
+      ...base, name: 'BANK_ACCESS', grant: 'json-token', tokenEndpoint: 'https://bank.example/token/new/', clientId: 'BANK_ID', clientSecret: 'BANK_KEY', scopes: [],
+      jsonToken: { clientIdField: 'secret_id', clientSecretField: 'secret_key', accessField: 'access', expiresInField: 'access_expires' },
+    };
+    const { post, seen } = scripted([{ status: 200, body: '{"access":"BANK-ACCESS","access_expires":86400}' }]);
+    expect(await store.connect(grant, post)).toEqual({ ok: { connected: true } });
+    expect(seen[0]?.body).toBe('{"secret_id":"id-123456","secret_key":"key-abcdef"}');
+    expect(store.resolve('BANK_ACCESS', undefined)).toBe('BANK-ACCESS');
+  });
+
+  it('exchanges a stored refresh-token credential and refuses a missing one without a POST', async () => {
+    const store = await vault();
+    await store.set('google', 'CLIENT_SECRET', 'client-secret-2');
+    const grant = { ...GRANT, name: 'DRIVE_USER', principal: undefined, grant: 'refresh_token', code: '', redirectUri: '', refreshCredential: 'DRIVE_REFRESH' };
+    const silent = scripted([]);
+    expect(await store.connect(grant, silent.post)).toMatchObject({ error: { kind: 'invalid_grant' } });
+    expect(silent.seen).toHaveLength(0);
+    await store.set('google', 'DRIVE_REFRESH', 'stored-refresh-0001');
+    const { post, seen } = scripted([{ status: 200, body: ROTATED }]);
+    expect(await store.connect(grant, post)).toEqual({ ok: { connected: true } });
+    expect(seen[0]?.body).toContain('refresh_token=stored-refresh-0001');
+    expect(store.resolve('DRIVE_USER', undefined)).toBe('ACCESS-2');
+  });
+});

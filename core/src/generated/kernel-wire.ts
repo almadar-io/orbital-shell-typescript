@@ -45,6 +45,8 @@ serverLegs: Array<RoutedLeg>,
  */
 resync?: FramesResync | null, };
 
+export type AssertionSpec = { signingKey: string, issuer?: string | null, subject?: string | null, audience: string, ttlSeconds: number, };
+
 export type AwaitingTrait = { trait: string, event: string, from: string }
 
 export type BusEventSource = { orbital?: string, orbitalId?: OrbitalId, trait?: string, traitId?: TraitId, eventId?: EventId, transition?: string, tick?: string, fromBridge?: boolean, dispatched?: boolean, originClientId?: string, 
@@ -108,7 +110,7 @@ export type ConnectFailure = { kind: ConnectFailureKind, message: string, };
 
 export type ConnectFailureKind = "unavailable" | "unsigned" | "denied" | "invalid_grant" | "invalid_client" | "transport" | "malformed" | "refused";
 
-export type CredentialGrantWire = { name: string, principal?: string, tokenEndpoint: string, grant: string, code: string, redirectUri: string, verifier?: string, clientId: string, clientSecret?: string, clientAuth: ClientAuth, scopes: Array<string>, };
+export type CredentialGrantWire = { name: string, principal?: string, tokenEndpoint: string, grant: string, code: string, redirectUri: string, verifier?: string, clientId: string, clientSecret?: string, clientAuth: ClientAuth, scopes: Array<string>, refreshCredential?: string, assertion?: AssertionSpec, jsonToken?: JsonTokenSpec, };
 
 export type CredentialKind = "admin";
 
@@ -340,6 +342,8 @@ export type IoReplyWire = { id: number, answer: IoAnswerWire, };
 
 export type IoRequestWire = { "kind": "readRow", entityType: string, id: string, } | { "kind": "listRows", entityType: string, } | { "kind": "queryRows", entityType: string, query: RowQuery, project: RowProjection, } | { "kind": "writeRows", batch: RowWriteBatch, } | { "kind": "commitRows", rows: Array<RowCommit>, } | { "kind": "createRow", entityType: string, data: JsonValue, } | { "kind": "writeRow", entityType: string, id: string, data: JsonValue, } | { "kind": "deleteRow", entityType: string, id: string, } | { "kind": "callService", service: string, method: string, args: JsonValue, key?: string, caller?: CallerWire, site?: CallSiteWire, } | { "kind": "cancelCall", key: string, } | { "kind": "substrate", op: string, args: Array<JsonValue>, key?: string, site?: CallSiteWire, } | { "kind": "pageFacts", fields: Array<PageFactFieldWire>, } | { "kind": "prompt", text: string, schema: string, key?: string, } | { "kind": "embed", texts: Array<string>, key?: string, } | { "kind": "tab", ask: TabAsk, key?: string, } | { "kind": "secret", name: string, principal?: string, } | { "kind": "secretSet", name: string, value: string, ttlMs: number, principal?: string, } | { "kind": "secretRotate", name: string, value: string, principal?: string, } | { "kind": "deliver", envelope: Envelope, key?: string, site: CallSiteWire, } | { "kind": "random", bytes: number, } | { "kind": "clock" } | { "kind": "sealed", op: string, args: Array<JsonValue>, } | { "kind": "os", op: OsOp, args: Array<JsonValue>, key?: string, site?: CallSiteWire, principal?: string, } | { "kind": "credentialStatus", name: string, principal?: string, } | { "kind": "credentialForget", name: string, principal?: string, } | { "kind": "credentialConnect", grant: CredentialGrantWire, } | { "kind": "credentialStoreList" } | { "kind": "credentialEnvTails", names: Array<string>, } | { "kind": "credentialStoreRead", name: string, } | { "kind": "credentialStoreWrite", service: string, name: string, value: string, } | { "kind": "credentialStoreRemove", name: string, } | { "kind": "credentialStoreRotate" } | { "kind": "credentialModeRead" } | { "kind": "credentialModeWrite", mode: string, };
 
+export type JsonTokenSpec = { clientIdField: string, clientSecretField: string, accessField: string, refreshField?: string | null, expiresInField?: string | null, refreshEndpoint?: string | null, refreshBodyField?: string | null, };
+
 export type KvMode = "read" | "write";
 
 export type Left = { trait: string, orbital: string, leg: EventRequest, };
@@ -569,7 +573,17 @@ ownerEntity: string,
 /**
  * The rendered tree in pre-order, each `@trait` embed's content visited once where it is embedded.
  */
-nodes: Array<RenderedNode>, };
+nodes: Array<RenderedNode>, 
+/**
+ * The slot's content exactly as the kernel resolved it for a host to paint (EXEC-STEP-4); present only when
+ * `options.renderProps` asked.
+ */
+props?: JsonValue, 
+/**
+ * The slot's repaint failed to resolve and it keeps its last paint (G-ORBITAL-CORE-090); present only when
+ * `options.renderProps` asked and the failure happened.
+ */
+fault?: SlotFault, };
 
 export type RepaintReason = "rows-changed";
 
@@ -668,6 +682,8 @@ routed?: string, };
 export type ServerProgressWire = { "status": "done", response: EventResponse, } | { "status": "await", flight: number, requests: Array<PendingRequestWire>, } | { "status": "queued", ticket: number, };
 
 export type Settled<T, E> = { "ok": T } | { "error": E };
+
+export type SlotFault = { code: TransitionRejectionCode, error: string, };
 
 export type SnapshotWire = { states: JsonObject, ambiguousTraits: Array<AmbiguousTrait>, theme: ResolvedTheme, canvasTheme: CanvasTheme, motion: ResolvedMotion, };
 
@@ -943,6 +959,10 @@ function checkAppliedWire(v: JsonValue | undefined): boolean {
   return (isRecord(v) && (Array.isArray(v["applied"]) && v["applied"].every((e) => (Array.isArray(e) && e.length === 2 && typeof e[0] === 'string' && typeof e[1] === 'string'))) && checkEventResponse(v["response"]) && (Array.isArray(v["serverLegs"]) && v["serverLegs"].every((e) => checkRoutedLeg(e))) && (v["resync"] === undefined || (checkFramesResync(v["resync"]) || v["resync"] === null)));
 }
 
+function checkAssertionSpec(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["signingKey"] === 'string' && (v["issuer"] === undefined || (typeof v["issuer"] === 'string' || v["issuer"] === null)) && (v["subject"] === undefined || (typeof v["subject"] === 'string' || v["subject"] === null)) && typeof v["audience"] === 'string' && typeof v["ttlSeconds"] === 'number');
+}
+
 function checkAwaitingTrait(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["event"] === 'string' && typeof v["from"] === 'string');
 }
@@ -988,7 +1008,7 @@ function checkConnectFailureKind(v: JsonValue | undefined): boolean {
 }
 
 function checkCredentialGrantWire(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string') && typeof v["tokenEndpoint"] === 'string' && typeof v["grant"] === 'string' && typeof v["code"] === 'string' && typeof v["redirectUri"] === 'string' && (v["verifier"] === undefined || typeof v["verifier"] === 'string') && typeof v["clientId"] === 'string' && (v["clientSecret"] === undefined || typeof v["clientSecret"] === 'string') && checkClientAuth(v["clientAuth"]) && (Array.isArray(v["scopes"]) && v["scopes"].every((e) => typeof e === 'string')));
+  return (isRecord(v) && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string') && typeof v["tokenEndpoint"] === 'string' && typeof v["grant"] === 'string' && typeof v["code"] === 'string' && typeof v["redirectUri"] === 'string' && (v["verifier"] === undefined || typeof v["verifier"] === 'string') && typeof v["clientId"] === 'string' && (v["clientSecret"] === undefined || typeof v["clientSecret"] === 'string') && checkClientAuth(v["clientAuth"]) && (Array.isArray(v["scopes"]) && v["scopes"].every((e) => typeof e === 'string')) && (v["refreshCredential"] === undefined || typeof v["refreshCredential"] === 'string') && (v["assertion"] === undefined || checkAssertionSpec(v["assertion"])) && (v["jsonToken"] === undefined || checkJsonTokenSpec(v["jsonToken"])));
 }
 
 function checkCredentialStanding(v: JsonValue | undefined): boolean {
@@ -1133,6 +1153,10 @@ function checkIoReplyWire(v: JsonValue | undefined): boolean {
 
 function checkIoRequestWire(v: JsonValue | undefined): boolean {
   return ((isRecord(v) && v["kind"] === "readRow" && typeof v["entityType"] === 'string' && typeof v["id"] === 'string') || (isRecord(v) && v["kind"] === "listRows" && typeof v["entityType"] === 'string') || (isRecord(v) && v["kind"] === "queryRows" && typeof v["entityType"] === 'string' && checkRowQuery(v["query"]) && checkRowProjection(v["project"])) || (isRecord(v) && v["kind"] === "writeRows" && checkRowWriteBatch(v["batch"])) || (isRecord(v) && v["kind"] === "commitRows" && (Array.isArray(v["rows"]) && v["rows"].every((e) => checkRowCommit(e)))) || (isRecord(v) && v["kind"] === "createRow" && typeof v["entityType"] === 'string' && accepts((x, q) => any(x, q), v["data"])) || (isRecord(v) && v["kind"] === "writeRow" && typeof v["entityType"] === 'string' && typeof v["id"] === 'string' && accepts((x, q) => any(x, q), v["data"])) || (isRecord(v) && v["kind"] === "deleteRow" && typeof v["entityType"] === 'string' && typeof v["id"] === 'string') || (isRecord(v) && v["kind"] === "callService" && typeof v["service"] === 'string' && typeof v["method"] === 'string' && accepts((x, q) => any(x, q), v["args"]) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["caller"] === undefined || checkCallerWire(v["caller"])) && (v["site"] === undefined || checkCallSiteWire(v["site"]))) || (isRecord(v) && v["kind"] === "cancelCall" && typeof v["key"] === 'string') || (isRecord(v) && v["kind"] === "substrate" && typeof v["op"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["site"] === undefined || checkCallSiteWire(v["site"]))) || (isRecord(v) && v["kind"] === "pageFacts" && (Array.isArray(v["fields"]) && v["fields"].every((e) => checkPageFactFieldWire(e)))) || (isRecord(v) && v["kind"] === "prompt" && typeof v["text"] === 'string' && typeof v["schema"] === 'string' && (v["key"] === undefined || typeof v["key"] === 'string')) || (isRecord(v) && v["kind"] === "embed" && (Array.isArray(v["texts"]) && v["texts"].every((e) => typeof e === 'string')) && (v["key"] === undefined || typeof v["key"] === 'string')) || (isRecord(v) && v["kind"] === "tab" && checkTabAsk(v["ask"]) && (v["key"] === undefined || typeof v["key"] === 'string')) || (isRecord(v) && v["kind"] === "secret" && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "secretSet" && typeof v["name"] === 'string' && typeof v["value"] === 'string' && typeof v["ttlMs"] === 'number' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "secretRotate" && typeof v["name"] === 'string' && typeof v["value"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "deliver" && checkEnvelope(v["envelope"]) && (v["key"] === undefined || typeof v["key"] === 'string') && checkCallSiteWire(v["site"])) || (isRecord(v) && v["kind"] === "random" && typeof v["bytes"] === 'number') || (isRecord(v) && v["kind"] === "clock") || (isRecord(v) && v["kind"] === "sealed" && typeof v["op"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e)))) || (isRecord(v) && v["kind"] === "os" && checkOsOp(v["op"]) && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["site"] === undefined || checkCallSiteWire(v["site"])) && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "credentialStatus" && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "credentialForget" && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "credentialConnect" && checkCredentialGrantWire(v["grant"])) || (isRecord(v) && v["kind"] === "credentialStoreList") || (isRecord(v) && v["kind"] === "credentialEnvTails" && (Array.isArray(v["names"]) && v["names"].every((e) => typeof e === 'string'))) || (isRecord(v) && v["kind"] === "credentialStoreRead" && typeof v["name"] === 'string') || (isRecord(v) && v["kind"] === "credentialStoreWrite" && typeof v["service"] === 'string' && typeof v["name"] === 'string' && typeof v["value"] === 'string') || (isRecord(v) && v["kind"] === "credentialStoreRemove" && typeof v["name"] === 'string') || (isRecord(v) && v["kind"] === "credentialStoreRotate") || (isRecord(v) && v["kind"] === "credentialModeRead") || (isRecord(v) && v["kind"] === "credentialModeWrite" && typeof v["mode"] === 'string'));
+}
+
+function checkJsonTokenSpec(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["clientIdField"] === 'string' && typeof v["clientSecretField"] === 'string' && typeof v["accessField"] === 'string' && (v["refreshField"] === undefined || (typeof v["refreshField"] === 'string' || v["refreshField"] === null)) && (v["expiresInField"] === undefined || (typeof v["expiresInField"] === 'string' || v["expiresInField"] === null)) && (v["refreshEndpoint"] === undefined || (typeof v["refreshEndpoint"] === 'string' || v["refreshEndpoint"] === null)) && (v["refreshBodyField"] === undefined || (typeof v["refreshBodyField"] === 'string' || v["refreshBodyField"] === null)));
 }
 
 function checkLeft(v: JsonValue | undefined): boolean {
@@ -1284,7 +1308,7 @@ function checkRenderedNode(v: JsonValue | undefined): boolean {
 }
 
 function checkRenderedSlot(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["slot"] === 'string' && typeof v["sourceTrait"] === 'string' && typeof v["ownerEntity"] === 'string' && (Array.isArray(v["nodes"]) && v["nodes"].every((e) => checkRenderedNode(e))));
+  return (isRecord(v) && typeof v["slot"] === 'string' && typeof v["sourceTrait"] === 'string' && typeof v["ownerEntity"] === 'string' && (Array.isArray(v["nodes"]) && v["nodes"].every((e) => checkRenderedNode(e))) && (v["props"] === undefined || accepts((x, q) => any(x, q), v["props"])) && (v["fault"] === undefined || checkSlotFault(v["fault"])));
 }
 
 function checkRepaintReason(v: JsonValue | undefined): boolean {
@@ -1401,6 +1425,10 @@ function checkServerEffectResult(v: JsonValue | undefined): boolean {
 
 function checkServerProgressWire(v: JsonValue | undefined): boolean {
   return ((isRecord(v) && v["status"] === "done" && checkEventResponse(v["response"])) || (isRecord(v) && v["status"] === "await" && typeof v["flight"] === 'number' && (Array.isArray(v["requests"]) && v["requests"].every((e) => checkPendingRequestWire(e)))) || (isRecord(v) && v["status"] === "queued" && typeof v["ticket"] === 'number'));
+}
+
+function checkSlotFault(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && checkTransitionRejectionCode(v["code"]) && typeof v["error"] === 'string');
 }
 
 function checkSnapshotWire(v: JsonValue | undefined): boolean {
@@ -1539,6 +1567,10 @@ function buildAppliedWire(v: JsonValue | undefined, p: string): AppliedWire {
   return obj(v, p, null, (r0) => ({ "applied": list(r0["applied"], p + '.applied', (e1, q1) => tuple(e1, q1, 2, (t2) => [str(t2[0], q1 + '[0]'), str(t2[1], q1 + '[1]')])), "response": buildEventResponse(r0["response"], p + '.response'), "serverLegs": list(r0["serverLegs"], p + '.serverLegs', (e1, q1) => buildRoutedLeg(e1, q1)), ...(r0["resync"] === undefined || r0["resync"] === null ? {} : { "resync": (r0["resync"] === null ? null : buildFramesResync(r0["resync"], p + '.resync')) }) }));
 }
 
+function buildAssertionSpec(v: JsonValue | undefined, p: string): AssertionSpec {
+  return obj(v, p, null, (r0) => ({ "signingKey": str(r0["signingKey"], p + '.signingKey'), ...(r0["issuer"] === undefined || r0["issuer"] === null ? {} : { "issuer": (r0["issuer"] === null ? null : str(r0["issuer"], p + '.issuer')) }), ...(r0["subject"] === undefined || r0["subject"] === null ? {} : { "subject": (r0["subject"] === null ? null : str(r0["subject"], p + '.subject')) }), "audience": str(r0["audience"], p + '.audience'), "ttlSeconds": int(r0["ttlSeconds"], p + '.ttlSeconds', 0, 4294967295, "u32") }));
+}
+
 function buildAwaitingTrait(v: JsonValue | undefined, p: string): AwaitingTrait {
   return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "event": str(r0["event"], p + '.event'), "from": str(r0["from"], p + '.from') }));
 }
@@ -1584,7 +1616,7 @@ function buildConnectFailureKind(v: JsonValue | undefined, p: string): ConnectFa
 }
 
 function buildCredentialGrantWire(v: JsonValue | undefined, p: string): CredentialGrantWire {
-  return obj(v, p, null, (r0) => ({ "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }), "tokenEndpoint": str(r0["tokenEndpoint"], p + '.tokenEndpoint'), "grant": str(r0["grant"], p + '.grant'), "code": str(r0["code"], p + '.code'), "redirectUri": str(r0["redirectUri"], p + '.redirectUri'), ...(r0["verifier"] === undefined || r0["verifier"] === null ? {} : { "verifier": str(r0["verifier"], p + '.verifier') }), "clientId": str(r0["clientId"], p + '.clientId'), ...(r0["clientSecret"] === undefined || r0["clientSecret"] === null ? {} : { "clientSecret": str(r0["clientSecret"], p + '.clientSecret') }), "clientAuth": buildClientAuth(r0["clientAuth"], p + '.clientAuth'), "scopes": r0["scopes"] === undefined ? [] : list(r0["scopes"], p + '.scopes', (e1, q1) => str(e1, q1)) }));
+  return obj(v, p, null, (r0) => ({ "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }), "tokenEndpoint": str(r0["tokenEndpoint"], p + '.tokenEndpoint'), "grant": str(r0["grant"], p + '.grant'), "code": str(r0["code"], p + '.code'), "redirectUri": str(r0["redirectUri"], p + '.redirectUri'), ...(r0["verifier"] === undefined || r0["verifier"] === null ? {} : { "verifier": str(r0["verifier"], p + '.verifier') }), "clientId": str(r0["clientId"], p + '.clientId'), ...(r0["clientSecret"] === undefined || r0["clientSecret"] === null ? {} : { "clientSecret": str(r0["clientSecret"], p + '.clientSecret') }), "clientAuth": buildClientAuth(r0["clientAuth"], p + '.clientAuth'), "scopes": r0["scopes"] === undefined ? [] : list(r0["scopes"], p + '.scopes', (e1, q1) => str(e1, q1)), ...(r0["refreshCredential"] === undefined || r0["refreshCredential"] === null ? {} : { "refreshCredential": str(r0["refreshCredential"], p + '.refreshCredential') }), ...(r0["assertion"] === undefined || r0["assertion"] === null ? {} : { "assertion": buildAssertionSpec(r0["assertion"], p + '.assertion') }), ...(r0["jsonToken"] === undefined || r0["jsonToken"] === null ? {} : { "jsonToken": buildJsonTokenSpec(r0["jsonToken"], p + '.jsonToken') }) }));
 }
 
 function buildCredentialStanding(v: JsonValue | undefined, p: string): CredentialStanding {
@@ -1729,6 +1761,10 @@ function buildIoReplyWire(v: JsonValue | undefined, p: string): IoReplyWire {
 
 function buildIoRequestWire(v: JsonValue | undefined, p: string): IoRequestWire {
   return (rec(v, p)["kind"] === "readRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "readRow"), "entityType": str(r0["entityType"], p + '.entityType'), "id": str(r0["id"], p + '.id') })) : rec(v, p)["kind"] === "listRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "listRows"), "entityType": str(r0["entityType"], p + '.entityType') })) : rec(v, p)["kind"] === "queryRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "queryRows"), "entityType": str(r0["entityType"], p + '.entityType'), "query": buildRowQuery(r0["query"], p + '.query'), "project": buildRowProjection(r0["project"], p + '.project') })) : rec(v, p)["kind"] === "writeRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "writeRows"), "batch": buildRowWriteBatch(r0["batch"], p + '.batch') })) : rec(v, p)["kind"] === "commitRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "commitRows"), "rows": list(r0["rows"], p + '.rows', (e1, q1) => buildRowCommit(e1, q1)) })) : rec(v, p)["kind"] === "createRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "createRow"), "entityType": str(r0["entityType"], p + '.entityType'), "data": any(r0["data"], p + '.data') })) : rec(v, p)["kind"] === "writeRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "writeRow"), "entityType": str(r0["entityType"], p + '.entityType'), "id": str(r0["id"], p + '.id'), "data": any(r0["data"], p + '.data') })) : rec(v, p)["kind"] === "deleteRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "deleteRow"), "entityType": str(r0["entityType"], p + '.entityType'), "id": str(r0["id"], p + '.id') })) : rec(v, p)["kind"] === "callService" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "callService"), "service": str(r0["service"], p + '.service'), "method": str(r0["method"], p + '.method'), "args": any(r0["args"], p + '.args'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["caller"] === undefined || r0["caller"] === null ? {} : { "caller": buildCallerWire(r0["caller"], p + '.caller') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }) })) : rec(v, p)["kind"] === "cancelCall" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "cancelCall"), "key": str(r0["key"], p + '.key') })) : rec(v, p)["kind"] === "substrate" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "substrate"), "op": str(r0["op"], p + '.op'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }) })) : rec(v, p)["kind"] === "pageFacts" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "pageFacts"), "fields": list(r0["fields"], p + '.fields', (e1, q1) => buildPageFactFieldWire(e1, q1)) })) : rec(v, p)["kind"] === "prompt" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "prompt"), "text": str(r0["text"], p + '.text'), "schema": str(r0["schema"], p + '.schema'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }) })) : rec(v, p)["kind"] === "embed" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "embed"), "texts": list(r0["texts"], p + '.texts', (e1, q1) => str(e1, q1)), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }) })) : rec(v, p)["kind"] === "tab" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "tab"), "ask": buildTabAsk(r0["ask"], p + '.ask'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }) })) : rec(v, p)["kind"] === "secret" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "secret"), "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "secretSet" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "secretSet"), "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value'), "ttlMs": int(r0["ttlMs"], p + '.ttlMs', 0, Number.MAX_SAFE_INTEGER, "u64"), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "secretRotate" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "secretRotate"), "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "deliver" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "deliver"), "envelope": buildEnvelope(r0["envelope"], p + '.envelope'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), "site": buildCallSiteWire(r0["site"], p + '.site') })) : rec(v, p)["kind"] === "random" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "random"), "bytes": int(r0["bytes"], p + '.bytes', 0, 4294967295, "u32") })) : rec(v, p)["kind"] === "clock" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "clock") })) : rec(v, p)["kind"] === "sealed" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "sealed"), "op": str(r0["op"], p + '.op'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)) })) : rec(v, p)["kind"] === "os" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "os"), "op": buildOsOp(r0["op"], p + '.op'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "credentialStatus" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStatus"), "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "credentialForget" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialForget"), "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "credentialConnect" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialConnect"), "grant": buildCredentialGrantWire(r0["grant"], p + '.grant') })) : rec(v, p)["kind"] === "credentialStoreList" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreList") })) : rec(v, p)["kind"] === "credentialEnvTails" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialEnvTails"), "names": list(r0["names"], p + '.names', (e1, q1) => str(e1, q1)) })) : rec(v, p)["kind"] === "credentialStoreRead" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreRead"), "name": str(r0["name"], p + '.name') })) : rec(v, p)["kind"] === "credentialStoreWrite" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreWrite"), "service": str(r0["service"], p + '.service'), "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value') })) : rec(v, p)["kind"] === "credentialStoreRemove" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreRemove"), "name": str(r0["name"], p + '.name') })) : rec(v, p)["kind"] === "credentialStoreRotate" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreRotate") })) : rec(v, p)["kind"] === "credentialModeRead" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialModeRead") })) : rec(v, p)["kind"] === "credentialModeWrite" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialModeWrite"), "mode": str(r0["mode"], p + '.mode') })) : fail(unknownTag(p, "kind", rec(v, p)["kind"])));
+}
+
+function buildJsonTokenSpec(v: JsonValue | undefined, p: string): JsonTokenSpec {
+  return obj(v, p, null, (r0) => ({ "clientIdField": str(r0["clientIdField"], p + '.clientIdField'), "clientSecretField": str(r0["clientSecretField"], p + '.clientSecretField'), "accessField": str(r0["accessField"], p + '.accessField'), ...(r0["refreshField"] === undefined || r0["refreshField"] === null ? {} : { "refreshField": (r0["refreshField"] === null ? null : str(r0["refreshField"], p + '.refreshField')) }), ...(r0["expiresInField"] === undefined || r0["expiresInField"] === null ? {} : { "expiresInField": (r0["expiresInField"] === null ? null : str(r0["expiresInField"], p + '.expiresInField')) }), ...(r0["refreshEndpoint"] === undefined || r0["refreshEndpoint"] === null ? {} : { "refreshEndpoint": (r0["refreshEndpoint"] === null ? null : str(r0["refreshEndpoint"], p + '.refreshEndpoint')) }), ...(r0["refreshBodyField"] === undefined || r0["refreshBodyField"] === null ? {} : { "refreshBodyField": (r0["refreshBodyField"] === null ? null : str(r0["refreshBodyField"], p + '.refreshBodyField')) }) }));
 }
 
 function buildLeft(v: JsonValue | undefined, p: string): Left {
@@ -1880,7 +1916,7 @@ function buildRenderedNode(v: JsonValue | undefined, p: string): RenderedNode {
 }
 
 function buildRenderedSlot(v: JsonValue | undefined, p: string): RenderedSlot {
-  return obj(v, p, null, (r0) => ({ "slot": str(r0["slot"], p + '.slot'), "sourceTrait": str(r0["sourceTrait"], p + '.sourceTrait'), "ownerEntity": str(r0["ownerEntity"], p + '.ownerEntity'), "nodes": list(r0["nodes"], p + '.nodes', (e1, q1) => buildRenderedNode(e1, q1)) }));
+  return obj(v, p, null, (r0) => ({ "slot": str(r0["slot"], p + '.slot'), "sourceTrait": str(r0["sourceTrait"], p + '.sourceTrait'), "ownerEntity": str(r0["ownerEntity"], p + '.ownerEntity'), "nodes": list(r0["nodes"], p + '.nodes', (e1, q1) => buildRenderedNode(e1, q1)), ...(r0["props"] === undefined || r0["props"] === null ? {} : { "props": any(r0["props"], p + '.props') }), ...(r0["fault"] === undefined || r0["fault"] === null ? {} : { "fault": buildSlotFault(r0["fault"], p + '.fault') }) }));
 }
 
 function buildRepaintReason(v: JsonValue | undefined, p: string): RepaintReason {
@@ -1997,6 +2033,10 @@ function buildServerEffectResult(v: JsonValue | undefined, p: string): ServerEff
 
 function buildServerProgressWire(v: JsonValue | undefined, p: string): ServerProgressWire {
   return (rec(v, p)["status"] === "done" ? obj(v, p, null, (r0) => ({ "status": lit(r0["status"], p + '.status', "done"), "response": buildEventResponse(r0["response"], p + '.response') })) : rec(v, p)["status"] === "await" ? obj(v, p, null, (r0) => ({ "status": lit(r0["status"], p + '.status', "await"), "flight": int(r0["flight"], p + '.flight', 0, Number.MAX_SAFE_INTEGER, "u64"), "requests": list(r0["requests"], p + '.requests', (e1, q1) => buildPendingRequestWire(e1, q1)) })) : rec(v, p)["status"] === "queued" ? obj(v, p, null, (r0) => ({ "status": lit(r0["status"], p + '.status', "queued"), "ticket": int(r0["ticket"], p + '.ticket', 0, Number.MAX_SAFE_INTEGER, "u64") })) : fail(unknownTag(p, "status", rec(v, p)["status"])));
+}
+
+function buildSlotFault(v: JsonValue | undefined, p: string): SlotFault {
+  return obj(v, p, null, (r0) => ({ "code": buildTransitionRejectionCode(r0["code"], p + '.code'), "error": str(r0["error"], p + '.error') }));
 }
 
 function buildSnapshotWire(v: JsonValue | undefined, p: string): SnapshotWire {

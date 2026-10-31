@@ -92,6 +92,30 @@ interface SimNode {
   fy: number;
 }
 
+/** Space between an arrowhead's tip and the target node's rim. */
+export const EDGE_ARROW_GAP = 3;
+
+/** An edge drawn rim to rim, so the arrowhead at its end is not painted over by the target circle. */
+export function edgeEndpoints(
+  source: { x: number; y: number; size: number },
+  target: { x: number; y: number; size: number },
+): { x1: number; y1: number; x2: number; y2: number } {
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  const d = Math.hypot(dx, dy);
+  if (d <= source.size + target.size + EDGE_ARROW_GAP) {
+    return { x1: source.x, y1: source.y, x2: target.x, y2: target.y };
+  }
+  const ux = dx / d;
+  const uy = dy / d;
+  return {
+    x1: source.x + ux * source.size,
+    y1: source.y + uy * source.size,
+    x2: target.x - ux * (target.size + EDGE_ARROW_GAP),
+    y2: target.y - uy * (target.size + EDGE_ARROW_GAP),
+  };
+}
+
 function resolveNodeColor(node: GraphViewNode, groups: string[]): string {
   if (node.color) return node.color;
   if (node.group) {
@@ -405,14 +429,17 @@ export const GraphView: React.FC<GraphViewProps> = ({
           const isHighlighted = hoveredId
             ? connectedIds.has(edge.source) && connectedIds.has(edge.target)
             : true;
+          const ends = layout !== 'force'
+            ? edgeEndpoints(source, target)
+            : { x1: source.x, y1: source.y, x2: target.x, y2: target.y };
 
           return (
             <g key={`edge-${idx}`}>
               <line
-                x1={source.x}
-                y1={source.y}
-                x2={target.x}
-                y2={target.y}
+                x1={ends.x1}
+                y1={ends.y1}
+                x2={ends.x2}
+                y2={ends.y2}
                 stroke={edge.color ?? DEFAULT_EDGE_COLOR}
                 color={edge.color ?? DEFAULT_EDGE_COLOR}
                 strokeWidth={1.5}
