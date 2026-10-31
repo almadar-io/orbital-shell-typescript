@@ -1,7 +1,7 @@
 /**
  * What a server hands the program-independent web client at startup (`/client.json`), beside `program.client.orb`:
- * the program's locale and text direction, its themes with the default theme and mode, and whether the kernel's
- * language data ships (`/language.json`). The TypeScript shell writes it for `orb compile` and `orb serve` alike.
+ * the program's locale and text direction and its themes with the default theme and mode. The TypeScript shell writes it
+ * for `orb compile` and `orb serve` alike, beside the kernel's language data (`/language.json`).
  */
 import { z } from 'zod';
 import type { JsonValue } from './json.js';
@@ -22,7 +22,6 @@ export const ClientManifestSchema = z
     themes: z.array(ClientThemeSchema),
     defaultTheme: z.string().min(1).nullable(),
     defaultMode: z.enum(['light', 'dark']),
-    language: z.boolean(),
   })
   .strict();
 

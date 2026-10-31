@@ -87,7 +87,7 @@ export function App({ manifest, messages }: AppProps): React.ReactElement {
     () => ({ locale: manifest.locale, direction: manifest.direction, messages, t: createTranslate(messages) }),
     [manifest, messages],
   );
-  const loader = useCallback(() => loadKernel(manifest.language), [manifest.language]);
+  const loader = useCallback(() => loadKernel(), []);
   const themeProps =
     manifest.themes.length > 0
       ? { themes: manifest.themes, defaultTheme: manifest.defaultTheme ?? undefined, defaultMode: manifest.defaultMode }

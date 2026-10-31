@@ -35,10 +35,10 @@ const CLIENT_UNREAD_TRAIT_KEYS: [&str; 2] = ["effectRow", "sourceEntityDefinitio
 /// The resolved program as the browser receives it: route pages only (the client takes the routes, EXEC-ENDPOINT-5). The server keeps the whole program.
 /// The program's files the program-independent web client reads at startup, by path under the
 /// client's public root: `client.json` (the `ClientManifest`), `themes.css` (the declared themes, or
-/// the runtime default preset when it declares none) and, when its browser kernel needs it,
-/// `language.json`. `orb compile` writes them into `packages/client/public/`; `orb serve` serves them
+/// the runtime default preset when it declares none) and `language.json`, the installed language every browser
+/// kernel evaluates through. `orb compile` writes them into `packages/client/public/`; `orb serve` serves them
 /// beside the prebuilt client.
-pub fn client_runtime_files(module: &OirModule, language: &str, ships_language: bool) -> Vec<(String, String)> {
+pub fn client_runtime_files(module: &OirModule, language: &str) -> Vec<(String, String)> {
     let (locale, direction) = match language {
         "ar" => ("ar", "rtl"),
         "sl" => ("sl", "ltr"),
@@ -51,7 +51,6 @@ pub fn client_runtime_files(module: &OirModule, language: &str, ships_language: 
         "themes": themes,
         "defaultTheme": default_theme,
         "defaultMode": default_mode,
-        "language": ships_language,
     });
     let default_preset;
     let styled: &[orbital_core_base::schema::types::ThemeDefinition] = if module.themes.is_empty() {
@@ -76,10 +75,8 @@ pub fn client_runtime_files(module: &OirModule, language: &str, ships_language: 
         ("client.json".to_string(), serde_json::to_string_pretty(&manifest).unwrap_or_default()),
         ("themes.css".to_string(), css),
     ];
-    if ships_language {
-        if let Ok(bundle) = orbital_core_base::language_data::language_bundle_json() {
-            files.push(("language.json".to_string(), bundle));
-        }
+    if let Ok(bundle) = orbital_core_base::language_data::language_bundle_json() {
+        files.push(("language.json".to_string(), bundle));
     }
     files
 }
@@ -175,9 +172,8 @@ impl TypeScriptBackend {
 
     /// The kernel-hosted client: the loader and the `App` that renders the program on the kernel.
     pub(crate) fn generate_kernel_client(&self, module: &OirModule) -> Vec<InternalFile> {
-        let ships_language = self.client_needs_language(module);
         let mut files: Vec<InternalFile> = Vec::new();
-        files.extend(client_runtime_files(module, &self.schema_language, ships_language).into_iter().map(|(path, content)| {
+        files.extend(client_runtime_files(module, &self.schema_language).into_iter().map(|(path, content)| {
             InternalFile::new(format!("packages/client/public/{path}"), content, GeneratedFileType::Config)
         }));
         files.extend(self.generate_client_program_files());
@@ -202,18 +198,7 @@ impl TypeScriptBackend {
     }
 
     /// What a kernel-hosted compile could not do, reported with the output.
-    /// The client may open a kernel over browser-stored rows: the program stores some, or it has lazy pages, whose
-    /// behaviors load after compile and may store their own.
-    fn client_needs_language(&self, module: &OirModule) -> bool {
-        let has_lazy_pages = self
-            .browser_schema
-            .as_ref()
-            .and_then(|schema| schema.lazy_pages.as_ref())
-            .is_some_and(|pages| !pages.is_empty());
-        has_lazy_pages || module.entities.iter().any(|entity| entity.browser)
-    }
-
-    pub(crate) fn kernel_host_warnings(&self, module: &OirModule) -> Vec<String> {
+    pub(crate) fn kernel_host_warnings(&self) -> Vec<String> {
         let mut warnings = Vec::new();
         if self.browser_schema.is_none() {
             warnings.push("kernel host: no resolved schema was supplied, so the program is not embedded".to_string());
@@ -221,9 +206,9 @@ impl TypeScriptBackend {
         if self.target != "client" && self.served_schema.is_none() {
             warnings.push("kernel host: no served program was supplied, so the server has no program to run".to_string());
         }
-        if self.target != "server" && self.client_needs_language(module) {
+        if self.target != "server" {
             if let Err(e) = orbital_core_base::language_data::language_bundle_json() {
-                warnings.push(format!("kernel host: the program stores rows in the browser (or has lazy pages that may), but the installed language could not be read for its browser kernel ({}: {e})", e.code()));
+                warnings.push(format!("kernel host: the installed language could not be read for the browser kernel, so the client cannot start ({}: {e})", e.code()));
             }
         }
         warnings

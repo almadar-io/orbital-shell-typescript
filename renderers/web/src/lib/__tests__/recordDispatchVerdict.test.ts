@@ -50,6 +50,18 @@ describe('recordDispatchVerdict', () => {
     expect(verdict?.error).toContain('is not a behavior specifier');
   });
 
+  it('records a failed repaint as a failed verdict naming the trait, the slot and the error', () => {
+    recordDispatchVerdict('Board', 'BUMP', {
+      response: response({
+        rejections: [{ code: 'repaint-failed', trait: 'Viewer', slot: 'aside', error: 'Type mismatch: expected array, got number' }],
+      }),
+    });
+    const verdict = verdictFor('BUMP');
+    expect(verdict?.success).toBe(false);
+    expect(verdict?.error).toContain('Viewer repaint of aside');
+    expect(verdict?.error).toContain('expected array');
+  });
+
   it('control: a rejection that is not an effect failure leaves the verdict a success', () => {
     recordDispatchVerdict('Board', 'SAVE', {
       response: response({ transitioned: false, rejections: [{ code: 'no-matching-transition', trait: 'BoardPreview', event: 'SAVE' }] }),

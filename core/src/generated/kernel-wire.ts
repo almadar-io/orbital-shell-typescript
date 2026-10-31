@@ -762,9 +762,13 @@ export type TransitionRejection = { code: TransitionRejectionCode, trait?: strin
 /**
  * `effect-failed`: the failure's message.
  */
-error?: string, };
+error?: string, 
+/**
+ * `repaint-failed`: the slot whose repaint failed.
+ */
+slot?: string, };
 
-export type TransitionRejectionCode = "no-matching-transition" | "guard-rejected" | "no-dispatchable-traits" | "not-an-external-input" | "inbound-only-event" | "effect-failed" | "locale-not-declared" | "client-circuit-state-refused";
+export type TransitionRejectionCode = "no-matching-transition" | "guard-rejected" | "no-dispatchable-traits" | "not-an-external-input" | "inbound-only-event" | "effect-failed" | "locale-not-declared" | "client-circuit-state-refused" | "repaint-failed";
 
 export type ValidationJsonError = { code: string, path: string, message: string, suggestion?: string, fixGuidance?: string, expectedShape?: string, validValues?: Array<string>, line?: number, column?: number, endLine?: number, endColumn?: number, approximate: boolean, needsInstall?: boolean, entity?: string, field?: string, };
 
@@ -1500,11 +1504,11 @@ function checkTransitionHop(v: JsonValue | undefined): boolean {
 }
 
 function checkTransitionRejection(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && checkTransitionRejectionCode(v["code"]) && (v["trait"] === undefined || typeof v["trait"] === 'string') && (v["from"] === undefined || typeof v["from"] === 'string') && (v["event"] === undefined || typeof v["event"] === 'string') && (v["statesDeclaringEvent"] === undefined || (Array.isArray(v["statesDeclaringEvent"]) && v["statesDeclaringEvent"].every((e) => typeof e === 'string'))) && (v["transition"] === undefined || typeof v["transition"] === 'string') && (v["guard"] === undefined || accepts((x, q) => any(x, q), v["guard"])) && (v["error"] === undefined || typeof v["error"] === 'string'));
+  return (isRecord(v) && checkTransitionRejectionCode(v["code"]) && (v["trait"] === undefined || typeof v["trait"] === 'string') && (v["from"] === undefined || typeof v["from"] === 'string') && (v["event"] === undefined || typeof v["event"] === 'string') && (v["statesDeclaringEvent"] === undefined || (Array.isArray(v["statesDeclaringEvent"]) && v["statesDeclaringEvent"].every((e) => typeof e === 'string'))) && (v["transition"] === undefined || typeof v["transition"] === 'string') && (v["guard"] === undefined || accepts((x, q) => any(x, q), v["guard"])) && (v["error"] === undefined || typeof v["error"] === 'string') && (v["slot"] === undefined || typeof v["slot"] === 'string'));
 }
 
 function checkTransitionRejectionCode(v: JsonValue | undefined): boolean {
-  return (v === "no-matching-transition" || v === "guard-rejected" || v === "no-dispatchable-traits" || v === "not-an-external-input" || v === "inbound-only-event" || v === "effect-failed" || v === "locale-not-declared" || v === "client-circuit-state-refused");
+  return (v === "no-matching-transition" || v === "guard-rejected" || v === "no-dispatchable-traits" || v === "not-an-external-input" || v === "inbound-only-event" || v === "effect-failed" || v === "locale-not-declared" || v === "client-circuit-state-refused" || v === "repaint-failed");
 }
 
 function checkValidationJsonError(v: JsonValue | undefined): boolean {
@@ -2096,11 +2100,11 @@ function buildTransitionHop(v: JsonValue | undefined, p: string): TransitionHop 
 }
 
 function buildTransitionRejection(v: JsonValue | undefined, p: string): TransitionRejection {
-  return obj(v, p, null, (r0) => ({ "code": buildTransitionRejectionCode(r0["code"], p + '.code'), ...(r0["trait"] === undefined || r0["trait"] === null ? {} : { "trait": str(r0["trait"], p + '.trait') }), ...(r0["from"] === undefined || r0["from"] === null ? {} : { "from": str(r0["from"], p + '.from') }), ...(r0["event"] === undefined || r0["event"] === null ? {} : { "event": str(r0["event"], p + '.event') }), ...(r0["statesDeclaringEvent"] === undefined || r0["statesDeclaringEvent"] === null ? {} : { "statesDeclaringEvent": list(r0["statesDeclaringEvent"], p + '.statesDeclaringEvent', (e1, q1) => str(e1, q1)) }), ...(r0["transition"] === undefined || r0["transition"] === null ? {} : { "transition": str(r0["transition"], p + '.transition') }), ...(r0["guard"] === undefined || r0["guard"] === null ? {} : { "guard": any(r0["guard"], p + '.guard') }), ...(r0["error"] === undefined || r0["error"] === null ? {} : { "error": str(r0["error"], p + '.error') }) }));
+  return obj(v, p, null, (r0) => ({ "code": buildTransitionRejectionCode(r0["code"], p + '.code'), ...(r0["trait"] === undefined || r0["trait"] === null ? {} : { "trait": str(r0["trait"], p + '.trait') }), ...(r0["from"] === undefined || r0["from"] === null ? {} : { "from": str(r0["from"], p + '.from') }), ...(r0["event"] === undefined || r0["event"] === null ? {} : { "event": str(r0["event"], p + '.event') }), ...(r0["statesDeclaringEvent"] === undefined || r0["statesDeclaringEvent"] === null ? {} : { "statesDeclaringEvent": list(r0["statesDeclaringEvent"], p + '.statesDeclaringEvent', (e1, q1) => str(e1, q1)) }), ...(r0["transition"] === undefined || r0["transition"] === null ? {} : { "transition": str(r0["transition"], p + '.transition') }), ...(r0["guard"] === undefined || r0["guard"] === null ? {} : { "guard": any(r0["guard"], p + '.guard') }), ...(r0["error"] === undefined || r0["error"] === null ? {} : { "error": str(r0["error"], p + '.error') }), ...(r0["slot"] === undefined || r0["slot"] === null ? {} : { "slot": str(r0["slot"], p + '.slot') }) }));
 }
 
 function buildTransitionRejectionCode(v: JsonValue | undefined, p: string): TransitionRejectionCode {
-  return oneOf(v, p, ["no-matching-transition", "guard-rejected", "no-dispatchable-traits", "not-an-external-input", "inbound-only-event", "effect-failed", "locale-not-declared", "client-circuit-state-refused"]);
+  return oneOf(v, p, ["no-matching-transition", "guard-rejected", "no-dispatchable-traits", "not-an-external-input", "inbound-only-event", "effect-failed", "locale-not-declared", "client-circuit-state-refused", "repaint-failed"]);
 }
 
 function buildValidationJsonError(v: JsonValue | undefined, p: string): ValidationJsonError {

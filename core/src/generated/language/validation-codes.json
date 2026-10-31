@@ -1657,7 +1657,7 @@
   {
     "code": "ORB_S_UNKNOWN_IDENTITY_FIELD",
     "category": "schema",
-    "description": "@user.<field> names a field the declared identity entity does not have"
+    "description": "A read of a field of the signed-in user names a field the declared identity entity does not have"
   },
   {
     "code": "ORB_TAB_EFFECT_ON_SERVER",

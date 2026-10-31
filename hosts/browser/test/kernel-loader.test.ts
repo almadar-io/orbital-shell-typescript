@@ -25,13 +25,6 @@ describe('loadBrowserKernel', () => {
     expect(log).toEqual(['init /kernel.wasm', 'fetch /language.json', 'install {"bundle":1}']);
   });
 
-  it('control: no language location fetches and installs nothing', async () => {
-    const log: string[] = [];
-    vi.stubGlobal('fetch', () => { throw new Error('fetched'); });
-    await loadBrowserKernel({ init: async () => undefined, glue: glue(log), wasm: '/kernel.wasm' });
-    expect(log).toEqual([]);
-  });
-
   it('edge: a language that cannot be fetched fails the load, naming it, and installs nothing', async () => {
     const log: string[] = [];
     vi.stubGlobal('fetch', async () => new Response('missing', { status: 404, statusText: 'Not Found' }));

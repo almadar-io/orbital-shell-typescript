@@ -9,7 +9,6 @@ const manifest = {
   themes: [{ name: 'terminal', displayName: 'Terminal', hasLightMode: true, hasDarkMode: true }],
   defaultTheme: 'terminal',
   defaultMode: 'dark',
-  language: true,
 };
 
 describe('ClientManifest', () => {
@@ -26,5 +25,6 @@ describe('ClientManifest', () => {
     const { locale: _locale, ...noLocale } = manifest;
     expect(() => parseClientManifest(noLocale)).toThrow();
     expect(ClientManifestSchema.safeParse({ ...manifest, extra: 1 }).success).toBe(false);
+    expect(ClientManifestSchema.safeParse({ ...manifest, language: false }).success).toBe(false);
   });
 });

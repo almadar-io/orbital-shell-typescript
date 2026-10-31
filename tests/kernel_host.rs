@@ -57,6 +57,7 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         .files
         .into_iter()
         .map(|f| (f.path, f.content))
+        .filter(|(path, _)| path != "packages/client/public/language.json")
         .collect();
     files.sort();
     files
@@ -71,8 +72,10 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
 /// `.orb` files and the unread shared copy was retired, and re-recorded 2026-10-26 for the `_metadata` (dispatch facts and
 /// protocol table) the client program carries since 2026-10-25: without that key the output is the 2026-10-24 digest
 /// exactly. The client source is the template's, and the compile emits only the program's runtime files
-/// (`public/client.json`, `public/themes.css`, `public/program.client.orb`).
-const KERNEL_OUTPUT_DIGEST: u64 = 8_562_774_747_595_289_353;
+/// (`public/client.json`, `public/themes.css`, `public/program.client.orb`). Re-recorded 2026-10-31 when every client
+/// ships `public/language.json` (G-CROSS-357) and the manifest lost its `language` flag; the bundle is the installed
+/// language, checked whole by `every_client_ships_the_language_its_browser_kernel_installs`, so the digest leaves it out.
+const KERNEL_OUTPUT_DIGEST: u64 = 13_785_564_245_267_895_886;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -126,7 +129,7 @@ fn the_server_is_the_templates_node_host_and_the_compile_ships_only_its_served_p
 fn the_client_hosts_the_kernel_through_the_ui_engine_provider() {
     let app = &template("packages/client/src/App.tsx");
     assert!(
-        app.contains("<KernelEngineProvider loader={loader}>") && app.contains("loadKernel(manifest.language)"),
+        app.contains("<KernelEngineProvider loader={loader}>") && app.contains("loadKernel()"),
         "{app}"
     );
     assert!(!app.contains("engine="), "the kernel is the only engine: {app}");
@@ -141,59 +144,38 @@ fn browser_stored_module() -> OirModule {
     module
 }
 
+fn shipped_language(files: &[(String, String)]) -> serde_json::Value {
+    serde_json::from_str(file(files, "packages/client/public/language.json")).expect("the bundle is JSON")
+}
+
+/// Every browser kernel evaluates through the installed operator table, so every client ships it: a program with no
+/// browser-stored rows whose page mounts an os trait trapped `unreachable` without it (G-CROSS-357).
 #[test]
-fn a_program_storing_rows_in_the_browser_ships_the_language_its_browser_kernel_installs() {
-    let files: Vec<(String, String)> = kernel_backend()
-        .generate(&browser_stored_module())
-        .files
-        .into_iter()
-        .map(|f| (f.path, f.content))
-        .collect();
-    let bundle: serde_json::Value =
-        serde_json::from_str(file(&files, "packages/client/public/language.json")).expect("the bundle is JSON");
-    assert_eq!(
-        serde_json::from_value::<serde_json::Value>(bundle.clone()).ok(),
-        serde_json::from_str::<serde_json::Value>(&orbital_core_base::language_data::language_bundle_json().unwrap()).ok(),
-        "the installed language, as the kernel's install takes it"
-    );
-    let manifest: serde_json::Value = serde_json::from_str(file(&files, "packages/client/public/client.json")).expect("client.json");
-    assert_eq!(manifest["language"], true, "{manifest}");
+fn every_client_ships_the_language_its_browser_kernel_installs() {
+    let installed: serde_json::Value =
+        serde_json::from_str(&orbital_core_base::language_data::language_bundle_json().unwrap()).unwrap();
+    let mut lazy = schema();
+    lazy.lazy_pages = Some(vec![serde_json::from_value(serde_json::json!({
+        "path": "/notes", "orbital": "Notes", "orbRef": "./notes.orb"
+    }))
+    .expect("lazy page")]);
+    let mut empty_lazy = schema();
+    empty_lazy.lazy_pages = Some(Vec::new());
+    let programs: [(&str, Vec<(String, String)>); 4] = [
+        ("no browser-stored rows", files_of(&kernel_backend())),
+        ("browser-stored rows", kernel_backend().generate(&browser_stored_module()).files.into_iter().map(|f| (f.path, f.content)).collect()),
+        ("lazy pages", files_of(&TypeScriptBackend { browser_schema: Some(lazy), ..kernel_backend() })),
+        ("an empty lazy page list", files_of(&TypeScriptBackend { browser_schema: Some(empty_lazy), ..kernel_backend() })),
+    ];
+    for (case, files) in &programs {
+        assert_eq!(shipped_language(files), installed, "{case}: the installed language, as the kernel's install takes it");
+        let manifest: serde_json::Value = serde_json::from_str(file(files, "packages/client/public/client.json")).expect("client.json");
+        assert!(manifest.get("language").is_none(), "{case}: the client never decides whether to load it: {manifest}");
+    }
     let loader = &template("packages/client/src/kernel-host.ts");
     assert!(loader.contains("from '@almadar/shell-browser/kernel-loader'") && loader.contains("loadBrowserKernel({"), "{loader}");
     assert!(loader.contains("language: `${import.meta.env.BASE_URL}language.json`"), "{loader}");
     assert!(!loader.contains("loadLanguage") && !loader.contains("fetch("), "the template keeps no loader of its own: {loader}");
-}
-
-/// A lazy page's behavior is loaded after compile and may bring its own browser-stored entity, so a program with
-/// lazy pages ships the language its local kernel would need (G-ORBITAL-SHELL-TYPESCRIPT-028, owner 2026-10-19).
-#[test]
-fn a_program_with_lazy_pages_ships_the_language() {
-    let mut schema = schema();
-    schema.lazy_pages = Some(vec![serde_json::from_value(serde_json::json!({
-        "path": "/notes", "orbital": "Notes", "orbRef": "./notes.orb"
-    }))
-    .expect("lazy page")]);
-    let backend = TypeScriptBackend { browser_schema: Some(schema), ..kernel_backend() };
-    let files = files_of(&backend);
-    assert!(files.iter().any(|(p, _)| p == "packages/client/public/language.json"));
-    let manifest: serde_json::Value = serde_json::from_str(file(&files, "packages/client/public/client.json")).expect("client.json");
-    assert_eq!(manifest["language"], true, "{manifest}");
-}
-
-#[test]
-fn edge_an_empty_lazy_page_list_ships_no_language() {
-    let mut schema = schema();
-    schema.lazy_pages = Some(Vec::new());
-    let backend = TypeScriptBackend { browser_schema: Some(schema), ..kernel_backend() };
-    assert!(files_of(&backend).iter().all(|(p, _)| p != "packages/client/public/language.json"));
-}
-
-#[test]
-fn control_a_program_with_no_browser_stored_rows_ships_no_language() {
-    let files = files_of(&kernel_backend());
-    assert!(files.iter().all(|(p, _)| p != "packages/client/public/language.json"));
-    let manifest: serde_json::Value = serde_json::from_str(file(&files, "packages/client/public/client.json")).expect("client.json");
-    assert_eq!(manifest["language"], false, "{manifest}");
 }
 
 /// The web client is program-independent: two different programs compile to byte-identical client source, and
@@ -215,7 +197,7 @@ fn two_programs_compile_to_the_same_client_source_and_differ_only_in_their_runti
     let manifest: serde_json::Value = serde_json::from_str(file(&other, "packages/client/public/client.json")).unwrap();
     assert_eq!(
         manifest,
-        serde_json::json!({ "locale": "ar", "direction": "rtl", "themes": [{ "name": "clay", "displayName": "Clay", "hasLightMode": true, "hasDarkMode": true }], "defaultTheme": "clay", "defaultMode": "dark", "language": true })
+        serde_json::json!({ "locale": "ar", "direction": "rtl", "themes": [{ "name": "clay", "displayName": "Clay", "hasLightMode": true, "hasDarkMode": true }], "defaultTheme": "clay", "defaultMode": "dark" })
     );
     let css = file(&other, "packages/client/public/themes.css");
     assert!(css.contains("[data-theme=\"clay-light\"]") && css.contains("[data-theme=\"clay-dark\"]"), "{css}");

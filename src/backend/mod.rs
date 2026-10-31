@@ -171,7 +171,7 @@ impl Backend for TypeScriptBackend {
                 .into_iter()
                 .map(|f| f.into_generated_file())
                 .collect(),
-            warnings: self.kernel_host_warnings(module),
+            warnings: self.kernel_host_warnings(),
         }
     }
 

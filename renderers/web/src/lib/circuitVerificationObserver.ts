@@ -74,9 +74,11 @@ export function recordDispatchVerdict(orbitalName: string, event: string, verdic
   const { response } = verdict;
   const dataEntities: Record<string, number> = {};
   for (const [entity, rows] of Object.entries(response.data ?? {})) dataEntities[entity] = rows.length;
-  const effectFailures = (response.rejections ?? [])
-    .filter((r) => r.code === 'effect-failed')
-    .map((r) => `${r.trait ?? orbitalName}.${r.event ?? event}: ${r.error ?? 'effect failed'}`);
+  const effectFailures = (response.rejections ?? []).flatMap((r) => {
+    if (r.code === 'effect-failed') return [`${r.trait ?? orbitalName}.${r.event ?? event}: ${r.error ?? 'effect failed'}`];
+    if (r.code === 'repaint-failed') return [`${r.trait ?? orbitalName} repaint of ${r.slot ?? 'a slot'}: ${r.error ?? 'repaint failed'}`];
+    return [];
+  });
   const error = [...(response.error !== undefined ? [response.error] : []), ...effectFailures].join('; ');
   recordServerResponse(orbitalName, event, {
     success: response.success && effectFailures.length === 0,
