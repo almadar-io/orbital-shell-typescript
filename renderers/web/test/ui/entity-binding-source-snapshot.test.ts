@@ -11,6 +11,7 @@ import { renderHook } from '@testing-library/react';
 import { NO_CIRCUIT } from '../../src/lib/circuit-surface';
 import { createMemoryCircuitStore } from '../../src';
 import type { EntityRow } from '@almadar/core';
+import type { TraitSurface } from '@almadar/core/kernel-wire';
 import { useEntityBindingSource } from '../../src/hooks/circuit/useEntityBindingSource';
 
 function setup() {
@@ -70,5 +71,19 @@ describe('useEntityBindingSource — snapshot identity', () => {
     expect(source.getEntitySnapshot('A')).not.toBe(a);
     expect(source.getEntitySnapshot('B')).toBe(b);
     expect(source.getEntitySnapshot('Missing')).toEqual({});
+  });
+
+  it('lays a shared trait\'s own intrinsic frame over the shared frame, per trait', () => {
+    const store = createMemoryCircuitStore();
+    const surface = (name: string): TraitSurface => ({
+      name, orbital: 'O', shared: true, browser: true, frameKey: '$shared::Pg', ticks: [], emits: [],
+      states: ['idle'], initial: 'idle', events: [], listens: [], transitions: [],
+    });
+    const traitIndex = { byName: new Map([['A', surface('A')], ['B', surface('B')]]) };
+    const { result } = renderHook(() => useEntityBindingSource(store, traitIndex));
+    store.frames.set('$shared::Pg', { tag: 'x' });
+    store.frames.set('A', { page: 3 });
+    expect(result.current.getEntitySnapshot('A')).toEqual({ tag: 'x', page: 3 });
+    expect(result.current.getEntitySnapshot('B')).toEqual({ tag: 'x' });
   });
 });

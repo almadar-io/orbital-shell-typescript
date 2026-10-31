@@ -45,7 +45,7 @@ serverLegs: Array<RoutedLeg>,
  */
 resync?: FramesResync | null, };
 
-export type AssertionSpec = { signingKey: string, issuer?: string | null, subject?: string | null, audience: string, ttlSeconds: number, };
+export type AssertionSpec = { signingKey: string, subject?: string | null, audience: string, ttlSeconds: number, };
 
 export type AwaitingTrait = { trait: string, event: string, from: string }
 
@@ -960,7 +960,7 @@ function checkAppliedWire(v: JsonValue | undefined): boolean {
 }
 
 function checkAssertionSpec(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["signingKey"] === 'string' && (v["issuer"] === undefined || (typeof v["issuer"] === 'string' || v["issuer"] === null)) && (v["subject"] === undefined || (typeof v["subject"] === 'string' || v["subject"] === null)) && typeof v["audience"] === 'string' && typeof v["ttlSeconds"] === 'number');
+  return (isRecord(v) && typeof v["signingKey"] === 'string' && (v["subject"] === undefined || (typeof v["subject"] === 'string' || v["subject"] === null)) && typeof v["audience"] === 'string' && typeof v["ttlSeconds"] === 'number');
 }
 
 function checkAwaitingTrait(v: JsonValue | undefined): boolean {
@@ -1568,7 +1568,7 @@ function buildAppliedWire(v: JsonValue | undefined, p: string): AppliedWire {
 }
 
 function buildAssertionSpec(v: JsonValue | undefined, p: string): AssertionSpec {
-  return obj(v, p, null, (r0) => ({ "signingKey": str(r0["signingKey"], p + '.signingKey'), ...(r0["issuer"] === undefined || r0["issuer"] === null ? {} : { "issuer": (r0["issuer"] === null ? null : str(r0["issuer"], p + '.issuer')) }), ...(r0["subject"] === undefined || r0["subject"] === null ? {} : { "subject": (r0["subject"] === null ? null : str(r0["subject"], p + '.subject')) }), "audience": str(r0["audience"], p + '.audience'), "ttlSeconds": int(r0["ttlSeconds"], p + '.ttlSeconds', 0, 4294967295, "u32") }));
+  return obj(v, p, null, (r0) => ({ "signingKey": str(r0["signingKey"], p + '.signingKey'), ...(r0["subject"] === undefined || r0["subject"] === null ? {} : { "subject": (r0["subject"] === null ? null : str(r0["subject"], p + '.subject')) }), "audience": str(r0["audience"], p + '.audience'), "ttlSeconds": int(r0["ttlSeconds"], p + '.ttlSeconds', 0, 4294967295, "u32") }));
 }
 
 function buildAwaitingTrait(v: JsonValue | undefined, p: string): AwaitingTrait {

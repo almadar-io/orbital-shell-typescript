@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-10-13T17:39:34.142Z",
+  "exportedAt": "2026-10-31T14:56:40.745Z",
   "contracts": {
     "form": {
       "emits": [
@@ -94,13 +94,6 @@
       "emits": [
         {
           "event": "DISPATCH",
-          "trigger": "action",
-          "payload": {
-            "type": "object"
-          }
-        },
-        {
-          "event": "NAVIGATE",
           "trigger": "action",
           "payload": {
             "type": "object"
@@ -795,13 +788,6 @@
         },
         {
           "event": "EDITOR_FOCUS",
-          "trigger": "action",
-          "payload": {
-            "type": "object"
-          }
-        },
-        {
-          "event": "EDITOR_BLUR",
           "trigger": "action",
           "payload": {
             "type": "object"

@@ -1,0 +1,23 @@
+{
+  "name": "@almadar/pattern-sync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Extracts the pattern registry (patterns-registry.json, component-mapping.json, event-contracts.json, pattern-types.ts) from the shell-web components. Run from the monorepo root.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "sync": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@almadar/core": "^10.128.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
+  },
+  "packageManager": "pnpm@10.30.3"
+}

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-10-13T17:39:34.142Z",
+  "exportedAt": "2026-10-31T14:56:40.745Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -13787,11 +13787,36 @@
           "types": [
             "sexpr"
           ],
-          "description": "Raw schema for EventDispatcherTab payload extraction",
+          "description": "The running program: the dispatcher's payloads, and the machines the verify panel draws.",
           "decoder": {
             "name": "parseOrbitalSchema",
             "from": "@almadar/core"
           }
+        },
+        "describe": {
+          "types": [
+            "function"
+          ],
+          "description": "Reads a trait's printed `.lolo` for the verify panel's code column.",
+          "callbackArgs": [
+            {
+              "name": "value",
+              "type": "object"
+            }
+          ],
+          "renderCallback": true
+        },
+        "behavior": {
+          "types": [
+            "string"
+          ],
+          "description": "The program's behavior, naming the traits it authors itself."
+        },
+        "dependencies": {
+          "types": [
+            "object"
+          ],
+          "description": "The program's imports (`behavior/dependencies`): the layers the verify panel's flow places each unit in."
         },
         "enter": {
           "types": [
@@ -33677,7 +33702,7 @@
           "types": [
             "function"
           ],
-          "description": "The trait's reaction to Sign out; the host ends the session through `UI:SIGN_OUT` either way.",
+          "description": "The trait's reaction to Sign out; the program ends the session with `(auth/sign-out)` in its arm for the event.",
           "kind": "callback",
           "callbackArgs": []
         },
@@ -40189,7 +40214,7 @@
           "description": "Show the program in these natural languages as tabs, translating on the fly. Only meaningful for `language` 'lolo' / 'orb'; ignored otherwise. Fewer than two entries renders exactly as without the prop. `editable` wins: editing a translation is not a thing, so the English source is shown and this is ignored.",
           "items": {
             "types": [
-              "object"
+              "string"
             ]
           }
         },
@@ -59195,7 +59220,32 @@
                 "types": [
                   "node"
                 ]
-              }
+              },
+              "mapKeyEnum": [
+                "main",
+                "sidebar",
+                "dock",
+                "modal",
+                "drawer",
+                "overlay",
+                "center",
+                "toast",
+                "floating",
+                "system",
+                "content",
+                "screen",
+                "hud",
+                "hud-top",
+                "hud-bottom",
+                "hud.health",
+                "hud.score",
+                "hud.inventory",
+                "hud.stamina",
+                "overlay.inventory",
+                "overlay.dialogue",
+                "overlay.menu",
+                "overlay.pause"
+              ]
             }
           },
           "propertyRequired": [
@@ -59946,6 +59996,12 @@
           ],
           "description": "Disable the remove button (renders without × control)",
           "default": true
+        },
+        "selected": {
+          "types": [
+            "boolean"
+          ],
+          "description": "Pressed state of the pill body (filter toggle), exposed as aria-pressed"
         },
         "onClick": {
           "types": [
@@ -73968,7 +74024,11 @@
             },
             "persistence": {
               "types": [
-                "object"
+                "string"
+              ],
+              "enumValues": [
+                "persistent",
+                "runtime"
               ]
             },
             "fields": {
@@ -74715,7 +74775,11 @@
             },
             "persistence": {
               "types": [
-                "object"
+                "string"
+              ],
+              "enumValues": [
+                "persistent",
+                "runtime"
               ]
             },
             "fields": {
@@ -114916,6 +114980,38 @@
             }
           ]
         },
+        "relationsData": {
+          "types": [
+            "object"
+          ],
+          "description": "The kernel-injected `{ value, label }` options per relation field; a relation chip reads its label from the option for its id (labelled by the relation's declared display field), else shows the record id.",
+          "mapValue": {
+            "types": [
+              "array"
+            ],
+            "items": {
+              "types": [
+                "object"
+              ],
+              "properties": {
+                "value": {
+                  "types": [
+                    "string"
+                  ]
+                },
+                "label": {
+                  "types": [
+                    "string"
+                  ]
+                }
+              },
+              "required": [
+                "value",
+                "label"
+              ]
+            }
+          }
+        },
         "title": {
           "types": [
             "string"
@@ -116780,10 +116876,35 @@
       "propsSchema": {
         "slot": {
           "types": [
-            "object"
+            "string"
           ],
           "description": "slot prop",
-          "required": true
+          "required": true,
+          "enumValues": [
+            "main",
+            "sidebar",
+            "dock",
+            "modal",
+            "drawer",
+            "overlay",
+            "center",
+            "toast",
+            "floating",
+            "system",
+            "content",
+            "screen",
+            "hud",
+            "hud-top",
+            "hud-bottom",
+            "hud.health",
+            "hud.score",
+            "hud.inventory",
+            "hud.stamina",
+            "overlay.inventory",
+            "overlay.dialogue",
+            "overlay.menu",
+            "overlay.pause"
+          ]
         },
         "portal": {
           "types": [
@@ -121114,21 +121235,61 @@
         },
         "fieldType": {
           "types": [
-            "object"
+            "string",
+            "unknown"
           ],
           "description": "Field-type symbol variant. @default 'string'",
+          "enumValues": [
+            "string",
+            "number",
+            "int",
+            "boolean",
+            "date",
+            "timestamp",
+            "datetime",
+            "instant",
+            "email",
+            "url",
+            "phone",
+            "uuid",
+            "image",
+            "money",
+            "file",
+            "bytes",
+            "array",
+            "object",
+            "enum",
+            "relation",
+            "trait",
+            "orbital",
+            "behavior",
+            "slot",
+            "pattern",
+            "node",
+            "event",
+            "EventAddress",
+            "CallKey",
+            "SExpr",
+            "union",
+            "tuple",
+            "field"
+          ],
           "default": "string"
         },
         "persistence": {
           "types": [
-            "object"
+            "string"
           ],
           "description": "Persistence symbol variant (also the entity's ring). @default 'persistent'",
+          "enumValues": [
+            "persistent",
+            "runtime"
+          ],
           "default": "persistent"
         },
         "namespace": {
           "types": [
-            "object"
+            "string"
           ],
           "description": "Operator category tint. @default 'arithmetic'",
           "default": "arithmetic"
@@ -125490,6 +125651,96 @@
             }
           ]
         },
+        "toolbar": {
+          "types": [
+            "boolean"
+          ],
+          "description": "The top bar (lenses, scope, screen size); an embedding host that drives the canvas itself can leave it out.",
+          "default": true
+        },
+        "fitOnResize": {
+          "types": [
+            "boolean"
+          ],
+          "description": "Refit whenever the frame resizes (a host column that grows on hover); off, a user's pan and zoom survive.",
+          "default": false
+        },
+        "flowSelection": {
+          "types": [
+            "string"
+          ],
+          "description": "Flow lens: the unit the host lights (`null`: none); absent, the user's own clicks select."
+        },
+        "onFlowSelect": {
+          "types": [
+            "function"
+          ],
+          "description": "Flow lens: the unit the user clicked.",
+          "kind": "callback",
+          "notification": true,
+          "callbackArgs": [
+            {
+              "name": "unit",
+              "type": "object",
+              "schema": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "id": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "name": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "column": {
+                    "types": [
+                      "string"
+                    ],
+                    "enumValues": [
+                      "own",
+                      "io",
+                      "std",
+                      "primitive",
+                      "unknown"
+                    ]
+                  },
+                  "traits": {
+                    "types": [
+                      "array"
+                    ],
+                    "items": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  },
+                  "renderPieces": {
+                    "types": [
+                      "array"
+                    ],
+                    "items": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "column",
+                  "traits",
+                  "renderPieces"
+                ]
+              }
+            }
+          ]
+        },
         "openBehaviorEvent": {
           "types": [
             "string"
@@ -125639,6 +125890,7 @@
                               ],
                               "enumValues": [
                                 "create",
+                                "upsert",
                                 "update",
                                 "delete",
                                 "batch"
@@ -125684,6 +125936,16 @@
                                 "string"
                               ]
                             },
+                            "target": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "routed": {
+                              "types": [
+                                "string"
+                              ]
+                            },
                             "durationMs": {
                               "types": [
                                 "number"
@@ -125722,7 +125984,11 @@
                                   },
                                   "value": {
                                     "types": [
-                                      "object"
+                                      "string",
+                                      "number",
+                                      "unknown",
+                                      "boolean",
+                                      "date"
                                     ]
                                   },
                                   "error": {
@@ -125839,7 +126105,11 @@
                                   },
                                   "value": {
                                     "types": [
-                                      "object"
+                                      "string",
+                                      "number",
+                                      "unknown",
+                                      "boolean",
+                                      "date"
                                     ]
                                   },
                                   "error": {
@@ -128475,7 +128745,7 @@
           "types": [
             "object"
           ],
-          "description": "A host that verifies from the canvas: cards show verify controls and the trait's verdict, and follow `UI:CANVAS_SHOW_STATE` to the states a run reaches.",
+          "description": "A host that verifies from the canvas: cards show verify controls and the trait's verdict, and follow the states a run reaches (`verify.follow`).",
           "properties": {
             "verdictOf": {
               "types": [
@@ -128486,11 +128756,17 @@
               "types": [
                 "function"
               ]
+            },
+            "follow": {
+              "types": [
+                "function"
+              ]
             }
           },
           "propertyRequired": [
             "verdictOf",
-            "playing"
+            "playing",
+            "follow"
           ]
         },
         "enter": {
@@ -130199,6 +130475,7 @@
                           ],
                           "enumValues": [
                             "create",
+                            "upsert",
                             "update",
                             "delete",
                             "batch"
@@ -130244,6 +130521,16 @@
                             "string"
                           ]
                         },
+                        "target": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "routed": {
+                          "types": [
+                            "string"
+                          ]
+                        },
                         "durationMs": {
                           "types": [
                             "number"
@@ -130282,7 +130569,11 @@
                               },
                               "value": {
                                 "types": [
-                                  "object"
+                                  "string",
+                                  "number",
+                                  "unknown",
+                                  "boolean",
+                                  "date"
                                 ]
                               },
                               "error": {
@@ -130399,7 +130690,11 @@
                               },
                               "value": {
                                 "types": [
-                                  "object"
+                                  "string",
+                                  "number",
+                                  "unknown",
+                                  "boolean",
+                                  "date"
                                 ]
                               },
                               "error": {
@@ -130670,6 +130965,7 @@
                             ],
                             "enumValues": [
                               "create",
+                              "upsert",
                               "update",
                               "delete",
                               "batch"
@@ -130715,6 +131011,16 @@
                               "string"
                             ]
                           },
+                          "target": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "routed": {
+                            "types": [
+                              "string"
+                            ]
+                          },
                           "durationMs": {
                             "types": [
                               "number"
@@ -130753,7 +131059,11 @@
                                 },
                                 "value": {
                                   "types": [
-                                    "object"
+                                    "string",
+                                    "number",
+                                    "unknown",
+                                    "boolean",
+                                    "date"
                                   ]
                                 },
                                 "error": {
@@ -130870,7 +131180,11 @@
                                 },
                                 "value": {
                                   "types": [
-                                    "object"
+                                    "string",
+                                    "number",
+                                    "unknown",
+                                    "boolean",
+                                    "date"
                                   ]
                                 },
                                 "error": {
@@ -130978,7 +131292,11 @@
                       },
                       "value": {
                         "types": [
-                          "object"
+                          "string",
+                          "number",
+                          "unknown",
+                          "boolean",
+                          "date"
                         ]
                       },
                       "error": {
@@ -131031,6 +131349,7 @@
                     ],
                     "enumValues": [
                       "create",
+                      "upsert",
                       "update",
                       "delete",
                       "batch"
@@ -131076,6 +131395,16 @@
                       "string"
                     ]
                   },
+                  "target": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "routed": {
+                    "types": [
+                      "string"
+                    ]
+                  },
                   "durationMs": {
                     "types": [
                       "number"
@@ -131114,7 +131443,11 @@
                         },
                         "value": {
                           "types": [
-                            "object"
+                            "string",
+                            "number",
+                            "unknown",
+                            "boolean",
+                            "date"
                           ]
                         },
                         "error": {
@@ -131896,6 +132229,77 @@
             -1,
             0
           ]
+        }
+      }
+    },
+    "machine-panel": {
+      "type": "machine-panel",
+      "category": "display",
+      "sourceFile": "components/core/organisms/debug/MachinePanel.tsx",
+      "tier": "organisms",
+      "family": "core",
+      "description": "MachinePanel component",
+      "suggestedFor": [
+        "machine",
+        "panel",
+        "machine panel"
+      ],
+      "typicalSize": "large",
+      "propsSchema": {
+        "schema": {
+          "types": [
+            "sexpr"
+          ],
+          "description": "schema prop",
+          "required": true,
+          "decoder": {
+            "name": "parseOrbitalSchema",
+            "from": "@almadar/core"
+          }
+        },
+        "transitions": {
+          "types": [
+            "array"
+          ],
+          "description": "transitions prop",
+          "required": true,
+          "items": {
+            "types": [
+              "object"
+            ]
+          }
+        },
+        "describe": {
+          "types": [
+            "function"
+          ],
+          "description": "Without it the panel draws the machine alone.",
+          "callbackArgs": [
+            {
+              "name": "value",
+              "type": "object"
+            }
+          ],
+          "renderCallback": true
+        },
+        "behavior": {
+          "types": [
+            "string"
+          ],
+          "description": "The program's behavior, naming the traits it authors itself; an imported trait carries its own."
+        },
+        "replayStepMs": {
+          "types": [
+            "number"
+          ],
+          "description": "How long a replay shows each hop.",
+          "default": 800
+        },
+        "dependencies": {
+          "types": [
+            "object"
+          ],
+          "description": "The program's imports (`behavior/dependencies`), placing each composed unit in its layer."
         }
       }
     }

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-10-13T17:39:34.142Z",
+  "exportedAt": "2026-10-31T14:56:40.745Z",
   "mappings": {
     "page-header": {
       "component": "PageHeader",
@@ -1333,6 +1333,11 @@
       "component": "VideoEmbed",
       "importPath": "@almadar/shell-web/core/atoms/VideoEmbed",
       "category": "component"
+    },
+    "machine-panel": {
+      "component": "MachinePanel",
+      "importPath": "@almadar/shell-web/components/core/organisms/MachinePanel",
+      "category": "display"
     }
   }
 }

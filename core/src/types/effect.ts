@@ -835,6 +835,8 @@ export type FetchOptions = {
     deliver?: 'rows' | 'ids';
     /** `exact` (absent) counts every match for `totalCount`; `none` skips the count. */
     total?: 'exact' | 'none';
+    /** A non-empty string expression echoed as `key` in the success and failure payloads (EXEC-FETCH-3). */
+    key?: string | RenderBinding;
     /** Lifecycle events to emit on resolve / reject */
     emit?: { success?: string; failure?: string };
 };

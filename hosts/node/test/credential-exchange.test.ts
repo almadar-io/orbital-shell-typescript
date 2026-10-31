@@ -127,17 +127,20 @@ describe('refresh on resolve on the node host', () => {
 });
 
 describe('the jwt-bearer, json-token and stored refresh-token grants on the node host', () => {
-  const FIXTURE = JSON.parse(readFileSync(new URL('../../../../orbital-core/tests/fixtures/security/jwt-bearer.json', import.meta.url), 'utf8')) as { privateKeyPem: string };
+  const FIXTURE = JSON.parse(readFileSync(new URL('../../../../orbital-core/tests/fixtures/security/jwt-bearer.json', import.meta.url), 'utf8')) as { serviceAccount: { client_email: string; private_key_id: string } };
   const base = { tokenEndpoint: 'https://auth.example/token', code: '', redirectUri: '', clientId: '', clientAuth: 'none' as const };
 
   it('signs the assertion in the store and posts only the jwt-bearer form', async () => {
     const store = await vault();
-    await store.set('google', 'SA_KEY', FIXTURE.privateKeyPem);
+    await store.set('google', 'SA_KEY', JSON.stringify(FIXTURE.serviceAccount));
     const grant = { ...base, name: 'SA_TOKEN', grant: 'jwt-bearer', scopes: ['https://a/x'], assertion: { signingKey: 'SA_KEY', audience: 'https://auth.example/token', ttlSeconds: 3600 } };
     const { post, seen } = scripted([{ status: 200, body: '{"access_token":"SA-ACCESS","token_type":"Bearer","expires_in":3600}' }]);
     expect(await store.connect(grant, post)).toEqual({ ok: { connected: true } });
     expect(seen[0]?.body).toMatch(/^grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=[\w-]+\.[\w-]+\.[\w-]+$/);
     expect(seen[0]?.body).not.toContain('BEGIN');
+    const [header, claims] = (seen[0]?.body.split('assertion=')[1] ?? '').split('.').map((part) => JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as Record<string, string>);
+    expect(header?.kid).toBe(FIXTURE.serviceAccount.private_key_id);
+    expect([claims?.iss, claims?.sub]).toEqual([FIXTURE.serviceAccount.client_email, FIXTURE.serviceAccount.client_email]);
     expect(store.resolve('SA_TOKEN', undefined)).toBe('SA-ACCESS');
   });
 
@@ -167,5 +170,16 @@ describe('the jwt-bearer, json-token and stored refresh-token grants on the node
     expect(await store.connect(grant, post)).toEqual({ ok: { connected: true } });
     expect(seen[0]?.body).toContain('refresh_token=stored-refresh-0001');
     expect(store.resolve('DRIVE_USER', undefined)).toBe('ACCESS-2');
+    expect(store.resolve('DRIVE_REFRESH', undefined)).toBe('REFRESH-2');
+  });
+
+  it('control: a provider that does not rotate leaves the stored refresh-token credential unchanged', async () => {
+    const store = await vault();
+    await store.set('google', 'CLIENT_SECRET', 'client-secret-2');
+    await store.set('google', 'DRIVE_REFRESH', 'stored-refresh-0001');
+    const grant = { ...GRANT, name: 'DRIVE_USER', principal: undefined, grant: 'refresh_token', code: '', redirectUri: '', refreshCredential: 'DRIVE_REFRESH' };
+    const { post } = scripted([{ status: 200, body: '{"access_token":"ACCESS-3","token_type":"Bearer","expires_in":3600}' }]);
+    expect(await store.connect(grant, post)).toEqual({ ok: { connected: true } });
+    expect(store.resolve('DRIVE_REFRESH', undefined)).toBe('stored-refresh-0001');
   });
 });

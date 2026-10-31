@@ -7,8 +7,8 @@
  * `bindingSnapshotsRef`/`sharedEntityStore` split entirely: `frames` is
  * already keyed by `TraitSurface.frameKey` (`$shared::<entity>` for a
  * `[shared]` entity, the trait's own name otherwise — the kernel's answer), so
- * a shared entity's traits already read/write the SAME frame with no
- * separate store. `@config` is the kernel's own resolved config (`traitConfig`).
+ * a shared entity's traits read/write the SAME frame with no
+ * separate store, and lay their own `@intrinsic` frame (held under the trait's name) over it. `@config` is the kernel's own resolved config (`traitConfig`).
  *
  * @packageDocumentation
  */
@@ -44,12 +44,15 @@ export function useEntityBindingSource(
       getEntitySnapshot: (traitName) => {
         const entry = traitIndex.byName.get(traitName);
         const frameKey = entry?.frameKey ?? traitName;
-        const frame = store.frames.get(frameKey);
-        if (frame === undefined) return EMPTY_ENTITY;
-        const previous = snapshots.get(frameKey);
+        const shared = store.frames.get(frameKey);
+        // A `[shared]` entity's `@intrinsic` fields are the trait's own frame, held under the trait's name (G-ORB-540).
+        const own = frameKey === traitName ? undefined : store.frames.get(traitName);
+        if (shared === undefined && own === undefined) return EMPTY_ENTITY;
+        const frame = own === undefined ? shared ?? EMPTY_ENTITY : { ...shared, ...own };
+        const previous = snapshots.get(traitName);
         if (previous !== undefined && sameFields(previous, frame)) return previous;
         const next = { ...frame };
-        snapshots.set(frameKey, next);
+        snapshots.set(traitName, next);
         return next;
       },
       // A render scope that names no trait of the program (a mount scope) has no config.
