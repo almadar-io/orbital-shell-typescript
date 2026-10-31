@@ -319,8 +319,8 @@ export class KernelEngine {
     return this.contract(EntityRowSchema.array(), { kind: 'readRows', entity, rows, viewer: user ?? null });
   }
 
-  liveItemDelivered(item: object, viewer: object | null, clientId?: string): boolean {
-    return this.handle.liveItemDelivered(JSON.stringify(item), JSON.stringify(viewer), clientId);
+  liveItemDelivered(item: object, clientId?: string): boolean {
+    return this.handle.liveItemDelivered(JSON.stringify(item), clientId);
   }
 
   /** `OsGrants::allows` over the grants of the program this kernel runs. */
@@ -363,14 +363,14 @@ export class KernelEngine {
   }
 
   /**
-   * `reference` resolved for `scope.user` against the host-answered store (EXEC-RENDER-3): the rows that still
-   * match its query and the viewer's `@read` in the reference's order, a missing or hidden row omitted, and `total`
+   * `reference` resolved for the identity `scope.originClientId`'s session bound (the anonymous viewer with none) against the host-answered store (EXEC-RENDER-3): the rows that still
+   * match its query and that identity's `@read` in the reference's order, a missing or hidden row omitted, and `total`
    * re-counted (a `total: none` reference is not re-counted: the total is the resolved window). Each read the
    * kernel makes is answered here, as in `evaluate`.
    */
   async resolveRows(reference: RowSetRef, scope: KernelAnswerScope): Promise<RowQueryPage> {
     const handle = this.handle;
-    let progress = decodeResolveProgress(handle.resolveRows(JSON.stringify(reference), JSON.stringify(scope.user ?? null)));
+    let progress = decodeResolveProgress(handle.resolveRows(JSON.stringify(reference), scope.originClientId));
     while (progress.status === 'await') {
       const { flight, requests } = progress;
       let replies: IoReplyWire[];
@@ -467,20 +467,19 @@ export interface KernelEvaluation {
 }
 
 /**
- * The request as the kernel takes it: the viewer and locale the host resolved, the `_targetTrait` sidecar
+ * The request as the kernel takes it: the locale the host resolved, the `_targetTrait` sidecar
  * promoted to `targetTrait`, and the `_activeTraits` sidecar dropped (the kernel's mounted set is explicit,
  * not carried per request).
  */
-export function kernelRequest(request: EventRequest, user: UserContext | undefined, locale: string | undefined): EventRequest {
+export function kernelRequest(request: EventRequest, locale: string | undefined): EventRequest {
   const { _activeTraits: _dropped, _targetTrait: sidecarTarget, ...rest }: EventPayload = request.payload ?? {};
   const payload: EventPayload = rest;
   const target = request.targetTrait ?? (typeof sidecarTarget === 'string' ? sidecarTarget : undefined);
-  const { payload: _payload, ...others } = request;
+  const { payload: _payload, user: _hostViewer, ...others } = request;
   return {
     ...others,
     ...(request.payload !== undefined ? { payload } : {}),
     ...(target !== undefined ? { targetTrait: target } : {}),
-    ...(user !== undefined ? { user } : {}),
     ...(locale !== undefined ? { locale } : {}),
   };
 }
@@ -498,12 +497,10 @@ function withOriginClient(response: EventResponse, clientId: string | undefined)
 export async function evaluateOnKernel(
   kernel: KernelEvaluation,
   request: EventRequest,
-  user: UserContext | undefined,
   locale: string | undefined,
 ): Promise<EventResponse> {
-  return withOriginClient(await kernel.engine.evaluate(kernel.orbital, kernelRequest(request, user, locale), {
+  return withOriginClient(await kernel.engine.evaluate(kernel.orbital, kernelRequest(request, locale), {
     orbital: kernel.orbital,
-    ...(user !== undefined ? { user } : {}),
     ...(request.clientId !== undefined ? { originClientId: request.clientId } : {}),
     ...(locale !== undefined ? { locale } : {}),
     ...(request.entityId !== undefined ? { entityId: request.entityId } : {}),

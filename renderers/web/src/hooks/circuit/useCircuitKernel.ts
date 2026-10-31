@@ -29,7 +29,6 @@ import type {
   EventPayload,
   OrbitalDefinition,
   ServiceParams,
-  UserContext,
 } from '@almadar/core';
 import { createMemoryCircuitStore, type CircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import type { ClientKernel, ClientKernelOutcome } from '@almadar/shell-runtime/client/client-kernel';
@@ -88,7 +87,6 @@ export interface UseCircuitKernelOptions {
   browserStore?: PersistenceAdapter;
   /** Consumer `call-service` hook for the offline in-process evaluator. */
   callService?: (service: string, action: string, params?: ServiceParams) => Promise<EventPayload>;
-  user?: UserContext;
   /** Verification/perf recording of each transition and rollback. */
   observer?: TransitionObserver;
   /** The kernel the circuit runs on: `useKernelEngine()` under a `KernelEngineProvider`; `null` throws `KernelLoaderMissingError`. */
@@ -222,10 +220,9 @@ export function useCircuitKernel(
       return createLocalStoreTransport({
         kernelEngine,
         schema,
-        ...(options.user !== undefined ? { user: options.user } : {}),
       });
     },
-    [loadModule, orbitalName, orbitals, metadata, stamp, options.callService, options.engine?.os, options.user, i18n],
+    [loadModule, orbitalName, orbitals, metadata, stamp, options.callService, options.engine?.os, i18n],
   );
   const offlineTransport = useMemo(
     () => (options.transport !== undefined || options.persistence === undefined ? undefined : localTransport(options.persistence)),
@@ -271,10 +268,6 @@ export function useCircuitKernel(
     ...(effectiveTransport !== undefined ? { transport: effectiveTransport } : {}),
   }), [kernelInstance, store, traitIndex, topology, effectiveTransport, options.observer]);
   const rawKernel: ClientKernel = kernelClient;
-  useEffect(() => {
-    if (options.user === undefined) return;
-    void kernelClient.setViewer(options.user);
-  }, [kernelClient, options.user]);
 
   // Stamp the per-tab clientId and the viewer's locale onto every dispatch
   // that doesn't already carry them, so callers (`useBusIngress`, the composer) never have to

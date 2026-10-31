@@ -11,7 +11,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { normalizeUserContext, type OrbitalSchema } from '@almadar/core';
+import type { OrbitalSchema } from '@almadar/core';
 import { createHttpTransport, deriveCarriesCircuitState } from '@almadar/shell-runtime';
 import { I18nProvider, createTranslate } from '@almadar/shell-web/core';
 import { KernelEngineProvider } from '@almadar/shell-web/providers';
@@ -37,18 +37,6 @@ function KernelApp(): React.ReactElement | null {
   const location = useLocation();
   const navigate = useNavigate();
   const firstPath = useRef(location.pathname);
-  const viewer = useMemo(
-    () =>
-      user
-        ? normalizeUserContext({
-            ...user.claims,
-            uid: user.uid,
-            ...(user.email !== undefined ? { email: user.email } : {}),
-            ...(user.name !== undefined ? { name: user.name } : {}),
-          })
-        : undefined,
-    [user],
-  );
   const accessToken = useCallback(async (): Promise<string | undefined> => (auth ? auth.idToken() : undefined), [auth]);
   const http = useMemo(() => createHttpTransport({ serverUrl: `${API_BASE}/api/orbitals`, getAccessToken: accessToken }), [accessToken]);
   // The server booted with this program and serves no `/register`: a route that replaced the app's program would be a hole, so the client reports it registered.
@@ -60,14 +48,13 @@ function KernelApp(): React.ReactElement | null {
   if (!program) return null;
   return (
     <OrbPreview
-      key={viewer?.id ?? 'anonymous'}
+      key={user?.uid ?? 'anonymous'}
       schema={program}
       transport={transport}
       height="auto"
       className="border-0 rounded-none"
       initialPagePath={firstPath.current}
       onPageChange={(path) => navigate(path)}
-      user={viewer ?? null}
       authority={authority}
       onSignIn={(returnTo) => navigate('/login', { state: returnTo !== undefined ? { returnTo } : undefined })}
       onSignOut={() => void signOut()}

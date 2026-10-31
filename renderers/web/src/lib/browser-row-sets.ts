@@ -4,7 +4,7 @@
  *
  * @packageDocumentation
  */
-import type { OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef, UserContext } from '@almadar/core';
+import type { OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef } from '@almadar/core';
 import { localStorePersistence, nativeMemoryPersistence, openLocalKernel, resolveLocalRows } from '../runtime';
 import type { KernelEngine } from '../kernel/engine.js';
 import { type KernelEngineValue } from '../providers/KernelEngineContext';
@@ -18,7 +18,6 @@ export function browserRowSets(
   engine: KernelEngineValue,
   schema: OrbitalSchema,
   store: PersistenceAdapter,
-  user: UserContext | undefined,
 ): BrowserRowSets {
   let opened: Promise<KernelEngine> | undefined;
   let disposed = false;
@@ -31,7 +30,7 @@ export function browserRowSets(
     return opened;
   };
   return {
-    resolve: (reference) => open().then((kernelEngine) => resolveLocalRows(kernelEngine, user, reference)),
+    resolve: (reference) => open().then((kernelEngine) => resolveLocalRows(kernelEngine, reference)),
     dispose() {
       disposed = true;
       void opened?.then((kernelEngine) => kernelEngine.dispose(), () => undefined);

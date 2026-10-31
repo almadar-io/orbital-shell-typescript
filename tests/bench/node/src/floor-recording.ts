@@ -1,13 +1,11 @@
 import type { EntityRow } from '@almadar/core';
 import type { IoAnswerWire, IoReplyWire, IoRequestWire, ServerProgressWire } from '@almadar/core/kernel-wire';
-import { DEFAULT_VIEWER } from './kernel-trace.js';
 import type { JsonValue, Scenario, ScenarioFixture, ScenarioStep } from './types.js';
 
 /** The `Server` class of `@almadar/kernel`, as the floor rows drive it: JSON strings in and out. */
 export interface FloorServer {
   start(orbital: string, requestJson: string): string;
   resume(flight: number, repliesJson: string): string;
-  setDefaultUser(userJson: string): void;
   free(): void;
 }
 
@@ -124,9 +122,7 @@ function startRequest(step: ScenarioStep): string {
 }
 
 function newServer(module: FloorKernelModule, schemaJson: string): FloorServer {
-  const server = new module.Server(schemaJson);
-  server.setDefaultUser(DEFAULT_VIEWER);
-  return server;
+  return new module.Server(schemaJson);
 }
 
 /** Runs the scenario once on a throwaway server, answering from the fixture's rows, and keeps every string that crossed. */

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { bundleSizes } from './kernel-bundle.js';
 import { CHROMIUM_ARGS, ISOLATION_HEADERS, loadPlaywright, type PlaywrightBrowser, type PlaywrightPage } from './playwright.js';
-import { DEFAULT_VIEWER, KERNEL_CLIENT_ID, orbitalTraitNames } from './kernel-trace.js';
+import { KERNEL_CLIENT_ID, orbitalTraitNames } from './kernel-trace.js';
 import type { ColdStartSample, HarnessMeasurements, MemorySample, Scenario, ScenarioFixture, ScenarioHarness, ScenarioSession, ScenarioStep, TraceStep } from './types.js';
 
 /**
@@ -13,7 +13,6 @@ import type { ColdStartSample, HarnessMeasurements, MemorySample, Scenario, Scen
  * (kernel-trace.ts): one dispatch, one `getState` per trait of the orbital, the same trace shape.
  */
 const PAGE_HTML = `<!doctype html><meta charset="utf-8"><title>kernel</title><script type="module">
-const viewer = ${JSON.stringify(DEFAULT_VIEWER)};
 const handles = new Map();
 let nextId = 1;
 let wasm = null;
@@ -28,7 +27,6 @@ window.__r3 = {
   open(schemaJson, clientId, traitNames) {
     const t0 = performance.now();
     const kernel = new mod.Kernel(schemaJson, clientId);
-    kernel.setCurrentUser(viewer);
     const id = nextId++;
     handles.set(id, { kernel, traitNames });
     return JSON.stringify({ id, openMs: performance.now() - t0 });

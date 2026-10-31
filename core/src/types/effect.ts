@@ -526,7 +526,7 @@ export interface CredentialPayload {
  * Access-check effect - the kernel's verdict on an entity's declared access policy for `viewer` (`null` for nobody) on
  * `row`, through the evaluator fetch and persist enforce. Success carries {@link AccessCheckPayload}; an undeclared entity,
  * an unknown action or a missing key fails with `{ error }`. Server-only.
- * @example ['access-check', { entity: 'Task', action: 'create', row: { ownerId: 'u1' }, viewer: { id: 'u1' } }, { emit: { success: 'CHECKED' } }]
+ * @example ['access-check', { entity: 'Task', action: 'create', row: { ownerId: 'u1' }, identity: { id: 'u1' } }, { emit: { success: 'CHECKED' } }]
  */
 export type AccessCheckEffect =
     | ['access-check', AccessCheckRequest]
@@ -537,7 +537,7 @@ export interface AccessCheckRequest {
     entity: SExpr;
     action: SExpr;
     row: SExpr;
-    viewer: SExpr;
+    identity: SExpr;
 }
 
 /** Success payload of `access-check`. */

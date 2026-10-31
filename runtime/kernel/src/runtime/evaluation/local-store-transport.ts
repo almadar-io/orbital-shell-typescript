@@ -3,7 +3,7 @@
  * (`openLocalKernel`), and this host answers its I/O. The offline preview and the browser-stored side of a
  * residence-routed host both use it.
  */
-import type { BrowserTabPort, MessageCatalogs, OnDeviceModelPorts, EventRequest, OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef, UserContext } from '@almadar/core';
+import type { BrowserTabPort, MessageCatalogs, OnDeviceModelPorts, EventRequest, OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef } from '@almadar/core';
 import { inlineTraitRefs, orbitalInlineEntities, storesRowsInBrowser } from '@almadar/core';
 import type { EffectHandlers } from '../types.js';
 import { KernelEngine, evaluateOnKernel } from '../../kernel/engine.js';
@@ -83,8 +83,6 @@ export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
 export interface LocalStoreTransportOptions {
   /** The kernel the requests run on (`openLocalKernel`), or its promise while the kernel module loads. */
   kernelEngine: KernelEngine | Promise<KernelEngine>;
-  /** The viewer every request runs as, or its promise while the host resolves it. */
-  user?: UserContext | Promise<UserContext | undefined>;
   /** The program the kernel runs; given, the transport resolves row-set references on that kernel. */
   schema?: OrbitalSchema;
 }
@@ -94,7 +92,6 @@ export function createLocalStoreTransport(options: LocalStoreTransportOptions): 
     async (orbital: string, request: EventRequest) => evaluateOnKernel(
       { engine: await options.kernelEngine, orbital },
       request,
-      await options.user,
       request.locale,
     ),
     {
@@ -105,12 +102,12 @@ export function createLocalStoreTransport(options: LocalStoreTransportOptions): 
 }
 
 function resolveOn(options: LocalStoreTransportOptions): (reference: RowSetRef) => Promise<RowQueryPage> {
-  return async (reference) => resolveLocalRows(await options.kernelEngine, await options.user, reference);
+  return async (reference) => resolveLocalRows(await options.kernelEngine, reference);
 }
 
-/** `reference` resolved on a local kernel for `user`: the kernel applies the viewer's `@read`, the host answers its row reads. */
-export function resolveLocalRows(engine: KernelEngine, user: UserContext | undefined, reference: RowSetRef): Promise<RowQueryPage> {
+/** `reference` resolved on a local kernel: the kernel applies the session identity's `@read`, the host answers its row reads. */
+export function resolveLocalRows(engine: KernelEngine, reference: RowSetRef): Promise<RowQueryPage> {
   const owner = engine.entityOwnerOrbital(reference.entityType);
   if (owner === undefined) return Promise.reject(new Error(`${reference.entityType}: no orbital of the local program declares this entity`));
-  return engine.resolveRows(reference, { orbital: owner, ...(user !== undefined ? { user } : {}) });
+  return engine.resolveRows(reference, { orbital: owner });
 }

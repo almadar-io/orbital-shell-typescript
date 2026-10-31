@@ -1,10 +1,10 @@
 import './helpers/kernel-evaluator.setup.js';
-// The outside-client input channel: only declared external inputs pass, as the given user,
+// The outside-client input channel: only declared external inputs pass, as the session's identity (a request never names its viewer),
 // through the same dispatch a click uses (guards, policies). The app's own event channel is unchanged.
 import { describe, it, expect } from 'vitest';
 import { OrbitalServerRuntime } from '../../src/runtime/OrbitalServerRuntime.js';
 import { describeWithMemoryKernel, memoryKernel, nativeMemory } from './helpers/native-memory.js';
-import type { OrbitalSchema, SExpr, UserContext } from '@almadar/core';
+import type { OrbitalSchema, SExpr } from '@almadar/core';
 
 const MEMBERS_ONLY: SExpr = ['=', '@user.role', 'member'];
 
@@ -55,8 +55,7 @@ function schema(): OrbitalSchema {
   };
 }
 
-const ALICE: UserContext = { id: 'alice', role: 'member' };
-const VIEWER: UserContext = { id: 'vic', role: 'viewer' };
+const ALICE = { id: 'alice', role: 'member' };
 
 async function setup() {
   const runtime = new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
@@ -65,20 +64,19 @@ async function setup() {
 }
 
 describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, traitId, emits] OrbitalServerRuntime.dispatchExternalInput', () => {
-  it('runs a declared input as the given user', async () => {
+  it('applies the entity policy to the session identity, never to a user the request names', async () => {
     const runtime = await setup();
     const res = await runtime.dispatchExternalInput('TaskOrbital', {
-      targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: { title: 'Ship notes' }, user: ALICE,
+      targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: { title: 'Nope' }, user: ALICE,
     });
-    expect(res.success).toBe(true);
-    const rows = await runtime.persistence.list('Task');
-    expect(rows.map((r) => [r.title, r.ownerId])).toEqual([['Ship notes', 'alice']]);
+    expect(res.effectResults?.some((r) => r.denied === true)).toBe(true);
+    expect(await runtime.persistence.list('Task')).toEqual([]);
   });
 
-  it('applies the entity policy for that user', async () => {
+  it('control: the same input with no named user meets the same policy', async () => {
     const runtime = await setup();
     const res = await runtime.dispatchExternalInput('TaskOrbital', {
-      targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: { title: 'Nope' }, user: VIEWER,
+      targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: { title: 'Nope' },
     });
     expect(res.effectResults?.some((r) => r.denied === true)).toBe(true);
     expect(await runtime.persistence.list('Task')).toEqual([]);
@@ -87,7 +85,7 @@ describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, trait
   it('refuses an event that is not a declared input, with a structured reason', async () => {
     const runtime = await setup();
     const res = await runtime.dispatchExternalInput('TaskOrbital', {
-      targetTrait: 'TaskPersistor', event: 'SAVE', payload: { title: 'x' }, user: ALICE,
+      targetTrait: 'TaskPersistor', event: 'SAVE', payload: { title: 'x' },
     });
     expect(res.success).toBe(false);
     expect(res.transitioned).toBe(false);
@@ -98,7 +96,7 @@ describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, trait
   it('refuses an unknown trait or orbital the same way', async () => {
     const runtime = await setup();
     for (const [orbital, trait] of [['TaskOrbital', 'Nope'], ['Nope', 'TaskPersistor']] as const) {
-      const res = await runtime.dispatchExternalInput(orbital, { targetTrait: trait, event: 'DO_CREATE', payload: {}, user: ALICE });
+      const res = await runtime.dispatchExternalInput(orbital, { targetTrait: trait, event: 'DO_CREATE', payload: {} });
       expect(res.rejections?.[0]?.code).toBe('not-an-external-input');
     }
   });
@@ -110,11 +108,11 @@ describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, trait
     ]);
   });
 
-  it('control: the app\'s own event channel still delivers non-input events', async () => {
+  it('control: the app\'s own event channel still delivers non-input events, under the same policy', async () => {
     const runtime = await setup();
-    const res = await runtime.processOrbitalEvent('TaskOrbital', { event: 'SAVE', payload: { title: 'From UI' }, user: ALICE });
-    expect(res.success).toBe(true);
-    expect((await runtime.persistence.list('Task')).map((r) => r.title)).toEqual(['From UI']);
+    const res = await runtime.processOrbitalEvent('TaskOrbital', { event: 'SAVE', payload: { title: 'From UI' } });
+    expect(res.effectResults?.some((r) => r.denied === true)).toBe(true);
+    expect(await runtime.persistence.list('Task')).toEqual([]);
   });
 });
 
@@ -122,7 +120,7 @@ describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, trait
   const bare = async () => new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
 
   it('answers a typed not-an-external-input, never a thrown error', async () => {
-    const res = await (await bare()).dispatchExternalInput('TaskOrbital', { targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: {}, user: ALICE });
+    const res = await (await bare()).dispatchExternalInput('TaskOrbital', { targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: {} });
     expect(res.success).toBe(false);
     expect(res.rejections).toEqual([{ code: 'not-an-external-input', trait: 'TaskPersistor', event: 'DO_CREATE' }]);
   });
@@ -133,8 +131,8 @@ describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, trait
   });
 
   it('control: once a program is registered the same input is declared', async () => {
-    const res = await (await setup()).dispatchExternalInput('TaskOrbital', { targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: { title: 'x' }, user: ALICE });
-    expect(res.success).toBe(true);
+    const res = await (await setup()).dispatchExternalInput('TaskOrbital', { targetTrait: 'TaskPersistor', event: 'DO_CREATE', payload: { title: 'x' } });
+    expect(res.rejections?.[0]?.code).not.toBe('not-an-external-input');
   });
 });
 
@@ -142,34 +140,33 @@ describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, trait
   const tasks = async (runtime: OrbitalServerRuntime) =>
     (await runtime.persistence.list('Task')).map((row) => row['title']);
 
-  it('dispatches any event as the request viewer, and the caller when it names none', async () => {
+  it('dispatches any event as the session identity, ignoring a user the request names', async () => {
     const runtime = await setup();
-    const answered = await runtime.dispatchEventRequest('TaskOrbital', { event: 'SAVE', targetTrait: 'TaskPersistor', payload: { title: 'by alice' }, user: ALICE }, false, VIEWER);
-    expect(answered.ok && answered.response.success).toBe(true);
-    const control = await runtime.dispatchEventRequest('TaskOrbital', { event: 'SAVE', targetTrait: 'TaskPersistor', payload: { title: 'by vic' } }, false, VIEWER);
-    expect(control.ok && control.response.success).toBe(true);
+    const answered = await runtime.dispatchEventRequest('TaskOrbital', { event: 'SAVE', targetTrait: 'TaskPersistor', payload: { title: 'by alice' }, user: ALICE }, false);
+    expect(answered.ok && answered.response.effectResults?.some((r) => r.denied === true)).toBe(true);
+    const control = await runtime.dispatchEventRequest('TaskOrbital', { event: 'SAVE', targetTrait: 'TaskPersistor', payload: { title: 'by nobody' } }, false);
     expect(control.ok && control.response.effectResults?.some((r) => r.denied === true)).toBe(true);
-    expect(await tasks(runtime)).toEqual(['by alice']);
+    expect(await tasks(runtime)).toEqual([]);
   });
 
   it('admits only a declared input when input is set', async () => {
     const runtime = await setup();
-    const refused = await runtime.dispatchEventRequest('TaskOrbital', { event: 'SAVE', targetTrait: 'TaskPersistor', payload: { title: 'x' } }, true, ALICE);
+    const refused = await runtime.dispatchEventRequest('TaskOrbital', { event: 'SAVE', targetTrait: 'TaskPersistor', payload: { title: 'x' } }, true);
     expect(refused.ok && refused.response.rejections?.[0]?.code).toBe('not-an-external-input');
-    const admitted = await runtime.dispatchEventRequest('TaskOrbital', { event: 'DO_CREATE', targetTrait: 'TaskPersistor', payload: { title: 'declared' } }, true, ALICE);
-    expect(admitted.ok && admitted.response.success).toBe(true);
+    const admitted = await runtime.dispatchEventRequest('TaskOrbital', { event: 'DO_CREATE', targetTrait: 'TaskPersistor', payload: { title: 'declared' } }, true);
+    expect(admitted.ok && admitted.response.rejections?.[0]?.code).not.toBe('not-an-external-input');
   });
 
   it('fails an unknown orbital with the route code', async () => {
     const runtime = await setup();
-    expect(await runtime.dispatchEventRequest('Nowhere', { event: 'SAVE', targetTrait: 'TaskPersistor' }, false, ALICE))
+    expect(await runtime.dispatchEventRequest('Nowhere', { event: 'SAVE', targetTrait: 'TaskPersistor' }, false))
       .toEqual({ ok: false, error: 'Orbital not found: Nowhere', code: 'ORBITAL_NOT_FOUND', status: 404 });
-    const noTrait = await runtime.dispatchEventRequest('TaskOrbital', { event: 'DO_CREATE' }, true, ALICE);
+    const noTrait = await runtime.dispatchEventRequest('TaskOrbital', { event: 'DO_CREATE' }, true);
     expect(noTrait.ok === false && noTrait.code).toBe('NO_TRAIT');
   });
 });
 
-describeWithMemoryKernel('OrbitalServerRuntime program/resolve-rows (the Rust-shell twin: a_program_resolve_rows_answers_only_the_rows_the_named_viewer_may_read)', () => {
+describeWithMemoryKernel('OrbitalServerRuntime program/resolve-rows (rows resolve for the requesting session's identity, EXEC-IDENTITY-1)', () => {
   const OWNED: SExpr = ['=', ['object/get', '@entity', 'ownerId'], '@user.id'];
   const ownedNotes = async () => {
     const runtime = new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
@@ -196,18 +193,18 @@ describeWithMemoryKernel('OrbitalServerRuntime program/resolve-rows (the Rust-sh
   const reference = { entityType: 'Note', ids: ['a1', 'b1', 'a2'], total: 3, query: {} };
   const ids = (page: { rows: ReadonlyArray<{ id?: unknown }> }) => page.rows.map((row) => row.id);
 
-  it('answers only the rows the named viewer may read, never the dispatching caller', async () => {
+  it('answers only the rows the anonymous viewer may read when the session bound no identity', async () => {
     const runtime = await ownedNotes();
-    const ports = runtime.servicePorts({ orbital: 'Notes', trait: 'NoteBrowse' }, { id: 'bob' });
-    const alice = await ports.resolveRows?.(reference, { id: 'alice' });
-    expect(alice && ids(alice)).toEqual(['a1', 'a2']);
-    expect(alice?.total).toBe(2);
-    const anonymous = await ports.resolveRows?.(reference, null);
+    const ports = runtime.servicePorts({ orbital: 'Notes', trait: 'NoteBrowse' }, undefined, () => {});
+    const anonymous = await ports.resolveRows?.(reference, undefined);
     expect(anonymous && ids(anonymous)).toEqual([]);
+    expect(anonymous?.total).toBe(0);
+    const unbound = await ports.resolveRows?.(reference, 'tab-without-identity');
+    expect(unbound && ids(unbound)).toEqual([]);
   });
 
   it('fails a reference naming an entity no orbital declares', async () => {
     const runtime = await ownedNotes();
-    await expect(runtime.resolveRows({ ...reference, entityType: 'Nothing' }, null)).rejects.toThrow('no registered orbital declares this entity');
+    await expect(runtime.resolveRows({ ...reference, entityType: 'Nothing' }, undefined)).rejects.toThrow('no registered orbital declares this entity');
   });
 });

@@ -126,7 +126,7 @@ export class KernelProgram {
     const response = await this.engine.evaluate(
       orbital,
       { event, payload, ...(targetTrait !== undefined ? { targetTrait } : {}), ...(user !== undefined ? { user } : {}) },
-      { orbital, ...(user !== undefined ? { user } : {}) },
+      { orbital },
     );
     return {
       success: response.success,

@@ -28,7 +28,6 @@ export async function dispatchDeclaredInput(
     event: request.event,
     payload: request.payload ?? {},
     targetTrait: request.targetTrait,
-    ...(request.user !== undefined ? { user: request.user } : {}),
     ...(request.entityId !== undefined ? { entityId: request.entityId } : {}),
   });
 }

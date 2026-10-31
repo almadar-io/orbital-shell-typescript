@@ -210,7 +210,7 @@ export type EvalStepWire = { kind: EvalStepKind, path: Array<number | string>, v
 
 export type EvalTracedWire = { outcome: EvalOutcomeWire, trace: Array<EvalStepWire>, };
 
-export type EventRequest = { event: string, eventId?: EventId, payload?: EventPayload, entityId?: string, targetTrait?: string, user?: RawUserClaims, clientId?: string, 
+export type EventRequest = { event: string, eventId?: EventId, payload?: EventPayload, entityId?: string, targetTrait?: string, clientId?: string, 
 /**
  * The viewer's locale (one of the program's declared `locales`); `None` → the first declared.
  */
@@ -281,7 +281,12 @@ export type FoldProgressWire = { "status": "applied", fold: AppliedWire, } | { "
 
 export type FoldedNextWire = { "outcome": "applied", ticket: number, fold: AppliedWire, } | { "outcome": "failed", ticket: number, error: string, };
 
-export type FrameDelta = { session?: string, from: number, to: number, ops: Array<FrameOp>, };
+export type FrameDelta = { session?: string, from: number, to: number, ops: Array<FrameOp>, 
+/**
+ * The session's bound identity (EXEC-IDENTITY-4), present when it changed since the last delta of this record (a
+ * snapshot always carries it); absent leaves the client's mirror as it is.
+ */
+identity?: FrameIdentity, };
 
 export type FrameDispatch = { trait: string, orbital: string, 
 /**
@@ -297,6 +302,8 @@ statefulLeg: StatefulLegWire | null,
  * The traits whose pre-dispatch frame is the base a posted answer is folded against (`foldBase`).
  */
 foldSeeded: Array<string>, };
+
+export type FrameIdentity = { user?: JsonValue, };
 
 export type FrameOp = ["put", string, EntityRow] | ["set", { [key in string]: EntityRow }] | ["del", string] | ["clear"]
 
@@ -1080,7 +1087,7 @@ function checkEvalStepWire(v: JsonValue | undefined): boolean {
 }
 
 function checkEventRequest(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["event"] === 'string' && (v["eventId"] === undefined || accepts((x, q) => asEventId(str(x, q)), v["eventId"])) && (v["payload"] === undefined || accepts((x, q) => rec(x, q), v["payload"])) && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["targetTrait"] === undefined || typeof v["targetTrait"] === 'string') && (v["user"] === undefined || accepts((x, q) => rawUserClaims(x, q), v["user"])) && (v["clientId"] === undefined || typeof v["clientId"] === 'string') && (v["locale"] === undefined || typeof v["locale"] === 'string') && (v["tick"] === undefined || typeof v["tick"] === 'string') && (v["sourceTrait"] === undefined || typeof v["sourceTrait"] === 'string') && (v["runTick"] === undefined || checkRunTick(v["runTick"])) && (v["traits"] === undefined || (Array.isArray(v["traits"]) && v["traits"].every((e) => checkTraitFrom(e)))) && (v["entityByTrait"] === undefined || (isRecord(v["entityByTrait"]) && Object.values(v["entityByTrait"]).every((e) => accepts((x, q) => entityRow(x, q), e)))) && (v["behavior"] === undefined || typeof v["behavior"] === 'string') && (v["delivery"] === undefined || checkDeliveryRecord(v["delivery"])) && (v["dispatchLog"] === undefined || checkDispatchLog(v["dispatchLog"])) && (v["mount"] === undefined || (Array.isArray(v["mount"]) && v["mount"].every((e) => checkMountSeed(e)))) && (v["residence"] === undefined || checkLegResidence(v["residence"])) && (v["framesSince"] === undefined || typeof v["framesSince"] === 'number'));
+  return (isRecord(v) && typeof v["event"] === 'string' && (v["eventId"] === undefined || accepts((x, q) => asEventId(str(x, q)), v["eventId"])) && (v["payload"] === undefined || accepts((x, q) => rec(x, q), v["payload"])) && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["targetTrait"] === undefined || typeof v["targetTrait"] === 'string') && (v["clientId"] === undefined || typeof v["clientId"] === 'string') && (v["locale"] === undefined || typeof v["locale"] === 'string') && (v["tick"] === undefined || typeof v["tick"] === 'string') && (v["sourceTrait"] === undefined || typeof v["sourceTrait"] === 'string') && (v["runTick"] === undefined || checkRunTick(v["runTick"])) && (v["traits"] === undefined || (Array.isArray(v["traits"]) && v["traits"].every((e) => checkTraitFrom(e)))) && (v["entityByTrait"] === undefined || (isRecord(v["entityByTrait"]) && Object.values(v["entityByTrait"]).every((e) => accepts((x, q) => entityRow(x, q), e)))) && (v["behavior"] === undefined || typeof v["behavior"] === 'string') && (v["delivery"] === undefined || checkDeliveryRecord(v["delivery"])) && (v["dispatchLog"] === undefined || checkDispatchLog(v["dispatchLog"])) && (v["mount"] === undefined || (Array.isArray(v["mount"]) && v["mount"].every((e) => checkMountSeed(e)))) && (v["residence"] === undefined || checkLegResidence(v["residence"])) && (v["framesSince"] === undefined || typeof v["framesSince"] === 'number'));
 }
 
 function checkEventResponse(v: JsonValue | undefined): boolean {
@@ -1100,11 +1107,15 @@ function checkFoldedNextWire(v: JsonValue | undefined): boolean {
 }
 
 function checkFrameDelta(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && (v["session"] === undefined || typeof v["session"] === 'string') && typeof v["from"] === 'number' && typeof v["to"] === 'number' && (Array.isArray(v["ops"]) && v["ops"].every((e) => checkFrameOp(e))));
+  return (isRecord(v) && (v["session"] === undefined || typeof v["session"] === 'string') && typeof v["from"] === 'number' && typeof v["to"] === 'number' && (Array.isArray(v["ops"]) && v["ops"].every((e) => checkFrameOp(e))) && (v["identity"] === undefined || checkFrameIdentity(v["identity"])));
 }
 
 function checkFrameDispatch(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["orbital"] === 'string' && (v["flight"] === undefined || (typeof v["flight"] === 'number' || v["flight"] === null)) && checkSeedWire(v["seed"]) && checkEventResponse(v["response"]) && (Array.isArray(v["serverLegs"]) && v["serverLegs"].every((e) => checkRoutedLeg(e))) && checkDispatchMode(v["mode"]) && (checkTraitSnapshot(v["snapshot"]) || v["snapshot"] === null) && (Array.isArray(v["alreadyDelivered"]) && v["alreadyDelivered"].every((e) => (Array.isArray(e) && e.length === 2 && typeof e[0] === 'string' && typeof e[1] === 'string'))) && (Array.isArray(v["awaiting"]) && v["awaiting"].every((e) => checkAwaitingTrait(e))) && (checkStatefulLegWire(v["statefulLeg"]) || v["statefulLeg"] === null) && (Array.isArray(v["foldSeeded"]) && v["foldSeeded"].every((e) => typeof e === 'string')));
+}
+
+function checkFrameIdentity(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && (v["user"] === undefined || accepts((x, q) => any(x, q), v["user"])));
 }
 
 function checkFrameOp(v: JsonValue | undefined): boolean {
@@ -1688,7 +1699,7 @@ function buildEvalStepWire(v: JsonValue | undefined, p: string): EvalStepWire {
 }
 
 function buildEventRequest(v: JsonValue | undefined, p: string): EventRequest {
-  return obj(v, p, null, (r0) => ({ "event": str(r0["event"], p + '.event'), ...(r0["eventId"] === undefined || r0["eventId"] === null ? {} : { "eventId": asEventId(str(r0["eventId"], p + '.eventId')) }), ...(r0["payload"] === undefined || r0["payload"] === null ? {} : { "payload": rec(r0["payload"], p + '.payload') }), ...(r0["entityId"] === undefined || r0["entityId"] === null ? {} : { "entityId": str(r0["entityId"], p + '.entityId') }), ...(r0["targetTrait"] === undefined || r0["targetTrait"] === null ? {} : { "targetTrait": str(r0["targetTrait"], p + '.targetTrait') }), ...(r0["user"] === undefined || r0["user"] === null ? {} : { "user": rawUserClaims(r0["user"], p + '.user') }), ...(r0["clientId"] === undefined || r0["clientId"] === null ? {} : { "clientId": str(r0["clientId"], p + '.clientId') }), ...(r0["locale"] === undefined || r0["locale"] === null ? {} : { "locale": str(r0["locale"], p + '.locale') }), ...(r0["tick"] === undefined || r0["tick"] === null ? {} : { "tick": str(r0["tick"], p + '.tick') }), ...(r0["sourceTrait"] === undefined || r0["sourceTrait"] === null ? {} : { "sourceTrait": str(r0["sourceTrait"], p + '.sourceTrait') }), ...(r0["runTick"] === undefined || r0["runTick"] === null ? {} : { "runTick": buildRunTick(r0["runTick"], p + '.runTick') }), ...(r0["traits"] === undefined || r0["traits"] === null ? {} : { "traits": list(r0["traits"], p + '.traits', (e1, q1) => buildTraitFrom(e1, q1)) }), ...(r0["entityByTrait"] === undefined || r0["entityByTrait"] === null ? {} : { "entityByTrait": dict(r0["entityByTrait"], p + '.entityByTrait', (e1, q1) => entityRow(e1, q1)) }), ...(r0["behavior"] === undefined || r0["behavior"] === null ? {} : { "behavior": str(r0["behavior"], p + '.behavior') }), ...(r0["delivery"] === undefined || r0["delivery"] === null ? {} : { "delivery": buildDeliveryRecord(r0["delivery"], p + '.delivery') }), ...(r0["dispatchLog"] === undefined || r0["dispatchLog"] === null ? {} : { "dispatchLog": buildDispatchLog(r0["dispatchLog"], p + '.dispatchLog') }), ...(r0["mount"] === undefined || r0["mount"] === null ? {} : { "mount": list(r0["mount"], p + '.mount', (e1, q1) => buildMountSeed(e1, q1)) }), ...(r0["residence"] === undefined || r0["residence"] === null ? {} : { "residence": buildLegResidence(r0["residence"], p + '.residence') }), ...(r0["framesSince"] === undefined || r0["framesSince"] === null ? {} : { "framesSince": int(r0["framesSince"], p + '.framesSince', 0, Number.MAX_SAFE_INTEGER, "u64") }) }));
+  return obj(v, p, null, (r0) => ({ "event": str(r0["event"], p + '.event'), ...(r0["eventId"] === undefined || r0["eventId"] === null ? {} : { "eventId": asEventId(str(r0["eventId"], p + '.eventId')) }), ...(r0["payload"] === undefined || r0["payload"] === null ? {} : { "payload": rec(r0["payload"], p + '.payload') }), ...(r0["entityId"] === undefined || r0["entityId"] === null ? {} : { "entityId": str(r0["entityId"], p + '.entityId') }), ...(r0["targetTrait"] === undefined || r0["targetTrait"] === null ? {} : { "targetTrait": str(r0["targetTrait"], p + '.targetTrait') }), ...(r0["clientId"] === undefined || r0["clientId"] === null ? {} : { "clientId": str(r0["clientId"], p + '.clientId') }), ...(r0["locale"] === undefined || r0["locale"] === null ? {} : { "locale": str(r0["locale"], p + '.locale') }), ...(r0["tick"] === undefined || r0["tick"] === null ? {} : { "tick": str(r0["tick"], p + '.tick') }), ...(r0["sourceTrait"] === undefined || r0["sourceTrait"] === null ? {} : { "sourceTrait": str(r0["sourceTrait"], p + '.sourceTrait') }), ...(r0["runTick"] === undefined || r0["runTick"] === null ? {} : { "runTick": buildRunTick(r0["runTick"], p + '.runTick') }), ...(r0["traits"] === undefined || r0["traits"] === null ? {} : { "traits": list(r0["traits"], p + '.traits', (e1, q1) => buildTraitFrom(e1, q1)) }), ...(r0["entityByTrait"] === undefined || r0["entityByTrait"] === null ? {} : { "entityByTrait": dict(r0["entityByTrait"], p + '.entityByTrait', (e1, q1) => entityRow(e1, q1)) }), ...(r0["behavior"] === undefined || r0["behavior"] === null ? {} : { "behavior": str(r0["behavior"], p + '.behavior') }), ...(r0["delivery"] === undefined || r0["delivery"] === null ? {} : { "delivery": buildDeliveryRecord(r0["delivery"], p + '.delivery') }), ...(r0["dispatchLog"] === undefined || r0["dispatchLog"] === null ? {} : { "dispatchLog": buildDispatchLog(r0["dispatchLog"], p + '.dispatchLog') }), ...(r0["mount"] === undefined || r0["mount"] === null ? {} : { "mount": list(r0["mount"], p + '.mount', (e1, q1) => buildMountSeed(e1, q1)) }), ...(r0["residence"] === undefined || r0["residence"] === null ? {} : { "residence": buildLegResidence(r0["residence"], p + '.residence') }), ...(r0["framesSince"] === undefined || r0["framesSince"] === null ? {} : { "framesSince": int(r0["framesSince"], p + '.framesSince', 0, Number.MAX_SAFE_INTEGER, "u64") }) }));
 }
 
 function buildEventResponse(v: JsonValue | undefined, p: string): EventResponse {
@@ -1708,11 +1719,15 @@ function buildFoldedNextWire(v: JsonValue | undefined, p: string): FoldedNextWir
 }
 
 function buildFrameDelta(v: JsonValue | undefined, p: string): FrameDelta {
-  return obj(v, p, null, (r0) => ({ ...(r0["session"] === undefined || r0["session"] === null ? {} : { "session": str(r0["session"], p + '.session') }), "from": int(r0["from"], p + '.from', 0, Number.MAX_SAFE_INTEGER, "u64"), "to": int(r0["to"], p + '.to', 0, Number.MAX_SAFE_INTEGER, "u64"), "ops": list(r0["ops"], p + '.ops', (e1, q1) => buildFrameOp(e1, q1)) }));
+  return obj(v, p, null, (r0) => ({ ...(r0["session"] === undefined || r0["session"] === null ? {} : { "session": str(r0["session"], p + '.session') }), "from": int(r0["from"], p + '.from', 0, Number.MAX_SAFE_INTEGER, "u64"), "to": int(r0["to"], p + '.to', 0, Number.MAX_SAFE_INTEGER, "u64"), "ops": list(r0["ops"], p + '.ops', (e1, q1) => buildFrameOp(e1, q1)), ...(r0["identity"] === undefined || r0["identity"] === null ? {} : { "identity": buildFrameIdentity(r0["identity"], p + '.identity') }) }));
 }
 
 function buildFrameDispatch(v: JsonValue | undefined, p: string): FrameDispatch {
   return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "orbital": str(r0["orbital"], p + '.orbital'), ...(r0["flight"] === undefined || r0["flight"] === null ? {} : { "flight": (r0["flight"] === null ? null : num(r0["flight"], p + '.flight')) }), "seed": buildSeedWire(r0["seed"], p + '.seed'), "response": buildEventResponse(r0["response"], p + '.response'), "serverLegs": list(r0["serverLegs"], p + '.serverLegs', (e1, q1) => buildRoutedLeg(e1, q1)), "mode": buildDispatchMode(r0["mode"], p + '.mode'), "snapshot": (r0["snapshot"] === null ? null : buildTraitSnapshot(r0["snapshot"], p + '.snapshot')), "alreadyDelivered": list(r0["alreadyDelivered"], p + '.alreadyDelivered', (e1, q1) => tuple(e1, q1, 2, (t2) => [str(t2[0], q1 + '[0]'), str(t2[1], q1 + '[1]')])), "awaiting": list(r0["awaiting"], p + '.awaiting', (e1, q1) => buildAwaitingTrait(e1, q1)), "statefulLeg": (r0["statefulLeg"] === null ? null : buildStatefulLegWire(r0["statefulLeg"], p + '.statefulLeg')), "foldSeeded": list(r0["foldSeeded"], p + '.foldSeeded', (e1, q1) => str(e1, q1)) }));
+}
+
+function buildFrameIdentity(v: JsonValue | undefined, p: string): FrameIdentity {
+  return obj(v, p, null, (r0) => ({ ...(r0["user"] === undefined || r0["user"] === null ? {} : { "user": any(r0["user"], p + '.user') }) }));
 }
 
 function buildFrameOp(v: JsonValue | undefined, p: string): FrameOp {

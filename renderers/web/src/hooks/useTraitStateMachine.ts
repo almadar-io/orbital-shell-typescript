@@ -29,14 +29,12 @@ import type {
   OrbitalDefinition,
   SchemaMetadata,
   ServiceParams,
-  UserContext,
 } from '@almadar/core';
 import { TraitMountError } from '@almadar/shell-runtime/client/trait-mount-error';
 import type { EventTransport } from '../index';
 import type { ClientKernelOutcome, TraitState } from '../index';
 import { createLogger } from '@almadar/logger';
 import { useEventBus } from '../core';
-import { useUser } from '../providers/UserContext';
 import { useTranslate } from '../core';
 import { useKernelEngine } from '../providers/KernelEngineContext';
 import type { EntityBindingSource } from '../providers/EntityBindingContext';
@@ -104,10 +102,6 @@ export interface UseTraitStateMachineOptions {
   callService?: (service: string, action: string, params?: ServiceParams) => Promise<EventPayload>;
   debug?: boolean;
   logContext?: { behavior?: string; orbitalName?: string };
-  /** Explicit viewer override (e.g. a persona switcher's picked identity
-   *  threaded down as a prop rather than through `UserContext`). Wins over
-   *  `useUser()`'s context value when supplied. */
-  user?: UserContext;
 }
 
 export function useTraitStateMachine(
@@ -115,9 +109,7 @@ export function useTraitStateMachine(
   options: UseTraitStateMachineOptions,
 ): TraitStateMachineResult {
   const eventBus = useEventBus();
-  const { user: contextViewer } = useUser();
   const { t } = useTranslate();
-  const userContext = (options.user ?? contextViewer ?? undefined) as UserContext | undefined;
 
   const observer = useMemo(() => createCircuitVerificationObserver(), []);
 
@@ -135,7 +127,6 @@ export function useTraitStateMachine(
     ...(options.persistence !== undefined ? { persistence: options.persistence } : {}),
     ...(options.browserStore !== undefined ? { browserStore: options.browserStore } : {}),
     ...(options.callService !== undefined ? { callService: options.callService } : {}),
-    ...(userContext !== undefined ? { user: userContext } : {}),
     ...(options.debug !== undefined ? { debug: options.debug } : {}),
     ...(options.logContext !== undefined ? { logContext: options.logContext } : {}),
     observer,

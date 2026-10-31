@@ -234,7 +234,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
     expect(await memory.list('Note')).toEqual([]);
   });
 
-  it('answers call-service through the injected provider, as the dispatch viewer', async () => {
+  it('answers call-service through the injected provider, never as a viewer the request names', async () => {
     const seen: Array<{ service: string; action: string; params: object | undefined; principal: string | undefined; role: string | undefined }> = [];
     const runtime = await open(service(), {
       effectHandlers: {
@@ -246,7 +246,9 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
     });
     const response = await runtime.processOrbitalEvent('Main', { event: 'GO', targetTrait: 'Runner', user: { id: 'u1', role: 'admin' } });
     expect(response.states).toEqual({ Runner: 'done' });
-    expect(seen).toEqual([{ service: 'test-svc', action: 'run', params: { event: 'a' }, principal: 'u1', role: 'admin' }]);
+    expect(seen.map((s) => [s.service, s.action, s.params])).toEqual([['test-svc', 'run', { event: 'a' }]]);
+    expect(seen.map((s) => s.principal)).not.toContain('u1');
+    expect(seen.map((s) => s.role)).not.toContain('admin');
   });
 
   it('control: a provider that throws routes to the declared failure event', async () => {
@@ -323,9 +325,9 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
 
     it('an undeclared locale answers the kernel\'s typed refusal, which the events route maps to LOCALE_NOT_DECLARED', async () => {
       const runtime = await open(pulsing());
-      const refused = await runtime.dispatchEventRequest('Board', { event: 'GO', targetTrait: 'Scoped', locale: 'fr' }, false, undefined);
+      const refused = await runtime.dispatchEventRequest('Board', { event: 'GO', targetTrait: 'Scoped', locale: 'fr' }, false);
       expect(refused).toMatchObject({ ok: false, code: 'LOCALE_NOT_DECLARED', status: 400 });
-      const admitted = await runtime.dispatchEventRequest('Board', { event: 'GO', targetTrait: 'Scoped', locale: 'ar' }, false, undefined);
+      const admitted = await runtime.dispatchEventRequest('Board', { event: 'GO', targetTrait: 'Scoped', locale: 'ar' }, false);
       expect(admitted).toMatchObject({ ok: true });
     });
 
@@ -537,7 +539,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
       const p = ports({
         programEffect: () => async (op, args, context) => ({ ok: false, error: `${op} refused`, errors: [{ code: 'ORB_X', message: 'bad', path: 'a.b' }], ...(context ? {} : {}), ...(args.length > 0 ? {} : {}) }),
       });
-      const failed = await answerRequest(p, { kind: 'substrate', op: 'program/eval', args: [] }, scope({ user: { id: 'u1' } }));
+      const failed = await answerRequest(p, { kind: 'substrate', op: 'program/eval', args: [] }, scope());
       expect(failed).toEqual({
         kind: 'substrate',
         result: { error: { message: 'program/eval refused', errors: [{ code: 'ORB_X', message: 'bad', path: 'a.b' }] } },

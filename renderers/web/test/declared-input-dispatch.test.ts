@@ -27,12 +27,12 @@ function recorder() {
 }
 
 describe('dispatchDeclaredInput', () => {
-  it('sends a declared input to its trait with payload, user and entity', async () => {
+  it('sends a declared input to its trait with payload and entity, never a named user', async () => {
     const { sent, send } = recorder();
     const res = await dispatchDeclaredInput(schema, 'FeedOrbital', { targetTrait: 'Watcher', event: 'ITEM_SEEN', payload: { elementId: 'el-1' }, user: { uid: 'u1' }, entityId: 'i1' }, send);
     expect(res).toBe(OK);
     expect(sent).toEqual([
-      { orbital: 'FeedOrbital', request: { event: 'ITEM_SEEN', payload: { elementId: 'el-1' }, targetTrait: 'Watcher', user: { uid: 'u1' }, entityId: 'i1' } },
+      { orbital: 'FeedOrbital', request: { event: 'ITEM_SEEN', payload: { elementId: 'el-1' }, targetTrait: 'Watcher', entityId: 'i1' } },
     ]);
   });
 

@@ -130,8 +130,8 @@ impl Server {
     }
 
     #[napi]
-    pub fn live_item_delivered(&self, item_json: String, viewer_json: String, client_id: Option<String>) -> napi::Result<bool> {
-        self.api.get().map_err(js)?.api().live_item_delivered(&item_json, &viewer_json, client_id.as_deref()).map_err(js)
+    pub fn live_item_delivered(&self, item_json: String, client_id: Option<String>) -> napi::Result<bool> {
+        self.api.get().map_err(js)?.api().live_item_delivered(&item_json, client_id.as_deref()).map_err(js)
     }
 
     #[napi]
@@ -169,11 +169,11 @@ impl Server {
     }
 
     #[napi]
-    pub fn resolve_rows(&self, ref_json: String, viewer_json: String) -> napi::Result<String> {
+    pub fn resolve_rows(&self, ref_json: String, client_id: Option<String>) -> napi::Result<String> {
         self.api
             .get()
             .map_err(js)?
-            .resolve_rows(&ref_json, &viewer_json)
+            .resolve_rows(&ref_json, client_id.as_deref())
             .map_err(js)
     }
 
@@ -213,16 +213,6 @@ impl Server {
             .map_err(js)?
             .api()
             .set_managed_program(&program_json)
-            .map_err(js)
-    }
-
-    #[napi]
-    pub fn set_default_user(&self, user_json: String) -> napi::Result<()> {
-        self.api
-            .get()
-            .map_err(js)?
-            .api()
-            .set_default_user(&user_json)
             .map_err(js)
     }
 

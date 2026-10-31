@@ -39,7 +39,7 @@ function program(name: string, entityName: string, command: string): OrbitalSche
           events: [{ key: 'GO', name: 'GO' }],
           states: [{ name: 'idle', isInitial: true }, { name: 'done' }],
           transitions: [{ from: 'idle', to: 'done', event: 'GO', effects: name === 'App' ? [] : [
-            ['access-check', { entity: 'Note', action: 'create', row: { ownerId: 'owner' }, viewer: '@payload.viewer' }, { emit: { success: 'CHECKED', failure: 'FAILED' } }],
+            ['access-check', { entity: 'Note', action: 'create', row: { ownerId: 'owner' }, identity: '@payload.viewer' }, { emit: { success: 'CHECKED', failure: 'FAILED' } }],
           ] }],
         },
       }],
@@ -151,8 +151,7 @@ for (const implementation of implementations) {
           const taskId = tasks[0]?.id;
           if (taskId === undefined) throw new Error('std seed must assign task id');
           const reference = { entityType: 'Task', ids: [taskId], total: 1, query: {} };
-          expect((await app.resolveRows(reference, { orbital: 'Main', user: { id: 'viewer' } })).rows.map((row) => row.id)).toEqual([taskId]);
-          expect((await app.resolveRows(reference, { orbital: 'Main', user: { id: 'other' } })).rows).toEqual([]);
+          expect((await app.resolveRows(reference, { orbital: 'Main' })).rows).toEqual([]);
           seed.reset();
           persistence.clear();
         }

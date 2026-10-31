@@ -38,6 +38,11 @@ import type { CallSiteWire, IoAnswerWire, IoRequestWire, KernelModule, Settled, 
 import type { OsCompletionEvent, OsCompletionPort, OsHostPort, OsTlsPort } from './os-port.js';
 import { TabHostFailure, type BrowserTabPort } from '@almadar/core';
 
+/** The service caller the kernel carried on its ask, as the viewer a service host reads rows for. */
+function callerViewer(caller: { principal: string; role?: string } | undefined): UserContext | undefined {
+  return caller === undefined ? undefined : { id: caller.principal, ...(caller.role !== undefined ? { role: caller.role } : {}) };
+}
+
 function issuePayload(issue: ProgramValidationIssue): EventPayload {
   const payload: EventPayload = { code: issue.code, message: issue.message };
   if (issue.path !== undefined) payload.path = issue.path;
@@ -62,7 +67,6 @@ export interface DeferredCallOutcome {
   payload: EventPayload | undefined;
   entityId: string | undefined;
   originClientId: string | undefined;
-  user: UserContext | undefined;
   locale: string | undefined;
 }
 
@@ -167,8 +171,6 @@ export interface KernelHostPorts {
 export interface KernelAnswerScope {
   /** The orbital the request is addressed to. */
   orbital: string;
-  /** The viewer the dispatch runs as; a substrate operator is called as them. */
-  user?: UserContext;
   /** The requesting tab. */
   originClientId?: string;
   locale?: string;
@@ -228,7 +230,7 @@ async function callService(
     ports.deliverLive({ orbital, trait: site.trait, event: onMessage }, payload, scope.originClientId);
   };
   const call = async (signal?: AbortSignal, outsideRequest?: true): Promise<JsonValue> => {
-    const host = site !== undefined ? ports.servicePorts({ orbital, trait: site.trait }, scope.user, message, outsideRequest === true ? undefined : scope.assertReentry) : undefined;
+    const host = site !== undefined ? ports.servicePorts({ orbital, trait: site.trait }, callerViewer(caller), message, outsideRequest === true ? undefined : scope.assertReentry) : undefined;
     const context: ServiceCallContext | undefined =
       caller !== undefined || signal !== undefined || host !== undefined || outsideRequest !== undefined
         ? { ...identity, ...(host !== undefined ? { host } : {}), ...(signal !== undefined ? { signal } : {}), ...(outsideRequest !== undefined ? { outsideRequest } : {}) }
@@ -270,7 +272,6 @@ function startDeferredCall(
       payload,
       entityId: scope.entityId,
       originClientId: scope.originClientId,
-      user: scope.user,
       locale: scope.locale,
     });
   const outcome = key === undefined
@@ -311,7 +312,7 @@ async function substrate(
   const source = site.emit.onMessage !== undefined ? ports.substrateStream?.(request.op, request.args, scope) : undefined;
   if (ports.inFlightCalls.inFlight(key)) return { kind: 'substrate', result: { error: { message: source !== undefined ? `key ${key} already has a stream open` : `key ${key} already has a completion pending`, errors: [] } } };
   const deliver = (fired: OsCompletionEvent | null): void => {
-    if (fired !== null) sink({ orbital: site.orbital ?? scope.orbital, traitName: site.trait, event: fired.event, payload: isJsonObject(fired.payload) ? fired.payload : undefined, entityId: site.entityId, originClientId: scope.originClientId, user: scope.user, locale: scope.locale });
+    if (fired !== null) sink({ orbital: site.orbital ?? scope.orbital, traitName: site.trait, event: fired.event, payload: isJsonObject(fired.payload) ? fired.payload : undefined, entityId: site.entityId, originClientId: scope.originClientId, locale: scope.locale });
   };
   const failed = <T>(error: T): void => deliver(complete(site, key, request.op, request.args, { error: { message: failureMessage(error), errors: [] } }));
   if (source !== undefined && ports.substrateMessage !== undefined) {
@@ -525,9 +526,9 @@ async function substrateInPlace(
     return { kind: 'substrate', result: { error: detail } };
   };
   if (request.op === 'program/dispatch' || request.op === 'program/inputs' || request.op === 'program/resolve-rows') {
-    const lent = ports.servicePorts({ orbital: scope.orbital, trait: '' }, scope.user, () => {}, scope.assertReentry);
+    const lent = ports.servicePorts({ orbital: scope.orbital, trait: '' }, undefined, () => {}, scope.assertReentry);
     try {
-      const delivered = await deliverAgentAsk(request.op, request.args, lent, ports);
+      const delivered = await deliverAgentAsk(request.op, request.args, lent, ports, scope.originClientId);
       if (delivered.ok) return { kind: 'substrate', result: { ok: delivered.result } };
       return failure(delivered.error, delivered.errors ?? []);
     } catch (error) {
@@ -537,17 +538,12 @@ async function substrateInPlace(
   if (handler === undefined) return failure(`no program host configured for ${request.op}`);
   if (!isProgramEffect(request.op)) return failure(`no program host configured for ${request.op}`);
   try {
-    const user = scope.user;
-    const outcome = await handler(request.op, request.args, user !== undefined ? { principal: user.id, ...(user.role !== undefined ? { role: user.role } : {}) } : undefined);
+    const outcome = await handler(request.op, request.args, undefined);
     if (outcome.ok) return { kind: 'substrate', result: { ok: programDocumentJson(outcome.result) } };
     return failure(outcome.error, (outcome.errors ?? []).map((issue) => issuePayload(issue)));
   } catch (error) {
     return failure(error instanceof Error ? error.message : String(error));
   }
-}
-
-function isViewerRecord(value: JsonValue): value is UserContext {
-  return isJsonObject(value) && typeof value['id'] === 'string';
 }
 
 type Delivered = { ok: true; result: JsonValue } | { ok: false; error: string; errors?: JsonValue[] };
@@ -564,18 +560,18 @@ function present(value: JsonValue | undefined): value is JsonValue {
  * The asks the kernel plans for `program/dispatch` and `program/inputs` (EXEC-AGENT-1), delivered raw: an inbound
  * delivery, a declared input, an event request, or the trace. The kernel checks and shapes; the host only delivers.
  */
-async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs' | 'program/resolve-rows', args: readonly JsonValue[], host: ServiceHostPorts, ports: Pick<KernelHostPorts, 'parseEventRequest'>): Promise<Delivered> {
+async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs' | 'program/resolve-rows', args: readonly JsonValue[], host: ServiceHostPorts, ports: Pick<KernelHostPorts, 'parseEventRequest'>, clientId: string | undefined): Promise<Delivered> {
   const [first, second, third] = args;
   if (op === 'program/resolve-rows') {
-    if (args.length !== 2 || first === undefined || second === undefined) return { ok: false, error: 'program/resolve-rows: the host is asked for a row-set reference and the viewer it is resolved for' };
+    if (args.length !== 2 || first === undefined || second === undefined) return { ok: false, error: 'program/resolve-rows: the host is asked for a row-set reference and the viewer slot, which is null: a program names no viewer' };
     const reference = RowSetRefSchema.safeParse(first);
     if (!reference.success) {
       const error = `program/resolve-rows: not a row-set reference: ${reference.error.message}`;
       return { ok: false, error, errors: [{ code: 'INVALID_REQUEST', message: error, status: 400 }] };
     }
-    if (second !== null && !isViewerRecord(second)) return { ok: false, error: 'program/resolve-rows: the viewer is a record with an id, or null' };
+    if (second !== null) return { ok: false, error: 'program/resolve-rows: rows resolve for the requesting session\'s identity (EXEC-IDENTITY-1); a program names no viewer, so the viewer argument is null' };
     if (host.resolveRows === undefined) return { ok: false, error: 'program/resolve-rows: this host resolves no row sets' };
-    const page = await host.resolveRows(reference.data, second);
+    const page = await host.resolveRows(reference.data, clientId);
     return { ok: true, result: toPayloadValue(page) };
   }
   if (op === 'program/inputs') {
@@ -645,7 +641,7 @@ const NO_TAB_HOST = 'browser/tab: no host answers browser tabs';
 /**
  * `tab`: one raw ask of a `browser/tab-*` effect handed to the host's tab port, which performs it and holds no
  * decision. Keyed, a `cancel-call` aborts the ask and a late reply is dropped. A watch's elements are dispatched to the
- * declared input its ask names, as the user the watch was started by.
+ * declared input its ask names, as the session's identity the kernel holds.
  */
 async function tab(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'tab' }>, scope: KernelAnswerScope): Promise<IoAnswerWire> {
   const { ask, key } = request;
@@ -654,7 +650,7 @@ async function tab(ports: KernelHostPorts, request: Extract<IoRequestWire, { kin
   const deliver = (payload: EventPayload): void => {
     if (ask.kind !== 'watch') return;
     const target = ask.deliver;
-    const lent = ports.servicePorts({ orbital: target.orbital, trait: target.trait }, scope.user, () => {});
+    const lent = ports.servicePorts({ orbital: target.orbital, trait: target.trait }, undefined, () => {});
     void lent.dispatchInput(target.orbital, { targetTrait: target.trait, event: target.event, payload });
   };
   const perform = async (signal?: AbortSignal): Promise<IoAnswerWire> => {
@@ -788,7 +784,7 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
     lease.signal.addEventListener('abort', stop, { once: true });
     const deliver = (fired: OsCompletionEvent | null): boolean => {
       if (fired === null || lease.signal.aborted) return false;
-      sink({ orbital, traitName: site.trait, event: fired.event, payload: isJsonObject(fired.payload) ? fired.payload : undefined, entityId: site.entityId, originClientId: scope.originClientId, user: scope.user, locale: scope.locale });
+      sink({ orbital, traitName: site.trait, event: fired.event, payload: isJsonObject(fired.payload) ? fired.payload : undefined, entityId: site.entityId, originClientId: scope.originClientId, locale: scope.locale });
       return true;
     };
     const started = await os.stream(op, args, key, (value) => deliver(message(site, key, value)), (error) => {
@@ -816,7 +812,6 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
         payload: isJsonObject(fired.payload) ? fired.payload : undefined,
         entityId: site.entityId,
         originClientId: scope.originClientId,
-        user: scope.user,
         locale: scope.locale,
       });
     };

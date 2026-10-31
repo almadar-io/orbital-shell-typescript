@@ -29,12 +29,12 @@ it('defers keyed substrate answers, preserves context and suppresses cancelled c
       return { event: 'CANONICAL', payload: { key, result: 1 } };
     },
   };
-  expect(await answerRequest(host, request(), { orbital: 'Main', user: { id: 'u1' }, originClientId: 'tab' })).toEqual({ kind: 'serviceDeferred' });
+  expect(await answerRequest(host, request(), { orbital: 'Main', originClientId: 'tab' })).toEqual({ kind: 'serviceDeferred' });
   expect(delivered).toEqual([]);
   expect(await answerRequest(host, request(), { orbital: 'Main' })).toMatchObject({ kind: 'substrate', result: { error: { message: 'key job already has a completion pending' } } });
   release();
   await flush();
-  expect(delivered).toEqual([{ orbital: 'Main', traitName: 'Worker', event: 'CANONICAL', payload: { key: 'job', result: 1 }, entityId: 'r1', originClientId: 'tab', user: { id: 'u1' }, locale: undefined }]);
+  expect(delivered).toEqual([{ orbital: 'Main', traitName: 'Worker', event: 'CANONICAL', payload: { key: 'job', result: 1 }, entityId: 'r1', originClientId: 'tab', locale: undefined }]);
   expect(calls.inFlight('job')).toBe(false);
   delivered.length = 0;
   expect(await answerRequest(host, request(), { orbital: 'Main' })).toEqual({ kind: 'serviceDeferred' });

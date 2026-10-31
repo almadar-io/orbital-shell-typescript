@@ -527,7 +527,7 @@ const StepRequestSchema: z.ZodType<StepRequest> = z.object({
   config: EventPayloadSchema.optional(),
   now: z.number().optional(),
   settleMs: z.number().optional(),
-  viewer: EventPayloadSchema.nullable().optional(),
+  identity: z.object({ subject: z.string(), claims: EventPayloadSchema }).optional(),
 });
 
 /**
@@ -554,7 +554,7 @@ function decodePlayedOutput(run: OrbRun): PlayedStep[] | StepRefusal {
 }
 
 export async function programStep(program: OrbitalSchema, requests: readonly StepRequest[], opts: ProgramHostOptions, live = false): Promise<PlayedStep[] | StepRefusal> {
-  const steps = requests.map((r) => ({ orbital: r.orbital, trait: r.trait, event: r.event, payload: r.payload, from: r.from, ...(r.entity !== undefined ? { entity: r.entity } : {}), ...(r.config !== undefined ? { config: r.config } : {}), ...(r.now !== undefined ? { now: r.now } : {}), ...(r.settleMs !== undefined ? { settleMs: r.settleMs } : {}), ...(r.viewer !== undefined ? { viewer: r.viewer } : {}) }));
+  const steps = requests.map((r) => ({ orbital: r.orbital, trait: r.trait, event: r.event, payload: r.payload, from: r.from, ...(r.entity !== undefined ? { entity: r.entity } : {}), ...(r.config !== undefined ? { config: r.config } : {}), ...(r.now !== undefined ? { now: r.now } : {}), ...(r.settleMs !== undefined ? { settleMs: r.settleMs } : {}), ...(r.identity !== undefined ? { identity: r.identity } : {}) }));
   return withTempFile('program.orb', JSON.stringify(program), async (path) => {
     const run = await runOrb(['execute', path, '--steps', JSON.stringify(steps), '--played', ...(live ? ['--live'] : [])], opts);
     return decodePlayedOutput(run);

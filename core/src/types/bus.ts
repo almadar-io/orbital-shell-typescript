@@ -459,8 +459,8 @@ export interface ServiceHostPorts {
   deliverInbound?(name: string, delivery: { headers: Readonly<Record<string, string>>; rawBody: string }): Promise<{ status: number; body: string }>;
   /** The host's last `steps` traced dispatch steps, oldest first; a host that keeps no trace leaves it out. */
   trace?(steps: number): JsonValue[];
-  /** A `program/resolve-rows` ask: `reference` resolved for the viewer the call names (`null` is anonymous), `@read` applied by the kernel's one resolver. */
-  resolveRows?(reference: RowSetRef, viewer: UserContext | null): Promise<RowQueryPage>;
+  /** A `program/resolve-rows` ask: `reference` resolved for the identity bound to `clientId`'s session (none: the anonymous viewer), `@read` applied by the kernel's one resolver. */
+  resolveRows?(reference: RowSetRef, clientId: string | undefined): Promise<RowQueryPage>;
   /**
    * Deliver one message of the running call to the caller's tab, live, as the
    * call site's `emit.onMessage` event source-stamped to the caller. A no-op

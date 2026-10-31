@@ -1,6 +1,5 @@
 import type { EmitRecord, JsonValue, Scenario, ScenarioFixture, ScenarioStep, TraceStep } from './types.js';
 
-export const DEFAULT_VIEWER = '{"id":"viewer-1","name":"Dev Viewer","email":"viewer@example.com","role":""}';
 export const SINGLETON_ENTITY = 'singleton';
 export const KERNEL_CLIENT_ID = 'bench';
 
@@ -8,7 +7,6 @@ export const KERNEL_CLIENT_ID = 'bench';
 export interface KernelHandle {
   dispatch(traitName: string, entityId: string | undefined, event: string, payloadJson: string): string;
   getState(traitName: string, entityId: string): string;
-  setCurrentUser(userJson: string): void;
   free(): void;
 }
 

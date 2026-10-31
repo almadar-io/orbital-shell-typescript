@@ -87,8 +87,7 @@ import type { MountSeed } from "@almadar/core";
 import type { ProgramSurface, TraitSurface } from "@almadar/core/kernel-wire";
 import { dispatchDeclaredInput } from "@almadar/shell-runtime";
 import { dispatchInbound } from "@almadar/shell-runtime";
-import { asEventId, asTraitId, normalizeUserContext, orbitalInlineEntities, ANONYMOUS_USER
-} from "@almadar/core";
+import { asEventId, asTraitId, orbitalInlineEntities } from "@almadar/core";
 import { defaultCallService } from "@almadar/shell-runtime";
 import { KernelEngine, type InboundContract, type KernelHostPorts } from "@almadar/shell-runtime";
 import { kernelEventRequestParser, kernelOsCompletions, kernelOsGrants, kernelOsTls, type OsGrantPort, type OsHostPort } from "@almadar/shell-runtime";
@@ -211,19 +210,6 @@ export interface OrbitalServerRuntimeConfig {
    * those effects fail explicitly ("no program host configured").
    */
   programHost?: { cwd: string; orbBin?: string };
-  /**
-   * The persona a preview or verification run is looking at the app AS.
-   *
-   * `@user.id` / `@user.role` are what an app's ownership scoping and role
-   * gates resolve against, so with no user every predicate takes its negative
-   * branch and every owner filter matches nothing. A dev host (playground,
-   * runtime-verify) sets it to make both branches reachable.
-   *
-   * Never an HTTP request's identity: `router()` resolves every request from
-   * its verified token (or anonymous). It is the viewer for in-process calls,
-   * and ticks.
-   */
-  defaultUser?: UserContext;
   /**
    * The initialised `@almadar/kernel` module that decides execution and whose I/O this runtime answers with its
    * persistence, service and program-host adapters. Absent, the runtime loads the installed `@almadar/kernel` itself
@@ -383,11 +369,7 @@ export class OrbitalServerRuntime {
   private tickRelayTimer: ReturnType<typeof setTimeout> | null = null;
   constructor(config: OrbitalServerRuntimeConfig) {
     installNodeHostPorts();
-    this.config = {
-      ...config,
-      // `@user` is never Null: a host that named no viewer and has no sign-in serves the unauthenticated viewer.
-      defaultUser: config.defaultUser ?? ANONYMOUS_USER,
-    };
+    this.config = { ...config };
     this.eventBus = new EventBus();
 
 
@@ -602,15 +584,13 @@ export class OrbitalServerRuntime {
         if (op !== 'program/live') return undefined;
         const first = args[0];
         const options = first !== null && typeof first === 'object' && !Array.isArray(first) ? first : {};
-        const rawViewer = options['viewer'];
-        const viewer = rawViewer !== null && typeof rawViewer === 'object' && !Array.isArray(rawViewer) ? rawViewer : null;
         const clientId = typeof options['clientId'] === 'string' ? options['clientId'] : undefined;
         return {
           subscribe: (message) => {
             const engine = this.requireKernelEngine();
             const stream = clientId !== undefined ? engine.openSessionStream(clientId) : undefined;
             const receive = (item: LiveBroadcastItem): void => {
-              if (engine.liveItemDelivered(item, viewer, clientId)) message(toPayloadValue({ event: item.event, ...(item.payload !== undefined ? { payload: item.payload } : {}), source: item.source }));
+              if (engine.liveItemDelivered(item, clientId)) message(toPayloadValue({ event: item.event, ...(item.payload !== undefined ? { payload: item.payload } : {}), source: item.source }));
             };
             this.liveSubscribers.add(receive);
             return () => {
@@ -628,7 +608,6 @@ export class OrbitalServerRuntime {
         targetTrait: call.traitName,
         ...(call.entityId !== undefined ? { entityId: call.entityId } : {}),
         ...(call.originClientId !== undefined ? { clientId: call.originClientId } : {}),
-        ...(call.user !== undefined ? { user: call.user } : {}),
         ...(call.locale !== undefined ? { locale: call.locale } : {}),
       }),
     };
@@ -911,16 +890,6 @@ export class OrbitalServerRuntime {
   }
 
   /**
-   * Switch the viewer a dev host presents the app as — see
-   * `OrbitalServerRuntimeConfig.defaultUser`. Pass `undefined` for an
-   * unauthenticated viewer. Takes effect on the next event; an authenticated
-   * request still overrides it.
-   */
-  setDefaultUser(user: UserContext | undefined): void {
-    this.config.defaultUser = user;
-  }
-
-  /**
    * A tick-stamped dispatch is a latest-state broadcast (T6): the kernel coalesces it with the others of the window
    * (newest per origin client, orbital and event) and says how long the window stays open; this host only runs
    * the timer.
@@ -943,24 +912,15 @@ export class OrbitalServerRuntime {
   }
 
   /**
-   * The registered app's declared persona roster: the live rows of its
-   * `[identity]` entity, mapped onto viewers (`Almadar_LOLO_Identity.md` §4.3).
-   * Live-store rows rather than a re-derivation, so the roster carries the ids
-   * ownership scoping actually compares `@user.id` against. Empty when no
-   * schema is registered or the app declares no `[identity]` entity — there is
-   * no global fallback roster by design.
-   */
-  /**
-   * `reference` resolved for `user` against the store as it is now: the rows that still match its query and the
-   * viewer's `@read`, in the reference's order, `total` re-counted. The kernel resolves through its server
+   * `reference` resolved for the identity bound to `clientId`'s session (none: the anonymous viewer) against the store as it is now: the rows that still match its query and that identity's `@read`, in the reference's order, `total` re-counted. The kernel resolves through its server
    * resolve flight. A client reaches it with
-   * `POST /:orbital/../resolve-rows` as the signed-in viewer.
+   * `POST /:orbital/../resolve-rows`.
    */
-  async resolveRows(reference: RowSetRef, user: UserContext | null): Promise<RowQueryPage> {
+  async resolveRows(reference: RowSetRef, clientId: string | undefined): Promise<RowQueryPage> {
     const engine = this.kernelEngine;
     const owner = engine === null ? undefined : engine.entityOwnerOrbital(reference.entityType);
     if (engine === null || owner === undefined) throw new Error(`${reference.entityType}: no registered orbital declares this entity`);
-    return engine.resolveRows(reference, { orbital: owner, ...(user !== null ? { user } : {}) });
+    return engine.resolveRows(reference, { orbital: owner, ...(clientId !== undefined ? { originClientId: clientId } : {}) });
   }
 
   // ==========================================================================
@@ -1071,7 +1031,7 @@ export class OrbitalServerRuntime {
       readableEntities: () => this.kernelEngine?.readableEntities() ?? [],
       dispatchInput: (orbital, request) => {
         assertReentry?.();
-        return this.dispatchExternalInput(orbital, { ...request, ...(user !== undefined ? { user } : {}) });
+        return this.dispatchExternalInput(orbital, request);
       },
       read: async (entity) => {
         return this.requireKernelEngine().readRows(entity, await this.persistence.list(entity), user);
@@ -1079,23 +1039,22 @@ export class OrbitalServerRuntime {
       supportsDispatchStream: true,
       dispatchRequest: (orbital, request, input, stream) => {
         assertReentry?.();
-        return this.dispatchEventRequest(orbital, request, input, user, stream);
+        return this.dispatchEventRequest(orbital, request, input, stream);
       },
       deliverInbound: (name, delivery) => this.deliverInbound(name, delivery),
-      resolveRows: (reference, viewer) => this.resolveRows(reference, viewer),
+      resolveRows: (reference, clientId) => this.resolveRows(reference, clientId),
     };
   }
 
   /**
    * A `program/dispatch` event request, as the events route (or with `input`, the inputs route) runs it: the
-   * request's own `user` is its viewer, else the caller's. An unknown orbital is `ORBITAL_NOT_FOUND`, an undeclared
+   * runs as the session's identity, never a viewer the request names. An unknown orbital is `ORBITAL_NOT_FOUND`, an undeclared
    * locale `LOCALE_NOT_DECLARED`; an inbound-only event and an undeclared input are the routes' refusals.
    */
   async dispatchEventRequest(
     orbital: string,
     parsed: EventRequest,
     input: boolean,
-    caller: UserContext | undefined,
     stream = false,
   ): Promise<DispatchRequestOutcome> {
     const request: EventRequest = parsed;
@@ -1108,7 +1067,6 @@ export class OrbitalServerRuntime {
     if ((await this.resolveRegisteredOrbital(orbital)) === undefined) {
       return { ok: false, error: `Orbital not found: ${orbital}`, code: 'ORBITAL_NOT_FOUND', status: 404 };
     }
-    const user = request.user ?? caller;
     if (input) {
       if (request.targetTrait === undefined) {
         return { ok: false, error: 'program/dispatch: an input request names its trait', code: 'NO_TRAIT', status: 400 };
@@ -1118,13 +1076,12 @@ export class OrbitalServerRuntime {
         event: request.event,
         ...(request.payload !== undefined ? { payload: request.payload } : {}),
         ...(request.entityId !== undefined ? { entityId: request.entityId } : {}),
-        ...(user !== undefined ? { user } : {}),
       }, onPush);
       return answer(response);
     }
     const refusal = this.refuseInboundOnly(orbital, request);
     if (refusal !== undefined) return answer(refusal);
-    const response = await this.processOrbitalEvent(orbital, user !== undefined ? { ...request, user } : request, onPush);
+    const response = await this.processOrbitalEvent(orbital, request, onPush);
     if (response.rejections?.[0]?.code === 'locale-not-declared') {
       return { ok: false, error: response.error ?? 'the locale is not declared', code: 'LOCALE_NOT_DECLARED', status: 400 };
     }
@@ -1267,10 +1224,6 @@ export class OrbitalServerRuntime {
       ),
     }));
 
-    // The viewer this event is executed as. A request's own authenticated
-    // user always wins; `defaultUser` only fills the gap for a dev host
-    // that has no auth (see the config field's doc).
-    const viewer = normalizeUserContext(request.user) ?? this.config.defaultUser;
     // This host HOLDS every trait's state, so it runs every listener itself
     // (G-RUNTIME-031's off-page listeners included); the client's mounted
     // set only scopes which renders come back (`_activeTraits`, read by the
@@ -1279,7 +1232,6 @@ export class OrbitalServerRuntime {
     const response = await evaluateOnKernel(
       { engine: this.requireKernelEngine(), orbital: registered.schema.name, ...(onPush !== undefined ? { onStream: (item: EventStreamItem): void => { if (item.type === 'event' || item.type === 'effect') onPush(item); } } : {}) },
       request,
-      viewer,
       request.locale,
     );
 

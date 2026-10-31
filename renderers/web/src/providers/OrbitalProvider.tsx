@@ -9,7 +9,6 @@
  * - ThemeProvider - Theme and color mode management
  * - EventBusProvider - Page-scoped event pub/sub
  * - SelectionProvider - Selected entity tracking
- * - UserProvider - the viewer `@user.x` bindings resolve against
  *
  * Entity data flows through props (via enrichFromResponse in ServerBridge),
  * not through context. FetchedDataProvider has been removed.
@@ -24,7 +23,6 @@ import { EventBusProvider } from '../core';
 import { SelectionProvider } from './SelectionProvider';
 import { SuspenseConfigProvider, type SuspenseConfig } from '../components/core/organisms/UISlotRenderer';
 import { VerificationProvider } from './VerificationProvider';
-import { UserProvider, type UserData } from './UserContext';
 import { EditorFocusProvider } from './EditorFocusContext';
 
 // ============================================================================
@@ -78,16 +76,6 @@ export interface OrbitalProviderProps {
    * preview's events don't clobber the host's global bus). Default false.
    */
   isolated?: boolean;
-
-  /**
-   * The signed-in viewer. Generated trait hooks read `@user.x` through
-   * `useUser()`, so without this every role gate takes its negative branch and
-   * every ownership-scoped list renders empty — silently, since `useUser()`
-   * falls back to anonymous rather than throwing
-   * (U-USERPROVIDER-MOUNTED-NOWHERE). Mounting the provider here means every
-   * host that already wraps its app in OrbitalProvider only has to pass the user.
-   */
-  user?: UserData | null;
 }
 
 // ============================================================================
@@ -153,7 +141,6 @@ export function OrbitalProvider({
   suspense = false,
   verification,
   isolated = false,
-  user = null,
 }: OrbitalProviderProps): React.ReactElement {
   const suspenseConfig: SuspenseConfig = useMemo(
     () => ({ enabled: suspense }),
@@ -163,13 +150,11 @@ export function OrbitalProvider({
   const inner = (
     <EventBusProvider debug={debug} isolated={isolated}>
       <VerificationProvider enabled={verification}>
-        <UserProvider user={user}>
-          <SelectionProvider debug={debug}>
-            <SuspenseConfigProvider config={suspenseConfig}>
-              <EditorFocusProvider>{children}</EditorFocusProvider>
-            </SuspenseConfigProvider>
-          </SelectionProvider>
-        </UserProvider>
+        <SelectionProvider debug={debug}>
+          <SuspenseConfigProvider config={suspenseConfig}>
+            <EditorFocusProvider>{children}</EditorFocusProvider>
+          </SuspenseConfigProvider>
+        </SelectionProvider>
       </VerificationProvider>
     </EventBusProvider>
   );

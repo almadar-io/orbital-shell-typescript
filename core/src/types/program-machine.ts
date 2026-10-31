@@ -201,6 +201,6 @@ export const PlayedStepSchema: z.ZodType<PlayedStep> = z.object({
   config: JsonRecordSchema.optional(),
   now: z.number().optional(),
   settleMs: z.number().optional(),
-  viewer: JsonRecordSchema.nullable().optional(),
+  identity: z.object({ subject: z.string(), claims: JsonRecordSchema }).optional(),
   credentials: z.record(z.string(), z.string()).optional(),
 });

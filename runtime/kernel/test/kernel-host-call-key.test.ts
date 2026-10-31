@@ -3,6 +3,8 @@ import type { EventPayload, PersistenceAdapter } from '@almadar/core';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 import { answerRequest, kernelEventRequestParser, type DeferredCallOutcome, type KernelCallService, type KernelHostPorts } from '../src/kernel/host.js';
 import { decodeRequest } from '../src/kernel/decode.js';
+import { kernelRequest } from '../src/kernel/engine.js';
+import { dispatchDeclaredInput } from '../src/client/declared-input-dispatch.js';
 
 const untouched = (): never => { throw new Error('the host store was not expected to be asked'); };
 const persistence: PersistenceAdapter = { getById: untouched, list: untouched, create: untouched, update: untouched, delete: untouched };
@@ -73,5 +75,23 @@ describe('kernelEventRequestParser', () => {
 
   it('control: the kernel refusing the record is the reason, never a request', () => {
     expect(parser({}, { orbital: 'Main' })).toEqual({ error: 'program/dispatch: not an event request: missing field `event`' });
+  });
+});
+
+describe('no host names the viewer (EXEC-IDENTITY-1, -4)', () => {
+  it('the request the kernel takes drops a user the caller named and keeps the locale', () => {
+    const taken = kernelRequest({ event: 'GO', user: { uid: 'mallory' }, payload: { a: 1 } }, 'ar');
+    expect(taken).toEqual({ event: 'GO', payload: { a: 1 }, locale: 'ar' });
+  });
+
+  it('control: a request that names no user passes unchanged', () => {
+    expect(kernelRequest({ event: 'GO' }, undefined)).toEqual({ event: 'GO' });
+  });
+
+  it('a declared input is sent without the user its caller named', async () => {
+    const sent: object[] = [];
+    const contract = { findExternalInput: () => ({ orbital: 'O', trait: 'T', event: 'GO' }) };
+    await dispatchDeclaredInput(contract, 'O', { targetTrait: 'T', event: 'GO', user: { uid: 'mallory' } }, async (_o, r) => { sent.push(r); return { success: true, transitioned: true, states: {}, emittedEvents: [] }; });
+    expect(sent).toEqual([{ event: 'GO', payload: {}, targetTrait: 'T' }]);
   });
 });

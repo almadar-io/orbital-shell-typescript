@@ -5,7 +5,7 @@ import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import { bundleSizes } from './kernel-bundle.js';
-import { dispatchTraceStep, DEFAULT_VIEWER, KERNEL_CLIENT_ID, orbitalTraitNames, type KernelHandle } from './kernel-trace.js';
+import { dispatchTraceStep, KERNEL_CLIENT_ID, orbitalTraitNames, type KernelHandle } from './kernel-trace.js';
 import type { ColdStartSample, HarnessMeasurements, MemorySample, Scenario, ScenarioFixture, ScenarioHarness, ScenarioSession, ScenarioStep, TraceStep } from './types.js';
 
 const execFileAsync = promisify(execFile);
@@ -60,7 +60,6 @@ const mod = await import(new URL('pkg/orbital_wasm.js', 'file://' + dir + '/').h
 mod.initSync({ module: readFileSync(dir + '/pkg/orbital_wasm_bg.wasm') });
 const t1 = performance.now();
 const kernel = new mod.Kernel(JSON.stringify(schema), 'bench');
-kernel.setCurrentUser('${DEFAULT_VIEWER}');
 const t2 = performance.now();
 kernel.dispatch(trait, undefined, event, JSON.stringify(payload));
 for (const name of orbitalTraits) kernel.getState(name, 'singleton');
@@ -102,7 +101,6 @@ export class R2Harness implements ScenarioHarness {
     if (loaded === null) throw new Error('R2: @almadar/kernel is not available');
     const start = performance.now();
     const kernel = new loaded.module.Kernel(JSON.stringify(fixture.schema), KERNEL_CLIENT_ID);
-    kernel.setCurrentUser(DEFAULT_VIEWER);
     const session = new R2Session(kernel, loaded.wasm, orbitalTraitNames(fixture, scenario));
     session.openMs = performance.now() - start;
     return session;

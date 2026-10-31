@@ -36,9 +36,10 @@ export interface KernelServerHandle {
   /** The live stream `id` dropped; the kernel frees its session once all have dropped and it is quiet. */
   closeSessionStream(id: number): boolean;
   dispatchStream(): string;
-  liveItemDelivered(itemJson: string, viewerJson: string, clientId?: string): boolean;
-  /** A row-set reference resolved for a viewer through the host-answered store; a `ResolveProgressWire` as JSON. */
-  resolveRows(refJson: string, viewerJson: string): string;
+  /** Whether a live item reaches `clientId`'s session: addressed to it and admitted by `@read` for the identity that session bound. */
+  liveItemDelivered(itemJson: string, clientId?: string): boolean;
+  /** A row-set reference resolved through the host-answered store for the identity `clientId`'s session bound (the anonymous viewer with none); a `ResolveProgressWire` as JSON. */
+  resolveRows(refJson: string, clientId?: string): string;
   resumeResolve(flight: number, repliesJson: string): string;
   abandon(flight: number): boolean;
   /** `OsGrants::allows` over the grants the registered program declares; `requirementJson` is an `OsRequirement`. */
@@ -53,7 +54,6 @@ export interface KernelServerHandle {
   osResolveArgs(op: string, argsJson: string): string;
   inFlight(): number;
   getState(traitName: string, entityId?: string): string;
-  setDefaultUser(userJson: string): void;
   /** The kernel's mounts for a host start on `side` (`client|server|process|start`): `MountSeed[]` as JSON. */
   bootMounts(side: string): string;
   /** The kernel's mounts for a client opening `routePath`: `MountSeed[]` as JSON. */

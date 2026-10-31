@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
-import { DEFAULT_VIEWER } from './kernel-trace.js';
 import { FloorRecorder, type FloorKernelModule, type FloorServer, type FloorWasm, type RecordedStep } from './floor-recording.js';
 import type { MemorySample, Scenario, ScenarioFixture, ScenarioHarness, ScenarioSession, ScenarioStep, TraceStep } from './types.js';
 
@@ -114,7 +113,6 @@ export class F2Harness extends FloorHarness {
     const { recording, schemaJson } = this.recorder.record(module, fixture, scenario);
     const start = performance.now();
     const server = new module.Server(schemaJson);
-    server.setDefaultUser(DEFAULT_VIEWER);
     const session = new F2Session(server, wasm, scenario.orbital, recordedByStep(recording));
     session.openMs = performance.now() - start;
     return session;

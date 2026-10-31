@@ -161,7 +161,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
         const host = transport;
         if (!host) return Promise.reject(new Error('openBrowserHost: the host is not open yet'));
         assertReentry?.();
-        return dispatchDeclaredInput(kernelEngine, orbital, { ...request, ...(user !== undefined ? { user } : {}) }, async (o, r) => {
+        return dispatchDeclaredInput(kernelEngine, orbital, request, async (o, r) => {
           const response = await host.send(o, r);
           for (const listener of listeners) listener(o, r, response);
           return response;
@@ -194,7 +194,6 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
       targetTrait: call.traitName,
       ...(call.entityId !== undefined ? { entityId: call.entityId } : {}),
       ...(call.originClientId !== undefined ? { clientId: call.originClientId } : {}),
-      ...(call.user !== undefined ? { user: call.user } : {}),
       ...(call.locale !== undefined ? { locale: call.locale } : {}),
     };
     void local.send(call.orbital, request).then((response) => {

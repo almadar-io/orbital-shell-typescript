@@ -22,7 +22,6 @@ import { useArbitraryClassStyles } from '../providers/ArbitraryClassCompiler';
 import { Box } from '../core';
 import { Typography } from '../core';
 import { OrbitalProvider } from '../providers/OrbitalProvider';
-import { useUser, type UserData } from '../providers/UserContext';
 import { CurrentPagePathProvider } from '../providers/CurrentPagePathContext';
 import { VerificationProvider } from '../providers/VerificationProvider';
 import { UISlotProvider, useUISlots } from '../providers/UISlotContext';
@@ -327,14 +326,13 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   // A host that runs the whole program keeps its browser-stored entities; this view opens none.
   const browserStore = useBrowserStore(schema.name ?? 'app', transport?.hostsBrowserStore === true ? NO_ORBITALS : schema.orbitals, locale);
 
-  const viewer = useUser();
   const bridge = useServerBridge();
   const kernelEngine = useKernelEngine();
   const browserRows = useMemo(
     () => (browserStore.status === 'ready' && kernelEngine !== null
-      ? browserRowSets(kernelEngine, { name: schema.name ?? 'app', orbitals: schema.orbitals, ...programStamp(schema) }, browserStore.store, viewer.user ?? undefined)
+      ? browserRowSets(kernelEngine, { name: schema.name ?? 'app', orbitals: schema.orbitals, ...programStamp(schema) }, browserStore.store)
       : undefined),
-    [browserStore, kernelEngine, schema.name, schema.orbitals, viewer.user],
+    [browserStore, kernelEngine, schema.name, schema.orbitals],
   );
   useEffect(() => () => browserRows?.dispose(), [browserRows]);
   const rowSets = useMemo(() => {
@@ -456,12 +454,6 @@ export interface OrbPreviewProps {
    * to walk DealCreate, NoteCompose, etc. on their owning pages.
    */
   initialPagePath?: string;
-  /**
-   * The signed-in viewer — forwarded to `OrbitalProvider`'s `UserProvider` so
-   * `@user.x` resolves in client-side guard and effect evaluation exactly as
-   * it does on the server. Omitted → anonymous.
-   */
-  user?: UserData | null;
   /**
    * What the host's auth provider has resolved the viewer to be. An
    * `access: authenticated` page mounts only on `authenticated`; any other
@@ -608,7 +600,6 @@ export function OrbPreview({
   isolated = false,
   fit = false,
   onPageChange,
-  user = null,
   authority = 'unavailable',
   localFallbackTimeoutMs,
   themeOverride,
@@ -994,7 +985,6 @@ export function OrbPreview({
             transport={transport}
             getAccessToken={getAccessToken}
             initialPagePath={lazyRoute.path}
-            user={user}
             authority={authority}
             isolated={isolated}
             fit={fit}
@@ -1035,7 +1025,7 @@ export function OrbPreview({
           storageKey={`almadar:navstack:${parseResult.schema.name ?? 'preview'}`}
         >
         <NavStackRefBridge apiRef={navStackRef} />
-        <OrbitalProvider initialData={effectiveMockData} skipTheme verification isolated={isolated} user={user}>
+        <OrbitalProvider initialData={effectiveMockData} skipTheme verification isolated={isolated}>
           {onSignOut !== undefined && <SignOutHost onSignOut={onSignOut} />}
           {onSignInAsk !== undefined && <SignInHost onSignInAsk={onSignInAsk} />}
           {onConsentAsk !== undefined && <ConsentHost onConsentAsk={onConsentAsk} />}
@@ -1043,7 +1033,6 @@ export function OrbPreview({
             <PageAccessHost
               access={activePage?.access}
               authority={authority}
-              viewerId={user?.id}
               signIn={parseResult.schema.site?.signIn}
               path={concreteCurrentPath}
               onDenied={handleAccessDenied}

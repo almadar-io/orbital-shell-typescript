@@ -5,9 +5,8 @@ import './helpers/kernel-evaluator.setup.js';
 import { describe, it, expect } from 'vitest';
 import { OrbitalServerRuntime, type LiveBroadcastItem } from '../../src/runtime/OrbitalServerRuntime.js';
 import { describeWithMemoryKernel, memoryKernel, nativeMemory } from './helpers/native-memory.js';
-import type { OrbitalSchema, UserContext } from '@almadar/core';
+import type { OrbitalSchema } from '@almadar/core';
 
-const ALICE: UserContext = { id: 'alice', role: 'member' };
 
 function schema(emit: Record<string, string>): OrbitalSchema {
   return {
@@ -61,7 +60,7 @@ async function setup(emit: Record<string, string>) {
   });
   runtime.setLiveBroadcastSink((item) => items.push(item));
   await runtime.register(schema(emit));
-  const res = await runtime.processOrbitalEvent('AssistantOrbital', { event: 'ASK', targetTrait: 'Assistant', user: ALICE, clientId: 'tab-1' });
+  const res = await runtime.processOrbitalEvent('AssistantOrbital', { event: 'ASK', targetTrait: 'Assistant', clientId: 'tab-1' });
   return { res, items, itemsBeforeReturn: () => itemsBeforeReturn };
 }
 
@@ -101,12 +100,11 @@ function crossOrbitalSchema(): OrbitalSchema {
 }
 
 describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, traitId, emits] call-service live messages', () => {
-  it('a cross-orbital relay hop runs as the requesting viewer, not the default user', async () => {
+  it('a cross-orbital relay hop runs as the session identity, never a user the request names', async () => {
     const principals: Array<string | undefined> = [];
     const runtime = new OrbitalServerRuntime({
       kernel: await memoryKernel(), persistence: await nativeMemory(),
       debug: false,
-      defaultUser: { id: 'default', role: 'member' },
       effectHandlers: {
         callService: async (_service, _action, _params, context) => {
           principals.push(context?.principal);
@@ -115,8 +113,9 @@ describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, trait
       },
     });
     await runtime.register(crossOrbitalSchema());
-    await runtime.processOrbitalEvent('PageOrbital', { event: 'SUBMIT', targetTrait: 'Page', user: ALICE, clientId: 'tab-1' });
-    expect(principals).toEqual(['alice']);
+    await runtime.processOrbitalEvent('PageOrbital', { event: 'SUBMIT', targetTrait: 'Page', clientId: 'tab-1' });
+    expect(principals).toHaveLength(1);
+    expect(principals).not.toContain('alice');
   });
 
   it('a call reached through a cross-orbital relay hop still delivers to the requesting tab', async () => {
@@ -133,7 +132,7 @@ describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, trait
     });
     runtime.setLiveBroadcastSink((item) => items.push(item));
     await runtime.register(crossOrbitalSchema());
-    const res = await runtime.processOrbitalEvent('PageOrbital', { event: 'SUBMIT', targetTrait: 'Page', user: ALICE, clientId: 'tab-1' });
+    const res = await runtime.processOrbitalEvent('PageOrbital', { event: 'SUBMIT', targetTrait: 'Page', clientId: 'tab-1' });
     expect(res.success).toBe(true);
     expect(items.map((i) => [i.event, i.target, i.originClientId, i.source.orbital])).toEqual([
       ['STEP', 'origin', 'tab-1', 'AssistantOrbital'],

@@ -42,7 +42,6 @@ export interface KernelInstance {
   /** The config the kernel binds as `@config` for a registered trait (JSON text); throws for an unregistered one. */
   traitConfig(traitName: string): string;
   getState(traitName: string, entityId?: string): string;
-  setCurrentUser(userJson: string): void;
   /** The viewer's locales (`string[]`, the first is painted) and their catalogs (`{ [locale]: { [key]: text } }`) for `i18n/t`. */
   setMessages(localesJson: string, catalogsJson: string): void;
   /** The host runs the listeners of every emit it marks `dispatched` (the JS runtime, `orbital-server`). */

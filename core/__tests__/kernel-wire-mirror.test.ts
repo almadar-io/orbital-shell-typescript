@@ -161,3 +161,19 @@ describe('kernel wire guards, over the outputs the kernel recorded', () => {
     expect(Wire.isSnapshotWire([])).toBe(false);
   });
 });
+
+describe('a frame delta carries the session identity (EXEC-IDENTITY-4)', () => {
+  const response = (identity: JsonValue | undefined): JsonValue => ({
+    success: true,
+    frames: { session: 'tab', from: 0, to: 1, ops: [['clear']], ...(identity === undefined ? {} : { identity }) },
+  });
+
+  it('decodes a bound identity row and the anonymous marker without dropping them', () => {
+    expect(Wire.decodeEventResponse(response({ user: { id: 'u1', role: 'admin' } })).frames?.identity).toEqual({ user: { id: 'u1', role: 'admin' } });
+    expect(Wire.decodeEventResponse(response({})).frames?.identity).toEqual({});
+  });
+
+  it('control: a delta with no identity stays without one', () => {
+    expect(Wire.decodeEventResponse(response(undefined)).frames?.identity).toBeUndefined();
+  });
+});

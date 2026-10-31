@@ -882,23 +882,6 @@ export {
 } from "./domain.js";
 
 // ============================================================================
-// Interaction Model
-// ============================================================================
-
-export {
-  type InteractionModel,
-  type CreateFlow,
-  type EditFlow,
-  type ViewFlow,
-  type DeleteFlow,
-  type ListInteraction,
-  type InteractionModelInput,
-  InteractionModelSchema,
-  DEFAULT_INTERACTION_MODELS,
-  getInteractionModelForDomain,
-} from "./interaction-model.js";
-
-// ============================================================================
 // Service Types
 // ============================================================================
 
@@ -1403,27 +1386,6 @@ export {
   // The living schema contract
   type LivingOrbitalSchema,
 } from "./living.js";
-
-// ============================================================================
-// Parsed AST (LLM-emit relaxed views of the canonical orbital types)
-// ============================================================================
-
-export {
-  type ParsedOrbital,
-  type ParsedEntity,
-  type ParsedTrait,
-  type ParsedTraitConfig,
-  type ParsedStateMachine,
-  type ParsedState,
-  type ParsedEvent,
-  type ParsedTransition,
-  type ParsedEmitDeclaration,
-  type ParsedListenDeclaration,
-  type ParsedPage,
-  type ParsedDomainContext,
-  type ParsedDesign,
-  type ValidatedOrbital,
-} from "./parsed-ast.js";
 
 // Renderable-content value types for `node`-typed fields/knobs. Type-only
 // re-export (erased at runtime) — `render-ui-edit.ts` imports value helpers

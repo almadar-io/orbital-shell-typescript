@@ -45,8 +45,6 @@ import type { FileValue, RelationConfig } from '../src/types/field.js';
 import { FileValueSchema, RelationConfigSchema } from '../src/types/field.js';
 import type { IdentityLedger, LedgerEntry } from '../src/types/identity.js';
 import { IdentityLedgerSchema, LedgerEntrySchema } from '../src/types/identity.js';
-import type { InteractionModel } from '../src/types/interaction-model.js';
-import { InteractionModelSchema } from '../src/types/interaction-model.js';
 import type { ComputedEventContract, ComputedEventListener, EventListener, EventSource, OrbitalDefinition, OrbitalRefObject, PageRefObject, UseDeclaration } from '../src/types/orbital.js';
 import { ComputedEventContractSchema, ComputedEventListenerSchema, EventListenerSchema, EventSourceSchema, OrbitalDefinitionSchema, OrbitalRefObjectSchema, PageRefObjectSchema, UseDeclarationSchema } from '../src/types/orbital.js';
 import type { OrbitalPage, PageTraitRef } from '../src/types/page.js';
@@ -175,10 +173,6 @@ const _checkIdentityLedger: SchemaCoversType<IdentityLedger, typeof IdentityLedg
 void _checkIdentityLedger;
 const _checkLedgerEntry: SchemaCoversType<LedgerEntry, typeof LedgerEntrySchema> = true;
 void _checkLedgerEntry;
-
-// ─── interaction-model.ts ───
-const _checkInteractionModel: SchemaCoversType<InteractionModel, typeof InteractionModelSchema> = true;
-void _checkInteractionModel;
 
 // ─── orbital.ts ───
 const _checkComputedEventContract: SchemaCoversType<ComputedEventContract, typeof ComputedEventContractSchema> = true;

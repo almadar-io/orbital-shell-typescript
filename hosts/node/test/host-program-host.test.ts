@@ -636,7 +636,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     expect(await runProgramEffect('program/step', [arg(SLEEP('0')), arg(run({})), arg({ live: 'yes' })], opts)).toMatchObject({ ok: false });
   }, 20000);
 
-  it('program/step dispatches as the request viewer', async () => {
+  it('program/step binds the request's test identity as @user', async () => {
     const SEE = { name: 'SeeApp', orbitals: [{ name: 'See',
       entity: { name: 'V', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       pages: [],
@@ -645,7 +645,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
         events: [{ key: 'MINE', name: 'Mine' }],
         transitions: [{ from: 'idle', to: 'idle', event: 'MINE', guard: ['=', '@user.id', 'u1'] }] } }] }] };
     const mine = { orbital: 'See', trait: 'T', from: 'idle', event: 'MINE', payload: {} };
-    const out = await runProgramEffect('program/step', [arg(SEE), arg([{ ...mine, viewer: { id: 'u1' } }, mine])], { cwd: project(), orbBin: ORB });
+    const out = await runProgramEffect('program/step', [arg(SEE), arg([{ ...mine, identity: { subject: 'u1', claims: {} } }, mine])], { cwd: project(), orbBin: ORB });
     expect(out).toMatchObject({ ok: true, result: [{ result: { guard: 'pass' } }, { result: { guard: 'fail' } }] });
   });
 

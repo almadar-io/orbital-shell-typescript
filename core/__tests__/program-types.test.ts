@@ -154,7 +154,7 @@ describe('PlayedStepSchema against the kernel', () => {
   });
 
   it('control: the fixture exercises the request echo, the circuit and the outcomes', () => {
-    expect(steps[0]).toMatchObject({ entity: { owner: 'ann' }, now: 5, viewer: { id: 'u' }, result: { entityAfter: { mode: 'open' }, pendingAsks: [] } });
+    expect(steps[0]).toMatchObject({ entity: { owner: 'ann' }, now: 5, identity: { subject: 'u', claims: {} }, result: { entityAfter: { mode: 'open' }, pendingAsks: [] } });
     expect(steps[0]?.result.outcomes.length).toBe(1);
   });
 });

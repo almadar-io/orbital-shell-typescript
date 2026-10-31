@@ -16,7 +16,6 @@ export * from './src/render-ui-edit';
 // Agent-trace view-model (Trace* render shapes for the studio trace UI)
 export * from './src/agent-trace-view';
 
-export { parseXml, xmlValid, XmlSyntaxError, type XmlValue, type XmlListPaths } from './src/xml';
 
 export {
   base64EncodeBytes,
@@ -111,13 +110,6 @@ export {
   type SchemaDiffChangeset,
   type SchemaDiffSummary,
 } from './src/diff';
-
-// Export schema summarization functions
-export {
-  summarizeSchema,
-  summarizeOrbital,
-  classifyWorkflow,
-} from './src/summarize';
 
 export * from './src/factory/index';
 

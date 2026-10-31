@@ -9,8 +9,9 @@
       "owner": "ann"
     },
     "now": 5,
-    "viewer": {
-      "id": "u"
+    "identity": {
+      "subject": "u",
+      "claims": {}
     },
     "result": {
       "trait": "G",

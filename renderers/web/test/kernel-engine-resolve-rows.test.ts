@@ -41,7 +41,7 @@ function scripted(log: string[], service = false): KernelModule {
     private held = false;
     private readonly queued: Array<{ ticket: number; request: string }> = [];
     private tickets = 100;
-    resolveRows(_ref: string, _viewer: string): string {
+    resolveRows(_ref: string, _clientId?: string): string {
       log.push('resolveRows');
       return JSON.stringify({ status: 'await', flight: 7, requests: [{ id: 0, request: { kind: 'listRows', entityType: 'Ticket' } }] });
     }
@@ -97,7 +97,6 @@ function scripted(log: string[], service = false): KernelModule {
     }
     inFlight(): number { return 0; }
     getState(): string { return ''; }
-    setDefaultUser(): void {}
     mount(): void {}
     remount(): void {}
     mountClient(): void {}
@@ -133,7 +132,7 @@ describe('KernelEngine.resolveRows', () => {
     const persistence = fixtureRows('Ticket', ROWS);
     const log: string[] = [];
     const engine = new KernelEngine(scripted(log), '{}', ports(persistence));
-    const page = await engine.resolveRows(reference, { orbital: 'Main', user: { id: 'u1', role: 'member' } });
+    const page = await engine.resolveRows(reference, { orbital: 'Main' });
     expect(page.rows.map((r) => r.id)).toEqual(['t2', 't5']);
     expect(page.total).toBe(4);
     expect(log).toEqual(['resolveRows', 'resumeResolve 7']);

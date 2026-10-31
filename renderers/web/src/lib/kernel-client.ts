@@ -8,7 +8,7 @@
  *
  * @packageDocumentation
  */
-import type { EmittedEvent, EventPayload, MountSeed, EventRequest, EventResponse, TraitConfig, TransitionRejection, UserContext } from '@almadar/core';
+import type { EmittedEvent, EventPayload, MountSeed, EventRequest, EventResponse, TraitConfig, TransitionRejection } from '@almadar/core';
 import {
   createLocalFold,
   paintResponse,
@@ -73,8 +73,6 @@ export interface KernelClient extends ClientKernel {
   traitState(traitName: string): string | undefined;
   /** The config the kernel binds as `@config` for a trait (render markers resolve against it); `undefined` until the WebAssembly is loaded. */
   traitConfig(traitName: string): TraitConfig | undefined;
-  /** The viewer the kernel binds as `@user`; the trait configs' `@user` forwards are read again after it. */
-  setViewer(user: UserContext): Promise<void>;
 }
 
 /** What entering a page's traits answered: the seeds to mount, and the names of the traits that left. */
@@ -179,11 +177,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   };
   // Mount declarations apply in call order and before any frame that follows them.
   let scopeTail: Promise<void> = Promise.resolve();
-  const declareScope = (apply: (k: KernelInstance) => void): Promise<void> => {
-    const applied = scopeTail.then(() => ready).then(apply);
-    scopeTail = applied.then(() => undefined, () => undefined);
-    return applied;
-  };
 
   const framesSince = (since: number): FrameDelta => {
     if (loaded === undefined) throw new Error('the kernel is not loaded');
@@ -676,10 +669,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       configs.set(traitName, config);
       return config;
     },
-    setViewer: (user) => declareScope((k) => {
-      k.setCurrentUser(JSON.stringify(user));
-      configs.clear();
-    }),
   };
   return client;
 }
