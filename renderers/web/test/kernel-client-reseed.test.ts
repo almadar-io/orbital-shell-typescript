@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { EventRequest, EventResponse } from '@almadar/core';
+import type { EventRequest, EventResponse, TraitDefinition } from '@almadar/core';
 import type { DispatchWire, MountSeed, MountWire, PageCircuit } from '@almadar/core/kernel-wire';
 import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import { SessionEndedError, type EventTransport } from '@almadar/shell-runtime/client/EventTransport';
@@ -158,5 +158,36 @@ describe('kernel client — a mount group with a client-only seed', () => {
   it('control: a group no seed opened a flight for is refused', async () => {
     const client = mountOver(mountOf([seedWire('Picker', 'hybridClientOnly', null)]), []);
     await expect(client.dispatchMount([{ trait: 'Picker', event: 'INIT' }])).rejects.toThrow('carries no flight');
+  });
+});
+
+describe('kernel client — a server answer never rewrites a client trait\'s state (EXEC-DIST-4)', () => {
+  const traitOf = (name: string, to: string): TraitDefinition => ({
+    name,
+    states: [{ name: 'idle', isInitial: true }, { name: to }],
+    transitions: [{ from: 'idle', to, event: 'GO' }],
+  });
+  const boardWire: DispatchWire = {
+    orbital: 'Main', seed: { trait: 'Board', event: 'LOAD' }, response: response({ states: { Board: 'loading' } }), mode: 'hybridClientOnly', snapshot: null,
+    serverLegs: [{ orbital: 'Main', leg: { event: 'RUN', targetTrait: 'Retry', sourceTrait: 'Board', clientId: 'tab-a' } }],
+    alreadyDelivered: [], awaiting: [], foldSeeded: [], statefulLeg: null, flight: 1,
+  };
+  const over = (answer: Partial<EventResponse>) => {
+    const held: Record<string, string> = { Board: 'loading', Retry: 'running' };
+    const kernel: KernelInstance = { ...fakeKernel([]), dispatch: () => JSON.stringify(boardWire), getState: (trait: string) => held[trait] ?? '' };
+    const transport: EventTransport = {
+      register: async () => ({ success: true, carriesCircuitState: false }),
+      unregister: async () => undefined,
+      send: async () => response(answer),
+    };
+    const store = createMemoryCircuitStore([traitOf('Board', 'loading'), traitOf('Retry', 'running')]);
+    return createKernelClient({ instance: Promise.resolve(kernel), store, traitIndex, transport, topology: Promise.resolve({ carriesCircuitState: false }) });
+  };
+
+  it('keeps the client trait loading when the answer lists it idle, and takes the server trait\'s state', async () => {
+    const client = over({ states: { Board: 'idle', Retry: 'running' } });
+    await client.dispatch({ event: 'LOAD', targetTrait: 'Board' });
+    expect(client.store.states.getState('Board')?.currentState).toBe('loading');
+    expect(client.store.states.getState('Retry')?.currentState).toBe('running');
   });
 });

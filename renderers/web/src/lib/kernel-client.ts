@@ -12,7 +12,6 @@ import type { EmittedEvent, EventPayload, MountSeed, EventRequest, EventResponse
 import {
   createLocalFold,
   paintResponse,
-  paintStates,
   traceResponse,
   type CircuitStore,
   type ClientDispatchHooks,
@@ -257,11 +256,11 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   // The mount seeds this client ran, per orbital: what a reconnect mounts again.
   const mountedSeeds = new Map<string, MountSeed[]>();
 
-  /** Fold a host answer through the kernel and paint what the kernel reports: the host's states, then the kernel's own frame delta. */
+  /** Fold a host answer through the kernel and paint what the kernel reports: its own frame delta, then the states it holds (EXEC-DIST-4: a client trait's state is never the host's report). */
   const foldAnswer = async (k: KernelInstance, flight: number, answer: EventResponse): Promise<AppliedWire> => {
     const applied = await foldInOrder(k, flight, answer, '[]', undefined);
-    paintStates(store, answer);
     mirror(applied.response);
+    syncStates(k, Object.keys(answer.states));
     return applied;
   };
 
@@ -345,7 +344,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       for (const routed of applied.serverLegs) {
         queue.push({ orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight: planned.flight });
       }
-      paintStates(store, posted);
       mirror(applied.response);
       if (applied.resync != null) await resyncFrames(k, planned.flight, planned.orbital, sent, applied.resync.since, request);
       syncStates(k, [...Object.keys(posted.states), ...applied.applied.map(([trait]) => trait)]);
@@ -560,7 +558,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       try {
         const applied = await foldInOrder(k, flight, response, '[]', undefined);
         trace(applied.response);
-        paintStates(store, response);
         mirror(applied.response);
         syncStates(k, [...Object.keys(response.states), ...applied.applied.map(([trait]) => trait)]);
         store.notify();

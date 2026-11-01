@@ -16,7 +16,7 @@
 
 import type { A11yProps, EventEmit } from '@almadar/core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import ReactMarkdown, { defaultUrlTransform, type UrlTransform } from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform, type Components, type UrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import { Box } from '../../../../core';
@@ -58,6 +58,135 @@ function containsMath(node: MdNode): boolean {
   if (node.type === 'math' || node.type === 'inlineMath') return true;
   return node.children?.some(containsMath) ?? false;
 }
+
+// One identity per override: an inline map remounts every code block and link each time streamed content grows.
+const STATIC_COMPONENTS: Components = {
+  code({
+    className: codeClassName,
+    children,
+    inline,
+    ...props
+  }: React.ComponentPropsWithoutRef<'code'> & { inline?: boolean }) {
+    if (!inline) {
+      const match = /language-(\w+)/.exec(codeClassName ?? '');
+      const code = String(children).replace(/\n$/, '');
+      // Fenced ```mermaid block — render as a diagram
+      if (match?.[1] === 'mermaid') {
+        return <MermaidDiagram code={code} />;
+      }
+      // Fenced block with a language — render with CodeBlock for syntax highlighting
+      if (match) {
+        return (
+          <CodeBlock
+            code={code}
+            language={toCodeLanguage(match[1])}
+            maxHeight="60vh"
+          />
+        );
+      }
+      // Indented block without language — styled like inline code, flows inline
+      return (
+        <code
+          {...props}
+          className={codeClassName}
+          style={{
+            backgroundColor: 'var(--color-muted)',
+            color: 'var(--color-foreground)',
+            border: '1px solid var(--color-border)',
+            padding: '0.125rem 0.375rem',
+            borderRadius: '0.25rem',
+            fontSize: '0.875em',
+            fontFamily: 'ui-monospace, monospace',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+          }}
+        >
+          {children}
+        </code>
+      );
+    }
+    // Inline code
+    return (
+      <code
+        {...props}
+        className={codeClassName}
+        style={{
+          backgroundColor: 'var(--color-muted)',
+          color: 'var(--color-foreground)',
+          border: '1px solid var(--color-border)',
+          padding: '0.125rem 0.375rem',
+          borderRadius: '0.25rem',
+          fontSize: '0.875em',
+          fontFamily: 'ui-monospace, monospace',
+        }}
+      >
+        {children}
+      </code>
+    );
+  },
+  // Style links
+  a({ href, children, ...props }: React.ComponentPropsWithoutRef<'a'>) {
+    return (
+      <a
+        href={href}
+        {...props}
+        className="text-[var(--color-primary)] hover:underline"
+        target={href?.startsWith('http') ? '_blank' : undefined}
+        rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
+      >
+        {children}
+      </a>
+    );
+  },
+  // Style tables
+  table({ children, ...props }: React.ComponentPropsWithoutRef<'table'>) {
+    return (
+      <div className="overflow-x-auto my-4">
+        <table
+          {...props}
+          className="min-w-full border-collapse border border-[var(--color-border)]"
+        >
+          {children}
+        </table>
+      </div>
+    );
+  },
+  th({ children, ...props }: React.ComponentPropsWithoutRef<'th'>) {
+    return (
+      <th
+        {...props}
+        className="border border-[var(--color-border)] bg-[var(--color-muted)] px-4 py-2 text-left font-semibold"
+      >
+        {children}
+      </th>
+    );
+  },
+  td({ children, ...props }: React.ComponentPropsWithoutRef<'td'>) {
+    return (
+      <td
+        {...props}
+        className="border border-[var(--color-border)] px-4 py-2"
+      >
+        {children}
+      </td>
+    );
+  },
+  // Strip <pre> wrapper so block code renders inline when needed
+  pre({ children }: React.ComponentPropsWithoutRef<'pre'>) {
+    return <>{children}</>;
+  },
+  // Style blockquotes
+  blockquote({ children, ...props }: React.ComponentPropsWithoutRef<'blockquote'>) {
+    return (
+      <blockquote
+        {...props}
+        className="border-l-heavy border-[var(--color-primary)] pl-4 italic text-[var(--color-foreground)] my-4"
+      >
+        {children}
+      </blockquote>
+    );
+  },
+};
 
 export interface MarkdownContentProps extends A11yProps {
   /** The markdown content to render */
@@ -106,6 +235,25 @@ export const MarkdownContent = React.memo<MarkdownContentProps>(
         live = false;
       };
     }, [safeContent, katex]);
+    const components = useMemo<Components>(
+      () => ({
+        ...STATIC_COMPONENTS,
+        mark({ node }) {
+          const id = node?.properties?.dataAnnotationId;
+          const kind = node?.properties?.dataAnnotationKind;
+          return (
+            <TextHighlight
+              highlightType={kind === 'question' ? 'question' : 'note'}
+              annotationId={typeof id === 'string' ? id : undefined}
+              action={annotationEvent}
+            >
+              {node?.children.map((c) => (c.type === 'text' ? c.value : ''))}
+            </TextHighlight>
+          );
+        },
+      }),
+      [annotationEvent],
+    );
     const body = (
       <Box
         {...domPassthrough(rest)}
@@ -138,146 +286,7 @@ export const MarkdownContent = React.memo<MarkdownContentProps>(
             ...(annotations && annotations.length > 0 ? [rehypeAnnotate(annotations)] : []),
             ...(katex !== undefined ? [[katex, { strict: false, throwOnError: false }] as [RehypeKatexPlugin, { strict: boolean; throwOnError: boolean }]] : []),
           ]}
-          components={{
-            code({
-              className: codeClassName,
-              children,
-              inline,
-              ...props
-            }: React.ComponentPropsWithoutRef<'code'> & { inline?: boolean }) {
-              if (!inline) {
-                const match = /language-(\w+)/.exec(codeClassName ?? '');
-                const code = String(children).replace(/\n$/, '');
-                // Fenced ```mermaid block — render as a diagram
-                if (match?.[1] === 'mermaid') {
-                  return <MermaidDiagram code={code} />;
-                }
-                // Fenced block with a language — render with CodeBlock for syntax highlighting
-                if (match) {
-                  return (
-                    <CodeBlock
-                      code={code}
-                      language={toCodeLanguage(match[1])}
-                      maxHeight="60vh"
-                    />
-                  );
-                }
-                // Indented block without language — styled like inline code, flows inline
-                return (
-                  <code
-                    {...props}
-                    className={codeClassName}
-                    style={{
-                      backgroundColor: 'var(--color-muted)',
-                      color: 'var(--color-foreground)',
-                      border: '1px solid var(--color-border)',
-                      padding: '0.125rem 0.375rem',
-                      borderRadius: '0.25rem',
-                      fontSize: '0.875em',
-                      fontFamily: 'ui-monospace, monospace',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {children}
-                  </code>
-                );
-              }
-              // Inline code
-              return (
-                <code
-                  {...props}
-                  className={codeClassName}
-                  style={{
-                    backgroundColor: 'var(--color-muted)',
-                    color: 'var(--color-foreground)',
-                    border: '1px solid var(--color-border)',
-                    padding: '0.125rem 0.375rem',
-                    borderRadius: '0.25rem',
-                    fontSize: '0.875em',
-                    fontFamily: 'ui-monospace, monospace',
-                  }}
-                >
-                  {children}
-                </code>
-              );
-            },
-            mark({ node }) {
-              const id = node?.properties?.dataAnnotationId;
-              const kind = node?.properties?.dataAnnotationKind;
-              return (
-                <TextHighlight
-                  highlightType={kind === 'question' ? 'question' : 'note'}
-                  annotationId={typeof id === 'string' ? id : undefined}
-                  action={annotationEvent}
-                >
-                  {node?.children.map((c) => (c.type === 'text' ? c.value : ''))}
-                </TextHighlight>
-              );
-            },
-            // Style links
-            a({ href, children, ...props }: React.ComponentPropsWithoutRef<'a'>) {
-              return (
-                <a
-                  href={href}
-                  {...props}
-                  className="text-[var(--color-primary)] hover:underline"
-                  target={href?.startsWith('http') ? '_blank' : undefined}
-                  rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
-                >
-                  {children}
-                </a>
-              );
-            },
-            // Style tables
-            table({ children, ...props }: React.ComponentPropsWithoutRef<'table'>) {
-              return (
-                <div className="overflow-x-auto my-4">
-                  <table
-                    {...props}
-                    className="min-w-full border-collapse border border-[var(--color-border)]"
-                  >
-                    {children}
-                  </table>
-                </div>
-              );
-            },
-            th({ children, ...props }: React.ComponentPropsWithoutRef<'th'>) {
-              return (
-                <th
-                  {...props}
-                  className="border border-[var(--color-border)] bg-[var(--color-muted)] px-4 py-2 text-left font-semibold"
-                >
-                  {children}
-                </th>
-              );
-            },
-            td({ children, ...props }: React.ComponentPropsWithoutRef<'td'>) {
-              return (
-                <td
-                  {...props}
-                  className="border border-[var(--color-border)] px-4 py-2"
-                >
-                  {children}
-                </td>
-              );
-            },
-            // Strip <pre> wrapper so block code renders inline when needed
-            pre({ children }: React.ComponentPropsWithoutRef<'pre'>) {
-              return <>{children}</>;
-            },
-            // Style blockquotes
-            blockquote({ children, ...props }: React.ComponentPropsWithoutRef<'blockquote'>) {
-              return (
-                <blockquote
-                  {...props}
-                  className="border-l-heavy border-[var(--color-primary)] pl-4 italic text-[var(--color-foreground)] my-4"
-                >
-                  {children}
-                </blockquote>
-              );
-            },
-          }}
+          components={components}
         >
           {safeContent}
         </ReactMarkdown>
