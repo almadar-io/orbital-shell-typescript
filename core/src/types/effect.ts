@@ -989,6 +989,7 @@ export type KvEffect = [`kv/${string}`, ...SExpr[]];
 export type ApplicationEffect = [`application/${string}`, ...SExpr[]];
 export type AudioEffect = [`audio/${string}`, ...SExpr[]];
 export type AuthEffect = [`auth/${string}`, ...SExpr[]];
+export type IdentityEffect = [`identity/${string}`, ...SExpr[]];
 
 /** Effect operators the std registry declares that had no typed tuple (arity from the registry). */
 export type NotifyEffect = ['notify', SExpr] | ['notify', SExpr, SExpr];
@@ -1048,6 +1049,7 @@ export type TypedEffect =
     | ApplicationEffect
     | AudioEffect
     | AuthEffect
+    | IdentityEffect
     | NotifyEffect
     | SendServerEffect
     | ProbSeedEffect
@@ -1103,7 +1105,7 @@ export const EFFECT_OPERATORS = [
 /** Namespaced effect families (`<family>/<name>`, e.g. `llm/generate`) the {@link Effect} union declares. */
 export const EFFECT_OPERATOR_FAMILIES = [
   'agent', 'os', 'browser', 'llm', 'session', 'trace', 'memory', 'kv',
-  'application', 'audio', 'auth',
+  'application', 'audio', 'auth', 'identity',
 ] as const;
 
 export type EffectOperator = (typeof EFFECT_OPERATORS)[number];

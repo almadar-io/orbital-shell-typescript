@@ -51,7 +51,7 @@ echo "{" > "$overrides"
 first=1
 while read -r dir; do
   pname=$(node -p "require('$dir/package.json').name")
-  if ! (cd "$dir" && pnpm pack --ignore-scripts --pack-destination "$tarballs" 2>&1); then
+  if ! (cd "$dir" && npm_config_ignore_scripts=true pnpm pack --pack-destination "$tarballs" 2>&1); then
     echo "compiled-typecheck: pnpm pack failed for $pname ($dir): build it first"
     exit 1
   fi

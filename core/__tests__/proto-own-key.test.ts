@@ -14,7 +14,7 @@ describe('"__proto__" is an own key wherever a kernel value becomes a JS object'
   });
 
   it('setOwn writes the key as an own data property and leaves the prototype alone', () => {
-    const out: { [key in string]: object } = {};
+    const out: { [key in string]: { x: number } } = {};
     setOwn(out, '__proto__', { x: 1 });
     expect(Object.keys(out)).toEqual(['__proto__']);
     expect(Object.getPrototypeOf(out)).toBe(Object.prototype);

@@ -54,7 +54,6 @@ describe('decodeEventRequest', () => {
       payload: { title: 'New note' },
       entityId: 'note-1',
       targetTrait: 'NotePersistor',
-      user: { id: 'u1', role: 'member' },
       clientId: 'tab-1',
       tick: 'sync',
       sourceTrait: 'InlineButtonRender3',
