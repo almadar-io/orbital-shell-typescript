@@ -320,39 +320,46 @@ export function useTraitStateMachine(
     await settleOutcome(traitName, eventKey, payload, outcome);
   }, [kernel, store, settleOutcome]);
 
+  // The live stream is the session's lifetime (EXEC-DIST-9): its subscriptions are held for the view's life and read
+  // the page now shown through this ref, so a page change never drops the stream.
+  const pushRef = useRef({ traitIndex, kernel, progressAndSettle, deliverAndSettle, settleOutcome });
+  pushRef.current = { traitIndex, kernel, progressAndSettle, deliverAndSettle, settleOutcome };
+
   // Server-pushed events (Almadar_Live_Push.md) reach their listeners through
   // the same settle as a bus-entered dispatch, so they repaint. The kernel decides who hears a push.
   useEffect(() => {
     if (!transport?.subscribe) return;
     return transport.subscribe((emitted, target) => {
+      const { traitIndex: shown, progressAndSettle: progress, deliverAndSettle: deliver } = pushRef.current;
       if (target !== 'origin') {
-        void deliverAndSettle(emitted, 'listeners');
+        void deliver(emitted, 'listeners');
         return;
       }
       // A call-service `onMessage` event is the calling trait's own (like `success`): it runs
       // there, and on any trait that listens to it.
       const caller = emitted.source?.trait;
-      if (caller !== undefined && traitIndex.byName.has(caller)) {
-        void progressAndSettle(caller, emitted.event, emitted.payload);
-        void deliverAndSettle(emitted, 'origin');
+      if (caller !== undefined && shown.byName.has(caller)) {
+        void progress(caller, emitted.event, emitted.payload);
+        void deliver(emitted, 'origin');
         return;
       }
-      void deliverAndSettle(emitted, 'listeners');
+      void deliver(emitted, 'listeners');
     }, { clientId: getTabClientId() });
-  }, [transport, traitIndex, progressAndSettle, deliverAndSettle]);
+  }, [transport]);
 
   // A dispatch the host ran on its own (a declared input) shows here as the host's result; it never
   // runs again in this view.
   useEffect(() => {
     if (!transport?.subscribeHostDispatches) return;
     return transport.subscribeHostDispatches((_orbitalName, request, response) => {
+      const { traitIndex: shown, kernel: running, settleOutcome: settle } = pushRef.current;
       const traitName = request.targetTrait;
-      const ownsFrame = (frame: string): boolean => [...traitIndex.byName.values()].some((entry) => entry.frameKey === frame);
-      if (traitName === undefined || !hostDispatchInView(request, response, (t) => traitIndex.byName.has(t), ownsFrame)) return;
-      void kernel.foldHostDispatch(request, response).then((outcome) =>
-        settleOutcome(traitName, request.event, request.payload, outcome));
+      const ownsFrame = (frame: string): boolean => [...shown.byName.values()].some((entry) => entry.frameKey === frame);
+      if (traitName === undefined || !hostDispatchInView(request, response, (t) => shown.byName.has(t), ownsFrame)) return;
+      void running.foldHostDispatch(request, response).then((outcome) =>
+        settle(traitName, request.event, request.payload, outcome));
     }, { clientId: getTabClientId() });
-  }, [transport, traitIndex, kernel, store, settleOutcome]);
+  }, [transport]);
 
 
   // Mount in one round trip: every entering trait's lifecycle arm runs and

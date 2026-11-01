@@ -21,6 +21,7 @@ function writtenField(delta: FrameDelta | undefined, frame: string, field: strin
 
 function program(name: string, entityName: string, command: string): OrbitalSchema {
   return OrbitalSchemaSchema.parse({
+    typeContractVersion: 1,
     name,
     osGrants: { exec: [command] },
     orbitals: [{
@@ -77,28 +78,28 @@ for (const implementation of implementations) {
         }
       }
       const persistence = new Persistence(new kernel.MemoryStore());
-      const app = KernelEngine.open(kernel, program('App', 'Note', 'parent-only'), ports(persistence));
-      const child = app.forkProgram(program('Control', 'ControlRow', 'child-only'));
+      const app = KernelEngine.open(kernel, program('App', 'Note', '/opt/orb-test/parent-only'), ports(persistence));
+      const child = app.forkProgram(program('Control', 'ControlRow', '/opt/orb-test/child-only'));
       const fork = child.fork();
       try {
         expect(new Set(declared)).toEqual(new Set(['Note', 'AppAux', 'ControlRow', 'ControlAux']));
         for (const current of [child, fork]) {
           expect(current.stateOf('AppTrait')).toBe('');
-          expect(current.osAllows(JSON.stringify({ need: 'exec', command: 'child-only' }))).toBe(true);
-          expect(current.osAllows(JSON.stringify({ need: 'exec', command: 'parent-only' }))).toBe(false);
+          expect(current.osAllows(JSON.stringify({ need: 'exec', command: '/opt/orb-test/child-only' }))).toBe(true);
+          expect(current.osAllows(JSON.stringify({ need: 'exec', command: '/opt/orb-test/parent-only' }))).toBe(false);
           for (const viewer of [{ id: 'owner' }, { id: 'other' }]) {
             const response = await current.evaluate('ControlOrbital', { event: 'GO', payload: { viewer } }, { orbital: 'ControlOrbital' });
             expect(response.emittedEvents.find((event) => event.event === 'CHECKED')?.payload).toEqual({ allowed: viewer.id === 'owner' });
             expect(current.stateOf('ControlTrait')).toBe('done');
             current.reset();
             expect(current.stateOf('ControlTrait')).toBe('idle');
-            expect(current.osAllows(JSON.stringify({ need: 'exec', command: 'child-only' }))).toBe(true);
-            expect(current.osAllows(JSON.stringify({ need: 'exec', command: 'parent-only' }))).toBe(false);
+            expect(current.osAllows(JSON.stringify({ need: 'exec', command: '/opt/orb-test/child-only' }))).toBe(true);
+            expect(current.osAllows(JSON.stringify({ need: 'exec', command: '/opt/orb-test/parent-only' }))).toBe(false);
           }
         }
         expect(app.stateOf('AppTrait')).toBe('idle');
         expect(app.stateOf('ControlTrait')).toBe('');
-        expect(app.osAllows(JSON.stringify({ need: 'exec', command: 'parent-only' }))).toBe(true);
+        expect(app.osAllows(JSON.stringify({ need: 'exec', command: '/opt/orb-test/parent-only' }))).toBe(true);
       } finally {
         fork.dispose();
         child.dispose();
@@ -109,7 +110,7 @@ for (const implementation of implementations) {
       if (!implementation.path || !process.env.ORBITAL_STD_MOCK_SEED) throw new Error('real kernel and resolved std seed program paths are required');
       const kernel = loadRealKernel(implementation.path);
       const seedProgram = OrbitalSchemaSchema.parse(JSON.parse(readFileSync(process.env.ORBITAL_STD_MOCK_SEED, 'utf8')));
-      const appProgram = OrbitalSchemaSchema.parse({ name: 'SeededApp', orbitals: [{
+      const appProgram = OrbitalSchemaSchema.parse({ typeContractVersion: 1, name: 'SeededApp', orbitals: [{
         name: 'Main',
         entity: { name: 'User', collection: 'users', persistence: 'persistent', identity: true,
           fields: [{ name: 'id', type: 'string', required: true }], instances: [{ id: 'viewer' }] },
@@ -156,7 +157,7 @@ for (const implementation of implementations) {
           persistence.clear();
         }
         for (const identityCollection of ['user', 'users']) {
-          const scalarAppProgram = OrbitalSchemaSchema.parse({ name: 'ScalarIdentityContext', orbitals: [{
+          const scalarAppProgram = OrbitalSchemaSchema.parse({ typeContractVersion: 1, name: 'ScalarIdentityContext', orbitals: [{
             name: 'IdentityRows', entity: { name: 'User', identity: true, collection: identityCollection, fields: [{ name: 'id', type: 'string', required: true }] },
             auxiliaryEntities: [{ name: 'Task', collection: 'tasks', fields: [{ name: 'id', type: 'string', required: true }, { name: 'ownerId', type: 'relation', relation: { entity: 'User', cardinality: 'one' } }] }], traits: [],
           }] });
@@ -211,7 +212,7 @@ for (const implementation of implementations) {
       { entity: { name: 'User', identity: true, collection: 'user', fields: [{ name: 'id', type: 'string', required: true }], instances: [{ id: [1] }] } },
       { entity: { name: 'Task', collection: 'tasks', fields: [{ name: 'id', type: 'string', required: true }, { name: 'ownerId', type: 'relation', relation: { entity: 'User', cardinality: 'one' } }] } },
     ] };
-    const appProgram = OrbitalSchemaSchema.parse({ name: 'FreshIdentityContext', orbitals: [{
+    const appProgram = OrbitalSchemaSchema.parse({ typeContractVersion: 1, name: 'FreshIdentityContext', orbitals: [{
       name: 'IdentityRows', entity: { name: 'User', identity: true, collection: 'user', fields: [{ name: 'id', type: 'string', required: true }] },
       auxiliaryEntities: [{ name: 'Task', collection: 'tasks', fields: [{ name: 'id', type: 'string', required: true }, { name: 'ownerId', type: 'relation', relation: { entity: 'User', cardinality: 'one' } }] }], traits: [],
     }] });
@@ -332,11 +333,11 @@ function grantedOrbital(name: string, osGrants?: { exec: string[] }): object {
 
 for (const implementation of implementations) {
   describe.skipIf(!implementation.path)(`KernelEngine.osAllows per orbital (${implementation.name})`, () => {
-    const git = JSON.stringify({ need: 'exec', command: 'git' });
+    const git = JSON.stringify({ need: 'exec', command: '/usr/bin/git' });
     const open = (extra: object) => {
       if (!implementation.path) throw new Error('a real kernel module path is required');
       const kernel = loadRealKernel(implementation.path);
-      const schema = OrbitalSchemaSchema.parse({ name: 'Grants', ...extra, orbitals: [grantedOrbital('A', { exec: ['git'] }), grantedOrbital('B')] });
+      const schema = OrbitalSchemaSchema.parse({ typeContractVersion: 1, name: 'Grants', ...extra, orbitals: [grantedOrbital('A', { exec: ['/usr/bin/git'] }), grantedOrbital('B')] });
       return KernelEngine.open(kernel, schema, ports(new NativeMemoryPersistenceAdapter(new kernel.MemoryStore())));
     };
 
@@ -352,7 +353,7 @@ for (const implementation of implementations) {
     });
 
     it('control: an app-level grant answers every orbital', () => {
-      const engine = open({ osGrants: { exec: ['git'] } });
+      const engine = open({ osGrants: { exec: ['/usr/bin/git'] } });
       try {
         expect(engine.osAllows(git, 'A')).toBe(true);
         expect(engine.osAllows(git, 'B')).toBe(true);

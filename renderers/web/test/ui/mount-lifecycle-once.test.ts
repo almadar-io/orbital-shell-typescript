@@ -5,7 +5,8 @@ import { renderHook, act } from '@testing-library/react';
 import { machineReady } from '../../src/test-support/circuit';
 import { useTraitStateMachine } from '../../src/hooks/useTraitStateMachine';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
-import type { EventPayload, OrbitalId, OrbitalSchema, Trait } from '@almadar/core';
+import type { EventPayload, EventResponse, OrbitalId, OrbitalSchema, Trait } from '@almadar/core';
+import type { EventTransport, EventTransportRegisterResult, HostDispatchListener } from '../../src';
 import { TEST_STAMP } from '../../src/test-support/kernel-engine';
 
 const WITH_INIT = ['Header', 'Detail', 'Sidebar'];
@@ -135,5 +136,105 @@ describe('useTraitStateMachine — once-per-mount lifecycle', () => {
   it('mounts the kernel\'s initial page when the host names no route', async () => {
     const m = await mounted({});
     expect(m.inits('Header')).toBe(1);
+  });
+});
+
+// EXEC-DIST-9: the session lives while its live stream is open, so a page change must not drop the stream.
+class LiveTransport implements EventTransport {
+  open = 0;
+  opened = 0;
+  private dispatches: HostDispatchListener[] = [];
+  register(): Promise<EventTransportRegisterResult> {
+    return Promise.resolve({ success: true, carriesCircuitState: false });
+  }
+  unregister(): Promise<void> {
+    return Promise.resolve();
+  }
+  send(): Promise<EventResponse> {
+    return Promise.resolve({ success: true, transitioned: false, states: {}, emittedEvents: [] });
+  }
+  subscribe(): () => void {
+    return this.hold();
+  }
+  subscribeHostDispatches(onDispatch: HostDispatchListener): () => void {
+    this.dispatches.push(onDispatch);
+    return this.hold();
+  }
+  /** The host ran `trait`'s INIT on its own and painted `main`. */
+  hostDispatch(trait: string): void {
+    const response: EventResponse = {
+      success: true,
+      transitioned: true,
+      states: { [trait]: 'idle' },
+      emittedEvents: [],
+      clientEffectsByTrait: [{ traitName: trait, effect: ['render-ui', 'main', { type: 'box' }] }],
+    };
+    for (const onDispatch of this.dispatches) onDispatch('PageOrbital', { event: 'INIT', targetTrait: trait }, response);
+  }
+  private hold(): () => void {
+    this.open += 1;
+    this.opened += 1;
+    return () => { this.open -= 1; };
+  }
+}
+
+function mountLive(transport: LiveTransport) {
+  const slots = stubSlots();
+  const orbs = orbitals();
+  const hook = renderHook(
+    ({ mountKey }: { mountKey: string }) =>
+      useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals: orbs, mountKey, routePath: ROUTES[mountKey], transport }),
+    { initialProps: { mountKey: 'PageA' } },
+  );
+  const inits = (trait: string) =>
+    slots.render.mock.calls.filter(([arg]) => (arg as { sourceTrait?: string }).sourceTrait === trait).length;
+  return { hook, inits };
+}
+
+describe('useTraitStateMachine — the live stream outlives a page change', () => {
+  it('a page change keeps the push subscriptions it opened at mount, never closing them', async () => {
+    const transport = new LiveTransport();
+    const { hook } = mountLive(transport);
+    await machineReady(hook.result);
+    expect(transport.open).toBe(2);
+    hook.rerender({ mountKey: 'PageB' });
+    await machineReady(hook.result);
+    expect(transport.open).toBe(2);
+    expect(transport.opened).toBe(2);
+  });
+
+  it('control: unmounting the view closes both subscriptions', async () => {
+    const transport = new LiveTransport();
+    const { hook } = mountLive(transport);
+    await machineReady(hook.result);
+    hook.unmount();
+    expect(transport.open).toBe(0);
+  });
+
+  it('a host dispatch after a page change is judged against the page now shown', async () => {
+    const transport = new LiveTransport();
+    const { hook, inits } = mountLive(transport);
+    await machineReady(hook.result);
+    hook.rerender({ mountKey: 'PageB' });
+    await machineReady(hook.result);
+    expect(inits('Sidebar')).toBe(1);
+    await act(async () => {
+      transport.hostDispatch('Sidebar');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(inits('Sidebar')).toBe(2);
+  });
+
+  it('control: a host dispatch for a trait that left with the old page paints nothing', async () => {
+    const transport = new LiveTransport();
+    const { hook, inits } = mountLive(transport);
+    await machineReady(hook.result);
+    hook.rerender({ mountKey: 'PageB' });
+    await machineReady(hook.result);
+    await act(async () => {
+      transport.hostDispatch('Detail');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(inits('Detail')).toBe(1);
   });
 });

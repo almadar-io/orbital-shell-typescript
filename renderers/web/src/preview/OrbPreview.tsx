@@ -288,8 +288,10 @@ function FitToBox({ children, mode = 'box' }: { children: React.ReactNode; mode?
  * When `serverUrl` is provided, wraps with ServerBridgeProvider and
  * forwards events to the server after local processing.
  */
-function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, pageName, routeParams, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, themeOverride }: {
+function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, pageName, routeParams, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, themeOverride, frame }: {
   schema: OrbitalSchema;
+  /** See OrbPreviewProps.frame. */
+  frame: 'contained' | 'page';
   serverUrl?: string;
   transport?: ServerBridgeTransport;
   getAccessToken?: AccessTokenProvider;
@@ -384,7 +386,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
             anchor the bar at the bottom of the viewport. */}
         <OrbitalThemeProvider theme={activeOrbitalTheme} override={themeOverride}>
           <Box className="h-full min-h-full overflow-auto p-4">
-            <UISlotRenderer includeHud hudMode="inline" includeFloating pageKey={pageName} />
+            <UISlotRenderer includeHud hudMode={frame === 'page' ? 'fixed' : 'inline'} includeFloating pageKey={pageName} />
           </Box>
         </OrbitalThemeProvider>
         </TraitInitializer>
@@ -419,6 +421,12 @@ export interface OrbPreviewProps {
   mockData?: EntityData;
   /** Preview container height. Default: '400px'. */
   height?: string;
+  /**
+   * What the preview's slots lay out against. `contained` (default): the host's box, so overlays stay inside it.
+   * `page`: the preview is the host page (a served app), so overlays take the page's fixed layout and the dock pushes
+   * the body.
+   */
+  frame?: 'contained' | 'page';
   /** CSS class for the outer container. */
   className?: string;
   /** Server URL for dual execution (e.g. "/api/orbitals"). When set, events are forwarded to the server. */
@@ -591,6 +599,7 @@ export function OrbPreview({
   schema,
   mockData,
   height = '400px',
+  frame = 'contained',
   className,
   serverUrl,
   transport,
@@ -980,6 +989,7 @@ export function OrbPreview({
             key={lazyRoute.page.orbRef}
             schema={lazyLoad.schema}
             height="100%"
+            frame={frame}
             className="border-0"
             serverUrl={serverUrl}
             transport={transport}
@@ -1041,6 +1051,7 @@ export function OrbPreview({
                 <FitToBox mode={fit === 'content' ? 'content' : 'box'}>
                   <SchemaRunner
                     schema={parseResult.schema}
+                    frame={frame}
                     serverUrl={serverUrl}
                     transport={transport}
                     getAccessToken={getAccessToken}
@@ -1057,6 +1068,7 @@ export function OrbPreview({
               ) : (
                 <SchemaRunner
                   schema={parseResult.schema}
+                  frame={frame}
                   serverUrl={serverUrl}
                   transport={transport}
                   getAccessToken={getAccessToken}

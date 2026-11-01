@@ -52,6 +52,7 @@ function KernelApp(): React.ReactElement | null {
       schema={program}
       transport={transport}
       height="auto"
+      frame="page"
       className="border-0 rounded-none"
       initialPagePath={firstPath.current}
       onPageChange={(path) => navigate(path)}
