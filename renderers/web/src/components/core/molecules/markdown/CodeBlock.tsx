@@ -105,6 +105,15 @@ export type PrismLanguageGrammar = (prism: object) => void;
  *  default (registered with PrismLight), or `null` if no grammar exists. */
 export type CodeLanguageLoader = (lang: string) => Promise<PrismLanguageGrammar | null>;
 
+export type ErrorLineSeverity = 'error' | 'warning';
+
+function errorLineMap(
+  lines: ReadonlyMap<number, ErrorLineSeverity> | Readonly<Record<string, ErrorLineSeverity>> | undefined,
+): ReadonlyMap<number, ErrorLineSeverity> | undefined {
+  if (lines === undefined || lines instanceof Map) return lines;
+  return new Map(Object.entries(lines).map(([line, severity]): [number, ErrorLineSeverity] => [Number(line), severity]));
+}
+
 let codeLanguageLoader: CodeLanguageLoader | null = null;
 
 /** Wire up a dynamic language-grammar loader. Must be called from app source
@@ -367,6 +376,7 @@ import { createLogger } from '@almadar/logger';
 import type { A11yProps, EventEmit, EventKey, EventListen } from "@almadar/core";
 import { domPassthrough } from '../../../../core';
 import { useEditorCapabilities } from './useEditorCapabilities';
+import { SelectionAnnotator } from './SelectionAnnotator';
 import { computeLineDiff } from '../../../../lib/lineDiff';
 
 const log = createLogger('almadar:ui:markdown-code');
@@ -550,9 +560,10 @@ export interface CodeBlockProps extends A11yProps {
    * warning = yellow. Honored by the editable overlay and (GAP-84) by
    * viewer mode's non-diff highlight; pass undefined (default) to disable.
    * The consumer is responsible for computing the path → line map from the
-   * schema + validation results.
+   * schema + validation results. A program authors it as a record of the
+   * line number (as text) to severity, read the same way.
    */
-  errorLines?: Map<number, 'error' | 'warning'>;
+  errorLines?: ReadonlyMap<number, ErrorLineSeverity> | Readonly<Record<string, ErrorLineSeverity>>;
   /** Lines to mark and keep in view (1-based, inclusive): the code of the step a running program just took. */
   highlightLines?: { start: number; end: number };
   // ── Viewer props (absorbed from CodeViewer / DocCodeBlock) ────────────────
@@ -690,6 +701,20 @@ export interface CodeBlockProps extends A11yProps {
    * @tier presentation
    */
   lineNumbers?: boolean;
+  /**
+   * Read-only only: event emitted when the reader picks Ask on code they selected (as `UI:<askEvent>`)
+   * @tier presentation
+   */
+  askEvent?: EventEmit<{ selectedText: string }>;
+  /**
+   * Read-only only: event emitted when the reader picks Note on code they selected (as `UI:<noteEvent>`)
+   * @tier presentation
+   */
+  noteEvent?: EventEmit<{ selectedText: string }>;
+  /** Ask action label (default: translated) */
+  askLabel?: string;
+  /** Note action label (default: translated) */
+  noteLabel?: string;
 }
 
 // ── Diff helpers ─────────────────────────────────────────────────────────────
@@ -826,7 +851,7 @@ function plainCodeColorOf(style: Record<string, React.CSSProperties>): string {
  * non-diff highlight so `errorLines` behaves identically in either context.
  */
 function buildLineProps(
-  errorLines: Map<number, 'error' | 'warning'> | undefined,
+  errorLines: ReadonlyMap<number, ErrorLineSeverity> | undefined,
   extraClassName?: string,
   highlight?: { start: number; end: number },
 ): (lineNumber: number) => React.HTMLProps<HTMLElement> {
@@ -907,7 +932,7 @@ export const CodeBlock = React.memo<CodeBlockProps>(
     className,
     editable = false,
     onChange,
-    errorLines,
+    errorLines: errorLinesProp,
     highlightLines,
     completions,
     assist: assistProvider,
@@ -917,6 +942,10 @@ export const CodeBlock = React.memo<CodeBlockProps>(
     onGoToDefinition,
     diagnosticsCode,
     lineNumbers,
+    askEvent,
+    noteEvent,
+    askLabel,
+    noteLabel,
     // viewer props
     title,
     mode = 'code',
@@ -978,6 +1007,7 @@ export const CodeBlock = React.memo<CodeBlockProps>(
     // `motions`/`operators` document the vocabulary this instance accepts;
     // enforcement lives at the emitting plugin, not here (P1 E3).
     void motions; void operators;
+    const errorLines = useMemo(() => errorLineMap(errorLinesProp), [errorLinesProp]);
     const englishCode = typeof rawCode === 'string' ? rawCode : String(rawCode ?? '');
 
     // ── Natural-language tabs (opt-in) ────────────────────────────────────
@@ -1789,6 +1819,7 @@ export const CodeBlock = React.memo<CodeBlockProps>(
       }));
 
       return (
+        <SelectionAnnotator askEvent={askEvent} noteEvent={noteEvent} askLabel={askLabel} noteLabel={noteLabel}>
         <Card {...domPassthrough(a11yRest)} className={cn('overflow-hidden flex flex-col', className)}>
           <Box className="flex flex-col flex-1 min-h-0">
             {naturalTabStrip}
@@ -1866,6 +1897,7 @@ export const CodeBlock = React.memo<CodeBlockProps>(
             </Box>
           </Box>
         </Card>
+        </SelectionAnnotator>
       );
     }
 
@@ -1889,6 +1921,7 @@ export const CodeBlock = React.memo<CodeBlockProps>(
     ) : null;
 
     return (
+      <SelectionAnnotator askEvent={editable ? undefined : askEvent} noteEvent={editable ? undefined : noteEvent} askLabel={askLabel} noteLabel={noteLabel}>
       <Box {...domPassthrough(a11yRest)} className={`relative group not-prose ${className || ''}`} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         {hasHeader ? (
           <HStack
@@ -2373,6 +2406,7 @@ export const CodeBlock = React.memo<CodeBlockProps>(
           </Box>
         )}
       </Box>
+      </SelectionAnnotator>
     );
   },
   (prev, next) =>
@@ -2412,7 +2446,11 @@ export const CodeBlock = React.memo<CodeBlockProps>(
     prev.onSetMode === next.onSetMode &&
     prev.onKey === next.onKey &&
     prev.motions === next.motions &&
-    prev.operators === next.operators,
+    prev.operators === next.operators &&
+    prev.askEvent === next.askEvent &&
+    prev.noteEvent === next.noteEvent &&
+    prev.askLabel === next.askLabel &&
+    prev.noteLabel === next.noteLabel,
 );
 
 CodeBlock.displayName = 'CodeBlock';

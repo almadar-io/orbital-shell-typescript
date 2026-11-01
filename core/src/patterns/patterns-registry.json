@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-10-31T14:56:40.745Z",
+  "exportedAt": "2026-11-01T18:53:32.308Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -40840,6 +40840,48 @@
           ],
           "description": "Editable only: number the lines in a gutter (lines with errors in red). Default on.",
           "tier": "presentation"
+        },
+        "askEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Read-only only: event emitted when the reader picks Ask on code they selected (as `UI:<askEvent>`)",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "selectedText",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "tier": "presentation"
+        },
+        "noteEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Read-only only: event emitted when the reader picks Note on code they selected (as `UI:<noteEvent>`)",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "selectedText",
+              "type": "string",
+              "required": true
+            }
+          ],
+          "tier": "presentation"
+        },
+        "askLabel": {
+          "types": [
+            "string"
+          ],
+          "description": "Ask action label (default: translated)"
+        },
+        "noteLabel": {
+          "types": [
+            "string"
+          ],
+          "description": "Note action label (default: translated)"
         },
         "enter": {
           "types": [

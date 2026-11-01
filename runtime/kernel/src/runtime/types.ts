@@ -140,14 +140,6 @@ export interface IEventBus {
  * Server: Express, database, integrators
  */
 
-/** What one `http` effect came to: the `<METHOD> <origin><path>` it addressed and, on failure, the declared `emit.failure` event the program routed it to. */
-interface HttpEffectReport {
-    success: boolean;
-    target: string;
-    error?: string;
-    routed?: string;
-}
-
 export interface EffectHandlers {
     /**
      * Emit an event to the event bus.
@@ -235,9 +227,6 @@ export interface EffectHandlers {
      * the instant a real async persistence backend (Firestore) was wired in.
      */
     set: (entityId: string, field: string, value: FieldValue) => void | Promise<void>;
-
-    /** Report the outcome of an `http` effect to the host's effect trace. */
-    httpResult?: (report: HttpEffectReport) => void;
 
     /** Call an external service. `context` carries the caller's identity
      * (the same viewer entity ACL enforces against) so role-gated services

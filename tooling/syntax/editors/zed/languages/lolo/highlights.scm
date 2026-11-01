@@ -85,6 +85,7 @@
     "access-check"
     "call-service"
     "cancel-call"
+    "credential-connect"
     "credential-forget"
     "credential-list"
     "credential-mode"
@@ -97,7 +98,8 @@
     "emit"
     "fetch"
     "fetch-stream"
-    "http"
+    "identity/sign-in"
+    "identity/sign-out"
     "log"
     "navigate"
     "navigate-back"
@@ -106,9 +108,7 @@
     "oauth-connection-forget"
     "oauth-connection-status"
     "persist"
-    "postgres"
     "random-bytes"
-    "redis"
     "render-ui"
     "send-server"
     "set"
@@ -120,6 +120,7 @@
   (#any-of? @keyword
     "and"
     "as"
+    "default"
     "do"
     "fn"
     "if"
@@ -129,7 +130,6 @@
     "or"
     "quasiquote"
     "quote"
-    "typed"
     "unquote"
     "when"))
 

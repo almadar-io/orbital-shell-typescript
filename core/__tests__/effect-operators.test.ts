@@ -17,4 +17,10 @@ describe('EFFECT_OPERATORS', () => {
     expect((EFFECT_OPERATOR_FAMILIES as readonly string[]).includes('kv')).toBe(true);
     expect(literals.has('kv/get')).toBe(false);
   });
+
+  it('has no http effect: HTTP is std-http-client over os/*, so the retired operator is no literal (control: its neighbour stays)', () => {
+    const literals = new Set<string>(EFFECT_OPERATORS);
+    expect(literals.has('http')).toBe(false);
+    expect(literals.has('call-service')).toBe(true);
+  });
 });

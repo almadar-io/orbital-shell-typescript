@@ -8,13 +8,11 @@ Name
 [animation-duration:120s]
 [animation-duration:140s]
 [mask-image:linear-gradient(to_bottom,black_55%,transparent)]
-a
 absolute
 actionLabel
 almadar-std/std-app-hosting-board
 almadar-std/std-aws-board
 almadar-std/std-behavior-playground
-almadar-std/std-ci-run-logs
 almadar-std/std-ci-status
 almadar-std/std-cloud-run-board
 almadar-std/std-llm-spend-board
@@ -85,7 +83,6 @@ file
 flex
 flex-1
 flex-col
-flex-nowrap
 flex-shrink-0
 flex-wrap
 font-bold
@@ -132,8 +129,6 @@ items-stretch
 justify-between
 justify-center
 justify-start
-k
-kernel
 leading-relaxed
 leading-tight
 lg:flex
@@ -272,7 +267,6 @@ rounded-lg
 rounded-md
 rounded-pill
 rounded-xl
-s
 scroll-mt-20
 select-none
 self-start
@@ -284,10 +278,8 @@ shadow-sm
 shared-host
 shrink-0
 sticky
-stopped
 summary
 surface-content
-t
 tabular-nums
 tall
 teams

@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeAll, type Mock } from 'vitest';
 import type { BusEventListener } from '@almadar/core';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MarkdownContent } from '../MarkdownContent';
+import { CodeBlock } from '../CodeBlock';
 import { SegmentRenderer } from '../../../organisms/SegmentRenderer';
 import { EventBusProvider } from '../../../../../core';
 import { useEventBus } from '../../../../../core';
@@ -91,6 +92,50 @@ describe('select-to-annotate', () => {
     selectText(screen.getByText('Hello'));
     fireEvent.keyDown(screen.getByRole('toolbar'), { key: 'Escape' });
     expect(screen.queryByRole('toolbar')).toBeNull();
+  });
+});
+
+describe('CodeBlock select-to-annotate', () => {
+  it('shows Ask/Note on code selected in a read-only block, with line numbers or without', () => {
+    const ask = vi.fn();
+    const note = vi.fn();
+    withBus(
+      <>
+        <div data-testid="viewer"><CodeBlock code="let walk = 1;" language="text" showLineNumbers askEvent="ASK" noteEvent="NOTE" /></div>
+        <div data-testid="standard"><CodeBlock code="fn other() {}" language="text" noteEvent="NOTE" /></div>
+      </>,
+      { ASK: ask, NOTE: note },
+    );
+    const blockRoot = (id: string): Node => {
+      const root = screen.getByTestId(id).firstElementChild?.firstElementChild;
+      if (!root) throw new Error(`no code block in ${id}`);
+      return root;
+    };
+    const viewer = blockRoot('viewer');
+    const standard = blockRoot('standard');
+    selectText(viewer);
+    fireEvent.click(screen.getByRole('button', { name: 'Ask' }));
+    expect(ask).toHaveBeenCalledWith(expect.objectContaining({ payload: { selectedText: expect.stringContaining('let walk = 1;') } }));
+    selectText(standard);
+    expect(screen.queryByRole('button', { name: 'Ask' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Note' }));
+    expect(note).toHaveBeenCalledWith(expect.objectContaining({ payload: { selectedText: expect.stringContaining('fn other() {}') } }));
+  });
+
+  it('control: no declared events, or an editable block, shows no bar', () => {
+    withBus(
+      <>
+        <div data-testid="plain"><CodeBlock code="plain code" language="text" /></div>
+        <div data-testid="typed"><CodeBlock code="typed code" language="text" editable askEvent="ASK" /></div>
+      </>,
+      {},
+    );
+    for (const id of ['plain', 'typed']) {
+      const root = screen.getByTestId(id).firstElementChild;
+      if (!root) throw new Error(`no code block in ${id}`);
+      selectText(root);
+      expect(screen.queryByRole('toolbar')).toBeNull();
+    }
   });
 });
 

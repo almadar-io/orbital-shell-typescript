@@ -700,6 +700,11 @@
     "description": "An effect has an unknown type or is malformed"
   },
   {
+    "code": "ORB_EFF_UNSIGNED_NOT_ENV_GUARDED",
+    "category": "effect",
+    "description": "A jws/verify call with a literal allowUnsigned true sits in a transition that is not env-guarded"
+  },
+  {
     "code": "ORB_EMBED_BRIDGE_EMITS_UNHEARD",
     "category": "embed",
     "description": "An embed bridge re-emits an event on the host that nothing in the program handles"
@@ -885,26 +890,6 @@
     "description": "A host effect is given an option outside the set of options it accepts"
   },
   {
-    "code": "ORB_HTTP_AUTH_INVALID",
-    "category": "http",
-    "description": "An http request auth block has an invalid onUnauthorized value"
-  },
-  {
-    "code": "ORB_HTTP_AUTH_ON_CLIENT",
-    "category": "http",
-    "description": "An authenticated http request is made from a client trait, so its credentials would transit the browser"
-  },
-  {
-    "code": "ORB_HTTP_AUTH_SCHEME_UNKNOWN",
-    "category": "http",
-    "description": "An http auth.scheme is not one of the closed scheme set"
-  },
-  {
-    "code": "ORB_HTTP_BODY_CONFLICT",
-    "category": "http",
-    "description": "An http request declares more than one body form or a body on a GET"
-  },
-  {
     "code": "ORB_HTTP_EGRESS_ENTRY_INVALID",
     "category": "http",
     "description": "An egress allowlist entry is not of the form scheme://host[:port]"
@@ -915,39 +900,9 @@
     "description": "An outbound request targets an origin that is not declared in the program egress list"
   },
   {
-    "code": "ORB_HTTP_METHOD_UNKNOWN",
-    "category": "http",
-    "description": "An http method is not one of the allowed methods"
-  },
-  {
-    "code": "ORB_HTTP_OPTION_UNKNOWN",
-    "category": "http",
-    "description": "An http request uses a key that is not a valid http request option"
-  },
-  {
     "code": "ORB_HTTP_ORIGIN_NOT_STATIC",
     "category": "http",
     "description": "An http origin is not a string literal or a url-typed config knob, so egress cannot be checked"
-  },
-  {
-    "code": "ORB_HTTP_PAGINATE_MAX_MISSING",
-    "category": "http",
-    "description": "An http request with paginate does not declare the required max bound"
-  },
-  {
-    "code": "ORB_HTTP_PATH_INVALID",
-    "category": "http",
-    "description": "An http path is invalid or leaves the declared origin"
-  },
-  {
-    "code": "ORB_HTTP_STREAM_WITHOUT_ON_MESSAGE",
-    "category": "http",
-    "description": "An http stream request omits the required emit.onMessage"
-  },
-  {
-    "code": "ORB_HTTP_TOKEN_ROTATE_INVALID",
-    "category": "http",
-    "description": "An auth.rotate block uses a key that is not a valid rotate key"
   },
   {
     "code": "ORB_ID_AUTHORED_WITHOUT_LEDGER",
@@ -1080,14 +1035,14 @@
     "description": "A wildcard listens route hears every caller's event but its guard never reads the call key in the payload"
   },
   {
+    "code": "ORB_NAV_TARGET_UNDECLARED",
+    "category": "page",
+    "description": "A navigation target stated as a literal path (a navigate effect, a navItems or link href, a navigatesTo) names no page the finished program declares"
+  },
+  {
     "code": "ORB_OAUTH_CLIENT_INVALID",
     "category": "oauth",
     "description": "An OAuth client block uses a key that is not a valid OAuth client key"
-  },
-  {
-    "code": "ORB_OAUTH_ENDPOINT_MISMATCH",
-    "category": "oauth",
-    "description": "An oauth-endpoint is used without an oauth-client auth"
   },
   {
     "code": "ORB_OAUTH_OPTION_UNKNOWN",
@@ -1095,19 +1050,9 @@
     "description": "An oauth-authorize call passes an option that is not recognized"
   },
   {
-    "code": "ORB_OAUTH_OP_UNKNOWN",
-    "category": "oauth",
-    "description": "An oauth effect names an operation that is not an oauth-client op"
-  },
-  {
     "code": "ORB_OAUTH_PROVIDER_UNKNOWN",
     "category": "oauth",
     "description": "The OAuth clients map is keyed by something other than a known provider tag"
-  },
-  {
-    "code": "ORB_OAUTH_REQUEST_CONFLICT",
-    "category": "oauth",
-    "description": "An oauth-client request carries fields other than auth that it may not carry"
   },
   {
     "code": "ORB_ON_DEVICE_EFFECT_ON_SERVER",
@@ -1978,11 +1923,6 @@
     "code": "ORB_X_MISSING_ORBITAL_NAME",
     "category": "cross",
     "description": "An orbital does not declare a name"
-  },
-  {
-    "code": "ORB_X_MIXED_RESIDENCE",
-    "category": "cross",
-    "description": "One transition touches both browser-stored and server-stored entities"
   },
   {
     "code": "ORB_X_ORPHAN_LISTENER",

@@ -167,7 +167,6 @@
     "render-ui",
     "notify",
     "call-service",
-    "http",
     "cancel-call",
     "random-bytes",
     "credential-status",

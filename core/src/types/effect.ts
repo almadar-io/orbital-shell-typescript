@@ -385,7 +385,7 @@ export type CallServiceEmitConfig = {
 };
 
 /**
- * Cancel-call effect - aborts the in-flight keyed call (`call-service`, `http`,
+ * Cancel-call effect - aborts the in-flight keyed call (`call-service`,
  * `browser/prompt` or `browser/embed`) started with that key in the same running
  * app; no-op when none is in flight. The cancelled call emits its `emit.cancelled`
  * event with `{ key }`, never success/failure, and a reply that arrives later is dropped.
@@ -397,19 +397,6 @@ export type CancelCallEffect = ['cancel-call', SExpr];
 export type HostCallEmitConfig = {
     emit?: { success?: string; failure?: string };
 };
-
-/** Request parts of an `http` effect: query, headers, at most one body, auth, retry, timeouts, response and stream options. */
-export type HttpRequestParts = { [part: string]: SExpr };
-
-/**
- * Http effect - `(http METHOD origin path request? options?)`. The origin must be declared in the app's egress;
- * credentials are host-resolved secret knobs. Success carries `{ status, headers, body, key }`. Server-only.
- * @example ['http', 'GET', 'https://api.example.com', '/items', { query: { limit: 10 } }, { emit: { success: 'ITEMS_LOADED', failure: 'ITEMS_FAILED' } }]
- */
-export type HttpEffect =
-    | ['http', SExpr, SExpr, SExpr]
-    | ['http', SExpr, SExpr, SExpr, HttpRequestParts]
-    | ['http', SExpr, SExpr, SExpr, HttpRequestParts, CallServiceEmitConfig];
 
 /** The OAuth client an `oauth-authorize` names: tag, mode, issuer XOR endpoints, secret-knob client credentials, clientAuth. */
 export type OAuthClient = { [field: string]: SExpr };
@@ -780,15 +767,8 @@ export type BrowserTabOperator =
     | 'browser/tab-act'
     | 'browser/tab-capture';
 
-/** The leg of an `http` call that failed: its token-exchange grant or the authored request. */
 /** Public AUTH code of an `oauth` failure. */
 /** Closed reason set of an `oauth` failure. */
-/**
- * Failure payload of an `http` effect; `refused` = rejected before sending, `unavailable` = the host has no port
- * for a capability the call needs. `phase` names the failed leg (null for a refusal or other failure) and
- * `grantStatus`/`grantBody` the status and raw body text of a non-2xx grant reply (never a 2xx body, which carries tokens); `code`/`reason` are set only for `oauth`.
- */
-/** One `onMessage` delivery of an `http` effect with `stream` (json-lines: `event`/`id` null). */
 /**
  * Spawn effect - creates a new entity instance (games).
  * @example ['spawn', 'Bullet', { x: '@entity.x', y: '@entity.y' }]
@@ -1015,7 +995,6 @@ export type TypedEffect =
     | PersistEffect
     | CallServiceEffect
     | CancelCallEffect
-    | HttpEffect
     | OAuthAuthorizeEffect
     | OAuthConnectionStatusEffect
     | OAuthConnectionForgetEffect
@@ -1093,7 +1072,7 @@ export type Effect = TypedEffect;
 
 /** Every literal effect operator the {@link Effect} union declares, as runtime data. */
 export const EFFECT_OPERATORS = [
-  'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'http', 'oauth-authorize', 'oauth-connection-status', 'oauth-connection-forget', 'random-bytes', 'credential-status', 'credential-forget', 'credential-connect', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'spawn',
+  'render-ui', 'navigate', 'navigate-back', 'emit', 'set', 'persist', 'call-service', 'cancel-call', 'oauth-authorize', 'oauth-connection-status', 'oauth-connection-forget', 'random-bytes', 'credential-status', 'credential-forget', 'credential-connect', 'credential-list', 'credential-set', 'credential-remove', 'credential-test', 'credential-mode', 'credential-rotate', 'access-check', 'spawn',
   'despawn', 'do', 'fetch', 'fetch-stream', 'if', 'when', 'let', 'log', 'wait',
   'notify', 'send-server',
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
