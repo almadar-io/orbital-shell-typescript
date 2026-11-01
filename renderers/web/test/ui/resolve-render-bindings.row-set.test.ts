@@ -12,7 +12,7 @@ import {
   type RowSetRef,
 } from '@almadar/core';
 import { resolveRenderBindingMarkers } from '../../src/lib/resolve-render-bindings';
-import { createRowSetResolver } from '../../src/lib/row-set-resolver';
+import { createRowSetResolver, RowSetResolveError } from '../../src/lib/row-set-resolver';
 import type { SlotProps } from '../../src/providers/UISlotContext';
 
 /** A stand-in for the kernel that holds the rows: the ref's ids still present and not hidden from the viewer, the total re-counted. */
@@ -98,6 +98,53 @@ describe('RowSetMarker resolution', () => {
     const before = resolver.resolve(r);
     resolver.rowsChanged('Other');
     expect(resolver.resolve(r)).toBe(before);
+  });
+
+  it('a failed resolve surfaces typed to the slot, never as an empty list', async () => {
+    const resolver = createRowSetResolver({ resolve: async () => { throw new Error('store unreachable'); } });
+    const r = ref(['t1'], 1);
+    const props: SlotProps = { entity: marker(r) };
+    walk(props, resolver);
+    await settle();
+    const res = resolver.resolve(r);
+    expect(res.loading).toBe(false);
+    expect(res.failure).toBeInstanceOf(RowSetResolveError);
+    expect(res.failure?.message).toContain('store unreachable');
+    expect(() => walk(props, resolver)).toThrow(RowSetResolveError);
+  });
+
+  it('notifies subscribers when a resolve fails so the slot repaints', async () => {
+    const resolver = createRowSetResolver({ resolve: async () => { throw new Error('down'); } });
+    let notified = 0;
+    resolver.subscribe(() => { notified += 1; });
+    resolver.resolve(ref(['t1'], 1));
+    await settle();
+    expect(notified).toBe(1);
+  });
+
+  it('recovers when a later rows-changed resolve succeeds', async () => {
+    const kernel = kernelRows(rows(2));
+    let fail = true;
+    const resolver = createRowSetResolver({ resolve: (x) => (fail ? Promise.reject(new Error('down')) : kernel.resolve(x)) });
+    const r = ref(['t1'], 2);
+    const props: SlotProps = { entity: marker(r) };
+    walk(props, resolver);
+    await settle();
+    expect(() => walk(props, resolver)).toThrow(RowSetResolveError);
+    fail = false;
+    resolver.rowsChanged('Task');
+    await settle();
+    expect((walk(props, resolver).entity as EntityRow[]).map((x) => x.id)).toEqual(['t1']);
+  });
+
+  it('control: a successful resolve with zero rows stays an empty list, not a failure', async () => {
+    const resolver = createRowSetResolver({ resolve: kernelRows([]).resolve });
+    const r = ref(['t1'], 0);
+    const props: SlotProps = { entity: marker(r) };
+    walk(props, resolver);
+    await settle();
+    expect(resolver.resolve(r).failure).toBeUndefined();
+    expect(walk(props, resolver).entity).toEqual([]);
   });
 
   it('control: props without a marker keep their identity', () => {

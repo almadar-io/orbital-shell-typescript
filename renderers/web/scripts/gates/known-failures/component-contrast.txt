@@ -1,16 +1,16 @@
 # Ratcheted under G-ORBITAL-SHELL-TYPESCRIPT-103 (theme source tokens in packages/almadar-core/themes/{game-adventure,win95}.json). Delete a line when fixed; the gate fails on any new failure.
-text-foreground on bg-muted 
-hover: text-foreground on bg-muted 
-text-muted-foreground on bg-muted/40 
-text-foreground on bg-warning/10 
-text-foreground on bg-muted/40 
-text-foreground on bg-warning/15 
+text-foreground on bg-muted  G-ORBITAL-SHELL-TYPESCRIPT-103
+hover: text-foreground on bg-muted  G-ORBITAL-SHELL-TYPESCRIPT-103
+text-muted-foreground on bg-muted/40  G-ORBITAL-SHELL-TYPESCRIPT-103
+text-foreground on bg-warning/10  G-ORBITAL-SHELL-TYPESCRIPT-103
+text-foreground on bg-muted/40  G-ORBITAL-SHELL-TYPESCRIPT-103
+text-foreground on bg-warning/15  G-ORBITAL-SHELL-TYPESCRIPT-103
 # Ratcheted under G-ORBITAL-SHELL-TYPESCRIPT-055: status and brand ink (and muted-foreground in game-ui-pack-dark) painted on the page ground; the fix is the theme tokens or an authored ground, not the class. Delete a line when fixed.
-text-warning on page 
-text-accent on page 
-text-primary on page 
-text-info on page 
-text-error on page 
-hover: text-error on page 
-text-success on page 
-text-muted-foreground on page 
+text-warning on page  G-ORBITAL-SHELL-TYPESCRIPT-055
+text-accent on page  G-ORBITAL-SHELL-TYPESCRIPT-055
+text-primary on page  G-ORBITAL-SHELL-TYPESCRIPT-055
+text-info on page  G-ORBITAL-SHELL-TYPESCRIPT-055
+text-error on page  G-ORBITAL-SHELL-TYPESCRIPT-055
+hover: text-error on page  G-ORBITAL-SHELL-TYPESCRIPT-055
+text-success on page  G-ORBITAL-SHELL-TYPESCRIPT-055
+text-muted-foreground on page  G-ORBITAL-SHELL-TYPESCRIPT-055

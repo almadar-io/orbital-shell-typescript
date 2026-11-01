@@ -11,11 +11,21 @@ import type { EntityRow, RowQueryPage, RowSetRef } from '@almadar/core';
 
 const log = createLogger('almadar:ui:row-set-resolver');
 
+/** A row-set reference the kernel could not resolve; distinct from a resolve that answered with zero rows. */
+export class RowSetResolveError extends Error {
+  constructor(readonly entityType: string, cause: string) {
+    super(`row set of ${entityType} could not be resolved: ${cause}`);
+    this.name = 'RowSetResolveError';
+  }
+}
+
 export interface RowSetResolution {
   rows: EntityRow[];
   total: number;
   /** No answer yet for the current data (first resolve, or a refresh in flight). */
   loading: boolean;
+  /** The resolve failed; `rows` is not an answer. Cleared when a later resolve is in flight. */
+  failure?: RowSetResolveError;
 }
 
 /** Where a reference is answered: a kernel that holds the rows and applies `@read` itself. */
@@ -60,6 +70,10 @@ export function createRowSetResolver(opts: RowSetResolverOptions): RowSetResolve
       },
       (error: Error) => {
         log.error('row set resolve failed', { entityType: ref.entityType, error: error.message });
+        if (entry.generation !== generation) return;
+        entry.resolution = { rows: [], total: ref.total, loading: false, failure: new RowSetResolveError(ref.entityType, error.message) };
+        epoch += 1;
+        for (const l of [...listeners]) l();
       },
     );
     entries.set(key, entry);
@@ -77,7 +91,7 @@ export function createRowSetResolver(opts: RowSetResolverOptions): RowSetResolve
     rowsChanged(entityType) {
       for (const [key, entry] of entries) {
         if (entry.ref.entityType !== entityType) continue;
-        entry.resolution = { ...entry.resolution, loading: true };
+        entry.resolution = { rows: entry.resolution.rows, total: entry.resolution.total, loading: true };
         fetchEntry(key, entry);
       }
     },

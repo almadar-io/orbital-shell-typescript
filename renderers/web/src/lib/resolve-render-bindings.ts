@@ -184,7 +184,9 @@ function walkValue(
   if (isRowSetMarker(value)) {
     // A row set resolves through the one resolver; without one the leaf stays raw (nothing can answer it).
     if (rowSets === undefined) return { resolved: value, changed: false };
-    return { resolved: rowSets.resolve(value.ref).rows as SlotPropValue, changed: true };
+    const resolution = rowSets.resolve(value.ref);
+    if (resolution.failure !== undefined) throw resolution.failure;
+    return { resolved: resolution.rows as SlotPropValue, changed: true };
   }
   if (isRenderBindingMarker(value)) {
     const cached = markerResolutionCache.get(value);

@@ -40,7 +40,7 @@ use std::process::Command;
 ///
 /// To run automatically: see `tools/orbital-verify-unified` Phase 2.5.
 #[test]
-#[ignore = "Phase F.6: full codegen typecheck runs out-of-process; see tools/orbital-verify-unified Phase 2.5. Run with --ignored to verify tsc availability."]
+#[ignore = "tool: confirms tsc is on PATH; the full codegen typecheck runs out-of-process, see tools/orbital-verify-unified Phase 2.5"]
 fn codegen_typecheck_stub() {
     // Cheap precondition: when invoked, confirm `tsc` is at least
     // discoverable on $PATH. The actual `--noEmit` run requires emitted
