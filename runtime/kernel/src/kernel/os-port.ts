@@ -23,8 +23,8 @@ export type OsRequirement =
 
 /** The grant decisions the wasm kernel owns (`OsGrants::allows`, the one-grant glob matcher, `is_public_address`). */
 export interface OsGrantPort {
-  /** `OsGrants::allows` over the grants every registered program declares. */
-  allows(need: OsRequirement): boolean;
+  /** `OsGrants::allows` over the grants of `orbital` (its own plus the app level); with no orbital, the app level alone. */
+  allows(need: OsRequirement, orbital?: string): boolean;
   /** Whether the absolute `glob` (`**`, `*`, `?`) matches `path`, as a one-grant `fs_allows` for read. */
   globMatches(glob: string, path: string): boolean;
   /** `is_public_address`: the rule an outbound host name must pass. */
@@ -43,19 +43,20 @@ export interface OsAnchorProblem {
 
 /** What a host answers an `os` ask with; `close` drops every handle it holds, as the native `OsHandles::close_all`. */
 export interface OsHostPort {
-  answer(op: OsOp, args: JsonValue[]): Promise<Settled<JsonValue, OsError>>;
+  /** `orbital` is the orbital whose trait made the ask: its grants (plus the app's) answer it. */
+  answer(op: OsOp, args: JsonValue[], orbital?: string): Promise<Settled<JsonValue, OsError>>;
   /**
    * `Completions::run_later`: a keyed ask of a completion-deferring op. A failed check (or a key already pending) is the
    * in-place `error`; `ok` means the work runs in the background and its outcome reaches `deliver` once, unless
    * the key is cancelled first. A host with no `defer` answers every ask in place.
    */
-  defer?(op: OsOp, args: JsonValue[], key: string, deliver: (outcome: Settled<JsonValue, OsError>) => void): Settled<null, OsError>;
+  defer?(op: OsOp, args: JsonValue[], key: string, deliver: (outcome: Settled<JsonValue, OsError>) => void, orbital?: string): Settled<null, OsError>;
   /**
    * A keyed stream (`OsOp::is_stream`, EXEC-QUEUE-12): the host binds and answers once in place, then hands each message
    * to `message` until it ends; `message` answers `false` when no one takes it any more. A failure after the answer
    * reaches `fail` once. A host with no `stream` answers every stream ask in place, as unsupported.
    */
-  stream?(op: OsOp, args: JsonValue[], key: string, message: (value: JsonValue) => boolean, fail: (error: OsError) => void): Promise<Settled<JsonValue, OsError>>;
+  stream?(op: OsOp, args: JsonValue[], key: string, message: (value: JsonValue) => boolean, fail: (error: OsError) => void, orbital?: string): Promise<Settled<JsonValue, OsError>>;
   /** `OsHandles::cancel_completion`: drop the pending completion of `key`, or stop its stream; `false` when none is open. */
   cancel?(key: string): boolean;
   close(): void;
@@ -121,7 +122,7 @@ export function kernelOsCompletions(kernel: OsCompletionMatchers): OsCompletionP
 
 /** The kernel pieces a grant port is built from: the `Server` handle holding the program's grants and the module-level matchers. */
 export interface OsGrantKernel {
-  osAllows(requirementJson: string): boolean;
+  osAllows(requirementJson: string, orbital?: string): boolean;
   setOsAnchors(anchorsJson: string): string;
   osResolveArgs(op: string, argsJson: string): string;
 }
@@ -134,7 +135,7 @@ export interface OsGrantMatchers {
 /** The grant port over the wasm kernel: every decision is `OsGrants::allows` and the exports beside it. */
 export function kernelOsGrants(matchers: OsGrantMatchers, server: () => OsGrantKernel): OsGrantPort {
   return {
-    allows: (need) => server().osAllows(JSON.stringify(need)),
+    allows: (need, orbital) => server().osAllows(JSON.stringify(need), orbital),
     globMatches: (glob, path) => matchers.osGlobMatches(glob, path),
     isPublicAddress: (ip) => matchers.isPublicAddress(ip),
     anchor: (anchors) => {
@@ -156,6 +157,7 @@ export interface OsAnchors {
   readonly home?: string;
   readonly start?: string;
   readonly exeDir?: string;
+  readonly exe?: string;
   readonly env?: Readonly<Record<string, string>>;
 }
 
@@ -190,6 +192,6 @@ function anchoredForms(anchors: OsAnchors, path: string): string[] {
 export function anchoredGrants(grants: OsGrantPort, anchors: OsAnchors): OsGrantPort {
   return {
     ...grants,
-    allows: (need) => (need.need === 'fs' ? anchoredForms(anchors, need.path).some((path) => grants.allows({ ...need, path })) : grants.allows(need)),
+    allows: (need, orbital) => (need.need === 'fs' ? anchoredForms(anchors, need.path).some((path) => grants.allows({ ...need, path }, orbital)) : grants.allows(need, orbital)),
   };
 }

@@ -316,3 +316,50 @@ for (const implementation of implementations) {
     }
   });
 }
+
+function grantedOrbital(name: string, osGrants?: { exec: string[] }): object {
+  return {
+    name,
+    ...(osGrants !== undefined ? { osGrants } : {}),
+    entity: { name: `${name}Row`, persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+    traits: [{
+      name: `${name}Trait`,
+      linkedEntity: `${name}Row`,
+      stateMachine: { events: [{ key: 'GO', name: 'GO' }], states: [{ name: 'idle', isInitial: true }], transitions: [] },
+    }],
+  };
+}
+
+for (const implementation of implementations) {
+  describe.skipIf(!implementation.path)(`KernelEngine.osAllows per orbital (${implementation.name})`, () => {
+    const git = JSON.stringify({ need: 'exec', command: 'git' });
+    const open = (extra: object) => {
+      if (!implementation.path) throw new Error('a real kernel module path is required');
+      const kernel = loadRealKernel(implementation.path);
+      const schema = OrbitalSchemaSchema.parse({ name: 'Grants', ...extra, orbitals: [grantedOrbital('A', { exec: ['git'] }), grantedOrbital('B')] });
+      return KernelEngine.open(kernel, schema, ports(new NativeMemoryPersistenceAdapter(new kernel.MemoryStore())));
+    };
+
+    it('answers the granted orbital, refuses a sibling and an unnamed caller (twin of the Rust os_grants_per_orbital tests)', () => {
+      const engine = open({});
+      try {
+        expect(engine.osAllows(git, 'A')).toBe(true);
+        expect(engine.osAllows(git, 'B')).toBe(false);
+        expect(engine.osAllows(git)).toBe(false);
+      } finally {
+        engine.dispose();
+      }
+    });
+
+    it('control: an app-level grant answers every orbital', () => {
+      const engine = open({ osGrants: { exec: ['git'] } });
+      try {
+        expect(engine.osAllows(git, 'A')).toBe(true);
+        expect(engine.osAllows(git, 'B')).toBe(true);
+        expect(engine.osAllows(git)).toBe(true);
+      } finally {
+        engine.dispose();
+      }
+    });
+  });
+}

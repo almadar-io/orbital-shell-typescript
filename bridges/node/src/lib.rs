@@ -91,12 +91,12 @@ impl Server {
     }
 
     #[napi]
-    pub fn os_allows(&self, requirement_json: String) -> napi::Result<bool> {
+    pub fn os_allows(&self, requirement_json: String, orbital: Option<String>) -> napi::Result<bool> {
         self.api
             .get()
             .map_err(js)?
             .api()
-            .os_allows(&requirement_json)
+            .os_allows(&requirement_json, orbital.as_deref())
             .map_err(js)
     }
 

@@ -323,9 +323,9 @@ export class KernelEngine {
     return this.handle.liveItemDelivered(JSON.stringify(item), clientId);
   }
 
-  /** `OsGrants::allows` over the grants of the program this kernel runs. */
-  osAllows(requirementJson: string): boolean {
-    return this.handle.osAllows(requirementJson);
+  /** `OsGrants::allows` over the grants of `orbital` in the program this kernel runs (the app level alone with no orbital). */
+  osAllows(requirementJson: string, orbital?: string): boolean {
+    return this.handle.osAllows(requirementJson, orbital);
   }
 
   /** Whether `url`'s origin is declared in the program's `egress` (the kernel's rule). */

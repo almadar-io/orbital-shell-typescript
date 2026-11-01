@@ -40,6 +40,16 @@ describe('raw Node network asks', () => {
     } finally { host.close(); }
   });
 
+  it('answers an ask against its calling orbital\'s grants: the granted orbital is answered, a sibling and an unnamed caller are denied (twin of the Rust os_grants_per_orbital tests)', async () => {
+    const granted = (orbital?: string): boolean => orbital === 'A';
+    const host = createNodeOsHost({ allows: (_need, orbital) => granted(orbital), globMatches: () => false, isPublicAddress: () => false, anchor: () => [], resolveArgs: (_op, args) => ({ ok: args }) });
+    try {
+      expect(await host.answer('os/getenv', ['PATH'], 'A')).toEqual({ ok: { value: process.env.PATH } });
+      expect(await host.answer('os/getenv', ['PATH'], 'B')).toMatchObject({ error: { kind: 'denied' } });
+      expect(await host.answer('os/getenv', ['PATH'])).toMatchObject({ error: { kind: 'denied' } });
+    } finally { host.close(); }
+  });
+
   it('refuses tcp-listen without stream context using the shared canonical host fixture', async () => {
     const fixture: { steps: Array<{ op?: string; key?: string; args?: JsonValue[]; expect?: JsonValue }> } = JSON.parse(readFileSync(new URL('./fixtures/os-asks.json', import.meta.url), 'utf8'));
     const step = fixture.steps.find((entry) => entry.op === 'os/tcp-listen' && entry.key === undefined);

@@ -43,7 +43,7 @@ export interface KernelServerHandle {
   resumeResolve(flight: number, repliesJson: string): string;
   abandon(flight: number): boolean;
   /** `OsGrants::allows` over the grants the registered program declares; `requirementJson` is an `OsRequirement`. */
-  osAllows(requirementJson: string): boolean;
+  osAllows(requirementJson: string, orbital?: string): boolean;
   /** Whether `url`'s origin is one the program declares in `egress`. */
   egressAllows(url: string): boolean;
   /** Place the program's anchored grants and arguments under the host's anchors; answers `[{ path, message }]` for what grants nothing. */

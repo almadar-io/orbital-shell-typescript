@@ -758,7 +758,7 @@ async function withCredentialSegments(ports: KernelHostPorts, op: string, args: 
 async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'os' }>, scope: KernelAnswerScope): Promise<IoAnswerWire> {
   const { os } = ports;
   if (os === undefined) return { kind: 'os', result: { error: { kind: 'denied', message: `${request.op}: no os host configured` } } };
-  const { op, key, site } = request;
+  const { op, key, site, orbital: asking } = request;
   const completions = ports.osCompletions;
   const sink = ports.deferCallOutcome();
   const message = ports.substrateMessage;
@@ -791,7 +791,7 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
       lease.release();
       lease.signal.removeEventListener('abort', stop);
       deliver(completions.event(site, key, { error }));
-    });
+    }, asking);
     if ('error' in started) { lease.release(); lease.signal.removeEventListener('abort', stop); }
     return { kind: 'os', result: started };
   }
@@ -817,11 +817,11 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
     };
     const started = os.defer(op, args, key, (raw) => {
       completeTls(ports, os, key, raw, finish);
-    });
+    }, asking);
     if ('error' in started) { lease.release(); lease.signal.removeEventListener('abort', cancel); }
     return 'error' in started ? { kind: 'os', result: started } : { kind: 'serviceDeferred' };
   }
-  return { kind: 'os', result: await os.answer(op, args) };
+  return { kind: 'os', result: await os.answer(op, args, asking) };
 }
 
 async function secret(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'secret' }>): Promise<IoAnswerWire> {

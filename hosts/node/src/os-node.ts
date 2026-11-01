@@ -26,23 +26,33 @@ function failureOf(op: OsOp, raised: unknown): OsError {
   return { kind: 'io', message: `${op}: ${raised instanceof Error ? raised.message : String(raised)}` };
 }
 
+/** The op families of one orbital's grants over the host's shared handles. */
+interface OrbitalOps {
+  readonly fs: FsOps;
+  readonly process: ProcessOps;
+  readonly net: NetOps;
+  readonly sys: SysOps;
+}
+
 class NodeOsHost implements OsHostPort {
   private readonly state: OsState;
-  private readonly fs: FsOps;
-  private readonly process: ProcessOps;
-  private readonly net: NetOps;
-  private readonly sys: SysOps;
+  private readonly ops = new Map<string | undefined, OrbitalOps>();
   private placed = false;
   /** The listener handle of each open stream, by its key. */
   private readonly streams = new Map<string, number>();
 
   constructor(private readonly given: OsGrantPort, private readonly anchors: OsAnchors) {
     this.state = new OsState(anchors);
-    const grants = anchoredGrants(given, anchors);
-    this.fs = new FsOps(this.state, grants);
-    this.process = new ProcessOps(this.state, grants);
-    this.net = new NetOps(this.state, grants);
-    this.sys = new SysOps(grants);
+  }
+
+  /** The ops that check `orbital`'s grants (the app level alone with none): every grant decision is the kernel's, asked with the orbital. */
+  private opsFor(orbital: string | undefined): OrbitalOps {
+    const held = this.ops.get(orbital);
+    if (held !== undefined) return held;
+    const grants = anchoredGrants({ ...this.given, allows: (need) => this.given.allows(need, orbital) }, this.anchors);
+    const made = { fs: new FsOps(this.state, grants), process: new ProcessOps(this.state, grants), net: new NetOps(this.state, grants), sys: new SysOps(grants) };
+    this.ops.set(orbital, made);
+    return made;
   }
 
   /** The call's arguments with every anchored part resolved by the kernel, the program's anchors placed on the first call. */
@@ -56,50 +66,52 @@ class NodeOsHost implements OsHostPort {
     return resolved.ok;
   }
 
-  private async dispatch(op: OsOp, given: JsonValue[]): Promise<JsonValue> {
+  private async dispatch(op: OsOp, given: JsonValue[], orbital: string | undefined): Promise<JsonValue> {
     const args = this.resolved(op, given);
+    const { fs, process, net, sys } = this.opsFor(orbital);
     if (op === 'os/close') {
-      if (this.fs.closeOwned(args) || this.net.closeOwned(args)) return {};
+      if (fs.closeOwned(args) || net.closeOwned(args)) return {};
       throw osFailure('closed', op, 'not an open handle');
     }
-    if (isFsOp(op)) return this.fs.run(op, args);
-    if (isProcessOp(op)) return this.process.run(op, args);
-    if (isNetOp(op)) return this.net.run(op, args);
-    if (isSysOp(op)) return this.sys.run(op);
+    if (isFsOp(op)) return fs.run(op, args);
+    if (isProcessOp(op)) return process.run(op, args);
+    if (isNetOp(op)) return net.run(op, args);
+    if (isSysOp(op)) return sys.run(op);
     if (DEVICE_OPS.has(op)) throw osFailure('unsupported', op, 'this host has no devices');
     throw osFailure('unsupported', op, 'this host does not implement the operation yet');
   }
 
-  async answer(op: OsOp, args: JsonValue[]): Promise<Settled<JsonValue, OsError>> {
+  async answer(op: OsOp, args: JsonValue[], orbital?: string): Promise<Settled<JsonValue, OsError>> {
     try {
-      return { ok: await this.dispatch(op, args) };
+      return { ok: await this.dispatch(op, args, orbital) };
     } catch (raised) {
       return { error: failureOf(op, raised) };
     }
   }
 
-  private deferral(op: OsOp, args: JsonValue[]): Deferral {
+  private deferral(op: OsOp, args: JsonValue[], orbital: string | undefined): Deferral {
+    const { fs, process, net } = this.opsFor(orbital);
     switch (op) {
       case 'os/wait':
-        return this.process.waitLater(args);
+        return process.waitLater(args);
       case 'os/read':
-        return this.fs.readLater(op, args);
+        return fs.readLater(op, args);
       case 'os/send':
-        return this.net.sendLater(op, args);
+        return net.sendLater(op, args);
       case 'os/recv':
-        return this.net.recvLater(op, args);
+        return net.recvLater(op, args);
       case 'os/recvfrom':
-        return this.net.recvfromLater(op, args);
+        return net.recvfromLater(op, args);
       default:
         throw osFailure('unsupported', op, 'this operation does not defer its completion');
     }
   }
 
   /** `Completions::run_later`: the checks fail in place, the wait runs in the background and its outcome goes to `deliver` unless the key is cancelled first. */
-  defer(op: OsOp, args: JsonValue[], key: string, deliver: (outcome: Settled<JsonValue, OsError>) => void): Settled<null, OsError> {
+  defer(op: OsOp, args: JsonValue[], key: string, deliver: (outcome: Settled<JsonValue, OsError>) => void, orbital?: string): Settled<null, OsError> {
     let blocking: Deferral;
     try {
-      blocking = this.deferral(op, this.resolved(op, args));
+      blocking = this.deferral(op, this.resolved(op, args), orbital);
     } catch (raised) {
       return { error: failureOf(op, raised) };
     }
@@ -117,11 +129,11 @@ class NodeOsHost implements OsHostPort {
   }
 
   /** A keyed stream (EXEC-QUEUE-12): `os/tcp-listen` binds and answers in place, then each connection reaches `message`. */
-  async stream(op: OsOp, args: JsonValue[], key: string, message: (value: JsonValue) => boolean, fail: (error: OsError) => void): Promise<Settled<JsonValue, OsError>> {
+  async stream(op: OsOp, args: JsonValue[], key: string, message: (value: JsonValue) => boolean, fail: (error: OsError) => void, orbital?: string): Promise<Settled<JsonValue, OsError>> {
     try {
       if (op !== 'os/tcp-listen') throw osFailure('unsupported', op, 'this host streams only os/tcp-listen');
       if (this.streams.has(key)) throw invalid(op, `key ${key} already has a stream open`);
-      const answer = await this.net.listen(op, this.resolved(op, args), message, (error) => {
+      const answer = await this.opsFor(orbital).net.listen(op, this.resolved(op, args), message, (error) => {
         this.streams.delete(key);
         fail(error);
       });
@@ -136,7 +148,7 @@ class NodeOsHost implements OsHostPort {
     const listener = this.streams.get(key);
     if (listener !== undefined) {
       this.streams.delete(key);
-      this.net.stopListening(listener);
+      this.opsFor(undefined).net.stopListening(listener);
       return true;
     }
     return this.state.completions.cancel(key);
@@ -157,7 +169,7 @@ export interface NodeOsHostOptions {
 export function processAnchors(): OsAnchors {
   const env: Record<string, string> = {};
   for (const [name, value] of Object.entries(process.env)) if (value !== undefined) env[name] = value;
-  return { home: homedir(), start: process.cwd(), exeDir: dirname(process.execPath), env };
+  return { home: homedir(), start: process.cwd(), exeDir: dirname(process.execPath), exe: process.execPath, env };
 }
 
 export function createNodeOsHost(grants: OsGrantPort, options: NodeOsHostOptions = {}): OsHostPort {
