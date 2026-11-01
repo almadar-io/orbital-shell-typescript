@@ -41,6 +41,9 @@ importers:
       '@almadar/logger':
         specifier: ^1.18.0
         version: 1.18.0
+      '@almadar/shell-browser':
+        specifier: ^0.1.0
+        version: 0.1.0
       '@almadar/shell-runtime':
         specifier: ^0.1.0
         version: 0.1.0
