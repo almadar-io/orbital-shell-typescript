@@ -11,6 +11,7 @@
 import { createContext, useContext, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { installKernelEvaluator } from '@almadar/core';
+import { installNativeLanguages } from '@almadar/syntax';
 import type { KernelLoader, KernelModule } from '../lib/kernel-wire';
 import type { FrameScheduler } from '../lib/kernel-frames';
 import type { OsHostPort } from '@almadar/shell-runtime/kernel/os-port';
@@ -51,6 +52,7 @@ export function KernelEngineProvider({ loader, scheduleFrame, os, children }: Ke
     const load = (): Promise<KernelModule> =>
       loader().then((loaded) => {
         installKernelEvaluator(loaded);
+        installNativeLanguages();
         return loaded;
       });
     return {

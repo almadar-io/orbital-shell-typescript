@@ -11,6 +11,7 @@ import {
   createHttpTransport,
   createInProcessTransport,
   deriveCarriesCircuitState,
+  TransportStatusError,
 } from '@almadar/shell-runtime/client/EventTransport';
 
 const schema: OrbitalSchema = { name: 'Probe', orbitals: [] };
@@ -118,6 +119,46 @@ describe('createHttpTransport', () => {
     expect(JSON.parse(String(call[1]?.body))).toEqual(request);
   });
 
+  describe('a non-2xx dispatch answer is a transport failure, never an event response', () => {
+    const send = (answer: Response) => {
+      fetchMock.mockResolvedValueOnce(answer);
+      return createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: fetchMock }).send('Cart', { event: 'PING' });
+    };
+
+    it('401 with an empty body', async () => {
+      const failure = await send(new Response('', { status: 401 })).catch((err: Error) => err);
+      expect(failure).toBeInstanceOf(TransportStatusError);
+      expect(failure).toMatchObject({ status: 401, bodyText: '' });
+    });
+
+    it('401 with a JSON error body keeps the body text', async () => {
+      const failure = await send(jsonResponse({ error: 'unauthorized' }, 401)).catch((err: Error) => err);
+      expect(failure).toBeInstanceOf(TransportStatusError);
+      expect(failure).toMatchObject({ status: 401, bodyText: '{"error":"unauthorized"}' });
+    });
+
+    it('500', async () => {
+      const failure = await send(new Response('boom', { status: 500 })).catch((err: Error) => err);
+      expect(failure).toMatchObject({ status: 500, bodyText: 'boom' });
+    });
+
+    it('403 carries the EventResponse (an input the host refuses) and is parsed, not thrown', async () => {
+      const rejected: EventResponse = { success: false, transitioned: false, states: {}, emittedEvents: [], error: 'not-an-external-input' };
+      expect(await send(jsonResponse(rejected, 403))).toEqual(rejected);
+    });
+
+    it('404 { error, code } throws with the code', async () => {
+      const failure = await send(jsonResponse({ error: 'no such orbital', code: 'NOT_FOUND' }, 404)).catch((err: Error) => err);
+      expect(failure).toBeInstanceOf(TransportStatusError);
+      expect(failure).toMatchObject({ status: 404, refusal: { code: 'NOT_FOUND', error: 'no such orbital' } });
+    });
+
+    it('control: 200 returns the response', async () => {
+      const ok: EventResponse = { success: true, transitioned: false, states: {}, emittedEvents: [] };
+      expect(await send(jsonResponse(ok))).toEqual(ok);
+    });
+  });
+
   it('attaches the bearer token on register, unregister and send', async () => {
     const getAccessToken = vi.fn(async () => 'id-token-1');
     const transport = createHttpTransport({
@@ -179,7 +220,7 @@ describe('createHttpTransport push subscribe', () => {
     expect(url.searchParams.get('ticket')).toBe('tkt-1');
     expect(url.searchParams.has('access_token')).toBe(false);
     const mint = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit?];
-    expect(String(mint[0])).toBe('https://api.test/api/events/ticket');
+    expect(String(mint[0])).toBe('https://api.test/api/events/ticket?clientId=tab-1');
     expect(headerOf(mint, 'Authorization')).toBe('Bearer id-token-1');
 
     unsubscribe();
@@ -370,13 +411,23 @@ describe('createHttpTransport push subscribe, ticket handling', () => {
     const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'ticket-open' });
     await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
     const call = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit?];
-    expect(String(call[0])).toBe('https://api.test/api/events/ticket');
+    expect(String(call[0])).toBe('https://api.test/api/events/ticket?clientId=ticket-open');
     expect(call[1]?.method).toBe('POST');
     expect(headerOf(call, 'Authorization')).toBe('Bearer id-token-1');
     const url = new URL(FakeEventSource.instances[0].url);
     expect(url.searchParams.get('ticket')).toBe('tkt-1');
     expect(url.searchParams.get('clientId')).toBe('ticket-open');
     expect(url.searchParams.has('access_token')).toBe(false);
+    unsubscribe();
+  });
+
+  it('mints with no clientId query when the subscriber names no client', async () => {
+    const fetchMock = mintingFetch(['tkt-1']);
+    const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: fetchMock });
+    const unsubscribe = transport.subscribe!(vi.fn(), { scope: 'ticket-no-client' });
+    await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+    const call = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit?];
+    expect(String(call[0])).toBe('https://api.test/api/events/ticket');
     unsubscribe();
   });
 

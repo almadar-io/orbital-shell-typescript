@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   getVocabulary,
   installedLanguages,
@@ -7,6 +7,8 @@ import {
   registerVocabulary,
   vocabularyOperators,
 } from '../src/i18n/index.js';
+import { KernelEvaluatorNotInstalledError } from '../src/kernel-evaluator.js';
+import { installTestKernel } from './kernel-glue.js';
 
 function pack(code: string, words: { app: string; orbital: string; orbitals: string; set?: string }) {
   return parseVocabularyPack(
@@ -21,7 +23,18 @@ function pack(code: string, words: { app: string; orbital: string; orbitals: str
   );
 }
 
+describe('vocabulary registry without a kernel', () => {
+  it('registering a pack before a kernel is installed throws KernelEvaluatorNotInstalledError', () => {
+    expect(() => registerVocabulary(pack('xz', { app: 'xzapp', orbital: 'xzorbital', orbitals: 'xzorbitals' }))).toThrow(KernelEvaluatorNotInstalledError);
+    expect(installedLanguages()).not.toContain('xz');
+  });
+});
+
 describe('vocabulary registry', () => {
+  beforeAll(async () => {
+    await installTestKernel();
+  });
+
   it('has English built in and nothing else until a pack is registered', () => {
     expect(installedLanguages()).toContain('en');
     expect(getVocabulary('en').keywords.orbital).toBe('orbital');
@@ -48,13 +61,30 @@ describe('vocabulary registry', () => {
     expect(() => registerVocabulary(pack('xc', { app: 'other', orbital: 'xcorbital', orbitals: 'xcorbitals' }))).toThrow(/xc.*already installed/);
   });
 
+  it('twin of the kernel pack check (`validate_packs`): one English word spelled two ways across sections is refused naming section and word; same spelling or one section loads', () => {
+    const http = (keyword: string, effect: string | undefined) =>
+      parseVocabularyPack(
+        {
+          meta: { code: 'xi', name: 'Lang xi', rtl: false },
+          keywords: { orbital: 'xi-orbital', http: keyword },
+          effects: effect === undefined ? {} : { http: effect },
+          orb: { orbitals: 'xi-orbitals' },
+          operators: { 'math/abs': 'xi-abs' },
+        },
+        'xi.json',
+      );
+    expect(() => registerVocabulary(http('qi-http-a', 'qi-http-b'))).toThrow(/xi[\s\S]*Inconsistent effects\.http[\s\S]*qi-http-a[\s\S]*qi-http-b/);
+    expect(installedLanguages()).not.toContain('xi');
+    expect(() => registerVocabulary(http('qi-http', undefined))).not.toThrow();
+  });
+
   it('English cannot be replaced by a pack', () => {
     expect(() => registerVocabulary(pack('en', { app: 'a', orbital: 'b', orbitals: 'c' }))).toThrow(/English is built in/);
   });
 
   it('a pack whose language selector another pack already uses is refused, naming both', () => {
     registerVocabulary(pack('xd', { app: 'xdapp', orbital: 'shared-orbital', orbitals: 'xdorbitals' }));
-    expect(() => registerVocabulary(pack('xe', { app: 'xeapp', orbital: 'shared-orbital', orbitals: 'xeorbitals' }))).toThrow(/xe[\s\S]*selector-not-unique/);
+    expect(() => registerVocabulary(pack('xe', { app: 'xeapp', orbital: 'shared-orbital', orbitals: 'xeorbitals' }))).toThrow(/xe[\s\S]*SelectorNotUnique/);
     expect(installedLanguages()).not.toContain('xe');
   });
 
@@ -66,7 +96,7 @@ describe('vocabulary registry', () => {
           'xf.json',
         ),
       ),
-    ).toThrow(/xf[\s\S]*collision/);
+    ).toThrow(/xf[\s\S]*Collision/);
   });
 
   it('edge: a pack missing words is accepted — English spellings stay legal there', () => {

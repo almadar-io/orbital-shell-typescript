@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EventRequest, EventResponse } from '@almadar/core';
-import type { DispatchWire, MountWire, PageCircuit } from '@almadar/core/kernel-wire';
+import type { DispatchWire, MountSeed, MountWire, PageCircuit } from '@almadar/core/kernel-wire';
 import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import { SessionEndedError, type EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import { createKernelClient } from '../src/lib/kernel-client';
@@ -121,5 +121,42 @@ describe('kernel client — a host that freed this client session', () => {
     await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' });
     expect(reseeded).toHaveLength(0);
     expect(sent.map((r) => r.event)).toEqual(['READ_BACK']);
+  });
+});
+
+describe('kernel client — a mount group with a client-only seed', () => {
+  const seedWire = (trait: string, mode: DispatchWire['mode'], flight: number | null): DispatchWire => ({
+    orbital: 'Main', seed: { trait, event: 'INIT' }, response: response(), serverLegs: [], mode, snapshot: null,
+    alreadyDelivered: [], awaiting: [], statefulLeg: null, foldSeeded: [], flight,
+  });
+  const mountOf = (seeds: DispatchWire[]): MountWire => ({
+    seeds,
+    legs: [],
+    statefulLegs: [{
+      orbital: 'Main', seeds: seeds.map((s) => s.seed), alreadyDelivered: [], awaiting: [], foldSeeded: [],
+      leg: { event: 'INIT', mount: seeds.map((s): MountSeed => ({ trait: s.seed.trait, event: 'INIT' })), clientId: 'tab-a' },
+    }],
+    failed: null,
+  });
+  const mountOver = (mount: MountWire, sent: EventRequest[]) => {
+    const kernel: KernelInstance = { ...fakeKernel([]), dispatchMount: () => JSON.stringify(mount) };
+    const transport: EventTransport = {
+      register: async () => ({ success: true, carriesCircuitState: false }),
+      unregister: async () => undefined,
+      send: async (_orbital, request) => { sent.push(request); return response(); },
+    };
+    return createKernelClient({ instance: Promise.resolve(kernel), store: createMemoryCircuitStore(), traitIndex, transport, topology: Promise.resolve({ carriesCircuitState: false }) });
+  };
+
+  it('posts the group under the flight its server seed opened when the client-only seed opened none', async () => {
+    const sent: EventRequest[] = [];
+    const client = mountOver(mountOf([seedWire('Picker', 'hybridClientOnly', null), seedWire('Asker', 'persistedAwaited', 3)]), sent);
+    await client.dispatchMount([{ trait: 'Picker', event: 'INIT' }, { trait: 'Asker', event: 'INIT' }]);
+    expect(sent.map((r) => r.mount?.map((s) => s.trait))).toEqual([['Picker', 'Asker']]);
+  });
+
+  it('control: a group no seed opened a flight for is refused', async () => {
+    const client = mountOver(mountOf([seedWire('Picker', 'hybridClientOnly', null)]), []);
+    await expect(client.dispatchMount([{ trait: 'Picker', event: 'INIT' }])).rejects.toThrow('carries no flight');
   });
 });

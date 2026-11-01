@@ -33,37 +33,48 @@ import { multilingualWords, nativeShapeWords, reservedEventWords } from '../i18n
 // Build registry-driven patterns from tokens.json
 // ---------------------------------------------------------------------------
 
-// Effect operators (semantic IO: set, persist, fetch, emit, render-ui, ...)
-// These are the canonical LOLO effect primitives. They colour purple (#A78BFA)
-// matching the AvlEffect visual concept in both .orb and .lolo.
-const effectList = multilingualWords(tokens.effectTypes);
+function buildLoloWords() {
+  // Effect operators (semantic IO: set, persist, fetch, emit, render-ui, ...)
+  // These are the canonical LOLO effect primitives. They colour purple (#A78BFA)
+  // matching the AvlEffect visual concept in both .orb and .lolo.
+  const effectList = multilingualWords(tokens.effectTypes);
 
-// Categorised runtime operators by namespace.
-// We skip the 'effect' namespace because effectList already covers it.
-const operatorNamespaces: Record<string, string[]> = {};
-for (const [ns, ops] of Object.entries(tokens.operatorsByNamespace)) {
-  if (ns !== 'effect') {
-    operatorNamespaces[ns] = multilingualWords(ops as string[]);
+  // Categorised runtime operators by namespace.
+  // We skip the 'effect' namespace because effectList already covers it.
+  const operatorNamespaces: Record<string, string[]> = {};
+  for (const [ns, ops] of Object.entries(tokens.operatorsByNamespace)) {
+    if (ns !== 'effect') {
+      operatorNamespaces[ns] = multilingualWords(ops as string[]);
+    }
   }
+
+  // Pattern names (for type: "..." values inside render-ui objects)
+  // Pattern and behavior names are opaque identifiers — the renderer never
+  // translates them, so these two lists stay English-only.
+  const patternNamesPattern = tokens.patternNames.length > 0
+    ? wordsToUnicodePattern(tokens.patternNames)
+    : null;
+
+  // Behavior names (for uses declarations: "std/behaviors/std-modal")
+  const behaviorNamesPattern = tokens.behaviorNames.length > 0
+    ? new RegExp(`(?:${wordsToPattern(tokens.behaviorNames)})`)
+    : null;
+  return { effectList, operatorNamespaces, patternNamesPattern, behaviorNamesPattern };
 }
 
-// Pattern names (for type: "..." values inside render-ui objects)
-// Pattern and behavior names are opaque identifiers — the renderer never
-// translates them, so these two lists stay English-only.
-const patternNamesPattern = tokens.patternNames.length > 0
-  ? wordsToUnicodePattern(tokens.patternNames)
-  : null;
+let loloWords: ReturnType<typeof buildLoloWords> | undefined;
 
-// Behavior names (for uses declarations: "std/behaviors/std-modal")
-const behaviorNamesPattern = tokens.behaviorNames.length > 0
-  ? new RegExp(`(?:${wordsToPattern(tokens.behaviorNames)})`)
-  : null;
+/** The word lists and patterns, built on first use: they need the native language packs installed. */
+function words(): ReturnType<typeof buildLoloWords> {
+  return (loloWords ??= buildLoloWords());
+}
 
 // ---------------------------------------------------------------------------
 // Build the Prism grammar object
 // ---------------------------------------------------------------------------
 
 function buildLoloGrammar(): Record<string, unknown> {
+  const { effectList, operatorNamespaces, patternNamesPattern, behaviorNamesPattern } = words();
   // Namespaced operators produce separate token types so each namespace can
   // carry its own highlight colour in CSS/themes.
   const opTokens: Record<string, RegExp> = {};
@@ -119,7 +130,7 @@ function buildLoloGrammar(): Record<string, unknown> {
     // Must come before general keywords to prevent `OPEN` matching `open`.
     // Author-written events stay UPPER_SNAKE in every language (they are
     // identifiers); only the reserved ones are translated.
-    'lolo-event': unicodeBoundaryRegExp(`[A-Z][A-Z0-9_]+|${wordsToPattern(reservedEventWords)}`),
+    'lolo-event': unicodeBoundaryRegExp(`[A-Z][A-Z0-9_]+|${wordsToPattern(reservedEventWords())}`),
 
     // ── 7. Declaration keywords ──────────────────────────────────────────────
     // Structural keywords that introduce new declarations.
@@ -158,7 +169,7 @@ function buildLoloGrammar(): Record<string, unknown> {
     // PascalCase identifiers: entity names, trait names, orbital names.
     // Like Haskell data constructors and type names. Teal to distinguish from
     // declaration keywords (blue) and type primitives (orange).
-    'lolo-constructor': unicodeBoundaryRegExp(`[A-Z][a-zA-Z0-9]*|${wordsToPattern(nativeShapeWords)}`),
+    'lolo-constructor': unicodeBoundaryRegExp(`[A-Z][a-zA-Z0-9]*|${wordsToPattern(nativeShapeWords())}`),
 
     // ── 15. Transition / function arrow ──────────────────────────────────────
     // `->` and `→` are the transition arrow in state machines and the
@@ -202,10 +213,11 @@ export function registerLoloLanguage(Prism: Record<string, unknown>): void {
  * Useful for Monaco and other non-Prism consumers.
  */
 export function classifyLoloToken(token: string): string {
+  const { effectList, operatorNamespaces, patternNamesPattern, behaviorNamesPattern } = words();
   if (/^[@?][\p{L}_][\p{L}\p{N}_.]*$/u.test(token)) return 'binding';
   if (/^[A-Z][a-zA-Z0-9]*(?:\.[a-zA-Z][a-zA-Z0-9]*){1,}$/.test(token)) return 'reference';
   if (/^[A-Z][A-Z0-9_]+$/.test(token)) return 'event';
-  if (wordsToAnchoredPattern(reservedEventWords).test(token)) return 'event';
+  if (wordsToAnchoredPattern(reservedEventWords()).test(token)) return 'event';
   if (wordsToAnchoredPattern(multilingualWords(tokens.loloKeywords)).test(token)) return 'keyword';
 
   if (wordsToAnchoredPattern(effectList).test(token)) return 'effect';
@@ -218,7 +230,7 @@ export function classifyLoloToken(token: string): string {
   if (wordsToAnchoredPattern(multilingualWords(tokens.loloPersistenceAndScope)).test(token)) return 'persistence';
   if (wordsToAnchoredPattern(multilingualWords(tokens.loloTraitCategories)).test(token)) return 'category';
   if (/^[A-Z][a-zA-Z0-9]*$/.test(token)) return 'constructor';
-  if (wordsToAnchoredPattern(nativeShapeWords).test(token)) return 'constructor';
+  if (wordsToAnchoredPattern(nativeShapeWords()).test(token)) return 'constructor';
 
   if (patternNamesPattern?.test(token)) return 'pattern';
   if (behaviorNamesPattern?.test(token)) return 'behavior';

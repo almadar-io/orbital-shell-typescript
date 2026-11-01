@@ -149,8 +149,11 @@ SyntaxHighlighter.registerLanguage('ini', langIni);
 // (comments, strings, numbers, keywords, operators).
 SyntaxHighlighter.registerLanguage('clike', langClike);
 
-// Register .orb and .lolo languages from @almadar/syntax (refractor-compatible)
-SyntaxHighlighter.registerLanguage('orb', orbLanguage);
-SyntaxHighlighter.registerLanguage('lolo', loloLanguage);
+/** Register the .orb and .lolo grammars from @almadar/syntax (refractor-compatible). Their words come from the native
+ *  language packs, so this throws `NativeLanguagesNotInstalledError` until a host has called `installNativeLanguages`. */
+export function registerProgramLanguages(): void {
+  SyntaxHighlighter.registerLanguage('orb', orbLanguage);
+  SyntaxHighlighter.registerLanguage('lolo', loloLanguage);
+}
 
 export const prism = { SyntaxHighlighter, createHighlightElement, dark, light, clike: langClike };

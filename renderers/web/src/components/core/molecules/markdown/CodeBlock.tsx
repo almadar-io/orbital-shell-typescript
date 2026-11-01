@@ -28,34 +28,58 @@ import { Copy, Check, FileText, Code as CodeIcon, WrapText } from 'lucide-react'
 import type { UiError } from '../../../../core';
 import type { SyntaxHighlighterProps } from 'react-syntax-highlighter';
 import { ORB_COLORS, translateLolo, translateOrb } from '@almadar/syntax';
+import { hasKernelEvaluator } from '@almadar/core';
+import { useKernelEngine } from '../../../../providers/KernelEngineContext';
 import { getVocabulary, type LanguageCode } from '@almadar/core/i18n';
 
 // ── The highlighter, loaded on demand ────────────────────────────────────────
 // PrismLight, its grammars and schemes live in `./prism` and load the first time a block mounts (G-UI-105); until
 // then a block shows its code as plain monospace text.
-type Prism = typeof import('./prism.js').prism;
+type PrismModule = typeof import('./prism.js');
+type Prism = PrismModule['prism'];
 let loadedPrism: Prism | undefined;
-let prismLoad: Promise<Prism> | undefined;
+let prismLoad: Promise<PrismModule> | undefined;
+let programLanguagesRegistered = false;
 
-function loadPrism(): Promise<Prism> {
-  prismLoad ??= import('./prism.js').then((module) => (loadedPrism = module.prism));
+function loadPrismModule(): Promise<PrismModule> {
+  prismLoad ??= import('./prism.js').then((module) => {
+    loadedPrism = module.prism;
+    return module;
+  });
   return prismLoad;
+}
+
+// The orb and lolo grammars read the native language packs, which install with the kernel.
+function registerProgramLanguagesOnce(module: PrismModule): void {
+  if (programLanguagesRegistered || !hasKernelEvaluator()) return;
+  module.registerProgramLanguages();
+  programLanguagesRegistered = true;
 }
 
 /** Load the highlighter ahead of the first block (an app that shows code at once, a test): blocks then paint highlighted. */
 export async function preloadCodeHighlighter(): Promise<void> {
-  await loadPrism();
+  registerProgramLanguagesOnce(await loadPrismModule());
 }
 
-/** The highlighter, once loaded; a component that renders before then re-renders when it arrives. */
+/** The highlighter, once loaded, with the program grammars registered once the provider's kernel is in; a block re-renders on each. */
 function usePrism(): Prism | undefined {
+  const engine = useKernelEngine();
   const [prism, setPrism] = useState(loadedPrism);
+  const [programReady, setProgramReady] = useState(programLanguagesRegistered);
   useEffect(() => {
-    if (prism !== undefined) return;
+    if (prism !== undefined && programReady) return;
     let active = true;
-    void loadPrism().then((loaded) => { if (active) setPrism(loaded); });
+    void loadPrismModule().then(async (module) => {
+      registerProgramLanguagesOnce(module);
+      if (active) setPrism(module.prism);
+      if (!programLanguagesRegistered && engine !== null) {
+        await engine.loadModule();
+        registerProgramLanguagesOnce(module);
+      }
+      if (active) setProgramReady(programLanguagesRegistered);
+    });
     return () => { active = false; };
-  }, [prism]);
+  }, [prism, programReady, engine]);
   return prism;
 }
 
@@ -94,14 +118,14 @@ function isLanguageRegistered(lang: string): boolean {
 }
 
 async function loadPrismLanguage(lang: string): Promise<void> {
-  await loadPrism();
+  await loadPrismModule();
   if (isLanguageRegistered(lang)) return;
   try {
     const grammar = codeLanguageLoader ? await codeLanguageLoader(lang) : null;
     // Fallback: no dedicated grammar → register the generic C-like base grammar
     // under this language id so obscure code still gets basic token coloring
     // (comments, strings, numbers, keywords) instead of plain text.
-    const prism = await loadPrism();
+    const { prism } = await loadPrismModule();
     prism.SyntaxHighlighter.registerLanguage(lang, grammar ?? prism.clike);
     dynamicallyLoaded.add(lang);
   } catch {

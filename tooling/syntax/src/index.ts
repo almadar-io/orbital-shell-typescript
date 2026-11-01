@@ -41,7 +41,7 @@ export { loloLanguage } from './lolo/refractor-lolo.js';
  * import std, and std does not publish its `i18n/` tables, so this package
  * (which depends on both) owns the binding.
  */
-export { translateLolo, translateOrb, stdOperatorTables } from './i18n.js';
+export { translateLolo, translateOrb, stdOperatorTables, installNativeLanguages, NativeLanguagesNotInstalledError } from './i18n.js';
 
 /** The multilingual word lists the grammars are built from. */
 export {

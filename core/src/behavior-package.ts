@@ -493,8 +493,35 @@ export function behaviorSourceTree(pkg: BehaviorPackage): { dir: string; extensi
   return { dir: packageFile(pkg, pkg.orb.source, 'orb.source'), extension: '.lolo' };
 }
 
+export const MaterializeAnswerSchema = z.object({
+  dir: z.string().min(1),
+  failures: z.array(z.object({ rel: z.string(), error: z.string() })),
+});
+export type MaterializeFailure = z.infer<typeof MaterializeAnswerSchema>['failures'][number];
+
+export interface BehaviorRegistry {
+  dir: string;
+  /** Sources that did not lower; the rest of the mirror is current. Empty for a materialized registry. */
+  failures: MaterializeFailure[];
+}
+
+/** The registry mirror's directory; use {@link behaviorRegistry} to see which sources failed to lower. */
 export function behaviorRegistryDir(pkg: BehaviorPackage, options: RegistryDirOptions = {}): string {
-  if (pkg.orb.registry !== undefined) return resolveDeclaredPath(pkg, pkg.orb.registry, {}, 'orb.registry');
+  return behaviorRegistry(pkg, options).dir;
+}
+
+/**
+ * Throws naming the file and its lower error when `rel` (a `.lolo` path relative to the source tree, or its `.orb`
+ * twin) is one of the registry's failures.
+ */
+export function assertImportable(pkg: BehaviorPackage, registry: BehaviorRegistry, rel: string): void {
+  const lolo = rel.replace(/\.orb$/, '.lolo');
+  const failed = registry.failures.find((f) => f.rel === lolo);
+  if (failed !== undefined) throw new BehaviorPackageError(`${pkg.name}: ${failed.rel} does not lower: ${failed.error}`);
+}
+
+export function behaviorRegistry(pkg: BehaviorPackage, options: RegistryDirOptions = {}): BehaviorRegistry {
+  if (pkg.orb.registry !== undefined) return { dir: resolveDeclaredPath(pkg, pkg.orb.registry, {}, 'orb.registry'), failures: [] };
   const sourceRel = pkg.orb.source;
   if (sourceRel === undefined) throw new BehaviorPackageError(`${pkg.name}: declares neither \`orb.registry\` nor \`orb.source\``);
   const source = packageFile(pkg, sourceRel, 'orb.source');
@@ -506,7 +533,7 @@ export function behaviorRegistryDir(pkg: BehaviorPackage, options: RegistryDirOp
   mirrorsInUse.add(out);
   evictOldMirrors(dirname(out), mirrorsInUse);
   const cache = options.cacheDir ?? derivedCacheDir();
-  const run = nodeChildProcess.spawnSync(orbBin, ['materialize', relative(cache, out)], {
+  const run = nodeChildProcess.spawnSync(orbBin, ['materialize', '--json', relative(cache, out)], {
     cwd: source,
     encoding: 'utf8',
     maxBuffer: 1024 * 1024 * 64,
@@ -514,7 +541,9 @@ export function behaviorRegistryDir(pkg: BehaviorPackage, options: RegistryDirOp
   });
   if (run.error !== undefined) throw new BehaviorPackageError(`${pkg.name}: ${orbBin} materialize: ${run.error.message}`);
   if (run.status !== 0) throw new BehaviorPackageError(`${pkg.name}: \`orb materialize\` failed: ${run.stderr.trim()}`);
-  return out;
+  const answer = MaterializeAnswerSchema.safeParse(JSON.parse(run.stdout));
+  if (!answer.success) throw new BehaviorPackageError(`${pkg.name}: \`orb materialize --json\` answered an unreadable body: ${answer.error.message}`);
+  return { dir: out, failures: answer.data.failures };
 }
 
 /**
@@ -523,7 +552,9 @@ export function behaviorRegistryDir(pkg: BehaviorPackage, options: RegistryDirOp
  * are refused.
  */
 export function behaviorProgramFiles(pkg: BehaviorPackage, options: RegistryDirOptions = {}): Map<string, string> {
-  const root = behaviorRegistryDir(pkg, options);
+  const registry = behaviorRegistry(pkg, options);
+  const root = registry.dir;
+  for (const failed of registry.failures) assertImportable(pkg, registry, failed.rel);
   const files = new Map<string, string>();
   const walk = (dir: string): void => {
     for (const entry of nodeFs.readdirSync(dir, { withFileTypes: true })) {
@@ -577,7 +608,9 @@ export function materializeRegistry(pkg: BehaviorPackage, options: MaterializeOp
   const sourceRel = pkg.orb.source;
   if (sourceRel === undefined) throw new BehaviorPackageError(`${pkg.name}: declares no \`orb.source\``);
   const orbBin = options.orbBin ?? resolveOrbBinary();
-  const mirror = behaviorRegistryDir(pkg, { ...options, orbBin });
+  const registry = behaviorRegistry(pkg, { ...options, orbBin });
+  for (const failed of registry.failures) throw new BehaviorPackageError(`${pkg.name}: ${failed.rel} does not lower: ${failed.error}`);
+  const mirror = registry.dir;
   const targetRel = options.target ?? 'behaviors/registry';
   const target = join(pkg.root, targetRel);
   const source = packageFile(pkg, sourceRel, 'orb.source');

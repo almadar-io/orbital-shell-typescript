@@ -94,8 +94,9 @@ describe('ServerBridgeProvider auth', () => {
     expect(url.searchParams.get('ticket')).toBe('tkt-ui');
     expect(url.searchParams.has('access_token')).toBe(false);
     expect(url.searchParams.get('clientId')).toBeTruthy();
-    const mint = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/api/events/ticket'));
+    const mint = fetchMock.mock.calls.find((c) => new URL(String(c[0])).pathname === '/api/events/ticket');
     expect(mint).toBeDefined();
+    expect(new URL(String(mint![0])).searchParams.get('clientId')).toBe(url.searchParams.get('clientId'));
     expect(headerOf(mint!, 'Authorization')).toBe('Bearer id-token-1');
   });
 
@@ -114,7 +115,7 @@ describe('ServerBridgeProvider auth', () => {
     const url = new URL(FakeEventSource.urls[0]);
     expect(url.searchParams.get('ticket')).toBe('tkt-ui');
     expect(url.searchParams.has('access_token')).toBe(false);
-    const mint = fetchMock.mock.calls.find((c) => String(c[0]).endsWith('/api/events/ticket'));
+    const mint = fetchMock.mock.calls.find((c) => new URL(String(c[0])).pathname === '/api/events/ticket');
     expect(headerOf(mint!, 'Authorization')).toBeNull();
   });
 });

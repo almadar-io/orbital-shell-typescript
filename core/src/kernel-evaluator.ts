@@ -23,6 +23,7 @@ import type {
   RowBindingWire,
   TraceEffectsWire,
 } from './generated/kernel-wire';
+import type { VocabularyPack } from './i18n/index';
 import { setOwn } from './types/own-key';
 import type { EntityRow, EventPayload, JsonObject, JsonValue, OrbitalSchema, SExpr } from './types/index';
 
@@ -47,6 +48,7 @@ export interface KernelEvaluatorExports {
   checkMutationAccess(operation: string, bindingsJson: string, rowJson: string, policyJson: string, entityType: string): string;
   resolveRowBinding(term: string, bindingsJson: string): string;
   eventWires(schemaJson: string): string;
+  validatePacks(packsJson: string): void;
 }
 
 /** An expression the kernel's evaluator rejected. */
@@ -89,6 +91,14 @@ export interface KernelEvaluator {
   resolveRowBinding(term: string, bindings: EvalContextWire): RowBindingWire;
   /** Every emitter-to-listener delivery between two different traits of the program, in schema order, by the source rule the kernel delivers by. */
   eventWires(schema: OrbitalSchema): EventWire[];
+  /** The kernel's verdict on a set of language packs: returns when every pack loads, else throws the refusal naming each pack, section and word. */
+  validatePacks(packs: readonly LanguagePackWire[]): void;
+}
+
+/** One language pack as the kernel's pack check reads it: a label for the refusal and the pack's vocabulary. */
+export interface LanguagePackWire {
+  package: string;
+  definition: VocabularyPack;
 }
 
 const optionalJson = (expr: SExpr | undefined): string => (expr === undefined ? '' : JSON.stringify(expr));
@@ -142,6 +152,9 @@ export function createKernelEvaluator(kernel: KernelEvaluatorExports): KernelEva
     },
     eventWires(schema) {
       return JSON.parse(kernel.eventWires(JSON.stringify(schema))) as EventWire[];
+    },
+    validatePacks(packs) {
+      kernel.validatePacks(JSON.stringify(packs));
     },
   };
 }
@@ -223,5 +236,6 @@ export function lazyKernelExports(load: () => KernelEvaluatorExports): KernelEva
       kernel().checkMutationAccess(operation, bindings, row, policy, entityType),
     resolveRowBinding: (term, bindings) => kernel().resolveRowBinding(term, bindings),
     eventWires: (schemaJson) => kernel().eventWires(schemaJson),
+    validatePacks: (packsJson) => kernel().validatePacks(packsJson),
   };
 }

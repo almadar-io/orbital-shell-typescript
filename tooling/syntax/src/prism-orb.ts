@@ -11,46 +11,56 @@
 import { tokens, escapeRegex, wordsToPattern, allOpsSet, patternsSet } from './shared.js';
 import { multilingualWords, multilingualOrbKeys, reservedEventWords } from './i18n.js';
 
-// Every word list is English + its `ar`/`sl` spellings, so one grammar
-// highlights a document rendered in any of the three languages. Pattern and
-// behavior names are opaque identifiers the renderer never translates.
-const operatorsByNamespace: Record<string, string[]> = {};
-for (const [ns, ops] of Object.entries(tokens.operatorsByNamespace)) {
-  operatorsByNamespace[ns] = multilingualWords(ops as string[]);
-}
-const effectTypes = multilingualWords(tokens.effectTypes);
-const structuralKeys = multilingualOrbKeys(tokens.structuralKeys);
-const fieldTypes = multilingualWords(tokens.fieldTypes);
-const persistenceKinds = multilingualWords(tokens.persistenceKinds);
-const uiSlots = multilingualWords(tokens.uiSlots);
-const sigilRoots = multilingualWords([
-  'entity', 'payload', 'state', 'now', 'config', 'computed', 'trait', 'user',
-]);
-
-// Build namespace-specific patterns
-const namespacePatterns: Record<string, RegExp> = {};
-for (const [ns, ops] of Object.entries(operatorsByNamespace)) {
-  if (ops.length > 0) {
-    namespacePatterns[ns] = new RegExp(`^"(${wordsToPattern(ops)})"$`, 'u');
+function buildOrbWords() {
+  // Every word list is English + its `ar`/`sl` spellings, so one grammar
+  // highlights a document rendered in any of the three languages. Pattern and
+  // behavior names are opaque identifiers the renderer never translates.
+  const operatorsByNamespace: Record<string, string[]> = {};
+  for (const [ns, ops] of Object.entries(tokens.operatorsByNamespace)) {
+    operatorsByNamespace[ns] = multilingualWords(ops as string[]);
   }
+  const effectTypes = multilingualWords(tokens.effectTypes);
+  const structuralKeys = multilingualOrbKeys(tokens.structuralKeys);
+  const fieldTypes = multilingualWords(tokens.fieldTypes);
+  const persistenceKinds = multilingualWords(tokens.persistenceKinds);
+  const uiSlots = multilingualWords(tokens.uiSlots);
+  const sigilRoots = multilingualWords([
+    'entity', 'payload', 'state', 'now', 'config', 'computed', 'trait', 'user',
+  ]);
+
+  // Build namespace-specific patterns
+  const namespacePatterns: Record<string, RegExp> = {};
+  for (const [ns, ops] of Object.entries(operatorsByNamespace)) {
+    if (ops.length > 0) {
+      namespacePatterns[ns] = new RegExp(`^"(${wordsToPattern(ops)})"$`, 'u');
+    }
+  }
+
+  const effectPattern = new RegExp(`^"(${wordsToPattern(effectTypes)})"$`, 'u');
+  const structuralPattern = new RegExp(`^"(${wordsToPattern(structuralKeys)})"$`, 'u');
+  const fieldTypePattern = new RegExp(`^"(${wordsToPattern(fieldTypes)})"$`, 'u');
+  const persistencePattern = new RegExp(`^"(${wordsToPattern(persistenceKinds)})"$`, 'u');
+  const slotPattern = new RegExp(`^"(${wordsToPattern(uiSlots)})"$`, 'u');
+  const eventPattern = new RegExp(`^"(?:[A-Z][A-Z0-9_]{2,}|${wordsToPattern(reservedEventWords())})"$`, 'u');
+  const bindingPattern = new RegExp(
+    `^"@(?:(?:${wordsToPattern(sigilRoots)})|[A-Z][a-zA-Z0-9]*)(?:\\.[\\p{L}\\p{N}_.]+)?"$`,
+    'u',
+  );
+  const patternNamesPattern = tokens.patternNames.length > 0
+    ? new RegExp(`^"(${wordsToPattern(tokens.patternNames)})"$`, 'u')
+    : null;
+  const behaviorPattern = tokens.behaviorNames.length > 0
+    ? new RegExp(`^"(${wordsToPattern(tokens.behaviorNames)})"$`, 'u')
+    : null;
+  return { operatorsByNamespace, effectTypes, structuralKeys, fieldTypes, persistenceKinds, uiSlots, sigilRoots, namespacePatterns, effectPattern, structuralPattern, fieldTypePattern, persistencePattern, slotPattern, eventPattern, bindingPattern, patternNamesPattern, behaviorPattern };
 }
 
-const effectPattern = new RegExp(`^"(${wordsToPattern(effectTypes)})"$`, 'u');
-const structuralPattern = new RegExp(`^"(${wordsToPattern(structuralKeys)})"$`, 'u');
-const fieldTypePattern = new RegExp(`^"(${wordsToPattern(fieldTypes)})"$`, 'u');
-const persistencePattern = new RegExp(`^"(${wordsToPattern(persistenceKinds)})"$`, 'u');
-const slotPattern = new RegExp(`^"(${wordsToPattern(uiSlots)})"$`, 'u');
-const eventPattern = new RegExp(`^"(?:[A-Z][A-Z0-9_]{2,}|${wordsToPattern(reservedEventWords)})"$`, 'u');
-const bindingPattern = new RegExp(
-  `^"@(?:(?:${wordsToPattern(sigilRoots)})|[A-Z][a-zA-Z0-9]*)(?:\\.[\\p{L}\\p{N}_.]+)?"$`,
-  'u',
-);
-const patternNamesPattern = tokens.patternNames.length > 0
-  ? new RegExp(`^"(${wordsToPattern(tokens.patternNames)})"$`, 'u')
-  : null;
-const behaviorPattern = tokens.behaviorNames.length > 0
-  ? new RegExp(`^"(${wordsToPattern(tokens.behaviorNames)})"$`, 'u')
-  : null;
+let orbWords: ReturnType<typeof buildOrbWords> | undefined;
+
+/** The word lists and patterns, built on first use: they need the native language packs installed. */
+function words(): ReturnType<typeof buildOrbWords> {
+  return (orbWords ??= buildOrbWords());
+}
 
 /**
  * Register the 'orb' language with Prism.
@@ -60,6 +70,7 @@ const behaviorPattern = tokens.behaviorNames.length > 0
  *   registerOrbLanguage(Prism);
  */
 export function registerOrbLanguage(Prism: Record<string, unknown>): void {
+  const { operatorsByNamespace, effectTypes, structuralKeys, fieldTypes, persistenceKinds, uiSlots, sigilRoots } = words();
   const languages = Prism.languages as Record<string, unknown>;
 
   // Extend JSON as the base grammar
@@ -94,7 +105,7 @@ export function registerOrbLanguage(Prism: Record<string, unknown>): void {
 
   // 4. Events: UPPER_SNAKE_CASE (3+ chars), plus the translated reserved ones
   orbInside['orb-event'] = new RegExp(
-    `"(?:[A-Z][A-Z0-9_]{2,}|${wordsToPattern(reservedEventWords)})"`,
+    `"(?:[A-Z][A-Z0-9_]{2,}|${wordsToPattern(reservedEventWords())})"`,
     'u',
   );
 
@@ -153,6 +164,7 @@ export function registerOrbLanguage(Prism: Record<string, unknown>): void {
  * Useful for Monaco and other non-Prism consumers.
  */
 export function classifyOrbToken(quotedString: string): string {
+  const { bindingPattern, effectPattern, namespacePatterns, eventPattern, slotPattern, structuralPattern, fieldTypePattern, persistencePattern, patternNamesPattern, behaviorPattern } = words();
   // Reuse the same logic without Prism dependency
   if (bindingPattern.test(quotedString)) return 'binding';
   if (effectPattern.test(quotedString)) return 'effect';

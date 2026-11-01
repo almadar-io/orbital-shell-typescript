@@ -268,9 +268,34 @@ export class SessionEndedError extends Error {
   }
 }
 
+/** The host answered a dispatch with a non-2xx status: a transport or auth failure, never an event response. */
+export class TransportStatusError extends Error {
+  /** The `{ error, code }` body when the answer carried one. */
+  readonly refusal: RefusalBody | undefined;
+
+  constructor(
+    readonly status: number,
+    readonly bodyText: string,
+  ) {
+    super(`the server answered ${status}${bodyText.length > 0 ? `: ${bodyText}` : ' with no body'}`);
+    this.refusal = parseRefusal(bodyText);
+    this.name = 'TransportStatusError';
+  }
+}
+
 interface RefusalBody {
   code?: string;
   error?: string;
+}
+
+function parseRefusal(text: string): RefusalBody | undefined {
+  if (text.length === 0) return undefined;
+  try {
+    const parsed: RefusalBody = JSON.parse(text);
+    return typeof parsed === 'object' && parsed !== null ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export interface HttpTransportOptions {
@@ -334,8 +359,10 @@ export function createHttpTransport(options: HttpTransportOptions): EventTranspo
     // A browser EventSource cannot send a header and a token in the URL leaks into logs, so the stream opens with a
     // single-use ticket minted with the bearer; a ticket is spent by its connection, hence a fresh one per reopen.
     const key = `${eventsUrl}?${new URLSearchParams(params).toString()}`;
+    // The server mints the ticket for this tab's client session, so it carries the tab's clientId.
+    const mintUrl = params['clientId'] !== undefined ? `${eventsUrl}/ticket?${new URLSearchParams({ clientId: params['clientId'] }).toString()}` : `${eventsUrl}/ticket`;
     const resolveUrl = async (): Promise<string> => {
-      const reply = await fetchFn(`${eventsUrl}/ticket`, { method: 'POST', headers: await authHeaders(getAccessToken) });
+      const reply = await fetchFn(mintUrl, { method: 'POST', headers: await authHeaders(getAccessToken) });
       if (!reply.ok) throw new Error(`the server refused a stream ticket: ${reply.status}`);
       const body: { ticket?: string } = await reply.json();
       if (typeof body.ticket !== 'string' || body.ticket.length === 0) throw new Error('the server sent no stream ticket');
@@ -387,8 +414,14 @@ export function createHttpTransport(options: HttpTransportOptions): EventTranspo
         getAccessToken,
         compress,
       );
-      const body: EventResponse & RefusalBody = await res.json();
-      if (res.status === 409 && body.code === 'SESSION_ENDED') throw new SessionEndedError(body.error ?? 'the session ended');
+      const text = await res.text();
+      if (res.status === 409) {
+        const refusal = parseRefusal(text);
+        if (refusal?.code === 'SESSION_ENDED') throw new SessionEndedError(refusal.error ?? 'the session ended');
+      }
+      // std-http-dispatch.lolo:203 answers 403 with the EventResponse as its body (an input the host refuses); every other non-2xx is an `{ error, code }` body.
+      if (!res.ok && res.status !== 403) throw new TransportStatusError(res.status, text);
+      const body: EventResponse = JSON.parse(text);
       return body;
     },
 

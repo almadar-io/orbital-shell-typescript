@@ -378,6 +378,12 @@ pub fn event_wires(schema_json: String) -> napi::Result<String> {
     api::event_wires(&schema_json).map_err(js)
 }
 
+/// The kernel's verdict on language packs (`[{ package, definition }]` as JSON): throws the refusal that names each pack, section and word.
+#[napi]
+pub fn validate_packs(packs_json: String) -> napi::Result<()> {
+    api::validate_packs(&packs_json).map_err(js)
+}
+
 #[napi]
 pub fn tab_url_matches(pattern: String, url: String) -> bool {
     api::tab_url_matches(&pattern, &url)

@@ -77,6 +77,7 @@ export {
   type EventWire,
   type KernelEvaluator,
   type KernelEvaluatorExports,
+  type LanguagePackWire,
 } from './src/kernel-evaluator';
 export {
   accessDeniedMessage,

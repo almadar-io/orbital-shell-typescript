@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { installKernelEvaluator } from '@almadar/core';
+import { installNativeLanguages } from '@almadar/syntax';
 import type { OrbitalSchema } from '@almadar/core';
 import { readLanguageBundle } from '@almadar/core/language-data';
 import type { KernelEngineValue } from '../providers/KernelEngineContext.js';
@@ -40,6 +41,7 @@ async function load(): Promise<KernelModule> {
   glue.initSync({ module: readFileSync(files.wasm) });
   glue.installLanguage(TEST_LANGUAGE);
   installKernelEvaluator(glue);
+  installNativeLanguages();
   return glue;
 }
 
@@ -72,6 +74,7 @@ export async function loadFreshClientKernel(): Promise<KernelModule> {
   glue.initSync({ module: readFileSync(files.wasm) });
   glue.installLanguage(TEST_LANGUAGE);
   installKernelEvaluator(glue);
+  installNativeLanguages();
   return glue;
 }
 

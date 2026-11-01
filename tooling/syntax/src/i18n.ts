@@ -34,17 +34,40 @@ export type { LanguageCode, OperatorTables, JsonValue };
 
 /**
  * The language packs snapshotted into `tokens.json` at build (this package's
- * devDependencies), registered with `@almadar/core/i18n` on import so a browser
- * bundle can render them; `en` is the canonical source and needs no pack.
+ * devDependencies), registered with `@almadar/core/i18n` by `installNativeLanguages`; `en` is the canonical source and needs no pack.
  */
-export const NATIVE_LANGUAGES: readonly LanguageCode[] = tokens.vocabularyPacks.map((raw, i) => {
-  const pack = parseVocabularyPack(raw, `@almadar/syntax tokens.json#vocabularyPacks[${i}]`);
-  registerVocabulary(pack);
-  return pack.meta.code;
-});
+const nativePacks = tokens.vocabularyPacks.map((raw, i) => parseVocabularyPack(raw, `@almadar/syntax tokens.json#vocabularyPacks[${i}]`));
+
+export const NATIVE_LANGUAGES: readonly LanguageCode[] = nativePacks.map((pack) => pack.meta.code);
+
+/** A reader asked for a native-language word before a host called `installNativeLanguages`. */
+export class NativeLanguagesNotInstalledError extends Error {
+  constructor() {
+    super('the native language packs are not installed: install the kernel, then call installNativeLanguages() before reading native words or grammars');
+    this.name = 'NativeLanguagesNotInstalledError';
+  }
+}
+
+let nativeInstalled = false;
+
+/**
+ * Register the snapshotted `ar`/`sl` packs with `@almadar/core/i18n`. The kernel's pack check gives the
+ * verdict, so a host calls this once after `installKernelEvaluator`; without a kernel it throws
+ * `KernelEvaluatorNotInstalledError`. Repeating it is a no-op.
+ */
+export function installNativeLanguages(): void {
+  if (nativeInstalled) return;
+  for (const pack of nativePacks) registerVocabulary(pack);
+  nativeInstalled = true;
+}
+
+function requireNativeLanguages(): void {
+  if (!nativeInstalled) throw new NativeLanguagesNotInstalledError();
+}
 
 /** A language pack's operator spellings, as `@almadar/core/i18n` expects them. */
 export function stdOperatorTables(lang: LanguageCode): OperatorTables {
+  requireNativeLanguages();
   const table = vocabularyOperators(lang);
   if (!table) throw new Error(`no operator spellings for "${lang}" — English operators are their own names`);
   return table;
@@ -55,6 +78,7 @@ export function stdOperatorTables(lang: LanguageCode): OperatorTables {
  * `lang === 'en'` returns the source unchanged.
  */
 export function translateLolo(source: string, lang: LanguageCode): string {
+  if (lang !== 'en') requireNativeLanguages();
   return localizeLoloSource(source, lang, { operators: vocabularyOperators(lang) });
 }
 
@@ -68,6 +92,7 @@ export function translateLolo(source: string, lang: LanguageCode): string {
  * core's `lexLolo` states for the `.lolo` side.
  */
 export function translateOrb(json: string | JsonValue, lang: LanguageCode): string | JsonValue {
+  if (lang !== 'en') requireNativeLanguages();
   const options = { operators: vocabularyOperators(lang) };
   if (typeof json !== 'string') return localizeOrbValue(json, lang, options);
   let parsed: JsonValue;
@@ -101,6 +126,7 @@ const WORD_SHAPED = /^[A-Za-z_][A-Za-z0-9_/-]*$/;
 
 /** An English `.lolo` word list plus its `ar` and `sl` spellings. */
 export function multilingualWords(words: readonly string[]): string[] {
+  requireNativeLanguages();
   const out = new Set<string>(words);
   for (const lang of NATIVE_LANGUAGES) {
     const map = vocabulary(lang);
@@ -125,6 +151,7 @@ export function nativeWords(words: readonly string[]): string[] {
  * are JSON keys, never `.lolo` source words.
  */
 export function multilingualOrbKeys(keys: readonly string[]): string[] {
+  requireNativeLanguages();
   const out = new Set<string>(keys);
   for (const lang of NATIVE_LANGUAGES) {
     const table = getVocabulary(lang).orb;
@@ -136,12 +163,12 @@ export function multilingualOrbKeys(keys: readonly string[]): string[] {
   return [...out];
 }
 
-/** Reserved event names (`INIT`, …) in all three languages. */
-export const reservedEventWords: readonly string[] = multilingualWords(
-  Object.keys(englishTables.reservedEvents),
-);
+/** Reserved event names (`INIT`, …) in all three languages; throws `NativeLanguagesNotInstalledError` before install. */
+export function reservedEventWords(): readonly string[] {
+  return multilingualWords(Object.keys(englishTables.reservedEvents));
+}
 
-/** Declaration shapes (`Entity`, `Trait`, …) in `ar`/`sl` only. */
-export const nativeShapeWords: readonly string[] = nativeWords(
-  Object.keys(englishTables.shapes),
-);
+/** Declaration shapes (`Entity`, `Trait`, …) in `ar`/`sl` only; throws `NativeLanguagesNotInstalledError` before install. */
+export function nativeShapeWords(): readonly string[] {
+  return nativeWords(Object.keys(englishTables.shapes));
+}

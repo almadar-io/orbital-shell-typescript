@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { installTestKernel } from './kernel-glue.js';
 import { getVocabulary, installedLanguages, registerVocabulary } from '../src/i18n/index.js';
 import { LanguageDataError, readLanguageBundle, readVocabularyPacks } from '../src/language-data.js';
 
@@ -129,7 +130,8 @@ describe('language packs', () => {
     expect(() => readVocabularyPacks(root, join(root, 'store'))).toThrow(/lolo-qe/);
   });
 
-  it('a read pack registers as a language for this process', () => {
+  it('a read pack registers as a language for this process', async () => {
+    await installTestKernel();
     const root = project();
     vocabularyPack(root, 'lolo-qf', 'qf');
     for (const pack of readVocabularyPacks(root, join(root, 'store'))) registerVocabulary(pack.vocabulary);

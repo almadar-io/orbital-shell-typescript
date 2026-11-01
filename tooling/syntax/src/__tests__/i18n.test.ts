@@ -6,15 +6,30 @@
  * `\b`, which is ASCII-only in JavaScript regex and therefore can NEVER match
  * Arabic script — an Arabic rendering came out as one unstyled wall.
  */
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import { existsSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir, homedir } from 'node:os';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 import { getVocabulary } from '@almadar/core/i18n';
-import { translateLolo, translateOrb, multilingualWords, multilingualOrbKeys, stdOperatorTables } from '../i18n.js';
+import { installKernelEvaluator, type KernelEvaluatorExports } from '@almadar/core';
+import { installNativeLanguages, translateLolo, translateOrb, multilingualWords, multilingualOrbKeys, stdOperatorTables } from '../i18n.js';
 import { classifyLoloToken, registerLoloLanguage } from '../lolo/prism-lolo.js';
 import { classifyOrbToken, registerOrbLanguage } from '../prism-orb.js';
+
+interface WasmGlue extends KernelEvaluatorExports {
+  initSync(input: { module: Buffer }): void;
+}
+
+beforeAll(async () => {
+  const resolveInstalled = createRequire(import.meta.url).resolve;
+  const glue: WasmGlue = await import(/* @vite-ignore */ pathToFileURL(resolveInstalled('@almadar/kernel')).href);
+  glue.initSync({ module: readFileSync(resolveInstalled('@almadar/kernel/kernel.wasm')) });
+  installKernelEvaluator(glue);
+  installNativeLanguages();
+});
 
 const EN_SOURCE = `app Shop
 

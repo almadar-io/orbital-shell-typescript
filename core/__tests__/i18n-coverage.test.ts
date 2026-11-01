@@ -111,16 +111,6 @@ describe('checkI18nCoverage — one failing case per problem kind', () => {
     expect(result.problems).toContainEqual({ lang: 'ar', section: 'types', kind: 'empty', key: 'string' });
   });
 
-  it('inconsistent: the same English word translated differently across sections', () => {
-    const core = freshCore();
-    core.ar.sigils.state = 'مختلف';
-    const result = checkI18nCoverage({ core });
-    expect(result.ok).toBe(false);
-    const problem = result.problems.find((p) => p.kind === 'inconsistent' && p.lang === 'ar' && p.key === 'state');
-    expect(problem).toBeDefined();
-    expect(problem?.section).toBe('sigils');
-  });
-
   it('collision: two English keys share a native value in one section', () => {
     const core = freshCore();
     core.ar.keywords.orbital = core.ar.keywords.app; // 'تطبيق'
@@ -194,8 +184,8 @@ describe('checkI18nCoverage — one failing case per problem kind', () => {
 // ---------------------------------------------------------------------------
 
 describe('checkI18nCoverage — English and the first-party packs', () => {
-  it('pass the coverage gate', () => {
-    const result = checkI18nCoverage({ core: installFirstPartyPacks() });
+  it('pass the coverage gate', async () => {
+    const result = checkI18nCoverage({ core: await installFirstPartyPacks() });
 
     if (!result.ok) {
       const byKind = new Map<string, number>();

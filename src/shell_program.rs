@@ -105,7 +105,12 @@ impl ShellProgram for TypeScriptProgram {
                 ),
             ],
             web_client: crate::shell::web_client(),
+            language_problem: None,
         }
+    }
+
+    fn language_problem(&self) -> Option<ShellFailure> {
+        language_ready(orbital_core_eval::language_loader::preflight).err()
     }
 
     fn generate(&self, request: &GenerateRequest, output: &Path) -> Result<GenerateResponse, ShellFailure> {
@@ -276,6 +281,22 @@ mod tests {
         .expect_err("an operator the shell does not implement is refused");
         assert_eq!(failure.code, "ORB_LANGUAGE_DATA_INCOMPATIBLE");
         assert!(failure.message.contains("@almadar/std@16.256.0") && failure.message.contains("csv/parse"), "{}", failure.message);
+    }
+
+    #[test]
+    fn the_description_reports_an_unloadable_install_and_a_loading_one_reports_nothing() {
+        let reported = language_ready(|| {
+            Err(orbital_core_base::language_data::LanguageDataError::Unimplemented {
+                package: "@almadar/std",
+                version: "16.256.0".to_string(),
+                operators: vec!["csv/parse".to_string()],
+            })
+        })
+        .err()
+        .expect("an install naming an unknown operator is reported");
+        assert_eq!(reported.code, "ORB_LANGUAGE_DATA_INCOMPATIBLE");
+        assert!(language_ready(|| Ok(())).err().is_none(), "control: a loading install reports nothing");
+        assert!(TypeScriptProgram.describe().language_problem.is_none(), "describe leaves the report to the protocol's describe command");
     }
 
     #[test]

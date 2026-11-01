@@ -4,7 +4,7 @@ import { NativeMemoryPersistenceAdapter } from '../src/persistence/native-memory
 
 import { loadRealKernel } from './real-kernel.js';
 const implementations = [
-  { name: 'native Node', path: process.env.ORBITAL_KERNEL_NODE },
+  { name: 'native Node', path: process.env.ALMADAR_KERNEL_NODE },
   { name: 'WASM', path: process.env.ORBITAL_KERNEL_MEMORY_WASM },
 ];
 

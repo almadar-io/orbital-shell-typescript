@@ -30,6 +30,7 @@ export function stubKernelModule(Server: KernelServerClass, overrides: Partial<O
     checkMutationAccess: unexpected('checkMutationAccess'),
     resolveRowBinding: unexpected('resolveRowBinding'),
     eventWires: unexpected('eventWires'),
+    validatePacks: unexpected('validatePacks'),
     ...overrides,
   };
 }

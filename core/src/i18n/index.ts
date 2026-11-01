@@ -12,6 +12,7 @@
 import orbNotationRaw from './orb-notation.json';
 import enRaw from './en.json';
 import { LOLO_FIRST_TOKEN_KEYWORDS, RTL_LOCALES } from '../generated/i18n-tables.js';
+import { kernelEvaluator } from '../kernel-evaluator.js';
 
 /** A language's code (`en`, `ar`, `pt-BR`, …). `en` is the canonical language. */
 export type LanguageCode = string;
@@ -252,16 +253,15 @@ export function parseVocabularyPack(raw: unknown, source: string): VocabularyPac
 
 const registeredPacks = new Map<LanguageCode, VocabularyPack>();
 
-/** Problems that make a pack ambiguous to parse — refused at registration. A missing
- *  word is not one: English spellings stay legal in every language. */
-const FATAL_PACK_PROBLEMS: ReadonlySet<I18nProblemKind> = new Set(['collision', 'selector-not-unique', 'inconsistent', 'empty']);
-
 /**
  * Install a language pack for this process. English is built in; a code another
  * pack already holds, or a pack whose words would make a program ambiguous
  * (two English words on one spelling, a language selector another installed
- * language uses), is refused with every problem named. Re-registering an
- * identical pack is a no-op.
+ * language uses, one English word spelled two ways), is refused with every problem
+ * named. The kernel's pack check gives the verdict, so a kernel must be installed
+ * (`KernelEvaluatorNotInstalledError` otherwise); the one rule it does not carry —
+ * a native spelling shared across effects and operators — is checked here.
+ * Re-registering an identical pack is a no-op.
  */
 export function registerVocabulary(pack: VocabularyPack): void {
   const code = pack.meta.code;
@@ -271,13 +271,14 @@ export function registerVocabulary(pack: VocabularyPack): void {
     if (JSON.stringify(existing) === JSON.stringify(pack)) return;
     throw new Error(`language pack "${code}": a different "${code}" pack is already installed`);
   }
+  kernelEvaluator().validatePacks([...registeredPacks, [code, pack] as const].map(([lang, definition]) => ({ package: lang, definition })));
   const core: Record<LanguageCode, I18nTables> = { en: englishTables };
   for (const [other, table] of registeredPacks) core[other] = table;
   core[code] = pack;
   const std: Record<LanguageCode, OperatorTables> = {};
   for (const [other, table] of registeredPacks) std[other] = { operators: table.operators };
   std[code] = { operators: pack.operators };
-  const fatal = checkI18nCoverage({ core, std }).problems.filter((p) => p.lang === code && FATAL_PACK_PROBLEMS.has(p.kind));
+  const fatal = checkI18nCoverage({ core, std }).problems.filter((p) => p.lang === code && p.kind === 'collision' && p.section === 'effects∪operators');
   if (fatal.length > 0) {
     const lines = fatal.map((p) => `${p.kind} ${p.section}.${p.key}${p.detail ? ` — ${p.detail}` : ''}`);
     throw new Error(`language pack "${code}" is refused:\n  ${lines.join('\n  ')}`);
@@ -350,7 +351,6 @@ export type I18nProblemKind =
   | 'missing'
   | 'orphan'
   | 'empty'
-  | 'inconsistent'
   | 'collision'
   | 'selector-not-unique'
   | 'operators-mismatch'
@@ -373,7 +373,7 @@ export interface I18nCoverageInput {
 
 /**
  * The one implementation of the i18n coverage rules (plan B1):
- * missing/orphan/empty key sets, cross-section translation consistency,
+ * missing/orphan/empty key sets (cross-section consistency is the kernel's `validatePacks`),
  * native-value collisions (within a section, and across effects∪operators),
  * unique language-selector translations, and operator-set parity.
  * Never truncates — returns every problem found.
@@ -426,44 +426,6 @@ export function checkI18nCoverage(input: I18nCoverageInput): { ok: boolean; prob
       for (const [key, value] of Object.entries(values)) {
         if (value === '') {
           problems.push({ lang, section, kind: 'empty', key });
-        }
-      }
-    }
-  }
-
-  // (2) inconsistent — the same English word translated differently across sections
-  // (including operators) within one language
-  for (const lang of Object.keys(core)) {
-    const table = core[lang];
-    const occurrences = new Map<string, Array<{ section: string; value: string }>>();
-    for (const section of I18N_SECTIONS) {
-      for (const [key, value] of Object.entries(table[section])) {
-        const list = occurrences.get(key) ?? [];
-        list.push({ section, value });
-        occurrences.set(key, list);
-      }
-    }
-    const opTable = std?.[lang]?.operators;
-    if (opTable) {
-      for (const [key, value] of Object.entries(opTable)) {
-        const list = occurrences.get(key) ?? [];
-        list.push({ section: 'operators', value });
-        occurrences.set(key, list);
-      }
-    }
-    for (const [key, entries] of occurrences) {
-      if (entries.length < 2) continue;
-      const baseline = entries[0];
-      for (let i = 1; i < entries.length; i++) {
-        const entry = entries[i];
-        if (entry.value !== baseline.value) {
-          problems.push({
-            lang,
-            section: entry.section,
-            kind: 'inconsistent',
-            key,
-            detail: `"${key}" is "${baseline.value}" in ${baseline.section} but "${entry.value}" in ${entry.section}`,
-          });
         }
       }
     }

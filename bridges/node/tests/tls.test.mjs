@@ -1,7 +1,7 @@
 // EXEC-HTTP-7 on the native Node add-on: the kernel owns TLS on os/* sockets; this host answers only raw bytes.
 // Twin of the kernel::tls_sockets tests of orbital-core-runtime (same cases, a real TLS server on loopback).
 // Run from the repository root (the operator table is found from the working directory):
-//   ORBITAL_KERNEL_NODE=<path to kernel.node> node --test crates/orbital-shell-typescript/bridges/node/tests/tls.test.mjs
+//   ALMADAR_KERNEL_NODE=<path to kernel.node> node --test crates/orbital-shell-typescript/bridges/node/tests/tls.test.mjs
 import assert from 'node:assert/strict';
 import { X509Certificate, createPrivateKey, randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -19,7 +19,7 @@ const keyDer = readFileSync(join(testdata, 'key.der'));
 const certPem = new X509Certificate(certDer).toString();
 const keyPem = createPrivateKey({ key: keyDer, format: 'der', type: 'pkcs8' }).export({ format: 'pem', type: 'pkcs8' });
 const NOW_MS = (1_792_209_645 + 55) * 1000;
-const { Server } = createRequire(import.meta.url)(process.env.ORBITAL_KERNEL_NODE);
+const { Server } = createRequire(import.meta.url)(process.env.ALMADAR_KERNEL_NODE);
 
 let listener;
 let port;

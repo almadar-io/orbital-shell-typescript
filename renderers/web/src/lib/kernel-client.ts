@@ -493,7 +493,9 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       const groups = (topology.carriesCircuitState ? mount.legs : mount.statefulLegs)
         .map((group) => {
           const answered = wires.filter((w) => group.seeds.some((s) => s.trait === w.seed.trait && s.event === w.seed.event));
-          return { group, answered, flight: Math.min(...answered.map(flightOf)) };
+          // A client-only seed the host replays for a held emit (EXEC-SEED-2) owed nothing when it ran, so it opened no flight.
+          const flown = answered.filter((w) => w.flight !== null && w.flight !== undefined);
+          return { group, answered, flight: Math.min(...(flown.length > 0 ? flown : answered).map(flightOf)) };
         })
         .sort((a, b) => a.flight - b.flight);
       for (const { group, answered, flight } of groups) {

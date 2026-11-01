@@ -14,7 +14,7 @@ import {
 } from '../src/i18n/index.js';
 import { installFirstPartyPacks } from './language-packs.js';
 
-installFirstPartyPacks();
+await installFirstPartyPacks();
 
 function operatorsFor(lang: LanguageCode): OperatorTables | undefined {
   return vocabularyOperators(lang);

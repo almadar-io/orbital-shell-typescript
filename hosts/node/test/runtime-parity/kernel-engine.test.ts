@@ -2,7 +2,7 @@ import './helpers/kernel-evaluator.setup.js';
 /**
  * The kernel-backed engine (`OrbitalServerRuntime`, `evaluateOrbitalEvent`'s `kernel`
  * dep): the Rust kernel decides every step, this package answers the I/O it asks for. Needs the built
- * `@almadar/kernel` (ALMADAR_KERNEL_DIR) and a kernel with a `MemoryStore` (ORBITAL_KERNEL_NODE or
+ * `@almadar/kernel` (ALMADAR_KERNEL_DIR) and a kernel with a `MemoryStore` (ALMADAR_KERNEL_NODE or
  * ORBITAL_KERNEL_MEMORY_WASM); the suite is skipped without them.
  */
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';

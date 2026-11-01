@@ -4,6 +4,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  assertImportable,
+  behaviorProgramFiles,
+  behaviorRegistry,
   behaviorRegistryDir,
   behaviorSourceTree,
   evictOldMirrors,
@@ -16,26 +19,28 @@ import {
 /**
  * The stand-in `orb`'s `materialize <out>`: logs the call (out, working directory, cache) to `calls.log`,
  * writes each `.lolo` of the working directory as its program under `$ALMADAR_DERIVED_CACHE/<out>` and copies
- * each locale catalog; a file containing `BROKEN` fails the call, naming it. The real algorithm (incremental
+ * each locale catalog; a file containing `BROKEN` is listed in the answer's `failures` (`--json`: `{ dir, failures: [{ rel, error }] }`) and the rest lowers. The real algorithm (incremental
  * hashes, pruning) is the std command's own: its goldens and `orb materialize` runs pin it.
  */
 function materializeScript(dir: string): string {
   return `
 const program = (f) => { const t = fs.readFileSync(f, 'utf8').trim(); return t.startsWith('{') ? JSON.parse(t) : { name: t }; };
 if (args[0] === 'materialize') {
-  const out = path.join(process.env.ALMADAR_DERIVED_CACHE, args[1]);
-  fs.appendFileSync(${JSON.stringify(join(dir, 'calls.log'))}, ['materialize', args[1], process.cwd(), process.env.ALMADAR_DERIVED_CACHE].join(' ') + '\\n');
+  const outRel = args.slice(1).filter((a) => a !== '--json')[0];
+  const out = path.join(process.env.ALMADAR_DERIVED_CACHE, outRel);
+  fs.appendFileSync(${JSON.stringify(join(dir, 'calls.log'))}, ['materialize', ...args.slice(1).filter((a) => a !== '--json'), process.cwd(), process.env.ALMADAR_DERIVED_CACHE].join(' ') + '\\n');
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
+  const failures = [];
   for (const f of walk(process.cwd())) {
     const rel = path.relative(process.cwd(), f);
     const isCatalog = f.endsWith('.json') && rel.split(path.sep).includes('locales');
     if (!f.endsWith('.lolo') && !isCatalog) continue;
-    if (f.endsWith('.lolo') && fs.readFileSync(f, 'utf8').includes('BROKEN')) { console.error(rel + ' does not lower: parse error'); process.exit(1); }
+    if (f.endsWith('.lolo') && fs.readFileSync(f, 'utf8').includes('BROKEN')) { failures.push({ rel, error: 'parse error' }); continue; }
     const target = path.join(out, f.endsWith('.lolo') ? rel.replace(/\\.lolo$/, '.orb') : rel);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, f.endsWith('.lolo') ? JSON.stringify(program(f)) : fs.readFileSync(f));
   }
-  console.log(args[1]);
+  console.log(JSON.stringify({ dir: out, failures }));
   process.exit(0);
 }
 `;
@@ -127,11 +132,33 @@ describe('behaviorRegistryDir — a live package (orb.source)', () => {
     expect(existsSync(join(dir, 'kflow/atoms/a.orb'))).toBe(true);
   });
 
-  it('a file that does not lower fails the call, naming it', () => {
-    const { root, work } = livePackage({ 'app/atoms/bad.lolo': 'BROKEN' });
-    expect(() => behaviorRegistryDir(readBehaviorPackage(root), { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') })).toThrow(
-      /bad\.lolo does not lower: parse error/,
-    );
+  it('a file that does not lower is returned in failures while the good file lowers', () => {
+    const { root, work } = livePackage({ 'app/atoms/bad.lolo': 'BROKEN', 'app/atoms/good.lolo': 'G' });
+    const pkg = readBehaviorPackage(root);
+    const registry = behaviorRegistry(pkg, { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') });
+    expect(registry.failures).toEqual([{ rel: 'app/atoms/bad.lolo', error: 'parse error' }]);
+    expect(JSON.parse(readFileSync(join(registry.dir, 'app/atoms/good.orb'), 'utf8'))).toEqual({ name: 'G' });
+    expect(existsSync(join(registry.dir, 'app/atoms/bad.orb'))).toBe(false);
+  });
+
+  it('importing a file listed in failures throws naming the file and its error', () => {
+    const { root, work } = livePackage({ 'app/atoms/bad.lolo': 'BROKEN', 'app/atoms/good.lolo': 'G' });
+    const pkg = readBehaviorPackage(root);
+    const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
+    const registry = behaviorRegistry(pkg, opts);
+    expect(() => assertImportable(pkg, registry, 'app/atoms/bad.orb')).toThrow(/app\/atoms\/bad\.lolo does not lower: parse error/);
+    expect(() => assertImportable(pkg, registry, 'app/atoms/good.orb')).not.toThrow();
+    expect(() => behaviorProgramFiles(pkg, opts)).toThrow(/app\/atoms\/bad\.lolo does not lower: parse error/);
+  });
+
+  it('control: a clean run returns an empty failures list, and behaviorRegistryDir still returns the dir', () => {
+    const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A' });
+    const pkg = readBehaviorPackage(root);
+    const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
+    const registry = behaviorRegistry(pkg, opts);
+    expect(registry.failures).toEqual([]);
+    expect(behaviorRegistryDir(pkg, opts)).toBe(registry.dir);
+    expect([...behaviorProgramFiles(pkg, opts).keys()]).toEqual(['a']);
   });
 
   it('control: a package declaring a registry is read as-is, with no orb call', () => {
