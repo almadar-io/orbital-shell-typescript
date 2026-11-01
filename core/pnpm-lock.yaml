@@ -18,6 +18,9 @@ importers:
       '@almadar/eslint-plugin':
         specifier: ^2.22.0
         version: 2.22.0(eslint@10.0.0)
+      '@almadar/kernel':
+        specifier: ^18.0.0
+        version: 18.0.0
       '@almadar/lolo-ar':
         specifier: ^1.3.0
         version: 1.3.0
@@ -59,6 +62,10 @@ packages:
     engines: {node: '>=22'}
     peerDependencies:
       eslint: '>=8.0.0'
+
+  '@almadar/kernel@18.0.0':
+    resolution: {integrity: sha512-N6VPyRFbsfWfkK7C2y/H9fAUUWVfK0So048HllHns8PlZrY209CT7vL9ZYoPvfC8Q5OPlaMZfT+Y9UbY4kMfYg==}
+    engines: {node: '>=22'}
 
   '@almadar/lolo-ar@1.3.0':
     resolution: {integrity: sha512-QyqOTX01sQKviaR4L3ULPj0LY6J1ow/k5ehHdb7kD3omcxYdEr5WqhzXR20a2o99YlkCVN9UXfzwXKYg6MfRWg==}
@@ -1446,6 +1453,8 @@ snapshots:
     dependencies:
       eslint: 10.0.0
       jsonc-eslint-parser: 3.1.0
+
+  '@almadar/kernel@18.0.0': {}
 
   '@almadar/lolo-ar@1.3.0': {}
 

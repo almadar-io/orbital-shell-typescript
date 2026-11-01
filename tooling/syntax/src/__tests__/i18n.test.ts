@@ -36,7 +36,7 @@ const EN_SOURCE = `app Shop
 entity Product [persistent: products]
   price: number
 
-trait Cart for Product [interaction]
+trait Cart for Product
   initial idle
   state idle
     on ADD -> active
@@ -124,7 +124,10 @@ describe('multilingual word lists', () => {
 });
 
 describe('lolo grammar highlights native text', () => {
-  const grammar = loloGrammar();
+  let grammar: Record<string, unknown> = {};
+  beforeAll(() => {
+    grammar = loloGrammar();
+  });
   const pairs: ReadonlyArray<readonly [string, string, string]> = [
     ['app', 'تطبيق', 'aplikacija'],
     ['entity', 'كيان', 'entiteta'],
@@ -134,7 +137,6 @@ describe('lolo grammar highlights native text', () => {
     ['emit', 'بث', 'oddaj'],
     ['number', 'رقم', 'stevilo'],
     ['persistent', 'دائم', 'trajno'],
-    ['interaction', 'تفاعل', 'interakcija'],
     ['true', 'صحيح', 'drzi'],
   ];
 
@@ -159,7 +161,7 @@ describe('lolo grammar highlights native text', () => {
     // tokens.json, not an i18n one) — parity is the invariant, not coverage.
     const words: ReadonlyArray<readonly [string, string]> = [
       ['app', 'تطبيق'], ['entity', 'كيان'], ['persistent', 'دائم'], ['number', 'رقم'],
-      ['trait', 'سمة'], ['for', 'من_أجل'], ['interaction', 'تفاعل'], ['initial', 'أولي'],
+      ['trait', 'سمة'], ['for', 'من_أجل'], ['initial', 'أولي'],
       ['state', 'حالة'], ['on', 'عند'], ['persist', 'حفظ'], ['emit', 'بث'],
     ];
     for (const [en, word] of words) {
@@ -192,7 +194,7 @@ orbital OrderOrbital {
     id : string!
     status : string
   }
-  trait OrderLifecycle -> Order [interaction] {
+  trait OrderLifecycle -> Order {
     initial: pending
     state pending {
       CONFIRM -> confirmed
