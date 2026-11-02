@@ -128,6 +128,7 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
 const EFFECT_FAMILY_CATEGORY: Record<EffectOperatorFamily, EffectCategory> = {
   agent: 'system', os: 'system', browser: 'system', llm: 'system',
   session: 'system', trace: 'control', memory: 'data', kv: 'data', application: 'system', audio: 'ui', auth: 'system',
+  identity: 'system', theme: 'ui',
 };
 
 /** Where in the world an effect lands — drawn as the actuator's target. */
@@ -156,6 +157,7 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
 const EFFECT_FAMILY_ZONE: Record<EffectOperatorFamily, EffectZone> = {
   agent: 'system', os: 'system', browser: 'system', llm: 'remote',
   session: 'system', trace: 'flow', memory: 'store', kv: 'store', application: 'system', audio: 'system', auth: 'remote',
+  identity: 'remote', theme: 'system',
 };
 
 function isEffectOperator(head: string): head is EffectOperator {

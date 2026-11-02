@@ -7,7 +7,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { ThemeProvider } from '../../core';
+import { ThemeProvider, ThemeScopeContext } from '../../core';
 import { OrbitalThemeProvider } from '../OrbitalThemeProvider';
 import { Box } from '../../core';
 import { GameShell } from '../../components/game/templates/GameShell';
@@ -58,6 +58,30 @@ describe('OrbitalThemeProvider override', () => {
   it('an empty-string override is no override', () => {
     const { getByTestId } = renderTree('');
     expect(getByTestId('layout').getAttribute('data-theme')).toBe('art-deco-dark');
+  });
+
+  it('an override an outer scope hands down (a session theme) is painted in its own mode, not the viewer mode', () => {
+    const { getByTestId } = render(
+      <ThemeProvider defaultTheme="minimalist" defaultMode="dark">
+        <ThemeScopeContext.Provider value={{ theme: 'gazette-light', mode: 'light', override: 'gazette-light' }}>
+          <OrbitalThemeProvider theme="art-deco-light">
+            <Box data-testid="layout" data-theme="art-deco-light">
+              <OrbitalThemeProvider theme="clay-dark">
+                <span data-testid="nested-leaf">y</span>
+              </OrbitalThemeProvider>
+            </Box>
+          </OrbitalThemeProvider>
+        </ThemeScopeContext.Provider>
+      </ThemeProvider>,
+    );
+    expect(getByTestId('layout').getAttribute('data-theme')).toBe('gazette-light');
+    expect(getByTestId('nested-leaf').closest('[data-theme]')?.getAttribute('data-theme')).toBe('gazette-light');
+  });
+
+  it("control: a host's own override prop still renders in the viewer mode", () => {
+    const { getByTestId } = renderTree('gazette-light');
+    expect(getByTestId('layout').getAttribute('data-theme')).toBe('gazette-dark');
+    expect(getByTestId('nested-leaf').closest('[data-theme]')?.getAttribute('data-theme')).toBe('gazette-dark');
   });
 
   it('a GameShell data-theme yields to the override too', () => {

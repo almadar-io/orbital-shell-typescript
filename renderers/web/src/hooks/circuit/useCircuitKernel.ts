@@ -49,13 +49,16 @@ import { KernelLoaderMissingError, type KernelEngineValue } from '../../provider
 import { useTranslate, useRenderI18n } from '../../core';
 
 /** A program's type-contract stamp: the kernel refuses to register a program carrying neither field. */
-export type ProgramStamp = Pick<OrbitalSchema, 'resolved' | 'typeContractVersion'>;
+export type ProgramStamp = Pick<OrbitalSchema, 'resolved' | 'typeContractVersion' | 'theme' | 'themes'>;
 
-/** The stamp a loaded program carries, field for field; nothing is minted. */
+/** The program-level fields a kernel registration carries, field for field; nothing is minted. The app's `theme` and
+ *  `themes` are the keys `theme/set` may bind and `@currentTheme` falls back to. */
 export function programStamp(schema: ProgramStamp): ProgramStamp {
   return {
     ...(schema.resolved !== undefined ? { resolved: schema.resolved } : {}),
     ...(schema.typeContractVersion !== undefined ? { typeContractVersion: schema.typeContractVersion } : {}),
+    ...(schema.theme !== undefined ? { theme: schema.theme } : {}),
+    ...(schema.themes !== undefined ? { themes: schema.themes } : {}),
   };
 }
 

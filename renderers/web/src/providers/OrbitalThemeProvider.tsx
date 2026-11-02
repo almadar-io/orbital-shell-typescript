@@ -83,7 +83,9 @@ export function OrbitalThemeProvider({ theme: declared, override, children }: Or
   useFontImport(darkTypeScale?.fontImport ?? resolved?.tokens.typeScale?.fontImport);
 
   if (isThemeRegistryKey(theme)) {
-    const { key, mode: keyMode } = keyInViewerMode(theme, availableThemes, resolvedMode);
+    // An override inherited from an outer scope is already the key to paint, in that scope's mode.
+    const inherited = !override && parent.override ? { key: parent.override, mode: parent.mode } : undefined;
+    const { key, mode: keyMode } = inherited ?? keyInViewerMode(theme, availableThemes, resolvedMode);
     const mode = keyMode ?? parent.mode;
     return (
       <ThemeScopeContext.Provider

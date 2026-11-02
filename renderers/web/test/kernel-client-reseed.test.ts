@@ -63,7 +63,7 @@ function fakeKernel(reseeded: string[]): KernelInstance {
     deliverOriginEmit: refuse,
     getState: () => 'idle',
     dispatchMode: () => JSON.stringify('persistedAwaited'),
-    restore: refuse, framesSince: refuse, tick: refuse, frame: refuse, framePause: refuse, frameResume: refuse, tickCount: refuse, traitConfig: refuse,
+    restore: refuse, framesSince: refuse, tick: refuse, frame: refuse, framePause: refuse, frameResume: refuse, tickCount: refuse, sessionTheme: () => undefined, traitConfig: refuse,
     setMessages: refuse, setHostFansOut: refuse, setRecordEntityAfter: refuse, setFrameEffectResults: refuse, bootMounts: refuse, routeMounts: refuse, pageCircuit: pageCircuitStub, contractQuery: refuse,
     setTraitOnScreen: refuse, seed: refuse, free: refuse,
   };

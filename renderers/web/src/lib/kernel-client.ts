@@ -70,6 +70,8 @@ export interface KernelClient extends ClientKernel {
   pageCircuit(page?: string, route?: string): Promise<PageCircuit>;
   /** The kernel's current state of a trait; `undefined` until the WebAssembly is loaded. */
   traitState(traitName: string): string | undefined;
+  /** The theme key the server bound to this session with `theme/set`; `undefined` when none is, or until the WebAssembly is loaded. */
+  sessionTheme(): string | undefined;
   /** The config the kernel binds as `@config` for a trait (render markers resolve against it); `undefined` until the WebAssembly is loaded. */
   traitConfig(traitName: string): TraitConfig | undefined;
 }
@@ -660,6 +662,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       };
     },
     traitState: (traitName) => loaded?.getState(traitName),
+    sessionTheme: () => loaded?.sessionTheme(),
     traitConfig: (traitName) => {
       if (loaded === undefined) return undefined;
       const held = configs.get(traitName);

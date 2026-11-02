@@ -36,6 +36,7 @@ import { EntityBindingContext } from '../providers/EntityBindingContext';
 import { AwaitingSkeletonContext } from '../providers/AwaitingSkeletonContext';
 import { ServerBridgeProvider, useServerBridge, type ServerBridgeTransport, type AccessTokenProvider } from '../providers/ServerBridge';
 import { OrbitalThemeProvider } from '../providers/OrbitalThemeProvider';
+import { ThemeScopeContext, registryKeyMode, useTheme, useThemeScope } from '../core';
 import { getAllPages } from '../core';
 import { PageAccessHost } from '../providers/PageAccessHost';
 import { usePageHead } from '../hooks/usePageHead';
@@ -168,7 +169,7 @@ function TraitInitializer({ pageName, routeParams, mountKey, orbitals, metadata,
     return () => clearTimeout(timer);
   }, [hasBridge, bridge.connected, onLocalFallback, localFallbackTimeoutMs]);
 
-  const { entityBindingSource, awaitingSkeletonSource, circuit } = useTraitStateMachine(uiSlots, {
+  const { entityBindingSource, awaitingSkeletonSource, circuit, sessionTheme } = useTraitStateMachine(uiSlots, {
     orbitals,
     ...(pageName !== undefined ? { page: pageName } : {}),
     ...(metadata !== undefined ? { metadata } : {}),
@@ -189,16 +190,25 @@ function TraitInitializer({ pageName, routeParams, mountKey, orbitals, metadata,
     return map;
   }, [circuit, pageName]);
 
+  // The kernel's session theme (`theme/set`) is painted as given: its key carries its mode, so the viewer's mode never flips it.
+  const parentScope = useThemeScope();
+  const { availableThemes } = useTheme();
+  const themeScope = useMemo(
+    () => (sessionTheme === undefined ? undefined : { ...parentScope, theme: sessionTheme, mode: registryKeyMode(sessionTheme, availableThemes), override: sessionTheme }),
+    [sessionTheme, parentScope, availableThemes],
+  );
+
   if (circuit.status === 'pending') return <LoadingState />;
   if (circuit.status === 'failed') return <ErrorState data-testid="page-circuit-error" message={circuit.error.message} />;
 
-  return (
+  const page = (
     <EntityBindingContext.Provider value={entityBindingSource}>
       <AwaitingSkeletonContext.Provider value={awaitingSkeletonSource}>
         <EntitySchemaProvider orbitalsByTrait={orbitalsByTrait}>{children}</EntitySchemaProvider>
       </AwaitingSkeletonContext.Provider>
     </EntityBindingContext.Provider>
   );
+  return themeScope === undefined ? page : <ThemeScopeContext.Provider value={themeScope}>{page}</ThemeScopeContext.Provider>;
 }
 
 /**

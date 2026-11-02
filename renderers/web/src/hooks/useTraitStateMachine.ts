@@ -70,6 +70,8 @@ export interface TraitStateMachineResult {
   awaitingSkeletonSource: AwaitingSkeletonSource;
   /** The kernel's answer for the page: pending until it answers, failed when it cannot. Nothing mounts before it is ready. */
   circuit: CircuitState;
+  /** The theme key the server bound to this session with `theme/set`; `undefined` when none is and the declared themes apply. */
+  sessionTheme: string | undefined;
 }
 
 export interface UseTraitStateMachineOptions {
@@ -468,6 +470,7 @@ export function useTraitStateMachine(
   // `applyOrbitalEventResponse` signal "state changed" (plan §4.2 P2).
   useSyncExternalStore(store.subscribe, store.getVersion, store.getVersion);
   const traitStates = useMemo(() => store.states.getAllStates(), [store, store.getVersion()]);
+  const sessionTheme = useSyncExternalStore(store.subscribe, () => kernelClient.sessionTheme(), () => undefined);
 
-  return { traitStates, getTraitState, entityBindingSource, awaitingSkeletonSource, circuit };
+  return { traitStates, getTraitState, entityBindingSource, awaitingSkeletonSource, circuit, sessionTheme };
 }

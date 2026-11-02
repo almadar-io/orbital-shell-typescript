@@ -100,10 +100,7 @@ pub(crate) fn client_program(program: &serde_json::Value) -> serde_json::Value {
         .and_then(serde_json::Value::as_array_mut)
     {
         // The client serves routes only (EXEC-ENDPOINT-5): an orbital whose every page is a protocol endpoint is the server's.
-        orbitals.retain(|orbital| {
-            let pages = orbital.get("pages").and_then(serde_json::Value::as_array);
-            !pages.is_some_and(|pages| !pages.is_empty() && pages.iter().all(|page| page.get("protocol").is_some()))
-        });
+        orbitals.retain(|orbital| !orbital_core_base::runs_on::serves_only_protocol_pages(orbital));
         for orbital in orbitals {
             if let Some(pages) = orbital
                 .get_mut("pages")

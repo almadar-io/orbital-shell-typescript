@@ -37,6 +37,8 @@ export interface KernelInstance {
   framePause(): void;
   frameResume(): void;
   tickCount(): number;
+  /** The theme key the server bound to this client's session with `theme/set` (mirrored from its frames); `undefined` when none is. */
+  sessionTheme(): string | undefined;
   /** The kernel's dispatch mode for a registered trait (`DispatchMode` as JSON text); throws for an unregistered one. */
   dispatchMode(traitName: string): string;
   /** The config the kernel binds as `@config` for a registered trait (JSON text); throws for an unregistered one. */
