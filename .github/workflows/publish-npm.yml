@@ -88,6 +88,7 @@ jobs:
         working-directory: ${{ steps.pkg.outputs.dir }}
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-          pnpm publish --access public --no-git-checks
+          # Published under the next dist-tag; the orb release smoke (orbital-rust release-smoke.yml) promotes it to latest.
+          pnpm publish --access public --no-git-checks --tag next
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

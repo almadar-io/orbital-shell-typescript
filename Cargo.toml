@@ -1,10 +1,14 @@
 [package]
-name = "orbital-shell-typescript"
 version = "18.0.0"
+name = "orbital-shell-typescript"
 edition = "2021"
 license = "BUSL-1.1"
 repository = "https://github.com/almadar-io/orbital-shell-typescript"
 description = "TypeScript/React shell for the Orbital compiler"
+
+# The orb versions this shell program runs under (its npm package records it as orbProgram.compiler).
+[package.metadata.orb]
+compiler = ">=18.0.0"
 
 [dependencies]
 orbital-core-base = { git = "https://github.com/almadar-io/orbital-core", branch = "main" }
