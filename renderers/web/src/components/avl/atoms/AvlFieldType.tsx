@@ -16,6 +16,7 @@ export type FieldTypeShape = 'circle' | 'triangle' | 'square' | 'diamond' | 'rin
 export const FIELD_TYPE_SHAPES: Record<FieldTag, FieldTypeShape> = {
   string: 'circle', email: 'circle', url: 'circle', phone: 'circle', uuid: 'circle', field: 'circle',
   number: 'triangle', int: 'triangle', money: 'triangle',
+  i8: 'triangle', i16: 'triangle', i32: 'triangle', u8: 'triangle', u16: 'triangle', u32: 'triangle', u64: 'triangle', f32: 'triangle',
   boolean: 'square',
   date: 'diamond', timestamp: 'diamond', datetime: 'diamond', instant: 'diamond',
   enum: 'ring', union: 'ring',

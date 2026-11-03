@@ -3,7 +3,7 @@
  * (`@almadar/kernel`, WebAssembly) decides every execution step; this host answers the I/O it asks for
  * and nothing else. The continuation of a stopped dispatch never leaves the wasm instance.
  */
-import { ExternalInputSchema, InboundAnswerSchema, InboundFoundSchema, InboundOnlySchema, NameListSchema, OptionalNameSchema, PayloadIssueSchema, PayloadJsonSchemaSchema, installKernelEvaluator, isEntityReferenceAny, MountSeedSchema, EntityRowSchema, EventPayloadSchema, type ExternalInput, type InboundAnswer, type InboundDelivery, type InboundRoute, type JsonSchema, type PayloadField, type PayloadIssue, type MountSeed, type EntityRow, type EventPayload, type EventStreamItem, type MessageCatalogs, type EventRequest, type EventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext, LiveBroadcastItemSchema, type LiveBroadcastItem } from '@almadar/core';
+import { ExternalInputSchema, InboundAnswerSchema, InboundFoundSchema, InboundOnlySchema, NameListSchema, OptionalNameSchema, PayloadIssueSchema, PayloadJsonSchemaSchema, installKernelEvaluator, isEntityReferenceAny, MountSeedSchema, EntityRowSchema, EventPayloadSchema, type ExternalInput, type InboundAnswer, type InboundDelivery, type InboundRoute, type JsonSchema, type PayloadField, type PayloadIssue, type MountSeed, type EntityRow, type EventPayload, type EventStreamItem, type MessageCatalogs, type EventRequest, type EventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext, LiveBroadcastItemSchema, type LiveBroadcastItem, type JsonValue } from '@almadar/core';
 import type { ProgramSurface } from '@almadar/core/kernel-wire';
 import { LaneHeldByParkedDispatch } from './lane.js';
 
@@ -471,7 +471,7 @@ export interface KernelEvaluation {
  * promoted to `targetTrait`, and the `_activeTraits` sidecar dropped (the kernel's mounted set is explicit,
  * not carried per request).
  */
-export function kernelRequest(request: EventRequest, locale: string | undefined): EventRequest {
+export function kernelRequest(request: EventRequest & { user?: JsonValue }, locale: string | undefined): EventRequest {
   const { _activeTraits: _dropped, _targetTrait: sidecarTarget, ...rest }: EventPayload = request.payload ?? {};
   const payload: EventPayload = rest;
   const target = request.targetTrait ?? (typeof sidecarTarget === 'string' ? sidecarTarget : undefined);

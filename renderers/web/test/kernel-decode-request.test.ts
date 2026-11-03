@@ -42,6 +42,7 @@ const SAMPLES: { readonly [K in IoRequestWire['kind']]: Extract<IoRequestWire, {
   credentialStoreRotate: { kind: 'credentialStoreRotate' },
   credentialModeRead: { kind: 'credentialModeRead' },
   credentialModeWrite: { kind: 'credentialModeWrite', mode: 'mock' },
+  guest: { kind: 'guest', guest: 'g', targets: ['T'], event: 'EV', payload: { a: 1 }, grants: { env: ['HOME'] }, key: 'k', site },
 };
 
 function wire(sample: IoRequestWire): JsonValue {

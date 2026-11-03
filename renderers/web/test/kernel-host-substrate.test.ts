@@ -140,3 +140,25 @@ it('frees a deferred os key at its completion at once, and after the parked TLS 
   expect(calls.inFlight('tls')).toBe(false);
   expect(delivered).toHaveLength(2);
 });
+
+const ports = (): KernelHostPorts => ({
+  persistence: untouchedPersistence(), inFlightCalls: new InFlightCalls(),
+  callService: async () => null,
+  programEffect: () => async () => ({ ok: true, result: 'value' }),
+  servicePorts: (caller, _user, message) => ({ caller, message, inputs: () => [], readableEntities: () => [], dispatchInput: async () => { throw new Error('unused'); }, read: async () => [] }),
+  deliverLive: () => undefined,
+  deferCallOutcome: () => () => undefined,
+});
+
+it('refuses a guest session dispatch, as the Rust resumable host does: this host starts no guest kernels', async () => {
+  const host = ports();
+  const guest = decodeRequest({ kind: 'guest', guest: 'g1', targets: ['T'], event: 'GO', payload: {}, grants: {}, key: 'k', site: { orbital: 'Main', trait: 'Worker', followOn: false, emit: { success: 'DONE', failure: 'FAILED' } } });
+  const message = 'program/dispatch: this host starts no guest kernels';
+  expect(await answerRequest(host, guest, { orbital: 'Main' })).toEqual({ kind: 'substrate', result: { error: { message, errors: [{ kind: 'unsupported', message }] } } });
+});
+
+it('control: a substrate ask on the same host is still answered by the program effect port, not refused as a guest', async () => {
+  const host = ports();
+  const answer = await answerRequest(host, decodeRequest({ kind: 'substrate', op: 'program/read', args: [] }), { orbital: 'Main' });
+  expect(answer).toEqual({ kind: 'substrate', result: { ok: 'value' } });
+});

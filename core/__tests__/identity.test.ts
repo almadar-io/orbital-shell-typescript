@@ -256,7 +256,7 @@ describe('identity: mintUlid outside a secure context', () => {
 
   it('mints from getRandomValues when randomUUID is absent, as on a plain-http page', () => {
     const real = globalThis.crypto;
-    vi.stubGlobal('crypto', { getRandomValues: (a: Uint8Array) => real.getRandomValues(a) });
+    vi.stubGlobal('crypto', { getRandomValues: (a: Uint8Array<ArrayBuffer>) => real.getRandomValues(a) });
     const first = mintUlid();
     const second = mintUlid();
     expect(first).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);

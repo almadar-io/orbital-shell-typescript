@@ -1036,6 +1036,8 @@ export async function answerRequest(ports: KernelHostPorts, request: IoRequestWi
       return { kind: 'sealed', result: { error: `${request.op}: a sealed operator is answered by the kernel, never by a host` } };
     case 'deliver':
       return { kind: 'deliver', result: { error: { kind: 'down', id: request.envelope.id } } };
+    case 'guest':
+      return { kind: 'substrate', result: { error: { message: 'program/dispatch: this host starts no guest kernels', errors: [{ kind: 'unsupported', message: 'program/dispatch: this host starts no guest kernels' }] } } };
     case 'credentialStatus':
       return credentialStatus(ports, request);
     case 'credentialForget':

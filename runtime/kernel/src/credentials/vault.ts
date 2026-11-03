@@ -62,19 +62,19 @@ export class CredentialExchangeError extends Error {
 const FAILURE_KINDS: readonly ConnectFailureKind[] = ['unavailable', 'unsigned', 'denied', 'invalid_grant', 'invalid_client', 'transport', 'malformed', 'refused'];
 
 function failureOf(value: JsonValue | undefined): ConnectFailure {
-  if (!isJsonObject(value)) throw new Error('the kernel connect failure is not an object');
+  if (value === undefined || !isJsonObject(value)) throw new Error('the kernel connect failure is not an object');
   const kind = FAILURE_KINDS.find((known) => known === value.kind);
   if (kind === undefined) throw new Error('the kernel connect failure has an unknown kind');
   return { kind, message: textOf(value.message, 'failure message') };
 }
 
 function standingOf(value: JsonValue | undefined): CredentialStanding {
-  if (!isJsonObject(value) || typeof value.connected !== 'boolean') throw new Error('the kernel credential standing is malformed');
+  if (value === undefined || !isJsonObject(value) || typeof value.connected !== 'boolean') throw new Error('the kernel credential standing is malformed');
   return { connected: value.connected, ...(typeof value.label === 'string' ? { label: value.label } : {}) };
 }
 
 function requestOf(value: JsonValue | undefined): { request: TokenRequest; ticket: number } {
-  if (!isJsonObject(value) || !Array.isArray(value.headers)) throw new Error('the kernel token request is malformed');
+  if (value === undefined || !isJsonObject(value) || !Array.isArray(value.headers)) throw new Error('the kernel token request is malformed');
   const headers: Array<[string, string]> = value.headers.map((pair) => {
     if (!Array.isArray(pair) || pair.length !== 2) throw new Error('the kernel token request header is malformed');
     return [textOf(pair[0], 'header name'), textOf(pair[1], 'header value')];

@@ -122,7 +122,8 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
   'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'program/open': 'system', 'program/close': 'system', 'persist/read-named': 'system',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'compute',
   'oauth-authorize': 'system', 'oauth-connection-status': 'system', 'oauth-connection-forget': 'system',
-  'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',
+  'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',  'mem/arena-new': 'system', 'mem/arena-drop': 'system', 'mem/alloc': 'system', 'mem/free': 'system', 'mem/borrow': 'system', 'mem/release': 'system', 'mem/write': 'system', 'mem/freeze': 'system', 'mem/atomic-load': 'system', 'mem/atomic-store': 'system', 'mem/atomic-add': 'system', 'mem/atomic-cas': 'system',
+  'kernel/queue-front': 'communication', 'kernel/queue-back': 'communication', 'ffi/call': 'system',
 };
 
 const EFFECT_FAMILY_CATEGORY: Record<EffectOperatorFamily, EffectCategory> = {
@@ -151,7 +152,8 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
   'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'program/open': 'system', 'program/close': 'system', 'persist/read-named': 'system',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'system',
   'oauth-authorize': 'remote', 'oauth-connection-status': 'remote', 'oauth-connection-forget': 'remote',
-  'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',
+  'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',  'mem/arena-new': 'system', 'mem/arena-drop': 'system', 'mem/alloc': 'system', 'mem/free': 'system', 'mem/borrow': 'system', 'mem/release': 'system', 'mem/write': 'system', 'mem/freeze': 'system', 'mem/atomic-load': 'system', 'mem/atomic-store': 'system', 'mem/atomic-add': 'system', 'mem/atomic-cas': 'system',
+  'kernel/queue-front': 'bus', 'kernel/queue-back': 'bus', 'ffi/call': 'system',
 };
 
 const EFFECT_FAMILY_ZONE: Record<EffectOperatorFamily, EffectZone> = {
