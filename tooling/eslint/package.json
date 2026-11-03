@@ -1,6 +1,7 @@
 {
   "name": "@almadar/eslint-plugin",
-  "version": "2.22.0",
+  "version": "3.0.0",
+  "orbRelease": { "severity": "normal" },
   "private": false,
   "description": "Custom ESLint rules for Almadar component architecture",
   "main": "index.js",
