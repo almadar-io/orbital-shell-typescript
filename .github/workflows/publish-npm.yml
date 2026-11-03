@@ -81,7 +81,8 @@ jobs:
       - name: Build
         if: steps.pkg.outputs.published == 'false'
         working-directory: ${{ steps.pkg.outputs.dir }}
-        run: pnpm build
+        # A package with no build step (the eslint plugin is plain JavaScript) publishes its sources as they are.
+        run: pnpm run --if-present build
 
       - name: Publish
         if: steps.pkg.outputs.published == 'false'
