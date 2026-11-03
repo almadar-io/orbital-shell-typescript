@@ -25,6 +25,7 @@ import { getAllPatternTypes } from '../patterns/helpers/prompt-helpers.js';
 import { persistenceModeAllowsOverrides } from '../types/entity.js';
 import { UI_SLOTS } from '../types/effect.js';
 import type { EntityField } from '../types/field.js';
+import { NUM_WIDTH_TAGS } from '../types/field.js';
 import type {
   FactoryConfigParam,
   FactoryParamValue,
@@ -693,7 +694,7 @@ const ENTITY_FIELD_BASE_PROPS = {
 // Includes the semantic domains: without them an L1 factory HIT cannot express
 // an email field at all, so `fill_params` could never produce one.
 const SCALAR_FIELD_TYPES: ReadonlyArray<string> = [
-  'string', 'number', 'int', 'boolean', 'date', 'timestamp', 'datetime', 'instant',
+  'string', 'number', 'int', ...NUM_WIDTH_TAGS, 'boolean', 'date', 'timestamp', 'datetime', 'instant',
   'email', 'url', 'phone', 'uuid', 'image', 'money',
   'file', 'bytes', 'trait', 'slot', 'pattern', 'node', 'event', 'EventAddress', 'CallKey', 'SExpr',
 ];

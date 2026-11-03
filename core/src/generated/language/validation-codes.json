@@ -1035,6 +1035,26 @@
     "description": "A wildcard listens route hears every caller's event but its guard never reads the call key in the payload"
   },
   {
+    "code": "ORB_MEM_ALIAS",
+    "category": "mem",
+    "description": "An exclusive borrow of a block while another borrow of it is live, or a borrow while an exclusive one is live"
+  },
+  {
+    "code": "ORB_MEM_DOUBLE_FREE",
+    "category": "mem",
+    "description": "A handle is freed, dropped or released a second time on some path"
+  },
+  {
+    "code": "ORB_MEM_LEAK",
+    "category": "mem",
+    "description": "An arena reaches a resting state on some path without being dropped"
+  },
+  {
+    "code": "ORB_MEM_USE_AFTER_FREE",
+    "category": "mem",
+    "description": "A mem/ call takes a handle after it was freed, dropped or released on some path"
+  },
+  {
     "code": "ORB_NAV_TARGET_UNDECLARED",
     "category": "page",
     "description": "A navigation target stated as a literal path (a navigate effect, a navItems or link href, a navigatesTo) names no page the finished program declares"
@@ -1928,6 +1948,11 @@
     "code": "ORB_X_ORPHAN_LISTENER",
     "category": "cross",
     "description": "A trait listens for an event that no trait emits"
+  },
+  {
+    "code": "ORB_X_PARALLEL_LAMBDA_IMPURE",
+    "category": "parallel",
+    "description": "The lambda of array/pmap or array/preduce is not a literal fn or is not provably pure"
   },
   {
     "code": "ORB_X_PAYLOAD_FIELD_NAME",

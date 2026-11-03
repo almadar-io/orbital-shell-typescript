@@ -1190,6 +1190,10 @@ export type { UserContext } from '@almadar/core';
                 _ => "z.string()".to_string(),
             },
             OirType::Number | OirType::Integer => "z.number()".to_string(),
+            OirType::Sized { width } => match width.int_range() {
+                Some((low, high)) => format!("z.number().int().min({low}).max({high})"),
+                None => format!("z.number().min({}).max({})", -f32::MAX, f32::MAX),
+            },
             OirType::Boolean => "z.boolean()".to_string(),
             OirType::Date | OirType::DateTime | OirType::Instant => match self.type_projection {
                 TypeProjection::Wire => "z.union([z.string(), z.number()])".to_string(),
@@ -1391,6 +1395,17 @@ mod to_many_relation_field_tests {
         let types = backend.generate_shared_entities(std::slice::from_ref(&entity), &named);
         let schemas = backend.generate_shared_schemas(&[entity], &named);
         (types.content, schemas.content)
+    }
+
+    #[test]
+    fn a_width_field_is_a_number_type_with_a_ranged_schema() {
+        let mut entity = OirEntity::new("Pixel");
+        entity.fields.push(OirField::new("r", OirType::Sized { width: orbital_core_base::num_width::NumWidth::U8 }));
+        entity.fields.push(OirField::new("n", OirType::Integer));
+        let (types, schemas) = generated(entity);
+        assert!(types.contains("r: number;") || types.contains("r?: number;"), "{types}");
+        assert!(schemas.contains("z.number().int().min(0).max(255)"), "{schemas}");
+        assert!(!schemas.contains("z.number().int().min(-"), "control: int keeps its plain schema: {schemas}");
     }
 
     #[test]
