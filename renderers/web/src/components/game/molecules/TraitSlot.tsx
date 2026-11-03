@@ -170,18 +170,16 @@ export function TraitSlot({
         if (locked) return;
         if (clickEvent) {
             emit(`UI:${clickEvent}`, { slotNumber });
-        } else {
-            onClick?.();
         }
+        onClick?.();
     }, [locked, clickEvent, slotNumber, emit, onClick]);
 
     const handleRemove = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         if (removeEvent) {
             emit(`UI:${removeEvent}`, { slotNumber });
-        } else {
-            onRemove?.();
         }
+        onRemove?.();
     }, [removeEvent, slotNumber, emit, onRemove]);
 
     // -- Drag handlers (source — dragging OUT of this slot) -------------------
@@ -220,7 +218,7 @@ export function TraitSlot({
         try {
             const item = JSON.parse(raw) as SlotItemData;
             if (dropEvent) emit(`UI:${dropEvent}`, { slotNumber, itemId: item.id });
-            else onItemDrop?.(item);
+            onItemDrop?.(item);
         } catch {
             // ignore malformed data
         }

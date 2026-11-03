@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-03T11:33:02.889Z",
+  "exportedAt": "2026-11-03T14:23:23.966Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -7415,7 +7415,8 @@
               "isValid": {
                 "types": [
                   "function"
-                ]
+                ],
+                "nonAuthorable": true
               },
               "sections": {
                 "types": [
@@ -13810,7 +13811,8 @@
               "type": "object"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "behavior": {
           "types": [
@@ -22365,7 +22367,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "minItems": {
           "types": [
@@ -40693,6 +40696,7 @@
             }
           ],
           "renderCallback": true,
+          "nonAuthorable": true,
           "tier": "presentation"
         },
         "assist": {
@@ -40748,6 +40752,7 @@
             }
           ],
           "renderCallback": true,
+          "nonAuthorable": true,
           "tier": "presentation"
         },
         "problems": {
@@ -40826,7 +40831,8 @@
               "type": "string"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "onGoToDefinition": {
           "types": [
@@ -44900,7 +44906,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "renderItem": {
           "types": [
@@ -44917,7 +44924,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "enter": {
           "types": [
@@ -47208,7 +47216,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "onDotClick": {
           "types": [
@@ -48134,7 +48143,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "renderItem": {
           "types": [
@@ -48151,7 +48161,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "itemEnter": {
           "types": [
@@ -49185,7 +49196,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "renderItem": {
           "types": [
@@ -49202,7 +49214,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "pageSize": {
           "types": [
@@ -50254,7 +50267,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "enter": {
           "types": [
@@ -54281,7 +54295,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "children": {
           "types": [
@@ -54320,7 +54335,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "autoPlay": {
           "types": [
@@ -55106,7 +55122,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "reorderEvent": {
           "types": [
@@ -73833,7 +73850,8 @@
               "type": "string"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "className": {
           "types": [
@@ -81361,112 +81379,6 @@
       ],
       "typicalSize": "large",
       "propsSchema": {
-        "className": {
-          "types": [
-            "string"
-          ],
-          "description": "Additional CSS classes"
-        },
-        "isLoading": {
-          "types": [
-            "boolean"
-          ],
-          "description": "Loading state indicator"
-        },
-        "error": {
-          "types": [
-            "object"
-          ],
-          "description": "Error state (UiError)",
-          "properties": {
-            "message": {
-              "types": [
-                "string"
-              ]
-            },
-            "name": {
-              "types": [
-                "string"
-              ]
-            },
-            "code": {
-              "types": [
-                "string"
-              ]
-            },
-            "stack": {
-              "types": [
-                "string"
-              ]
-            }
-          },
-          "propertyRequired": [
-            "message"
-          ]
-        },
-        "sortBy": {
-          "types": [
-            "string"
-          ],
-          "description": "Current sort field"
-        },
-        "sortDirection": {
-          "types": [
-            "string"
-          ],
-          "description": "Current sort direction",
-          "enumValues": [
-            "asc",
-            "desc"
-          ]
-        },
-        "searchValue": {
-          "types": [
-            "string"
-          ],
-          "description": "Current search query value"
-        },
-        "page": {
-          "types": [
-            "number"
-          ],
-          "description": "Current page number"
-        },
-        "pageSize": {
-          "types": [
-            "number"
-          ],
-          "description": "Number of items per page"
-        },
-        "totalCount": {
-          "types": [
-            "number"
-          ],
-          "description": "Total number of items"
-        },
-        "activeFilters": {
-          "types": [
-            "object"
-          ],
-          "description": "Active filters",
-          "mapValue": {
-            "types": [
-              "string"
-            ]
-          }
-        },
-        "selectedIds": {
-          "types": [
-            "array"
-          ],
-          "description": "Currently selected item IDs",
-          "items": {
-            "types": [
-              "string",
-              "number"
-            ]
-          }
-        },
         "action": {
           "types": [
             "object"
@@ -81723,6 +81635,12 @@
               "border"
             ]
           }
+        },
+        "className": {
+          "types": [
+            "string"
+          ],
+          "description": "Additional CSS classes"
         },
         "enter": {
           "types": [
@@ -87039,7 +86957,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "renderItem": {
           "types": [
@@ -87056,7 +86975,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "look": {
           "types": [
@@ -90365,7 +90285,8 @@
               "type": "number"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "enter": {
           "types": [
@@ -128634,7 +128555,8 @@
               }
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "onEventWire": {
           "types": [
@@ -130072,17 +129994,20 @@
             "verdictOf": {
               "types": [
                 "function"
-              ]
+              ],
+              "nonAuthorable": true
             },
             "playing": {
               "types": [
                 "function"
-              ]
+              ],
+              "nonAuthorable": true
             },
             "follow": {
               "types": [
                 "function"
-              ]
+              ],
+              "nonAuthorable": true
             }
           },
           "propertyRequired": [
@@ -131538,7 +131463,8 @@
               }
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         }
       }
     },
@@ -133067,7 +132993,8 @@
               "type": "string"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "className": {
           "types": [
@@ -133644,7 +133571,8 @@
               "type": "object"
             }
           ],
-          "renderCallback": true
+          "renderCallback": true,
+          "nonAuthorable": true
         },
         "descriptions": {
           "types": [

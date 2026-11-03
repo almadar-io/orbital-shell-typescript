@@ -7,12 +7,6 @@ import { Typography } from '../../../core';
 import { GameIcon } from '../../../core';
 import { useTranslate } from '../../../core';
 
-const DEFAULT_PORTRAIT: Asset = {
-  url: 'https://almadar-kflow-assets.web.app/shared/ui-winter-ski-board/default/units/hero/hero.png',
-  role: 'effect',
-  category: 'character',
-};
-
 /** Portrait-ring accent per mood — a plain CSS-driven pose, same idiom as `HealthBar.animated`. */
 const MOOD_RING_CLASS: Record<string, string> = {
   neutral: 'border-warning/60',
@@ -45,7 +39,7 @@ export interface DialogueBubbleProps extends Omit<React.AriaAttributes, keyof A1
 export function DialogueBubble({
   speaker: speakerProp,
   text: textProp,
-  portrait = DEFAULT_PORTRAIT,
+  portrait,
   position = 'bottom',
   mood = 'neutral',
   revealedChars,
@@ -55,7 +49,9 @@ export function DialogueBubble({
   const { t } = useTranslate();
   const speaker = speakerProp ?? t('dialogueBubble.defaultSpeaker');
   const text = textProp ?? t('dialogueBubble.defaultText');
-  const visibleText = revealedChars === undefined ? text : text.slice(0, revealedChars);
+  const visibleText = revealedChars === undefined
+    ? text
+    : Array.from(text).slice(0, Math.max(0, Math.floor(revealedChars))).join('');
 
   return (
     <Box

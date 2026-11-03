@@ -40,7 +40,7 @@ export interface GameShellProps extends Omit<React.AriaAttributes, keyof A11yPro
     backgroundAsset?: Asset;
     /** Per-call-site 9-sliced panel override. Chrome normally comes from the active theme; most callers leave this unset. */
     hudBackgroundAsset?: Asset;
-    /** Game display-font key (pixel | fredoka | future | future-narrow | blocks | mini) or a CSS font-family. Scoped override of the theme contract's --font-family-display slot: titles and numerics take this face, body text follows the active theme. Unset = the theme token decides. */
+    /** Shared game display-font alias or a CSS font-family. Scoped override of the theme contract's --font-family-display slot: titles and numerics take this face, body text follows the active theme. Unset = the theme token decides. */
     fontFamily?: string;
     /** Scopes an `@almadar/ui` theme (e.g. "game-sci-fi-dark") to this shell's subtree. */
     "data-theme"?: string;
@@ -56,6 +56,7 @@ export const GameShell: React.FC<GameShellProps> = ({
     showTopBar = true,
     children,
     backgroundAsset,
+    hudBackgroundAsset,
     fontFamily,
     "data-theme": dataTheme,
     ...rest
@@ -123,12 +124,22 @@ export const GameShell: React.FC<GameShellProps> = ({
                             variant="bordered"
                             padding="none"
                             className="game-shell__title bg-card pointer-events-auto"
-                            style={{ padding: "6px 16px", flexShrink: 0 }}
+                            style={{ position: "relative", padding: "6px 16px", flexShrink: 0 }}
                         >
+                            {hudBackgroundAsset && (
+                                <AtlasPanel
+                                    asset={hudBackgroundAsset}
+                                    mode="nineSlice"
+                                    aria-hidden
+                                    style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" }}
+                                />
+                            )}
                             <Typography
                                 as="span"
                                 className="font-display"
                                 style={{
+                                    position: "relative",
+                                    zIndex: 1,
                                     fontWeight: 700,
                                     fontSize: "1.05rem",
                                     letterSpacing: "0.06em",

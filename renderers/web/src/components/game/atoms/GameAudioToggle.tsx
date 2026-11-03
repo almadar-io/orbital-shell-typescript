@@ -64,6 +64,7 @@ export function GameAudioToggle({
     onAsset,
     offAsset,
     toggleEvent,
+    isLoading,
     ...rest
 }: GameAudioToggleProps): React.JSX.Element {
     const ctx = useGameAudioContextOptional();
@@ -87,6 +88,7 @@ export function GameAudioToggle({
             {...domPassthrough(rest)}
             variant="ghost"
             size={size}
+            isLoading={isLoading}
             onClick={handleToggle}
             className={cn('text-lg leading-none px-2', className)}
             aria-pressed={muted}

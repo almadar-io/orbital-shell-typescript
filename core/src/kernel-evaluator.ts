@@ -26,7 +26,7 @@ import type {
 import type { VocabularyPack } from './i18n/index';
 import type { DependencyLayer } from './dependency-graph';
 import { setOwn } from './types/own-key';
-import type { CircuitStepResult, EffectTrace, EntityRow, EventPayload, GuardEvaluation, JsonObject, JsonValue, OrbitalSchema, SExpr, TraitDescription, TransitionTrace } from './types/index';
+import type { CircuitStepResult, EffectTrace, EntityRow, EventPayload, GuardEvaluation, JsonObject, JsonValue, OrbitalSchema, SExpr, Trait, TraitDescription, TransitionTrace } from './types/index';
 
 export interface AvlProjectionMachineWire {
   states: readonly { name: string }[];
@@ -53,13 +53,19 @@ export interface AvlMachinePlaybackProjection {
   visitedStates: string[];
 }
 
-export interface AvlTraitLevelWire {
+export interface AvlTraitLevelWire extends JsonObject {
   name: string;
   linkedEntity: string;
   states: { name: string; isInitial: boolean | null; isTerminal: boolean | null }[];
   transitions: { from: string | string[]; to: string; event: string; guard: SExpr | null; effects: { type: string; args: SExpr[] }[]; index: number }[];
   emittedEvents: string[];
   listenedEvents: string[];
+}
+
+export interface AvlProgramTraitWire {
+  orbital: string;
+  trait: Pick<Trait, 'name' | 'sourceBehavior'>;
+  level: AvlTraitLevelWire;
 }
 
 export interface AvlTraitFlowWire {
@@ -101,6 +107,15 @@ export interface KernelEvaluatorExports {
   avlTracedTransitionIndex(machineJson: string, traceJson: string): string;
   avlTraitLevelFromDescription(descriptionJson: string): string;
   avlTraitFlowGraph(schemaJson: string, orbital: string, layersJson: string): string;
+  avlProgramTraitLevels(schemaJson: string): string;
+  avlDescribedTransitionLines(descriptionJson: string, runningJson: string, transitionIndex: number): string;
+  skinWorldMatrices(bonesJson: string, poseJson: string): string;
+  skinVertices(meshJson: string, bindJson: string, currentJson: string): string;
+  skinComposeAffine(aJson: string, bJson: string): string;
+  skinInvertAffine(matrixJson: string): string;
+  skinApplyAffine(matrixJson: string, x: number, y: number): string;
+  skinTriangleAffine(srcJson: string, dstJson: string): string;
+  skinVertexBounds(pointsJson: string): string;
 }
 
 /** An expression the kernel's evaluator rejected. */
@@ -158,6 +173,15 @@ export interface KernelEvaluator {
   avlTracedTransitionIndex(machine: AvlProjectionMachineWire, trace: TransitionTrace): number | null;
   avlTraitLevelFromDescription(description: TraitDescription): AvlTraitLevelWire | null;
   avlTraitFlowGraph(schema: OrbitalSchema, orbital: string, layers: Readonly<Record<string, DependencyLayer>>): AvlTraitFlowWire;
+  avlProgramTraitLevels(schema: OrbitalSchema): AvlProgramTraitWire[];
+  avlDescribedTransitionLines(description: TraitDescription, running: AvlProjectionMachineWire, transitionIndex: number): { start: number; end: number } | null;
+  skinWorldMatrices(bonesJson: string, poseJson: string): string;
+  skinVertices(meshJson: string, bindJson: string, currentJson: string): string;
+  skinComposeAffine(aJson: string, bJson: string): string;
+  skinInvertAffine(matrixJson: string): string;
+  skinApplyAffine(matrixJson: string, x: number, y: number): string;
+  skinTriangleAffine(srcJson: string, dstJson: string): string;
+  skinVertexBounds(pointsJson: string): string;
 }
 
 /** One language pack as the kernel's pack check reads it: a label for the refusal and the pack's vocabulary. */
@@ -257,6 +281,19 @@ export function createKernelEvaluator(kernel: KernelEvaluatorExports): KernelEva
     avlTraitFlowGraph(schema, orbital, layers) {
       return JSON.parse(kernel.avlTraitFlowGraph(JSON.stringify(schema), orbital, JSON.stringify(layers))) as AvlTraitFlowWire;
     },
+    avlProgramTraitLevels(schema) {
+      return JSON.parse(kernel.avlProgramTraitLevels(JSON.stringify(schema))) as AvlProgramTraitWire[];
+    },
+    avlDescribedTransitionLines(description, running, transitionIndex) {
+      return JSON.parse(kernel.avlDescribedTransitionLines(JSON.stringify(description), JSON.stringify(running), transitionIndex)) as { start: number; end: number } | null;
+    },
+    skinWorldMatrices: (bonesJson, poseJson) => kernel.skinWorldMatrices(bonesJson, poseJson),
+    skinVertices: (meshJson, bindJson, currentJson) => kernel.skinVertices(meshJson, bindJson, currentJson),
+    skinComposeAffine: (aJson, bJson) => kernel.skinComposeAffine(aJson, bJson),
+    skinInvertAffine: (matrixJson) => kernel.skinInvertAffine(matrixJson),
+    skinApplyAffine: (matrixJson, x, y) => kernel.skinApplyAffine(matrixJson, x, y),
+    skinTriangleAffine: (srcJson, dstJson) => kernel.skinTriangleAffine(srcJson, dstJson),
+    skinVertexBounds: (pointsJson) => kernel.skinVertexBounds(pointsJson),
   };
 }
 
@@ -350,5 +387,7 @@ export function lazyKernelExports(load: () => KernelEvaluatorExports): KernelEva
     avlTracedTransitionIndex: (machine, trace) => kernel().avlTracedTransitionIndex(machine, trace),
     avlTraitLevelFromDescription: (description) => kernel().avlTraitLevelFromDescription(description),
     avlTraitFlowGraph: (schema, orbital, layers) => kernel().avlTraitFlowGraph(schema, orbital, layers),
+    avlProgramTraitLevels: (schema) => kernel().avlProgramTraitLevels(schema),
+    avlDescribedTransitionLines: (description, running, transitionIndex) => kernel().avlDescribedTransitionLines(description, running, transitionIndex),
   };
 }

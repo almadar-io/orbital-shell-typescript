@@ -43,6 +43,15 @@ export function stubKernelModule(Server: KernelServerClass, overrides: Partial<O
     avlTracedTransitionIndex: unexpected('avlTracedTransitionIndex'),
     avlTraitLevelFromDescription: unexpected('avlTraitLevelFromDescription'),
     avlTraitFlowGraph: unexpected('avlTraitFlowGraph'),
+    avlProgramTraitLevels: unexpected('avlProgramTraitLevels'),
+    avlDescribedTransitionLines: unexpected('avlDescribedTransitionLines'),
+    skinWorldMatrices: unexpected('skinWorldMatrices'),
+    skinVertices: unexpected('skinVertices'),
+    skinComposeAffine: unexpected('skinComposeAffine'),
+    skinInvertAffine: unexpected('skinInvertAffine'),
+    skinApplyAffine: unexpected('skinApplyAffine'),
+    skinTriangleAffine: unexpected('skinTriangleAffine'),
+    skinVertexBounds: unexpected('skinVertexBounds'),
     ...overrides,
   };
 }

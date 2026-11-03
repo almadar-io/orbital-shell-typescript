@@ -568,6 +568,60 @@ pub fn avl_trait_flow_graph(
     api::avl_trait_flow_graph(&schema_json, &orbital, &layers_json).map_err(js)
 }
 
+#[napi]
+pub fn avl_program_trait_levels(schema_json: String) -> napi::Result<String> {
+    api::avl_program_trait_levels(&schema_json).map_err(js)
+}
+
+#[napi]
+pub fn avl_described_transition_lines(
+    description_json: String,
+    running_json: String,
+    transition_index: u32,
+) -> napi::Result<String> {
+    api::avl_described_transition_lines(&description_json, &running_json, transition_index as usize)
+        .map_err(js)
+}
+
+#[napi]
+pub fn skin_world_matrices(bones_json: String, pose_json: String) -> napi::Result<String> {
+    api::skin_world_matrices(&bones_json, &pose_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_vertices(
+    mesh_json: String,
+    bind_json: String,
+    current_json: String,
+) -> napi::Result<String> {
+    api::skin_vertices(&mesh_json, &bind_json, &current_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_compose_affine(a_json: String, b_json: String) -> napi::Result<String> {
+    api::skin_compose_affine(&a_json, &b_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_invert_affine(matrix_json: String) -> napi::Result<String> {
+    api::skin_invert_affine(&matrix_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_apply_affine(matrix_json: String, x: f64, y: f64) -> napi::Result<String> {
+    api::skin_apply_affine(&matrix_json, x, y).map_err(js)
+}
+
+#[napi]
+pub fn skin_triangle_affine(src_json: String, dst_json: String) -> napi::Result<String> {
+    api::skin_triangle_affine(&src_json, &dst_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_vertex_bounds(points_json: String) -> napi::Result<String> {
+    api::skin_vertex_bounds(&points_json).map_err(js)
+}
+
 /// The kernel's verdict on language packs (`[{ package, definition }]` as JSON): throws the refusal that names each pack, section and word.
 #[napi]
 pub fn validate_packs(packs_json: String) -> napi::Result<()> {

@@ -87,15 +87,16 @@ describe('describedTransitionLines (the printed lines of the transition that fir
 });
 
 describe('programTraits', () => {
-  it('lists every trait with a machine, with its orbital, and skips a trait without one (control)', () => {
+  it('lists resolved machines with their orbitals and skips an unresolved reference (control)', () => {
     const schema: OrbitalSchema = {
       name: 'Doors',
+      typeContractVersion: 1,
       orbitals: [{
         name: 'DoorOrbital',
         entity: { name: 'Door', fields: [{ name: 'open', type: 'boolean' }] },
         traits: [
           { name: 'DoorLife', stateMachine },
-          { name: 'Plain' },
+          { ref: 'Plain' },
         ],
         pages: [],
       }],

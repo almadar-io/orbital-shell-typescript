@@ -6,7 +6,7 @@
 
 import type { CircuitStepResult, EffectTrace, EventKey, EventPayload, GuardEvaluation, TraitDescription, TransitionTrace } from '@almadar/core';
 import { kernelEvaluator, type AvlProjectionMachineWire } from '@almadar/core';
-import { traitLevelFromDescription, type TraitLevelData, type TraitTransitionInfo } from './avl-schema-parser';
+import type { TraitLevelData, TraitTransitionInfo } from './avl-schema-parser';
 
 /** One played step of a scene, as the host recorded it. */
 export interface AvlPlayStep {
@@ -97,16 +97,7 @@ export function describedTransitionLines(
   running: TraitLevelData,
   transition: TraitTransitionInfo,
 ): { start: number; end: number } | undefined {
-  const printed = traitLevelFromDescription(description);
-  if (!printed || !description.source) return undefined;
-  const position = armPosition(running, transition);
-  if (position < 0) return undefined;
-  const sources = Array.isArray(transition.from) ? transition.from : [transition.from];
-  const matches = sources.map((from) => armsOf(printed, from, transition.event)[position]);
-  const match = matches[0];
-  if (!match || !matches.every((candidate) => candidate?.index === match.index)) return undefined;
-  const lines = match ? description.source.transitions.find((l) => l.index === match.index) : undefined;
-  return lines ? { start: lines.start, end: lines.end } : undefined;
+  return kernelEvaluator().avlDescribedTransitionLines(description, machineOf(running), transition.index) ?? undefined;
 }
 
 export interface AvlTransitionPlayback {

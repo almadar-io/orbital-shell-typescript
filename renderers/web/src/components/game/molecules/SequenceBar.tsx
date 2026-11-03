@@ -70,13 +70,13 @@ export function SequenceBar({
     const handleDrop = useCallback((index: number) => (item: SlotItemData) => {
         if (playing) return;
         if (slotDropEvent) emit(`UI:${slotDropEvent}`, { slotNumber: index, itemId: item.id });
-        else onSlotDrop?.(index, item);
+        onSlotDrop?.(index, item);
     }, [emit, slotDropEvent, onSlotDrop, playing]);
 
     const handleRemove = useCallback((index: number) => () => {
         if (playing) return;
         if (slotRemoveEvent) emit(`UI:${slotRemoveEvent}`, { slotNumber: index });
-        else onSlotRemove?.(index);
+        onSlotRemove?.(index);
     }, [emit, slotRemoveEvent, onSlotRemove, playing]);
 
     // Pad slots to maxSlots

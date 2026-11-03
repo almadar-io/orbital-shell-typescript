@@ -83,6 +83,7 @@ export {
   type AvlTransitionPlaybackProjection,
   type AvlMachinePlaybackProjection,
   type AvlTraitLevelWire,
+  type AvlProgramTraitWire,
   type AvlTraitFlowWire,
 } from './src/kernel-evaluator';
 export {

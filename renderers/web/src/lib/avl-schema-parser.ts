@@ -11,6 +11,7 @@
 
 import type {
   OrbitalSchema,
+  AvlProgramTraitWire,
   OrbitalDefinition,
   Entity,
   EntityCall,
@@ -408,21 +409,11 @@ export function parseTraitLevel(schema: OrbitalSchema, orbitalName: string, trai
 }
 
 /** A running trait that has a state machine: its orbital, its definition and its diagram data. */
-export interface ProgramTrait {
-  orbital: string;
-  trait: Trait;
-  level: TraitLevelData;
-}
+export type ProgramTrait = AvlProgramTraitWire;
 
 /** Every trait of the program that has a state machine, in program order. */
 export function programTraits(schema: OrbitalSchema): ProgramTrait[] {
-  return (schema.orbitals ?? []).flatMap((orbital) => {
-    const entity = getEntity(orbital).name;
-    return getTraits(orbital).flatMap((trait) => {
-      const level = traitLevelFromTrait(trait, entity);
-      return level ? [{ orbital: orbital.name, trait, level }] : [];
-    });
-  });
+  return kernelEvaluator().avlProgramTraitLevels(schema);
 }
 
 /** One trait's state machine as AVL trait data; null when the trait has no state machine. */

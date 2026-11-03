@@ -21,6 +21,7 @@ const lampMachine: StateMachine = {
 
 const schema: OrbitalSchema = {
   name: 'House',
+  typeContractVersion: 1,
   orbitals: [{
     name: 'HouseOrbital',
     entity: { name: 'Room', fields: [{ name: 'open', type: 'boolean' }] },
@@ -164,7 +165,7 @@ describe('MachinePanel — the debugger shows the followed trait\'s code beside 
   });
 
   it('control: a program with no state machines shows the empty note', () => {
-    render(<MachinePanel schema={{ name: 'Empty', orbitals: [] }} transitions={[]} />);
+    render(<MachinePanel schema={{ name: 'Empty', typeContractVersion: 1, orbitals: [] }} transitions={[]} />);
     expect(screen.getByTestId('machine-panel-empty')).toBeInTheDocument();
   });
 });

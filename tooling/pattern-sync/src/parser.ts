@@ -1761,6 +1761,7 @@ function mapTypeNode(
       kind: returnsValue ? undefined : "callback",
       callbackArgs: args,
       renderCallback: returnsValue ? true : undefined,
+      nonAuthorable: returnsValue ? true : undefined,
       nonEmittable: nonEmittable ? true : undefined,
     };
   }
