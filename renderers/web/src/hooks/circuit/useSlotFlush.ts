@@ -158,13 +158,17 @@ export function useSlotFlush(
     const slots = uiSlotsRef.current;
     const embedded = embeddedTraitsRef.current;
     for (const { effect, traitName, event, fromState, repaint } of clientEffectsByTrait ?? []) {
-      if (traitName !== undefined && activeTraits !== undefined && !activeTraits.has(traitName)) continue;
+      if (traitName !== undefined && activeTraits !== undefined && !activeTraits.has(traitName)) {
+        flushLog.debug('apply:off-page', { trait: traitName, kind: effect[0] });
+        continue;
+      }
       const kind = effect[0];
       if (kind === 'render-ui') {
         const [, slot, pattern] = effect;
         const sourceTrait = traitName ?? 'kernel';
         const { bareTraitRef, patternType, props: unwrapped } = unwrapPattern(pattern as PatternNode | null);
         const isEmbedded = (embedded?.has(sourceTrait) ?? false) && !isNotificationSlot(slot);
+        flushLog.debug('apply:render', { trait: sourceTrait, slot, pattern: patternType ?? bareTraitRef ?? null, embedded: isEmbedded, event, fromState });
         const propsValue: SlotProps | string = bareTraitRef !== undefined
           ? bareTraitRef
           : { ...(unwrapped ?? {}) };

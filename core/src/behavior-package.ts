@@ -398,10 +398,12 @@ function lowererKey(orbBin: string, pkgRoot: string): string {
   rungs.push(join(userStoreDir(), 'node_modules'));
   const coreRoot = rungs.map((nm) => join(nm, '@almadar', 'core')).find((dir) => existsSync(join(dir, 'package.json')));
   if (!coreRoot) return hash.update('\0no-core').digest('hex');
-  const manifest = JSON.parse(readFileSync(join(coreRoot, 'package.json'), 'utf8')) as { orbLanguage?: Record<string, string> };
+  const manifest = JSON.parse(readFileSync(join(coreRoot, 'package.json'), 'utf8')) as { orbLanguage?: Record<string, string | string[]> };
   for (const [field, rel] of Object.entries(manifest.orbLanguage ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+    if (field === 'version' || field === 'sources') continue;
+    if (typeof rel !== 'string') throw new BehaviorPackageError(`${coreRoot}/package.json: \`orbLanguage.${field}\` is not a file path`);
     const path = join(coreRoot, rel);
-    if (field === 'version' || !existsSync(path) || !statSync(path).isFile()) continue;
+    if (!existsSync(path) || !statSync(path).isFile()) continue;
     hash.update(`\0${field}\0${fileHash(path)}`);
   }
   return hash.digest('hex');

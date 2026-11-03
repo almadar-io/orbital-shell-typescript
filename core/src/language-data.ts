@@ -55,7 +55,7 @@ export interface LanguageBundle {
 interface LanguagePackage {
   root: string;
   version: string;
-  block: Record<string, string>;
+  block: Record<string, string | string[]>;
 }
 
 export class LanguageDataError extends Error {
@@ -83,17 +83,22 @@ function readLanguagePackage(name: string, fromDir: string, languageKey: 'versio
   if (!manifestPath) throw new LanguageDataError(`${name} is not installed (searched from ${fromDir})`);
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
     version?: string;
-    orbLanguage?: Record<string, string>;
+    orbLanguage?: Record<string, string | string[]>;
   };
   if (!manifest.orbLanguage) throw new LanguageDataError(`${manifestPath} declares no \`orbLanguage\` block`);
   if (!manifest.orbLanguage[languageKey]) throw new LanguageDataError(`${manifestPath} declares no \`orbLanguage.${languageKey}\``);
   return { root: dirname(manifestPath), version: manifest.version ?? '', block: manifest.orbLanguage };
 }
 
+function declaredText(pkg: LanguagePackage, field: string): string {
+  const value = pkg.block[field];
+  if (!value) throw new LanguageDataError(`${pkg.root}/package.json declares no \`orbLanguage.${field}\``);
+  if (typeof value !== 'string') throw new LanguageDataError(`${pkg.root}/package.json: \`orbLanguage.${field}\` is not a single value`);
+  return value;
+}
+
 function declared(pkg: LanguagePackage, field: string): string {
-  const rel = pkg.block[field];
-  if (!rel) throw new LanguageDataError(`${pkg.root}/package.json declares no \`orbLanguage.${field}\``);
-  return join(pkg.root, rel);
+  return join(pkg.root, declaredText(pkg, field));
 }
 
 function readJson(path: string): JsonValue {
@@ -161,7 +166,7 @@ export function readLanguageBundle(fromDir: string, userStore: string = userStor
   return {
     core: {
       version: core.version,
-      language: core.block.version,
+      language: declaredText(core, 'version'),
       patterns: readJson(declared(core, 'patterns')),
       componentMapping: readJson(declared(core, 'componentMapping')),
       eventContracts: readJson(declared(core, 'eventContracts')),
@@ -173,7 +178,7 @@ export function readLanguageBundle(fromDir: string, userStore: string = userStor
     },
     std: {
       version: std.version,
-      language: std.block.language,
+      language: declaredText(std, 'language'),
       operators: readJson(declared(std, 'operators')),
     },
     vocabularies: readVocabularyPacks(fromDir, userStore),

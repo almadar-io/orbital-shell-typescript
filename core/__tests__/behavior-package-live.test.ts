@@ -125,6 +125,30 @@ describe('behaviorRegistryDir — a live package (orb.source)', () => {
     expect(behaviorRegistryDir(pkg, opts)).not.toBe(first);
   });
 
+  it('a core declaring its language sources as a list keys the mirror by its data files', () => {
+    const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A' });
+    const core = join(work, 'node_modules/@almadar/core');
+    mkdirSync(core, { recursive: true });
+    const manifest = (sources: string[]) => JSON.stringify({ name: '@almadar/core', version: '1.0.0', orbLanguage: { version: '1.0.0', patterns: 'p.json', sources } });
+    writeFileSync(join(core, 'package.json'), manifest(['core/src/patterns/p.json']));
+    writeFileSync(join(core, 'p.json'), '{"patterns":{}}');
+    const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
+    const pkg = readBehaviorPackage(root);
+    const first = behaviorRegistryDir(pkg, opts);
+    writeFileSync(join(core, 'package.json'), manifest(['core/src/patterns/p.json', 'core/src/other.ts']));
+    expect(behaviorRegistryDir(pkg, opts)).toBe(first);
+    writeFileSync(join(core, 'p.json'), '{"patterns":{"new-pattern":{}}}');
+    expect(behaviorRegistryDir(pkg, opts)).not.toBe(first);
+  });
+
+  it('edge: a core declaring a language file field that is not a path is refused by name', () => {
+    const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A' });
+    const core = join(work, 'node_modules/@almadar/core');
+    mkdirSync(core, { recursive: true });
+    writeFileSync(join(core, 'package.json'), JSON.stringify({ name: '@almadar/core', version: '1.0.0', orbLanguage: { version: '1.0.0', patterns: ['p.json'] } }));
+    expect(() => behaviorRegistryDir(readBehaviorPackage(root), { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') })).toThrow(/orbLanguage\.patterns/);
+  });
+
   it('a behavior message catalog is mirrored beside its program', () => {
     const { root, work } = livePackage({ 'kflow/atoms/a.lolo': 'A', 'kflow/atoms/locales/en/a.json': '{"t":"Hi"}' });
     const dir = behaviorRegistryDir(readBehaviorPackage(root), { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') });

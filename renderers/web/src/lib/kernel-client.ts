@@ -498,6 +498,9 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
           return { group, answered, flight: Math.min(...(flown.length > 0 ? flown : answered).map(flightOf)) };
         })
         .sort((a, b) => a.flight - b.flight);
+      // A seed this topology posts in no group owes the host nothing: its flight ends before the posts, or the groups' folds
+      // queue behind it while `dispatchMount` only ends it once they settle.
+      for (const wire of wires) if (!groups.some(({ answered }) => answered.includes(wire))) endFlight(k, wire.flight);
       for (const { group, answered, flight } of groups) {
         const planned: PlannedLeg = { orbital: group.orbital, leg: group.leg, keepsState: true, alreadyDelivered: group.alreadyDelivered, foldSeeded: group.foldSeeded, wires: answered, flight };
         store.awaiting.begin(group.awaiting);

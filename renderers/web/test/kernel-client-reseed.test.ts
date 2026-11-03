@@ -191,3 +191,44 @@ describe('kernel client — a server answer never rewrites a client trait\'s sta
     expect(client.store.states.getState('Retry')?.currentState).toBe('running');
   });
 });
+
+describe('kernel client — a mount seed its topology posts in no group', () => {
+  const seedWire = (trait: string, flight: number): DispatchWire => ({
+    orbital: 'Main', seed: { trait, event: 'INIT' }, response: response(), serverLegs: [], mode: 'persistedAwaited', snapshot: null,
+    alreadyDelivered: [], awaiting: [], statefulLeg: null, foldSeeded: [], flight,
+  });
+  const group = (seeds: DispatchWire[]) => ({
+    orbital: 'Main', seeds: seeds.map((s) => s.seed), alreadyDelivered: [], awaiting: [], foldSeeded: [],
+    leg: { event: 'INIT', mount: seeds.map((s): MountSeed => ({ trait: s.seed.trait, event: 'INIT' })), clientId: 'tab-a' },
+  });
+  // `Match` holds a stateful leg only (flight 0); `Sources` delegated (flight 1): a carried-state host is posted Sources alone.
+  const match = seedWire('Match', 0);
+  const sources = seedWire('Sources', 1);
+  const mount: MountWire = { seeds: [match, sources], legs: [group([sources])], statefulLegs: [group([match, sources])], failed: null };
+  const run = async (carriesCircuitState: boolean) => {
+    const log: string[] = [];
+    const kernel: KernelInstance = {
+      ...fakeKernel([]),
+      dispatchMount: () => JSON.stringify(mount),
+      endFlight: (flight: number) => { log.push(`end ${flight}`); return true; },
+    };
+    const transport: EventTransport = {
+      register: async () => ({ success: true, carriesCircuitState }),
+      unregister: async () => undefined,
+      send: async (_orbital, request) => { log.push(`send ${request.mount?.map((s) => s.trait).join(',') ?? request.event}`); return response(); },
+    };
+    const client = createKernelClient({ instance: Promise.resolve(kernel), store: createMemoryCircuitStore(), traitIndex, transport, topology: Promise.resolve({ carriesCircuitState }) });
+    await client.dispatchMount([{ trait: 'Match', event: 'INIT' }, { trait: 'Sources', event: 'INIT' }]);
+    return log;
+  };
+
+  it('ends the unposted seed\'s flight before the group is sent, so the group\'s answer is not folded behind it', async () => {
+    const log = await run(true);
+    expect(log.slice(0, 3)).toEqual(['end 0', 'send Sources', 'end 1']);
+  });
+
+  it('control: a stateful host is posted both seeds and both flights end after the send', async () => {
+    const log = await run(false);
+    expect(log.slice(0, 3)).toEqual(['send Match,Sources', 'end 0', 'end 1']);
+  });
+});
