@@ -10,7 +10,7 @@
  *
  * @packageDocumentation
  */
-import { FULL_WRITE_CAPABILITIES, type EntityRow, type FieldValue, type PersistenceAdapter, type RowCommit, type WriteCapabilities } from "@almadar/core";
+import { FULL_WRITE_CAPABILITIES, mintUlid, type EntityRow, type FieldValue, type PersistenceAdapter, type RowCommit, type WriteCapabilities } from "@almadar/core";
 
 /** Object store holding the append-only write log. */
 export const CHANGE_LOG = "__changes";
@@ -107,7 +107,7 @@ export class IndexedDbPersistence implements PersistenceAdapter {
   }
 
   async create(entityType: string, data: EntityRow): Promise<{ id: string }> {
-    const id = typeof data.id === "string" && data.id.length > 0 ? data.id : crypto.randomUUID();
+    const id = typeof data.id === "string" && data.id.length > 0 ? data.id : mintUlid();
     await this.write(entityType, "create", id, { ...data, id, updatedAt: this.now() });
     return { id };
   }

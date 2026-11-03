@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   mintId,
+  mintUlid,
   isOrbitalId,
   asOrbitalId,
   isEntityId,
@@ -245,5 +246,25 @@ describe('identity: schema JSON round-trip (id-present and id-absent)', () => {
     expect(round.schemaVersion).toBeUndefined();
     expect(round.ledger).toBeUndefined();
     expect(round.orbitals[0].id).toBeUndefined();
+  });
+});
+
+describe('identity: mintUlid outside a secure context', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('mints from getRandomValues when randomUUID is absent, as on a plain-http page', () => {
+    const real = globalThis.crypto;
+    vi.stubGlobal('crypto', { getRandomValues: (a: Uint8Array) => real.getRandomValues(a) });
+    const first = mintUlid();
+    const second = mintUlid();
+    expect(first).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
+    expect(second).not.toBe(first);
+  });
+
+  it('control: a runtime without getRandomValues refuses rather than minting a weak id', () => {
+    vi.stubGlobal('crypto', {});
+    expect(() => mintUlid()).toThrow(/getRandomValues/);
   });
 });

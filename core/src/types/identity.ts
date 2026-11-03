@@ -169,14 +169,14 @@ function encodeRandom(): string {
   return out;
 }
 
-/** A 26-char Crockford-base32 ULID: 48-bit ms timestamp + 80 bits of randomness. */
-function ulid(): string {
+/** A 26-char Crockford-base32 ULID: 48-bit ms timestamp + 80 bits of randomness. Needs only `getRandomValues`, so it also runs on a plain-http page where `randomUUID` is absent. */
+export function mintUlid(): string {
   return encodeTime(Date.now()) + encodeRandom();
 }
 
 /** Mint a fresh, opaque, kind-tagged id: `<prefix><ULID>`. */
 export function mintId<K extends IdKind>(kind: K): IdForKind[K] {
-  return brand<IdForKind[K]>(ID_PREFIXES[kind] + ulid());
+  return brand<IdForKind[K]>(ID_PREFIXES[kind] + mintUlid());
 }
 
 // ============================================================================

@@ -30,6 +30,7 @@ import type {
   OrbitalDefinition,
   ServiceParams,
 } from '@almadar/core';
+import { mintUlid } from '@almadar/core';
 import { createMemoryCircuitStore, type CircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import type { ClientKernel, ClientKernelOutcome } from '@almadar/shell-runtime/client/client-kernel';
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
@@ -127,7 +128,7 @@ export interface CircuitKernelHandle {
  */
 let tabClientId: string | undefined;
 export function getTabClientId(): string {
-  if (tabClientId === undefined) tabClientId = crypto.randomUUID();
+  if (tabClientId === undefined) tabClientId = mintUlid();
   return tabClientId;
 }
 

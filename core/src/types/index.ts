@@ -121,6 +121,7 @@ export {
   type LedgerEntry,
   type IdentityLedger,
   mintId,
+  mintUlid,
   isOrbitalId,
   asOrbitalId,
   isEntityId,
