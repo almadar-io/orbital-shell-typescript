@@ -705,16 +705,6 @@
     "description": "A jws/verify call with a literal allowUnsigned true sits in a transition that is not env-guarded"
   },
   {
-    "code": "ORB_EMBED_BRIDGE_EMITS_UNHEARD",
-    "category": "embed",
-    "description": "An embed bridge re-emits an event on the host that nothing in the program handles"
-  },
-  {
-    "code": "ORB_EMBED_BRIDGE_LISTENS_UNSENT",
-    "category": "embed",
-    "description": "An embed bridge delivers an event into the program that nothing in the program sends"
-  },
-  {
     "code": "ORB_EMBED_CONFIG_FORWARD_MULTI_REFERRER",
     "category": "embed",
     "description": "A trait that forwards @config is embedded by more than one referrer, so the forwarded value is ambiguous"
@@ -878,6 +868,11 @@
     "code": "ORB_GUARD_ON_FRAME_FIELD_AUTHORIZES",
     "category": "guard",
     "description": "A guard reads an intrinsic frame field of an entity to authorize, but intrinsic fields are not trustworthy for access"
+  },
+  {
+    "code": "ORB_GUEST_VIEW_NOT_CLIENT",
+    "category": "trait",
+    "description": "A trait that does not run on the client paints a guest-view, so the kernel cannot route a click inside the guest"
   },
   {
     "code": "ORB_HOST_EFFECT_ARITY",

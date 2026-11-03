@@ -11,6 +11,7 @@ const pickerSurface: TraitSurface = {
   shared: false,
   browser: false,
   frameKey: 'Picker',
+  paintsGuestViews: false,
   ticks: [],
   emits: [],
   states: ['idle'],
@@ -125,5 +126,34 @@ describe('useBusIngress', () => {
     bus.current.emit('UI:PICK', { id: 'y' });
     expect(settle).not.toHaveBeenCalled();
     expect(deliver).not.toHaveBeenCalled();
+  });
+
+  it('a trait that paints a guest-view hands every event raised in its scope to the kernel, once', () => {
+    const settle = vi.fn<BusDispatch>(async () => {});
+    const deliver = vi.fn<BusEmitDelivery>(async () => {});
+    const guestHost = new Map([['Picker', { ...pickerSurface, paintsGuestViews: true }]]);
+    const { result: bus } = renderHook(() => useEventBus());
+    renderHook(() => useBusIngress(guestHost, circuit(guestHost), settle, deliver, bus.current, new Set(['Picker'])));
+
+    bus.current.emit('UI:IngressOrbital.Picker.SELECT_DAY', { day: 3 });
+    expect(settle).toHaveBeenCalledWith('Picker', 'SELECT_DAY', { day: 3 }, undefined);
+
+    settle.mockClear();
+    bus.current.emit('UI:IngressOrbital.Picker.PICK', { id: 'a' });
+    expect(settle).toHaveBeenCalledTimes(1);
+
+    settle.mockClear();
+    bus.current.emit('UI:IngressOrbital.Other.SELECT_DAY', { day: 4 });
+    expect(settle).not.toHaveBeenCalled();
+  });
+
+  it('control: a trait that paints no guest-view does not hear an undeclared event in its scope', () => {
+    const settle = vi.fn<BusDispatch>(async () => {});
+    const deliver = vi.fn<BusEmitDelivery>(async () => {});
+    const bindings = binding();
+    const { result: bus } = renderHook(() => useEventBus());
+    renderHook(() => useBusIngress(bindings, circuit(bindings), settle, deliver, bus.current, new Set(['Picker'])));
+    bus.current.emit('UI:IngressOrbital.Picker.SELECT_DAY', { day: 3 });
+    expect(settle).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-01T18:53:32.308Z",
+  "exportedAt": "2026-11-03T05:08:50.451Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -39982,8 +39982,16 @@
           "types": [
             "object"
           ],
-          "description": "GAP-80: line-level error/warning highlights. Map of 1-based line number → severity. Paints a colored background on each line: error = red, warning = yellow. Honored by the editable overlay and (GAP-84) by viewer mode's non-diff highlight; pass undefined (default) to disable. The consumer is responsible for computing the path → line map from the schema + validation results.",
-          "nonAuthorable": true
+          "description": "GAP-80: line-level error/warning highlights. Map of 1-based line number → severity. Paints a colored background on each line: error = red, warning = yellow. Honored by the editable overlay and (GAP-84) by viewer mode's non-diff highlight; pass undefined (default) to disable. The consumer is responsible for computing the path → line map from the schema + validation results. A program authors it as a record of the line number (as text) to severity, read the same way.",
+          "mapValue": {
+            "types": [
+              "string"
+            ],
+            "enumValues": [
+              "error",
+              "warning"
+            ]
+          }
         },
         "highlightLines": {
           "types": [
@@ -132342,6 +132350,50 @@
             "object"
           ],
           "description": "The program's imports (`behavior/dependencies`), placing each composed unit in its layer."
+        }
+      }
+    },
+    "guest-view": {
+      "type": "guest-view",
+      "category": "component",
+      "sourceFile": "components/core/molecules/GuestView.tsx",
+      "tier": "molecules",
+      "family": "core",
+      "description": "GuestView — paints the UI of a guest program session (program/open) inside the opener's view. Paint only: a click on a control inside it is routed by the kernel to the opener as its `deliver` event { guest, address, event, payload }.",
+      "suggestedFor": [
+        "guest",
+        "view",
+        "guest view"
+      ],
+      "typicalSize": "medium",
+      "propsSchema": {
+        "guest": {
+          "types": [
+            "string"
+          ],
+          "description": "Guest session handle (`program/open` answers it, e.g. \"guest-1\"). Data for the kernel; never rendered.",
+          "required": true
+        },
+        "source": {
+          "types": [
+            "string"
+          ],
+          "description": "Guest trait that painted this content (`rendered[].trait`); the kernel delivers a click as address `<source>.<EVENT>`. Data for the kernel; never rendered.",
+          "required": true
+        },
+        "deliver": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event a click inside this view is delivered as. The kernel emits it, never the renderer.",
+          "required": true,
+          "kind": "event"
+        },
+        "children": {
+          "types": [
+            "node"
+          ],
+          "description": "The guest's painted content"
         }
       }
     }

@@ -771,7 +771,12 @@ overlayOnly: boolean, };
 
 export type TraitSnapshot = { state: string, entity: JsonValue }
 
-export type TraitSurface = { name: string, orbital: string, orbitalId?: string, traitId?: string, entity?: string, shared: boolean, browser: boolean, frameKey: string, ticks: Array<SurfaceTick>, states: Array<string>, initial?: string, events: Array<string>, emits: Array<SurfaceEmit>, listens: Array<SurfaceListen>, transitions: Array<SurfaceTransition>, };
+export type TraitSurface = { name: string, orbital: string, orbitalId?: string, traitId?: string, entity?: string, shared: boolean, browser: boolean, frameKey: string, ticks: Array<SurfaceTick>, states: Array<string>, initial?: string, events: Array<string>, emits: Array<SurfaceEmit>, listens: Array<SurfaceListen>, transitions: Array<SurfaceTransition>, 
+/**
+ * The trait paints a `guest-view` (G-CROSS-400): a host hands it every event raised in its scope, and the kernel
+ * routes one a painted guest control carries or ignores it.
+ */
+paintsGuestViews: boolean, };
 
 export type TransitionHop = { trait: string, from: string, to: string, event: string, 
 /**

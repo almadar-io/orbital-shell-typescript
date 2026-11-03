@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-01T18:53:32.308Z",
+  "exportedAt": "2026-11-03T05:08:50.451Z",
   "mappings": {
     "page-header": {
       "component": "PageHeader",
@@ -1338,6 +1338,11 @@
       "component": "MachinePanel",
       "importPath": "@almadar/shell-web/components/core/organisms/MachinePanel",
       "category": "display"
+    },
+    "guest-view": {
+      "component": "GuestView",
+      "importPath": "@almadar/shell-web/components/core/molecules/GuestView",
+      "category": "component"
     }
   }
 }

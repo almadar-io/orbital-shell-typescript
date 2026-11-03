@@ -60,8 +60,7 @@ export interface ServerBridgeContextValue {
 
 /**
  * @deprecated Alias for `@almadar/runtime`'s `EventTransport` (plan P5) —
- * kept only because in-package consumers (`OrbPreview.tsx`,
- * `OrbitalPluginHost.tsx`) still import the name.
+ * kept only because in-package consumers (`OrbPreview.tsx`) still import the name.
  * Import `EventTransport` directly in new code.
  */
 export type ServerBridgeTransport = EventTransport;
