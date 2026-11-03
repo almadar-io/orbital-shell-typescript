@@ -14,7 +14,7 @@ function write(path: string, body: string): void {
 
 function vocabularyPack(root: string, name: string, code: string, opts: { file?: boolean; orbital?: string } = {}): void {
   const dir = join(root, 'node_modules', name);
-  write(join(dir, 'package.json'), JSON.stringify({ name, version: '1.2.0', orbVocabulary: { compiler: '>=17.0.0', vocabulary: 'vocabulary.json' } }));
+  write(join(dir, 'package.json'), JSON.stringify({ name, version: '1.2.0', orbVocabulary: { language: '^1', vocabulary: 'vocabulary.json' } }));
   if (opts.file !== false) {
     write(join(dir, 'vocabulary.json'), JSON.stringify({
       meta: { code, name: `Lang ${code}`, rtl: false },
@@ -29,7 +29,7 @@ function project(opts: { std?: boolean; coreBlock?: Record<string, string> | nul
   const root = mkdtempSync(join(tmpdir(), 'lang-bundle-'));
   const core = join(root, 'node_modules/@almadar/core');
   const block = opts.coreBlock === undefined
-    ? { compiler: '>=17.0.0', patterns: 'p/patterns.json', componentMapping: 'p/cm.json', eventContracts: 'p/ec.json', services: 'p/s.json', bindingRules: 'p/br.json', programTypes: 'p/pt.json', protocols: 'p/protocols.json', themes: 'themes' }
+    ? { version: '1.0.0', patterns: 'p/patterns.json', componentMapping: 'p/cm.json', eventContracts: 'p/ec.json', services: 'p/s.json', bindingRules: 'p/br.json', programTypes: 'p/pt.json', protocols: 'p/protocols.json', themes: 'themes' }
     : opts.coreBlock;
   write(join(core, 'package.json'), JSON.stringify({ name: '@almadar/core', version: '10.1.0', ...(block ? { orbLanguage: block } : {}) }));
   write(join(core, 'p/patterns.json'), '{"patterns":{"button":{}}}');
@@ -42,7 +42,7 @@ function project(opts: { std?: boolean; coreBlock?: Record<string, string> | nul
   for (const name of opts.themes ?? ['zeta', 'alpha']) write(join(core, `themes/${name}.json`), JSON.stringify({ name, tokens: {} }));
   if (opts.std !== false) {
     const std = join(root, 'node_modules/@almadar/std');
-    write(join(std, 'package.json'), JSON.stringify({ name: '@almadar/std', version: '8.2.0', orbLanguage: { compiler: '>=17.0.0', operators: 'ops.json' } }));
+    write(join(std, 'package.json'), JSON.stringify({ name: '@almadar/std', version: '8.2.0', orbLanguage: { language: '^1', operators: 'ops.json' } }));
     write(join(std, 'ops.json'), '{"categories":{},"operators":{}}');
   }
   return root;
@@ -50,15 +50,16 @@ function project(opts: { std?: boolean; coreBlock?: Record<string, string> | nul
 
 describe('readLanguageBundle', () => {
   it('reads every file the installed core and std declare under orbLanguage', () => {
-    const bundle = readLanguageBundle(project());
+    const root = project();
+    const bundle = readLanguageBundle(root, join(root, 'store'));
     expect(bundle.core.version).toBe('10.1.0');
-    expect(bundle.core.compiler).toBe('>=17.0.0');
+    expect(bundle.core.language).toBe('1.0.0');
     expect(bundle.core.patterns).toEqual({ patterns: { button: {} } });
     expect(bundle.core.bindingRules).toEqual({ guard: { allowed: ['entity'] } });
     expect(bundle.core.programTypes).toEqual({ OrbitalValue: { type: 'object', properties: { behavior: { type: 'string', required: true } } } });
     expect(bundle.core.protocols).toEqual([{ name: 'route', address: null, viewer: true, grant: null, side: 'client' }]);
     expect(bundle.core.themes.map((t) => t.name)).toEqual(['alpha', 'zeta']);
-    expect(bundle.std).toEqual({ version: '8.2.0', compiler: '>=17.0.0', operators: { categories: {}, operators: {} } });
+    expect(bundle.std).toEqual({ version: '8.2.0', language: '^1', operators: { categories: {}, operators: {} } });
   });
 
   it('a missing std fails naming the package', () => {
@@ -70,17 +71,17 @@ describe('readLanguageBundle', () => {
   });
 
   it('a core that declares no binding rules fails naming the key', () => {
-    const block = { compiler: '>=17.0.0', patterns: 'p/patterns.json', componentMapping: 'p/cm.json', eventContracts: 'p/ec.json', services: 'p/s.json', themes: 'themes' };
+    const block = { version: '1.0.0', patterns: 'p/patterns.json', componentMapping: 'p/cm.json', eventContracts: 'p/ec.json', services: 'p/s.json', themes: 'themes' };
     expect(() => readLanguageBundle(project({ coreBlock: block }))).toThrow(/orbLanguage\.bindingRules/);
   });
 
   it('a core that declares no program types fails naming the key', () => {
-    const block = { compiler: '>=17.0.0', patterns: 'p/patterns.json', componentMapping: 'p/cm.json', eventContracts: 'p/ec.json', services: 'p/s.json', bindingRules: 'p/br.json', themes: 'themes' };
+    const block = { version: '1.0.0', patterns: 'p/patterns.json', componentMapping: 'p/cm.json', eventContracts: 'p/ec.json', services: 'p/s.json', bindingRules: 'p/br.json', themes: 'themes' };
     expect(() => readLanguageBundle(project({ coreBlock: block }))).toThrow(/orbLanguage\.programTypes/);
   });
 
   it('a core that declares no protocol table fails naming the key', () => {
-    const block = { compiler: '>=17.0.0', patterns: 'p/patterns.json', componentMapping: 'p/cm.json', eventContracts: 'p/ec.json', services: 'p/s.json', bindingRules: 'p/br.json', programTypes: 'p/pt.json', themes: 'themes' };
+    const block = { version: '1.0.0', patterns: 'p/patterns.json', componentMapping: 'p/cm.json', eventContracts: 'p/ec.json', services: 'p/s.json', bindingRules: 'p/br.json', programTypes: 'p/pt.json', themes: 'themes' };
     expect(() => readLanguageBundle(project({ coreBlock: block }))).toThrow(/orbLanguage\.protocols/);
   });
 
@@ -95,9 +96,9 @@ describe('language packs', () => {
     vocabularyPack(root, '@someone/lolo-qa', 'qa');
     vocabularyPack(root, 'lolo-qb', 'qb');
     const packs = readVocabularyPacks(root, join(root, 'store'));
-    expect(packs.map((p) => [p.package, p.version, p.compiler, p.vocabulary.meta.code])).toEqual([
-      ['@someone/lolo-qa', '1.2.0', '>=17.0.0', 'qa'],
-      ['lolo-qb', '1.2.0', '>=17.0.0', 'qb'],
+    expect(packs.map((p) => [p.package, p.version, p.language, p.vocabulary.meta.code])).toEqual([
+      ['@someone/lolo-qa', '1.2.0', '^1', 'qa'],
+      ['lolo-qb', '1.2.0', '^1', 'qb'],
     ]);
     expect(readLanguageBundle(root, join(root, 'store')).vocabularies.map((p) => p.vocabulary.meta.code)).toEqual(['qa', 'qb']);
   });

@@ -73,7 +73,7 @@ function livePackage(files: Record<string, string>): { root: string; work: strin
     JSON.stringify({
       name: '@test/live',
       version: '1.0.0',
-      orb: { prefix: 'test', source: 'behaviors/lolo', index: 'i.json', embeddings: [], compiler: '>=1.0.0' },
+      orb: { prefix: 'test', source: 'behaviors/lolo', index: 'i.json', embeddings: [], language: '^1' },
     }),
   );
   for (const [rel, body] of Object.entries(files)) {
@@ -115,7 +115,7 @@ describe('behaviorRegistryDir — a live package (orb.source)', () => {
     const { root, work } = livePackage({ 'app/atoms/a.lolo': 'A' });
     const core = join(work, 'node_modules/@almadar/core');
     mkdirSync(core, { recursive: true });
-    writeFileSync(join(core, 'package.json'), JSON.stringify({ name: '@almadar/core', version: '1.0.0', orbLanguage: { compiler: '>=1.0.0', patterns: 'p.json' } }));
+    writeFileSync(join(core, 'package.json'), JSON.stringify({ name: '@almadar/core', version: '1.0.0', orbLanguage: { version: '1.0.0', patterns: 'p.json' } }));
     writeFileSync(join(core, 'p.json'), '{"patterns":{}}');
     const opts = { orbBin: fakeOrb(work), cacheDir: join(work, 'cache') };
     const pkg = readBehaviorPackage(root);

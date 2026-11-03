@@ -16,7 +16,7 @@ import {
 const CURRENT_ORB = {
   prefix: 'almadar-test',
   registry: 'behaviors/registry',
-  compiler: '>=4.10.0',
+  language: '^1',
 };
 
 const ORB = { ...CURRENT_ORB, embeddings: ['dist/behaviors-embeddings.json'] };

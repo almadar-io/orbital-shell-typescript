@@ -33,7 +33,8 @@ export const BehaviorPackageOrbBlockSchema = z
   /** The `.lolo` sources, lowered on read when no `registry` is declared (a workspace package). */
   source: z.string().min(1).optional(),
   vectors: z.string().min(1).optional(),
-  compiler: z.string().min(1),
+  /** The language versions the package is written for (`@almadar/core`'s `orbLanguage.version`). */
+  language: z.string().min(1),
   })
   .refine((orb) => orb.registry !== undefined || orb.source !== undefined, {
     message: 'declares neither `registry` (materialized) nor `source` (live)',
@@ -265,7 +266,7 @@ const DiscoveredRowSchema = z.object({
   registry: z.string().min(1).optional(),
   source: z.string().min(1).optional(),
   vectors: z.string().min(1).optional(),
-  compiler: z.string().min(1),
+  language: z.string().min(1),
   lock: SidecarLockSchema.optional(),
 });
 
@@ -300,7 +301,7 @@ export function discoverBehaviorPackages(startDir: string, options: DiscoverOpti
       root: row.root,
       orb: {
         prefix: row.prefix,
-        compiler: row.compiler,
+        language: row.language,
         ...(row.registry !== undefined ? { registry: row.registry } : {}),
         ...(row.source !== undefined ? { source: row.source } : {}),
         ...(row.vectors !== undefined ? { vectors: row.vectors } : {}),
@@ -400,7 +401,7 @@ function lowererKey(orbBin: string, pkgRoot: string): string {
   const manifest = JSON.parse(readFileSync(join(coreRoot, 'package.json'), 'utf8')) as { orbLanguage?: Record<string, string> };
   for (const [field, rel] of Object.entries(manifest.orbLanguage ?? {}).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
     const path = join(coreRoot, rel);
-    if (field === 'compiler' || !existsSync(path) || !statSync(path).isFile()) continue;
+    if (field === 'version' || !existsSync(path) || !statSync(path).isFile()) continue;
     hash.update(`\0${field}\0${fileHash(path)}`);
   }
   return hash.digest('hex');
