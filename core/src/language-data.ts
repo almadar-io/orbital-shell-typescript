@@ -23,15 +23,16 @@ import type { JsonValue } from './types/json.js';
 export interface InstalledVocabularyPack {
   package: string;
   version: string;
-  /** The `orb` versions the pack supports (`orbVocabulary.compiler`). */
-  compiler: string;
+  /** The language versions the pack is written for (`orbVocabulary.language`). */
+  language: string;
   vocabulary: VocabularyPack;
 }
 
 export interface LanguageBundle {
   core: {
     version: string;
-    compiler: string;
+    /** The language version core provides (`orbLanguage.version`). */
+    language: string;
     patterns: JsonValue;
     componentMapping: JsonValue;
     eventContracts: JsonValue;
@@ -43,7 +44,8 @@ export interface LanguageBundle {
   };
   std: {
     version: string;
-    compiler: string;
+    /** The language versions std is written for (`orbLanguage.language`). */
+    language: string;
     operators: JsonValue;
   };
   /** Every installed language pack ({@link readVocabularyPacks}); English is built in. */
@@ -76,7 +78,7 @@ function findManifest(name: string, fromDir: string): string | null {
   }
 }
 
-function readLanguagePackage(name: string, fromDir: string): LanguagePackage {
+function readLanguagePackage(name: string, fromDir: string, languageKey: 'version' | 'language'): LanguagePackage {
   const manifestPath = findManifest(name, fromDir);
   if (!manifestPath) throw new LanguageDataError(`${name} is not installed (searched from ${fromDir})`);
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
@@ -84,7 +86,7 @@ function readLanguagePackage(name: string, fromDir: string): LanguagePackage {
     orbLanguage?: Record<string, string>;
   };
   if (!manifest.orbLanguage) throw new LanguageDataError(`${manifestPath} declares no \`orbLanguage\` block`);
-  if (!manifest.orbLanguage.compiler) throw new LanguageDataError(`${manifestPath} declares no \`orbLanguage.compiler\` range`);
+  if (!manifest.orbLanguage[languageKey]) throw new LanguageDataError(`${manifestPath} declares no \`orbLanguage.${languageKey}\``);
   return { root: dirname(manifestPath), version: manifest.version ?? '', block: manifest.orbLanguage };
 }
 
@@ -101,7 +103,7 @@ function readJson(path: string): JsonValue {
 interface VocabularyManifest {
   name?: string;
   version?: string;
-  orbVocabulary?: { compiler?: string; vocabulary?: string };
+  orbVocabulary?: { language?: string; vocabulary?: string };
 }
 
 /**
@@ -123,8 +125,8 @@ export function readVocabularyPacks(fromDir: string, userStore: string = userSto
     const block = manifest.orbVocabulary;
     if (!block || !manifest.name || seen.has(manifest.name)) continue;
     seen.add(manifest.name);
-    if (!block.compiler || !block.vocabulary) {
-      throw new LanguageDataError(`${manifest.name} (${manifestPath}): \`orbVocabulary\` needs \`compiler\` and \`vocabulary\``);
+    if (!block.language || !block.vocabulary) {
+      throw new LanguageDataError(`${manifest.name} (${manifestPath}): \`orbVocabulary\` needs \`language\` and \`vocabulary\``);
     }
     const file = join(dir, block.vocabulary);
     if (!existsSync(file)) throw new LanguageDataError(`${manifest.name}: declared vocabulary ${file} does not exist`);
@@ -134,7 +136,7 @@ export function readVocabularyPacks(fromDir: string, userStore: string = userSto
     } catch (e) {
       throw new LanguageDataError(`${manifest.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
-    packs.push({ package: manifest.name, version: manifest.version ?? '', compiler: block.compiler, vocabulary });
+    packs.push({ package: manifest.name, version: manifest.version ?? '', language: block.language, vocabulary });
   }
   const byCode = new Map<LanguageCode, string>();
   for (const pack of packs) {
@@ -148,8 +150,8 @@ export function readVocabularyPacks(fromDir: string, userStore: string = userSto
 
 /** Assemble the bundle from the `@almadar/core`, `@almadar/std` and language packs installed for `fromDir`. */
 export function readLanguageBundle(fromDir: string, userStore: string = userStoreDir()): LanguageBundle {
-  const core = readLanguagePackage('@almadar/core', fromDir);
-  const std = readLanguagePackage('@almadar/std', fromDir);
+  const core = readLanguagePackage('@almadar/core', fromDir, 'version');
+  const std = readLanguagePackage('@almadar/std', fromDir, 'language');
   const themesDir = declared(core, 'themes');
   const themes = (existsSync(themesDir) ? readdirSync(themesDir) : [])
     .filter((f) => f.endsWith('.json'))
@@ -159,7 +161,7 @@ export function readLanguageBundle(fromDir: string, userStore: string = userStor
   return {
     core: {
       version: core.version,
-      compiler: core.block.compiler,
+      language: core.block.version,
       patterns: readJson(declared(core, 'patterns')),
       componentMapping: readJson(declared(core, 'componentMapping')),
       eventContracts: readJson(declared(core, 'eventContracts')),
@@ -171,7 +173,7 @@ export function readLanguageBundle(fromDir: string, userStore: string = userStor
     },
     std: {
       version: std.version,
-      compiler: std.block.compiler,
+      language: std.block.language,
       operators: readJson(declared(std, 'operators')),
     },
     vocabularies: readVocabularyPacks(fromDir, userStore),

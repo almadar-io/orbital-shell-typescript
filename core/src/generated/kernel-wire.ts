@@ -275,6 +275,8 @@ cascadeTruncated?: Array<string>,
  */
 transitions?: Array<TransitionHop>, error?: string, };
 
+export type FfiGrant = { library: string, symbol: string, signature: string, };
+
 export type FiredTick = { trait: string, tick: string, };
 
 export type FoldProgressWire = { "status": "applied", fold: AppliedWire, } | { "status": "queued", ticket: number, };
@@ -354,9 +356,13 @@ export type IoAnswerWire = { "kind": "row", result: Settled<EntityRow | null, st
 
 export type IoReplyWire = { id: number, answer: IoAnswerWire, };
 
-export type IoRequestWire = { "kind": "readRow", entityType: string, id: string, } | { "kind": "listRows", entityType: string, } | { "kind": "queryRows", entityType: string, query: RowQuery, project: RowProjection, } | { "kind": "writeRows", batch: RowWriteBatch, } | { "kind": "commitRows", rows: Array<RowCommit>, } | { "kind": "createRow", entityType: string, data: JsonValue, } | { "kind": "writeRow", entityType: string, id: string, data: JsonValue, } | { "kind": "deleteRow", entityType: string, id: string, } | { "kind": "callService", service: string, method: string, args: JsonValue, key?: string, caller?: CallerWire, site?: CallSiteWire, } | { "kind": "cancelCall", key: string, } | { "kind": "substrate", op: string, args: Array<JsonValue>, key?: string, site?: CallSiteWire, } | { "kind": "pageFacts", fields: Array<PageFactFieldWire>, } | { "kind": "prompt", text: string, schema: string, key?: string, } | { "kind": "embed", texts: Array<string>, key?: string, } | { "kind": "tab", ask: TabAsk, key?: string, } | { "kind": "secret", name: string, principal?: string, } | { "kind": "secretSet", name: string, value: string, ttlMs: number, principal?: string, } | { "kind": "secretRotate", name: string, value: string, principal?: string, } | { "kind": "deliver", envelope: Envelope, key?: string, site: CallSiteWire, } | { "kind": "random", bytes: number, } | { "kind": "clock" } | { "kind": "sealed", op: string, args: Array<JsonValue>, } | { "kind": "os", op: OsOp, args: Array<JsonValue>, key?: string, site?: CallSiteWire, principal?: string, orbital?: string, } | { "kind": "credentialStatus", name: string, principal?: string, } | { "kind": "credentialForget", name: string, principal?: string, } | { "kind": "credentialConnect", grant: CredentialGrantWire, } | { "kind": "credentialStoreList" } | { "kind": "credentialEnvTails", names: Array<string>, } | { "kind": "credentialStoreRead", name: string, } | { "kind": "credentialStoreWrite", service: string, name: string, value: string, } | { "kind": "credentialStoreRemove", name: string, } | { "kind": "credentialStoreRotate" } | { "kind": "credentialModeRead" } | { "kind": "credentialModeWrite", mode: string, };
+export type IoRequestWire = { "kind": "readRow", entityType: string, id: string, } | { "kind": "listRows", entityType: string, } | { "kind": "queryRows", entityType: string, query: RowQuery, project: RowProjection, } | { "kind": "writeRows", batch: RowWriteBatch, } | { "kind": "commitRows", rows: Array<RowCommit>, } | { "kind": "createRow", entityType: string, data: JsonValue, } | { "kind": "writeRow", entityType: string, id: string, data: JsonValue, } | { "kind": "deleteRow", entityType: string, id: string, } | { "kind": "callService", service: string, method: string, args: JsonValue, key?: string, caller?: CallerWire, site?: CallSiteWire, } | { "kind": "cancelCall", key: string, } | { "kind": "substrate", op: string, args: Array<JsonValue>, key?: string, site?: CallSiteWire, } | { "kind": "pageFacts", fields: Array<PageFactFieldWire>, } | { "kind": "prompt", text: string, schema: string, key?: string, } | { "kind": "embed", texts: Array<string>, key?: string, } | { "kind": "tab", ask: TabAsk, key?: string, } | { "kind": "secret", name: string, principal?: string, } | { "kind": "secretSet", name: string, value: string, ttlMs: number, principal?: string, } | { "kind": "secretRotate", name: string, value: string, principal?: string, } | { "kind": "deliver", envelope: Envelope, key?: string, site: CallSiteWire, } | { "kind": "guest", guest: string, targets: Array<string>, event: string, payload: JsonValue, grants: OsGrants, key?: string, site?: CallSiteWire, } | { "kind": "random", bytes: number, } | { "kind": "clock" } | { "kind": "sealed", op: string, args: Array<JsonValue>, } | { "kind": "os", op: OsOp, args: Array<JsonValue>, key?: string, site?: CallSiteWire, principal?: string, orbital?: string, } | { "kind": "credentialStatus", name: string, principal?: string, } | { "kind": "credentialForget", name: string, principal?: string, } | { "kind": "credentialConnect", grant: CredentialGrantWire, } | { "kind": "credentialStoreList" } | { "kind": "credentialEnvTails", names: Array<string>, } | { "kind": "credentialStoreRead", name: string, } | { "kind": "credentialStoreWrite", service: string, name: string, value: string, } | { "kind": "credentialStoreRemove", name: string, } | { "kind": "credentialStoreRotate" } | { "kind": "credentialModeRead" } | { "kind": "credentialModeWrite", mode: string, };
 
 export type JsonTokenSpec = { clientIdField: string, clientSecretField: string, accessField: string, refreshField?: string | null, expiresInField?: string | null, refreshEndpoint?: string | null, refreshBodyField?: string | null, };
+
+export type KernelGrant = { target: string, kinds: Array<KernelKind>, };
+
+export type KernelKind = "call" | "reorder" | "read" | "spawn";
 
 export type KvMode = "read" | "write";
 
@@ -371,6 +377,10 @@ export type MachineRow = { orbital: string, trait: string, from: string, event: 
  * The transition carries a guard of its own.
  */
 guarded: boolean, payload: Array<PayloadSlot>, };
+
+export type MemGrant = { target: string, kinds: Array<MemKind>, };
+
+export type MemKind = "create" | "free" | "atomic";
 
 export type ModelFailureKindWire = "unconfigured" | "unavailable" | "failed";
 
@@ -422,7 +432,7 @@ export type OperatorValueKinds = { operator: RowOperator, valueKinds: Array<RowV
 
 export type OsError = { kind: OsErrorKind, message: string, };
 
-export type OsErrorKind = "denied" | "not-found" | "exists" | "invalid" | "io" | "timeout" | "unsupported" | "closed" | "tls";
+export type OsErrorKind = "denied" | "not-found" | "exists" | "invalid" | "io" | "timeout" | "unsupported" | "closed" | "tls" | "borrowed";
 
 export type OsGrantFinding = { code: OsGrantFindingCode, orbital?: string, call?: string, entry?: string, site: string, grant?: string, app?: boolean, argument?: number, via?: OsGrantVia, };
 
@@ -430,7 +440,7 @@ export type OsGrantFindingCode = "missing" | "unused" | "entry-invalid" | "targe
 
 export type OsGrantVia = "config" | "config-unresolvable" | "computed-path";
 
-export type OsGrants = { fs?: Array<FsGrant>, exec?: Array<string>, net?: Array<NetGrant>, env?: Array<string>, stdio?: Array<StdioKind>, sys?: Array<SysKind>, desktop?: Array<DesktopKind>, dev?: Array<DevGrant>, 
+export type OsGrants = { fs?: Array<FsGrant>, exec?: Array<string>, net?: Array<NetGrant>, env?: Array<string>, stdio?: Array<StdioKind>, sys?: Array<SysKind>, desktop?: Array<DesktopKind>, dev?: Array<DevGrant>, mem?: Array<MemGrant>, kernel?: Array<KernelGrant>, ffi?: Array<FfiGrant>, 
 /**
  * `credentials: [admin]`: the raw credential-store operators, closed unless declared.
  */
@@ -442,7 +452,7 @@ kv?: { [key in string]: Array<KvMode> }, anchored?: AnchoredGrants, };
 
 export type OsGrantsReport = { findings: Array<OsGrantFinding>, };
 
-export type OsOp = "os/read-file" | "os/write-file" | "os/append-file" | "os/open" | "os/close" | "os/read" | "os/write" | "os/seek" | "os/truncate" | "os/fsync" | "os/copy" | "os/rename" | "os/remove" | "os/link" | "os/symlink" | "os/readlink" | "os/watch-files" | "os/mkdir" | "os/rmdir" | "os/list-dir" | "os/glob" | "os/mktemp" | "os/realpath" | "os/cwd" | "os/chdir" | "os/stat" | "os/lstat" | "os/access" | "os/exists" | "os/chmod" | "os/chown" | "os/utimes" | "os/spawn" | "os/wait" | "os/kill" | "os/pid" | "os/ppid" | "os/current-exe" | "os/watch-process" | "os/watch-signal" | "os/getenv" | "os/setenv" | "os/unsetenv" | "os/environ" | "os/watch-env" | "os/stdin-read" | "os/stdout-write" | "os/stderr-write" | "os/isatty" | "os/tty-size" | "os/tcp-connect" | "os/tcp-listen" | "os/tls-upgrade" | "os/send" | "os/recv" | "os/udp-bind" | "os/sendto" | "os/recvfrom" | "os/dns-resolve" | "os/shutdown" | "os/watch-port" | "os/fetch" | "os/clock-monotonic" | "os/uid" | "os/gid" | "os/username" | "os/group-of" | "os/watch-cron" | "os/cpu-usage" | "os/memory-info" | "os/uptime" | "os/load-avg" | "os/hostname" | "os/uname" | "os/disk-usage" | "os/mounts" | "os/disk-io" | "os/network-interfaces" | "os/network-stats" | "os/network-connected" | "os/default-gateway" | "os/battery-status" | "os/ac-power" | "os/thermal-zones" | "os/notify" | "os/speak" | "os/brightness-get" | "os/brightness-set" | "os/volume-get" | "os/volume-set" | "os/volume-mute" | "os/suspend" | "os/hibernate" | "os/mmio-read" | "os/mmio-write" | "os/irq-wait" | "os/irq-ack" | "kv/get" | "kv/put" | "kv/delete" | "kv/scan" | "kv/batch";
+export type OsOp = "os/read-file" | "os/write-file" | "os/append-file" | "os/open" | "os/close" | "os/read" | "os/write" | "os/seek" | "os/truncate" | "os/fsync" | "os/copy" | "os/rename" | "os/remove" | "os/link" | "os/symlink" | "os/readlink" | "os/watch-files" | "os/mkdir" | "os/rmdir" | "os/list-dir" | "os/glob" | "os/mktemp" | "os/realpath" | "os/cwd" | "os/chdir" | "os/stat" | "os/lstat" | "os/access" | "os/exists" | "os/chmod" | "os/chown" | "os/utimes" | "os/spawn" | "os/wait" | "os/kill" | "os/pid" | "os/ppid" | "os/current-exe" | "os/watch-process" | "os/watch-signal" | "os/getenv" | "os/setenv" | "os/unsetenv" | "os/environ" | "os/watch-env" | "os/stdin-read" | "os/stdout-write" | "os/stderr-write" | "os/isatty" | "os/tty-size" | "os/tcp-connect" | "os/tcp-listen" | "os/tls-upgrade" | "os/send" | "os/recv" | "os/udp-bind" | "os/sendto" | "os/recvfrom" | "os/dns-resolve" | "os/shutdown" | "os/watch-port" | "os/fetch" | "os/clock-monotonic" | "os/uid" | "os/gid" | "os/username" | "os/group-of" | "os/watch-cron" | "os/cpu-usage" | "os/memory-info" | "os/uptime" | "os/load-avg" | "os/hostname" | "os/uname" | "os/disk-usage" | "os/mounts" | "os/disk-io" | "os/network-interfaces" | "os/network-stats" | "os/network-connected" | "os/default-gateway" | "os/battery-status" | "os/ac-power" | "os/thermal-zones" | "os/notify" | "os/speak" | "os/brightness-get" | "os/brightness-set" | "os/volume-get" | "os/volume-set" | "os/volume-mute" | "os/suspend" | "os/hibernate" | "os/mmio-read" | "os/mmio-write" | "os/irq-wait" | "os/irq-ack" | "kv/get" | "kv/put" | "kv/delete" | "kv/scan" | "kv/batch" | "mem/arena-new" | "mem/arena-drop" | "mem/alloc" | "mem/free" | "mem/borrow" | "mem/release" | "mem/write" | "mem/freeze" | "mem/atomic-load" | "mem/atomic-store" | "mem/atomic-add" | "mem/atomic-cas" | "kernel/queue-front" | "kernel/queue-back" | "ffi/call";
 
 export type PageCircuit = { route?: string, page?: string, notFound: boolean, mounts: Array<MountSeed>, embedded: Array<string>, embeddedBy: Array<string>, orbitalByTrait: { [key in string]: string }, linkedEntityByTrait: { [key in string]: string }, };
 
@@ -771,7 +781,12 @@ overlayOnly: boolean, };
 
 export type TraitSnapshot = { state: string, entity: JsonValue }
 
-export type TraitSurface = { name: string, orbital: string, orbitalId?: string, traitId?: string, entity?: string, shared: boolean, browser: boolean, frameKey: string, ticks: Array<SurfaceTick>, states: Array<string>, initial?: string, events: Array<string>, emits: Array<SurfaceEmit>, listens: Array<SurfaceListen>, transitions: Array<SurfaceTransition>, };
+export type TraitSurface = { name: string, orbital: string, orbitalId?: string, traitId?: string, entity?: string, shared: boolean, browser: boolean, frameKey: string, ticks: Array<SurfaceTick>, states: Array<string>, initial?: string, events: Array<string>, emits: Array<SurfaceEmit>, listens: Array<SurfaceListen>, transitions: Array<SurfaceTransition>, 
+/**
+ * The trait paints a `guest-view` (G-CROSS-400): a host hands it every event raised in its scope, and the kernel
+ * routes one a painted guest control carries or ignores it.
+ */
+paintsGuestViews: boolean, };
 
 export type TransitionHop = { trait: string, from: string, to: string, event: string, 
 /**
@@ -969,6 +984,22 @@ function checkAmbiguousTrait(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["trait"] === 'string' && (Array.isArray(v["orbitals"]) && v["orbitals"].every((e) => typeof e === 'string')));
 }
 
+function checkAnchoredExec(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && checkGrantAnchor(v["anchor"]) && (v["path"] === undefined || typeof v["path"] === 'string'));
+}
+
+function checkAnchoredFsGrant(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && checkGrantAnchor(v["anchor"]) && typeof v["glob"] === 'string' && (Array.isArray(v["modes"]) && v["modes"].every((e) => checkFsMode(e))));
+}
+
+function checkAnchoredGrants(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && (v["fs"] === undefined || (Array.isArray(v["fs"]) && v["fs"].every((e) => checkAnchoredFsGrant(e)))) && (v["exec"] === undefined || (Array.isArray(v["exec"]) && v["exec"].every((e) => checkAnchoredExec(e)))) && (v["net"] === undefined || (Array.isArray(v["net"]) && v["net"].every((e) => checkAnchoredNetGrant(e)))));
+}
+
+function checkAnchoredNetGrant(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && checkNetPart(v["host"]) && checkNetPart(v["port"]) && (Array.isArray(v["kinds"]) && v["kinds"].every((e) => checkNetKind(e))));
+}
+
 function checkAppliedWire(v: JsonValue | undefined): boolean {
   return (isRecord(v) && (Array.isArray(v["applied"]) && v["applied"].every((e) => (Array.isArray(e) && e.length === 2 && typeof e[0] === 'string' && typeof e[1] === 'string'))) && checkEventResponse(v["response"]) && (Array.isArray(v["serverLegs"]) && v["serverLegs"].every((e) => checkRoutedLeg(e))) && (v["resync"] === undefined || (checkFramesResync(v["resync"]) || v["resync"] === null)));
 }
@@ -1025,6 +1056,10 @@ function checkCredentialGrantWire(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string') && typeof v["tokenEndpoint"] === 'string' && typeof v["grant"] === 'string' && typeof v["code"] === 'string' && typeof v["redirectUri"] === 'string' && (v["verifier"] === undefined || typeof v["verifier"] === 'string') && typeof v["clientId"] === 'string' && (v["clientSecret"] === undefined || typeof v["clientSecret"] === 'string') && checkClientAuth(v["clientAuth"]) && (Array.isArray(v["scopes"]) && v["scopes"].every((e) => typeof e === 'string')) && (v["refreshCredential"] === undefined || typeof v["refreshCredential"] === 'string') && (v["assertion"] === undefined || checkAssertionSpec(v["assertion"])) && (v["jsonToken"] === undefined || checkJsonTokenSpec(v["jsonToken"])));
 }
 
+function checkCredentialKind(v: JsonValue | undefined): boolean {
+  return v === "admin";
+}
+
 function checkCredentialStanding(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["connected"] === 'boolean' && (v["label"] === undefined || (typeof v["label"] === 'string' || v["label"] === null)));
 }
@@ -1039,6 +1074,18 @@ function checkDeliverRefusalKind(v: JsonValue | undefined): boolean {
 
 function checkDeliveryRecord(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["event"] === 'string' && (v["payload"] === undefined || accepts((x, q) => rec(x, q), v["payload"])) && checkBusEventSource(v["source"]));
+}
+
+function checkDesktopKind(v: JsonValue | undefined): boolean {
+  return (v === "notify" || v === "speak" || v === "brightness" || v === "volume" || v === "power");
+}
+
+function checkDevGrant(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["target"] === 'string' && (Array.isArray(v["kinds"]) && v["kinds"].every((e) => checkDevKind(e))));
+}
+
+function checkDevKind(v: JsonValue | undefined): boolean {
+  return (v === "read" || v === "write" || v === "wait" || v === "ack");
 }
 
 function checkDispatchLog(v: JsonValue | undefined): boolean {
@@ -1101,6 +1148,10 @@ function checkEventResponse(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["success"] === 'boolean' && typeof v["transitioned"] === 'boolean' && (isRecord(v["states"]) && Object.values(v["states"]).every((e) => typeof e === 'string')) && (Array.isArray(v["emittedEvents"]) && v["emittedEvents"].every((e) => checkEmittedEvent(e))) && (v["data"] === undefined || (isRecord(v["data"]) && Object.values(v["data"]).every((e) => (Array.isArray(e) && e.every((e) => accepts((x, q) => entityRow(x, q), e)))))) && (v["dataRefs"] === undefined || (isRecord(v["dataRefs"]) && Object.values(v["dataRefs"]).every((e) => checkRowSetRef(e)))) && (v["frames"] === undefined || checkFrameDelta(v["frames"])) && (v["clientEffectsByTrait"] === undefined || (Array.isArray(v["clientEffectsByTrait"]) && v["clientEffectsByTrait"].every((e) => checkClientEffectByTrait(e)))) && (v["effectResults"] === undefined || (Array.isArray(v["effectResults"]) && v["effectResults"].every((e) => checkServerEffectResult(e)))) && (v["guardFailed"] === undefined || typeof v["guardFailed"] === 'string') && (v["rejections"] === undefined || (Array.isArray(v["rejections"]) && v["rejections"].every((e) => checkTransitionRejection(e)))) && (v["cascadeTruncated"] === undefined || (Array.isArray(v["cascadeTruncated"]) && v["cascadeTruncated"].every((e) => typeof e === 'string'))) && (v["transitions"] === undefined || (Array.isArray(v["transitions"]) && v["transitions"].every((e) => checkTransitionHop(e)))) && (v["error"] === undefined || typeof v["error"] === 'string'));
 }
 
+function checkFfiGrant(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["library"] === 'string' && typeof v["symbol"] === 'string' && typeof v["signature"] === 'string');
+}
+
 function checkFiredTick(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["tick"] === 'string');
 }
@@ -1141,6 +1192,18 @@ function checkFramesResync(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["session"] === 'string' && typeof v["since"] === 'number');
 }
 
+function checkFsGrant(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["glob"] === 'string' && (Array.isArray(v["modes"]) && v["modes"].every((e) => checkFsMode(e))));
+}
+
+function checkFsMode(v: JsonValue | undefined): boolean {
+  return (v === "read" || v === "write" || v === "create" || v === "remove" || v === "meta");
+}
+
+function checkGrantAnchor(v: JsonValue | undefined): boolean {
+  return (v === "exe" || v === "exe-dir" || v === "cwd" || (isRecord(v) && typeof v["env"] === 'string'));
+}
+
 function checkGuardVerdict(v: JsonValue | undefined): boolean {
   return (v === "pass" || v === "fail" || v === "none");
 }
@@ -1174,11 +1237,23 @@ function checkIoReplyWire(v: JsonValue | undefined): boolean {
 }
 
 function checkIoRequestWire(v: JsonValue | undefined): boolean {
-  return ((isRecord(v) && v["kind"] === "readRow" && typeof v["entityType"] === 'string' && typeof v["id"] === 'string') || (isRecord(v) && v["kind"] === "listRows" && typeof v["entityType"] === 'string') || (isRecord(v) && v["kind"] === "queryRows" && typeof v["entityType"] === 'string' && checkRowQuery(v["query"]) && checkRowProjection(v["project"])) || (isRecord(v) && v["kind"] === "writeRows" && checkRowWriteBatch(v["batch"])) || (isRecord(v) && v["kind"] === "commitRows" && (Array.isArray(v["rows"]) && v["rows"].every((e) => checkRowCommit(e)))) || (isRecord(v) && v["kind"] === "createRow" && typeof v["entityType"] === 'string' && accepts((x, q) => any(x, q), v["data"])) || (isRecord(v) && v["kind"] === "writeRow" && typeof v["entityType"] === 'string' && typeof v["id"] === 'string' && accepts((x, q) => any(x, q), v["data"])) || (isRecord(v) && v["kind"] === "deleteRow" && typeof v["entityType"] === 'string' && typeof v["id"] === 'string') || (isRecord(v) && v["kind"] === "callService" && typeof v["service"] === 'string' && typeof v["method"] === 'string' && accepts((x, q) => any(x, q), v["args"]) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["caller"] === undefined || checkCallerWire(v["caller"])) && (v["site"] === undefined || checkCallSiteWire(v["site"]))) || (isRecord(v) && v["kind"] === "cancelCall" && typeof v["key"] === 'string') || (isRecord(v) && v["kind"] === "substrate" && typeof v["op"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["site"] === undefined || checkCallSiteWire(v["site"]))) || (isRecord(v) && v["kind"] === "pageFacts" && (Array.isArray(v["fields"]) && v["fields"].every((e) => checkPageFactFieldWire(e)))) || (isRecord(v) && v["kind"] === "prompt" && typeof v["text"] === 'string' && typeof v["schema"] === 'string' && (v["key"] === undefined || typeof v["key"] === 'string')) || (isRecord(v) && v["kind"] === "embed" && (Array.isArray(v["texts"]) && v["texts"].every((e) => typeof e === 'string')) && (v["key"] === undefined || typeof v["key"] === 'string')) || (isRecord(v) && v["kind"] === "tab" && checkTabAsk(v["ask"]) && (v["key"] === undefined || typeof v["key"] === 'string')) || (isRecord(v) && v["kind"] === "secret" && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "secretSet" && typeof v["name"] === 'string' && typeof v["value"] === 'string' && typeof v["ttlMs"] === 'number' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "secretRotate" && typeof v["name"] === 'string' && typeof v["value"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "deliver" && checkEnvelope(v["envelope"]) && (v["key"] === undefined || typeof v["key"] === 'string') && checkCallSiteWire(v["site"])) || (isRecord(v) && v["kind"] === "random" && typeof v["bytes"] === 'number') || (isRecord(v) && v["kind"] === "clock") || (isRecord(v) && v["kind"] === "sealed" && typeof v["op"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e)))) || (isRecord(v) && v["kind"] === "os" && checkOsOp(v["op"]) && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["site"] === undefined || checkCallSiteWire(v["site"])) && (v["principal"] === undefined || typeof v["principal"] === 'string') && (v["orbital"] === undefined || typeof v["orbital"] === 'string')) || (isRecord(v) && v["kind"] === "credentialStatus" && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "credentialForget" && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "credentialConnect" && checkCredentialGrantWire(v["grant"])) || (isRecord(v) && v["kind"] === "credentialStoreList") || (isRecord(v) && v["kind"] === "credentialEnvTails" && (Array.isArray(v["names"]) && v["names"].every((e) => typeof e === 'string'))) || (isRecord(v) && v["kind"] === "credentialStoreRead" && typeof v["name"] === 'string') || (isRecord(v) && v["kind"] === "credentialStoreWrite" && typeof v["service"] === 'string' && typeof v["name"] === 'string' && typeof v["value"] === 'string') || (isRecord(v) && v["kind"] === "credentialStoreRemove" && typeof v["name"] === 'string') || (isRecord(v) && v["kind"] === "credentialStoreRotate") || (isRecord(v) && v["kind"] === "credentialModeRead") || (isRecord(v) && v["kind"] === "credentialModeWrite" && typeof v["mode"] === 'string'));
+  return ((isRecord(v) && v["kind"] === "readRow" && typeof v["entityType"] === 'string' && typeof v["id"] === 'string') || (isRecord(v) && v["kind"] === "listRows" && typeof v["entityType"] === 'string') || (isRecord(v) && v["kind"] === "queryRows" && typeof v["entityType"] === 'string' && checkRowQuery(v["query"]) && checkRowProjection(v["project"])) || (isRecord(v) && v["kind"] === "writeRows" && checkRowWriteBatch(v["batch"])) || (isRecord(v) && v["kind"] === "commitRows" && (Array.isArray(v["rows"]) && v["rows"].every((e) => checkRowCommit(e)))) || (isRecord(v) && v["kind"] === "createRow" && typeof v["entityType"] === 'string' && accepts((x, q) => any(x, q), v["data"])) || (isRecord(v) && v["kind"] === "writeRow" && typeof v["entityType"] === 'string' && typeof v["id"] === 'string' && accepts((x, q) => any(x, q), v["data"])) || (isRecord(v) && v["kind"] === "deleteRow" && typeof v["entityType"] === 'string' && typeof v["id"] === 'string') || (isRecord(v) && v["kind"] === "callService" && typeof v["service"] === 'string' && typeof v["method"] === 'string' && accepts((x, q) => any(x, q), v["args"]) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["caller"] === undefined || checkCallerWire(v["caller"])) && (v["site"] === undefined || checkCallSiteWire(v["site"]))) || (isRecord(v) && v["kind"] === "cancelCall" && typeof v["key"] === 'string') || (isRecord(v) && v["kind"] === "substrate" && typeof v["op"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["site"] === undefined || checkCallSiteWire(v["site"]))) || (isRecord(v) && v["kind"] === "pageFacts" && (Array.isArray(v["fields"]) && v["fields"].every((e) => checkPageFactFieldWire(e)))) || (isRecord(v) && v["kind"] === "prompt" && typeof v["text"] === 'string' && typeof v["schema"] === 'string' && (v["key"] === undefined || typeof v["key"] === 'string')) || (isRecord(v) && v["kind"] === "embed" && (Array.isArray(v["texts"]) && v["texts"].every((e) => typeof e === 'string')) && (v["key"] === undefined || typeof v["key"] === 'string')) || (isRecord(v) && v["kind"] === "tab" && checkTabAsk(v["ask"]) && (v["key"] === undefined || typeof v["key"] === 'string')) || (isRecord(v) && v["kind"] === "secret" && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "secretSet" && typeof v["name"] === 'string' && typeof v["value"] === 'string' && typeof v["ttlMs"] === 'number' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "secretRotate" && typeof v["name"] === 'string' && typeof v["value"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "deliver" && checkEnvelope(v["envelope"]) && (v["key"] === undefined || typeof v["key"] === 'string') && checkCallSiteWire(v["site"])) || (isRecord(v) && v["kind"] === "guest" && typeof v["guest"] === 'string' && (Array.isArray(v["targets"]) && v["targets"].every((e) => typeof e === 'string')) && typeof v["event"] === 'string' && accepts((x, q) => any(x, q), v["payload"]) && checkOsGrants(v["grants"]) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["site"] === undefined || checkCallSiteWire(v["site"]))) || (isRecord(v) && v["kind"] === "random" && typeof v["bytes"] === 'number') || (isRecord(v) && v["kind"] === "clock") || (isRecord(v) && v["kind"] === "sealed" && typeof v["op"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e)))) || (isRecord(v) && v["kind"] === "os" && checkOsOp(v["op"]) && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && (v["key"] === undefined || typeof v["key"] === 'string') && (v["site"] === undefined || checkCallSiteWire(v["site"])) && (v["principal"] === undefined || typeof v["principal"] === 'string') && (v["orbital"] === undefined || typeof v["orbital"] === 'string')) || (isRecord(v) && v["kind"] === "credentialStatus" && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "credentialForget" && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string')) || (isRecord(v) && v["kind"] === "credentialConnect" && checkCredentialGrantWire(v["grant"])) || (isRecord(v) && v["kind"] === "credentialStoreList") || (isRecord(v) && v["kind"] === "credentialEnvTails" && (Array.isArray(v["names"]) && v["names"].every((e) => typeof e === 'string'))) || (isRecord(v) && v["kind"] === "credentialStoreRead" && typeof v["name"] === 'string') || (isRecord(v) && v["kind"] === "credentialStoreWrite" && typeof v["service"] === 'string' && typeof v["name"] === 'string' && typeof v["value"] === 'string') || (isRecord(v) && v["kind"] === "credentialStoreRemove" && typeof v["name"] === 'string') || (isRecord(v) && v["kind"] === "credentialStoreRotate") || (isRecord(v) && v["kind"] === "credentialModeRead") || (isRecord(v) && v["kind"] === "credentialModeWrite" && typeof v["mode"] === 'string'));
 }
 
 function checkJsonTokenSpec(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["clientIdField"] === 'string' && typeof v["clientSecretField"] === 'string' && typeof v["accessField"] === 'string' && (v["refreshField"] === undefined || (typeof v["refreshField"] === 'string' || v["refreshField"] === null)) && (v["expiresInField"] === undefined || (typeof v["expiresInField"] === 'string' || v["expiresInField"] === null)) && (v["refreshEndpoint"] === undefined || (typeof v["refreshEndpoint"] === 'string' || v["refreshEndpoint"] === null)) && (v["refreshBodyField"] === undefined || (typeof v["refreshBodyField"] === 'string' || v["refreshBodyField"] === null)));
+}
+
+function checkKernelGrant(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["target"] === 'string' && (Array.isArray(v["kinds"]) && v["kinds"].every((e) => checkKernelKind(e))));
+}
+
+function checkKernelKind(v: JsonValue | undefined): boolean {
+  return (v === "call" || v === "reorder" || v === "read" || v === "spawn");
+}
+
+function checkKvMode(v: JsonValue | undefined): boolean {
+  return (v === "read" || v === "write");
 }
 
 function checkLeft(v: JsonValue | undefined): boolean {
@@ -1191,6 +1266,14 @@ function checkLegResidence(v: JsonValue | undefined): boolean {
 
 function checkLifecycleEvent(v: JsonValue | undefined): boolean {
   return (v === "INIT" || v === "LOAD" || v === "$MOUNT");
+}
+
+function checkMemGrant(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["target"] === 'string' && (Array.isArray(v["kinds"]) && v["kinds"].every((e) => checkMemKind(e))));
+}
+
+function checkMemKind(v: JsonValue | undefined): boolean {
+  return (v === "create" || v === "free" || v === "atomic");
 }
 
 function checkModelFailureKindWire(v: JsonValue | undefined): boolean {
@@ -1221,6 +1304,18 @@ function checkNavigateOptions(v: JsonValue | undefined): boolean {
   return (isRecord(v) && (v["crumb"] === undefined || typeof v["crumb"] === 'string'));
 }
 
+function checkNetGrant(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["target"] === 'string' && (Array.isArray(v["kinds"]) && v["kinds"].every((e) => checkNetKind(e))));
+}
+
+function checkNetKind(v: JsonValue | undefined): boolean {
+  return (v === "tcp" || v === "udp" || v === "listen");
+}
+
+function checkNetPart(v: JsonValue | undefined): boolean {
+  return ((isRecord(v) && typeof v["literal"] === 'string') || (isRecord(v) && checkGrantAnchor(v["anchor"])));
+}
+
 function checkNextWire(v: JsonValue | undefined): boolean {
   return ((isRecord(v) && v["outcome"] === "started" && typeof v["ticket"] === 'number' && checkServerProgressWire(v["progress"])) || (isRecord(v) && v["outcome"] === "failed" && typeof v["ticket"] === 'number' && typeof v["error"] === 'string'));
 }
@@ -1230,7 +1325,7 @@ function checkOsError(v: JsonValue | undefined): boolean {
 }
 
 function checkOsErrorKind(v: JsonValue | undefined): boolean {
-  return (v === "denied" || v === "not-found" || v === "exists" || v === "invalid" || v === "io" || v === "timeout" || v === "unsupported" || v === "closed" || v === "tls");
+  return (v === "denied" || v === "not-found" || v === "exists" || v === "invalid" || v === "io" || v === "timeout" || v === "unsupported" || v === "closed" || v === "tls" || v === "borrowed");
 }
 
 function checkOsGrantFinding(v: JsonValue | undefined): boolean {
@@ -1245,12 +1340,16 @@ function checkOsGrantVia(v: JsonValue | undefined): boolean {
   return (v === "config" || v === "config-unresolvable" || v === "computed-path");
 }
 
+function checkOsGrants(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && (v["fs"] === undefined || (Array.isArray(v["fs"]) && v["fs"].every((e) => checkFsGrant(e)))) && (v["exec"] === undefined || (Array.isArray(v["exec"]) && v["exec"].every((e) => typeof e === 'string'))) && (v["net"] === undefined || (Array.isArray(v["net"]) && v["net"].every((e) => checkNetGrant(e)))) && (v["env"] === undefined || (Array.isArray(v["env"]) && v["env"].every((e) => typeof e === 'string'))) && (v["stdio"] === undefined || (Array.isArray(v["stdio"]) && v["stdio"].every((e) => checkStdioKind(e)))) && (v["sys"] === undefined || (Array.isArray(v["sys"]) && v["sys"].every((e) => checkSysKind(e)))) && (v["desktop"] === undefined || (Array.isArray(v["desktop"]) && v["desktop"].every((e) => checkDesktopKind(e)))) && (v["dev"] === undefined || (Array.isArray(v["dev"]) && v["dev"].every((e) => checkDevGrant(e)))) && (v["mem"] === undefined || (Array.isArray(v["mem"]) && v["mem"].every((e) => checkMemGrant(e)))) && (v["kernel"] === undefined || (Array.isArray(v["kernel"]) && v["kernel"].every((e) => checkKernelGrant(e)))) && (v["ffi"] === undefined || (Array.isArray(v["ffi"]) && v["ffi"].every((e) => checkFfiGrant(e)))) && (v["credentials"] === undefined || (Array.isArray(v["credentials"]) && v["credentials"].every((e) => checkCredentialKind(e)))) && (v["kv"] === undefined || (isRecord(v["kv"]) && Object.values(v["kv"]).every((e) => (Array.isArray(e) && e.every((e) => checkKvMode(e)))))) && (v["anchored"] === undefined || checkAnchoredGrants(v["anchored"])));
+}
+
 function checkOsGrantsReport(v: JsonValue | undefined): boolean {
   return (isRecord(v) && (Array.isArray(v["findings"]) && v["findings"].every((e) => checkOsGrantFinding(e))));
 }
 
 function checkOsOp(v: JsonValue | undefined): boolean {
-  return (v === "os/read-file" || v === "os/write-file" || v === "os/append-file" || v === "os/open" || v === "os/close" || v === "os/read" || v === "os/write" || v === "os/seek" || v === "os/truncate" || v === "os/fsync" || v === "os/copy" || v === "os/rename" || v === "os/remove" || v === "os/link" || v === "os/symlink" || v === "os/readlink" || v === "os/watch-files" || v === "os/mkdir" || v === "os/rmdir" || v === "os/list-dir" || v === "os/glob" || v === "os/mktemp" || v === "os/realpath" || v === "os/cwd" || v === "os/chdir" || v === "os/stat" || v === "os/lstat" || v === "os/access" || v === "os/exists" || v === "os/chmod" || v === "os/chown" || v === "os/utimes" || v === "os/spawn" || v === "os/wait" || v === "os/kill" || v === "os/pid" || v === "os/ppid" || v === "os/current-exe" || v === "os/watch-process" || v === "os/watch-signal" || v === "os/getenv" || v === "os/setenv" || v === "os/unsetenv" || v === "os/environ" || v === "os/watch-env" || v === "os/stdin-read" || v === "os/stdout-write" || v === "os/stderr-write" || v === "os/isatty" || v === "os/tty-size" || v === "os/tcp-connect" || v === "os/tcp-listen" || v === "os/tls-upgrade" || v === "os/send" || v === "os/recv" || v === "os/udp-bind" || v === "os/sendto" || v === "os/recvfrom" || v === "os/dns-resolve" || v === "os/shutdown" || v === "os/watch-port" || v === "os/fetch" || v === "os/clock-monotonic" || v === "os/uid" || v === "os/gid" || v === "os/username" || v === "os/group-of" || v === "os/watch-cron" || v === "os/cpu-usage" || v === "os/memory-info" || v === "os/uptime" || v === "os/load-avg" || v === "os/hostname" || v === "os/uname" || v === "os/disk-usage" || v === "os/mounts" || v === "os/disk-io" || v === "os/network-interfaces" || v === "os/network-stats" || v === "os/network-connected" || v === "os/default-gateway" || v === "os/battery-status" || v === "os/ac-power" || v === "os/thermal-zones" || v === "os/notify" || v === "os/speak" || v === "os/brightness-get" || v === "os/brightness-set" || v === "os/volume-get" || v === "os/volume-set" || v === "os/volume-mute" || v === "os/suspend" || v === "os/hibernate" || v === "os/mmio-read" || v === "os/mmio-write" || v === "os/irq-wait" || v === "os/irq-ack" || v === "kv/get" || v === "kv/put" || v === "kv/delete" || v === "kv/scan" || v === "kv/batch");
+  return (v === "os/read-file" || v === "os/write-file" || v === "os/append-file" || v === "os/open" || v === "os/close" || v === "os/read" || v === "os/write" || v === "os/seek" || v === "os/truncate" || v === "os/fsync" || v === "os/copy" || v === "os/rename" || v === "os/remove" || v === "os/link" || v === "os/symlink" || v === "os/readlink" || v === "os/watch-files" || v === "os/mkdir" || v === "os/rmdir" || v === "os/list-dir" || v === "os/glob" || v === "os/mktemp" || v === "os/realpath" || v === "os/cwd" || v === "os/chdir" || v === "os/stat" || v === "os/lstat" || v === "os/access" || v === "os/exists" || v === "os/chmod" || v === "os/chown" || v === "os/utimes" || v === "os/spawn" || v === "os/wait" || v === "os/kill" || v === "os/pid" || v === "os/ppid" || v === "os/current-exe" || v === "os/watch-process" || v === "os/watch-signal" || v === "os/getenv" || v === "os/setenv" || v === "os/unsetenv" || v === "os/environ" || v === "os/watch-env" || v === "os/stdin-read" || v === "os/stdout-write" || v === "os/stderr-write" || v === "os/isatty" || v === "os/tty-size" || v === "os/tcp-connect" || v === "os/tcp-listen" || v === "os/tls-upgrade" || v === "os/send" || v === "os/recv" || v === "os/udp-bind" || v === "os/sendto" || v === "os/recvfrom" || v === "os/dns-resolve" || v === "os/shutdown" || v === "os/watch-port" || v === "os/fetch" || v === "os/clock-monotonic" || v === "os/uid" || v === "os/gid" || v === "os/username" || v === "os/group-of" || v === "os/watch-cron" || v === "os/cpu-usage" || v === "os/memory-info" || v === "os/uptime" || v === "os/load-avg" || v === "os/hostname" || v === "os/uname" || v === "os/disk-usage" || v === "os/mounts" || v === "os/disk-io" || v === "os/network-interfaces" || v === "os/network-stats" || v === "os/network-connected" || v === "os/default-gateway" || v === "os/battery-status" || v === "os/ac-power" || v === "os/thermal-zones" || v === "os/notify" || v === "os/speak" || v === "os/brightness-get" || v === "os/brightness-set" || v === "os/volume-get" || v === "os/volume-set" || v === "os/volume-mute" || v === "os/suspend" || v === "os/hibernate" || v === "os/mmio-read" || v === "os/mmio-write" || v === "os/irq-wait" || v === "os/irq-ack" || v === "kv/get" || v === "kv/put" || v === "kv/delete" || v === "kv/scan" || v === "kv/batch" || v === "mem/arena-new" || v === "mem/arena-drop" || v === "mem/alloc" || v === "mem/free" || v === "mem/borrow" || v === "mem/release" || v === "mem/write" || v === "mem/freeze" || v === "mem/atomic-load" || v === "mem/atomic-store" || v === "mem/atomic-add" || v === "mem/atomic-cas" || v === "kernel/queue-front" || v === "kernel/queue-back" || v === "ffi/call");
 }
 
 function checkPageFactFieldWire(v: JsonValue | undefined): boolean {
@@ -1461,6 +1560,10 @@ function checkStatefulLegWire(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["orbital"] === 'string' && checkEventRequest(v["leg"]) && (Array.isArray(v["awaiting"]) && v["awaiting"].every((e) => checkAwaitingTrait(e))));
 }
 
+function checkStdioKind(v: JsonValue | undefined): boolean {
+  return (v === "in" || v === "out" || v === "err");
+}
+
 function checkStepEmit(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["event"] === 'string' && (accepts((x, q) => rec(x, q), v["payload"]) || v["payload"] === null));
 }
@@ -1495,6 +1598,10 @@ function checkStoredName(v: JsonValue | undefined): boolean {
 
 function checkSubstrateFailureWire(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["message"] === 'string' && (Array.isArray(v["errors"]) && v["errors"].every((e) => accepts((x, q) => any(x, q), e))));
+}
+
+function checkSysKind(v: JsonValue | undefined): boolean {
+  return (v === "cpu" || v === "memory" || v === "disk" || v === "network" || v === "power-state" || v === "identity");
 }
 
 function checkTabAction(v: JsonValue | undefined): boolean {
@@ -1585,6 +1692,22 @@ function buildAmbiguousTrait(v: JsonValue | undefined, p: string): AmbiguousTrai
   return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "orbitals": list(r0["orbitals"], p + '.orbitals', (e1, q1) => str(e1, q1)) }));
 }
 
+function buildAnchoredExec(v: JsonValue | undefined, p: string): AnchoredExec {
+  return obj(v, p, ["anchor", "path"], (r0) => ({ "anchor": buildGrantAnchor(r0["anchor"], p + '.anchor'), ...(r0["path"] === undefined || r0["path"] === null ? {} : { "path": str(r0["path"], p + '.path') }) }));
+}
+
+function buildAnchoredFsGrant(v: JsonValue | undefined, p: string): AnchoredFsGrant {
+  return obj(v, p, ["anchor", "glob", "modes"], (r0) => ({ "anchor": buildGrantAnchor(r0["anchor"], p + '.anchor'), "glob": str(r0["glob"], p + '.glob'), "modes": list(r0["modes"], p + '.modes', (e1, q1) => buildFsMode(e1, q1)) }));
+}
+
+function buildAnchoredGrants(v: JsonValue | undefined, p: string): AnchoredGrants {
+  return obj(v, p, ["fs", "exec", "net"], (r0) => ({ ...(r0["fs"] === undefined || r0["fs"] === null ? {} : { "fs": list(r0["fs"], p + '.fs', (e1, q1) => buildAnchoredFsGrant(e1, q1)) }), ...(r0["exec"] === undefined || r0["exec"] === null ? {} : { "exec": list(r0["exec"], p + '.exec', (e1, q1) => buildAnchoredExec(e1, q1)) }), ...(r0["net"] === undefined || r0["net"] === null ? {} : { "net": list(r0["net"], p + '.net', (e1, q1) => buildAnchoredNetGrant(e1, q1)) }) }));
+}
+
+function buildAnchoredNetGrant(v: JsonValue | undefined, p: string): AnchoredNetGrant {
+  return obj(v, p, ["host", "port", "kinds"], (r0) => ({ "host": buildNetPart(r0["host"], p + '.host'), "port": buildNetPart(r0["port"], p + '.port'), "kinds": list(r0["kinds"], p + '.kinds', (e1, q1) => buildNetKind(e1, q1)) }));
+}
+
 function buildAppliedWire(v: JsonValue | undefined, p: string): AppliedWire {
   return obj(v, p, null, (r0) => ({ "applied": list(r0["applied"], p + '.applied', (e1, q1) => tuple(e1, q1, 2, (t2) => [str(t2[0], q1 + '[0]'), str(t2[1], q1 + '[1]')])), "response": buildEventResponse(r0["response"], p + '.response'), "serverLegs": list(r0["serverLegs"], p + '.serverLegs', (e1, q1) => buildRoutedLeg(e1, q1)), ...(r0["resync"] === undefined || r0["resync"] === null ? {} : { "resync": (r0["resync"] === null ? null : buildFramesResync(r0["resync"], p + '.resync')) }) }));
 }
@@ -1641,6 +1764,10 @@ function buildCredentialGrantWire(v: JsonValue | undefined, p: string): Credenti
   return obj(v, p, null, (r0) => ({ "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }), "tokenEndpoint": str(r0["tokenEndpoint"], p + '.tokenEndpoint'), "grant": str(r0["grant"], p + '.grant'), "code": str(r0["code"], p + '.code'), "redirectUri": str(r0["redirectUri"], p + '.redirectUri'), ...(r0["verifier"] === undefined || r0["verifier"] === null ? {} : { "verifier": str(r0["verifier"], p + '.verifier') }), "clientId": str(r0["clientId"], p + '.clientId'), ...(r0["clientSecret"] === undefined || r0["clientSecret"] === null ? {} : { "clientSecret": str(r0["clientSecret"], p + '.clientSecret') }), "clientAuth": buildClientAuth(r0["clientAuth"], p + '.clientAuth'), "scopes": r0["scopes"] === undefined ? [] : list(r0["scopes"], p + '.scopes', (e1, q1) => str(e1, q1)), ...(r0["refreshCredential"] === undefined || r0["refreshCredential"] === null ? {} : { "refreshCredential": str(r0["refreshCredential"], p + '.refreshCredential') }), ...(r0["assertion"] === undefined || r0["assertion"] === null ? {} : { "assertion": buildAssertionSpec(r0["assertion"], p + '.assertion') }), ...(r0["jsonToken"] === undefined || r0["jsonToken"] === null ? {} : { "jsonToken": buildJsonTokenSpec(r0["jsonToken"], p + '.jsonToken') }) }));
 }
 
+function buildCredentialKind(v: JsonValue | undefined, p: string): CredentialKind {
+  return lit(v, p, "admin");
+}
+
 function buildCredentialStanding(v: JsonValue | undefined, p: string): CredentialStanding {
   return obj(v, p, null, (r0) => ({ "connected": bool(r0["connected"], p + '.connected'), ...(r0["label"] === undefined || r0["label"] === null ? {} : { "label": (r0["label"] === null ? null : str(r0["label"], p + '.label')) }) }));
 }
@@ -1655,6 +1782,18 @@ function buildDeliverRefusalKind(v: JsonValue | undefined, p: string): DeliverRe
 
 function buildDeliveryRecord(v: JsonValue | undefined, p: string): DeliveryRecord {
   return obj(v, p, null, (r0) => ({ "event": str(r0["event"], p + '.event'), ...(r0["payload"] === undefined || r0["payload"] === null ? {} : { "payload": rec(r0["payload"], p + '.payload') }), "source": r0["source"] === undefined ? {  } : buildBusEventSource(r0["source"], p + '.source') }));
+}
+
+function buildDesktopKind(v: JsonValue | undefined, p: string): DesktopKind {
+  return oneOf(v, p, ["notify", "speak", "brightness", "volume", "power"]);
+}
+
+function buildDevGrant(v: JsonValue | undefined, p: string): DevGrant {
+  return obj(v, p, ["target", "kinds"], (r0) => ({ "target": str(r0["target"], p + '.target'), "kinds": list(r0["kinds"], p + '.kinds', (e1, q1) => buildDevKind(e1, q1)) }));
+}
+
+function buildDevKind(v: JsonValue | undefined, p: string): DevKind {
+  return oneOf(v, p, ["read", "write", "wait", "ack"]);
 }
 
 function buildDispatchLog(v: JsonValue | undefined, p: string): DispatchLog {
@@ -1717,6 +1856,10 @@ function buildEventResponse(v: JsonValue | undefined, p: string): EventResponse 
   return obj(v, p, null, (r0) => ({ "success": r0["success"] === undefined ? false : bool(r0["success"], p + '.success'), "transitioned": r0["transitioned"] === undefined ? false : bool(r0["transitioned"], p + '.transitioned'), "states": r0["states"] === undefined ? {} : dict(r0["states"], p + '.states', (e1, q1) => str(e1, q1)), "emittedEvents": r0["emittedEvents"] === undefined ? [] : list(r0["emittedEvents"], p + '.emittedEvents', (e1, q1) => buildEmittedEvent(e1, q1)), ...(r0["data"] === undefined || r0["data"] === null ? {} : { "data": dict(r0["data"], p + '.data', (e1, q1) => list(e1, q1, (e2, q2) => entityRow(e2, q2))) }), ...(r0["dataRefs"] === undefined || r0["dataRefs"] === null ? {} : { "dataRefs": dict(r0["dataRefs"], p + '.dataRefs', (e1, q1) => buildRowSetRef(e1, q1)) }), ...(r0["frames"] === undefined || r0["frames"] === null ? {} : { "frames": buildFrameDelta(r0["frames"], p + '.frames') }), ...(r0["clientEffectsByTrait"] === undefined || r0["clientEffectsByTrait"] === null ? {} : { "clientEffectsByTrait": list(r0["clientEffectsByTrait"], p + '.clientEffectsByTrait', (e1, q1) => buildClientEffectByTrait(e1, q1)) }), ...(r0["effectResults"] === undefined || r0["effectResults"] === null ? {} : { "effectResults": list(r0["effectResults"], p + '.effectResults', (e1, q1) => buildServerEffectResult(e1, q1)) }), ...(r0["guardFailed"] === undefined || r0["guardFailed"] === null ? {} : { "guardFailed": str(r0["guardFailed"], p + '.guardFailed') }), ...(r0["rejections"] === undefined || r0["rejections"] === null ? {} : { "rejections": list(r0["rejections"], p + '.rejections', (e1, q1) => buildTransitionRejection(e1, q1)) }), ...(r0["cascadeTruncated"] === undefined || r0["cascadeTruncated"] === null ? {} : { "cascadeTruncated": list(r0["cascadeTruncated"], p + '.cascadeTruncated', (e1, q1) => str(e1, q1)) }), ...(r0["transitions"] === undefined || r0["transitions"] === null ? {} : { "transitions": list(r0["transitions"], p + '.transitions', (e1, q1) => buildTransitionHop(e1, q1)) }), ...(r0["error"] === undefined || r0["error"] === null ? {} : { "error": str(r0["error"], p + '.error') }) }));
 }
 
+function buildFfiGrant(v: JsonValue | undefined, p: string): FfiGrant {
+  return obj(v, p, ["library", "symbol", "signature"], (r0) => ({ "library": str(r0["library"], p + '.library'), "symbol": str(r0["symbol"], p + '.symbol'), "signature": str(r0["signature"], p + '.signature') }));
+}
+
 function buildFiredTick(v: JsonValue | undefined, p: string): FiredTick {
   return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "tick": str(r0["tick"], p + '.tick') }));
 }
@@ -1757,6 +1900,18 @@ function buildFramesResync(v: JsonValue | undefined, p: string): FramesResync {
   return obj(v, p, null, (r0) => ({ "session": str(r0["session"], p + '.session'), "since": int(r0["since"], p + '.since', 0, Number.MAX_SAFE_INTEGER, "u64") }));
 }
 
+function buildFsGrant(v: JsonValue | undefined, p: string): FsGrant {
+  return obj(v, p, ["glob", "modes"], (r0) => ({ "glob": str(r0["glob"], p + '.glob'), "modes": list(r0["modes"], p + '.modes', (e1, q1) => buildFsMode(e1, q1)) }));
+}
+
+function buildFsMode(v: JsonValue | undefined, p: string): FsMode {
+  return oneOf(v, p, ["read", "write", "create", "remove", "meta"]);
+}
+
+function buildGrantAnchor(v: JsonValue | undefined, p: string): GrantAnchor {
+  return (v === "exe" ? lit(v, p, "exe") : v === "exe-dir" ? lit(v, p, "exe-dir") : v === "cwd" ? lit(v, p, "cwd") : (isRecord(v) && typeof v["env"] === 'string') ? obj(v, p, null, (r0) => ({ "env": str(r0["env"], p + '.env') })) : fail(miss(p, "\"exe\" | \"exe-dir\" | \"cwd\" | an object")));
+}
+
 function buildGuardVerdict(v: JsonValue | undefined, p: string): GuardVerdict {
   return oneOf(v, p, ["pass", "fail", "none"]);
 }
@@ -1790,11 +1945,23 @@ function buildIoReplyWire(v: JsonValue | undefined, p: string): IoReplyWire {
 }
 
 function buildIoRequestWire(v: JsonValue | undefined, p: string): IoRequestWire {
-  return (rec(v, p)["kind"] === "readRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "readRow"), "entityType": str(r0["entityType"], p + '.entityType'), "id": str(r0["id"], p + '.id') })) : rec(v, p)["kind"] === "listRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "listRows"), "entityType": str(r0["entityType"], p + '.entityType') })) : rec(v, p)["kind"] === "queryRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "queryRows"), "entityType": str(r0["entityType"], p + '.entityType'), "query": buildRowQuery(r0["query"], p + '.query'), "project": buildRowProjection(r0["project"], p + '.project') })) : rec(v, p)["kind"] === "writeRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "writeRows"), "batch": buildRowWriteBatch(r0["batch"], p + '.batch') })) : rec(v, p)["kind"] === "commitRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "commitRows"), "rows": list(r0["rows"], p + '.rows', (e1, q1) => buildRowCommit(e1, q1)) })) : rec(v, p)["kind"] === "createRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "createRow"), "entityType": str(r0["entityType"], p + '.entityType'), "data": any(r0["data"], p + '.data') })) : rec(v, p)["kind"] === "writeRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "writeRow"), "entityType": str(r0["entityType"], p + '.entityType'), "id": str(r0["id"], p + '.id'), "data": any(r0["data"], p + '.data') })) : rec(v, p)["kind"] === "deleteRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "deleteRow"), "entityType": str(r0["entityType"], p + '.entityType'), "id": str(r0["id"], p + '.id') })) : rec(v, p)["kind"] === "callService" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "callService"), "service": str(r0["service"], p + '.service'), "method": str(r0["method"], p + '.method'), "args": any(r0["args"], p + '.args'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["caller"] === undefined || r0["caller"] === null ? {} : { "caller": buildCallerWire(r0["caller"], p + '.caller') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }) })) : rec(v, p)["kind"] === "cancelCall" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "cancelCall"), "key": str(r0["key"], p + '.key') })) : rec(v, p)["kind"] === "substrate" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "substrate"), "op": str(r0["op"], p + '.op'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }) })) : rec(v, p)["kind"] === "pageFacts" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "pageFacts"), "fields": list(r0["fields"], p + '.fields', (e1, q1) => buildPageFactFieldWire(e1, q1)) })) : rec(v, p)["kind"] === "prompt" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "prompt"), "text": str(r0["text"], p + '.text'), "schema": str(r0["schema"], p + '.schema'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }) })) : rec(v, p)["kind"] === "embed" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "embed"), "texts": list(r0["texts"], p + '.texts', (e1, q1) => str(e1, q1)), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }) })) : rec(v, p)["kind"] === "tab" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "tab"), "ask": buildTabAsk(r0["ask"], p + '.ask'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }) })) : rec(v, p)["kind"] === "secret" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "secret"), "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "secretSet" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "secretSet"), "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value'), "ttlMs": int(r0["ttlMs"], p + '.ttlMs', 0, Number.MAX_SAFE_INTEGER, "u64"), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "secretRotate" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "secretRotate"), "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "deliver" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "deliver"), "envelope": buildEnvelope(r0["envelope"], p + '.envelope'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), "site": buildCallSiteWire(r0["site"], p + '.site') })) : rec(v, p)["kind"] === "random" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "random"), "bytes": int(r0["bytes"], p + '.bytes', 0, 4294967295, "u32") })) : rec(v, p)["kind"] === "clock" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "clock") })) : rec(v, p)["kind"] === "sealed" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "sealed"), "op": str(r0["op"], p + '.op'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)) })) : rec(v, p)["kind"] === "os" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "os"), "op": buildOsOp(r0["op"], p + '.op'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }), ...(r0["orbital"] === undefined || r0["orbital"] === null ? {} : { "orbital": str(r0["orbital"], p + '.orbital') }) })) : rec(v, p)["kind"] === "credentialStatus" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStatus"), "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "credentialForget" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialForget"), "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "credentialConnect" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialConnect"), "grant": buildCredentialGrantWire(r0["grant"], p + '.grant') })) : rec(v, p)["kind"] === "credentialStoreList" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreList") })) : rec(v, p)["kind"] === "credentialEnvTails" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialEnvTails"), "names": list(r0["names"], p + '.names', (e1, q1) => str(e1, q1)) })) : rec(v, p)["kind"] === "credentialStoreRead" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreRead"), "name": str(r0["name"], p + '.name') })) : rec(v, p)["kind"] === "credentialStoreWrite" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreWrite"), "service": str(r0["service"], p + '.service'), "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value') })) : rec(v, p)["kind"] === "credentialStoreRemove" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreRemove"), "name": str(r0["name"], p + '.name') })) : rec(v, p)["kind"] === "credentialStoreRotate" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreRotate") })) : rec(v, p)["kind"] === "credentialModeRead" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialModeRead") })) : rec(v, p)["kind"] === "credentialModeWrite" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialModeWrite"), "mode": str(r0["mode"], p + '.mode') })) : fail(unknownTag(p, "kind", rec(v, p)["kind"])));
+  return (rec(v, p)["kind"] === "readRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "readRow"), "entityType": str(r0["entityType"], p + '.entityType'), "id": str(r0["id"], p + '.id') })) : rec(v, p)["kind"] === "listRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "listRows"), "entityType": str(r0["entityType"], p + '.entityType') })) : rec(v, p)["kind"] === "queryRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "queryRows"), "entityType": str(r0["entityType"], p + '.entityType'), "query": buildRowQuery(r0["query"], p + '.query'), "project": buildRowProjection(r0["project"], p + '.project') })) : rec(v, p)["kind"] === "writeRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "writeRows"), "batch": buildRowWriteBatch(r0["batch"], p + '.batch') })) : rec(v, p)["kind"] === "commitRows" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "commitRows"), "rows": list(r0["rows"], p + '.rows', (e1, q1) => buildRowCommit(e1, q1)) })) : rec(v, p)["kind"] === "createRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "createRow"), "entityType": str(r0["entityType"], p + '.entityType'), "data": any(r0["data"], p + '.data') })) : rec(v, p)["kind"] === "writeRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "writeRow"), "entityType": str(r0["entityType"], p + '.entityType'), "id": str(r0["id"], p + '.id'), "data": any(r0["data"], p + '.data') })) : rec(v, p)["kind"] === "deleteRow" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "deleteRow"), "entityType": str(r0["entityType"], p + '.entityType'), "id": str(r0["id"], p + '.id') })) : rec(v, p)["kind"] === "callService" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "callService"), "service": str(r0["service"], p + '.service'), "method": str(r0["method"], p + '.method'), "args": any(r0["args"], p + '.args'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["caller"] === undefined || r0["caller"] === null ? {} : { "caller": buildCallerWire(r0["caller"], p + '.caller') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }) })) : rec(v, p)["kind"] === "cancelCall" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "cancelCall"), "key": str(r0["key"], p + '.key') })) : rec(v, p)["kind"] === "substrate" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "substrate"), "op": str(r0["op"], p + '.op'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }) })) : rec(v, p)["kind"] === "pageFacts" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "pageFacts"), "fields": list(r0["fields"], p + '.fields', (e1, q1) => buildPageFactFieldWire(e1, q1)) })) : rec(v, p)["kind"] === "prompt" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "prompt"), "text": str(r0["text"], p + '.text'), "schema": str(r0["schema"], p + '.schema'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }) })) : rec(v, p)["kind"] === "embed" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "embed"), "texts": list(r0["texts"], p + '.texts', (e1, q1) => str(e1, q1)), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }) })) : rec(v, p)["kind"] === "tab" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "tab"), "ask": buildTabAsk(r0["ask"], p + '.ask'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }) })) : rec(v, p)["kind"] === "secret" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "secret"), "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "secretSet" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "secretSet"), "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value'), "ttlMs": int(r0["ttlMs"], p + '.ttlMs', 0, Number.MAX_SAFE_INTEGER, "u64"), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "secretRotate" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "secretRotate"), "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "deliver" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "deliver"), "envelope": buildEnvelope(r0["envelope"], p + '.envelope'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), "site": buildCallSiteWire(r0["site"], p + '.site') })) : rec(v, p)["kind"] === "guest" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "guest"), "guest": str(r0["guest"], p + '.guest'), "targets": list(r0["targets"], p + '.targets', (e1, q1) => str(e1, q1)), "event": str(r0["event"], p + '.event'), "payload": any(r0["payload"], p + '.payload'), "grants": buildOsGrants(r0["grants"], p + '.grants'), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }) })) : rec(v, p)["kind"] === "random" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "random"), "bytes": int(r0["bytes"], p + '.bytes', 0, 4294967295, "u32") })) : rec(v, p)["kind"] === "clock" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "clock") })) : rec(v, p)["kind"] === "sealed" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "sealed"), "op": str(r0["op"], p + '.op'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)) })) : rec(v, p)["kind"] === "os" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "os"), "op": buildOsOp(r0["op"], p + '.op'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["site"] === undefined || r0["site"] === null ? {} : { "site": buildCallSiteWire(r0["site"], p + '.site') }), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }), ...(r0["orbital"] === undefined || r0["orbital"] === null ? {} : { "orbital": str(r0["orbital"], p + '.orbital') }) })) : rec(v, p)["kind"] === "credentialStatus" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStatus"), "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "credentialForget" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialForget"), "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }) })) : rec(v, p)["kind"] === "credentialConnect" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialConnect"), "grant": buildCredentialGrantWire(r0["grant"], p + '.grant') })) : rec(v, p)["kind"] === "credentialStoreList" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreList") })) : rec(v, p)["kind"] === "credentialEnvTails" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialEnvTails"), "names": list(r0["names"], p + '.names', (e1, q1) => str(e1, q1)) })) : rec(v, p)["kind"] === "credentialStoreRead" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreRead"), "name": str(r0["name"], p + '.name') })) : rec(v, p)["kind"] === "credentialStoreWrite" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreWrite"), "service": str(r0["service"], p + '.service'), "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value') })) : rec(v, p)["kind"] === "credentialStoreRemove" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreRemove"), "name": str(r0["name"], p + '.name') })) : rec(v, p)["kind"] === "credentialStoreRotate" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialStoreRotate") })) : rec(v, p)["kind"] === "credentialModeRead" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialModeRead") })) : rec(v, p)["kind"] === "credentialModeWrite" ? obj(v, p, null, (r0) => ({ "kind": lit(r0["kind"], p + '.kind', "credentialModeWrite"), "mode": str(r0["mode"], p + '.mode') })) : fail(unknownTag(p, "kind", rec(v, p)["kind"])));
 }
 
 function buildJsonTokenSpec(v: JsonValue | undefined, p: string): JsonTokenSpec {
   return obj(v, p, null, (r0) => ({ "clientIdField": str(r0["clientIdField"], p + '.clientIdField'), "clientSecretField": str(r0["clientSecretField"], p + '.clientSecretField'), "accessField": str(r0["accessField"], p + '.accessField'), ...(r0["refreshField"] === undefined || r0["refreshField"] === null ? {} : { "refreshField": (r0["refreshField"] === null ? null : str(r0["refreshField"], p + '.refreshField')) }), ...(r0["expiresInField"] === undefined || r0["expiresInField"] === null ? {} : { "expiresInField": (r0["expiresInField"] === null ? null : str(r0["expiresInField"], p + '.expiresInField')) }), ...(r0["refreshEndpoint"] === undefined || r0["refreshEndpoint"] === null ? {} : { "refreshEndpoint": (r0["refreshEndpoint"] === null ? null : str(r0["refreshEndpoint"], p + '.refreshEndpoint')) }), ...(r0["refreshBodyField"] === undefined || r0["refreshBodyField"] === null ? {} : { "refreshBodyField": (r0["refreshBodyField"] === null ? null : str(r0["refreshBodyField"], p + '.refreshBodyField')) }) }));
+}
+
+function buildKernelGrant(v: JsonValue | undefined, p: string): KernelGrant {
+  return obj(v, p, ["target", "kinds"], (r0) => ({ "target": str(r0["target"], p + '.target'), "kinds": list(r0["kinds"], p + '.kinds', (e1, q1) => buildKernelKind(e1, q1)) }));
+}
+
+function buildKernelKind(v: JsonValue | undefined, p: string): KernelKind {
+  return oneOf(v, p, ["call", "reorder", "read", "spawn"]);
+}
+
+function buildKvMode(v: JsonValue | undefined, p: string): KvMode {
+  return oneOf(v, p, ["read", "write"]);
 }
 
 function buildLeft(v: JsonValue | undefined, p: string): Left {
@@ -1807,6 +1974,14 @@ function buildLegResidence(v: JsonValue | undefined, p: string): LegResidence {
 
 function buildLifecycleEvent(v: JsonValue | undefined, p: string): LifecycleEvent {
   return oneOf(v, p, ["INIT", "LOAD", "$MOUNT"]);
+}
+
+function buildMemGrant(v: JsonValue | undefined, p: string): MemGrant {
+  return obj(v, p, ["target", "kinds"], (r0) => ({ "target": str(r0["target"], p + '.target'), "kinds": list(r0["kinds"], p + '.kinds', (e1, q1) => buildMemKind(e1, q1)) }));
+}
+
+function buildMemKind(v: JsonValue | undefined, p: string): MemKind {
+  return oneOf(v, p, ["create", "free", "atomic"]);
 }
 
 function buildModelFailureKindWire(v: JsonValue | undefined, p: string): ModelFailureKindWire {
@@ -1837,6 +2012,18 @@ function buildNavigateOptions(v: JsonValue | undefined, p: string): NavigateOpti
   return obj(v, p, null, (r0) => ({ ...(r0["crumb"] === undefined || r0["crumb"] === null ? {} : { "crumb": str(r0["crumb"], p + '.crumb') }) }));
 }
 
+function buildNetGrant(v: JsonValue | undefined, p: string): NetGrant {
+  return obj(v, p, ["target", "kinds"], (r0) => ({ "target": str(r0["target"], p + '.target'), "kinds": list(r0["kinds"], p + '.kinds', (e1, q1) => buildNetKind(e1, q1)) }));
+}
+
+function buildNetKind(v: JsonValue | undefined, p: string): NetKind {
+  return oneOf(v, p, ["tcp", "udp", "listen"]);
+}
+
+function buildNetPart(v: JsonValue | undefined, p: string): NetPart {
+  return ((isRecord(v) && typeof v["literal"] === 'string') ? obj(v, p, null, (r0) => ({ "literal": str(r0["literal"], p + '.literal') })) : (isRecord(v) && checkGrantAnchor(v["anchor"])) ? obj(v, p, null, (r0) => ({ "anchor": buildGrantAnchor(r0["anchor"], p + '.anchor') })) : fail(miss(p, "an object | an object")));
+}
+
 function buildNextWire(v: JsonValue | undefined, p: string): NextWire {
   return (rec(v, p)["outcome"] === "started" ? obj(v, p, null, (r0) => ({ "outcome": lit(r0["outcome"], p + '.outcome', "started"), "ticket": int(r0["ticket"], p + '.ticket', 0, Number.MAX_SAFE_INTEGER, "u64"), "progress": buildServerProgressWire(r0["progress"], p + '.progress') })) : rec(v, p)["outcome"] === "failed" ? obj(v, p, null, (r0) => ({ "outcome": lit(r0["outcome"], p + '.outcome', "failed"), "ticket": int(r0["ticket"], p + '.ticket', 0, Number.MAX_SAFE_INTEGER, "u64"), "error": str(r0["error"], p + '.error') })) : fail(unknownTag(p, "outcome", rec(v, p)["outcome"])));
 }
@@ -1846,7 +2033,7 @@ function buildOsError(v: JsonValue | undefined, p: string): OsError {
 }
 
 function buildOsErrorKind(v: JsonValue | undefined, p: string): OsErrorKind {
-  return oneOf(v, p, ["denied", "not-found", "exists", "invalid", "io", "timeout", "unsupported", "closed", "tls"]);
+  return oneOf(v, p, ["denied", "not-found", "exists", "invalid", "io", "timeout", "unsupported", "closed", "tls", "borrowed"]);
 }
 
 function buildOsGrantFinding(v: JsonValue | undefined, p: string): OsGrantFinding {
@@ -1861,12 +2048,16 @@ function buildOsGrantVia(v: JsonValue | undefined, p: string): OsGrantVia {
   return oneOf(v, p, ["config", "config-unresolvable", "computed-path"]);
 }
 
+function buildOsGrants(v: JsonValue | undefined, p: string): OsGrants {
+  return obj(v, p, ["fs", "exec", "net", "env", "stdio", "sys", "desktop", "dev", "mem", "kernel", "ffi", "credentials", "kv", "anchored"], (r0) => ({ ...(r0["fs"] === undefined || r0["fs"] === null ? {} : { "fs": list(r0["fs"], p + '.fs', (e1, q1) => buildFsGrant(e1, q1)) }), ...(r0["exec"] === undefined || r0["exec"] === null ? {} : { "exec": list(r0["exec"], p + '.exec', (e1, q1) => str(e1, q1)) }), ...(r0["net"] === undefined || r0["net"] === null ? {} : { "net": list(r0["net"], p + '.net', (e1, q1) => buildNetGrant(e1, q1)) }), ...(r0["env"] === undefined || r0["env"] === null ? {} : { "env": list(r0["env"], p + '.env', (e1, q1) => str(e1, q1)) }), ...(r0["stdio"] === undefined || r0["stdio"] === null ? {} : { "stdio": list(r0["stdio"], p + '.stdio', (e1, q1) => buildStdioKind(e1, q1)) }), ...(r0["sys"] === undefined || r0["sys"] === null ? {} : { "sys": list(r0["sys"], p + '.sys', (e1, q1) => buildSysKind(e1, q1)) }), ...(r0["desktop"] === undefined || r0["desktop"] === null ? {} : { "desktop": list(r0["desktop"], p + '.desktop', (e1, q1) => buildDesktopKind(e1, q1)) }), ...(r0["dev"] === undefined || r0["dev"] === null ? {} : { "dev": list(r0["dev"], p + '.dev', (e1, q1) => buildDevGrant(e1, q1)) }), ...(r0["mem"] === undefined || r0["mem"] === null ? {} : { "mem": list(r0["mem"], p + '.mem', (e1, q1) => buildMemGrant(e1, q1)) }), ...(r0["kernel"] === undefined || r0["kernel"] === null ? {} : { "kernel": list(r0["kernel"], p + '.kernel', (e1, q1) => buildKernelGrant(e1, q1)) }), ...(r0["ffi"] === undefined || r0["ffi"] === null ? {} : { "ffi": list(r0["ffi"], p + '.ffi', (e1, q1) => buildFfiGrant(e1, q1)) }), ...(r0["credentials"] === undefined || r0["credentials"] === null ? {} : { "credentials": list(r0["credentials"], p + '.credentials', (e1, q1) => buildCredentialKind(e1, q1)) }), ...(r0["kv"] === undefined || r0["kv"] === null ? {} : { "kv": dict(r0["kv"], p + '.kv', (e1, q1) => list(e1, q1, (e2, q2) => buildKvMode(e2, q2))) }), ...(r0["anchored"] === undefined || r0["anchored"] === null ? {} : { "anchored": buildAnchoredGrants(r0["anchored"], p + '.anchored') }) }));
+}
+
 function buildOsGrantsReport(v: JsonValue | undefined, p: string): OsGrantsReport {
   return obj(v, p, null, (r0) => ({ "findings": list(r0["findings"], p + '.findings', (e1, q1) => buildOsGrantFinding(e1, q1)) }));
 }
 
 function buildOsOp(v: JsonValue | undefined, p: string): OsOp {
-  return oneOf(v, p, ["os/read-file", "os/write-file", "os/append-file", "os/open", "os/close", "os/read", "os/write", "os/seek", "os/truncate", "os/fsync", "os/copy", "os/rename", "os/remove", "os/link", "os/symlink", "os/readlink", "os/watch-files", "os/mkdir", "os/rmdir", "os/list-dir", "os/glob", "os/mktemp", "os/realpath", "os/cwd", "os/chdir", "os/stat", "os/lstat", "os/access", "os/exists", "os/chmod", "os/chown", "os/utimes", "os/spawn", "os/wait", "os/kill", "os/pid", "os/ppid", "os/current-exe", "os/watch-process", "os/watch-signal", "os/getenv", "os/setenv", "os/unsetenv", "os/environ", "os/watch-env", "os/stdin-read", "os/stdout-write", "os/stderr-write", "os/isatty", "os/tty-size", "os/tcp-connect", "os/tcp-listen", "os/tls-upgrade", "os/send", "os/recv", "os/udp-bind", "os/sendto", "os/recvfrom", "os/dns-resolve", "os/shutdown", "os/watch-port", "os/fetch", "os/clock-monotonic", "os/uid", "os/gid", "os/username", "os/group-of", "os/watch-cron", "os/cpu-usage", "os/memory-info", "os/uptime", "os/load-avg", "os/hostname", "os/uname", "os/disk-usage", "os/mounts", "os/disk-io", "os/network-interfaces", "os/network-stats", "os/network-connected", "os/default-gateway", "os/battery-status", "os/ac-power", "os/thermal-zones", "os/notify", "os/speak", "os/brightness-get", "os/brightness-set", "os/volume-get", "os/volume-set", "os/volume-mute", "os/suspend", "os/hibernate", "os/mmio-read", "os/mmio-write", "os/irq-wait", "os/irq-ack", "kv/get", "kv/put", "kv/delete", "kv/scan", "kv/batch"]);
+  return oneOf(v, p, ["os/read-file", "os/write-file", "os/append-file", "os/open", "os/close", "os/read", "os/write", "os/seek", "os/truncate", "os/fsync", "os/copy", "os/rename", "os/remove", "os/link", "os/symlink", "os/readlink", "os/watch-files", "os/mkdir", "os/rmdir", "os/list-dir", "os/glob", "os/mktemp", "os/realpath", "os/cwd", "os/chdir", "os/stat", "os/lstat", "os/access", "os/exists", "os/chmod", "os/chown", "os/utimes", "os/spawn", "os/wait", "os/kill", "os/pid", "os/ppid", "os/current-exe", "os/watch-process", "os/watch-signal", "os/getenv", "os/setenv", "os/unsetenv", "os/environ", "os/watch-env", "os/stdin-read", "os/stdout-write", "os/stderr-write", "os/isatty", "os/tty-size", "os/tcp-connect", "os/tcp-listen", "os/tls-upgrade", "os/send", "os/recv", "os/udp-bind", "os/sendto", "os/recvfrom", "os/dns-resolve", "os/shutdown", "os/watch-port", "os/fetch", "os/clock-monotonic", "os/uid", "os/gid", "os/username", "os/group-of", "os/watch-cron", "os/cpu-usage", "os/memory-info", "os/uptime", "os/load-avg", "os/hostname", "os/uname", "os/disk-usage", "os/mounts", "os/disk-io", "os/network-interfaces", "os/network-stats", "os/network-connected", "os/default-gateway", "os/battery-status", "os/ac-power", "os/thermal-zones", "os/notify", "os/speak", "os/brightness-get", "os/brightness-set", "os/volume-get", "os/volume-set", "os/volume-mute", "os/suspend", "os/hibernate", "os/mmio-read", "os/mmio-write", "os/irq-wait", "os/irq-ack", "kv/get", "kv/put", "kv/delete", "kv/scan", "kv/batch", "mem/arena-new", "mem/arena-drop", "mem/alloc", "mem/free", "mem/borrow", "mem/release", "mem/write", "mem/freeze", "mem/atomic-load", "mem/atomic-store", "mem/atomic-add", "mem/atomic-cas", "kernel/queue-front", "kernel/queue-back", "ffi/call"]);
 }
 
 function buildPageFactFieldWire(v: JsonValue | undefined, p: string): PageFactFieldWire {
@@ -2077,6 +2268,10 @@ function buildStatefulLegWire(v: JsonValue | undefined, p: string): StatefulLegW
   return obj(v, p, null, (r0) => ({ "orbital": str(r0["orbital"], p + '.orbital'), "leg": buildEventRequest(r0["leg"], p + '.leg'), "awaiting": list(r0["awaiting"], p + '.awaiting', (e1, q1) => buildAwaitingTrait(e1, q1)) }));
 }
 
+function buildStdioKind(v: JsonValue | undefined, p: string): StdioKind {
+  return oneOf(v, p, ["in", "out", "err"]);
+}
+
 function buildStepEmit(v: JsonValue | undefined, p: string): StepEmit {
   return obj(v, p, null, (r0) => ({ "event": str(r0["event"], p + '.event'), "payload": (r0["payload"] === null ? null : rec(r0["payload"], p + '.payload')) }));
 }
@@ -2111,6 +2306,10 @@ function buildStoredName(v: JsonValue | undefined, p: string): StoredName {
 
 function buildSubstrateFailureWire(v: JsonValue | undefined, p: string): SubstrateFailureWire {
   return obj(v, p, null, (r0) => ({ "message": str(r0["message"], p + '.message'), "errors": list(r0["errors"], p + '.errors', (e1, q1) => any(e1, q1)) }));
+}
+
+function buildSysKind(v: JsonValue | undefined, p: string): SysKind {
+  return oneOf(v, p, ["cpu", "memory", "disk", "network", "power-state", "identity"]);
 }
 
 function buildTabAction(v: JsonValue | undefined, p: string): TabAction {

@@ -1,10 +1,10 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 interface CoreManifest {
   orb?: object;
-  orbLanguage?: { compiler?: string; patterns?: string; componentMapping?: string; eventContracts?: string; services?: string; bindingRules?: string; programTypes?: string; protocols?: string; themes?: string; fixtures?: string };
+  orbLanguage?: { version?: string; patterns?: string; componentMapping?: string; eventContracts?: string; services?: string; bindingRules?: string; programTypes?: string; protocols?: string; themes?: string; fixtures?: string; sources?: string[] };
 }
 
 const manifest: CoreManifest = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'));
@@ -15,7 +15,7 @@ describe('@almadar/core package.json language-data declaration', () => {
   });
 
   it('declares the language data under the top-level `orbLanguage` key', () => {
-    expect(manifest.orbLanguage?.compiler).toMatch(/\d+\.\d+\.\d+/);
+    expect(manifest.orbLanguage?.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(manifest.orbLanguage?.patterns).toBe('dist/patterns/patterns-registry.json');
     expect(manifest.orbLanguage?.componentMapping).toBe('dist/patterns/component-mapping.json');
     expect(manifest.orbLanguage?.eventContracts).toBe('dist/patterns/event-contracts.json');
@@ -23,6 +23,15 @@ describe('@almadar/core package.json language-data declaration', () => {
     expect(manifest.orbLanguage?.bindingRules).toBe('dist/language/binding-rules.json');
     expect(manifest.orbLanguage?.programTypes).toBe('dist/language/program-types.json');
     expect(manifest.orbLanguage?.protocols).toBe('dist/language/protocols.json');
+  });
+
+  it('declares the repo-relative sources of the language data, each existing, for `orb release` to detect a language change', () => {
+    const sources = manifest.orbLanguage?.sources ?? [];
+    expect(sources.length).toBeGreaterThan(0);
+    for (const source of sources) {
+      expect(source.startsWith('core/')).toBe(true);
+      expect(existsSync(join(__dirname, '..', source.slice('core/'.length)))).toBe(true);
+    }
   });
 
   it('declares the theme preset directory orb loads (one ThemeDefinition per file, shipped)', () => {

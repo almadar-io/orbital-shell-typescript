@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-03T14:23:23.966Z",
+  "exportedAt": "2026-11-03T16:12:50.796Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -34345,7 +34345,7 @@
           "types": [
             "string"
           ],
-          "description": "Game display-font key (pixel | fredoka | future | future-narrow | blocks | mini) or a CSS font-family. Scoped override of the theme contract's --font-family-display slot: titles and numerics take this face, body text follows the active theme. Unset = the theme token decides."
+          "description": "Shared game display-font alias or a CSS font-family. Scoped override of the theme contract's --font-family-display slot: titles and numerics take this face, body text follows the active theme. Unset = the theme token decides."
         },
         "data-theme": {
           "types": [
@@ -122419,6 +122419,14 @@
             "string",
             "number",
             "int",
+            "i8",
+            "i16",
+            "i32",
+            "u8",
+            "u16",
+            "u32",
+            "u64",
+            "f32",
             "boolean",
             "date",
             "timestamp",
@@ -133603,6 +133611,50 @@
             "object"
           ],
           "description": "The program's imports (`behavior/dependencies`), placing each composed unit in its layer."
+        }
+      }
+    },
+    "guest-view": {
+      "type": "guest-view",
+      "category": "component",
+      "sourceFile": "components/core/molecules/GuestView.tsx",
+      "tier": "molecules",
+      "family": "core",
+      "description": "GuestView — paints the UI of a guest program session (program/open) inside the opener's view. Paint only: a click on a control inside it is routed by the kernel to the opener as its `deliver` event { guest, address, event, payload }.",
+      "suggestedFor": [
+        "guest",
+        "view",
+        "guest view"
+      ],
+      "typicalSize": "medium",
+      "propsSchema": {
+        "guest": {
+          "types": [
+            "string"
+          ],
+          "description": "Guest session handle (`program/open` answers it, e.g. \"guest-1\"). Data for the kernel; never rendered.",
+          "required": true
+        },
+        "source": {
+          "types": [
+            "string"
+          ],
+          "description": "Guest trait that painted this content (`rendered[].trait`); the kernel delivers a click as address `<source>.<EVENT>`. Data for the kernel; never rendered.",
+          "required": true
+        },
+        "deliver": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event a click inside this view is delivered as. The kernel emits it, never the renderer.",
+          "required": true,
+          "kind": "event"
+        },
+        "children": {
+          "types": [
+            "node"
+          ],
+          "description": "The guest's painted content"
         }
       }
     }

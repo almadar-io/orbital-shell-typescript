@@ -28,7 +28,7 @@ function writeManifest(dir: string, manifest: object): void {
 }
 
 function behaviorPackage(nodeModules: string, name: string, prefix: string, version = '1.0.0'): void {
-  writeManifest(join(nodeModules, name), { name, version, orb: { prefix, source: 'behaviors/lolo', compiler: '>=1.0.0' } });
+  writeManifest(join(nodeModules, name), { name, version, orb: { prefix, source: 'behaviors/lolo', language: '^1' } });
   mkdirSync(join(nodeModules, name, 'behaviors/lolo'), { recursive: true });
 }
 
@@ -70,7 +70,7 @@ run('discoverBehaviorPackages — `orb list --json --ancestors`, the rule of `be
   it('a symlinked (workspace-linked) package is discovered at its real root, with its declared block and lock', () => {
     const { work, project, home } = tree();
     const real = join(work, 'packages/vendor');
-    writeManifest(real, { name: '@vendor/behaviors', version: '1.0.0', orb: { prefix: 'vendor', source: 'behaviors/lolo', vectors: 'v.bin', compiler: '>=1.0.0' } });
+    writeManifest(real, { name: '@vendor/behaviors', version: '1.0.0', orb: { prefix: 'vendor', source: 'behaviors/lolo', vectors: 'v.bin', language: '^1' } });
     mkdirSync(join(real, 'behaviors/lolo'), { recursive: true });
     writeFileSync(join(real, 'v.bin'), '');
     const sha256 = 'a'.repeat(64);
@@ -79,7 +79,7 @@ run('discoverBehaviorPackages — `orb list --json --ancestors`, the rule of `be
     symlinkSync(real, join(project, 'node_modules/@vendor/behaviors'));
     const [pkg] = discoverBehaviorPackages(project, opts(home)).filter((p) => p.name === '@vendor/behaviors');
     expect(pkg?.root).toBe(real);
-    expect(pkg?.orb).toEqual({ prefix: 'vendor', source: 'behaviors/lolo', vectors: 'v.bin', compiler: '>=1.0.0' });
+    expect(pkg?.orb).toEqual({ prefix: 'vendor', source: 'behaviors/lolo', vectors: 'v.bin', language: '^1' });
     expect(pkg?.lock?.files['v.bin']).toEqual({ sha256, bytes: 9, url: 'https://sidecars.test/v' });
   });
 

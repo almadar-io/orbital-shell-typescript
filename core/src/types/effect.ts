@@ -940,11 +940,30 @@ export type LlmEffect = [`llm/${string}`, ...SExpr[]];
 export type BehaviorReflectionEffect = ['behavior/catalog' | 'behavior/describe' | 'behavior/source' | 'behavior/resolve' | 'behavior/dependencies' | 'behavior/packages', ...SExpr[]];
 
 /**
+ * Kernel-owned memory asks (EXEC-METAL-1..4): arenas, blocks, borrows and the atomic cells of shared arenas. The
+ * pure reads of the family (`mem/read`, `mem/read-uint`, `mem/read-int`, `mem/length`, `mem/layout`) are expressions, not effect heads.
+ * @example ['mem/arena-new', 'bump', 4096, { emit: { success: 'ARENA_OK', failure: 'FAILED' } }]
+ */
+export type MemEffect = ['mem/arena-new' | 'mem/arena-drop' | 'mem/alloc' | 'mem/free' | 'mem/borrow' | 'mem/release' | 'mem/write' | 'mem/freeze' | 'mem/atomic-load' | 'mem/atomic-store' | 'mem/atomic-add' | 'mem/atomic-cas', ...SExpr[]];
+
+/**
+ * Granted worklist reorders (EXEC-METAL-5), applied after the step's own emits; the rest of `kernel/` is expressions.
+ * @example ['kernel/queue-front', 'TICK']
+ */
+export type KernelEffect = ['kernel/queue-front' | 'kernel/queue-back', ...SExpr[]];
+
+/**
+ * A granted C call through the native host (EXEC-METAL-6).
+ * @example ['ffi/call', '/usr/lib/libSystem.B.dylib', 'cos', [0.5], { emit: { success: 'COS_DONE', failure: 'FFI_FAILED' } }]
+ */
+export type FfiEffect = ['ffi/call', ...SExpr[]];
+
+/**
  * Program effects: read `.lolo` text into a quoted program, print one back,
  * evaluate one (validate, then instantiate). Run `orb` on the server.
  * @example ['program/eval', '@entity.program', { emit: { success: 'BUILT', failure: 'BUILD_FAILED' } }]
  */
-export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/prove' | 'program/os-grants' | 'program/compose' | 'program/step' | 'program/live' | 'program/self' | 'program/tick' | 'program/resolve-rows', ...SExpr[]];
+export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/prove' | 'program/os-grants' | 'program/compose' | 'program/step' | 'program/live' | 'program/self' | 'program/tick' | 'program/resolve-rows' | 'program/open' | 'program/close', ...SExpr[]];
 
 /**
  * Agent-port effects, the three abilities an LLM tool loop is written with: `program/inputs` lists the
@@ -1021,6 +1040,9 @@ export type TypedEffect =
     | LlmEffect
     | BehaviorReflectionEffect
     | ProgramEffect
+    | MemEffect
+    | KernelEffect
+    | FfiEffect
     | AgentPortEffect
     | SessionEffect
     | TraceEffect
@@ -1080,7 +1102,9 @@ export const EFFECT_OPERATORS = [
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
   'workspace/write-schema', 'workspace/write-plan', 'workspace/archive-orbital', 'behavior/catalog',
   'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'behavior/packages', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/prove', 'program/os-grants', 'program/compose', 'program/step',
-  'program/inputs', 'program/dispatch', 'program/live', 'program/self', 'program/tick', 'program/resolve-rows', 'persist/read-named',
+  'program/inputs', 'program/dispatch', 'program/open', 'program/close', 'program/live', 'program/self', 'program/tick', 'program/resolve-rows', 'persist/read-named',
+  'mem/arena-new', 'mem/arena-drop', 'mem/alloc', 'mem/free', 'mem/borrow', 'mem/release', 'mem/write', 'mem/freeze',
+  'mem/atomic-load', 'mem/atomic-store', 'mem/atomic-add', 'mem/atomic-cas', 'kernel/queue-front', 'kernel/queue-back', 'ffi/call',
 ] as const;
 
 /** Namespaced effect families (`<family>/<name>`, e.g. `llm/generate`) the {@link Effect} union declares. */

@@ -19,6 +19,7 @@ export { Card as ActionCard, type CardProps as ActionCardProps, type CardAction 
 export { Container, type ContainerProps } from './Container';
 export { Flex, type FlexProps } from './Flex';
 export { FloatingActionButton, type FloatingActionButtonProps, type FloatingAction } from './FloatingActionButton';
+export { GuestView, type GuestViewProps } from './GuestView';
 export { Grid, type GridProps } from './Grid';
 export { InputGroup, type InputGroupProps } from './InputGroup';
 export { Menu, type MenuProps, type MenuItem } from './Menu';

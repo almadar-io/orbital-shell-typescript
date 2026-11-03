@@ -705,16 +705,6 @@
     "description": "A jws/verify call with a literal allowUnsigned true sits in a transition that is not env-guarded"
   },
   {
-    "code": "ORB_EMBED_BRIDGE_EMITS_UNHEARD",
-    "category": "embed",
-    "description": "An embed bridge re-emits an event on the host that nothing in the program handles"
-  },
-  {
-    "code": "ORB_EMBED_BRIDGE_LISTENS_UNSENT",
-    "category": "embed",
-    "description": "An embed bridge delivers an event into the program that nothing in the program sends"
-  },
-  {
     "code": "ORB_EMBED_CONFIG_FORWARD_MULTI_REFERRER",
     "category": "embed",
     "description": "A trait that forwards @config is embedded by more than one referrer, so the forwarded value is ambiguous"
@@ -880,6 +870,11 @@
     "description": "A guard reads an intrinsic frame field of an entity to authorize, but intrinsic fields are not trustworthy for access"
   },
   {
+    "code": "ORB_GUEST_VIEW_NOT_CLIENT",
+    "category": "trait",
+    "description": "A trait that does not run on the client paints a guest-view, so the kernel cannot route a click inside the guest"
+  },
+  {
     "code": "ORB_HOST_EFFECT_ARITY",
     "category": "effect",
     "description": "A host effect is called with the wrong number of arguments"
@@ -1033,6 +1028,26 @@
     "code": "ORB_LISTEN_WILDCARD_UNKEYED",
     "category": "trait_event",
     "description": "A wildcard listens route hears every caller's event but its guard never reads the call key in the payload"
+  },
+  {
+    "code": "ORB_MEM_ALIAS",
+    "category": "mem",
+    "description": "An exclusive borrow of a block while another borrow of it is live, or a borrow while an exclusive one is live"
+  },
+  {
+    "code": "ORB_MEM_DOUBLE_FREE",
+    "category": "mem",
+    "description": "A handle is freed, dropped or released a second time on some path"
+  },
+  {
+    "code": "ORB_MEM_LEAK",
+    "category": "mem",
+    "description": "An arena reaches a resting state on some path without being dropped"
+  },
+  {
+    "code": "ORB_MEM_USE_AFTER_FREE",
+    "category": "mem",
+    "description": "A mem/ call takes a handle after it was freed, dropped or released on some path"
   },
   {
     "code": "ORB_NAV_TARGET_UNDECLARED",
@@ -1928,6 +1943,11 @@
     "code": "ORB_X_ORPHAN_LISTENER",
     "category": "cross",
     "description": "A trait listens for an event that no trait emits"
+  },
+  {
+    "code": "ORB_X_PARALLEL_LAMBDA_IMPURE",
+    "category": "parallel",
+    "description": "The lambda of array/pmap or array/preduce is not a literal fn or is not provably pure"
   },
   {
     "code": "ORB_X_PAYLOAD_FIELD_NAME",

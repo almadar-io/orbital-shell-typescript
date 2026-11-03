@@ -18,7 +18,7 @@ const ORB = {
   prefix: 'almadar-test',
   registry: 'behaviors/registry',
   embeddings: ['dist/behaviors-embeddings.json', 'dist/knob-embeddings.json'],
-  compiler: '>=4.10.0',
+  language: '^1',
 };
 
 const CONTENT = '{"vectors":{"k":{"s":1,"d":"AA=="}}}';
@@ -49,7 +49,7 @@ const LOCKED = { 'dist/knob-embeddings.json': { sha256: SHA, bytes: Buffer.byteL
 
 describe('lock-declared vectors', () => {
   const vectors = 'dist/vectors.vec';
-  const orb = { prefix: ORB.prefix, registry: ORB.registry, compiler: ORB.compiler, vectors };
+  const orb = { prefix: ORB.prefix, registry: ORB.registry, language: ORB.language, vectors };
   const locked = { [vectors]: { sha256: SHA, bytes: Buffer.byteLength(CONTENT), url: URL_ } };
 
   it('uses the declared lock and existing resolver with no package snapshot', async () => {

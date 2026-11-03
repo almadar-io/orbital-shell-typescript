@@ -22,7 +22,7 @@ import { useRowSetResolver } from "../../../providers/RowSetResolverContext";
 import { TraitScopeProvider, useTraitScope } from '../../../core';
 import { RenderSlotProvider } from "../../../providers/RenderSlotContext";
 import type { EntityRow, EventPayload, EventPayloadValue, RenderItemLambda } from "@almadar/core";
-import { isBehaviorRefValue, isRenderBindingMarker, isTraitValue, PATTERN_PROP_TYPE_ERROR_TESTID, type BehaviorRef, type TraitValue } from "@almadar/core";
+import { isRenderBindingMarker, PATTERN_PROP_TYPE_ERROR_TESTID } from "@almadar/core";
 import type { AnyPatternConfig } from "@almadar/core/patterns";
 import { SELF_OVERLAY_PATTERN_TYPES } from "@almadar/core/patterns";
 import {
@@ -69,11 +69,6 @@ import { getComponentForPattern as getComponentName } from "@almadar/core/patter
 // pattern children resolve to this component at render time. See
 // `docs/Almadar_Std_Gaps.md` §3.8.
 import { TraitFrame } from "../atoms/TraitFrame";
-
-// A trait VALUE child mounts through the plugin host's runtime, which imports
-// this renderer back — lazy, for the same module-cycle reason as TraitFrame's.
-const LazyTraitValueFrame = React.lazy(() => import("../../../preview/TraitValueFrame"));
-const LazyBehaviorValueFrame = React.lazy(() => import("../../../preview/BehaviorValueFrame"));
 
 /**
  * `^@trait.<PascalName>$` — single-segment binding only. Multi-segment
@@ -1327,9 +1322,9 @@ function renderPatternChildren(
   // std-embedded-dashboard with invisible Date Range / Export buttons.
   // Normalize to an array before walking — per
   // `[feedback_compiled_vs_runtime_paths]`, both paths must agree.
-  const childrenArray: Array<{ type: string; props?: SlotProps; _id?: string } | string | TraitValue | BehaviorRef> = Array.isArray(children)
+  const childrenArray: Array<{ type: string; props?: SlotProps; _id?: string } | string> = Array.isArray(children)
     ? children
-    : typeof children === 'string' || (typeof children === 'object' && ('type' in children || isTraitValue(children) || isBehaviorRefValue(children)))
+    : typeof children === 'string' || (typeof children === 'object' && 'type' in children)
       ? [children]
       : [];
 
@@ -1354,25 +1349,6 @@ function renderPatternChildren(
     }
 
     if (!child || typeof child !== "object") return null;
-
-    // A trait VALUE (language trio: a behavior's trait held as data) mounts
-    // and renders here through its host.
-    if (isTraitValue(child)) {
-      return (
-        <React.Suspense key={`${parentId}-${index}-value:${child.behavior}.${child.trait}`} fallback={null}>
-          <LazyTraitValueFrame value={child} />
-        </React.Suspense>
-      );
-    }
-    // A whole behavior VALUE runs here as an isolated program.
-    if (isBehaviorRefValue(child)) {
-      const earlierSame = childrenArray.slice(0, index).filter((c) => isBehaviorRefValue(c) && c.behavior === child.behavior).length;
-      return (
-        <React.Suspense key={`${parentId}-behavior:${child.behavior}#${earlierSame}`} fallback={null}>
-          <LazyBehaviorValueFrame value={child} />
-        </React.Suspense>
-      );
-    }
 
     const childId = `${parentId}-${index}`;
     const childPath = parentPath === 'root'
@@ -1554,20 +1530,6 @@ export function renderPatternValue(value: SlotPropValue): React.ReactNode {
     return (value as ReadonlyArray<SlotPropValue>).map((item, index) => (
       <React.Fragment key={index}>{renderPatternValue(item)}</React.Fragment>
     ));
-  }
-  if (isTraitValue(value)) {
-    return (
-      <React.Suspense fallback={null}>
-        <LazyTraitValueFrame value={value} />
-      </React.Suspense>
-    );
-  }
-  if (isBehaviorRefValue(value)) {
-    return (
-      <React.Suspense fallback={null}>
-        <LazyBehaviorValueFrame value={value} />
-      </React.Suspense>
-    );
   }
   if (isPatternConfig(value)) {
     const { type, ...props } = value;

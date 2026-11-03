@@ -389,5 +389,12 @@ export function lazyKernelExports(load: () => KernelEvaluatorExports): KernelEva
     avlTraitFlowGraph: (schema, orbital, layers) => kernel().avlTraitFlowGraph(schema, orbital, layers),
     avlProgramTraitLevels: (schema) => kernel().avlProgramTraitLevels(schema),
     avlDescribedTransitionLines: (description, running, transitionIndex) => kernel().avlDescribedTransitionLines(description, running, transitionIndex),
+    skinWorldMatrices: (bones, pose) => kernel().skinWorldMatrices(bones, pose),
+    skinVertices: (mesh, bind, current) => kernel().skinVertices(mesh, bind, current),
+    skinComposeAffine: (a, b) => kernel().skinComposeAffine(a, b),
+    skinInvertAffine: (matrix) => kernel().skinInvertAffine(matrix),
+    skinApplyAffine: (matrix, x, y) => kernel().skinApplyAffine(matrix, x, y),
+    skinTriangleAffine: (src, dst) => kernel().skinTriangleAffine(src, dst),
+    skinVertexBounds: (points) => kernel().skinVertexBounds(points),
   };
 }

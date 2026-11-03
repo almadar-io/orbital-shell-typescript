@@ -20,6 +20,7 @@ function surfaces(routes: TraitEventListener[]): ReadonlyMap<string, TraitSurfac
     shared: false,
     browser: false,
     frameKey: 'Host',
+    paintsGuestViews: false,
     ticks: [],
     emits: [],
     states: ['idle'],

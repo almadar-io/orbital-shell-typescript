@@ -76,7 +76,7 @@ describe('useEntityBindingSource — snapshot identity', () => {
   it('lays a shared trait\'s own intrinsic frame over the shared frame, per trait', () => {
     const store = createMemoryCircuitStore();
     const surface = (name: string): TraitSurface => ({
-      name, orbital: 'O', shared: true, browser: true, frameKey: '$shared::Pg', ticks: [], emits: [],
+      name, orbital: 'O', shared: true, browser: true, frameKey: '$shared::Pg', ticks: [], emits: [], paintsGuestViews: false,
       states: ['idle'], initial: 'idle', events: [], listens: [], transitions: [],
     });
     const traitIndex = { byName: new Map([['A', surface('A')], ['B', surface('B')]]) };

@@ -31,11 +31,17 @@ export type FieldType = FieldTag | TypeVariable;
  *  written `$t` — the `.orb` spelling the Rust `FieldType::TypeVar` serializes to. */
 export type TypeVariable = `$${string}`;
 
+/** The fixed widths other than `int` (i64) and `number` (f64), the Rust `FieldType::Sized`: a checked range over
+ *  an int or a number at run time. */
+export const NUM_WIDTH_TAGS = ['i8', 'i16', 'i32', 'u8', 'u16', 'u32', 'u64', 'f32'] as const;
+export type NumWidthTag = (typeof NUM_WIDTH_TAGS)[number];
+
 /** The concrete field-type tags (every `FieldType` but a type variable). */
 export type FieldTag =
     | 'string'
     | 'number'
     | 'int'
+    | NumWidthTag
     | 'boolean'
     | 'date'
     | 'timestamp'
@@ -101,6 +107,7 @@ export const FIELD_TYPES = [
     'string',
     'number',
     'int',
+    ...NUM_WIDTH_TAGS,
     'boolean',
     'date',
     'timestamp',
@@ -169,7 +176,9 @@ export const TYPE_POSITION_ONLY = [
     'component',
     'duration',
     'entity',
+    'f64',
     'float',
+    'i64',
     'icon',
     'null',
     'secret',
@@ -365,6 +374,7 @@ type ScalarFieldType =
     | 'string'
     | 'number'
     | 'int'
+    | NumWidthTag
     | 'boolean'
     | 'date'
     | 'timestamp'
@@ -640,6 +650,14 @@ export const EntityFieldSchema: z.ZodType<EntityField, unknown> = z.lazy(() => {
                 scalarVariant('string'),
                 scalarVariant('number'),
                 scalarVariant('int'),
+                scalarVariant('i8'),
+                scalarVariant('i16'),
+                scalarVariant('i32'),
+                scalarVariant('u8'),
+                scalarVariant('u16'),
+                scalarVariant('u32'),
+                scalarVariant('u64'),
+                scalarVariant('f32'),
                 scalarVariant('boolean'),
                 scalarVariant('date'),
                 scalarVariant('timestamp'),

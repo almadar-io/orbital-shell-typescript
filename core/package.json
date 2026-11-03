@@ -86,7 +86,7 @@
     "fixtures"
   ],
   "orbLanguage": {
-    "compiler": ">=17.11.2",
+    "version": "1.0.0",
     "patterns": "dist/patterns/patterns-registry.json",
     "componentMapping": "dist/patterns/component-mapping.json",
     "eventContracts": "dist/patterns/event-contracts.json",
@@ -99,7 +99,21 @@
     "constructs": "dist/language/constructs.json",
     "validationCodes": "dist/language/validation-codes.json",
     "themes": "themes",
-    "fixtures": "fixtures"
+    "fixtures": "fixtures",
+    "sources": [
+      "core/src/patterns/patterns-registry.json",
+      "core/src/patterns/component-mapping.json",
+      "core/src/patterns/event-contracts.json",
+      "core/src/patterns/services-registry.json",
+      "core/src/types/bindings.ts",
+      "core/src/program-types.ts",
+      "core/src/protocols.ts",
+      "core/src/ui-vocabulary.ts",
+      "core/src/lucide-icons.txt",
+      "core/src/generated/language",
+      "core/themes",
+      "core/fixtures"
+    ]
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",

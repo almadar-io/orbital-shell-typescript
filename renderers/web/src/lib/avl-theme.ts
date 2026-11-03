@@ -119,10 +119,13 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
   'workspace/write-plan': 'system', 'workspace/archive-orbital': 'system',
   'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/packages': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/prove': 'system', 'program/os-grants': 'system', 'program/compose': 'system', 'program/step': 'system',
-  'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
+  'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'program/open': 'system', 'program/close': 'system', 'persist/read-named': 'system',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'compute',
   'oauth-authorize': 'system', 'oauth-connection-status': 'system', 'oauth-connection-forget': 'system',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',
+  'mem/arena-new': 'data', 'mem/arena-drop': 'data', 'mem/alloc': 'data', 'mem/free': 'data', 'mem/borrow': 'data', 'mem/release': 'data', 'mem/write': 'data', 'mem/freeze': 'data',
+  'mem/atomic-load': 'data', 'mem/atomic-store': 'data', 'mem/atomic-add': 'data', 'mem/atomic-cas': 'data',
+  'kernel/queue-front': 'control', 'kernel/queue-back': 'control', 'ffi/call': 'system',
 };
 
 const EFFECT_FAMILY_CATEGORY: Record<EffectOperatorFamily, EffectCategory> = {
@@ -148,10 +151,13 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
   'workspace/write-plan': 'system', 'workspace/archive-orbital': 'system',
   'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/packages': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
   'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/prove': 'system', 'program/os-grants': 'system', 'program/compose': 'system', 'program/step': 'system',
-  'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'persist/read-named': 'system',
+  'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'program/open': 'system', 'program/close': 'system', 'persist/read-named': 'system',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'system',
   'oauth-authorize': 'remote', 'oauth-connection-status': 'remote', 'oauth-connection-forget': 'remote',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',
+  'mem/arena-new': 'store', 'mem/arena-drop': 'store', 'mem/alloc': 'store', 'mem/free': 'store', 'mem/borrow': 'store', 'mem/release': 'store', 'mem/write': 'store', 'mem/freeze': 'store',
+  'mem/atomic-load': 'store', 'mem/atomic-store': 'store', 'mem/atomic-add': 'store', 'mem/atomic-cas': 'store',
+  'kernel/queue-front': 'flow', 'kernel/queue-back': 'flow', 'ffi/call': 'remote',
 };
 
 const EFFECT_FAMILY_ZONE: Record<EffectOperatorFamily, EffectZone> = {

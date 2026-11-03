@@ -258,7 +258,7 @@ export function isOrbitalValue(value: RuntimeValue): value is OrbitalValue {
   return typeof behavior === 'string' && SPECIFIER.test(behavior) && typeof orbital === 'string' && PASCAL.test(orbital);
 }
 
-/** A whole behavior as a value (`.lolo` type `behavior`): what `behavior/ref` builds and a render embed runs. */
+/** A whole behavior as a value (`.lolo` type `behavior`): what `behavior/ref` builds. */
 export function behaviorRef(specifier: string): BehaviorRef {
   if (!SPECIFIER.test(specifier)) {
     throw new Error(`behavior/ref: "${specifier}" is not a behavior specifier (<prefix>/<name>, std/behaviors/<name> or ./<dir>/<name>)`);
@@ -266,7 +266,7 @@ export function behaviorRef(specifier: string): BehaviorRef {
   return { behavior: specifier };
 }
 
-/** Structural guard for a behavior value: a specifier and, optionally, its declared bridge (a trait or orbital value names a member too). */
+/** Structural guard for a behavior value: a bare specifier (a trait or orbital value names a member too). */
 export function isBehaviorRefValue(value: RuntimeValue): value is BehaviorRef {
   return BehaviorRefSchema.safeParse(value).success;
 }
@@ -289,33 +289,9 @@ export const CatalogScopeSchema = z.object({
 }).strict();
 export type CatalogScope = z.infer<typeof CatalogScopeSchema>;
 
-/**
- * The events an embedded behavior exchanges with the page that embeds it: `listens` are the
- * host's events delivered into it (to every trait that handles one), `emits` are its own
- * `external` events re-emitted on the host. Nothing else crosses; without a bridge it runs isolated.
- */
-export const BehaviorBridgeSchema = z.object({
-  listens: z.array(z.string().min(1)),
-  emits: z.array(z.string().min(1)),
-}).strict();
-export type BehaviorBridge = z.infer<typeof BehaviorBridgeSchema>;
-
-/**
- * A behavior named by itself, with no trait or orbital picked (what `behavior/describe` takes for a whole behavior), the
- * bridge its embed declares, if any, and optionally `resolved`: the behavior's resolved program as JSON, validated by
- * whoever set it, which an embed runs as it is instead of asking the host to mount the behavior.
- */
-export const BehaviorRefSchema = z.object({ behavior: z.string().regex(SPECIFIER), bridge: BehaviorBridgeSchema.optional(), resolved: z.string().min(1).optional() }).strict();
+/** A behavior named by itself, with no trait or orbital picked (what `behavior/describe` takes for a whole behavior). */
+export const BehaviorRefSchema = z.object({ behavior: z.string().regex(SPECIFIER) }).strict();
 export type BehaviorRef = z.infer<typeof BehaviorRefSchema>;
-
-/** The overrides `behavior/apply` takes for a whole behavior value: its bridge. */
-export const BehaviorRefOverridesSchema = z.object({ bridge: BehaviorBridgeSchema }).strict();
-
-/** `behavior/apply` on a behavior value: records (replaces) its bridge. Pure. */
-export function applyBehaviorRefOverrides(value: BehaviorRef, overrides: JsonValue): BehaviorRef {
-  const parsed = BehaviorRefOverridesSchema.parse(overrides);
-  return { behavior: value.behavior, bridge: parsed.bridge };
-}
 
 /** One behavior `behavior/catalog` returns (`orb behaviors catalog --json`). */
 export const CatalogEntrySchema = z.object({
@@ -331,7 +307,7 @@ export const CatalogEntrySchema = z.object({
   capabilities: z.array(z.string()),
   /** The behavior's traits as ready-to-bind values; absent in a listing asked for without traits (`traits: false`). */
   traits: z.array(TraitValueSchema).optional(),
-  /** The behavior as a value (`.lolo` type `behavior`), ready to embed or store. */
+  /** The behavior as a value (`.lolo` type `behavior`), ready to store. */
   value: BehaviorRefSchema,
   /** Shipped embedding vectors, keyed by facet (`description`, `capabilities`). */
   vectors: z.record(z.string(), VectorSchema),
@@ -499,7 +475,7 @@ export interface EvaluatedProgram {
   /** Workspace-relative specifier of the written program (`./orbitals/<name>` by default). */
   readonly behavior: string;
   readonly traits: readonly TraitValue[];
-  /** The written program as a behavior value, ready to embed. */
+  /** The written program as a behavior value. */
   readonly value: BehaviorRef;
 }
 
@@ -511,34 +487,3 @@ export type ProgramValidationIssue = {
   readonly line?: number;
   readonly column?: number;
 };
-
-/**
- * A trait value made runnable by its host: the resolved one-orbital wrapper
- * program that imports the value's owning orbital (`only { T }`, overrides as
- * `traits { T { … } }`), the mounted trait's name in it, and the page showing it.
- */
-export interface MountedTraitValue {
-  readonly schema: OrbitalSchema;
-  /** The orbital the wrapper mounts the value as. */
-  readonly orbital: string;
-  /** The value's trait under the import prefix (`<orbital><Trait>`). */
-  readonly trait: string;
-  readonly pagePath?: string;
-}
-
-/** A behavior value made runnable by its host: the resolved program as written and the page it opens on. */
-export interface MountedBehaviorValue {
-  readonly schema: OrbitalSchema;
-  /** The program's first page path (where the frame's scoped router starts). */
-  readonly firstPage: string;
-}
-
-/** Mounting outcome for a behavior value; validator issues come back as data. */
-export type BehaviorValueMountResult =
-  | { readonly ok: true; readonly mounted: MountedBehaviorValue }
-  | { readonly ok: false; readonly error: string; readonly errors?: readonly ProgramValidationIssue[] };
-
-/** Mounting outcome — the validator's issues come back as data when the value does not validate where it is bound. */
-export type TraitValueMountResult =
-  | { readonly ok: true; readonly mounted: MountedTraitValue }
-  | { readonly ok: false; readonly error: string; readonly errors?: readonly ProgramValidationIssue[] };
