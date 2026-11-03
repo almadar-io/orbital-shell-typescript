@@ -32,27 +32,6 @@ export { wrapCallbackForEvent } from '../lib/wrapCallbackForEvent';
 // OrbPreview — live orbital schema renderer
 export { OrbPreview, type OrbPreviewProps } from './OrbPreview';
 
-// OrbitalPluginHost — headless plugin runtime(s) against the ambient bus + slots
-export {
-    OrbitalPluginHost,
-    useOrbitalPluginHost,
-    useDeclaredCaptureTable,
-    type OrbitalPluginHostProps,
-    type PluginHostPlugin,
-    type PluginHostInbound,
-    type PluginHostDenyVerb,
-} from './OrbitalPluginHost';
-
-// TraitValueFrame — a trait value (language trio) mounted and rendered inline;
-// hosts supply the mount through TraitValueMountProvider
-export {
-    TraitValueFrame,
-    TraitValueMountProvider,
-    type TraitValueMountHost,
-} from './TraitValueFrame';
-// BehaviorValueFrame — a whole behavior value (`behavior/ref`) run in place, isolated.
-export { BehaviorValueFrame } from './BehaviorValueFrame';
-
 // Slot-host manifest — declarative region -> UISlot bindings a host (a
 // plugin host's persona shell, or an embedding app) uses to describe its
 // regions; mirrors UISlotComponent's fallback/mode contract as data.

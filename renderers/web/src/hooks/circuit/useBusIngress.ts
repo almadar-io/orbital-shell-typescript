@@ -120,6 +120,24 @@ export function useBusIngress(
       }
     }
 
+    // A trait that paints a guest-view hears every event raised in its scope: the kernel routes one a painted guest
+    // control carries, or ignores it (G-CROSS-400).
+    const guestScopes = new Map<string, string>();
+    for (const [traitName, surface] of surfaces) {
+      if (surface.paintsGuestViews) guestScopes.set(`UI:${surface.orbital}.${traitName}.`, traitName);
+    }
+    if (guestScopes.size > 0 && eventBus.onAny !== undefined) {
+      unsubscribes.push(eventBus.onAny((event) => {
+        if (subscribedQualified.has(event.type) || deliveredHere(event.source)) return;
+        for (const [scope, traitName] of guestScopes) {
+          if (!event.type.startsWith(scope)) continue;
+          log.debug('guest-scope:fire', { key: event.type });
+          dispatch(traitName, event.type.slice(scope.length), event.payload, event.source);
+          return;
+        }
+      }));
+    }
+
     return () => {
       for (const unsub of unsubscribes) unsub();
     };

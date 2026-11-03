@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { behaviorRef, isBehaviorRefValue, isTraitValue, isOrbitalValue, FIELD_TYPES, CatalogEntrySchema, applyBehaviorRefOverrides, BehaviorRefSchema } from '../src/types/index.js';
+import { behaviorRef, isBehaviorRefValue, isTraitValue, isOrbitalValue, FIELD_TYPES, CatalogEntrySchema, BehaviorRefSchema } from '../src/types/index.js';
 
 describe('behavior values (a whole behavior as data)', () => {
   it('behaviorRef accepts every specifier spelling', () => {
@@ -66,34 +66,10 @@ describe('behavior values (a whole behavior as data)', () => {
   });
 });
 
-describe('a behavior value with a declared bridge (an embed that talks to its host)', () => {
-  const bridge = { listens: ['SHELL_KEY', 'SHELL_EDITOR_FOCUS'], emits: ['STATUS', 'SET_MODE'] };
-
-  it('behavior/apply records a bridge on a behavior value', () => {
-    expect(applyBehaviorRefOverrides(behaviorRef('almadar-behaviors/vim-mode'), { bridge })).toEqual({ behavior: 'almadar-behaviors/vim-mode', bridge });
-  });
-
-  it('a later bridge replaces the earlier one', () => {
-    const once = applyBehaviorRefOverrides(behaviorRef('almadar-behaviors/vim-mode'), { bridge });
-    expect(applyBehaviorRefOverrides(once, { bridge: { listens: [], emits: ['STATUS'] } }).bridge).toEqual({ listens: [], emits: ['STATUS'] });
-  });
-
-  it('control: any other override key is refused on a behavior value', () => {
-    expect(() => applyBehaviorRefOverrides(behaviorRef('almadar-behaviors/vim-mode'), { config: { x: 1 } })).toThrow();
-  });
-
-  it('edge: a malformed bridge is refused', () => {
-    expect(() => applyBehaviorRefOverrides(behaviorRef('almadar-behaviors/vim-mode'), { bridge: { listens: ['ok'] } })).toThrow();
-    expect(() => applyBehaviorRefOverrides(behaviorRef('almadar-behaviors/vim-mode'), { bridge: { listens: [1], emits: [] } })).toThrow();
-  });
-
-  it('isBehaviorRefValue accepts a bridged behavior value, and still nothing else', () => {
-    expect(isBehaviorRefValue({ behavior: './orbitals/shop', bridge })).toBe(true);
-    expect(isBehaviorRefValue({ behavior: './orbitals/shop', bridge: { listens: ['A'] } })).toBe(false);
-    expect(isBehaviorRefValue({ behavior: './orbitals/shop', trait: 'Shop', bridge })).toBe(false);
-  });
-
-  it('BehaviorRefSchema parses a bridged value', () => {
-    expect(BehaviorRefSchema.parse({ behavior: './orbitals/shop', bridge })).toEqual({ behavior: './orbitals/shop', bridge });
+describe('a behavior value is just a specifier', () => {
+  it('control: a bridge or resolved key is refused', () => {
+    const bridge = { listens: ['A'], emits: ['B'] };
+    expect(isBehaviorRefValue({ behavior: './orbitals/shop', bridge })).toBe(false);
+    expect(BehaviorRefSchema.safeParse({ behavior: './orbitals/shop', resolved: '{}' }).success).toBe(false);
   });
 });
