@@ -8,7 +8,7 @@
 
 </div>
 
-<p align="center"><sub>Part of <a href="https://github.com/almadar-io/orb"><b>Orb</b></a>: the language where the rule is the program. <a href="https://orb.almadar.io">orb.almadar.io</a></sub></p>
+<p align="center"><sub>Part of <a href="https://github.com/almadar-io/orb"><b>Orb</b></a>: a programming language of composable state machines. <a href="https://orb.almadar.io">orb.almadar.io</a></sub></p>
 
 This repo is the TypeScript side of the Orbital compiler. Its Rust crate (`orb-shell-typescript`) turns a compiled program into a web project: a React client and an Express server, from the `almadar-shell` template. It also holds the TypeScript packages the generated app and other hosts import, including `@almadar/core`, the language data (types and pattern registry) that every shell reads.
 
