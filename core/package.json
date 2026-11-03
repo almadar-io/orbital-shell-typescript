@@ -1,6 +1,7 @@
 {
   "name": "@almadar/core",
-  "version": "10.129.0",
+  "version": "11.0.0",
+  "orbRelease": { "severity": "normal" },
   "description": "Core schema types and definitions for Almadar",
   "type": "module",
   "sideEffects": false,
@@ -86,7 +87,7 @@
     "fixtures"
   ],
   "orbLanguage": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "patterns": "dist/patterns/patterns-registry.json",
     "componentMapping": "dist/patterns/component-mapping.json",
     "eventContracts": "dist/patterns/event-contracts.json",
@@ -138,10 +139,10 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@almadar/kernel": "^18.0.0",
-    "@almadar/eslint-plugin": "^2.22.0",
-    "@almadar/lolo-ar": "^1.3.0",
-    "@almadar/lolo-sl": "^1.3.0",
+    "@almadar/kernel": "^19.0.0",
+    "@almadar/eslint-plugin": "^3.0.0",
+    "@almadar/lolo-ar": "^2.0.0",
+    "@almadar/lolo-sl": "^2.0.0",
     "@types/node": "^22.0.0",
     "@typescript-eslint/parser": "8.65.0",
     "@typescript/native": "npm:typescript@^7.0.2",
