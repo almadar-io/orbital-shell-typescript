@@ -11,7 +11,7 @@ import * as React from 'react';
 import type { DependencyGraph, OrbitalSchema, TraitDescription, TraitValue, TransitionTrace } from '@almadar/core';
 import { programTraits, type ProgramTrait } from '../../../../lib/avl-schema-parser';
 import { describedTransitionLines, tracePlayback } from '../../../../lib/avl-play';
-import { flowUnitOf, type TraitFlowUnit } from '../../../../lib/avl-trait-flow';
+import { traitFlowGraph, type TraitFlowUnit } from '../../../../lib/avl-trait-flow';
 import { Box } from '../../../../core';
 import { HStack, VStack } from '../../../../core';
 import { RangeSlider } from '../../../../core';
@@ -32,6 +32,8 @@ export interface MachinePanelProps {
   transitions: readonly TransitionTrace[];
   /** Without it the panel draws the machine alone. */
   describe?: DescribeTrait;
+  /** Already described trait sources, keyed by `<behavior>.traits.<trait>` for a serialized program view. */
+  descriptions?: Readonly<Record<string, TraitDescription>>;
   /** The program's behavior, naming the traits it authors itself; an imported trait carries its own. */
   behavior?: string;
   /** How long a replay shows each hop. */
@@ -62,7 +64,7 @@ interface Replay {
 
 const FLOW_ONLY: TraitView = { lens: 'flow', filter: null };
 
-export function MachinePanel({ schema, transitions, describe, behavior, replayStepMs = 800, dependencies }: MachinePanelProps): React.ReactElement {
+export function MachinePanel({ schema, transitions, describe, descriptions, behavior, replayStepMs = 800, dependencies }: MachinePanelProps): React.ReactElement {
   const { t } = useTranslate();
   const entries = React.useMemo(() => programTraits(schema), [schema]);
   // The registry also holds `server:<Orbital>` dispatch verdicts; only the program's traits hop.
@@ -77,19 +79,24 @@ export function MachinePanel({ schema, transitions, describe, behavior, replaySt
   const latest = ran[ran.length - 1]?.traitName;
   const name = pinned ?? latest ?? entries[0]?.level.name;
   const entry = entries.find((e) => e.level.name === name);
+  const selectedUnit = React.useMemo(() => entry
+    ? traitFlowGraph(schema, entry.orbital).units.find((unit) => [...unit.traits, ...unit.renderPieces].includes(entry.level.name))
+    : undefined, [schema, entry]);
   const hops = React.useMemo(() => ran.filter((h) => h.traitName === name), [ran, name]);
   const value = entry ? describedValue(entry, behavior) : null;
   const key = value ? `${value.behavior}.traits.${value.trait}` : null;
-  const source = key ? described.get(key) : undefined;
+  const source: Described | undefined = key && descriptions?.[key]
+    ? { status: 'ready', description: descriptions[key] }
+    : key ? described.get(key) : undefined;
 
   React.useEffect(() => {
-    if (!describe || !value || !key || described.has(key)) return;
+    if (!describe || !value || !key || descriptions?.[key] || described.has(key)) return;
     setDescribed((prev) => new Map(prev).set(key, { status: 'loading' }));
     describe(value).then(
       (description) => setDescribed((prev) => new Map(prev).set(key, { status: 'ready', description })),
       (error: Error) => setDescribed((prev) => new Map(prev).set(key, { status: 'failed', error: error.message })),
     );
-  }, [describe, value, key, described]);
+  }, [describe, descriptions, value, key, described]);
 
   React.useEffect(() => {
     if (!replay?.playing) return;
@@ -101,7 +108,7 @@ export function MachinePanel({ schema, transitions, describe, behavior, replaySt
 
   // A unit's trait to show: the one of its traits that ran last, else its first.
   const pickUnit = (unit: TraitFlowUnit): void => {
-    if (pinned !== null && entry && flowUnitOf(entry.trait) === unit.id) {
+    if (pinned !== null && selectedUnit?.id === unit.id) {
       setPinned(null);
       setReplay(null);
       return;
@@ -145,7 +152,7 @@ export function MachinePanel({ schema, transitions, describe, behavior, replaySt
     />
   );
 
-  const code = !describe || !value ? null
+  const code = (!describe && !descriptions) || !value ? null
     : source?.status === 'ready' && source.description.source ? (
       <CodeBlock
         code={source.description.source.text}
@@ -194,7 +201,7 @@ export function MachinePanel({ schema, transitions, describe, behavior, replaySt
             toolbar={false}
             fitOnResize
             systemDependencies={dependencies}
-            flowSelection={pinned !== null || latest !== undefined ? flowUnitOf(entry.trait) : null}
+            flowSelection={pinned !== null || latest !== undefined ? selectedUnit?.id ?? null : null}
             onFlowSelect={pickUnit}
             width="100%"
             height="100%"

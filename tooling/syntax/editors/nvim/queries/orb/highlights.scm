@@ -166,7 +166,7 @@
     "hash/md5-credential"
     "hash/pbkdf2"
     "hash/scrypt"
-    "hash/sha256"
+    "hash/sha"
     "hmac/sha256"
     "hmac/sha256-bytes"
     "i18n/t"
@@ -420,6 +420,9 @@
     "str/truncate"
     "str/upper"
     "str/uri-component-valid"
+    "tar/entries"
+    "theme/clear"
+    "theme/set"
     "time/add"
     "time/day"
     "time/diff"
@@ -567,7 +570,9 @@
     "render-ui"
     "send-server"
     "set"
-    "spawn"))
+    "spawn"
+    "theme/clear"
+    "theme/set"))
 
 ; UI slots: main, sidebar, modal, hud-top, …
 ((string_content) @tag
@@ -1190,6 +1195,7 @@
     "std-orb-produced-program"
     "std-orb-prove"
     "std-orb-reference"
+    "std-orb-release"
     "std-orb-resolve"
     "std-orb-runners"
     "std-orb-sandbox"

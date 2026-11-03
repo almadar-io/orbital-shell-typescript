@@ -78,6 +78,12 @@ export {
   type KernelEvaluator,
   type KernelEvaluatorExports,
   type LanguagePackWire,
+  type AvlProjectionMachineWire,
+  type AvlSceneStepWire,
+  type AvlTransitionPlaybackProjection,
+  type AvlMachinePlaybackProjection,
+  type AvlTraitLevelWire,
+  type AvlTraitFlowWire,
 } from './src/kernel-evaluator';
 export {
   accessDeniedMessage,

@@ -31,6 +31,18 @@ export function stubKernelModule(Server: KernelServerClass, overrides: Partial<O
     resolveRowBinding: unexpected('resolveRowBinding'),
     eventWires: unexpected('eventWires'),
     validatePacks: unexpected('validatePacks'),
+    expandFxLayer: unexpected('expandFxLayer'),
+    resolveFxView: unexpected('resolveFxView'),
+    fxLifecycle: unexpected('fxLifecycle'),
+    fxHash01: unexpected('fxHash01'),
+    avlTransitionPlayback: unexpected('avlTransitionPlayback'),
+    avlTracePlayback: unexpected('avlTracePlayback'),
+    avlStateMachinePlayback: unexpected('avlStateMachinePlayback'),
+    avlArmIndexes: unexpected('avlArmIndexes'),
+    avlFiredTransitionIndex: unexpected('avlFiredTransitionIndex'),
+    avlTracedTransitionIndex: unexpected('avlTracedTransitionIndex'),
+    avlTraitLevelFromDescription: unexpected('avlTraitLevelFromDescription'),
+    avlTraitFlowGraph: unexpected('avlTraitFlowGraph'),
     ...overrides,
   };
 }

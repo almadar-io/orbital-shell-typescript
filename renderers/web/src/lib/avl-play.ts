@@ -5,6 +5,7 @@
  */
 
 import type { CircuitStepResult, EffectTrace, EventKey, EventPayload, GuardEvaluation, TraitDescription, TransitionTrace } from '@almadar/core';
+import { kernelEvaluator, type AvlProjectionMachineWire } from '@almadar/core';
 import { traitLevelFromDescription, type TraitLevelData, type TraitTransitionInfo } from './avl-schema-parser';
 
 /** One played step of a scene, as the host recorded it. */
@@ -34,28 +35,40 @@ export type AvlStepRequest = {
 
 /** The trait's `from --event-->` arms in declaration order — the order `firedArm` / `GuardEvaluation.arm` index. */
 export function armsOf(trait: TraitLevelData, from: string, event: string): TraitTransitionInfo[] {
-  return trait.transitions.filter((t) => t.from === from && t.event === event);
+  return kernelEvaluator().avlArmIndexes(machineOf(trait), from, event).map((index) => trait.transitions[index]);
 }
 
 /** Position of `transition` among its own `from --event-->` arms. */
 export function armPosition(trait: TraitLevelData, transition: TraitTransitionInfo): number {
-  return armsOf(trait, transition.from, transition.event).findIndex((t) => t.index === transition.index);
+  const sources = Array.isArray(transition.from) ? transition.from : [transition.from];
+  const positions = sources.map((from) => kernelEvaluator().avlArmIndexes(machineOf(trait), from, transition.event)
+    .findIndex((index) => trait.transitions[index]?.index === transition.index));
+  return positions.length > 0 && positions.every((position) => position === positions[0]) ? positions[0] : -1;
 }
 
 /** The trait transition a step fired, or undefined when no arm fired. */
 export function firedTransition(trait: TraitLevelData, step: AvlPlayStep): TraitTransitionInfo | undefined {
-  if (step.result.firedArm === undefined || !step.result.transitionFired) return undefined;
-  return armsOf(trait, step.from, step.result.event)[step.result.firedArm];
+  const index = kernelEvaluator().avlFiredTransitionIndex(machineOf(trait), step);
+  return index === null ? undefined : trait.transitions[index];
 }
-
-const ofTrait = (steps: readonly AvlPlayStep[], orbital: string, trait: string): AvlPlayStep[] =>
-  steps.filter((s) => s.orbital === orbital && s.trait === trait);
 
 export interface AvlStateMachinePlayback {
   activeState?: string;
   activeTransition?: number;
   visitedStates: string[];
 }
+
+const machineOf = (trait: TraitLevelData): AvlProjectionMachineWire => ({
+  states: [],
+  transitions: trait.transitions.map(({ from, to, event }) => ({ from, to, event })),
+});
+
+const levelPlayback = (trait: TraitLevelData, projected: AvlStateMachinePlayback): AvlStateMachinePlayback => ({
+  ...projected,
+  ...(projected.activeTransition !== undefined
+    ? { activeTransition: trait.transitions[projected.activeTransition]?.index }
+    : {}),
+});
 
 /** State-machine highlights after steps `0..cursor` of the scene, for one trait. */
 export function stateMachinePlayback(
@@ -64,43 +77,18 @@ export function stateMachinePlayback(
   steps: readonly AvlPlayStep[],
   cursor: number,
 ): AvlStateMachinePlayback {
-  const played = ofTrait(steps.slice(0, cursor + 1), orbital, trait.name);
-  const visitedStates: string[] = [];
-  for (const step of played) {
-    for (const state of [step.result.state.before, step.result.state.after]) {
-      if (state !== null && visitedStates[visitedStates.length - 1] !== state) visitedStates.push(state);
-    }
-  }
-  const last = played[played.length - 1];
-  if (!last) return { visitedStates };
-  return {
-    activeState: last.result.state.after ?? last.result.state.before ?? undefined,
-    activeTransition: firedTransition(trait, last)?.index,
-    visitedStates,
-  };
+  return levelPlayback(trait, kernelEvaluator().avlStateMachinePlayback(machineOf(trait), orbital, trait.name, steps, cursor));
 }
 
 /** The transition a recorded hop took: the arm the kernel reported, or the only `from --event-->` arm entering the hop's target. */
 export function tracedTransition(trait: TraitLevelData, trace: TransitionTrace): TraitTransitionInfo | undefined {
-  const arms = armsOf(trait, trace.from, trace.event);
-  const arm = trace.firedArm;
-  if (arm !== undefined) return arms[arm];
-  const entering = arms.filter((t) => t.to === trace.to);
-  return entering.length === 1 ? entering[0] : undefined;
+  const index = kernelEvaluator().avlTracedTransitionIndex(machineOf(trait), trace);
+  return index === null ? undefined : trait.transitions[index];
 }
 
 /** State-machine highlights after every recorded hop of one trait (the runtime debugger's live view). */
 export function tracePlayback(trait: TraitLevelData, traces: readonly TransitionTrace[]): AvlStateMachinePlayback {
-  const hops = traces.filter((t) => t.traitName === trait.name);
-  const visitedStates: string[] = [];
-  for (const hop of hops) {
-    for (const state of [hop.from, hop.to]) {
-      if (visitedStates[visitedStates.length - 1] !== state) visitedStates.push(state);
-    }
-  }
-  const last = hops[hops.length - 1];
-  if (!last) return { visitedStates };
-  return { activeState: last.to, activeTransition: tracedTransition(trait, last)?.index, visitedStates };
+  return levelPlayback(trait, kernelEvaluator().avlTracePlayback(machineOf(trait), trait.name, traces));
 }
 
 /** The 1-based lines `orb` printed for `running`'s `transition`: the described arm at the same position among its `from --event-->` arms. */
@@ -111,7 +99,12 @@ export function describedTransitionLines(
 ): { start: number; end: number } | undefined {
   const printed = traitLevelFromDescription(description);
   if (!printed || !description.source) return undefined;
-  const match = armsOf(printed, transition.from, transition.event)[armPosition(running, transition)];
+  const position = armPosition(running, transition);
+  if (position < 0) return undefined;
+  const sources = Array.isArray(transition.from) ? transition.from : [transition.from];
+  const matches = sources.map((from) => armsOf(printed, from, transition.event)[position]);
+  const match = matches[0];
+  if (!match || !matches.every((candidate) => candidate?.index === match.index)) return undefined;
   const lines = match ? description.source.transitions.find((l) => l.index === match.index) : undefined;
   return lines ? { start: lines.start, end: lines.end } : undefined;
 }
@@ -133,14 +126,11 @@ export function transitionPlayback(
   steps: readonly AvlPlayStep[],
   cursor: number,
 ): AvlTransitionPlayback | undefined {
-  const arm = armPosition(trait, transition);
-  const played = ofTrait(steps.slice(0, cursor + 1), orbital, trait.name);
-  for (let i = played.length - 1; i >= 0; i--) {
-    const step = played[i];
-    if (step.from !== transition.from || step.result.event !== transition.event) continue;
-    const fired = step.result.transitionFired && step.result.firedArm === arm;
-    const guard = step.result.guards?.find((g) => g.arm === arm);
-    if (fired || guard) return { step, fired, ...(guard ? { guard } : {}), effects: fired ? step.result.effects : [] };
-  }
-  return undefined;
+  const transitionIndex = trait.transitions.findIndex((candidate) => candidate.index === transition.index);
+  if (transitionIndex < 0) return undefined;
+  const projection = kernelEvaluator().avlTransitionPlayback(machineOf(trait), transitionIndex, orbital, trait.name, steps, cursor);
+  if (!projection) return undefined;
+  const step = steps[projection.stepIndex];
+  if (!step) return undefined;
+  return { step, fired: projection.fired, ...(projection.guard ? { guard: projection.guard } : {}), effects: projection.effects };
 }

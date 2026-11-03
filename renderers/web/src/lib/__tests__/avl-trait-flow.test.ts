@@ -61,6 +61,19 @@ describe('traitFlowGraph — an orbital as the units its traits come from', () =
   it('control: without a dependency graph a composed unit sits in the unknown column', () => {
     expect(traitFlowGraph(schema, 'Appointments').units.find((u) => u.id === 'behavior:std-modal')?.column).toBe('unknown');
   });
+
+  it('projects resolved trait wrappers through the existing inline-trait normalization', () => {
+    const wrapped: OrbitalSchema = {
+      name: 'Wrapped',
+      orbitals: [{
+        name: 'Appointments',
+        entity: { name: 'Appointment', fields: [] },
+        pages: [],
+        traits: [{ ref: 'X', _resolved: trait('X', from('std-browse')) }],
+      }],
+    };
+    expect(traitFlowGraph(wrapped, 'Appointments').units[0]).toMatchObject({ id: 'behavior:std-browse', traits: ['X'] });
+  });
 });
 
 describe('flowNeighbors — one hop each way, so a loop does not light everything', () => {

@@ -18,6 +18,7 @@ import type {
   EventContractEntry,
   SyncReport,
 } from "./types.js";
+import patternTileGeometry from "./pattern-tile-geometry-source.json" with { type: "json" };
 
 interface RegistryFile {
   version: string;
@@ -210,6 +211,7 @@ function toPatternEntry(
   return {
     type: patternName,
     category,
+    ...(patternName === "pattern-tile" ? { geometry: patternTileGeometry } : {}),
     sourceFile: component.relativePath,
     tier: component.level,
     ...(component.family ? { family: component.family } : {}),
@@ -233,6 +235,12 @@ function toPatternEntry(
     ...(drawHost ? { drawHost: true } : {}),
     ...(component.client ? { client: component.client } : {}),
   };
+}
+
+export function writePatternTileGeometry(dryRun: boolean): string {
+  const outputPath = path.join(PATTERNS_DIR, "pattern-tile-geometry.json");
+  if (!dryRun) fs.writeFileSync(outputPath, `${JSON.stringify(patternTileGeometry, null, 2)}\n`);
+  return outputPath;
 }
 
 /** True when a prop schema is (or transitively contains) a core-`ScenePos`-typed

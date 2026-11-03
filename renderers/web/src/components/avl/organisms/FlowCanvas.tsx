@@ -168,6 +168,8 @@ export interface FlowCanvasProps {
    * @notification
    */
   onFlowSelect?: (unit: TraitFlowUnit) => void;
+  /** Flow lens: emits UI:{flowSelectEvent} with the selected unit. */
+  flowSelectEvent?: EventEmit<TraitFlowUnit>;
   /** Dependencies lens: emits UI:{openBehaviorEvent} with { name } to open a selected behavior's source. */
   openBehaviorEvent?: EventEmit<{ name: string }>;
   /** Maps a keydown `e.code` — optionally prefixed `Mod+` (⌘/Ctrl), `Shift+`, `Alt+` in that order — to an event, emitted as `UI:{event}`; keystrokes inside inputs/textareas never route. */
@@ -338,6 +340,7 @@ function FlowCanvasInner({
   onTraitViewChange,
   flowSelection,
   onFlowSelect,
+  flowSelectEvent,
   toolbar = true,
   fitOnResize = false,
 }: FlowCanvasProps) {
@@ -896,11 +899,17 @@ function FlowCanvasInner({
       ...(openTraitsEvent ? { openTraitsEvent } : {}),
       selectDependency: (id: string) => {
         const clicked = flowLens ? flow?.units.find((u) => u.id === id) : undefined;
-        if (clicked) onFlowSelect?.(clicked);
+        if (clicked) {
+          onFlowSelect?.(clicked);
+          if (flowSelectEvent) eventBus.emit(`UI:${flowSelectEvent}`, {
+            id: clicked.id, name: clicked.name, column: clicked.column,
+            traits: clicked.traits, renderPieces: clicked.renderPieces,
+          });
+        }
         setDependencySelection((current) => (current === id ? null : id));
       },
     };
-  }, [systemMap, parsedSchema, openTraitsEvent, flowLens, flow, onFlowSelect]);
+  }, [systemMap, parsedSchema, openTraitsEvent, flowLens, flow, onFlowSelect, flowSelectEvent, eventBus]);
   const openTraits = useOpenTraits(systemMapValue);
   useKeyMapEvents(keyMap, undefined);
   const selectedDependency = dependencyGraph?.nodes.find((n) => n.id === dependencySelection)?.data;

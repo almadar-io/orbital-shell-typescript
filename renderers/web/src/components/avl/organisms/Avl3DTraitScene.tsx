@@ -52,27 +52,29 @@ export const Avl3DTraitScene: React.FC<Avl3DTraitSceneProps> = ({
     return posMap;
   }, [data.states]);
 
-  // Track parallel transition indices between same state pairs
-  const transitionIndices = useMemo(() => {
+  // One displayed arc per authored source, retaining the authored transition index.
+  const transitionArcs = useMemo(() => {
     const pairCount = new Map<string, number>();
-    return data.transitions.map((t) => {
-      const key = `${t.from}->${t.to}`;
-      const idx = pairCount.get(key) ?? 0;
-      pairCount.set(key, idx + 1);
-      return idx;
-    });
+    return data.transitions.flatMap((transition, transitionIndex) =>
+      (Array.isArray(transition.from) ? transition.from : [transition.from]).map((from) => {
+        const key = `${from}->${transition.to}`;
+        const parallelIndex = pairCount.get(key) ?? 0;
+        pairCount.set(key, parallelIndex + 1);
+        return { transition, transitionIndex, from, parallelIndex };
+      }),
+    );
   }, [data.transitions]);
 
   // Compute incoming/outgoing transition counts per state (for tooltips)
   const transitionCounts = useMemo(() => {
     const incoming = new Map<string, number>();
     const outgoing = new Map<string, number>();
-    for (const t of data.transitions) {
-      outgoing.set(t.from, (outgoing.get(t.from) ?? 0) + 1);
-      incoming.set(t.to, (incoming.get(t.to) ?? 0) + 1);
+    for (const { transition, from } of transitionArcs) {
+      outgoing.set(from, (outgoing.get(from) ?? 0) + 1);
+      incoming.set(transition.to, (incoming.get(transition.to) ?? 0) + 1);
     }
     return { incoming, outgoing };
-  }, [data.transitions]);
+  }, [transitionArcs]);
 
   return (
     <group>
@@ -103,16 +105,16 @@ export const Avl3DTraitScene: React.FC<Avl3DTraitSceneProps> = ({
       })}
 
       {/* Transition arcs */}
-      {data.transitions.map((transition, i) => {
-        const fromPos = statePositions.get(transition.from);
+      {transitionArcs.map(({ transition, transitionIndex, from, parallelIndex }) => {
+        const fromPos = statePositions.get(from);
         const toPos = statePositions.get(transition.to);
         if (!fromPos || !toPos) return null;
 
-        const isSelf = transition.from === transition.to;
+        const isSelf = from === transition.to;
 
         return (
           <Avl3DTransitionArc
-            key={`${transition.from}-${transition.event}-${transition.to}-${i}`}
+            key={`${from}-${transition.event}-${transition.to}-${transitionIndex}`}
             from={fromPos}
             to={toPos}
             event={transition.event}
@@ -122,11 +124,11 @@ export const Avl3DTraitScene: React.FC<Avl3DTraitSceneProps> = ({
               if (Array.isArray(e)) return String(e[0]);
               return typeof e === 'string' ? e : 'unknown';
             })}
-            index={transitionIndices[i]}
+            index={parallelIndex}
             isSelf={isSelf}
-            fromState={transition.from}
+            fromState={from}
             toState={transition.to}
-            onClick={() => onTransitionClick?.(i)}
+            onClick={() => onTransitionClick?.(transitionIndex)}
           />
         );
       })}

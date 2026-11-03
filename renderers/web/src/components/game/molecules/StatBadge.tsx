@@ -24,6 +24,8 @@ export interface StatBadgeProps extends Omit<React.AriaAttributes, keyof A11yPro
   label: string;
   /** Current value (defaults to 0 if not provided) */
   value?: number | string;
+  /** Formatted numeric value supplied by the program's presentation expression. */
+  displayValue?: string;
   /** Maximum value (for bar/hearts format) */
   max?: number;
   /** Data source entity name (for schema config) */
@@ -62,6 +64,7 @@ export function StatBadge({
   iconUrl,
   label,
   value,
+  displayValue,
   max,
   format = 'number',
   icon,
@@ -116,6 +119,7 @@ export function StatBadge({
       {hasValue && format === 'number' && (
         <ScoreDisplay
           value={numValue}
+          displayValue={displayValue}
           size={size === 'lg' ? 'md' : 'sm'}
           className="font-display"
         />

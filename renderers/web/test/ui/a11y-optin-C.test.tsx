@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { EventBusProvider } from '../../src/core';
 import { ScoreDisplay } from '../../src/components/game/atoms/ScoreDisplay';
 import { TimerDisplay } from '../../src/components/game/atoms/TimerDisplay';
@@ -56,5 +56,25 @@ describe('A11yProps opt-in: game / avl components forward to the root element', 
     const plain = root(<GameAudioToggle />);
     expect(plain.getAttribute('aria-label')).toBeTruthy();
     expect(plain.getAttribute('aria-label')).not.toBe('Mute music');
+  });
+
+  it('GameAudioToggle: authored mute state changes only when the caller updates it', () => {
+    const { getByRole, rerender } = render(
+      <EventBusProvider debug={false}>
+        <GameAudioToggle muted soundOnLabel="Sound on" mutedLabel="Muted" />
+      </EventBusProvider>,
+    );
+    const button = getByRole('button');
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.getAttribute('aria-label')).toBe('Muted');
+    fireEvent.click(button);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    rerender(
+      <EventBusProvider debug={false}>
+        <GameAudioToggle muted={false} soundOnLabel="Sound on" mutedLabel="Muted" />
+      </EventBusProvider>,
+    );
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.getAttribute('aria-label')).toBe('Sound on');
   });
 });

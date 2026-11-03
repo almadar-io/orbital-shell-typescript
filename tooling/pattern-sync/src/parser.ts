@@ -1379,7 +1379,11 @@ function mapTypeNode(
     // object — `Record<K,V>`/`{}` is not assignable to it, and it can't be
     // authored as a `.lolo` knob. Mark non-authorable (omit if optional).
     // (Distinct from `Record<K,V>` below, which IS a plain-object dictionary.)
-    if (typeName === "Map" || typeName === "Set" || typeName === "WeakMap" || typeName === "WeakSet") {
+    if (
+      typeName === "Map" || typeName === "ReadonlyMap" ||
+      typeName === "Set" || typeName === "ReadonlySet" ||
+      typeName === "WeakMap" || typeName === "WeakSet"
+    ) {
       return { types: ["object"], nonAuthorable: true };
     }
     if (typeName === "Record") {

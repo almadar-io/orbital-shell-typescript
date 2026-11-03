@@ -112,7 +112,9 @@
     "render-ui"
     "send-server"
     "set"
-    "spawn"))
+    "spawn"
+    "theme/clear"
+    "theme/set"))
 
 ; Control-flow / logic s-expr operators (if, and, or, not, let, do, fn, ...)
 ; also render as keywords.

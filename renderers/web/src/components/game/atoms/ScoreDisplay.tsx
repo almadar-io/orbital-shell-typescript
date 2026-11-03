@@ -25,6 +25,8 @@ export interface ScoreDisplayProps extends Omit<React.AriaAttributes, keyof A11y
   className?: string;
   /** Number formatting locale */
   locale?: string;
+  /** Formatted value supplied by the program's presentation expression. */
+  displayValue?: string;
 }
 
 const sizeMap = {
@@ -43,6 +45,7 @@ export function ScoreDisplay({
   size = 'md',
   className,
   locale: localeProp,
+  displayValue,
   ...rest
 }: ScoreDisplayProps) {
   const { locale: appLocale } = useTranslate();
@@ -54,7 +57,7 @@ export function ScoreDisplay({
       ? score
       : 0;
 
-  const formattedValue = new Intl.NumberFormat(locale).format(resolvedValue);
+  const formattedValue = displayValue ?? new Intl.NumberFormat(locale).format(resolvedValue);
 
   return (
     <Box

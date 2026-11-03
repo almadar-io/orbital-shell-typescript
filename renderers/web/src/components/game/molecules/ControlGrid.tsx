@@ -23,7 +23,7 @@ export interface ControlGridButton {
   variant?: 'primary' | 'secondary' | 'ghost' | string;
 }
 
-export type DPadDirection = 'up' | 'down' | 'left' | 'right';
+export type DPadDirection = 'up' | 'down' | 'left' | 'right' | 'up-left' | 'up-right' | 'down-left' | 'down-right';
 
 export interface ControlGridProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
   kind: ControlGridKind;
@@ -74,6 +74,10 @@ const arrowIcons: Record<DPadDirection, string> = {
   down: '▼',
   left: '◀',
   right: '▶',
+  'up-left': '◤',
+  'up-right': '◥',
+  'down-left': '◣',
+  'down-right': '◢',
 };
 
 const DEFAULT_BUTTON_KEYS: ReadonlyArray<Omit<ControlGridButton, 'label'> & { labelKey: string }> = [
@@ -173,16 +177,18 @@ export function ControlGrid({
     // dead up/down cells. Legacy generic handlers (no map) keep the full cross.
     const usesSemantic = !!directionEvents;
     const cell = (d: DPadDirection) =>
-      !usesSemantic || directionEvents?.[d] ? dir(d) : <Box key={d} />;
+      (!d.includes('-') || includeDiagonals) && (!usesSemantic || directionEvents?.[d])
+        ? dir(d)
+        : <Box key={d} />;
     return (
       <Box {...domPassthrough(rest)} className={cn('inline-grid grid-cols-3', ds.gap, ds.container, className)}>
-        <Box />{cell('up')}<Box />
+        {cell('up-left')}{cell('up')}{cell('up-right')}
         {cell('left')}
         <Box className="flex items-center justify-center">
           <Box className="w-6 h-6 rounded-interactive bg-muted border-heavy border-muted-foreground" />
         </Box>
         {cell('right')}
-        <Box />{cell('down')}<Box />
+        {cell('down-left')}{cell('down')}{cell('down-right')}
       </Box>
     );
   }

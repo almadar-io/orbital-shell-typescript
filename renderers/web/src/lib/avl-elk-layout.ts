@@ -10,6 +10,8 @@ import type { ELK, ElkNode, ElkExtendedEdge, ElkEdgeSection, ElkLabel } from 'el
 import type { TraitLevelData } from './avl-schema-parser';
 import { getStateRole, type StateRole } from './avl-theme';
 
+const sourcesOf = (from: string | string[]): string[] => Array.isArray(from) ? from : [from];
+
 // ---------------------------------------------------------------------------
 // Layout types
 // ---------------------------------------------------------------------------
@@ -97,7 +99,7 @@ function flowOrder(data: TraitLevelData): TraitLevelData['states'] {
     if (!state) continue;
     seen.add(name);
     out.push(state);
-    for (const t of data.transitions) if (t.from === name && !seen.has(t.to)) queue.push(t.to);
+    for (const t of data.transitions) if (sourcesOf(t.from).includes(name) && !seen.has(t.to)) queue.push(t.to);
   }
   for (const s of data.states) if (!seen.has(s.name)) out.push(s);
   return out;
@@ -107,14 +109,24 @@ export async function computeTraitLayout(data: TraitLevelData, metrics?: TraitLa
   const transitionCounts: Record<string, number> = {};
   for (const s of data.states) transitionCounts[s.name] = 0;
   for (const t of data.transitions) {
-    transitionCounts[t.from] = (transitionCounts[t.from] ?? 0) + 1;
-    transitionCounts[t.to] = (transitionCounts[t.to] ?? 0) + 1;
+    for (const from of sourcesOf(t.from)) {
+      transitionCounts[from] = (transitionCounts[from] ?? 0) + 1;
+      transitionCounts[t.to] = (transitionCounts[t.to] ?? 0) + 1;
+    }
   }
   const maxTC = Math.max(...Object.values(transitionCounts), 0);
 
   const LABEL_BASE_W = 100;
   const LABEL_H = 44;
   const states = metrics ? flowOrder(data) : data.states;
+  const edgeSpecs = data.transitions.flatMap((transition, transitionPosition) =>
+    sourcesOf(transition.from).map((from, sourcePosition) => ({
+      id: sourcePosition === 0 ? `e${transitionPosition}` : `e${transitionPosition}-${sourcePosition}`,
+      from,
+      transition,
+    })),
+  );
+  const edgeSpecById = new Map(edgeSpecs.map((spec) => [spec.id, spec]));
 
   const elkGraph = {
     id: 'root',
@@ -144,13 +156,13 @@ export async function computeTraitLayout(data: TraitLevelData, metrics?: TraitLa
         ...(metrics && s.isInitial ? { layoutOptions: { 'elk.layered.layering.layerConstraint': 'FIRST' } } : {}),
       };
     }),
-    edges: data.transitions.map((t, i) => {
+    edges: edgeSpecs.map(({ id, from, transition: t }) => {
       const textW = Math.max(t.event.length * 8, 60);
       const iconsW = Math.min(t.effects.length, 6) * 28 + 20;
       const label = metrics ? metrics.labelSize(t) : { width: Math.max(textW, iconsW, LABEL_BASE_W), height: LABEL_H };
       return {
-        id: `e${i}`,
-        sources: [t.from],
+        id,
+        sources: [from],
         targets: [t.to],
         labels: [{
           text: t.event,
@@ -188,8 +200,8 @@ export async function computeTraitLayout(data: TraitLevelData, metrics?: TraitLa
     };
   });
 
-  const edges: LayoutEdge[] = layoutEdges.map((e: ElkExtendedEdge, i: number) => {
-    const t = data.transitions[i];
+  const edges: LayoutEdge[] = layoutEdges.map((e: ElkExtendedEdge) => {
+    const { from, transition: t } = edgeSpecById.get(e.id)!;
     const labels: ElkLabel[] = e.labels ?? [];
     const label: ElkLabel | undefined = labels[0];
     const sections: ElkEdgeSection[] = e.sections ?? [];
@@ -202,16 +214,16 @@ export async function computeTraitLayout(data: TraitLevelData, metrics?: TraitLa
       points.push({ x: section.endPoint.x, y: section.endPoint.y });
     }
 
-    const isSelf = t.from === t.to;
+    const isSelf = from === t.to;
     const toX = nodeXMap[t.to] ?? 0;
-    const fromX = nodeXMap[t.from] ?? 0;
+    const fromX = nodeXMap[from] ?? 0;
     const isBackward = !isSelf && (metrics?.direction === 'rtl' ? toX >= fromX : toX <= fromX);
     const lw = label?.width ?? LABEL_BASE_W;
     const lh = label?.height ?? LABEL_H;
 
     return {
       id: e.id,
-      from: t.from,
+      from,
       to: t.to,
       event: t.event,
       effects: t.effects,

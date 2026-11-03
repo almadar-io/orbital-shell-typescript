@@ -67,8 +67,6 @@ export function GameMenu({
   className,
   ...rest
 }: GameMenuProps) {
-  // Resolve alias: menuItems → options. Empty arrays count as unset (the
-  // ui-game-menu atom always forwards both config fields, defaulting to []).
   const { t } = useTranslate();
   const title = titleProp ?? t('gameMenu.defaultTitle');
   const defaultOptions: MenuOption[] = DEFAULT_MENU_OPTION_KEYS.map((o) => ({
@@ -76,7 +74,7 @@ export function GameMenu({
     event: o.event,
     variant: o.variant,
   }));
-  const resolvedOptions = (options?.length ? options : undefined) ?? (menuItems?.length ? menuItems : undefined) ?? defaultOptions;
+  const resolvedOptions = options ?? menuItems ?? defaultOptions;
 
   const eventBus = useEventBus();
   const navStack = useNavStack();

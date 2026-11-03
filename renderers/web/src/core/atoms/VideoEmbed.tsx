@@ -22,6 +22,18 @@ export interface VideoEmbedProps extends A11yProps {
   src?: string;
   /** Accessible name of the player */
   title?: string;
+  /** Text shown when no video is selected */
+  noVideoLabel?: string;
+  /** Text for a YouTube API loading failure */
+  apiUnavailableMessage?: string;
+  /** Text for YouTube error code 2 */
+  invalidVideoMessage?: string;
+  /** Text for YouTube error code 5 or an unknown code */
+  playbackFailedMessage?: string;
+  /** Text for YouTube error code 100 */
+  notFoundMessage?: string;
+  /** Text for YouTube error codes 101 and 150 */
+  notEmbeddableMessage?: string;
   /** Start playback as soon as the player is ready (YouTube ids only) */
   autoplay?: boolean;
   /** Show the player's own controls (YouTube ids only) */
@@ -99,6 +111,12 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
   videoId,
   src,
   title,
+  noVideoLabel,
+  apiUnavailableMessage,
+  invalidVideoMessage,
+  playbackFailedMessage,
+  notFoundMessage,
+  notEmbeddableMessage,
   autoplay = false,
   controls = true,
   start = 0,
@@ -111,8 +129,15 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
   const eventBus = useEventBus();
   const { t } = useTranslate();
   const hostRef = React.useRef<HTMLDivElement>(null);
-  const announce = React.useRef({ readyEvent, playEvent, errorEvent, eventBus, t });
-  announce.current = { readyEvent, playEvent, errorEvent, eventBus, t };
+  const errorMessages: Readonly<Record<string, string | undefined>> = {
+    "videoEmbed.apiUnavailable": apiUnavailableMessage,
+    "videoEmbed.invalidVideo": invalidVideoMessage,
+    "videoEmbed.playbackFailed": playbackFailedMessage,
+    "videoEmbed.notFound": notFoundMessage,
+    "videoEmbed.notEmbeddable": notEmbeddableMessage,
+  };
+  const announce = React.useRef({ readyEvent, playEvent, errorEvent, eventBus, t, errorMessages });
+  announce.current = { readyEvent, playEvent, errorEvent, eventBus, t, errorMessages };
 
   const fireReady = React.useCallback((source: string) => {
     const { readyEvent: ready, eventBus: bus } = announce.current;
@@ -125,8 +150,8 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
   }, []);
 
   const fireError = React.useCallback((key: string, code: string) => {
-    const { errorEvent: failed, eventBus: bus, t: translate } = announce.current;
-    if (failed) bus.emit(`UI:${failed}`, { error: translate(key), code });
+    const { errorEvent: failed, eventBus: bus, t: translate, errorMessages: messages } = announce.current;
+    if (failed) bus.emit(`UI:${failed}`, { error: messages[key] || translate(key), code });
   }, []);
 
   React.useEffect(() => {
@@ -171,7 +196,7 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
         ref={hostRef}
         className={frame}
         role="region"
-        aria-label={title ?? t("aria.videoEmbed")}
+        aria-label={title || t("aria.videoEmbed")}
         data-pattern="video-embed"
       />
     );
@@ -182,14 +207,14 @@ export const VideoEmbed: React.FC<VideoEmbedProps> = ({
       {src ? (
         <iframe
           src={src}
-          title={title ?? t("aria.videoEmbed")}
+          title={title || t("aria.videoEmbed")}
           className="border-0"
           allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
           allowFullScreen
           onLoad={() => fireReady(src)}
         />
       ) : (
-        <span>{t("videoEmbed.noVideo")}</span>
+        <span>{noVideoLabel || t("videoEmbed.noVideo")}</span>
       )}
     </div>
   );

@@ -28,6 +28,7 @@ import type {
   SExpr,
   SExprObject, EntityPersistence, TraitDescription } from '@almadar/core';
 import { renderUiEntriesOf } from '@almadar/core/patterns';
+import { kernelEvaluator } from '@almadar/core';
 import { traitEventWires } from './avl-event-wires';
 
 // Internal serialized effect record — all fields are JsonValue-compatible.
@@ -110,7 +111,7 @@ export interface TraitStateInfo extends JsonObject {
 }
 
 export interface TraitTransitionInfo extends JsonObject {
-  from: string;
+  from: string | string[];
   to: string;
   event: string;
   /** `.orb` config data omits the key instead of carrying null. */
@@ -140,7 +141,7 @@ export interface SlotTarget {
 }
 
 export interface TransitionLevelData {
-  from: string;
+  from: string | string[];
   to: string;
   event: string;
   guard: ExprTreeNode | null;
@@ -433,15 +434,16 @@ export function traitLevelFromTrait(trait: Trait, linkedEntity: string): TraitLe
 
 /** A described trait (`behavior/describe`) as AVL trait data; null when the description carries no machine. */
 export function traitLevelFromDescription(description: TraitDescription): TraitLevelData | null {
-  const machine = description.machine;
-  if (!machine) return null;
-  return traitLevelOf(
-    description.value.trait,
-    machine.linkedEntity ?? '',
-    machine.stateMachine,
-    description.events.emits,
-    description.events.listens,
-  );
+  const level = kernelEvaluator().avlTraitLevelFromDescription(description);
+  if (!level) return null;
+  return {
+    ...level,
+    states: level.states.map((state) => ({ ...state })),
+    transitions: level.transitions.map((transition) => ({
+      ...transition,
+      effects: transition.effects.map((effect) => ({ ...effect })),
+    })),
+  };
 }
 
 function traitLevelOf(

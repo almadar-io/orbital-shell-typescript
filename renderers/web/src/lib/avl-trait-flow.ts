@@ -5,11 +5,10 @@
  * wires between units, rolled up from the trait wires the runtime delivers.
  */
 
-import type { OrbitalSchema, Trait, TraitRef } from '@almadar/core';
+import type { OrbitalSchema } from '@almadar/core';
+import { inlineTraitRefs, kernelEvaluator } from '@almadar/core';
 import type { Edge, Node } from '@xyflow/react';
 import type { PreviewNodeData } from './avl-preview-converter';
-import { isInlineTrait } from '@almadar/core';
-import { traitEventWires } from './avl-event-wires';
 import type { DependencyLayer } from './avl-dependency-graph';
 import { layeredGraph } from './avl-layered-graph';
 
@@ -31,52 +30,12 @@ export interface TraitFlowEdge {
   events: string[];
 }
 
-/** The trailing name of a `uses` path (`std/behaviors/std-browse` → `std-browse`), as the compiler resolves imports. */
-const behaviorName = (from: string): string => from.slice(from.lastIndexOf('/') + 1);
-
-/** The flow unit a trait belongs to: its own unit, or the behavior it was composed from. */
-export const flowUnitOf = (t: Pick<Trait, 'name' | 'sourceBehavior'>): string =>
-  (t.sourceBehavior ? `behavior:${behaviorName(t.sourceBehavior.behavior)}` : `trait:${t.name}`);
-
-function traitsOf(schema: OrbitalSchema, orbital: string): Trait[] {
-  const found = schema.orbitals?.find((o) => o.name === orbital);
-  return (found?.traits ?? []).flatMap((ref: TraitRef) => (isInlineTrait(ref) ? [ref] : typeof ref === 'object' && ref._resolved ? [ref._resolved] : []));
-}
-
 export function traitFlowGraph(
   schema: OrbitalSchema,
   orbital: string,
   layers: Readonly<Record<string, DependencyLayer>> = {},
 ): { units: TraitFlowUnit[]; edges: TraitFlowEdge[] } {
-  const traits = traitsOf(schema, orbital);
-  const embedded = new Set(traits.flatMap((t) => Object.values(t.traitEmbedIds ?? {})));
-
-  const own: TraitFlowUnit[] = [];
-  const groups = new Map<string, TraitFlowUnit>();
-  for (const t of traits) {
-    const isPiece = t.id !== undefined && embedded.has(t.id);
-    if (!t.sourceBehavior) {
-      own.push({ id: flowUnitOf(t), name: t.name, column: 'own', traits: isPiece ? [] : [t.name], renderPieces: isPiece ? [t.name] : [] });
-      continue;
-    }
-    const name = behaviorName(t.sourceBehavior.behavior);
-    const unit = groups.get(name) ?? { id: flowUnitOf(t), name, column: layers[name] ?? 'unknown', traits: [], renderPieces: [] };
-    (isPiece ? unit.renderPieces : unit.traits).push(t.name);
-    groups.set(name, unit);
-  }
-
-  const unitByTrait = new Map(traits.map((t) => [t.name, flowUnitOf(t)]));
-  const rolled = new Map<string, TraitFlowEdge>();
-  for (const w of traitEventWires({ name: schema.name, orbitals: schema.orbitals?.filter((o) => o.name === orbital) ?? [] })) {
-    const source = unitByTrait.get(w.emitterTrait);
-    const target = unitByTrait.get(w.listenerTrait);
-    if (!source || !target || source === target) continue;
-    const key = `${source}␟${target}`;
-    const edge = rolled.get(key) ?? { source, target, events: [] };
-    if (!edge.events.includes(w.event)) edge.events.push(w.event);
-    rolled.set(key, edge);
-  }
-  return { units: [...own, ...groups.values()], edges: [...rolled.values()] };
+  return kernelEvaluator().avlTraitFlowGraph({ ...schema, orbitals: inlineTraitRefs(schema.orbitals ?? []) }, orbital, layers);
 }
 
 /** One hop each way: the units that trigger `selected`, and the units it triggers. */

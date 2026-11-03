@@ -17,7 +17,7 @@
  * or no clock is running. Sub-particle scatter is seeded from the item `id` —
  * deterministic, no `Math.random` at paint time.
  */
-import type { ScenePos } from '@almadar/core';
+import { kernelEvaluator, type ScenePos } from '@almadar/core';
 
 /** Which render substrate an fx entry belongs to. */
 export type FxSpace = 'world' | 'screen';
@@ -165,25 +165,7 @@ export interface FxView extends FxItem {
 
 /** Merge the matching preset row UNDER the item's own fields (item wins). Unknown `type` → the item as-is. */
 export function resolveFxView(item: FxItem, presets?: FxPreset[]): FxView {
-    const row = presets?.find((p) => p.type === item.type);
-    if (!row) return item;
-    return {
-        ...item,
-        space: item.space ?? row.space,
-        effect: item.effect ?? row.effect,
-        color: item.color ?? row.color,
-        size: item.size ?? row.size,
-        vx: item.vx ?? row.vx,
-        vy: item.vy ?? row.vy,
-        vz: item.vz ?? row.vz,
-        particleCount: item.particleCount ?? row.particleCount,
-        animation: item.animation ?? row.animation,
-        shape: row.shape,
-        count: row.count,
-        glow: row.glow,
-        gravity: row.gravity,
-        color2: row.color2,
-    };
+    return JSON.parse(kernelEvaluator().resolveFxView(JSON.stringify(item), presets === undefined ? undefined : JSON.stringify(presets))) as FxView;
 }
 
 /** The derived lifetime view of one fx entry at one instant. */
@@ -208,27 +190,12 @@ export function fxLifecycle(
     epochNowMs: number,
     tickMs: number,
 ): FxLifecycle {
-    const maxTtl = Math.max(item.maxTtl ?? item.ttl, item.ttl, 1);
-    const lifeMs = maxTtl * tickMs;
-    const ageMs =
-        item.bornAt !== undefined && epochNowMs > 0
-            ? Math.max(0, epochNowMs - item.bornAt)
-            : (1 - item.ttl / maxTtl) * lifeMs;
-    const progress = Math.min(1, Math.max(0, ageMs / lifeMs));
-    return { lifeMs, ageMs, progress, fade: 1 - progress };
+    return JSON.parse(kernelEvaluator().fxLifecycle(JSON.stringify(item), epochNowMs, tickMs)) as FxLifecycle;
 }
 
 /** Deterministic 0..1 hash of `seed` + `salt` — the scatter randomness (FNV-1a + avalanche; no `Math.random`). */
 export function fxHash01(seed: string, salt: number): number {
-    let h = 2166136261 ^ salt;
-    for (let i = 0; i < seed.length; i++) {
-        h ^= seed.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-    }
-    h ^= h >>> 13;
-    h = Math.imul(h, 1274126177);
-    h ^= h >>> 16;
-    return (h >>> 0) / 4294967296;
+    return kernelEvaluator().fxHash01(seed, salt);
 }
 
 // ============================================================================

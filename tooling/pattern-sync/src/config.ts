@@ -6,16 +6,24 @@
  */
 
 import * as path from "path";
+import * as fs from "node:fs";
+import { fileURLToPath } from "node:url";
 
 /**
- * Root of the kflow.ai repository. Resolved from `ALMADAR_ROOT` if set, else
- * the current working directory — matching `src/shared/paths.ts`. (The old
- * `__dirname`-relative resolution broke the `patterns` command when run from a
- * source/`tools/` checkout: `dist/../..` lands on `tools/`, not the repo root.)
+ * Pattern-sync writes generated files, so its target must be the checkout
+ * containing this source. A stale ALMADAR_ROOT from another worktree is an error.
  */
-export const REPO_ROOT = process.env.ALMADAR_ROOT
-  ? path.resolve(process.env.ALMADAR_ROOT)
-  : process.cwd();
+const SOURCE_ROOT = fs.realpathSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../.."));
+
+export function resolveRepoRoot(requestedRoot?: string): string {
+  const root = fs.realpathSync(path.resolve(requestedRoot ?? SOURCE_ROOT));
+  if (root !== SOURCE_ROOT) {
+    throw new Error(`pattern-sync refused output root ${root}; source checkout is ${SOURCE_ROOT}`);
+  }
+  return root;
+}
+
+export const REPO_ROOT = resolveRepoRoot(process.env.ALMADAR_ROOT);
 
 /** Design system root: the shell-web renderer pack's `src/` (formerly packages/almadar-ui, archived) */
 export const DESIGN_SYSTEM_DIR = path.join(

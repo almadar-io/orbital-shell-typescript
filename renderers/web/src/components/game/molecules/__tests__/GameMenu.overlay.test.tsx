@@ -39,4 +39,9 @@ describe('GameMenu sizing', () => {
     render(<GameShell overlay={<GameMenu title="GAME OVER" options={OPTIONS} background="rgb(1, 2, 3)" />}><span>arena</span></GameShell>);
     expect(menuRoot().style.background).toBe('rgb(1, 2, 3)');
   });
+
+  it('an authored empty option list stays empty', () => {
+    render(<GameMenu title="PRIVATE" options={[]} />);
+    expect(screen.queryByRole('button')).toBeNull();
+  });
 });

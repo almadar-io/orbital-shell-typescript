@@ -94,7 +94,7 @@ const TransitionDetailBody: React.FC<ResolvedDetailProps> = ({ orbital, trait, t
 
   const guard = transition.guard ?? null;
   const guardRun = playback?.guard;
-  const request: AvlStepRequest = { orbital, trait, from: transition.from, event: transition.event, payload };
+  const sources = Array.isArray(transition.from) ? transition.from : [transition.from];
 
   const effectItems = useMemo<AccordionItem[]>(
     () =>
@@ -121,7 +121,7 @@ const TransitionDetailBody: React.FC<ResolvedDetailProps> = ({ orbital, trait, t
         <VStack gap="lg">
           <HStack gap="md" justify="between" align="center" wrap>
             <HStack gap="sm" align="center">
-              <Badge variant="neutral" size="lg">{transition.from}</Badge>
+              {sources.map((from) => <Badge key={from} variant="neutral" size="lg">{from}</Badge>)}
               {annotations?.transitions?.[transition.event] ? (
                 <AvlExplain lines={[transition.event]} note={annotations.transitions[transition.event]}>
                   <Box as="span" tabIndex={0} data-testid="avl-td-event" className="underline decoration-dotted underline-offset-4 cursor-help">
@@ -155,9 +155,12 @@ const TransitionDetailBody: React.FC<ResolvedDetailProps> = ({ orbital, trait, t
                     setPayload(json.success && isJsonObject(json.data) ? json.data : {});
                   }} />
                 </Box>
-                <Button variant="primary" size="sm" action={stepEvent} actionPayload={request} leftIcon="skip-forward">
-                  {t('avl.play.step')}
-                </Button>
+                {sources.map((from) => {
+                  const request: AvlStepRequest = { orbital, trait, from, event: transition.event, payload };
+                  return <Button key={from} variant="primary" size="sm" action={stepEvent} actionPayload={request} leftIcon="skip-forward">
+                    {t('avl.play.step')} {sources.length > 1 ? from : ''}
+                  </Button>;
+                })}
               </HStack>
             </VStack>
           ) : null}
