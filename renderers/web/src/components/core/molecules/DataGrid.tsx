@@ -32,8 +32,8 @@ import { createLogger } from '@almadar/logger';
 const dataGridLog = createLogger('almadar:ui:data-grid');
 import { getNestedValue, resolveImageUrl } from '../../../lib/getNestedValue';
 import { useEventBus, useNavStack } from '../../../core';
-import { useRowActions, useRowActionPayload, useRowActionFire } from '../../../hooks/useRowActions';
-import type { RowActionCondition, RowActionPayload } from '../../../lib/row-action-when';
+import { useRowActions, useRowActionPayload, useRowActionFire, useRowActionRoute } from '../../../hooks/useRowActions';
+import type { RowActionCondition, RowActionPayload, RowActionRoute } from '../../../lib/row-action-when';
 import { useTranslate, useFormatContext } from '../../../core';
 import { Box } from '../../../core';
 import { VStack, HStack } from '../../../core';
@@ -64,9 +64,8 @@ export interface DataGridItemAction {
   /** Event name to emit (dispatched as UI:{event} with { row: itemData }).
    *  Optional when `navigatesTo` is set — a navigating action never emits. */
   event?: EventKey;
-  /** Route to navigate to instead of emitting — `{{row.field}}`
-   *  placeholders interpolate from the item row (CardGrid's contract). */
-  navigatesTo?: string;
+  /** Literal route or `(fn row <string>)` destination; navigation suppresses the action event. */
+  navigatesTo?: RowActionRoute;
   /** Lucide icon name or component */
   icon?: IconInput;
   /** Button variant */
@@ -249,6 +248,7 @@ export function DataGrid({
   const rowActions = useRowActions();
   const actionPayload = useRowActionPayload();
   const { fire: fireRowAction, isRowPending } = useRowActionFire<DataGridItemAction>();
+  const resolveActionRoute = useRowActionRoute();
   const { t } = useTranslate();
   const contentSurface = useContentSurface(surface);
   const fmt = useFormatContext();
@@ -336,11 +336,9 @@ export function DataGrid({
   // `UI:undefined` for event-less actions. ONE firing path for inline
   // buttons and the overflow menu alike.
   const fireAction = (action: DataGridItemAction, itemData: EntityRow) => {
-    if (action.navigatesTo) {
-      const url = action.navigatesTo.replace(/\{\{row\.(\w+(?:\.\w+)*)\}\}/g, (_, field: string) =>
-        String(itemData[field] ?? ''),
-      );
-      navStack.goTo(url);
+    if (action.navigatesTo !== undefined) {
+      const url = resolveActionRoute(action.navigatesTo, itemData);
+      if (url !== null) navStack.goTo(url);
       return;
     }
     fireRowAction(action, itemData, String(itemData.id ?? ""));

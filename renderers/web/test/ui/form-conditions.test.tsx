@@ -75,6 +75,18 @@ describe('Form conditional fields on the kernel evaluator', () => {
 describe('ConditionalWrapper on the kernel evaluator', () => {
   const context = { formValues: { kind: 'commercial' }, globalVariables: { HG: 'DA' } };
 
+  it('evaluates an explicit false guard through the kernel and renders the fallback', async () => {
+    const crossings = await countGuardCrossings();
+    render(
+      <ConditionalWrapper condition={false} context={context} fallback={<span>fallback</span>}>
+        <span>shown</span>
+      </ConditionalWrapper>,
+    );
+    expect(screen.getByText('fallback')).toBeTruthy();
+    expect(screen.queryByText('shown')).toBeNull();
+    expect(crossings).toHaveBeenCalledTimes(1);
+  });
+
   it('renders its children when the condition holds', () => {
     render(
       <ConditionalWrapper condition={['=', '@entity.formValues.kind', 'commercial']} context={context}>

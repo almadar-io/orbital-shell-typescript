@@ -21,6 +21,8 @@ import { useEventBus } from '../../../core';
 import type { SExpr } from "@almadar/core";
 import type { UiError } from '../../../core';
 import { WizardProgress } from "./WizardProgress";
+import { LoadingState } from "./LoadingState";
+import { ErrorState } from "./ErrorState";
 
 import { domPassthrough } from '../../../core';
 /** Form field definition for wizard sections */
@@ -191,6 +193,8 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
   allowBack = true,
   compact = false,
   className,
+  isLoading = false,
+  error,
   nextEvent,
   backEvent,
   completeEvent,
@@ -252,6 +256,9 @@ export const WizardContainer: React.FC<WizardContainerProps> = ({
       goToStep(currentStep - 1);
     }
   };
+
+  if (isLoading) return <LoadingState {...domPassthrough(rest)} className={className} />;
+  if (error) return <ErrorState {...domPassthrough(rest)} message={error.message} className={className} role="alert" />;
 
   return (
     <Box {...domPassthrough(rest)} className={cn("flex flex-col h-full", className)}>

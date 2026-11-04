@@ -1,9 +1,10 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DataList, type DataListItemAction } from '../DataList';
 import { EventBusProvider, NavStackProvider } from '../../../../core';
 import { useEventBus } from '../../../../core';
+import { loadTestKernel } from '../../../../test-support/kernel-engine';
 
 type Fired = { name: string; payload: Record<string, unknown> };
 
@@ -31,26 +32,29 @@ function renderList(actions: DataListItemAction[], fired: Fired[]) {
 }
 
 describe('DataList row action navigatesTo', () => {
-  it('navigates to the interpolated row url and does not also emit the event', () => {
+  beforeAll(async () => { await loadTestKernel(); });
+
+  it('evaluates the authored row route and does not also emit the event', () => {
     const fired: Fired[] = [];
-    renderList([{ label: 'Open', event: 'VIEW', navigatesTo: '/contacts/{{row.id}}', variant: 'primary' }], fired);
+    renderList([{ label: 'Open', event: 'VIEW', navigatesTo: ['fn', 'row', ['str/concat', '/contacts/', '@row.id']], variant: 'primary' }], fired);
     fireEvent.click(screen.getByRole('button', { name: /Open/ }));
     expect(fired.map((f) => f.name)).toEqual(['NAVIGATE']);
     expect(fired[0].payload.url).toBe('/contacts/c42');
   });
 
-  it('leaves a url without placeholders unchanged', () => {
+  it('preserves a literal route', () => {
     const fired: Fired[] = [];
     renderList([{ label: 'All', event: 'VIEW', navigatesTo: '/contacts', variant: 'primary' }], fired);
     fireEvent.click(screen.getByRole('button', { name: /All/ }));
+    expect(fired.map((f) => f.name)).toEqual(['NAVIGATE']);
     expect(fired[0].payload.url).toBe('/contacts');
   });
 
-  it('renders an unknown field as empty', () => {
+  it('does not navigate or emit when the route expression is invalid', () => {
     const fired: Fired[] = [];
-    renderList([{ label: 'Go', event: 'VIEW', navigatesTo: '/x/{{row.missing}}', variant: 'primary' }], fired);
+    renderList([{ label: 'Go', event: 'VIEW', navigatesTo: ['fn', 'row', true], variant: 'primary' }], fired);
     fireEvent.click(screen.getByRole('button', { name: /Go/ }));
-    expect(fired[0].payload.url).toBe('/x/');
+    expect(fired).toEqual([]);
   });
 
   it('control: an action without navigatesTo still emits its event', () => {

@@ -60,6 +60,8 @@ export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonE
   label?: string;
   /** Disable the button (greys out, blocks click events) */
   disabled?: boolean;
+  /** Native button type. `type` is reserved for the pattern discriminator in schema render specs. */
+  htmlType?: "button" | "submit" | "reset";
   /** Makes the button a link: `#anchor` scrolls, an absolute URL loads, a path navigates in-app */
   href?: string;
   /**
@@ -184,6 +186,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       size = "md",
       isLoading = false,
       disabled,
+      htmlType,
+      type: nativeType,
       leftIcon,
       rightIcon,
       icon: iconProp,
@@ -327,7 +331,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
-        type="button"
+        type={htmlType ?? nativeType ?? "button"}
         disabled={Boolean(disabled) && !focused}
         aria-disabled={inert || undefined}
         aria-busy={busy || undefined}

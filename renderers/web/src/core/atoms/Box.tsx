@@ -8,7 +8,7 @@
 import React, { useCallback, useRef } from "react";
 import type { A11yProps, EventKey, EventPayload, EventEmit } from "@almadar/core";
 import { cn } from "../lib/cn";
-import { bandEdgeLayerStyle, bandPadding } from "../lib/bandShapes";
+import { bandPadding } from "../lib/bandShapes";
 import type { BandEdge, BandEdgeColor } from "../lib/bandShapes";
 import { useEventBus } from "../hooks/useEventBus";
 import { useTapReveal } from "../hooks/useTapReveal";
@@ -42,6 +42,8 @@ export type BoxShadow = "none" | "sm" | "md" | "lg" | "xl";
 export interface BoxProps extends Omit<React.HTMLAttributes<HTMLDivElement>, keyof A11yProps>, A11yProps {
   /** Additional CSS classes applied to the root element. */
   className?: string;
+  /** Inline styles applied to the root element. */
+  style?: React.CSSProperties;
   /** Data-theme attribute applied to the root element for CSS theme scoping (e.g. almadar-website-dark). */
   'data-theme'?: string;
   /**
@@ -361,10 +363,10 @@ export const Box = React.forwardRef<HTMLDivElement, BoxProps>(
         {backdrop != null && <Box as="span" data-band-layer="" aria-hidden className="band-backdrop">{backdrop}</Box>}
         {texture && <Box as="span" data-band-layer="" aria-hidden className="band-texture" />}
         {edgeTop !== "none" && (
-          <Box as="span" data-band-layer="" aria-hidden className="band-edge band-edge-top" style={bandEdgeLayerStyle(edgeTop, "top", edgeFlip, edgeColor)} />
+          <Box as="span" data-band-layer="" aria-hidden className={cn("band-edge band-edge-top", `band-edge-shape-${edgeTop}`, `band-edge-color-${edgeColor}`, edgeFlip && "band-edge-flip")} />
         )}
         {edgeBottom !== "none" && (
-          <Box as="span" data-band-layer="" aria-hidden className="band-edge band-edge-bottom" style={bandEdgeLayerStyle(edgeBottom, "bottom", edgeFlip, edgeColor)} />
+          <Box as="span" data-band-layer="" aria-hidden className={cn("band-edge band-edge-bottom", `band-edge-shape-${edgeBottom}`, `band-edge-color-${edgeColor}`, edgeFlip && "band-edge-flip")} />
         )}
       </>
     ) : null;

@@ -2,6 +2,7 @@ import React from "react";
 import type { A11yProps, EventEmit } from "@almadar/core";
 import { cn } from "../lib/cn";
 import { useEventBus } from "../hooks/useEventBus";
+import { useFieldDraft } from "../hooks/useFieldDraft";
 import { Label } from "./Label";
 import { Typography } from "./Typography";
 
@@ -34,8 +35,9 @@ export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTex
 }
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, label, helperText, error, onChange, action, onKeyDown, id, required, ...props }, ref) => {
+  ({ className, label, helperText, error, onChange, action, onKeyDown, id, required, value, ...props }, ref) => {
     const eventBus = useEventBus();
+    const { displayValue, record } = useFieldDraft(value, typeof onChange === 'string');
     const generatedId = React.useId();
     const fieldId = id ?? generatedId;
     const descriptionId = error || helperText ? `${fieldId}-description` : undefined;
@@ -43,6 +45,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       if (typeof onChange === 'string') {
+        record(e.target.value);
         eventBus.emit(`UI:${onChange}`, { value: e.target.value });
       } else {
         onChange?.(e);
@@ -75,6 +78,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           className,
         )}
         {...props}
+        value={displayValue}
         id={fieldId}
         required={required}
         aria-required={required ? true : undefined}

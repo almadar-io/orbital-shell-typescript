@@ -7,7 +7,7 @@
 import { useCallback } from 'react';
 import { useUser } from '../providers/UserContext';
 import type { EntityRow, EventPayload } from '@almadar/core';
-import { actionsShownForRow, rowActionPayload, type RowConditionalAction } from '../lib/row-action-when';
+import { actionsShownForRow, rowActionPayload, rowActionRoute, type RowConditionalAction, type RowActionRoute } from '../lib/row-action-when';
 import { usePendingRows } from '../core';
 import { useEventBus } from '../core';
 
@@ -33,6 +33,12 @@ export function useRowActionPayload(): <A extends RowConditionalAction>(action: 
     <A extends RowConditionalAction>(action: A, row: EntityRow) => rowActionPayload(action, row, { user }),
     [user],
   );
+}
+
+/** Resolve an action destination with the same ambient viewer as its condition and payload. */
+export function useRowActionRoute(): (destination: RowActionRoute, row: EntityRow) => string | null {
+  const { user } = useUser();
+  return useCallback((destination: RowActionRoute, row: EntityRow) => rowActionRoute(destination, row, { user }), [user]);
 }
 
 /**

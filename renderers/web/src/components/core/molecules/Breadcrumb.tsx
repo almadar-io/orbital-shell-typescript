@@ -127,6 +127,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
     maxItems && sourceItems.length > maxItems
       ? [allCrumbs[0], { kind: "collapsed" }, ...allCrumbs.slice(-maxItems + 1)]
       : allCrumbs;
+  const hasAuthoredCurrent = sourceItems.some((item) => item.isCurrent !== undefined);
 
   const activate = (item: BreadcrumbItem, index: number) => {
     const href = item.path ?? item.href;
@@ -159,6 +160,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
             );
           }
           const { item, index } = crumb;
+          const isCurrent = hasAuthoredCurrent ? item.isCurrent === true : isLast;
           const href = item.href || item.path;
           const icon = item.icon
             ? typeof item.icon === "string" ? <Icon name={item.icon} size="sm" /> : <Icon icon={item.icon} size="sm" />
@@ -168,10 +170,10 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({
               {item.label}
             </Typography>
           );
-          const tone = isLast ? "text-foreground" : "text-muted-foreground hover:text-foreground";
+          const tone = isCurrent ? "text-foreground" : "text-muted-foreground hover:text-foreground";
           return (
             <Box as="li" key={index} className="flex items-center gap-2 min-w-0">
-              {isLast ? (
+              {isCurrent ? (
                 <Box as="span" aria-current="page" className={cn("flex items-center gap-1.5 min-w-0", tone)}>
                   {icon}
                   {label}

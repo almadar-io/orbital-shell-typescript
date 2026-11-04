@@ -10,7 +10,6 @@
 import React from 'react';
 import { cn } from '../../../core';
 import { Button } from '../../../core';
-import { useEventBus, useNavStack } from '../../../core';
 import { createLogger } from '@almadar/logger';
 import type { FilterDefinition } from './FilterGroup';
 import type { EventKey, A11yProps } from "@almadar/core";
@@ -108,19 +107,6 @@ const lookStyles: Record<ActionClusterLook, string> = {
   'command-palette-trigger': '[&>button:not(:first-child)]:hidden',
 };
 
-/**
- * Safe event bus hook that works outside EventBusProvider context.
- * Returns a no-op emit function if not in EventBusProvider context.
- */
-function useSafeEventBus() {
-  try {
-    return useEventBus();
-  } catch {
-    // Outside EventBusProvider context - return no-op
-    return { emit: () => {}, on: () => () => {}, once: () => {} };
-  }
-}
-
 export const ButtonGroup: React.FC<ButtonGroupProps> = ({
   children,
   primary,
@@ -134,8 +120,6 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
   look = 'right-aligned-buttons',
   ...rest
 }) => {
-  const eventBus = useSafeEventBus();
-  const navStack = useNavStack();
   const variantClasses = {
     default: 'gap-0',
     segmented: 'gap-0 [&>button]:rounded-none [&>button:first-child]:rounded-l-interactive [&>button:last-child]:rounded-r-interactive [&>button:not(:first-child)]:border-l-0',
@@ -145,18 +129,6 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
   const orientationClasses = {
     horizontal: 'flex-row',
     vertical: 'flex-col [&>button:first-child]:rounded-t-interactive [&>button:last-child]:rounded-b-interactive [&>button:not(:first-child)]:border-t-0 [&>button:not(:first-child)]:border-l',
-  };
-
-  // Handle action button click
-  const handleActionClick = (action: ActionButton) => {
-    // Emit event via event bus if specified
-    if (action.event) {
-      eventBus.emit('UI:DISPATCH', { event: action.event });
-    }
-    // Navigate if specified
-    if (action.navigatesTo) {
-      navStack.goTo(action.navigatesTo);
-    }
   };
 
   // Button variant type for type assertions
@@ -172,9 +144,10 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
         buttons.push(
           <Button
             key={`secondary-${index}`}
-            type={action.actionType === 'submit' ? 'submit' : 'button'}
+            htmlType={action.actionType === 'submit' ? 'submit' : 'button'}
             variant={(action.variant || 'ghost') as ButtonVariant}
-            onClick={() => handleActionClick(action)}
+            action={action.event}
+            href={action.navigatesTo}
           >
             {action.label}
           </Button>
@@ -188,9 +161,10 @@ export const ButtonGroup: React.FC<ButtonGroupProps> = ({
       buttons.push(
         <Button
           key="primary"
-          type={isSubmit ? 'submit' : 'button'}
+          htmlType={isSubmit ? 'submit' : 'button'}
           variant={(primary.variant || 'primary') as ButtonVariant}
-          onClick={() => handleActionClick(primary)}
+          action={primary.event}
+          href={primary.navigatesTo}
           data-testid={isSubmit ? 'form-submit' : undefined}
         >
           {primary.label}

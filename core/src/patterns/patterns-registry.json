@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-03T16:12:50.796Z",
+  "exportedAt": "2026-11-04T00:18:10.597Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -8088,7 +8088,8 @@
           "types": [
             "boolean"
           ],
-          "description": "Loading state indicator"
+          "description": "Loading state indicator",
+          "default": false
         },
         "error": {
           "types": [
@@ -11595,6 +11596,17 @@
           ],
           "description": "Additional CSS classes applied to the root element."
         },
+        "style": {
+          "types": [
+            "object"
+          ],
+          "description": "Inline styles applied to the root element.",
+          "mapValue": {
+            "types": [
+              "string"
+            ]
+          }
+        },
         "data-theme": {
           "types": [
             "string"
@@ -14323,6 +14335,17 @@
             "boolean"
           ],
           "description": "Disable the button (greys out, blocks click events)"
+        },
+        "htmlType": {
+          "types": [
+            "string"
+          ],
+          "description": "Native button type. `type` is reserved for the pattern discriminator in schema render specs.",
+          "enumValues": [
+            "button",
+            "submit",
+            "reset"
+          ]
         },
         "href": {
           "types": [
@@ -24459,6 +24482,30 @@
           "description": "Show label text",
           "default": false
         },
+        "switchToLightLabel": {
+          "types": [
+            "string"
+          ],
+          "description": "Accessible action label when the current mode is dark."
+        },
+        "switchToDarkLabel": {
+          "types": [
+            "string"
+          ],
+          "description": "Accessible action label when the current mode is light."
+        },
+        "lightLabel": {
+          "types": [
+            "string"
+          ],
+          "description": "Visible light mode label."
+        },
+        "darkLabel": {
+          "types": [
+            "string"
+          ],
+          "description": "Visible dark mode label."
+        },
         "enter": {
           "types": [
             "string"
@@ -30187,7 +30234,8 @@
           "types": [
             "boolean"
           ],
-          "description": "Loading state indicator"
+          "description": "Loading state indicator",
+          "default": false
         },
         "error": {
           "types": [
@@ -47864,7 +47912,7 @@
               },
               "navigatesTo": {
                 "types": [
-                  "string"
+                  "sexpr"
                 ]
               },
               "icon": {
@@ -48837,7 +48885,7 @@
               },
               "navigatesTo": {
                 "types": [
-                  "string"
+                  "sexpr"
                 ]
               }
             },
@@ -119990,6 +120038,17 @@
             "boolean"
           ],
           "description": "Disable the button (greys out, blocks click events)"
+        },
+        "htmlType": {
+          "types": [
+            "string"
+          ],
+          "description": "Native button type. `type` is reserved for the pattern discriminator in schema render specs.",
+          "enumValues": [
+            "button",
+            "submit",
+            "reset"
+          ]
         },
         "href": {
           "types": [

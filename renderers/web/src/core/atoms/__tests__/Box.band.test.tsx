@@ -25,6 +25,15 @@ describe('Box band props', () => {
     expect(container.querySelector('.band-edge-bottom')).toBeNull();
   });
 
+  it('selects the shared edge shape, fill, and flip classes', () => {
+    const { container } = render(<Box edgeTop="wave" edgeColor="muted" edgeFlip>content</Box>);
+    const edge = container.querySelector('.band-edge-top');
+    expect(edge?.classList.contains('band-edge-shape-wave')).toBe(true);
+    expect(edge?.classList.contains('band-edge-color-muted')).toBe(true);
+    expect(edge?.classList.contains('band-edge-flip')).toBe(true);
+    expect(render(<Box>content</Box>).container.querySelector('.band-edge')).toBeNull();
+  });
+
   it('puts the backdrop first and the content last', () => {
     const { container } = render(<Box backdrop={<span>scene</span>}>content</Box>);
     const root = container.firstElementChild as HTMLElement;

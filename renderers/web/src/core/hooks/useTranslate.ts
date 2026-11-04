@@ -19,14 +19,25 @@ import { DEFAULT_CURRENCY, type FormatContext } from '../lib/format';
 import coreLocaleRaw from '../locales/en.json';
 import arLocaleRaw from '../locales/ar.json';
 import slLocaleRaw from '../locales/sl.json';
+import themeToggleEn from '@almadar/std/ui-theme-toggle-locales/en';
+import themeToggleAr from '@almadar/std/ui-theme-toggle-locales/ar';
+import themeToggleSl from '@almadar/std/ui-theme-toggle-locales/sl';
 
 // Strip $meta (object, not a string) so the lookup is Record<string, string>
 const { $meta: _meta, ...coreMessages } = coreLocaleRaw;
-const coreLocale: Record<string, string> = coreMessages;
+const withThemeToggle = (messages: Record<string, string>, labels: Record<string, string>): Record<string, string> => ({
+  ...messages,
+  ...Object.fromEntries(Object.entries(labels).map(([key, value]) => [`themeToggle.${key}`, value])),
+});
+const coreLocale = withThemeToggle(coreMessages, themeToggleEn);
 const { $meta: _arMeta, ...arMessages } = arLocaleRaw;
 const { $meta: _slMeta, ...slMessages } = slLocaleRaw;
 /** The UI's own catalog per locale, the fallback for built-in component labels. */
-const uiLocales: Readonly<Record<string, Record<string, string>>> = { en: coreLocale, ar: arMessages, sl: slMessages };
+const uiLocales: Readonly<Record<string, Record<string, string>>> = {
+  en: coreLocale,
+  ar: withThemeToggle(arMessages, themeToggleAr),
+  sl: withThemeToggle(slMessages, themeToggleSl),
+};
 
 export type TranslateFunction = (
   key: string,
