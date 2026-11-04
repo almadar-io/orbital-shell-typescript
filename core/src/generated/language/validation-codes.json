@@ -90,6 +90,11 @@
     "description": "A protocol page's address does not type-check against the protocol's address record"
   },
   {
+    "code": "ORB_RUI_INVALID_ROW_ROUTE",
+    "category": "render_ui",
+    "description": "A data-grid/data-list row action `navigatesTo` is neither a literal path nor a quoted single-row lambda."
+  },
+  {
     "code": "ORB_RUI_UNKNOWN_ITEM_ACTION_PROP",
     "category": "render_ui",
     "description": "Unknown itemAction prop (e.g., hallucinated 'condition')"
@@ -1028,6 +1033,11 @@
     "code": "ORB_LISTEN_WILDCARD_UNKEYED",
     "category": "trait_event",
     "description": "A wildcard listens route hears every caller's event but its guard never reads the call key in the payload"
+  },
+  {
+    "code": "ORB_MAP_KEY_DOT_PATH",
+    "category": "lint",
+    "description": "object/set, object/get or object/has on a Map field with a str/concat key containing a literal dot: the key is read as a dot path, so the value nests instead of being one map entry"
   },
   {
     "code": "ORB_MEM_ALIAS",
