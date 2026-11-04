@@ -115,7 +115,7 @@ export interface ClientKernel {
   dispatchMount(
     seeds: readonly MountSeed[],
     hooks?: ClientMountHooks,
-    base?: Pick<EventRequest, 'payload' | 'entityId' | 'clientId' | 'locale'>,
+    base?: Pick<EventRequest, 'payload' | 'entityId' | 'clientId' | 'locale' | 'route'>,
   ): Promise<ClientMountOutcome>;
   readonly store: CircuitStore;
 }

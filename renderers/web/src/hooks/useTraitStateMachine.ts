@@ -368,7 +368,7 @@ export function useTraitStateMachine(
   // paints at once, then one mount leg is posted and folded.
   // Resolves with the first seed whose lifecycle arm failed (a contained `effect-failed`), so the
   // mount site can name it on the card the same way as a thrown mount error.
-  const mountAndSettle = useCallback(async (seeds: MountSeed[], payload: EventPayload): Promise<TransitionRejection | undefined> => {
+  const mountAndSettle = useCallback(async (seeds: MountSeed[], payload: EventPayload, route: string | undefined): Promise<TransitionRejection | undefined> => {
     let beforeLocalPaint: SlotCheckpoint | undefined;
     let outcome: Awaited<ReturnType<typeof kernel.dispatchMount>>;
     try {
@@ -377,7 +377,7 @@ export function useTraitStateMachine(
           if (beforeLocalPaint === undefined) beforeLocalPaint = slotFlush.checkpoint();
           slotFlush.applyClientEffects(local.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
         },
-      }, { payload });
+      }, { payload, ...(route !== undefined ? { route } : {}) });
     } catch (err: unknown) {
       if (beforeLocalPaint !== undefined) slotFlush.rollback(beforeLocalPaint);
       for (const seed of seeds) {
@@ -427,9 +427,9 @@ export function useTraitStateMachine(
   // A new page, new route params or a new circuit store is a new mount; identity churn is not.
   const mountKey = `${options.mountKey ?? ''}\u0000${JSON.stringify(Object.entries(options.initPayload ?? {}).sort(([a], [b]) => a.localeCompare(b)))}`;
   useEffect(() => {
-    function mountEntering(entering: MountSeed[]): void {
+    function mountEntering(entering: MountSeed[], route: string | undefined): void {
       uiSlots.clearBySource('main', MOUNT_ERROR_SOURCE);
-      void mountAndSettle(entering, { ...(options.initPayload ?? {}) }).then((failure) => {
+      void mountAndSettle(entering, { ...(options.initPayload ?? {}) }, route).then((failure) => {
         if (failure === undefined || !aliveRef.current) return;
         const failed = failure.trait ?? entering.map((e) => e.trait).join(', ');
         const message = failure.error ?? failure.code;
@@ -460,7 +460,7 @@ export function useTraitStateMachine(
       for (const traitName of left) {
         for (const slot of ALL_SLOTS) uiSlots.clearBySource(slot, traitName);
       }
-      if (seeds.length > 0) mountEntering(seeds);
+      if (seeds.length > 0) mountEntering(seeds, circuit.page.route);
     }, (err: Error) => stateLog.warn('mount:enter-failed', { error: err.message }));
   }, [circuit, traitIndex, mountAndSettle, mountKey, uiSlots, t, kernelClient]);
 

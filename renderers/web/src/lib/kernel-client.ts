@@ -588,7 +588,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       await scopeTail;
       const baseRequest = base ?? {};
       k.mount(JSON.stringify(seeds.map((s) => s.trait)));
-      const mount = parse<MountWire>(k.dispatchMount(JSON.stringify(seeds), baseRequest.entityId, payloadJson(baseRequest.payload)));
+      const mount = parse<MountWire>(k.dispatchMount(JSON.stringify(seeds), baseRequest.entityId, payloadJson(baseRequest.payload), baseRequest.route));
       try {
         return await settleMount(k, mount, seeds, hooks, baseRequest);
       } finally {
