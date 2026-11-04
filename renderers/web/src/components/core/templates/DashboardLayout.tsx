@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useContext } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from '../../../core';
 import type { IconInput } from '../../../core';
@@ -18,6 +18,7 @@ import { PageTransition } from "../molecules/PageTransition";
 import type { AssetUrl, EventEmit, EventKey } from "@almadar/core";
 import { Menu } from "../molecules/Menu";
 import { Drawer } from "../molecules/Drawer";
+import { SlotContainedContext } from "../../../lib/slotContained";
 
 export interface NavItem {
   label: string;
@@ -240,6 +241,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   // between 768–1024 so navigation never disappears at exactly the widths where
   // split views need room; an off-canvas drawer only on true phone widths.
   const layoutRef = useRef<HTMLDivElement>(null);
+  const contained = useContext(SlotContainedContext);
   const [layoutWidth, setLayoutWidth] = useState<number | null>(null);
   useEffect(() => {
     const el = layoutRef.current;
@@ -318,8 +320,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       // (see isMobile above) so it never depends on those classes being emitted.
       className={cn(
         "@container/dashboard w-full bg-background surface-page flex flex-row items-stretch",
-        // A full-bleed shell is an app frame: viewport-bound, so a full-height child gets a real height.
-        fullBleed ? "h-screen overflow-hidden" : "min-h-screen",
+        // A full-bleed shell is an app frame: bound to its viewport (the preview box when contained), so a full-height child gets a real height.
+        contained ? "relative" : "",
+        fullBleed ? (contained ? "h-full overflow-hidden" : "h-screen overflow-hidden") : (contained ? "min-h-full" : "min-h-screen"),
       )}
     >
       <Button
@@ -331,7 +334,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       </Button>
       {showSidebar && offCanvas && sidebarOpen && (
         <Box
-          className="fixed inset-0 bg-scrim z-20"
+          className={cn(contained ? "absolute" : "fixed", "inset-0 bg-scrim z-20")}
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -352,7 +355,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           style={
             offCanvas
               ? {
-                  position: "fixed",
+                  position: contained ? "absolute" : "fixed",
                   top: 0,
                   bottom: 0,
                   left: 0,
@@ -708,7 +711,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <Box
             as="nav"
             aria-label={t('aria.mainNavigation')}
-            className="fixed bottom-0 inset-x-0 z-20 pb-[env(safe-area-inset-bottom)] bg-card surface-material border-t-[length:var(--border-width)] border-border"
+            className={cn(contained ? "absolute" : "fixed", "bottom-0 inset-x-0 z-20 pb-[env(safe-area-inset-bottom)] bg-card surface-material border-t-[length:var(--border-width)] border-border")}
           >
             <HStack align="center" justify="around" className="h-16 px-2">
               {navItems.map((item, itemIndex) => (
@@ -740,6 +743,7 @@ const NavLink: React.FC<{ item: NavItem; activeHref?: string; compact?: boolean 
   // Starts expanded when a child route is already active, so landing on a
   // nested page doesn't hide the group it belongs to.
   const [open, setOpen] = useState(childActive);
+  const contained = useContext(SlotContainedContext);
 
   const iconClassName = cn(
     "h-5 w-5",
@@ -792,7 +796,7 @@ const NavLink: React.FC<{ item: NavItem; activeHref?: string; compact?: boolean 
 
           {open && (
             <>
-              <Box className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+              <Box className={cn(contained ? "absolute" : "fixed", "inset-0 z-20")} onClick={() => setOpen(false)} />
               <Box className="absolute left-full top-0 ml-2 w-48 bg-card surface-material rounded-container shadow-elevation-popover border border-border py-1 z-30">
                 {item.children!.map((child, childIndex) => {
                   const childIsActive = child.href === activeHref;

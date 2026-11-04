@@ -17,7 +17,8 @@
 import { registerHostSignOut, registerHostSignIn, registerHostConsent } from '../lib/host-actions';
 import type { HostConsentAnswer, HostConsentRequest, HostSignInAnswer, HostSignInRequest } from '@almadar/shell-runtime/kernel/host';
 import React, { createContext, useContext, useEffect, useMemo, useCallback, useRef, useState } from 'react';
-import { useHref, useInRouterContext } from 'react-router-dom';
+import { useInRouterContext } from 'react-router-dom';
+import { HostHrefBaseProbe, useInAppLinkInterceptor } from '../lib/inAppLinks';
 import { useArbitraryClassStyles } from '../providers/ArbitraryClassCompiler';
 import { Box } from '../core';
 import { Typography } from '../core';
@@ -80,24 +81,6 @@ function NavStackRefBridge({ apiRef }: { apiRef: React.MutableRefObject<NavStack
     };
   }, [api, apiRef]);
   return null;
-}
-
-/** Reports the host router's href for its root: `/`, `#/` (hash), `/base` (basename). */
-function HostHrefBaseProbe({ onBase }: { onBase: (base: string) => void }): null {
-  const base = useHref('/');
-  useEffect(() => onBase(base), [base, onBase]);
-  return null;
-}
-
-/**
- * The app path an in-app link points at, decoded with the host router's own
- * href encoding; null when the href is not one the host router produced.
- */
-function appPathFromHref(href: string, hostHrefBase: string): string | null {
-  const root = hostHrefBase.endsWith('/') ? hostHrefBase.slice(0, -1) : hostHrefBase;
-  if (href === root) return '/';
-  if (!href.startsWith(`${root}/`)) return null;
-  return href.slice(root.length);
 }
 
 /**
@@ -931,49 +914,10 @@ export function OrbPreview({
   }
 
   // Intercept <a> clicks inside the preview to route through handleNavigate
-  // instead of causing real browser navigation. Capture phase ensures we
-  // run before any React handler or native navigation.
+  // instead of causing real browser navigation. A sandbox intercepts every
+  // in-app link, even with one page, so a raw `<a href>` can never navigate the host.
   const containerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    // A sandbox intercepts every in-app link, even with one page, so a raw
-    // `<a href>` can never navigate the host.
-    if (pages.length <= 1 && !isolated) {
-      navLog.debug('interceptor:skipped', { reason: 'single-page schema', pageCount: pages.length });
-      return;
-    }
-    const handler = (e: MouseEvent) => {
-      const anchor = (e.target as HTMLElement).closest('a');
-      if (!anchor) return;
-      const href = anchor.getAttribute('href') ?? anchor.getAttribute('to') ?? '';
-      navLog.debug('click:intercepted', {
-        href,
-        anchorText: anchor.textContent?.trim().slice(0, 40),
-      });
-      const external = href.startsWith('http') || href.startsWith('mailto:');
-      const appPath = external ? null : appPathFromHref(href, hostHrefBase);
-      if (isolated && appPath === null) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        if (external) window.open(href, '_blank', 'noopener,noreferrer');
-        navLog.debug('click:sandboxed', { href, external });
-        return;
-      }
-      if (appPath === null) {
-        navLog.debug('click:skipped', { href, reason: 'not an in-app href', hostHrefBase });
-        return;
-      }
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      handleNavigate(appPath);
-    };
-    el.addEventListener('click', handler, true);
-    navLog.info('interceptor:installed', { pageCount: pages.length, paths: pages.map((p) => p.page.path) });
-    return () => el.removeEventListener('click', handler, true);
-  }, [pages, handleNavigate, isolated, hostHrefBase]);
+  useInAppLinkInterceptor(containerRef, { enabled: pages.length > 1 || isolated, isolated, hostHrefBase, onPath: handleNavigate });
 
   // One registration per program, above the lazy switch: the server runs the lazy behaviors as part of it.
   const withBridge = (node: React.ReactElement): React.ReactElement => {

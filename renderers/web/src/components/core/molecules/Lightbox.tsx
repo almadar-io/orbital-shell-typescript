@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { AssetUrl, A11yProps } from "@almadar/core";
 import { Box } from '../../../core';
 import { Button } from '../../../core';
@@ -10,6 +10,7 @@ import { useEventBus } from '../../../core';
 import { useTranslate } from '../../../core';
 import { useDialogBehavior } from '../../../core';
 import { ThemedPortal } from "../../../lib/ThemedPortal";
+import { SlotContainedContext } from "../../../lib/slotContained";
 
 import { domPassthrough } from '../../../core';
 function useSafeEventBus() {
@@ -65,6 +66,7 @@ export const Lightbox: React.FC<LightboxProps> = ({
 
   const eventBus = useSafeEventBus();
   const { t, direction } = useTranslate();
+  const contained = useContext(SlotContainedContext);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // Sync external index changes
@@ -138,13 +140,12 @@ export const Lightbox: React.FC<LightboxProps> = ({
 
   const overlayButton = "absolute z-10 rounded-full bg-card text-foreground hover:bg-muted";
 
-  return (
-    <ThemedPortal>
+  const layer = (
       <Box
         ref={dialogRef}
         {...domPassthrough(rest)}
         className={cn(
-          "fixed inset-0 z-[1000] flex items-center justify-center",
+          contained ? "absolute inset-0 z-50 flex items-center justify-center" : "fixed inset-0 z-[1000] flex items-center justify-center",
           // eslint-disable-next-line almadar/no-hardcoded-colors -- media overlay: lightbox scrim behind images
           "bg-black/90",
           className,
@@ -223,8 +224,8 @@ export const Lightbox: React.FC<LightboxProps> = ({
           )}
         </Box>
       </Box>
-    </ThemedPortal>
   );
+  return contained ? layer : <ThemedPortal>{layer}</ThemedPortal>;
 };
 
 Lightbox.displayName = "Lightbox";

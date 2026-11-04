@@ -11,10 +11,11 @@
  * - Fixed positioning in corner of screen
  */
 
-import React from 'react';
+import React, { useContext } from 'react';
 import { Toast, ToastVariant } from '../molecules/Toast';
 import { Box } from '../../../core';
 import { ThemedPortal } from '../../../lib/ThemedPortal';
+import { SlotContainedContext } from '../../../lib/slotContained';
 import { useEventBus } from '../../../core';
 import { useTranslate } from '../../../core';
 import { useEntitySchemaOptional } from '../../../providers/EntitySchemaContext';
@@ -91,6 +92,7 @@ export const ToastSlot: React.FC<ToastSlotProps> = ({
 }) => {
   const eventBus = useEventBus();
   const { t } = useTranslate();
+  const contained = useContext(SlotContainedContext);
   const schemaCtx = useEntitySchemaOptional();
   const isVisible = Boolean(children);
 
@@ -117,9 +119,8 @@ export const ToastSlot: React.FC<ToastSlotProps> = ({
   // Otherwise render a standard Toast with the message
   const isCustomContent = React.isValidElement(children) && !message;
 
-  return (
-    <ThemedPortal>
-      <Box {...domPassthrough(rest)} className="fixed bottom-4 right-4 z-50">
+  const toast = (
+      <Box {...domPassthrough(rest)} className={contained ? "absolute bottom-4 right-4 z-50" : "fixed bottom-4 right-4 z-50"}>
         {isCustomContent ? (
           children
         ) : (
@@ -133,8 +134,8 @@ export const ToastSlot: React.FC<ToastSlotProps> = ({
           />
         )}
       </Box>
-    </ThemedPortal>
   );
+  return contained ? toast : <ThemedPortal>{toast}</ThemedPortal>;
 };
 
 ToastSlot.displayName = 'ToastSlot';

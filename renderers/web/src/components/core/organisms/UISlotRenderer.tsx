@@ -1349,6 +1349,8 @@ function renderPatternChildren(
     }
 
     if (!child || typeof child !== "object") return null;
+    // Already rendered (a `<TraitFrame>` the deep `@trait.X` substitution made): never a pattern config.
+    if (React.isValidElement(child)) return <React.Fragment key={`${parentId}-${index}`}>{child}</React.Fragment>;
 
     const childId = `${parentId}-${index}`;
     const childPath = parentPath === 'root'
@@ -2189,6 +2191,8 @@ export interface UISlotRendererProps {
    * claims the transition so its chrome stays still.
    */
   pageKey?: string;
+  /** Already-rendered content for the main slot (a guest view's page-root paint); the other slots read the provider as usual. */
+  main?: React.ReactNode;
 }
 
 /**
@@ -2214,6 +2218,7 @@ export function UISlotRenderer({
   className,
   suspense,
   pageKey,
+  main,
 }: UISlotRendererProps): React.ReactElement {
   const isContained = hudMode === 'inline';
   const suspenseConfig: SuspenseConfig =
@@ -2233,10 +2238,10 @@ export function UISlotRenderer({
         <UISlotComponent slot="sidebar" className="ui-slot-sidebar min-w-0 lg:shrink-0" />
         {pageKey !== undefined ? (
           <PageTransition locationKey={pageKey} className="flex flex-1 min-w-0 flex-col">
-            <UISlotComponent slot="main" className="ui-slot-main flex-1 min-w-0 min-h-[200px]" />
+            <UISlotComponent slot="main" className="ui-slot-main flex-1 min-w-0 min-h-[200px]">{main}</UISlotComponent>
           </PageTransition>
         ) : (
-          <UISlotComponent slot="main" className="ui-slot-main flex-1 min-w-0 min-h-[200px]" />
+          <UISlotComponent slot="main" className="ui-slot-main flex-1 min-w-0 min-h-[200px]">{main}</UISlotComponent>
         )}
       </Box>
 

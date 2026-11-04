@@ -32,6 +32,7 @@ const homeCircuit: PageCircuit = {
   route: '/', page: 'Home', notFound: false, mounts: [{ trait: 'Viewer', event: 'INIT' }],
   embedded: [], embeddedBy: [],
   orbitalByTrait: { Viewer: 'Main' }, linkedEntityByTrait: { Viewer: 'Note' },
+  traits: ['Viewer'], entities: ['Note'],
 };
 const pageCircuitStub = (page?: string, route?: string): string => {
   if (page === 'Home' || route === '/') return JSON.stringify(homeCircuit);

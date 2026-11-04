@@ -5,18 +5,23 @@
  *
  * The guest's own traits are the ones an `@trait.X` inside its paint names, so the view holds a scoped
  * UISlotProvider seeded with every paint the guest made: `TraitFrame` resolves against the guest, not the host.
+ * Every slot the guest paints renders inside the view (contained, never the host page's), and an in-app link
+ * inside it is the guest's navigation, emitted as `navigate`, never the host router's.
  */
-import React, { useLayoutEffect, useRef } from 'react';
-import type { EventKey, PatternNode } from '@almadar/core';
-import { Box } from '../../../core';
+import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useInRouterContext } from 'react-router-dom';
+import type { EventKey, PatternNode, UISlot } from '@almadar/core';
+import { Box, useEventBus } from '../../../core';
 import { UISlotProvider, useUISlots } from '../../../providers/UISlotContext';
+import { UISlotRenderer } from '../organisms/UISlotRenderer';
+import { HostHrefBaseProbe, useInAppLinkInterceptor } from '../../../lib/inAppLinks';
 import type { SlotProps } from '../../../providers/UISlotContext';
 import { convertFnFormLambdasInProps } from '../../../lib/fn-form-lambda';
 import { unwrapPattern } from '../../../hooks/circuit/useSlotFlush';
 
 export interface GuestPaintEntry {
   /** Slot the guest trait painted */
-  slot: string;
+  slot: UISlot;
   /** Guest trait that painted `content` */
   trait: string;
   /** Whether the trait is embedded (`@trait.X`) on the guest's page rather than the page root */
@@ -32,6 +37,8 @@ export interface GuestViewProps {
   source: string;
   /** The opener trait's declared event a click inside this view is delivered as. The kernel emits it, never the renderer. */
   deliver: EventKey;
+  /** The opener trait's declared event an in-app link inside this view is emitted as, with { guest, route }. Without it a link inside the guest does nothing. */
+  navigate?: EventKey;
   /** Every paint the guest made (`rendered` entries, the latest per trait and slot). An `@trait.X` inside the content resolves to the guest's trait X from these. */
   paints?: ReadonlyArray<GuestPaintEntry>;
   /** The guest's painted content */
@@ -44,15 +51,20 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
   slotsRef.current = slots;
   useLayoutEffect(() => {
     for (const paint of paints) {
-      if (paint.content === null) continue;
+      if (paint.content === null) {
+        slotsRef.current.clearBySource(paint.slot, paint.trait);
+        continue;
+      }
       const { bareTraitRef, patternType, props } = unwrapPattern(paint.content);
       const propsValue: SlotProps | string = bareTraitRef !== undefined ? bareTraitRef : { ...(props ?? {}) };
-      slotsRef.current.updateTraitContent(paint.trait, {
-        pattern: patternType as string,
-        props: convertFnFormLambdasInProps(propsValue, typeof patternType === 'string' ? patternType : undefined),
-        slot: paint.slot,
-        priority: 0,
-      });
+      const pattern = patternType as string;
+      const converted = convertFnFormLambdasInProps(propsValue, typeof patternType === 'string' ? patternType : undefined);
+      // An embedded trait shows only where an `@trait.X` names it; a page-root paint owns its slot.
+      if (paint.embedded) {
+        slotsRef.current.updateTraitContent(paint.trait, { pattern, props: converted, slot: paint.slot, priority: 0 });
+      } else {
+        slotsRef.current.render({ target: paint.slot, pattern, props: converted, sourceTrait: paint.trait });
+      }
     }
   }, [paints]);
   return null;
@@ -61,12 +73,25 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
 /**
  * GuestView - Paints a guest program's UI; guest, source and deliver are kernel routing data
  */
-export const GuestView: React.FC<GuestViewProps> = ({ paints, children }) => (
-  <UISlotProvider>
-    {paints !== undefined && <SeedGuestPaints paints={paints} />}
-    <Box fullWidth fullHeight>{children}</Box>
-  </UISlotProvider>
-);
+export const GuestView: React.FC<GuestViewProps> = ({ guest, navigate, paints, children }) => {
+  const eventBus = useEventBus();
+  const inHostRouter = useInRouterContext();
+  const [hostHrefBase, setHostHrefBase] = useState('/');
+  const frameRef = useRef<HTMLDivElement>(null);
+  const onPath = useCallback((route: string) => {
+    if (navigate !== undefined) eventBus.emit(`UI:${navigate}`, { guest, route });
+  }, [eventBus, navigate, guest]);
+  useInAppLinkInterceptor(frameRef, { enabled: true, isolated: true, hostHrefBase, onPath });
+  return (
+    <UISlotProvider>
+      {paints !== undefined && <SeedGuestPaints paints={paints} />}
+      {inHostRouter ? <HostHrefBaseProbe onBase={setHostHrefBase} /> : null}
+      <Box ref={frameRef} fullWidth fullHeight className="relative overflow-auto">
+        <UISlotRenderer hudMode="inline" includeHud main={children} />
+      </Box>
+    </UISlotProvider>
+  );
+};
 
 GuestView.displayName = 'GuestView';
 

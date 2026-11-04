@@ -230,7 +230,6 @@ pt-1
 pt-14
 pt-2
 pt-24
-pt-4
 pt-md
 pt-section
 px-1

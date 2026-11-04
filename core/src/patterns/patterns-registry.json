@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-04T13:39:06.965Z",
+  "exportedAt": "2026-11-04T16:27:47.579Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -59307,6 +59307,12 @@
             "string"
           ],
           "description": "The current page (path or name). When set, the main slot's content animates in on every page change (`PageTransition`); a layout's own content region claims the transition so its chrome stays still."
+        },
+        "main": {
+          "types": [
+            "node"
+          ],
+          "description": "Already-rendered content for the main slot (a guest view's page-root paint); the other slots read the provider as usual."
         },
         "enter": {
           "types": [
@@ -132418,6 +132424,13 @@
           "required": true,
           "kind": "event"
         },
+        "navigate": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event an in-app link inside this view is emitted as, with { guest, route }. Without it a link inside the guest does nothing.",
+          "kind": "event"
+        },
         "paints": {
           "types": [
             "array"
@@ -132431,6 +132444,31 @@
               "slot": {
                 "types": [
                   "string"
+                ],
+                "enumValues": [
+                  "main",
+                  "sidebar",
+                  "dock",
+                  "modal",
+                  "drawer",
+                  "overlay",
+                  "center",
+                  "toast",
+                  "floating",
+                  "system",
+                  "content",
+                  "screen",
+                  "hud",
+                  "hud-top",
+                  "hud-bottom",
+                  "hud.health",
+                  "hud.score",
+                  "hud.inventory",
+                  "hud.stamina",
+                  "overlay.inventory",
+                  "overlay.dialogue",
+                  "overlay.menu",
+                  "overlay.pause"
                 ]
               },
               "trait": {

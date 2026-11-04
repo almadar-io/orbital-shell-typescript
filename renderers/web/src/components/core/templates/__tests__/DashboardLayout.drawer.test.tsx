@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { DashboardLayout } from '../DashboardLayout';
+import { SlotContainedContext } from '../../../../lib/slotContained';
 
 let observedWidth = 1440;
 
@@ -66,5 +67,35 @@ describe('DashboardLayout layoutMode drawer', () => {
     renderLayout(1440, 'sidebar');
     expect(aside()?.hasAttribute('inert')).toBe(false);
     expect(screen.queryByRole('button', { name: 'Open sidebar' })).toBeNull();
+  });
+});
+
+describe('DashboardLayout inside a contained preview', () => {
+  const renderContained = (contained: boolean) => {
+    observedWidth = 375;
+    return render(
+      <SlotContainedContext.Provider value={contained}>
+        <MemoryRouter>
+          <DashboardLayout appName="Learn" layoutMode="sidebar" navItems={[{ label: 'Home', href: '/', icon: 'home' }]}>
+            <span>content</span>
+          </DashboardLayout>
+        </MemoryRouter>
+      </SlotContainedContext.Provider>,
+    );
+  };
+
+  it('keeps the phone drawer and its scrim inside the preview box', () => {
+    renderContained(true);
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Open sidebar' })); });
+    expect(aside()?.style.position).toBe('absolute');
+    expect(document.querySelector('.bg-scrim')?.classList.contains('absolute')).toBe(true);
+    expect(document.querySelector('.bg-scrim')?.classList.contains('fixed')).toBe(false);
+  });
+
+  it('control: on a page of its own the drawer and scrim are viewport-fixed', () => {
+    renderContained(false);
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Open sidebar' })); });
+    expect(aside()?.style.position).toBe('fixed');
+    expect(document.querySelector('.bg-scrim')?.classList.contains('fixed')).toBe(true);
   });
 });
