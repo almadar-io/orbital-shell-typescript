@@ -45,6 +45,10 @@ const run = (cmd, argv, cwd, env = {}) => execFileSync(cmd, argv, { cwd, stdio: 
 const tailwindContent = path.join(repo, 'templates', 'almadar-shell', 'packages', 'client', 'tailwind-content.txt');
 run('orb', ['tailwind-content', '--out', tailwindContent], workspace === undefined ? process.cwd() : path.resolve(workspace));
 
+const staging = `${out}.staging-${process.pid}`;
+const retired = `${out}.retired-${process.pid}`;
+fs.rmSync(staging, { recursive: true, force: true });
+fs.rmSync(retired, { recursive: true, force: true });
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'almadar-web-client-'));
 try {
   fs.cpSync(path.join(repo, 'templates', 'almadar-shell'), scratch, {
@@ -68,8 +72,14 @@ try {
     run('pnpm', ['install', '--no-frozen-lockfile', '--ignore-scripts', '--filter', '@almadar/shell-client...'], scratch);
   }
   run('pnpm', ['exec', 'tsc', '--noEmit'], client);
-  fs.rmSync(out, { recursive: true, force: true });
-  run('pnpm', ['exec', 'vite', 'build', '--outDir', out, '--emptyOutDir'], client, { ALMADAR_GENERIC_CLIENT: '1' });
+  // Readers (the launchpad service) serve `out` while this runs: build beside it, then swap by rename so they
+  // only ever see a complete directory. rename(2) cannot replace a non-empty directory, so the old one moves aside first.
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  run('pnpm', ['exec', 'vite', 'build', '--outDir', staging, '--emptyOutDir'], client, { ALMADAR_GENERIC_CLIENT: '1' });
+  if (fs.existsSync(out)) fs.renameSync(out, retired);
+  fs.renameSync(staging, out);
 } finally {
   fs.rmSync(scratch, { recursive: true, force: true });
+  fs.rmSync(staging, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  fs.rmSync(retired, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
