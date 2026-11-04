@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-04T11:30:16.591Z",
+  "exportedAt": "2026-11-04T13:39:06.965Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -132417,6 +132417,46 @@
           "description": "The opener trait's declared event a click inside this view is delivered as. The kernel emits it, never the renderer.",
           "required": true,
           "kind": "event"
+        },
+        "paints": {
+          "types": [
+            "array"
+          ],
+          "description": "Every paint the guest made (`rendered` entries, the latest per trait and slot). An `@trait.X` inside the content resolves to the guest's trait X from these.",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "slot": {
+                "types": [
+                  "string"
+                ]
+              },
+              "trait": {
+                "types": [
+                  "string"
+                ]
+              },
+              "embedded": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "content": {
+                "types": [
+                  "object",
+                  "string"
+                ],
+                "nullable": true
+              }
+            },
+            "required": [
+              "slot",
+              "trait",
+              "embedded"
+            ]
+          }
         },
         "children": {
           "types": [

@@ -18,3 +18,26 @@ describe('GuestView', () => {
     for (const v of ['guest-77', 'TraitSrc', 'GUEST_CLICK']) expect(html).not.toContain(v);
   });
 });
+
+describe('GuestView embedded paints', () => {
+  it('seeds a scoped slot manager with the guest paints', async () => {
+    const { UISlotContext } = await import('../../../../providers/UISlotContext');
+    const Probe = () => {
+      const slots = React.useContext(UISlotContext);
+      const [seen, setSeen] = React.useState('none');
+      React.useEffect(() => setSeen(slots?.getTraitContent('Child')?.pattern ?? 'missing'), [slots]);
+      return <span>{`seen:${seen}`}</span>;
+    };
+    wrap(
+      <GuestView
+        guest="guest-1"
+        source="Root"
+        deliver="GUEST_CLICK"
+        paints={[{ slot: 'main', trait: 'Child', embedded: true, content: { type: 'typography', content: 'child' } }]}
+      >
+        <Probe />
+      </GuestView>,
+    );
+    expect(screen.getByText('seen:typography')).toBeTruthy();
+  });
+});

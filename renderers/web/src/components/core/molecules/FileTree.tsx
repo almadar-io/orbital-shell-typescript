@@ -432,6 +432,10 @@ const FlatTreeNodeItem: React.FC<FlatTreeNodeItemProps> = ({
   const nav = look === 'nav';
   const rowRef = useRef<HTMLDivElement>(null);
   const treeNav = useContext(TreeNavContext);
+  // The selected row stays in view: a tree that remounts (docked, then reopened) or a selection made elsewhere scrolls to it.
+  React.useEffect(() => {
+    if (isSelected) rowRef.current?.scrollIntoView({ block: 'center' });
+  }, [isSelected]);
 
   const handleClick = useCallback(() => {
     if (hasChildren && !onNodeSelect) onToggle(item.id, expanded);

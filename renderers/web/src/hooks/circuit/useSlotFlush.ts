@@ -63,7 +63,7 @@ export interface SlotFlushHandle {
   ) => void;
 }
 
-function unwrapPattern(record: PatternNode | string | null): { bareTraitRef?: string; props?: SlotProps; patternType?: string } {
+export function unwrapPattern(record: PatternNode | string | null): { bareTraitRef?: string; props?: SlotProps; patternType?: string } {
   if (typeof record === 'string') return { bareTraitRef: record };
   if (record === null) return {};
   const { type, children, ...inlineProps } = record as PatternNode;
