@@ -7,7 +7,7 @@
  * collapsible right secondary sidebar. Resizable boundaries are delegated to
  * SplitPane (same directory) — DockLayout owns no drag/resize math itself.
  *
- * sidebarWidth/bottomPanelHeight are SplitPane ratio values (0-100), not
+ * sidebarWidth/secondarySidebarWidth/bottomPanelHeight are SplitPane ratio values (0-100), not
  * pixels: they pass straight through to SplitPane's `ratio` contract so the
  * boundary math stays owned by SplitPane.
  *
@@ -75,6 +75,16 @@ function useCollapsed(controlled: boolean | undefined, onChange: ((collapsed: bo
   return [collapsed, set];
 }
 
+/** A split's size: starts at the host's value, follows the drag, and survives a region opening or closing. */
+function useRatio(initial: number, onChange: ((ratio: number) => void) | undefined): [number, (next: number) => void] {
+  const [ratio, setRatio] = useState(initial);
+  const set = (next: number) => {
+    setRatio(next);
+    onChange?.(next);
+  };
+  return [ratio, set];
+}
+
 const TOGGLE_ICONS: Record<Region, { open: string; closed: string; position: "left" | "right" | "top" }> = {
   sidebar: { open: "panel-left-close", closed: "panel-left-open", position: "right" },
   "secondary-sidebar": { open: "panel-right-close", closed: "panel-right-open", position: "left" },
@@ -113,8 +123,12 @@ export interface DockLayoutProps extends Omit<React.AriaAttributes, keyof A11yPr
 
   /** Width of `rail` in pixels; the rail sizes the column itself when omitted. */
   railWidth?: number;
-  /** Width of `secondarySidebar` in pixels (fixed — not resizable). @default 280 */
+  /** Right sidebar size as a SplitPane ratio (0-100, percentage of the main/right-sidebar split). @default 25 */
   secondarySidebarWidth?: number;
+  /** @notification */
+  onSecondarySidebarWidthChange?: (width: number) => void;
+  /** Minimum right sidebar size in pixels, forwarded to SplitPane's `minSize`. @default 240 */
+  secondarySidebarMinSize?: number;
 
   /** Whether `sidebar` is collapsed (controlled; the layout keeps its own state when omitted). */
   sidebarCollapsed?: boolean;
@@ -178,6 +192,8 @@ export const DockLayout: React.FC<DockLayoutProps> = ({
   secondarySidebar,
   railWidth,
   secondarySidebarWidth,
+  onSecondarySidebarWidthChange,
+  secondarySidebarMinSize,
   sidebarCollapsed: sidebarCollapsedProp,
   onSidebarCollapsedChange,
   sidebarWidth,
@@ -231,7 +247,7 @@ export const DockLayout: React.FC<DockLayoutProps> = ({
   }
   return (
     <DesktopDock
-      {...{ rail, sidebar, main, bottomPanel, statusBar, secondarySidebar, railWidth, secondarySidebarWidth,
+      {...{ rail, sidebar, main, bottomPanel, statusBar, secondarySidebar, railWidth, secondarySidebarWidth, onSecondarySidebarWidthChange, secondarySidebarMinSize,
         sidebarCollapsedProp, onSidebarCollapsedChange, sidebarWidth, onSidebarWidthChange, sidebarMinSize,
         bottomPanelCollapsedProp, onBottomPanelCollapsedChange, bottomPanelHeight, onBottomPanelHeightChange, bottomPanelMinSize,
         secondarySidebarCollapsedProp, onSecondarySidebarCollapsedChange,
@@ -321,7 +337,7 @@ interface DesktopDockProps extends Omit<DockLayoutProps, "sidebarCollapsed" | "b
 
 const DesktopDock: React.FC<DesktopDockProps> = ({
   rail, sidebar, main, bottomPanel, statusBar, secondarySidebar,
-  railWidth, secondarySidebarWidth = 280,
+  railWidth, secondarySidebarWidth = 25, onSecondarySidebarWidthChange, secondarySidebarMinSize = 240,
   sidebarCollapsedProp, onSidebarCollapsedChange, sidebarWidth = 20, onSidebarWidthChange, sidebarMinSize = 160,
   bottomPanelCollapsedProp, onBottomPanelCollapsedChange, bottomPanelHeight = 30, onBottomPanelHeightChange, bottomPanelMinSize = 120,
   secondarySidebarCollapsedProp, onSecondarySidebarCollapsedChange,
@@ -330,6 +346,9 @@ const DesktopDock: React.FC<DesktopDockProps> = ({
   const [sidebarCollapsed, setSidebarCollapsed] = useCollapsed(sidebarCollapsedProp, onSidebarCollapsedChange);
   const [bottomPanelCollapsed, setBottomPanelCollapsed] = useCollapsed(bottomPanelCollapsedProp, onBottomPanelCollapsedChange);
   const [secondarySidebarCollapsed, setSecondarySidebarCollapsed] = useCollapsed(secondarySidebarCollapsedProp, onSecondarySidebarCollapsedChange);
+  const [sidebarRatio, setSidebarRatio] = useRatio(sidebarWidth, onSidebarWidthChange);
+  const [secondaryRatio, setSecondaryRatio] = useRatio(secondarySidebarWidth, onSecondarySidebarWidthChange);
+  const [bottomRatio, setBottomRatio] = useRatio(bottomPanelHeight, onBottomPanelHeightChange);
   const showSidebar = Boolean(sidebar) && !sidebarCollapsed;
   const showBottomPanel = Boolean(bottomPanel) && !bottomPanelCollapsed;
   const showSecondarySidebar = Boolean(secondarySidebar) && !secondarySidebarCollapsed;
@@ -340,34 +359,44 @@ const DesktopDock: React.FC<DesktopDockProps> = ({
     </Box>
   );
 
-  const centerRow = (
+  // No `h-full` on flex-grown children: height:100% resolves against the row's
+  // non-definite (flex-grown) height and collapses to content height — `min-h-0`
+  // + the HStack's items-stretch size it.
+  const mainRegion = (
+    <Box className={cn("flex-1 min-w-0 min-h-0 overflow-auto", mainClassName)}>
+      {main}
+    </Box>
+  );
+  const centerRow = showSecondarySidebar ? (
+    <SplitPane
+      direction="horizontal"
+      ratio={100 - secondaryRatio}
+      onRatioChange={(mainRatio) => setSecondaryRatio(100 - mainRatio)}
+      minSize={secondarySidebarMinSize}
+      resizable
+      left={mainRegion}
+      right={
+        <HStack gap="none" className="h-full min-w-0">
+          {sideGutter("secondary-sidebar", false, () => setSecondarySidebarCollapsed(true), "l")}
+          <Box className={cn("flex-1 min-w-0 h-full overflow-auto", secondarySidebarClassName)}>
+            {secondarySidebar}
+          </Box>
+        </HStack>
+      }
+      className="flex-1 min-h-0 min-w-0"
+    />
+  ) : (
     <HStack gap="none" className="flex-1 min-h-0 min-w-0">
-      {/* No `h-full` on flex-grown children: height:100% resolves against
-          centerRow's non-definite (flex-grown) height and collapses to
-          content height — `min-h-0` + the HStack's items-stretch size it. */}
-      <Box className={cn("flex-1 min-w-0 min-h-0 overflow-auto", mainClassName)}>
-        {main}
-      </Box>
-      {secondarySidebar && sideGutter("secondary-sidebar", secondarySidebarCollapsed, () => setSecondarySidebarCollapsed(!secondarySidebarCollapsed), "l")}
-      {showSecondarySidebar && (
-        <Box
-          className={cn(
-            "flex-shrink-0 h-full overflow-auto border-l border-border",
-            secondarySidebarClassName,
-          )}
-          style={{ width: secondarySidebarWidth }}
-        >
-          {secondarySidebar}
-        </Box>
-      )}
+      {mainRegion}
+      {secondarySidebar && sideGutter("secondary-sidebar", true, () => setSecondarySidebarCollapsed(false), "l")}
     </HStack>
   );
 
   const sidebarAndCenter = showSidebar ? (
     <SplitPane
       direction="horizontal"
-      ratio={sidebarWidth}
-      onRatioChange={onSidebarWidthChange}
+      ratio={sidebarRatio}
+      onRatioChange={setSidebarRatio}
       minSize={sidebarMinSize}
       resizable
       left={<Box className={cn("h-full overflow-auto", sidebarClassName)}>{sidebar}</Box>}
@@ -409,8 +438,8 @@ const DesktopDock: React.FC<DesktopDockProps> = ({
   const bodyPlusBottom = showBottomPanel ? (
     <SplitPane
       direction="vertical"
-      ratio={100 - bottomPanelHeight}
-      onRatioChange={(topRatio) => onBottomPanelHeightChange?.(100 - topRatio)}
+      ratio={100 - bottomRatio}
+      onRatioChange={(topRatio) => setBottomRatio(100 - topRatio)}
       minSize={bottomPanelMinSize}
       resizable
       left={body}

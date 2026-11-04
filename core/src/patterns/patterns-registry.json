@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-03T10:49:17.209Z",
+  "exportedAt": "2026-11-04T11:30:16.591Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -115815,8 +115815,29 @@
           "types": [
             "number"
           ],
-          "description": "Width of `secondarySidebar` in pixels (fixed — not resizable). @default 280",
-          "default": 280
+          "description": "Right sidebar size as a SplitPane ratio (0-100, percentage of the main/right-sidebar split). @default 25",
+          "default": 25
+        },
+        "onSecondarySidebarWidthChange": {
+          "types": [
+            "function"
+          ],
+          "description": "onSecondarySidebarWidthChange prop",
+          "kind": "callback",
+          "notification": true,
+          "callbackArgs": [
+            {
+              "name": "width",
+              "type": "number"
+            }
+          ]
+        },
+        "secondarySidebarMinSize": {
+          "types": [
+            "number"
+          ],
+          "description": "Minimum right sidebar size in pixels, forwarded to SplitPane's `minSize`. @default 240",
+          "default": 240
         },
         "sidebarCollapsed": {
           "types": [
@@ -121293,6 +121314,14 @@
             "string",
             "number",
             "int",
+            "i8",
+            "i16",
+            "i32",
+            "u8",
+            "u16",
+            "u32",
+            "u64",
+            "f32",
             "boolean",
             "date",
             "timestamp",
