@@ -41,3 +41,40 @@ describe.each(ENGINES)('a local-store leg translates with the viewer catalog [%s
     expect(outcome.response.success).toBe(true);
   });
 });
+
+const catalogs: Record<string, Record<string, string>> = { en: { 'app:name': 'Northwind CRM' }, ar: { 'app:name': 'نورثويند' } };
+const switchable = ({ children, locale }: { children: React.ReactNode; locale: string }) => (
+  <I18nProvider value={{ locale, direction: locale === 'ar' ? 'rtl' : 'ltr', t: createTranslate(catalogs[locale], locale), messages: catalogs[locale] }}>{children}</I18nProvider>
+);
+
+describe.each(ENGINES)('a locale switch keeps the local legs open [%s engine]', (_name, engine) => {
+  it('the transport and kernel client survive the switch, and the next render is in the new catalog', async () => {
+    const persistence = nativeMemoryPersistence(await loadTestKernel());
+    let current = 'en';
+    const { result, rerender } = renderHook(() => useCircuitKernel({ stamp: TEST_STAMP, orbitals, persistence, engine }), {
+      wrapper: ({ children }) => switchable({ children, locale: current }),
+    });
+    await circuitReady(result);
+    const before = { transport: result.current.transport, engine: result.current.engine };
+    current = 'ar';
+    rerender();
+    await circuitReady(result);
+    expect(result.current.transport).toBe(before.transport);
+    expect(result.current.engine).toBe(before.engine);
+    const outcome = await result.current.kernel.dispatch({ event: 'INIT', targetTrait: 'Shell' });
+    expect(JSON.stringify(outcome.response)).toContain('نورثويند');
+    expect(JSON.stringify(outcome.response)).not.toContain('Northwind CRM');
+  });
+
+  it('control: a different persistence opens a new local leg', async () => {
+    const kernel = await loadTestKernel();
+    const { result, rerender } = renderHook(({ persistence }) => useCircuitKernel({ stamp: TEST_STAMP, orbitals, persistence, engine }), {
+      wrapper, initialProps: { persistence: nativeMemoryPersistence(kernel) },
+    });
+    await circuitReady(result);
+    const before = result.current.transport;
+    rerender({ persistence: nativeMemoryPersistence(kernel) });
+    await circuitReady(result);
+    expect(result.current.transport).not.toBe(before);
+  });
+});

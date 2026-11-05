@@ -216,6 +216,14 @@ export function useCircuitKernel(
   const { locale } = useTranslate();
   const i18n = useRenderI18n();
 
+  // A local leg opens with the catalog current then; a locale switch sets the new one on every open leg, never reopening it.
+  const catalog = useRef(i18n);
+  catalog.current = i18n;
+  const openLegs = useMemo<Array<Promise<ReturnType<typeof openLocalKernel>>>>(
+    () => [],
+    [loadModule, orbitalName, orbitals, metadata, stamp, options.callService, options.engine?.os],
+  );
+
   const store = useMemo(
     () => createMemoryCircuitStore(memoryTraitDefinitions(traitIndex), options.observer),
     [traitIndex, options.observer],
@@ -225,22 +233,24 @@ export function useCircuitKernel(
   const localTransport = useCallback(
     (store: PersistenceAdapter): EventTransport => {
       const schema: OrbitalSchema = { name: orbitalName, orbitals: [...orbitals], ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) };
+      const opening = catalog.current;
       const kernelEngine = loadModule().then((kernel) => openLocalKernel({
           kernel,
           schema,
           persistence: localStorePersistence(schema, store, nativeMemoryPersistence(kernel)),
           ...(options.callService !== undefined ? { callService: options.callService } : {}),
           ...(options.engine?.os !== undefined ? { os: options.engine.os } : {}),
-          ...(i18n !== undefined ? { messages: { [i18n.locale]: i18n.messages } } : {}),
+          ...(opening !== undefined ? { messages: { [opening.locale]: opening.messages } } : {}),
         }));
       // The failure reaches the first request through the transport; a store nothing dispatches to stays quiet.
       kernelEngine.catch(() => undefined);
+      openLegs.push(kernelEngine);
       return createLocalStoreTransport({
         kernelEngine,
         schema,
       });
     },
-    [loadModule, orbitalName, orbitals, metadata, stamp, options.callService, options.engine?.os, i18n],
+    [openLegs, loadModule, orbitalName, orbitals, metadata, stamp, options.callService, options.engine?.os],
   );
   const offlineTransport = useMemo(
     () => (options.transport !== undefined || options.persistence === undefined ? undefined : localTransport(options.persistence)),
@@ -276,7 +286,10 @@ export function useCircuitKernel(
   useEffect(() => {
     if (i18n === undefined) return;
     void kernelInstance.then((k) => k.setMessages(JSON.stringify([i18n.locale]), JSON.stringify({ [i18n.locale]: i18n.messages })));
-  }, [kernelInstance, i18n]);
+    for (const leg of openLegs) {
+      void leg.then((engine) => engine.setMessages([i18n.locale], { [i18n.locale]: i18n.messages }), () => undefined);
+    }
+  }, [kernelInstance, i18n, openLegs]);
   const kernelClient = useMemo<KernelClient>(() => createLazyKernelClient({
     instance: kernelInstance,
     store,
