@@ -68,7 +68,7 @@ try {
       manifest.pnpm.overrides[name] = `link:${at}`;
     }
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-    fs.rmSync(path.join(scratch, 'pnpm-lock.yaml'), { force: true });
+    // The template lockfile stays: only the linked packages re-resolve, every other dependency keeps its locked version.
     run('pnpm', ['install', '--no-frozen-lockfile', '--ignore-scripts', '--filter', '@almadar/shell-client...'], scratch);
   }
   run('pnpm', ['exec', 'tsc', '--noEmit'], client);

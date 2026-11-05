@@ -3,17 +3,18 @@
 /**
  * AvlOrbitalMachine — a whole mounted orbital on one canvas: every rendering
  * trait is a box nested inside its parent, boxes within `expandDepth` draw
- * their own machine, the rest are compact boxes whose full machine opens on
- * hover or focus, traits that never paint sit in a background lane, and
- * `Trait.EVENT` listens are dashed wires between boxes.
+ * their own machine, the rest are compact boxes that open in place, traits
+ * that never paint sit in a background lane, and `Trait.EVENT` listens are
+ * dashed wires between boxes. Choosing a box emits `selectEvent`.
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { A11yProps, MountedOrbital, MountedTrait } from '@almadar/core';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { A11yProps, EventEmit, MountedOrbital, MountedTrait } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { Box } from '../../../core';
 import { Typography } from '../../../core';
 import { Button } from '../../../core';
+import { useEventBus } from '../../../core';
 import { useTranslate } from '../../../core';
 import { useMediaQuery } from '../../../core';
 import { domPassthrough } from '../../../core';
@@ -27,9 +28,8 @@ import {
   type OrbitalWire,
 } from '../../../lib/avl-elk-layout';
 import { AVL_FONT, AVL_INK, AVL_STROKE, avlTint } from '../../../lib/avl-theme';
-import { traitLevelFromMounted } from '../../../lib/avl-schema-parser';
-import { Popover } from '../../core/molecules/Popover';
-import { AvlStateMachine, BODY_CHAR, MARGIN, MAX_SCALE, MIN_SCALE, PILL_H, metricsFor } from './AvlStateMachine';
+import { AvlGlyph } from './AvlGlyph';
+import { BODY_CHAR, MARGIN, MAX_SCALE, MIN_SCALE, PILL_H, metricsFor } from './AvlStateMachine';
 
 const log = createLogger('almadar:ui:avl:orbital-machine');
 
@@ -48,6 +48,12 @@ export interface AvlOrbitalMachineProps extends A11yProps {
   firedTransition?: { trait: string; index: number } | null;
   /** Boxes at a trait depth below this draw their own machine (when they have more than one state). @default 2 */
   expandDepth?: number;
+  /** The trait whose box is marked as chosen. @default "" */
+  selectedTrait?: string;
+  /** Emitted with the trait's name when a box is chosen. */
+  selectEvent?: EventEmit<{ trait: string }>;
+  /** The canvas scrolls inside this height. @default "calc(100vh - 9rem)" */
+  maxHeight?: string;
   /** Flow direction. @default 'ltr' */
   direction?: 'ltr' | 'rtl';
   className?: string;
@@ -55,9 +61,18 @@ export interface AvlOrbitalMachineProps extends A11yProps {
 
 const MONO = 7.3;
 const PULSE_MS = 700;
+const GLYPH_ROOM = 20;
+const NONE: ReadonlySet<string> = new Set<string>();
 
 function wireLabelSize(text: string): { width: number; height: number } {
-  return { width: Math.round(text.length * MONO + 16), height: PILL_H - 4 };
+  return { width: Math.round(text.length * MONO + 16 + GLYPH_ROOM), height: PILL_H - 4 };
+}
+
+function toggled(set: ReadonlySet<string>, name: string, on: boolean): ReadonlySet<string> {
+  const next = new Set(set);
+  if (on) next.add(name);
+  else next.delete(name);
+  return next;
 }
 
 function activeOf(trait: MountedTrait, activeStates: readonly { trait: string; state: string }[]): string[] {
@@ -70,12 +85,18 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   activeStates = [],
   firedTransition = null,
   expandDepth = 2,
+  selectedTrait = '',
+  selectEvent,
+  maxHeight = 'calc(100vh - 9rem)',
   direction = 'ltr',
   className,
   ...rest
 }) => {
   const passthrough = domPassthrough(rest);
   const { t } = useTranslate();
+  const eventBus = useEventBus();
+  const [open, setOpen] = useState<ReadonlySet<string>>(NONE);
+  const [closed, setClosed] = useState<ReadonlySet<string>>(NONE);
   const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const hostRef = useRef<HTMLDivElement>(null);
   const hostWidth = useContainerWidth(hostRef);
@@ -87,10 +108,19 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   const orbitalKey = useMemo(() => JSON.stringify(orbital), [orbital]);
   const metrics = useMemo(() => metricsFor('pill', direction), [direction]);
 
+  const select = useCallback((trait: string) => {
+    if (selectEvent) eventBus.emit(`UI:${selectEvent}`, { trait });
+  }, [eventBus, selectEvent]);
+
+  const setExpanded = useCallback((trait: string, expanded: boolean) => {
+    setOpen((s) => toggled(s, trait, expanded));
+    setClosed((s) => toggled(s, trait, !expanded));
+  }, []);
+
   useEffect(() => {
     let live = true;
     setLayoutFailed(false);
-    computeOrbitalLayout(orbital, { expandDepth, metrics, charWidth: BODY_CHAR, wireLabelSize })
+    computeOrbitalLayout(orbital, { expandDepth, open, closed, metrics, charWidth: BODY_CHAR, wireLabelSize })
       .then((l) => { if (live) setLayout(l); })
       .catch((error) => {
         log.error('layout-failed', { page: orbital.page, error: error instanceof Error ? error : String(error) });
@@ -98,7 +128,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
       });
     return () => { live = false; };
     // orbital is captured by its serialized key.
-  }, [orbitalKey, expandDepth, metrics, attempt]);
+  }, [orbitalKey, expandDepth, open, closed, metrics, attempt]);
 
   useEffect(() => {
     if (firedTransition === null) return;
@@ -108,7 +138,6 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   }, [firedTransition]);
 
   const traits = useMemo(() => new Map(orbital.traits.map((tr) => [tr.trait, tr])), [orbital]);
-  const levels = useMemo(() => new Map(orbital.traits.map((tr) => [tr.trait, traitLevelFromMounted(tr)])), [orbital]);
   const actives = useMemo(
     () => new Map(orbital.traits.map((tr) => [tr.trait, new Set(activeOf(tr, activeStates))])),
     [orbital, activeStates],
@@ -151,65 +180,68 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
 
   const renderBox = (box: OrbitalBox, parent: OrbitalBox | null, depth: number): React.ReactNode => {
     const trait = traits.get(box.trait);
-    const level = levels.get(box.trait);
-    if (trait === undefined || level === undefined) return null;
+    if (trait === undefined) return null;
     const active = [...(actives.get(box.trait) ?? [])];
     const children = layout.boxes.filter((b) => b.parent === box.trait && !b.lane);
-    const compact = box.kind !== 'machine';
-    const headH = box.kind === 'machine' ? 46 : 38;
+    const expanded = box.kind === 'machine';
+    const opens = box.kind !== 'chip';
+    const chosen = selectedTrait === box.trait;
+    const headH = expanded ? 46 : 38;
     const label = active.length > 0
       ? t('stateMachine.boxLabel', { trait: trait.trait, state: active.join(', '), count: trait.states.length })
       : t('stateMachine.boxLabelIdle', { trait: trait.trait, count: trait.states.length });
     const fired = pulse === box.trait;
 
-    const heading = (
-      <Box className="flex h-full w-full flex-col justify-center px-3" style={{ fontFamily: AVL_FONT.body, pointerEvents: 'none' }}>
-        <Box className="flex items-center gap-2">
-          <Box as="span" style={{ fontSize: 13, fontWeight: 600, color: AVL_INK.text }}>{trait.trait}</Box>
-          {compact && box.kind === 'collapsed' && active.length > 0 ? (
-            <Box
-              as="span"
-              data-testid="avl-om-state"
-              className="rounded-full px-1.5"
-              style={{ fontSize: 11, fontWeight: 600, background: AVL_INK.focus, color: AVL_INK.onFocus }}
-            >
-              {active.join(', ')}
-            </Box>
-          ) : null}
-        </Box>
-        {box.kind !== 'chip' ? (
-          <Box as="span" style={{ fontSize: 11, color: AVL_INK.quiet }}>
-            {trait.linkedEntity !== null ? `${trait.linkedEntity} · ` : ''}{t('avl.stateCount', { count: trait.states.length })}
-          </Box>
-        ) : trait.linkedEntity !== null ? (
-          <Box as="span" style={{ fontSize: 11, color: AVL_INK.quiet }}>{trait.linkedEntity}</Box>
-        ) : null}
-      </Box>
-    );
-
-    const head = compact ? (
-      <Popover
-        trigger="hover"
-        position="bottom"
-        content={
-          <Box style={{ minWidth: 320 }}>
-            <AvlStateMachine trait={level} activeState={active[0]} activeTransition={firedTransition?.trait === box.trait ? firedTransition.index : undefined} />
-          </Box>
-        }
+    const head = (
+      <Box
+        className="absolute left-0 top-0 flex w-full items-center gap-1 px-1"
+        style={{ height: box.container || expanded ? headH : '100%', fontFamily: AVL_FONT.body }}
       >
+        {opens ? (
+          <Button
+            data-testid="avl-om-toggle"
+            variant="ghost"
+            size="sm"
+            className="shrink-0 px-1"
+            icon={expanded ? 'chevron-down' : direction === 'rtl' ? 'chevron-left' : 'chevron-right'}
+            aria-expanded={expanded}
+            aria-label={t(expanded ? 'stateMachine.collapse' : 'stateMachine.expand', { trait: trait.trait })}
+            onClick={() => setExpanded(box.trait, !expanded)}
+          />
+        ) : null}
         <Box
           data-testid="avl-om-head"
+          role="button"
           tabIndex={0}
-          role="group"
+          aria-pressed={chosen}
           aria-label={label}
-          className="absolute left-0 top-0 w-full rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          style={{ height: box.container ? headH : '100%', cursor: 'help' }}
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 self-stretch rounded-md px-1 transition-colors duration-150 hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={() => select(box.trait)}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(box.trait); }
+          }}
         >
-          {heading}
+          <AvlGlyph kind="trait" size="xs" showCaption={false} aria-hidden="true" className="shrink-0" />
+          <Box className="flex min-w-0 flex-col">
+            <Box className="flex min-w-0 items-center gap-2">
+              <Box as="span" className="truncate" style={{ fontSize: 13, fontWeight: 600, color: AVL_INK.text }}>{trait.trait}</Box>
+              {box.kind === 'collapsed' && active.length > 0 ? (
+                <Box
+                  as="span"
+                  data-testid="avl-om-state"
+                  className="shrink-0 rounded-full px-1.5"
+                  style={{ fontSize: 11, fontWeight: 600, background: AVL_INK.focus, color: AVL_INK.onFocus }}
+                >
+                  {active.join(', ')}
+                </Box>
+              ) : null}
+            </Box>
+            {trait.linkedEntity !== null && box.kind !== 'chip' ? (
+              <Box as="span" className="truncate" style={{ fontSize: 11, color: AVL_INK.quiet }}>{trait.linkedEntity}</Box>
+            ) : null}
+          </Box>
         </Box>
-      </Popover>
-    ) : (
-      <Box className="absolute left-0 top-0 w-full" style={{ height: headH, pointerEvents: 'none' }}>{heading}</Box>
+      </Box>
     );
 
     return (
@@ -220,6 +252,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
         data-kind={box.kind}
         data-lane={box.lane ? 'true' : 'false'}
         data-pulse={fired ? 'true' : 'false'}
+        data-selected={chosen ? 'true' : 'false'}
         className="absolute rounded-xl"
         style={{
           left: box.x - (parent?.x ?? 0),
@@ -227,7 +260,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
           width: box.width,
           height: box.height,
           background: depth % 2 === 0 ? AVL_INK.surface : AVL_INK.wash,
-          border: `1px solid ${fired ? AVL_INK.focus : AVL_INK.line}`,
+          border: `${chosen ? 2 : 1}px solid ${fired || chosen ? AVL_INK.focus : AVL_INK.line}`,
           boxShadow: fired ? pulseShadow(box.trait) : 'var(--shadow-sm)',
           transition: motion,
         }}
@@ -244,7 +277,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
 
   return (
     <Box data-testid="avl-orbital-machine" className={`min-w-0 max-w-full ${className ?? ''}`} style={{ width: '100%', minWidth: 0 }} {...passthrough}>
-      <Box ref={hostRef} className="min-w-0 max-w-full overflow-auto" style={{ width: '100%', minWidth: 0, maxHeight: 'calc(100vh - 9rem)' }}>
+      <Box ref={hostRef} className="min-w-0 max-w-full overflow-auto" style={{ width: '100%', minWidth: 0, maxHeight }}>
         <Box className="relative" style={{ width: w * scale, height: h * scale, marginInline: w * scale < (hostWidth ?? 0) ? 'auto' : 0 }}>
           <Box className="absolute left-0 top-0" style={{ width: w, height: h, transform: `scale(${scale})`, transformOrigin: '0 0' }}>
             <Box className="absolute" style={{ left: MARGIN, top: MARGIN, width: layout.width, height: layout.height }}>
@@ -360,7 +393,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                   data-testid="avl-om-wire-label"
                   data-from={wire.from}
                   data-to={wire.to}
-                  className="absolute flex items-center justify-center rounded-md px-1"
+                  className="absolute flex items-center justify-center gap-1 rounded-md px-1"
                   style={{
                     left: wire.labelX, top: wire.labelY, width: wire.labelW, height: wire.labelH,
                     background: AVL_INK.canvas,
@@ -368,7 +401,8 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                     fontFamily: AVL_FONT.mono, fontSize: 11, color: AVL_INK.quiet,
                   }}
                 >
-                  <Box as="span" className="whitespace-nowrap">{[...new Set(wire.pairs.map((p) => p.event))].join(', ')}</Box>
+                  <AvlGlyph kind="event" size="xs" showCaption={false} aria-hidden="true" className="shrink-0" />
+                  <Box as="span" data-testid="avl-om-wire-event" className="whitespace-nowrap">{[...new Set(wire.pairs.map((p) => p.event))].join(', ')}</Box>
                 </Box>
               ))}
               {layout.states.map((s) => {

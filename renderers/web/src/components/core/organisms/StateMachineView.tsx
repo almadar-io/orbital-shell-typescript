@@ -10,7 +10,7 @@ import { Typography } from '../../../core';
 import { LoadingState } from '../molecules/LoadingState';
 import { ErrorState } from '../molecules/ErrorState';
 import { AvlStateMachine, type AvlStateMachineProps } from '../../avl/molecules/AvlStateMachine';
-import type { MountedOrbital, TraitDescription } from '@almadar/core';
+import type { EventEmit, MountedOrbital, TraitDescription } from '@almadar/core';
 import { AvlOrbitalMachine } from '../../avl/molecules/AvlOrbitalMachine';
 import { traitLevelFromDescription, type TraitLevelData } from '../../../lib/avl-schema-parser';
 import { useTranslate } from '../../../core';
@@ -35,20 +35,26 @@ export interface StateMachineViewProps extends Omit<AvlStateMachineProps, 'trait
   firedTransition?: { trait: string; index: number } | null;
   /** Orbital mode: boxes at a trait depth below this draw their own machine (when they have more than one state). @default 2 */
   expandDepth?: number;
+  /** Orbital mode: the trait whose box is marked as chosen. @default "" */
+  selectedTrait?: string;
+  /** Orbital mode: emitted with the trait's name when a box is chosen. */
+  selectEvent?: EventEmit<{ trait: string }>;
+  /** Orbital mode: the canvas scrolls inside this height. @default "calc(100vh - 9rem)" */
+  maxHeight?: string;
   /** Loading state indicator */
   isLoading?: boolean;
   /** Error state */
   error?: UiError | null;
 }
 
-export const StateMachineView: React.FC<StateMachineViewProps> = ({ trait, description, orbital = null, activeStates, firedTransition, expandDepth, isLoading = false, error = null, className, ...rest }) => {
+export const StateMachineView: React.FC<StateMachineViewProps> = ({ trait, description, orbital = null, activeStates, firedTransition, expandDepth, selectedTrait, selectEvent, maxHeight, isLoading = false, error = null, className, ...rest }) => {
   const { t } = useTranslate();
   const drawn = trait ?? (description ? traitLevelFromDescription(description) : null);
 
   if (isLoading) return <LoadingState message={t('stateMachine.loading')} />;
   if (error) return <ErrorState message={error instanceof Error ? error.message : String(error)} />;
   if (orbital !== null && orbital.traits.length > 0) {
-    return <AvlOrbitalMachine orbital={orbital} activeStates={activeStates} firedTransition={firedTransition} expandDepth={expandDepth} direction={rest.direction} className={className} />;
+    return <AvlOrbitalMachine orbital={orbital} activeStates={activeStates} firedTransition={firedTransition} expandDepth={expandDepth} selectedTrait={selectedTrait} selectEvent={selectEvent} maxHeight={maxHeight} direction={rest.direction} className={className} />;
   }
   if (!drawn) {
     return (

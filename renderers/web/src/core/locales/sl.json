@@ -330,6 +330,8 @@
   "stateMachine.boxLabel": "{{trait}}: {{state}} (stanj: {{count}})",
   "stateMachine.boxLabelIdle": "{{trait}} (stanj: {{count}})",
   "stateMachine.wireLabel": "{{from}} pošlje {{event}} k {{to}}",
+  "stateMachine.expand": "Odpri {{trait}} na mestu",
+  "stateMachine.collapse": "Zapri {{trait}}",
   "avl.trigger": "Sprožilec",
   "avl.guard": "Varovalo",
   "avl.effects": "Učinki",

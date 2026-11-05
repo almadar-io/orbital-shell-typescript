@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-05T11:50:52.857Z",
+  "exportedAt": "2026-11-05T19:16:50.478Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -43124,6 +43124,34 @@
           ],
           "description": "Orbital mode: boxes at a trait depth below this draw their own machine (when they have more than one state). @default 2",
           "default": 2
+        },
+        "selectedTrait": {
+          "types": [
+            "string"
+          ],
+          "description": "Orbital mode: the trait whose box is marked as chosen. @default \"\"",
+          "default": ""
+        },
+        "selectEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Orbital mode: emitted with the trait's name when a box is chosen.",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "trait",
+              "type": "string",
+              "required": true
+            }
+          ]
+        },
+        "maxHeight": {
+          "types": [
+            "string"
+          ],
+          "description": "Orbital mode: the canvas scrolls inside this height. @default \"calc(100vh - 9rem)\"",
+          "default": "calc(100vh - 9rem)"
         },
         "isLoading": {
           "types": [
@@ -121517,8 +121545,9 @@
           "types": [
             "string"
           ],
-          "description": "Symbol height. @default 'md'",
+          "description": "Symbol height; `xs` sits inline with a line of text. @default 'md'",
           "enumValues": [
+            "xs",
             "sm",
             "md",
             "lg"

@@ -330,6 +330,8 @@
   "stateMachine.boxLabel": "{{trait}}: {{state}} ({{count}} حالات)",
   "stateMachine.boxLabelIdle": "{{trait}} ({{count}} حالات)",
   "stateMachine.wireLabel": "{{from}} يرسل {{event}} إلى {{to}}",
+  "stateMachine.expand": "افتح {{trait}} في مكانه",
+  "stateMachine.collapse": "أغلق {{trait}}",
   "avl.trigger": "المُشغِّل",
   "avl.guard": "الحارس",
   "avl.effects": "التأثيرات",

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { describe, it, expect } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { EventBusProvider, useEventBus } from '../../../../core';
 import { StateMachineView } from '../StateMachineView';
 import type { MountedOrbital, MountedTrait } from '@almadar/core';
 
@@ -52,9 +53,10 @@ describe('StateMachineView orbital mode', () => {
 
   it('a single-state trait is a chip even above expandDepth', async () => {
     const one = trait('One', { states: [{ name: 'only', isInitial: true, isTerminal: false }], transitions: [] });
-    render(<StateMachineView orbital={{ page: '/p', traits: [one] }} />);
+    render(<StateMachineView orbital={{ page: '/p', traits: [one] }} activeStates={[{ trait: 'One', state: 'only' }]} />);
     await waitFor(() => expect(boxes()).toHaveLength(1));
     expect(box('One').dataset.kind).toBe('chip');
+    expect(within(box('One')).queryByTestId('avl-om-state')).toBeNull();
   });
 
   it('puts renders:false traits in the background lane, never renders:true ones', async () => {
@@ -82,7 +84,7 @@ describe('StateMachineView orbital mode', () => {
     const wire = screen.getByTestId('avl-om-wire');
     expect(wire.dataset.from).toBe('A');
     expect(wire.dataset.to).toBe('B');
-    expect(screen.getByTestId('avl-om-wire-label').textContent).toBe('GO');
+    expect(screen.getByTestId('avl-om-wire-event').textContent).toBe('GO');
   });
 
   it('draws no arrow for a listen naming an unmounted trait (control)', async () => {
@@ -112,9 +114,71 @@ describe('StateMachineView orbital packing', () => {
   });
 
   it('a single child stays its own width inside a one-column box (control)', async () => {
-    const orbital: MountedOrbital = { page: '/p', traits: [trait('Host', { depth: 0 }), leaf('Only', 'Host')] };
+    const orbital: MountedOrbital = { page: '/p', traits: [trait('Host', { depth: 0 }), leaf('OnlyChildWithALongName', 'Host')] };
     render(<StateMachineView orbital={orbital} expandDepth={0} />);
     await waitFor(() => expect(boxes()).toHaveLength(2));
-    expect(width(box('Host'))).toBeLessThan(width(box('Only')) + 40);
+    expect(width(box('Host'))).toBeLessThan(width(box('OnlyChildWithALongName')) + 40);
+  });
+});
+
+describe('StateMachineView orbital boxes open in place', () => {
+  const orbital = (): MountedOrbital => ({ page: '/p', traits: [trait('Top'), trait('Deep', { parent: 'Top', depth: 2 })] });
+  const toggle = (name: string) => within(box(name)).getAllByTestId('avl-om-toggle')[0]!;
+  const statesOf = (name: string) => screen.queryAllByTestId('avl-om-state-node').filter((n) => n.dataset.trait === name);
+
+  it('opening a collapsed box draws its machine inside it', async () => {
+    render(<StateMachineView orbital={orbital()} expandDepth={2} />);
+    await waitFor(() => expect(box('Deep').dataset.kind).toBe('collapsed'));
+    expect(toggle('Deep').getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle('Deep'));
+    await waitFor(() => expect(box('Deep').dataset.kind).toBe('machine'));
+    expect(statesOf('Deep').map((n) => n.dataset.state)).toEqual(['idle', 'busy']);
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('closing an open box hides its machine (control)', async () => {
+    render(<StateMachineView orbital={orbital()} expandDepth={2} />);
+    await waitFor(() => expect(box('Top').dataset.kind).toBe('machine'));
+    fireEvent.click(toggle('Top'));
+    await waitFor(() => expect(box('Top').dataset.kind).toBe('collapsed'));
+    expect(statesOf('Top')).toHaveLength(0);
+  });
+
+  it('a single-state chip has nothing to open (edge)', async () => {
+    const one = trait('One', { states: [{ name: 'only', isInitial: true, isTerminal: false }], transitions: [] });
+    render(<StateMachineView orbital={{ page: '/p', traits: [one] }} />);
+    await waitFor(() => expect(box('One').dataset.kind).toBe('chip'));
+    expect(within(box('One')).queryByTestId('avl-om-toggle')).toBeNull();
+  });
+});
+
+describe('StateMachineView orbital selection', () => {
+  function Listen({ on }: { on: (payload: object | undefined) => void }) {
+    const bus = useEventBus();
+    React.useEffect(() => bus.on('UI:PICK', (e) => on(e.payload)), [bus, on]);
+    return null;
+  }
+
+  it('choosing a box emits selectEvent with its trait', async () => {
+    const heard = vi.fn();
+    render(
+      <EventBusProvider debug={false}>
+        <Listen on={heard} />
+        <StateMachineView orbital={{ page: '/p', traits: [trait('A'), trait('B')] }} selectEvent="PICK" />
+      </EventBusProvider>,
+    );
+    await waitFor(() => expect(boxes()).toHaveLength(2));
+    fireEvent.click(within(box('B')).getByTestId('avl-om-head'));
+    expect(heard).toHaveBeenCalledWith({ trait: 'B' });
+    fireEvent.keyDown(within(box('A')).getByTestId('avl-om-head'), { key: 'Enter' });
+    expect(heard).toHaveBeenLastCalledWith({ trait: 'A' });
+  });
+
+  it('marks only the selected trait (control)', async () => {
+    render(<StateMachineView orbital={{ page: '/p', traits: [trait('A'), trait('B')] }} selectedTrait="B" />);
+    await waitFor(() => expect(boxes()).toHaveLength(2));
+    expect(box('B').dataset.selected).toBe('true');
+    expect(box('A').dataset.selected).toBe('false');
+    expect(within(box('B')).getByTestId('avl-om-head').getAttribute('aria-pressed')).toBe('true');
   });
 });

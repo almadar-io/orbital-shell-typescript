@@ -57,14 +57,14 @@ export interface AvlGlyphProps extends Omit<React.AriaAttributes, keyof A11yProp
   persistence?: EntityPersistence;
   /** Operator category tint. @default 'arithmetic' */
   namespace?: OperatorCategory;
-  /** Symbol height. @default 'md' */
-  size?: 'sm' | 'md' | 'lg';
+  /** Symbol height; `xs` sits inline with a line of text. @default 'md' */
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   /** Show the caption under the symbol. @default true */
   showCaption?: boolean;
   className?: string;
 }
 
-const HEIGHT = { sm: 32, md: 56, lg: 88 } as const;
+const HEIGHT = { xs: 16, sm: 32, md: 56, lg: 88 } as const;
 const PAD = 6;
 
 function Symbol({ kind, label, effectType, fieldType, persistence, namespace }: Pick<AvlGlyphProps, 'kind' | 'label' | 'effectType' | 'fieldType' | 'persistence' | 'namespace'>): React.ReactElement {

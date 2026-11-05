@@ -348,6 +348,10 @@ export interface OrbitalLayout {
 
 export interface OrbitalLayoutOptions {
   expandDepth: number;
+  /** Traits opened in place whatever their depth. */
+  open?: ReadonlySet<string>;
+  /** Traits closed in place whatever their depth. */
+  closed?: ReadonlySet<string>;
   metrics: TraitLayoutMetrics;
   charWidth: number;
   /** Wire label width for an event name. */
@@ -359,6 +363,9 @@ const BOX_HEAD_MACHINE = 46;
 const BOX_HEAD_CONTAINER = 38;
 const COLLAPSED_H = 56;
 const CHIP_H = 28;
+/** Room in a box head for the trait glyph and, on a box that opens, its disclosure button. */
+const HEAD_GLYPH = 40;
+const HEAD_TOGGLE = 28;
 const LANE_HEAD = 30;
 const LANE_MARGIN = 36;
 const LANE_MIN_WIDTH = 480;
@@ -390,15 +397,17 @@ export function boxWirePath(a: Rect, b: Rect): Point[] {
   return [{ x: ax, y: a.y }, { x: bx, y: b.y + b.height }];
 }
 
-function boxKind(trait: MountedTrait, expandDepth: number): OrbitalBoxKind {
+function boxKind(trait: MountedTrait, expandDepth: number, open: ReadonlySet<string>, closed: ReadonlySet<string>): OrbitalBoxKind {
   if (trait.states.length <= 1) return 'chip';
+  if (open.has(trait.trait)) return 'machine';
+  if (closed.has(trait.trait)) return 'collapsed';
   return trait.depth < expandDepth ? 'machine' : 'collapsed';
 }
 
 function compactSize(trait: MountedTrait, kind: OrbitalBoxKind, charWidth: number): { width: number; height: number } {
-  if (kind === 'chip') return { width: Math.round(trait.trait.length * charWidth + 28), height: CHIP_H };
+  if (kind === 'chip') return { width: Math.round(trait.trait.length * charWidth + 28 + HEAD_GLYPH), height: CHIP_H };
   const sub = (trait.linkedEntity ?? '').length;
-  return { width: Math.max(132, Math.round(Math.max(trait.trait.length, sub) * charWidth + 64)), height: COLLAPSED_H };
+  return { width: Math.max(132, Math.round(Math.max(trait.trait.length, sub) * charWidth + 64 + HEAD_GLYPH + HEAD_TOGGLE)), height: COLLAPSED_H };
 }
 
 function packOptions(padding: string, targetWidth?: number): { [key: string]: string } {
@@ -435,7 +444,9 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
     else childrenOf.set(p, [...(childrenOf.get(p) ?? []), t]);
   }
 
-  const kinds = new Map(orbital.traits.map((t) => [t.trait, boxKind(t, expandDepth)]));
+  const open = options.open ?? new Set<string>();
+  const closed = options.closed ?? new Set<string>();
+  const kinds = new Map(orbital.traits.map((t) => [t.trait, boxKind(t, expandDepth, open, closed)]));
 
   const wirePairs = new Map<string, { from: string; to: string; pairs: Array<{ event: string; triggers: string | null }> }>();
   for (const listener of orbital.traits) {
@@ -458,7 +469,7 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
     const kind = kinds.get(t.trait) ?? 'chip';
     const kids = childrenOf.get(t.trait) ?? [];
     const level = levels.get(t.trait);
-    const titleWidth = Math.round(Math.max(t.trait.length, (t.linkedEntity ?? '').length) * charWidth + 32);
+    const titleWidth = Math.round(Math.max(t.trait.length, (t.linkedEntity ?? '').length) * charWidth + 32 + HEAD_GLYPH + (kind === 'chip' ? 0 : HEAD_TOGGLE));
     if (kind !== 'machine' && kids.length === 0) {
       const size = compactSize(t, kind, charWidth);
       return { id: `b:${t.trait}`, width: size.width, height: size.height };
