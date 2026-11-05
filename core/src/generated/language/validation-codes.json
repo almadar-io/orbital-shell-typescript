@@ -210,6 +210,11 @@
     "description": "An operator argument whose static type contradicts the type the operator table declares for its position — `(str/upper @entity.count)` with `count: number`, `(+ \"a\" 1)`. Both evaluators raise the same typed mismatch at run time (D-12), so the program can never do what it says."
   },
   {
+    "code": "ORB_OBJECT_PATH_UNDECLARED",
+    "category": "effect",
+    "description": "A literal path read through `object/get` (or another `key-of` operator) names a segment its first argument's declared type does not have: an empty segment, a record field the record does not declare, a non-numeric segment on a list or tuple, or a segment past a scalar. A Map takes any non-empty key segment. The read could only ever answer null or its default; a default does not excuse it. To read a key that contains a dot, escape the dot (`a\\.b`) or read the map with `object/pick`."
+  },
+  {
     "code": "ORB_X_OPERATOR_ARG_UNDETERMINED",
     "category": "effect",
     "description": "A value handed to an operator has no determined type — an unresolved expression, an expression value, json, a loose union, a list whose items share no type — so it cannot be checked against the type the operator declares (or, at a type variable, what the variable stands for and the type of the result are unknown). Narrow it with `(as value T)` (checked, null on a misfit), or give it a real type (a declared payload or entity shape, a named union alias for a list of differently-shaped items)."
@@ -568,6 +573,11 @@
     "code": "ORB_COMPOSED_TRANSITION_UNREACHABLE",
     "category": "composed",
     "description": "A composed trait handles events that nothing in the program ever sends"
+  },
+  {
+    "code": "ORB_COMPUTED_KEY_DOT_PATH",
+    "category": "lint",
+    "description": "object/set, object/get or object/has on a Map field with a str/concat key containing a literal dot: the key is read as a dot path, so the value nests instead of being one map entry"
   },
   {
     "code": "ORB_CONFIG_DANGLING_REF",
@@ -985,6 +995,11 @@
     "description": "A lint rule names a finding code that its declared codes record does not carry."
   },
   {
+    "code": "ORB_LINT_INDEX_MISSING",
+    "category": "lint",
+    "description": "The lint input arrived without a shared program fact the rule reads (the structural index, sites, units, embeds or entities), so the rule cannot check the program"
+  },
+  {
     "code": "ORB_LINT_INPUT_UNREAD",
     "category": "lint",
     "description": "A lint input file could not be read or lowered, so the lint rules did not run"
@@ -1033,11 +1048,6 @@
     "code": "ORB_LISTEN_WILDCARD_UNKEYED",
     "category": "trait_event",
     "description": "A wildcard listens route hears every caller's event but its guard never reads the call key in the payload"
-  },
-  {
-    "code": "ORB_MAP_KEY_DOT_PATH",
-    "category": "lint",
-    "description": "object/set, object/get or object/has on a Map field with a str/concat key containing a literal dot: the key is read as a dot path, so the value nests instead of being one map entry"
   },
   {
     "code": "ORB_MEM_ALIAS",
