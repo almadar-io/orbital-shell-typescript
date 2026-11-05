@@ -25,6 +25,34 @@ describe('loadBrowserKernel', () => {
     expect(log).toEqual(['init /kernel.wasm', 'fetch /language.json', 'install {"bundle":1}']);
   });
 
+  it('fetches the language while the wasm instantiates, and installs it only once the wasm is ready', async () => {
+    const log: string[] = [];
+    let ready: () => void = () => undefined;
+    vi.stubGlobal('fetch', async (url: string) => {
+      log.push(`fetch ${url}`);
+      return new Response('{"bundle":2}');
+    });
+    const loading = loadBrowserKernel({
+      init: (input) => new Promise<void>((resolve) => { log.push(`init ${input.module_or_path}`); ready = resolve; }),
+      glue: glue(log),
+      wasm: '/kernel.wasm',
+      language: '/language.json',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(log).toEqual(['init /kernel.wasm', 'fetch /language.json']);
+    ready();
+    await loading;
+    expect(log).toEqual(['init /kernel.wasm', 'fetch /language.json', 'install {"bundle":2}']);
+  });
+
+  it('edge: a wasm that fails to instantiate fails the load and installs nothing', async () => {
+    const log: string[] = [];
+    vi.stubGlobal('fetch', async () => new Response('{"bundle":3}'));
+    await expect(loadBrowserKernel({ init: async () => { throw new Error('bad wasm'); }, glue: glue(log), wasm: '/k.wasm', language: '/language.json' }))
+      .rejects.toThrow('bad wasm');
+    expect(log).toEqual([]);
+  });
+
   it('edge: a language that cannot be fetched fails the load, naming it, and installs nothing', async () => {
     const log: string[] = [];
     vi.stubGlobal('fetch', async () => new Response('missing', { status: 404, statusText: 'Not Found' }));

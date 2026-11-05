@@ -11,6 +11,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { parseClientManifest, type JsonValue } from '@almadar/core';
 import { App } from './App';
+import { loadProgram } from './client-program';
+import { loadKernel } from './kernel-host';
 import './index.css';
 
 async function fetchJson(file: string): Promise<JsonValue> {
@@ -21,6 +23,9 @@ async function fetchJson(file: string): Promise<JsonValue> {
 }
 
 async function boot(): Promise<void> {
+  // The program, the kernel and its language download together, not each after the component that asks for it mounts.
+  void loadProgram().catch(() => undefined);
+  void loadKernel().catch(() => undefined);
   const manifest = parseClientManifest(await fetchJson('client.json'));
   const themes = document.createElement('link');
   themes.rel = 'stylesheet';

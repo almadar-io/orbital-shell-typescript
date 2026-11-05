@@ -23,11 +23,15 @@ export interface BrowserKernelSource<Glue extends BrowserKernelGlue> {
   readonly language: string;
 }
 
-/** The kernel module, initialised and with its language installed, once. */
+async function fetchLanguage(location: string): Promise<string> {
+  const response = await fetch(location);
+  if (!response.ok) throw new Error(`${location}: ${response.status} ${response.statusText}`);
+  return response.text();
+}
+
+/** The kernel module, initialised and with its language installed, once; the language downloads while the wasm instantiates. */
 export async function loadBrowserKernel<Glue extends BrowserKernelGlue>(source: BrowserKernelSource<Glue>): Promise<Glue> {
-  await source.init({ module_or_path: source.wasm });
-  const response = await fetch(source.language);
-  if (!response.ok) throw new Error(`${source.language}: ${response.status} ${response.statusText}`);
-  source.glue.installLanguage(await response.text());
+  const [, language] = await Promise.all([source.init({ module_or_path: source.wasm }), fetchLanguage(source.language)]);
+  source.glue.installLanguage(language);
   return source.glue;
 }
