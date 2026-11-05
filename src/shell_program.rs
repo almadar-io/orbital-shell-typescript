@@ -191,8 +191,9 @@ fn backend(request: &GenerateRequest) -> Result<TypeScriptBackend, ShellFailure>
         "hostInput" => TypeProjection::HostInput,
         other => return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("typeProjection must be wire or hostInput, got {other}"))),
     };
-    let has_qualified_types = request.module.named_types.keys().any(|name| name.contains('.'));
-    for name in request.module.named_types.keys() {
+    let identifiers: Vec<String> = request.module.named_types.keys().map(|name| orbital_core_base::type_compat::type_identifier(name)).collect();
+    let has_qualified_types = identifiers.iter().any(|name| name.contains('.'));
+    for name in &identifiers {
         if name.contains('.') && name.split('.').any(|part| !crate::codegen::ts_ident::is_valid_declaration_identifier(part)) {
             return Err(ShellFailure::new(CODE_BAD_REQUEST, format!("named type {name} cannot be represented as TypeScript namespace/type identifiers")));
         }

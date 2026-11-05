@@ -1,5 +1,6 @@
 use crate::backend::*;
 use crate::codegen::handler_header::named_struct_type_import_line;
+use orbital_core_base::type_compat::type_identifier;
 
 /// Peels the one `Optional` layer that carries nullability; presence is `required`, not the type.
 fn split_nullable(ty: &OirType) -> (&OirType, bool) {
@@ -24,7 +25,7 @@ fn emit_named_type_declarations(
     named_types: &std::collections::BTreeMap<String, OirType>,
     projection: TypeProjection,
 ) -> String {
-    let module = named_types.keys().any(|name| name.contains('.')).then_some("./entities");
+    let module = named_types.keys().any(|name| type_identifier(name).contains('.')).then_some("./entities");
     emit_named_type_groups(named_types, |_, local_name, ty| {
         format!("export type {local_name} = {};\n\n", map_type_ts_with_projection(ty, None, None, projection, module))
     })
@@ -35,8 +36,13 @@ fn emit_named_type_groups(
     declaration: impl Fn(&str, &str, &OirType) -> String,
 ) -> String {
     let mut code = String::new();
+    let identified: std::collections::BTreeMap<String, &OirType> = named_types
+        .iter()
+        .map(|(name, ty)| (orbital_core_base::type_compat::type_identifier(name), ty))
+        .collect();
     let mut scope: Vec<&str> = Vec::new();
-    for (name, ty) in named_types {
+    for (name, ty) in &identified {
+        let name = name.as_str();
         let parts: Vec<&str> = name.split('.').collect();
         let parents = &parts[..parts.len() - 1];
         let local_name = parts[parts.len() - 1];
@@ -78,7 +84,7 @@ impl TypeScriptBackend {
         &self,
         named_types: &std::collections::BTreeMap<String, OirType>,
     ) -> String {
-        let qualified = named_types.keys().any(|name| name.contains('.'));
+        let qualified = named_types.keys().any(|name| type_identifier(name).contains('.'));
         emit_named_type_groups(named_types, |name, local_name, ty| {
             let object_expr = self.map_type_to_zod_with_reference_module(ty, None, qualified.then_some(NAMED_SCHEMA_MODULE_BINDING));
             let annotation = if name.contains('.') {
@@ -128,7 +134,7 @@ impl TypeScriptBackend {
         } else {
             ["EntityRow", "FieldValue"].into_iter().collect()
         };
-        core_syms.retain(|name| !named_types.contains_key(*name));
+        core_syms.retain(|name| !named_types.keys().any(|key| type_identifier(key) == *name));
         if !core_syms.is_empty() {
             code.push_str(&crate::codegen::handler_header::core_imports_clause(
                 &core_syms,
@@ -343,12 +349,10 @@ impl TypeScriptBackend {
         // interface (`z.ZodType<Name>`) but only IMPORT `zod` above — without
         // this the interface name is unresolved (TS2304). Entities.ts is the
         // one owner of these interfaces (`generate_shared_entities`).
-        let struct_type_names: std::collections::BTreeSet<&str> = named_types
-            .keys()
-            .filter(|name| !name.contains('.'))
-            .map(String::as_str)
-            .collect();
-        if named_types.keys().any(|name| name.contains('.')) {
+        let identifiers: Vec<String> = named_types.keys().map(|name| type_identifier(name)).collect();
+        let struct_type_names: std::collections::BTreeSet<&str> =
+            identifiers.iter().filter(|name| !name.contains('.')).map(String::as_str).collect();
+        if identifiers.iter().any(|name| name.contains('.')) {
             code.push_str(&format!("import * as {NAMED_SCHEMA_MODULE_BINDING} from './entities';\n"));
         }
         code.push_str(&named_struct_type_import_line(
@@ -505,7 +509,7 @@ impl TypeScriptBackend {
                 &core_types,
             ));
         }
-        let local_schemas = named_types.keys().map(|name| format!("{name}Schema")).collect();
+        let local_schemas = named_types.keys().map(|name| format!("{}Schema", type_identifier(name))).collect();
         code.push_str(&crate::codegen::handler_header::zod_core_value_imports(
             &body,
             &local_schemas,
@@ -553,7 +557,8 @@ export * from './types/configs.js';
 export * from './schemas/entities.js';
 "#;
         let mut code = code.to_string();
-        let qualified = named_types.keys().filter(|name| name.contains('.')).map(String::as_str).collect();
+        let identifiers: Vec<String> = named_types.keys().map(|name| type_identifier(name)).collect();
+        let qualified = identifiers.iter().filter(|name| name.contains('.')).map(String::as_str).collect();
         let roots = crate::codegen::handler_header::named_type_roots(&qualified);
         if !roots.is_empty() {
             code.push_str(&format!("export {{ {} }} from './schemas/entities.js';\n", roots.into_iter().collect::<Vec<_>>().join(", ")));
@@ -1324,8 +1329,8 @@ export type { UserContext } from '@almadar/core';
             // idiom: referencing it here, rather than inlining, is what lets
             // the schema actually terminate.
             OirType::TypeRef { name } => match reference_module {
-                Some(module) => format!("z.lazy(() => {module}.{name}Schema)"),
-                None => format!("z.lazy(() => {name}Schema)"),
+                Some(module) => format!("z.lazy(() => {module}.{}Schema)", type_identifier(name)),
+                None => format!("z.lazy(() => {}Schema)", type_identifier(name)),
             },
             // An unbound variable renders as `json` (`TargetTypeRenderer::type_var`); its schema matches.
             OirType::Var { .. } => "z.record(FieldValueSchema.optional())".to_string(),
@@ -1501,6 +1506,55 @@ mod named_type_schema_import_tests {
             "expected the NavItem interface import, got: {}",
             file.content
         );
+    }
+
+    fn holder_of(alias: &str) -> std::collections::BTreeMap<String, OirType> {
+        let mut named_types = nav_item_named_types();
+        let field = |name: &str, field_type: OirType| OirField {
+            declared: None,
+            merged_from: None,
+            name: name.to_string(),
+            field_type,
+            description: None,
+            required: true,
+            default: None,
+            constraints: vec![],
+            enum_values: None,
+            relation: None,
+            intrinsic: false,
+        };
+        named_types.insert(alias.to_string(), OirType::Struct { additional: None, fields: vec![field("id", OirType::String)].into() });
+        named_types.insert(
+            "Holder".to_string(),
+            OirType::Struct {
+                additional: None,
+                fields: vec![field("claim", OirType::TypeRef { name: alias.to_string() })].into(),
+            },
+        );
+        named_types
+    }
+
+    #[test]
+    fn a_behavior_qualified_alias_is_one_identifier_at_declaration_and_reference() {
+        let backend = TypeScriptBackend::new();
+        let named = holder_of("std-foo::Bar");
+        let types = backend.generate_shared_entities(&[], &named).content;
+        let schemas = backend.generate_shared_schemas(&[], &named).content;
+        assert!(types.contains("export type StdFooBar = "), "{types}");
+        assert!(types.contains("claim: StdFooBar"), "{types}");
+        assert!(schemas.contains("StdFooBarSchema"), "{schemas}");
+        assert!(schemas.contains("import type { Holder, NavItem, StdFooBar } from '../types/entities';"), "{schemas}");
+        assert!(!types.contains("::") && !schemas.contains("::"));
+    }
+
+    #[test]
+    fn control_an_unqualified_alias_is_spelled_as_written() {
+        let backend = TypeScriptBackend::new();
+        let named = holder_of("Bar");
+        let types = backend.generate_shared_entities(&[], &named).content;
+        assert!(types.contains("export type Bar = "), "{types}");
+        assert!(types.contains("claim: Bar"), "{types}");
+        assert!(!types.contains("StdFoo"));
     }
 
     #[test]

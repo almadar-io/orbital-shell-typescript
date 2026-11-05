@@ -161,9 +161,10 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         "SExpr".to_string()
     }
     fn type_ref(&self, name: &str) -> String {
+        let name = orbital_core_base::type_compat::type_identifier(name);
         match self.named_type_module {
             Some(module) => format!("import('{module}').{name}"),
-            None => name.to_string(),
+            None => name,
         }
     }
     fn node(&self) -> String {
@@ -449,7 +450,7 @@ impl TypeScriptBackend {
     ) {
         match oir_type {
             OirType::TypeRef { name } => {
-                out.insert(name.clone());
+                out.insert(orbital_core_base::type_compat::type_identifier(name));
             }
             OirType::Array { inner } | OirType::Optional { inner } => {
                 Self::collect_named_type_refs(inner, out);
