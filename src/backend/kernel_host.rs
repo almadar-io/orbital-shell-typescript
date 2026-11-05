@@ -185,13 +185,13 @@ impl TypeScriptBackend {
         let Ok(json) = client_program_orb(schema) else {
             return Vec::new();
         };
-        vec![
-            InternalFile::new(
-                "packages/client/public/program.client.orb",
-                json,
-                GeneratedFileType::Config,
-            ),
-        ]
+        let mut files = vec![InternalFile::new("packages/client/public/program.client.orb", json, GeneratedFileType::Config)];
+        for lazy in &self.browser_lazy {
+            if let Ok(json) = client_program_orb(&lazy.program) {
+                files.push(InternalFile::new(format!("packages/client/public/{}", lazy.orb_ref), json, GeneratedFileType::Config));
+            }
+        }
+        files
     }
 
     /// What a kernel-hosted compile could not do, reported with the output.
@@ -209,6 +209,41 @@ impl TypeScriptBackend {
             }
         }
         warnings
+    }
+}
+
+#[cfg(test)]
+mod lazy_client_tests {
+    use crate::backend::TypeScriptBackend;
+    use orbital_core_base::shell_protocol::LazyProgram;
+
+    fn schema(name: &str) -> orbital_core_base::schema::types::OrbitalSchema {
+        serde_json::from_value(serde_json::json!({ "name": name, "orbitals": [{ "name": name, "entity": { "name": "E", "fields": [] }, "traits": [] }] })).expect("schema")
+    }
+
+    #[test]
+    fn each_lazy_program_is_written_at_its_orb_ref_beside_the_client_program() {
+        let backend = TypeScriptBackend {
+            browser_schema: Some(schema("App")),
+            browser_lazy: vec![
+                LazyProgram { orb_ref: "lazy/Doc.orb".to_string(), program: schema("Doc") },
+                LazyProgram { orb_ref: "lazy/lazy/Nested.orb".to_string(), program: schema("Nested") },
+            ],
+            ..TypeScriptBackend::default()
+        };
+        let files: Vec<String> = backend.generate_client_program_files().into_iter().map(|f| f.path).collect();
+        assert_eq!(files, [
+            "packages/client/public/program.client.orb",
+            "packages/client/public/lazy/Doc.orb",
+            "packages/client/public/lazy/lazy/Nested.orb",
+        ]);
+    }
+
+    #[test]
+    fn control_a_program_with_no_lazy_behaviors_writes_the_client_program_alone() {
+        let backend = TypeScriptBackend { browser_schema: Some(schema("App")), ..TypeScriptBackend::default() };
+        let files: Vec<String> = backend.generate_client_program_files().into_iter().map(|f| f.path).collect();
+        assert_eq!(files, ["packages/client/public/program.client.orb"]);
     }
 }
 

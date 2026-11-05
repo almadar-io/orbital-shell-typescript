@@ -41,11 +41,14 @@ function manualChunk(id: string): string | undefined {
 }
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  // `orb compile` writes the project's .env at its root (VITE_API_URL, or VITE_SERVER=none).
+  const envDir = path.resolve(__dirname, '../..');
+  const env = loadEnv(mode, envDir, '');
   const backendUrl = env.VITE_API_URL || 'http://localhost:3030';
   const wsUrl = backendUrl.replace('http://', 'ws://').replace('https://', 'wss://');
 
   return {
+    envDir,
     plugins: env.ALMADAR_GENERIC_CLIENT === '1' ? [react()] : [react(), programLocales()],
 
     resolve: {

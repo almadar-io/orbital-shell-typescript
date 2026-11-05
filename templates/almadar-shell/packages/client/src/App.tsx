@@ -12,7 +12,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import type { OrbitalSchema } from '@almadar/core';
-import { createHttpTransport, deriveCarriesCircuitState } from '@almadar/shell-runtime';
+import { createHttpTransport, deriveCarriesCircuitState, FetchSchemaLoader } from '@almadar/shell-runtime';
 import { I18nProvider, createTranslate } from '@almadar/shell-web/core';
 import { KernelEngineProvider } from '@almadar/shell-web/providers';
 import { OrbPreview } from '@almadar/shell-web/runtime';
@@ -25,6 +25,11 @@ import { loadKernel } from './kernel-host';
 import { ThemeProvider } from '@almadar/shell-web/core';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
+// `orb compile --mode client --no-server` writes VITE_SERVER=none: a static site whose program runs wholly in the browser.
+const SERVERLESS = import.meta.env.VITE_SERVER === 'none';
+// The lazy pages' programs sit beside program.client.orb, at each page's orbRef.
+const PROGRAM_URL = new URL(`${import.meta.env.BASE_URL}program.client.orb`, window.location.origin).href;
+const lazyLoader = new FetchSchemaLoader(PROGRAM_URL);
 
 function KernelApp(): React.ReactElement | null {
   const [program, setProgram] = useState<OrbitalSchema | undefined>(undefined);
@@ -50,7 +55,9 @@ function KernelApp(): React.ReactElement | null {
     <OrbPreview
       key={user?.uid ?? 'anonymous'}
       schema={program}
-      transport={transport}
+      {...(SERVERLESS ? {} : { transport })}
+      lazyLoader={lazyLoader}
+      schemaPath={PROGRAM_URL}
       height="auto"
       frame="page"
       className="border-0 rounded-none"

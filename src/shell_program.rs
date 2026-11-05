@@ -59,23 +59,35 @@ pub fn component_mappings(patterns: &Value) -> Option<HashMap<String, ExtraCompo
 }
 
 
-/// Set `VITE_API_URL` in `{output}/.env`, keeping every other line.
+/// The `backendUrl` value that declares the client has no server: the program runs wholly in the browser.
+pub const NO_SERVER: &str = "none";
+
+/// Set `VITE_API_URL` in `{output}/.env`, keeping every other line; [`NO_SERVER`] sets `VITE_SERVER=none` instead.
 pub fn write_backend_url(output: &Path, url: &str) -> std::io::Result<()> {
+    if url == NO_SERVER {
+        write_env_line(output, "VITE_SERVER", NO_SERVER, "No server: the program runs in the browser (auto-generated)")
+    } else {
+        write_env_line(output, "VITE_API_URL", url, "Backend API URL (auto-generated)")
+    }
+}
+
+fn write_env_line(output: &Path, key: &str, value: &str, comment: &str) -> std::io::Result<()> {
     let path = output.join(".env");
-    let line = format!("VITE_API_URL={url}");
+    let prefix = format!("{key}=");
+    let line = format!("{key}={value}");
     let content = if path.exists() {
         let existing = std::fs::read_to_string(&path)?;
-        if existing.lines().any(|l| l.starts_with("VITE_API_URL=")) {
+        if existing.lines().any(|l| l.starts_with(&prefix)) {
             existing
                 .lines()
-                .map(|l| if l.starts_with("VITE_API_URL=") { line.clone() } else { l.to_string() })
+                .map(|l| if l.starts_with(&prefix) { line.clone() } else { l.to_string() })
                 .collect::<Vec<_>>()
                 .join("\n")
         } else {
-            format!("{}\n# Backend API URL (auto-generated)\n{line}\n", existing.trim())
+            format!("{}\n# {comment}\n{line}\n", existing.trim())
         }
     } else {
-        format!("# Backend API URL (auto-generated)\n{line}\n")
+        format!("# {comment}\n{line}\n")
     };
     std::fs::write(path, content)
 }
@@ -95,7 +107,7 @@ impl ShellProgram for TypeScriptProgram {
                 option(SCHEMA_LANGUAGE, "Language the program is written in", None, Some("en")),
                 option(TYPE_PROJECTION, "Declared type projection", Some(&["wire", "hostInput"]), Some("wire")),
                 option(DEV_LOGS, "Emit development logging", Some(&["true", "false"]), Some("false")),
-                option(BACKEND_URL, "Backend URL written to .env as VITE_API_URL", None, None),
+                option(BACKEND_URL, "Backend URL written to .env as VITE_API_URL; `none`: no server, the client runs the program in the browser", None, None),
                 option(PROJECT_PATTERNS, "The project's patterns.json (component mappings)", None, None),
                 option(
                     HOST,
@@ -131,7 +143,7 @@ impl ShellProgram for TypeScriptProgram {
         let mut next_steps = Vec::new();
         if let Some(url) = string_option(request, BACKEND_URL)? {
             write_backend_url(output, url).map_err(|e| failed("write .env", e))?;
-            next_steps.push(format!("Configured backend URL: {url}"));
+            next_steps.push(if url == NO_SERVER { "Configured no server: the client runs the program in the browser".to_string() } else { format!("Configured backend URL: {url}") });
         }
         Ok(GenerateResponse {
             files: generated.files.iter().map(|f| f.path.clone()).collect(),
@@ -195,6 +207,7 @@ fn backend(request: &GenerateRequest) -> Result<TypeScriptBackend, ShellFailure>
         dev_logs,
         browser_schema: request.resolved.clone(),
         served_schema: request.served.clone(),
+        browser_lazy: request.lazy.clone(),
         ..TypeScriptBackend::default()
     })
 }
@@ -227,11 +240,35 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
+    #[test]
+    fn a_none_backend_declares_no_server_and_leaves_the_api_url_alone() {
+        let dir = std::env::temp_dir().join(format!("orb-ts-env-none-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(".env"), "A=1").unwrap();
+        write_backend_url(&dir, NO_SERVER).unwrap();
+        let env = std::fs::read_to_string(dir.join(".env")).unwrap();
+        assert!(env.lines().any(|l| l == "VITE_SERVER=none"), "{env}");
+        assert!(!env.contains("VITE_API_URL"), "{env}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn control_a_url_backend_writes_no_server_line() {
+        let dir = std::env::temp_dir().join(format!("orb-ts-env-url-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        write_backend_url(&dir, "https://api.example").unwrap();
+        let env = std::fs::read_to_string(dir.join(".env")).unwrap();
+        assert!(env.lines().any(|l| l == "VITE_API_URL=https://api.example"), "{env}");
+        assert!(!env.contains("VITE_SERVER"), "{env}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
     fn request_with(options: &[(&str, &str)]) -> GenerateRequest {
         GenerateRequest {
             ir_version: IR_VERSION,
             module: orbital_core_base::ir::OirModule::new("App", "1.0.0"),
             resolved: None,
+            lazy: Vec::new(),
             served: None,
             source_path: None,
             write: Default::default(),

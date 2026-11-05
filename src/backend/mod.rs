@@ -54,6 +54,8 @@ pub struct TypeScriptBackend {
     pub browser_schema: Option<orbital_core_base::schema::types::OrbitalSchema>,
     /// The resolved program composed with `std-http-server`: what the server runs.
     pub served_schema: Option<orbital_core_base::schema::types::OrbitalSchema>,
+    /// The `uses lazy` behaviors of `browser_schema`, each written beside the client program at its `orbRef`.
+    pub browser_lazy: Vec<orbital_core_base::shell_protocol::LazyProgram>,
 }
 
 impl Default for TypeScriptBackend {
@@ -68,6 +70,7 @@ impl Default for TypeScriptBackend {
             dev_logs: false,
             browser_schema: None,
             served_schema: None,
+            browser_lazy: Vec::new(),
         }
     }
 }
@@ -199,6 +202,7 @@ impl Backend for TypeScriptBackend {
             dev_logs: self.dev_logs,
             browser_schema: self.browser_schema.clone(),
             served_schema: self.served_schema.clone(),
+            browser_lazy: self.browser_lazy.clone(),
         };
 
         // Use the mode-aware backend to generate

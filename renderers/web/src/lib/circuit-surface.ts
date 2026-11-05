@@ -21,29 +21,40 @@ export interface ResolvedCircuit {
   page: PageCircuit;
   /** The page's traits with their surfaces. */
   surface: CircuitSurface;
-  /** Every trait of the app, on any page. */
-  appTraitNames: ReadonlySet<string>;
-  /** The entities whose rows live in the browser store. */
-  browserEntities: ReadonlySet<string>;
 }
 
 function parse<T>(text: string): T {
   return JSON.parse(text);
 }
 
-/** Ask the kernel which traits `page` (or `route`; neither: the initial page) mounts and what it holds of each. */
-export function resolveCircuit(kernel: Pick<KernelInstance, 'pageCircuit' | 'contractQuery'>, page?: string, route?: string): ResolvedCircuit {
-  const circuit = parse<PageCircuit>(kernel.pageCircuit(page, route));
+/** What the kernel holds of the whole program: asked once per kernel, since no page changes it. */
+export interface ProgramFacts {
+  traits: ReadonlyMap<string, TraitSurface>;
+  /** Every trait of the app, on any page. */
+  appTraitNames: ReadonlySet<string>;
+  /** The entities whose rows live in the browser store. */
+  browserEntities: ReadonlySet<string>;
+}
+
+export function programFacts(kernel: Pick<KernelInstance, 'contractQuery'>): ProgramFacts {
   const program = parse<ProgramSurface>(kernel.contractQuery(JSON.stringify({ kind: 'programSurface' })));
+  return {
+    traits: new Map(program.traits.map((trait) => [trait.name, trait])),
+    appTraitNames: new Set(program.traits.map((trait) => trait.name)),
+    browserEntities: new Set(program.browserEntities),
+  };
+}
+
+/** Ask the kernel which traits `page` (or `route`; neither: the initial page) mounts, with what `program` holds of each. */
+export function resolveCircuit(kernel: Pick<KernelInstance, 'pageCircuit'>, program: ProgramFacts, page?: string, route?: string): ResolvedCircuit {
+  const circuit = parse<PageCircuit>(kernel.pageCircuit(page, route));
   const byName = new Map<string, TraitSurface>();
-  for (const trait of program.traits) {
-    if (trait.name in circuit.orbitalByTrait) byName.set(trait.name, trait);
+  for (const [name, trait] of program.traits) {
+    if (name in circuit.orbitalByTrait) byName.set(name, trait);
   }
   return {
     page: circuit,
     surface: { byName },
-    appTraitNames: new Set(program.traits.map((trait) => trait.name)),
-    browserEntities: new Set(program.browserEntities),
   };
 }
 

@@ -14,6 +14,7 @@ fn request(ir_version: u32) -> GenerateRequest {
         ir_version,
         module: OirModule::new("App", "1.0.0"),
         resolved: None,
+        lazy: Vec::new(),
         served: None,
         source_path: None,
         write: WriteOptions { copy_template: true, mode: orbital_core_base::generate::ShellMode::Client, ..WriteOptions::default() },

@@ -38,7 +38,7 @@ import type { TransitionObserver } from '@almadar/shell-runtime/client/trait-typ
 import { createLocalStoreTransport, createResidenceTransport, localStorePersistence, nativeMemoryPersistence, openLocalKernel } from '../../runtime';
 import type { SchemaMetadata } from '@almadar/core';
 import type { PageCircuit } from '@almadar/core/kernel-wire';
-import { memoryTraitDefinitions, NO_CIRCUIT, resolveCircuit, type CircuitSurface, type ResolvedCircuit } from '../../lib/circuit-surface';
+import { memoryTraitDefinitions, NO_CIRCUIT, programFacts, resolveCircuit, type CircuitSurface, type ProgramFacts, type ResolvedCircuit } from '../../lib/circuit-surface';
 import type { OrbitalSchema, PersistenceAdapter } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { recordingTransport, verifierAttached } from '../../lib/verificationRegistry';
@@ -134,14 +134,18 @@ export function getTabClientId(): string {
 
 const log = createLogger('almadar:ui:circuit-kernel');
 
+const NO_TRAIT_NAMES: ReadonlySet<string> = new Set();
+
 /** The previous orbital set while a new array carries the same content: a host that rebuilds the array each render must not rebuild the circuit. */
 function useContentStable(orbitals: readonly OrbitalDefinition[]): readonly OrbitalDefinition[] {
-  const held = useRef<{ value: readonly OrbitalDefinition[]; key: string } | null>(null);
+  const held = useRef<{ value: readonly OrbitalDefinition[]; key: string | undefined } | null>(null);
   if (held.current === null) {
-    held.current = { value: orbitals, key: JSON.stringify(orbitals) };
+    held.current = { value: orbitals, key: undefined };
   } else if (held.current.value !== orbitals) {
+    // Serialized only when a new array arrives: a whole program is megabytes of JSON.
+    const previous = held.current.key ?? JSON.stringify(held.current.value);
     const key = JSON.stringify(orbitals);
-    if (key !== held.current.key) held.current = { value: orbitals, key };
+    held.current = key !== previous ? { value: orbitals, key } : { value: held.current.value, key: previous };
   }
   return held.current.value;
 }
@@ -176,11 +180,21 @@ export function useCircuitKernel(
   // The kernel's answer for the page, asked of the one instance: the traits it mounts and what it holds of each.
   const [answered, setAnswered] = useState<{ instance: Promise<KernelInstance>; page: string | undefined; route: string | undefined; state: { status: 'ready'; resolved: ResolvedCircuit } | { status: 'failed'; error: Error } } | undefined>(undefined);
   const { page, route } = options;
+  const facts = useMemo(() => kernelInstance.then((k) => programFacts(k)), [kernelInstance]);
+  // Held apart from the page's answer: between two pages that answer is pending, and the program's facts must not flicker
+  // with it (the local transport is built on browserEntities).
+  const [heldFacts, setHeldFacts] = useState<{ instance: Promise<KernelInstance>; facts: ProgramFacts } | undefined>(undefined);
   useEffect(() => {
     let live = true;
-    kernelInstance.then(
-      (k) => {
-        const resolved = resolveCircuit(k, page, route);
+    facts.then((program) => { if (live) setHeldFacts({ instance: kernelInstance, facts: program }); }, () => undefined);
+    return () => { live = false; };
+  }, [kernelInstance, facts]);
+  const program = heldFacts !== undefined && heldFacts.instance === kernelInstance ? heldFacts.facts : undefined;
+  useEffect(() => {
+    let live = true;
+    Promise.all([kernelInstance, facts]).then(
+      ([k, program]) => {
+        const resolved = resolveCircuit(k, program, page, route);
         if (live) setAnswered({ instance: kernelInstance, page, route, state: { status: 'ready', resolved } });
       },
     ).catch((error: Error) => {
@@ -188,12 +202,12 @@ export function useCircuitKernel(
       if (live) setAnswered({ instance: kernelInstance, page, route, state: { status: 'failed', error } });
     });
     return () => { live = false; };
-  }, [kernelInstance, page, route]);
+  }, [kernelInstance, facts, page, route]);
   const current = answered !== undefined && answered.instance === kernelInstance && answered.page === page && answered.route === route ? answered.state : undefined;
   const resolved = current?.status === 'ready' ? current.resolved : undefined;
   const traitIndex = resolved?.surface ?? NO_CIRCUIT;
-  const appTraitNames = useMemo<ReadonlySet<string>>(() => resolved?.appTraitNames ?? new Set(), [resolved]);
-  const browserEntities = resolved?.browserEntities;
+  const appTraitNames = program?.appTraitNames ?? NO_TRAIT_NAMES;
+  const browserEntities = program?.browserEntities;
   const circuit = useMemo<CircuitState>(() => {
     if (current === undefined) return { status: 'pending' };
     return current.status === 'ready' ? { status: 'ready', page: current.resolved.page } : current;

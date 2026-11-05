@@ -920,7 +920,8 @@ export function Canvas2D({
     // surface as soon as it mounts, not just after the player clicks it.
     useEffect(() => {
         if (!keyMap && !keyUpMap) return;
-        canvasRef.current?.focus();
+        // A board further down the page must not scroll the page to itself.
+        canvasRef.current?.focus({ preventScroll: true });
     }, [keyMap, keyUpMap]);
 
     // =========================================================================
