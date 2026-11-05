@@ -13,7 +13,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import type { OrbitalSchema } from '@almadar/core';
 import { createHttpTransport, deriveCarriesCircuitState, FetchSchemaLoader } from '@almadar/shell-runtime';
-import { I18nProvider, createTranslate } from '@almadar/shell-web/core';
 import { KernelEngineProvider } from '@almadar/shell-web/providers';
 import { OrbPreview } from '@almadar/shell-web/runtime';
 import type { ClientManifest } from '@almadar/core';
@@ -22,6 +21,7 @@ import { loadProgram } from './client-program';
 import { AuthProvider, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
 import { loadKernel } from './kernel-host';
+import { LocaleRoot } from './locale';
 import { ThemeProvider } from '@almadar/shell-web/core';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -73,35 +73,29 @@ function KernelApp(): React.ReactElement | null {
 
 export interface AppProps {
   manifest: ClientManifest;
-  /** The program's locale messages, `$`-prefixed metadata keys removed. */
-  messages: Record<string, string>;
 }
 
-export function App({ manifest, messages }: AppProps): React.ReactElement {
-  const i18nValue = useMemo(
-    () => ({ locale: manifest.locale, direction: manifest.direction, messages, t: createTranslate(messages) }),
-    [manifest, messages],
-  );
+export function App({ manifest }: AppProps): React.ReactElement {
   const loader = useCallback(() => loadKernel(), []);
   const themeProps =
     manifest.themes.length > 0
       ? { themes: manifest.themes, defaultTheme: manifest.defaultTheme ?? undefined, defaultMode: manifest.defaultMode }
       : {};
   return (
-    <I18nProvider value={i18nValue} documentRoot>
-      <ThemeProvider {...themeProps}>
-        <KernelEngineProvider loader={loader}>
-          <AuthProvider>
-            <BrowserRouter>
+    <ThemeProvider {...themeProps}>
+      <KernelEngineProvider loader={loader}>
+        <AuthProvider>
+          <BrowserRouter>
+            <LocaleRoot manifest={manifest}>
               <Routes>
                 <Route path="/login" element={<Login />} />
                 <Route path="*" element={<KernelApp />} />
               </Routes>
-            </BrowserRouter>
-          </AuthProvider>
-        </KernelEngineProvider>
-      </ThemeProvider>
-    </I18nProvider>
+            </LocaleRoot>
+          </BrowserRouter>
+        </AuthProvider>
+      </KernelEngineProvider>
+    </ThemeProvider>
   );
 }
 
