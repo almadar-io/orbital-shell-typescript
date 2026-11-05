@@ -1454,6 +1454,17 @@ mod to_many_relation_field_tests {
     }
 
     #[test]
+    fn a_nullable_number_field_renders_one_null() {
+        let mut entity = OirEntity::new("Rec");
+        entity.fields.push(OirField::optional("v", OirType::optional(OirType::Number)));
+        entity.fields.push(OirField::new("n", OirType::Number));
+        let (types, _) = generated(entity);
+        assert!(types.contains("v?: number | null;"), "{types}");
+        assert!(!types.contains("null | null"), "{types}");
+        assert!(types.contains("n: number;"), "{types}");
+    }
+
+    #[test]
     fn control_a_to_one_relation_stays_an_id() {
         let (types, _) = generated(revision_entity(
             OirCardinality::ManyToOne,
