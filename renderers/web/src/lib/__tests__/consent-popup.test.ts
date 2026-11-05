@@ -57,3 +57,45 @@ describe('auth/consent on the web host', () => {
     expect(webHostActions.consent).toBeDefined();
   });
 });
+
+describe('a program/live trace host ask (EXEC-DIST-14)', () => {
+  it('streams each item of the observed traits to the onMessage route until cancel-call names the key', async () => {
+    const dispatched: Array<[string, string, unknown]> = [];
+    const dispatch = async (trait: string, event: string, payload: unknown): Promise<void> => { dispatched.push([trait, event, payload]); };
+    let emit: ((item: { type: string; dispatch: { seq: number } }) => void) | undefined;
+    const watched: string[][] = [];
+    let ended = 0;
+    const source = (traits: readonly string[], onItem: (item: { type: string; dispatch: { seq: number } }) => void): (() => void) => {
+      watched.push([...traits]);
+      emit = onItem;
+      return () => { ended += 1; emit = undefined; };
+    };
+    const completion = { trait: 'Watcher', key: 'watch', onMessage: 'MOVED', failure: 'WATCH_FAILED' };
+    await answerHostAsk('program/live', [{ kind: 'trace', traits: ['Board'] }], completion, dispatch, source);
+    expect(watched).toEqual([['Board']]);
+    emit?.({ type: 'trace', dispatch: { seq: 0 } });
+    emit?.({ type: 'trace', dispatch: { seq: 1 } });
+    await answerHostAsk('cancel-call', ['watch'], undefined, dispatch, source);
+    expect(ended).toBe(1);
+    expect(emit).toBeUndefined();
+    expect(dispatched).toEqual([
+      ['Watcher', 'MOVED', { type: 'trace', dispatch: { seq: 0 }, key: 'watch' }],
+      ['Watcher', 'MOVED', { type: 'trace', dispatch: { seq: 1 }, key: 'watch' }],
+    ]);
+  });
+
+  it('refuses on the failure route a trace that names no traits or a key already streaming', async () => {
+    const dispatched: Array<[string, string, unknown]> = [];
+    const dispatch = async (trait: string, event: string, payload: unknown): Promise<void> => { dispatched.push([trait, event, payload]); };
+    const source = (): (() => void) => () => undefined;
+    const completion = { trait: 'Watcher', key: 'twice', onMessage: 'MOVED', failure: 'WATCH_FAILED' };
+    await answerHostAsk('program/live', [{ kind: 'trace', traits: [] }], completion, dispatch, source);
+    await answerHostAsk('program/live', [{ kind: 'trace', traits: ['Board'] }], completion, dispatch, source);
+    await answerHostAsk('program/live', [{ kind: 'trace', traits: ['Board'] }], completion, dispatch, source);
+    await answerHostAsk('cancel-call', ['twice'], undefined, dispatch, source);
+    expect(dispatched).toEqual([
+      ['Watcher', 'WATCH_FAILED', { error: 'program/live trace: name the traits it observes in `traits`', key: 'twice' }],
+      ['Watcher', 'WATCH_FAILED', { error: 'key twice already has a stream open', key: 'twice' }],
+    ]);
+  });
+});

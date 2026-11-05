@@ -19,7 +19,7 @@ import type { RowQueryPage } from "../service-types.js";
 import { ServerEffectResultSchema, type ServerEffectResult } from "./effect-result.js";
 import type { ExternalInput } from "../access/contract.js";
 import { JsonValueSchema, type JsonObject, type JsonValue } from "./json.js";
-import { isEventResponse, type ClientEffectByTrait, type EventRequest, type EventResponse, type FrameDelta, type HopEffect, type HopEffectStatus, type TransitionHop, type TransitionRejection, type TransitionRejectionCode } from "../generated/kernel-wire.js";
+import { isEventResponse, type ClientEffectByTrait, type HostAskCompletion, type EventRequest, type EventResponse, type FrameDelta, type HopEffect, type HopEffectStatus, type TransitionHop, type TransitionRejection, type TransitionRejectionCode } from "../generated/kernel-wire.js";
 
 export type { ClientEffectByTrait, HopEffect, HopEffectStatus, TransitionHop, TransitionRejection, TransitionRejectionCode };
 
@@ -311,17 +311,8 @@ export type ClientNavigateBackTuple = ['navigate-back'];
 /** A `runsOn: client` host-port effect (`auth/sign-out`, `audio/*`) the client host answers; its arguments are resolved. */
 export type ClientHostAskTuple = ['host-ask', string, JsonValue[]] | ['host-ask', string, JsonValue[], HostAskCompletion];
 
-/**
- * The return address of a `host-ask` that declared `emit` routes (EXEC-DIST-13): the host answers once by dispatching
- * the event of the outcome it reached to `trait` (on `entityId` when the frame is a row); an absent route fires nothing.
- */
-export type HostAskCompletion = {
-  trait: string;
-  entityId?: string;
-  key?: string;
-  success?: string;
-  failure?: string;
-};
+/** The return address of a `host-ask` (EXEC-DIST-13/14): the generated wire type, one copy. */
+export type { HostAskCompletion };
 
 export type ClientEffectTuple =
   | ClientRenderUITuple
@@ -354,6 +345,7 @@ export const HostAskCompletionSchema = z.object({
   key: z.string().optional(),
   success: z.string().optional(),
   failure: z.string().optional(),
+  onMessage: z.string().optional(),
 }).strict();
 
 export const ClientHostAskTupleSchema = z.union([

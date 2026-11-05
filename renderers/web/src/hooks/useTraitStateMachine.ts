@@ -137,7 +137,12 @@ export function useTraitStateMachine(
   const hostAskDispatchRef = useRef<HostAskDispatch | undefined>(undefined);
   // Every trait some sibling embeds through `@trait.X` paints in its frame, never in a top-level slot: the kernel's list.
   const embeddedTraits = useMemo<ReadonlySet<string>>(() => new Set(circuit.status === 'ready' ? circuit.page.embeddedBy : []), [circuit]);
-  const slotFlush = useSlotFlush(uiSlots, embeddedTraits, (trait, event, payload) => hostAskDispatchRef.current?.(trait, event, payload) ?? Promise.resolve());
+  const slotFlush = useSlotFlush(
+    uiSlots,
+    embeddedTraits,
+    (trait, event, payload) => hostAskDispatchRef.current?.(trait, event, payload) ?? Promise.resolve(),
+    (traits, onItem) => kernelClient.traceStream(traits, onItem),
+  );
 
 
   const entityBindingSource = useEntityBindingSource(store, traitIndex, kernelClient);

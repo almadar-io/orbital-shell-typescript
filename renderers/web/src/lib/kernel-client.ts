@@ -8,7 +8,7 @@
  *
  * @packageDocumentation
  */
-import type { EmittedEvent, EventPayload, MountSeed, EventRequest, EventResponse, TraitConfig, TransitionRejection } from '@almadar/core';
+import { isJsonObject, type EmittedEvent, type EventPayload, type JsonObject, type JsonValue, type MountSeed, type EventRequest, type EventResponse, type TraitConfig, type TransitionRejection } from '@almadar/core';
 import {
   createLocalFold,
   paintResponse,
@@ -74,6 +74,11 @@ export interface KernelClient extends ClientKernel {
   sessionTheme(): string | undefined;
   /** The config the kernel binds as `@config` for a trait (render markers resolve against it); `undefined` until the WebAssembly is loaded. */
   traitConfig(traitName: string): TraitConfig | undefined;
+  /**
+   * A trace stream over this kernel's own steps (EXEC-DIST-14): each dispatch that moved one of `traits` reaches
+   * `onItem` as its trace item, after the dispatch settles, until the returned function ends it.
+   */
+  traceStream(traits: readonly string[], onItem: (item: JsonObject) => void): () => void;
 }
 
 /** What entering a page's traits answered: the seeds to mount, and the names of the traits that left. */
@@ -185,7 +190,29 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   };
   /** A response the in-process kernel produced: its states, payloads and frame delta are painted. */
   const mirror = (response: EventResponse): void => paintResponse(store, framesSince, response);
-  const trace = (response: EventResponse): void => traceResponse(opts.observer, response);
+  const traceStreams = new Set<{ traits: ReadonlySet<string>; onItem: (item: JsonObject) => void }>();
+  const movedTraits = (item: JsonObject): string[] => {
+    const dispatch = item['dispatch'];
+    const outcomes: JsonValue = dispatch !== undefined && dispatch !== null && isJsonObject(dispatch) ? (dispatch['outcomes'] ?? null) : null;
+    if (!Array.isArray(outcomes)) return [];
+    return outcomes.flatMap((o) => (o !== null && isJsonObject(o) && typeof o['trait'] === 'string' ? [o['trait']] : []));
+  };
+  const publishTrace = (k: KernelInstance): void => {
+    if (traceStreams.size === 0) return;
+    const items = parse<JsonValue>(k.takeTrace());
+    if (!Array.isArray(items)) return;
+    for (const item of items) {
+      if (item === null || !isJsonObject(item)) continue;
+      const moved = movedTraits(item);
+      for (const stream of traceStreams) {
+        if (moved.some((t) => stream.traits.has(t))) queueMicrotask(() => stream.onItem(item));
+      }
+    }
+  };
+  const trace = (k: KernelInstance, response: EventResponse): void => {
+    traceResponse(opts.observer, response);
+    publishTrace(k);
+  };
   const localFold = createLocalFold({ store, framesSince, ...(opts.observer !== undefined ? { observer: opts.observer } : {}) });
 
   const syncStates = (k: KernelInstance, traits: readonly string[]): void => {
@@ -342,7 +369,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       // The kernel reconciles the server's states and rows but hands back only the cascade it ran: the
       // server's own renders and emits are the host's to carry, and the states are read back from the kernel.
       log.debug('fold', { orbital: planned.orbital, event: sent.event, posted: { success: posted.success, states: posted.states, emitted: posted.emittedEvents.map((e) => e.event) }, applied: applied.applied, cascadeEmitted: applied.response.emittedEvents.map((e) => e.event) });
-      trace(applied.response);
+      trace(k, applied.response);
       for (const routed of applied.serverLegs) {
         queue.push({ orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight: planned.flight });
       }
@@ -432,6 +459,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     await scopeTail;
     if (request.runTick !== undefined) {
       const response = parse<EventResponse>(k.tick(request.runTick.trait, request.runTick.tick, request.entityId));
+      publishTrace(k);
       mirror(response);
       store.notify();
       return { response, mode: parse<DispatchMode>(k.dispatchMode(request.runTick.trait)) };
@@ -446,7 +474,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
 
   const settleDispatch = async (k: KernelInstance, wire: DispatchWire, request: EventRequest, hooks: ClientDispatchHooks[], progress: boolean): Promise<ClientKernelOutcome> => {
     log.debug('dispatch', { trait: wire.seed.trait, event: request.event, mode: wire.mode, legs: wire.serverLegs.length, success: wire.response.success, states: wire.response.states, effects: (wire.response.clientEffectsByTrait ?? []).map((e) => `${e.traitName}:${e.effect[0]}:${e.effect[1] ?? ''}`), emitted: wire.response.emittedEvents.map((e) => e.event) });
-    trace(wire.response);
+    trace(k, wire.response);
     mirror(wire.response);
     store.notify();
     if (transport === undefined || (wire.serverLegs.length === 0 && wire.statefulLeg === null)) return { response: wire.response, mode: wire.mode };
@@ -474,7 +502,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       }
       for (const wire of wires) {
         log.debug('mount', { trait: wire.seed.trait, event: wire.seed.event, mode: wire.mode, legs: wire.serverLegs.length, success: wire.response.success });
-        trace(wire.response);
+        trace(k, wire.response);
         mirror(wire.response);
       }
       store.notify();
@@ -528,7 +556,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     const flight = k.openFlight();
     try {
       const applied = await fold(k, flight);
-      trace(applied.response);
+      trace(k, applied.response);
       mirror(applied.response);
       syncStates(k, applied.applied.map(([trait]) => trait));
       store.notify();
@@ -562,7 +590,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       const flight = k.openFlight();
       try {
         const applied = await foldInOrder(k, flight, response, '[]', undefined);
-        trace(applied.response);
+        trace(k, applied.response);
         mirror(applied.response);
         syncStates(k, [...Object.keys(response.states), ...applied.applied.map(([trait]) => trait)]);
         store.notify();
@@ -613,7 +641,9 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     frame: async (nowMs) => {
       const k = await ready;
       await scopeTail;
-      return (await runTickFrame(tickPorts(k), () => nowMs)).outcomes;
+      const ran = await runTickFrame(tickPorts(k), () => nowMs);
+      publishTrace(k);
+      return ran.outcomes;
     },
     framePause: () => loaded?.framePause(),
     frameResume: () => loaded?.frameResume(),
@@ -653,7 +683,10 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
             cancels.delete(handle);
           },
           visibility,
-          onApplied: (applied) => { if (!stopped && applied.outcomes.length > 0) onFrame(applied.outcomes); },
+          onApplied: (applied) => {
+            publishTrace(k);
+            if (!stopped && applied.outcomes.length > 0) onFrame(applied.outcomes);
+          },
           onError: (error) => log.error('kernel-frame-failed', { error: error.message }),
         });
         driver.start();
@@ -662,6 +695,15 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         stopped = true;
         driver?.stop();
         releases.forEach((release) => release());
+      };
+    },
+    traceStream: (traits, onItem) => {
+      const stream = { traits: new Set(traits), onItem };
+      traceStreams.add(stream);
+      void ready.then((k) => k.setTraceOn(true)).catch((error: Error) => log.error('trace-stream-failed', { error: error.message }));
+      return () => {
+        traceStreams.delete(stream);
+        if (traceStreams.size === 0) loaded?.setTraceOn(false);
       };
     },
     traitState: (traitName) => loaded?.getState(traitName),

@@ -50,6 +50,10 @@ export interface KernelInstance {
   setHostFansOut(fansOut: boolean): void;
   /** Carry each hop's `@entity` before and after it on the dispatch's transitions, for a verifier (EXEC-STEP-10). */
   setRecordEntityAfter(record: boolean): void;
+  /** Record each dispatch as a trace item while on, for the host's `program/live { kind: "trace" }` streams (EXEC-DIST-14). */
+  setTraceOn(on: boolean): void;
+  /** The trace items recorded since the last take, in dispatch order: a JSON array. */
+  takeTrace(): string;
   /** Carry each frame response's `effectResults` (omitted otherwise), for a verifier. */
   setFrameEffectResults(carry: boolean): void;
   /** The kernel's mounts for a host start on `side` (`client|server|process|start`): `MountSeed[]` as JSON. */

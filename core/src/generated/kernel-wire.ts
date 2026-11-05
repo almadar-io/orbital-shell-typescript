@@ -351,7 +351,7 @@ export type HopEffectStatus = "executed" | "failed" | "skipped";
 
 export type HopObservation = { payload: JsonValue, entityBefore: JsonValue, entityAfter: JsonValue, };
 
-export type HostAskCompletion = { trait: string, entityId?: string, key?: string, success?: string, failure?: string, };
+export type HostAskCompletion = { trait: string, entityId?: string, key?: string, success?: string, failure?: string, onMessage?: string, };
 
 export type IndexRealization = "runtime" | "deploy" | "none";
 
@@ -1235,7 +1235,7 @@ function checkHopObservation(v: JsonValue | undefined): boolean {
 }
 
 function checkHostAskCompletion(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["trait"] === 'string' && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["key"] === undefined || typeof v["key"] === 'string') && (v["success"] === undefined || typeof v["success"] === 'string') && (v["failure"] === undefined || typeof v["failure"] === 'string'));
+  return (isRecord(v) && typeof v["trait"] === 'string' && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["key"] === undefined || typeof v["key"] === 'string') && (v["success"] === undefined || typeof v["success"] === 'string') && (v["failure"] === undefined || typeof v["failure"] === 'string') && (v["onMessage"] === undefined || typeof v["onMessage"] === 'string'));
 }
 
 function checkInstanceRef(v: JsonValue | undefined): boolean {
@@ -1943,7 +1943,7 @@ function buildHopObservation(v: JsonValue | undefined, p: string): HopObservatio
 }
 
 function buildHostAskCompletion(v: JsonValue | undefined, p: string): HostAskCompletion {
-  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), ...(r0["entityId"] === undefined || r0["entityId"] === null ? {} : { "entityId": str(r0["entityId"], p + '.entityId') }), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["success"] === undefined || r0["success"] === null ? {} : { "success": str(r0["success"], p + '.success') }), ...(r0["failure"] === undefined || r0["failure"] === null ? {} : { "failure": str(r0["failure"], p + '.failure') }) }));
+  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), ...(r0["entityId"] === undefined || r0["entityId"] === null ? {} : { "entityId": str(r0["entityId"], p + '.entityId') }), ...(r0["key"] === undefined || r0["key"] === null ? {} : { "key": str(r0["key"], p + '.key') }), ...(r0["success"] === undefined || r0["success"] === null ? {} : { "success": str(r0["success"], p + '.success') }), ...(r0["failure"] === undefined || r0["failure"] === null ? {} : { "failure": str(r0["failure"], p + '.failure') }), ...(r0["onMessage"] === undefined || r0["onMessage"] === null ? {} : { "onMessage": str(r0["onMessage"], p + '.onMessage') }) }));
 }
 
 function buildInstanceRef(v: JsonValue | undefined, p: string): InstanceRef {
