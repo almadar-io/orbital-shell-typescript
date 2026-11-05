@@ -112,3 +112,31 @@ describe('GuestView navigation', () => {
     expect(seen.some((e) => e.type.startsWith('UI:GUEST'))).toBe(false);
   });
 });
+
+describe('GuestView route', () => {
+  it('the guest\'s route is the current page path of everything it paints, not the host router\'s', async () => {
+    const { useCurrentPagePath } = await import('../../../../providers/CurrentPagePathContext');
+    const Probe = () => <span>{`at:${useCurrentPagePath() ?? 'none'}`}</span>;
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <EventBusProvider debug={false}>
+          <GuestView guest="guest-1" source="T" deliver="GUEST_CLICK" route="/people"><Probe /></GuestView>
+        </EventBusProvider>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('at:/people')).toBeTruthy();
+  });
+
+  it('control: with no route the host\'s current page path stands', async () => {
+    const { useCurrentPagePath, CurrentPagePathProvider } = await import('../../../../providers/CurrentPagePathContext');
+    const Probe = () => <span>{`at:${useCurrentPagePath() ?? 'none'}`}</span>;
+    render(
+      <EventBusProvider debug={false}>
+        <CurrentPagePathProvider value="/host">
+          <GuestView guest="guest-1" source="T" deliver="GUEST_CLICK"><Probe /></GuestView>
+        </CurrentPagePathProvider>
+      </EventBusProvider>,
+    );
+    expect(await screen.findByText('at:/host')).toBeTruthy();
+  });
+});

@@ -15,6 +15,7 @@ import { Box, useEventBus } from '../../../core';
 import { UISlotProvider, useUISlots } from '../../../providers/UISlotContext';
 import { UISlotRenderer } from '../organisms/UISlotRenderer';
 import { HostHrefBaseProbe, useInAppLinkInterceptor } from '../../../lib/inAppLinks';
+import { CurrentPagePathProvider } from '../../../providers/CurrentPagePathContext';
 import type { SlotProps } from '../../../providers/UISlotContext';
 import { convertFnFormLambdasInProps } from '../../../lib/fn-form-lambda';
 import { unwrapPattern } from '../../../hooks/circuit/useSlotFlush';
@@ -39,6 +40,8 @@ export interface GuestViewProps {
   deliver: EventKey;
   /** The opener trait's declared event an in-app link inside this view is emitted as, with { guest, route }. Without it a link inside the guest does nothing. */
   navigate?: EventKey;
+  /** The guest's current route (`program/open` and `program/navigate` answer it): the current page path of everything inside, so the guest's navigation shows its own active page and closes its own drawers. */
+  route?: string;
   /** Every paint the guest made (`rendered` entries, the latest per trait and slot). An `@trait.X` inside the content resolves to the guest's trait X from these. */
   paints?: ReadonlyArray<GuestPaintEntry>;
   /** The guest's painted content */
@@ -73,7 +76,7 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
 /**
  * GuestView - Paints a guest program's UI; guest, source and deliver are kernel routing data
  */
-export const GuestView: React.FC<GuestViewProps> = ({ guest, navigate, paints, children }) => {
+export const GuestView: React.FC<GuestViewProps> = ({ guest, navigate, route, paints, children }) => {
   const eventBus = useEventBus();
   const inHostRouter = useInRouterContext();
   const [hostHrefBase, setHostHrefBase] = useState('/');
@@ -87,7 +90,9 @@ export const GuestView: React.FC<GuestViewProps> = ({ guest, navigate, paints, c
       {paints !== undefined && <SeedGuestPaints paints={paints} />}
       {inHostRouter ? <HostHrefBaseProbe onBase={setHostHrefBase} /> : null}
       <Box ref={frameRef} fullWidth fullHeight className="relative overflow-auto">
-        <UISlotRenderer hudMode="inline" includeHud main={children} />
+        {route === undefined
+          ? <UISlotRenderer hudMode="inline" includeHud main={children} />
+          : <CurrentPagePathProvider value={route}><UISlotRenderer hudMode="inline" includeHud main={children} /></CurrentPagePathProvider>}
       </Box>
     </UISlotProvider>
   );

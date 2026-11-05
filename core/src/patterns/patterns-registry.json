@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-04T16:27:47.579Z",
+  "exportedAt": "2026-11-05T04:18:40.443Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -132430,6 +132430,12 @@
           ],
           "description": "The opener trait's declared event an in-app link inside this view is emitted as, with { guest, route }. Without it a link inside the guest does nothing.",
           "kind": "event"
+        },
+        "route": {
+          "types": [
+            "string"
+          ],
+          "description": "The guest's current route (`program/open` and `program/navigate` answer it): the current page path of everything inside, so the guest's navigation shows its own active page and closes its own drawers."
         },
         "paints": {
           "types": [

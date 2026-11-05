@@ -37,22 +37,30 @@ export interface InAppLinkOptions {
   onPath: (path: string) => void;
 }
 
-/** Intercepts `<a>` clicks inside `ref` in the capture phase, before any React handler or native navigation. */
+/** Marks a box that intercepts its links; a link belongs to the innermost marked box around it. */
+const LINK_SCOPE = 'data-in-app-links';
+
+/**
+ * Intercepts `<a>` clicks inside `ref` in the capture phase, before any React handler or native navigation. A link
+ * inside a nested intercepting box (a guest inside a preview) is that box's: capture runs outermost first, so the
+ * outer box leaves it alone. The click only loses its default (a router link skips a prevented click); the link's own
+ * handlers, such as a drawer closing, still run.
+ */
 export function useInAppLinkInterceptor(ref: RefObject<HTMLElement | null>, { enabled, isolated, hostHrefBase, onPath }: InAppLinkOptions): void {
   useEffect(() => {
     const el = ref.current;
     if (!el || !enabled) return;
+    el.setAttribute(LINK_SCOPE, '');
     const handler = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest('a');
       if (!anchor) return;
+      if (anchor.closest(`[${LINK_SCOPE}]`) !== el) return;
       const href = anchor.getAttribute('href') ?? anchor.getAttribute('to') ?? '';
       navLog.debug('click:intercepted', { href });
       const external = href.startsWith('http') || href.startsWith('mailto:');
       const appPath = external ? null : appPathFromHref(href, hostHrefBase);
       if (isolated && appPath === null) {
         e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
         if (external) window.open(href, '_blank', 'noopener,noreferrer');
         navLog.debug('click:sandboxed', { href, external });
         return;
@@ -62,11 +70,12 @@ export function useInAppLinkInterceptor(ref: RefObject<HTMLElement | null>, { en
         return;
       }
       e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
       onPath(appPath);
     };
     el.addEventListener('click', handler, true);
-    return () => el.removeEventListener('click', handler, true);
+    return () => {
+      el.removeEventListener('click', handler, true);
+      el.removeAttribute(LINK_SCOPE);
+    };
   }, [ref, enabled, isolated, hostHrefBase, onPath]);
 }
