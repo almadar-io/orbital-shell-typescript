@@ -23,6 +23,14 @@ export interface ThemeToggleProps extends A11yProps {
   size?: "sm" | "md" | "lg";
   /** Show label text */
   showLabel?: boolean;
+  /** Accessible action label when the current mode is dark. */
+  switchToLightLabel?: string;
+  /** Accessible action label when the current mode is light. */
+  switchToDarkLabel?: string;
+  /** Visible light mode label. */
+  lightLabel?: string;
+  /** Visible dark mode label. */
+  darkLabel?: string;
 }
 
 const sizeClasses = {
@@ -56,12 +64,18 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
   className,
   size = "md",
   showLabel = false,
+  switchToLightLabel,
+  switchToDarkLabel,
+  lightLabel,
+  darkLabel,
   ...rest
 }) => {
   const { resolvedMode, toggleMode } = useTheme();
   const { t } = useTranslate();
   const isDark = resolvedMode === "dark";
-  const switchLabel = isDark ? t("themeToggle.switchToLight") : t("themeToggle.switchToDark");
+  const switchLabel = isDark
+    ? (switchToLightLabel ?? t("themeToggle.switchToLight"))
+    : (switchToDarkLabel ?? t("themeToggle.switchToDark"));
 
   return (
     <button
@@ -92,7 +106,7 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
         />
       )}
       {showLabel && (
-        <span className="text-sm font-medium">{isDark ? t("themeToggle.light") : t("themeToggle.dark")}</span>
+        <span className="text-sm font-medium">{isDark ? (lightLabel ?? t("themeToggle.light")) : (darkLabel ?? t("themeToggle.dark"))}</span>
       )}
     </button>
   );

@@ -65,6 +65,8 @@ export interface DrawerProps extends A11yProps {
   width?: string | DrawerSize;
   /** Show close button */
   showCloseButton?: boolean;
+  /** Accessible name for the close button, when supplied by the program. */
+  closeButtonLabel?: string;
   /** Close on overlay click */
   closeOnOverlayClick?: boolean;
   /** Close on escape key */
@@ -111,6 +113,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   position = "right",
   width = "md",
   showCloseButton = true,
+  closeButtonLabel,
   closeOnOverlayClick = true,
   closeOnEscape = true,
   className,
@@ -228,7 +231,7 @@ export const Drawer: React.FC<DrawerProps> = ({
                     onClick={handleClose}
                     data-event="CLOSE"
                     data-testid={actionTestId("CLOSE")}
-                    aria-label={t('aria.closeDrawer')}
+                    aria-label={closeButtonLabel ?? t('aria.closeDrawer')}
                   />
                 )}
               </HStack>

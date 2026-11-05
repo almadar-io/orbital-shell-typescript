@@ -43,6 +43,9 @@ export type RowActionCondition = SExpr | ((row: EntityRow) => boolean);
  */
 export type RowActionPayload = SExpr | ((row: EntityRow) => EventPayload);
 
+/** A literal route or an authored `(fn row <string>)` expression. */
+export type RowActionRoute = SExpr;
+
 /** An action item that may carry a per-row condition and a declared payload. */
 export interface RowConditionalAction {
   readonly when?: RowActionCondition;
@@ -119,6 +122,28 @@ export function rowActionPayload<A extends RowConditionalAction>(
     whenLog.warn('payload-threw', { message: error instanceof Error ? error.message : String(error) });
     return base;
   }
+}
+
+/** Resolve a declared destination against the row and viewer. Invalid expressions do not navigate. */
+export function rowActionRoute(
+  destination: RowActionRoute,
+  row: EntityRow,
+  bindings: RowActionBindings,
+): string | null {
+  if (typeof destination === 'string') return destination;
+  const lambda = lambdaParts(destination);
+  if (lambda === null) {
+    whenLog.warn('malformed-route', { route: JSON.stringify(destination) });
+    return null;
+  }
+  try {
+    const value = evaluateBinding(contextFor(row, lambda.param, bindings), lambda.body);
+    if (typeof value === 'string') return value;
+    whenLog.warn('route-not-string', { route: JSON.stringify(destination) });
+  } catch (error) {
+    whenLog.warn('route-threw', { message: error instanceof Error ? error.message : String(error) });
+  }
+  return null;
 }
 
 /**

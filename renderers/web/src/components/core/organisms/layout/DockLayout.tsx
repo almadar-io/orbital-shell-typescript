@@ -159,6 +159,14 @@ export interface DockLayoutProps extends Omit<React.AriaAttributes, keyof A11yPr
 
   /** The mobile variant; decided by the viewport (narrower than 1024px) when omitted. */
   compact?: boolean;
+  /** Compact: accessible name for the button that opens the menu. */
+  openMenuLabel?: string;
+  /** Compact: accessible name for the button returning to the menu. */
+  backToMenuLabel?: string;
+  /** Compact: title of the menu drawer. */
+  menuLabel?: string;
+  /** Compact: accessible name for each drawer close button. */
+  closeDrawerLabel?: string;
   /** Compact: the top-bar button that opens `secondarySidebar` (e.g. "Inspector", "Chat"). */
   secondarySidebarLabel?: string;
   secondarySidebarIcon?: IconInput;
@@ -207,6 +215,10 @@ export const DockLayout: React.FC<DockLayoutProps> = ({
   secondarySidebarCollapsed: secondarySidebarCollapsedProp,
   onSecondarySidebarCollapsedChange,
   compact: compactProp,
+  openMenuLabel,
+  backToMenuLabel,
+  menuLabel,
+  closeDrawerLabel,
   secondarySidebarLabel,
   secondarySidebarIcon,
   bottomPanelLabel,
@@ -234,6 +246,10 @@ export const DockLayout: React.FC<DockLayoutProps> = ({
         statusBar={statusBar}
         secondarySidebar={secondarySidebar}
         secondarySidebarLabel={secondarySidebarLabel}
+        openMenuLabel={openMenuLabel}
+        backToMenuLabel={backToMenuLabel}
+        menuLabel={menuLabel}
+        closeDrawerLabel={closeDrawerLabel}
         secondarySidebarIcon={secondarySidebarIcon}
         bottomPanelLabel={bottomPanelLabel}
         bottomPanelIcon={bottomPanelIcon}
@@ -257,11 +273,12 @@ export const DockLayout: React.FC<DockLayoutProps> = ({
 };
 
 type CompactDockProps = Pick<DockLayoutProps, "rail" | "sidebar" | "main" | "bottomPanel" | "statusBar" | "secondarySidebar"
-  | "secondarySidebarLabel" | "secondarySidebarIcon" | "bottomPanelLabel" | "bottomPanelIcon" | "topBarActions" | "className" | "mainClassName" | "statusBarClassName"> & { a11y?: DomPassthrough };
+  | "secondarySidebarLabel" | "secondarySidebarIcon" | "bottomPanelLabel" | "bottomPanelIcon" | "topBarActions" | "className" | "mainClassName" | "statusBarClassName" | "openMenuLabel" | "backToMenuLabel" | "menuLabel" | "closeDrawerLabel"> & { a11y?: DomPassthrough };
 
 const CompactDock: React.FC<CompactDockProps> = ({
   rail, sidebar, main, bottomPanel, statusBar, secondarySidebar,
   secondarySidebarLabel, secondarySidebarIcon, bottomPanelLabel, bottomPanelIcon, topBarActions,
+  openMenuLabel, backToMenuLabel, menuLabel, closeDrawerLabel,
   className, mainClassName, statusBarClassName, a11y,
 }) => {
   const { t } = useTranslate();
@@ -279,7 +296,7 @@ const CompactDock: React.FC<CompactDockProps> = ({
     <VStack gap="none" className="h-full min-h-0">
       {rail && (
         <HStack gap="xs" className="flex-shrink-0 items-center px-2 py-1 border-b border-border">
-          <IconButton icon="arrow-left" label={t("dockLayout.backToMenu")} tooltipPosition="bottom" data-testid="dock-drawer-back" className="w-10 h-10" onClick={() => setLeftView("menu")} />
+          <IconButton icon="arrow-left" label={backToMenuLabel ?? t("dockLayout.backToMenu")} tooltipPosition="bottom" data-testid="dock-drawer-back" className="w-10 h-10" onClick={() => setLeftView("menu")} />
         </HStack>
       )}
       <Box className="flex-1 min-h-0 overflow-auto">{sidebar}</Box>
@@ -292,7 +309,7 @@ const CompactDock: React.FC<CompactDockProps> = ({
         {(rail || sidebar || secondarySidebar || bottomPanel || topBarActions) && (
           <Box className="flex flex-shrink-0 items-center gap-1 px-2 py-1 border-b border-border bg-surface" data-testid="dock-top-bar">
             {(rail || sidebar) && (
-              <IconButton icon="menu" label={t("dockLayout.openMenu")} tooltipPosition="bottom" data-testid="dock-menu" className="w-10 h-10" onClick={openLeft} />
+              <IconButton icon="menu" label={openMenuLabel ?? t("dockLayout.openMenu")} tooltipPosition="bottom" data-testid="dock-menu" className="w-10 h-10" onClick={openLeft} />
             )}
             <Box className="flex-1" />
             {bottomPanel && (
@@ -309,17 +326,17 @@ const CompactDock: React.FC<CompactDockProps> = ({
           <Box className={cn("flex-shrink-0 border-t border-border bg-background", statusBarClassName)}>{statusBar}</Box>
         )}
         {(rail || sidebar) && (
-          <Drawer isOpen={open === "left"} onClose={close} position="left" width="md" title={t("dockLayout.menu")}>
+          <Drawer isOpen={open === "left"} onClose={close} position="left" width="md" title={menuLabel ?? t("dockLayout.menu")} closeButtonLabel={closeDrawerLabel}>
             {open === "left" ? leftContent : null}
           </Drawer>
         )}
         {secondarySidebar && (
-          <Drawer isOpen={open === "secondary"} onClose={close} position="right" width="md" title={secondarySidebarLabel ?? t("dockLayout.expand.secondary-sidebar")}>
+          <Drawer isOpen={open === "secondary"} onClose={close} position="right" width="md" title={secondarySidebarLabel ?? t("dockLayout.expand.secondary-sidebar")} closeButtonLabel={closeDrawerLabel}>
             {open === "secondary" ? secondarySidebar : null}
           </Drawer>
         )}
         {bottomPanel && (
-          <Drawer isOpen={open === "bottom"} onClose={close} position="right" width="md" title={bottomPanelLabel ?? t("dockLayout.expand.bottom-panel")}>
+          <Drawer isOpen={open === "bottom"} onClose={close} position="right" width="md" title={bottomPanelLabel ?? t("dockLayout.expand.bottom-panel")} closeButtonLabel={closeDrawerLabel}>
             {open === "bottom" ? bottomPanel : null}
           </Drawer>
         )}

@@ -32,6 +32,11 @@ export interface GameAudioToggleProps extends Omit<React.AriaAttributes, keyof A
     size?: 'sm' | 'md' | 'lg';
     /** Additional CSS classes */
     className?: string;
+    /** Authored mute state. When supplied, the caller owns updates. */
+    muted?: boolean;
+    /** Accessible labels supplied by the translated parent view. */
+    soundOnLabel?: string;
+    mutedLabel?: string;
     /** Loading state (passed through) */
     isLoading?: boolean;
     /** Error state (passed through) */
@@ -53,24 +58,28 @@ export interface GameAudioToggleProps extends Omit<React.AriaAttributes, keyof A
 export function GameAudioToggle({
     size = 'sm',
     className,
+    muted: authoredMuted,
+    soundOnLabel,
+    mutedLabel,
     onAsset,
     offAsset,
     toggleEvent,
+    isLoading,
     ...rest
 }: GameAudioToggleProps): React.JSX.Element {
     const ctx = useGameAudioContextOptional();
     const [localMuted, setLocalMuted] = useState(false);
-    const muted = ctx ? ctx.muted : localMuted;
+    const muted = authoredMuted ?? (ctx ? ctx.muted : localMuted);
     const setMuted = ctx ? ctx.setMuted : setLocalMuted;
     const eventBus = useEventBus();
     const { t } = useTranslate();
-    const stateLabel = muted ? t('gameAudio.muted') : t('gameAudio.soundOn');
+    const stateLabel = muted ? (mutedLabel ?? t('gameAudio.muted')) : (soundOnLabel ?? t('gameAudio.soundOn'));
 
     const handleToggle = useCallback(() => {
         const next = !muted;
-        setMuted(next);
+        if (authoredMuted === undefined) setMuted(next);
         if (toggleEvent) eventBus.emit(`UI:${toggleEvent}`, { muted: next });
-    }, [muted, setMuted, toggleEvent, eventBus]);
+    }, [authoredMuted, muted, setMuted, toggleEvent, eventBus]);
 
     const activeAsset = muted ? offAsset : onAsset;
 
@@ -79,6 +88,7 @@ export function GameAudioToggle({
             {...domPassthrough(rest)}
             variant="ghost"
             size={size}
+            isLoading={isLoading}
             onClick={handleToggle}
             className={cn('text-lg leading-none px-2', className)}
             aria-pressed={muted}

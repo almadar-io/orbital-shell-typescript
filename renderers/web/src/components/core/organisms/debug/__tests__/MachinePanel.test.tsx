@@ -21,6 +21,7 @@ const lampMachine: StateMachine = {
 
 const schema: OrbitalSchema = {
   name: 'House',
+  typeContractVersion: 1,
   orbitals: [{
     name: 'HouseOrbital',
     entity: { name: 'Room', fields: [{ name: 'open', type: 'boolean' }] },
@@ -62,6 +63,12 @@ beforeAll(() => {
 });
 
 describe('MachinePanel — the debugger shows the followed trait\'s code beside its live machine', () => {
+  it('reads a serialized trait description without a callback', async () => {
+    render(<MachinePanel schema={schema} transitions={[hop('HouseDoor', 'closed', 'OPEN', 'opened')]} descriptions={{ 'std/std-door.traits.DoorLife': doorSource }} />);
+    await waitFor(() => expect(document.querySelector('[data-highlighted="true"]')?.textContent).toContain('OPEN -> opened'));
+    expect(screen.getByTestId('machine-panel').dataset.trait).toBe('HouseDoor');
+  });
+
   it('follows the latest hop: draws that trait, lights the state it entered and the printed lines of the transition', async () => {
     const { describe: describeTrait, asked } = recordingDescribe(async () => doorSource);
     render(<MachinePanel schema={schema} transitions={[hop('Lamp', 'off', 'TOGGLE', 'on'), hop('HouseDoor', 'closed', 'OPEN', 'opened')]} describe={describeTrait} />);
@@ -158,7 +165,7 @@ describe('MachinePanel — the debugger shows the followed trait\'s code beside 
   });
 
   it('control: a program with no state machines shows the empty note', () => {
-    render(<MachinePanel schema={{ name: 'Empty', orbitals: [] }} transitions={[]} />);
+    render(<MachinePanel schema={{ name: 'Empty', typeContractVersion: 1, orbitals: [] }} transitions={[]} />);
     expect(screen.getByTestId('machine-panel-empty')).toBeInTheDocument();
   });
 });

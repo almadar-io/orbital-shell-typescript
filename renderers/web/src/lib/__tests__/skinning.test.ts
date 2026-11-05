@@ -54,14 +54,14 @@ describe('computeWorldMatrices', () => {
 });
 
 describe('skinVertices', () => {
-    const bindWorld = computeWorldMatrices(bones, {});
+    const bindWorld = (): ReturnType<typeof computeWorldMatrices> => computeWorldMatrices(bones, {});
 
     it('moves a fully-weighted vertex rigidly with its bone', () => {
         const mesh: SkinMesh = {
             vertices: [{ x: 2, y: 0, u: 0, v: 0, weights: [{ bone: 1, w: 1 }] }],
             triangles: [],
         };
-        const out = skinVertices(mesh, bindWorld, computeWorldMatrices(bones, { root: 90 }));
+        const out = skinVertices(mesh, bindWorld(), computeWorldMatrices(bones, { root: 90 }));
         closeTo(out[0], 0, 2);
     });
 
@@ -83,7 +83,7 @@ describe('skinVertices', () => {
         };
         // Only the child rotates (-90° about its pivot (1,0)): its transform
         // sends (2,0)→(1,-1), the root's identity holds (2,0); half-weight → midpoint.
-        const out = skinVertices(mesh, bindWorld, computeWorldMatrices(bones, { child: -90 }));
+        const out = skinVertices(mesh, bindWorld(), computeWorldMatrices(bones, { child: -90 }));
         closeTo(out[0], 1.5, -0.5);
     });
 
@@ -92,7 +92,7 @@ describe('skinVertices', () => {
             vertices: [{ x: 5, y: 5, u: 0, v: 0, weights: [] }],
             triangles: [],
         };
-        const out = skinVertices(mesh, bindWorld, computeWorldMatrices(bones, { root: 45, child: 45 }));
+        const out = skinVertices(mesh, bindWorld(), computeWorldMatrices(bones, { root: 45, child: 45 }));
         closeTo(out[0], 5, 5);
     });
 });

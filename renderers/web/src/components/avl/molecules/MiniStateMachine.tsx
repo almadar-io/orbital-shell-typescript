@@ -65,7 +65,9 @@ export const MiniStateMachine: React.FC<MiniStateMachineProps> = ({ data, annota
   const transitionCounts: Record<string, number> = {};
   for (const s of states) transitionCounts[s.name] = 0;
   for (const t of data.transitions) {
-    transitionCounts[t.from] = (transitionCounts[t.from] ?? 0) + 1;
+    for (const from of Array.isArray(t.from) ? t.from : [t.from]) {
+      transitionCounts[from] = (transitionCounts[from] ?? 0) + 1;
+    }
     transitionCounts[t.to] = (transitionCounts[t.to] ?? 0) + 1;
   }
   const maxTC = Math.max(...Object.values(transitionCounts), 0);

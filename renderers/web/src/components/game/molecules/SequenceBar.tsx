@@ -40,6 +40,10 @@ export interface SequenceBarProps extends Omit<React.AriaAttributes, keyof A11yP
     slotFeedback?: Array<'correct' | 'wrong' | null>;
     /** Size variant */
     size?: 'sm' | 'md' | 'lg';
+    /** Accessible name for empty slots; author supplies translated text. */
+    emptyLabel?: string;
+    /** Accessible name for remove controls; author supplies translated text. */
+    removeLabel?: string;
     /** Additional CSS classes */
     className?: string;
 }
@@ -56,6 +60,8 @@ export function SequenceBar({
     categoryColors,
     slotFeedback,
     size = 'lg',
+    emptyLabel,
+    removeLabel,
     className,
     ...rest
 }: SequenceBarProps): React.JSX.Element {
@@ -64,13 +70,13 @@ export function SequenceBar({
     const handleDrop = useCallback((index: number) => (item: SlotItemData) => {
         if (playing) return;
         if (slotDropEvent) emit(`UI:${slotDropEvent}`, { slotNumber: index, itemId: item.id });
-        else onSlotDrop?.(index, item);
+        onSlotDrop?.(index, item);
     }, [emit, slotDropEvent, onSlotDrop, playing]);
 
     const handleRemove = useCallback((index: number) => () => {
         if (playing) return;
         if (slotRemoveEvent) emit(`UI:${slotRemoveEvent}`, { slotNumber: index });
-        else onSlotRemove?.(index);
+        onSlotRemove?.(index);
     }, [emit, slotRemoveEvent, onSlotRemove, playing]);
 
     // Pad slots to maxSlots
@@ -95,6 +101,8 @@ export function SequenceBar({
                         slotNumber={i + 1}
                         equippedItem={slot}
                         size={size}
+                        emptyLabel={emptyLabel}
+                        removeLabel={removeLabel}
                         categoryColors={categoryColors}
                         onItemDrop={handleDrop(i)}
                         onRemove={slot ? handleRemove(i) : undefined}

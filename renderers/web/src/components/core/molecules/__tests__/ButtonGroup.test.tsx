@@ -33,14 +33,28 @@ describe('ButtonGroup', () => {
     expect(screen.getByText('Cancel')).toBeInTheDocument();
   });
 
-  it('emits UI:DISPATCH event when button with event prop is clicked', async () => {
+  it('projects authored submit type while ordinary actions stay buttons', () => {
+    render(
+      <TestWrapper>
+        <ButtonGroup
+          primary={{ label: 'Save', event: 'SAVE', actionType: 'submit' }}
+          secondary={[{ label: 'Cancel', event: 'CANCEL' }]}
+        />
+      </TestWrapper>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('type', 'submit');
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveAttribute('type', 'button');
+  });
+
+  it('emits the authored event when button with event prop is clicked', async () => {
     const eventListener = vi.fn();
 
     // Component that listens to events
     const EventListener: React.FC = () => {
       const eventBus = useEventBus();
       React.useEffect(() => {
-        const unsubscribe = eventBus.on('UI:DISPATCH', eventListener);
+        const unsubscribe = eventBus.on('UI:ADD_TO_CART', eventListener);
         return unsubscribe;
       }, [eventBus]);
       return null;
@@ -60,8 +74,8 @@ describe('ButtonGroup', () => {
 
     expect(eventListener).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'UI:DISPATCH',
-        payload: { event: 'ADD_TO_CART' },
+        type: 'UI:ADD_TO_CART',
+        payload: {},
       })
     );
   });
@@ -72,7 +86,7 @@ describe('ButtonGroup', () => {
     const EventListener: React.FC = () => {
       const eventBus = useEventBus();
       React.useEffect(() => {
-        const unsubscribe = eventBus.on('UI:DISPATCH', eventListener);
+        const unsubscribe = eventBus.on('UI:BACK', eventListener);
         return unsubscribe;
       }, [eventBus]);
       return null;
@@ -100,7 +114,7 @@ describe('ButtonGroup', () => {
     const EventListener: React.FC = () => {
       const eventBus = useEventBus();
       React.useEffect(() => {
-        const unsubscribe = eventBus.on('UI:DISPATCH', eventListener);
+        const unsubscribe = eventBus.on('UI:SUBMIT', eventListener);
         return unsubscribe;
       }, [eventBus]);
       return null;
@@ -121,8 +135,8 @@ describe('ButtonGroup', () => {
     // Should have emitted the event
     expect(eventListener).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'UI:DISPATCH',
-        payload: { event: 'SUBMIT' },
+        type: 'UI:SUBMIT',
+        payload: {},
       })
     );
   });

@@ -115,6 +115,7 @@
     "dist",
     "src/core/locales",
     "src/core/tokens/native-tokens.json",
+    "src/core/lib/band-shapes.json",
     "themes",
     "index.css",
     "tailwind-preset.cjs",

@@ -40,7 +40,9 @@ export default defineConfig({
     const jsonFiles = [
       'component-mapping.json',
       'event-contracts.json',
+      'game-font-families.json',
       'patterns-registry.json',
+      'pattern-tile-geometry.json',
       'services-registry.json',
       'ml-registry.json',
       'pattern-embeddings.json',

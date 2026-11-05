@@ -36,19 +36,20 @@ export const DetailView: React.FC<DetailViewProps> = ({ data }) => {
   }
 
   const transition = traitData.transitions[0];
-  const fromState = traitData.states.find(s => s.name === transition.from);
+  const sources = Array.isArray(transition.from) ? transition.from : [transition.from];
   const toState = traitData.states.find(s => s.name === transition.to);
 
   // Role detection
   const transitionCounts: Record<string, number> = {};
   for (const s of traitData.states) transitionCounts[s.name] = 0;
   for (const t of traitData.transitions) {
-    transitionCounts[t.from] = (transitionCounts[t.from] ?? 0) + 1;
+    for (const from of Array.isArray(t.from) ? t.from : [t.from]) {
+      transitionCounts[from] = (transitionCounts[from] ?? 0) + 1;
+    }
     transitionCounts[t.to] = (transitionCounts[t.to] ?? 0) + 1;
   }
   const maxTC = Math.max(...Object.values(transitionCounts), 0);
 
-  const fromRole = getStateRole(fromState?.isInitial ?? undefined, fromState?.isTerminal ?? undefined, transitionCounts[transition.from] ?? 0, maxTC);
   const toRole = getStateRole(toState?.isInitial ?? undefined, toState?.isTerminal ?? undefined, transitionCounts[transition.to] ?? 0, maxTC);
 
   const hasGuard = transition.guard != null;
@@ -57,10 +58,14 @@ export const DetailView: React.FC<DetailViewProps> = ({ data }) => {
     <div className="rounded-lg border-2 border-[var(--color-border)] bg-[var(--color-card)] overflow-hidden" style={{ minWidth: 380, maxWidth: 500 }}>
       {/* Header: from state → to state */}
       <div className="px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-background)]">
-        <div className="flex items-center gap-3">
-          <svg width={90} height={32} viewBox="0 0 90 32">
-            <AvlState x={0} y={0} width={80} height={28} name={transition.from} role={fromRole} isInitial={fromState?.isInitial ?? undefined} isTerminal={fromState?.isTerminal ?? undefined} />
-          </svg>
+        <div className="flex flex-wrap items-center gap-3">
+          {sources.map((from, index) => {
+            const fromState = traitData.states.find(s => s.name === from);
+            const fromRole = getStateRole(fromState?.isInitial ?? undefined, fromState?.isTerminal ?? undefined, transitionCounts[from] ?? 0, maxTC);
+            return <svg key={`${from}-${index}`} width={90} height={32} viewBox="0 0 90 32">
+              <AvlState x={0} y={0} width={80} height={28} name={from} role={fromRole} isInitial={fromState?.isInitial ?? undefined} isTerminal={fromState?.isTerminal ?? undefined} />
+            </svg>;
+          })}
           <svg width={24} height={16} viewBox="0 0 24 16">
             <line x1={0} y1={8} x2={18} y2={8} stroke="var(--color-muted-foreground)" strokeWidth={2} />
             <polygon points="18,4 24,8 18,12" fill="var(--color-muted-foreground)" />

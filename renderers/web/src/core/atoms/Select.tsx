@@ -8,6 +8,7 @@ import { Typography } from "./Typography";
 import { useEventBus } from "../hooks/useEventBus";
 import { useTranslate } from "../hooks/useTranslate";
 import { useDialogBehavior } from "../hooks/useDialogBehavior";
+import { useFieldDraft } from "../hooks/useFieldDraft";
 import { domPassthrough } from "../lib/domPassthrough";
 
 export interface SelectOption {
@@ -100,12 +101,15 @@ function NativeSelect({
   ...props
 }: Omit<SelectProps, "multiple" | "searchable" | "clearable">) {
   const eventBus = useEventBus();
+  const declarative = typeof onChange === "string" || typeof onValueChange === "string" || Boolean(action);
+  const { displayValue, record } = useFieldDraft(value as string | undefined, declarative);
   const generatedId = useId();
   const fieldId = props.id ?? generatedId;
   const errorId = error ? `${fieldId}-error` : undefined;
   const describedBy = [props["aria-describedby"], errorId].filter(Boolean).join(" ") || undefined;
 
   const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (declarative) record(e.target.value);
     if (typeof onChange === "string") {
       eventBus.emit(`UI:${onChange}`, { value: e.target.value });
     } else {
@@ -123,7 +127,7 @@ function NativeSelect({
       <div className="relative">
       <select
         onChange={handleChange}
-        value={value as string | undefined}
+        value={displayValue}
         className={cn(
           "block w-full rounded-interactive border-[length:var(--border-width)] shadow-elevation-interactive interactive-border appearance-none",
           "px-3 py-2 pr-10 text-sm text-foreground font-medium",
@@ -190,6 +194,8 @@ function RichSelect({
   ...rest
 }: SelectProps) {
   const eventBus = useEventBus();
+  const declarative = typeof onChange === "string" || typeof onValueChange === "string" || Boolean(action);
+  const { displayValue, record } = useFieldDraft(value, declarative);
   const { t } = useTranslate();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -205,8 +211,8 @@ function RichSelect({
   const optionId = (index: number) => `${baseId}-opt-${index}`;
 
   const selected: string[] = multiple
-    ? Array.isArray(value) ? value : value ? [value] : []
-    : value ? [value as string] : [];
+    ? Array.isArray(displayValue) ? displayValue : displayValue ? [displayValue] : []
+    : displayValue ? [displayValue as string] : [];
 
   const all = flatOptions(options, groups);
   const matches = (o: SelectOption) =>
@@ -232,6 +238,7 @@ function RichSelect({
   });
 
   const emitValue = (next: string | string[]) => {
+    if (declarative) record(next);
     if (typeof onChange === "string") {
       eventBus.emit(`UI:${onChange}`, { value: next });
     }

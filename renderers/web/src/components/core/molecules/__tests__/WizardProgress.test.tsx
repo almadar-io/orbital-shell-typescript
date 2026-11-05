@@ -41,4 +41,16 @@ describe('WizardContainer', () => {
     wrap(<WizardContainer steps={[{ id: 'a', title: 'Account' }, { id: 'b', title: 'Billing' }]} />);
     expect(screen.getByRole('button', { name: 'Step 1 of 2: Account' }).getAttribute('aria-current')).toBe('step');
   });
+
+  it('shows the shared loading state instead of steps while loading', () => {
+    wrap(<WizardContainer steps={[{ id: 'a', title: 'Account' }]} isLoading />);
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Step 1 of 1: Account' })).toBeNull();
+  });
+
+  it('shows the shared error state instead of steps on failure', () => {
+    wrap(<WizardContainer steps={[{ id: 'a', title: 'Account' }]} error={{ message: 'Steps unavailable' }} />);
+    expect(screen.getByRole('alert').textContent).toContain('Steps unavailable');
+    expect(screen.queryByRole('button', { name: 'Step 1 of 1: Account' })).toBeNull();
+  });
 });

@@ -32,13 +32,17 @@ struct DirLazySource {
 impl orbital_wasm::LazySource for DirLazySource {
     fn read(&self, file: &str) -> Result<orbital_wasm::LazyProgram, String> {
         let path = self.dir.join(file);
-        let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let schema: orbital_wasm::OrbitalSchema = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+        let text =
+            std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let schema: orbital_wasm::OrbitalSchema =
+            serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
         let mut catalogs = std::collections::HashMap::new();
         for locale in schema.locales.iter().flatten() {
             let sidecar = path.with_extension(format!("{locale}.json"));
-            let raw = std::fs::read_to_string(&sidecar).map_err(|e| format!("{}: {e}", sidecar.display()))?;
-            let catalog = serde_json::from_str(&raw).map_err(|e| format!("{}: {e}", sidecar.display()))?;
+            let raw = std::fs::read_to_string(&sidecar)
+                .map_err(|e| format!("{}: {e}", sidecar.display()))?;
+            let catalog =
+                serde_json::from_str(&raw).map_err(|e| format!("{}: {e}", sidecar.display()))?;
             catalogs.insert(locale.clone(), catalog);
         }
         Ok(orbital_wasm::LazyProgram { schema, catalogs })
@@ -58,10 +62,15 @@ impl Server {
     #[napi(constructor)]
     pub fn new(resolved_schema_json: String, lazy_dir: Option<String>) -> napi::Result<Self> {
         let handle = match lazy_dir {
-            Some(dir) => ServerHandle::plain_lazy(&resolved_schema_json, std::sync::Arc::new(DirLazySource { dir: dir.into() })),
+            Some(dir) => ServerHandle::plain_lazy(
+                &resolved_schema_json,
+                std::sync::Arc::new(DirLazySource { dir: dir.into() }),
+            ),
             None => ServerHandle::plain(&resolved_schema_json),
         };
-        Ok(Self { api: Slot::new(handle.map_err(js)?) })
+        Ok(Self {
+            api: Slot::new(handle.map_err(js)?),
+        })
     }
 
     #[napi]
@@ -91,7 +100,11 @@ impl Server {
     }
 
     #[napi]
-    pub fn os_allows(&self, requirement_json: String, orbital: Option<String>) -> napi::Result<bool> {
+    pub fn os_allows(
+        &self,
+        requirement_json: String,
+        orbital: Option<String>,
+    ) -> napi::Result<bool> {
         self.api
             .get()
             .map_err(js)?
@@ -107,17 +120,32 @@ impl Server {
 
     #[napi]
     pub fn set_os_anchors(&self, anchors_json: String) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().set_os_anchors(&anchors_json).map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .set_os_anchors(&anchors_json)
+            .map_err(js)
     }
 
     #[napi]
     pub fn os_resolve_args(&self, op: String, args_json: String) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().os_resolve_args(&op, &args_json).map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .os_resolve_args(&op, &args_json)
+            .map_err(js)
     }
 
     #[napi]
     pub fn tls_complete(&self, key: String, outcome_json: String) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().tls_complete(&key, &outcome_json).map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .tls_complete(&key, &outcome_json)
+            .map_err(js)
     }
 
     #[napi]
@@ -130,13 +158,27 @@ impl Server {
     }
 
     #[napi]
-    pub fn live_item_delivered(&self, item_json: String, client_id: Option<String>) -> napi::Result<bool> {
-        self.api.get().map_err(js)?.api().live_item_delivered(&item_json, client_id.as_deref()).map_err(js)
+    pub fn live_item_delivered(
+        &self,
+        item_json: String,
+        client_id: Option<String>,
+    ) -> napi::Result<bool> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .live_item_delivered(&item_json, client_id.as_deref())
+            .map_err(js)
     }
 
     #[napi]
     pub fn dispatch_stream(&self) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().dispatch_stream().map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .dispatch_stream()
+            .map_err(js)
     }
 
     #[napi]
@@ -165,11 +207,19 @@ impl Server {
 
     #[napi]
     pub fn close_session_stream(&self, id: f64) -> napi::Result<bool> {
-        Ok(self.api.get().map_err(js)?.close_session_stream(flight_id(id)?))
+        Ok(self
+            .api
+            .get()
+            .map_err(js)?
+            .close_session_stream(flight_id(id)?))
     }
 
     #[napi]
-    pub fn resolve_rows(&self, ref_json: String, client_id: Option<String>) -> napi::Result<String> {
+    pub fn resolve_rows(
+        &self,
+        ref_json: String,
+        client_id: Option<String>,
+    ) -> napi::Result<String> {
         self.api
             .get()
             .map_err(js)?
@@ -228,23 +278,47 @@ impl Server {
 
     #[napi]
     pub fn boot_mounts(&self, side: String) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().boot_mounts(&side).map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .boot_mounts(&side)
+            .map_err(js)
     }
 
     #[napi]
     pub fn route_mounts(&self, route_path: String) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().route_mounts(&route_path).map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .route_mounts(&route_path)
+            .map_err(js)
     }
 
     #[napi]
-    pub fn page_circuit(&self, page: Option<String>, route: Option<String>) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().page_circuit(page.as_deref(), route.as_deref()).map_err(js)
+    pub fn page_circuit(
+        &self,
+        page: Option<String>,
+        route: Option<String>,
+    ) -> napi::Result<String> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .page_circuit(page.as_deref(), route.as_deref())
+            .map_err(js)
     }
 
     /// One question about the registered program (a `ContractQuery` as JSON): its answer as JSON.
     #[napi]
     pub fn contract_query(&self, query_json: String) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().contract_query(&query_json).map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .contract_query(&query_json)
+            .map_err(js)
     }
 
     #[napi]
@@ -283,13 +357,33 @@ impl Server {
     }
 
     #[napi]
-    pub fn mount_client(&self, client: String, orbital: String, traits_json: String) -> napi::Result<()> {
-        self.api.get().map_err(js)?.api().mount_client(&client, &orbital, &traits_json).map_err(js)
+    pub fn mount_client(
+        &self,
+        client: String,
+        orbital: String,
+        traits_json: String,
+    ) -> napi::Result<()> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .mount_client(&client, &orbital, &traits_json)
+            .map_err(js)
     }
 
     #[napi]
-    pub fn unmount_client(&self, client: String, orbital: String, traits_json: String) -> napi::Result<()> {
-        self.api.get().map_err(js)?.api().unmount_client(&client, &orbital, &traits_json).map_err(js)
+    pub fn unmount_client(
+        &self,
+        client: String,
+        orbital: String,
+        traits_json: String,
+    ) -> napi::Result<()> {
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .unmount_client(&client, &orbital, &traits_json)
+            .map_err(js)
     }
 
     #[napi]
@@ -300,18 +394,32 @@ impl Server {
 
     #[napi]
     pub fn relay_tick(&self, orbital: String, request_json: String) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().relay_tick(&orbital, &request_json).map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .relay_tick(&orbital, &request_json)
+            .map_err(js)
     }
 
     #[napi]
     pub fn set_tick_relay_interval(&self, interval_ms: f64) -> napi::Result<()> {
-        self.api.get().map_err(js)?.api().set_tick_relay_interval(interval_ms.max(0.0) as u64);
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .set_tick_relay_interval(interval_ms.max(0.0) as u64);
         Ok(())
     }
 
     #[napi]
     pub fn flush_tick_relay(&self) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().flush_tick_relay().map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .flush_tick_relay()
+            .map_err(js)
     }
 
     #[napi]
@@ -327,7 +435,12 @@ impl Server {
 
     #[napi]
     pub fn tick_pass(&self, now_ms: f64) -> napi::Result<String> {
-        self.api.get().map_err(js)?.api().tick_pass(now_ms.max(0.0) as u64).map_err(js)
+        self.api
+            .get()
+            .map_err(js)?
+            .api()
+            .tick_pass(now_ms.max(0.0) as u64)
+            .map_err(js)
     }
 
     #[napi]
@@ -365,7 +478,11 @@ pub fn os_glob_matches(glob: String, path: String) -> bool {
 
 /// The typed event request a `program/dispatch` call names, as an object; a record that is no event request throws the reason.
 #[napi(ts_return_type = "EventRequest")]
-pub fn parse_event_request(env: Env, payload_json: String, options_json: String) -> napi::Result<napi::JsUnknown> {
+pub fn parse_event_request(
+    env: Env,
+    payload_json: String,
+    options_json: String,
+) -> napi::Result<napi::JsUnknown> {
     let request = api::parse_event_request(&payload_json, &options_json).map_err(js)?;
     let json: napi::JsObject = env.get_global()?.get_named_property("JSON")?;
     let parse: napi::JsFunction = json.get_named_property("parse")?;
@@ -376,6 +493,133 @@ pub fn parse_event_request(env: Env, payload_json: String, options_json: String)
 #[napi]
 pub fn event_wires(schema_json: String) -> napi::Result<String> {
     api::event_wires(&schema_json).map_err(js)
+}
+
+#[napi]
+pub fn avl_transition_playback(
+    machine_json: String,
+    transition_index: u32,
+    orbital: String,
+    trait_name: String,
+    scene_json: String,
+    cursor: i32,
+) -> napi::Result<String> {
+    api::avl_transition_playback(
+        &machine_json,
+        transition_index as usize,
+        &orbital,
+        &trait_name,
+        &scene_json,
+        cursor,
+    )
+    .map_err(js)
+}
+
+#[napi]
+pub fn avl_trace_playback(
+    machine_json: String,
+    trait_name: String,
+    traces_json: String,
+) -> napi::Result<String> {
+    api::avl_trace_playback(&machine_json, &trait_name, &traces_json).map_err(js)
+}
+
+#[napi]
+pub fn avl_state_machine_playback(
+    machine_json: String,
+    orbital: String,
+    trait_name: String,
+    scene_json: String,
+    cursor: i32,
+) -> napi::Result<String> {
+    api::avl_state_machine_playback(&machine_json, &orbital, &trait_name, &scene_json, cursor)
+        .map_err(js)
+}
+
+#[napi]
+pub fn avl_arm_indexes(machine_json: String, from: String, event: String) -> napi::Result<String> {
+    api::avl_arm_indexes(&machine_json, &from, &event).map_err(js)
+}
+
+#[napi]
+pub fn avl_fired_transition_index(machine_json: String, step_json: String) -> napi::Result<String> {
+    api::avl_fired_transition_index(&machine_json, &step_json).map_err(js)
+}
+
+#[napi]
+pub fn avl_traced_transition_index(
+    machine_json: String,
+    trace_json: String,
+) -> napi::Result<String> {
+    api::avl_traced_transition_index(&machine_json, &trace_json).map_err(js)
+}
+
+#[napi]
+pub fn avl_trait_level_from_description(description_json: String) -> napi::Result<String> {
+    api::avl_trait_level_from_description(&description_json).map_err(js)
+}
+
+#[napi]
+pub fn avl_trait_flow_graph(
+    schema_json: String,
+    orbital: String,
+    layers_json: String,
+) -> napi::Result<String> {
+    api::avl_trait_flow_graph(&schema_json, &orbital, &layers_json).map_err(js)
+}
+
+#[napi]
+pub fn avl_program_trait_levels(schema_json: String) -> napi::Result<String> {
+    api::avl_program_trait_levels(&schema_json).map_err(js)
+}
+
+#[napi]
+pub fn avl_described_transition_lines(
+    description_json: String,
+    running_json: String,
+    transition_index: u32,
+) -> napi::Result<String> {
+    api::avl_described_transition_lines(&description_json, &running_json, transition_index as usize)
+        .map_err(js)
+}
+
+#[napi]
+pub fn skin_world_matrices(bones_json: String, pose_json: String) -> napi::Result<String> {
+    api::skin_world_matrices(&bones_json, &pose_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_vertices(
+    mesh_json: String,
+    bind_json: String,
+    current_json: String,
+) -> napi::Result<String> {
+    api::skin_vertices(&mesh_json, &bind_json, &current_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_compose_affine(a_json: String, b_json: String) -> napi::Result<String> {
+    api::skin_compose_affine(&a_json, &b_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_invert_affine(matrix_json: String) -> napi::Result<String> {
+    api::skin_invert_affine(&matrix_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_apply_affine(matrix_json: String, x: f64, y: f64) -> napi::Result<String> {
+    api::skin_apply_affine(&matrix_json, x, y).map_err(js)
+}
+
+#[napi]
+pub fn skin_triangle_affine(src_json: String, dst_json: String) -> napi::Result<String> {
+    api::skin_triangle_affine(&src_json, &dst_json).map_err(js)
+}
+
+#[napi]
+pub fn skin_vertex_bounds(points_json: String) -> napi::Result<String> {
+    api::skin_vertex_bounds(&points_json).map_err(js)
 }
 
 /// The kernel's verdict on language packs (`[{ package, definition }]` as JSON): throws the refusal that names each pack, section and word.
@@ -411,6 +655,39 @@ pub fn os_completion_event(
     outcome_json: String,
 ) -> napi::Result<String> {
     api::os_completion_event(&site_json, &key, &outcome_json).map_err(js)
+}
+
+#[napi]
+pub fn expand_fx_layer(
+    layer_json: String,
+    epoch_now_ms: f64,
+    dimension: String,
+    tile_width: Option<f64>,
+    font_family: Option<String>,
+) -> napi::Result<String> {
+    api::expand_fx_layer(
+        &layer_json,
+        epoch_now_ms,
+        &dimension,
+        tile_width,
+        font_family.as_deref(),
+    )
+    .map_err(js)
+}
+
+#[napi]
+pub fn resolve_fx_view(item_json: String, presets_json: Option<String>) -> napi::Result<String> {
+    api::resolve_fx_view(&item_json, presets_json.as_deref()).map_err(js)
+}
+
+#[napi]
+pub fn fx_lifecycle(view_json: String, epoch_now_ms: f64, tick_ms: f64) -> napi::Result<String> {
+    api::fx_lifecycle(&view_json, epoch_now_ms, tick_ms).map_err(js)
+}
+
+#[napi]
+pub fn fx_hash01(seed: String, salt: u32) -> f64 {
+    api::fx_hash01(&seed, salt)
 }
 
 #[napi]
@@ -485,7 +762,13 @@ pub fn resolve_row_binding(term: String, bindings_json: String) -> napi::Result<
 }
 
 #[napi]
-pub fn substrate_completion_event(site_json: String, key: String, op: String, args_json: String, outcome_json: String) -> napi::Result<String> {
+pub fn substrate_completion_event(
+    site_json: String,
+    key: String,
+    op: String,
+    args_json: String,
+    outcome_json: String,
+) -> napi::Result<String> {
     api::substrate_completion_event(&site_json, &key, &op, &args_json, &outcome_json).map_err(js)
 }
 

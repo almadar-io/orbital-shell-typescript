@@ -5,6 +5,7 @@ import { Icon, resolveIcon, type IconInput } from "./Icon";
 import { Button } from "./Button";
 import { useTranslate } from "../hooks/useTranslate";
 import { useEventBus } from "../hooks/useEventBus";
+import { useFieldDraft } from "../hooks/useFieldDraft";
 
 export interface SelectOption {
   value: string;
@@ -120,28 +121,8 @@ export const Input = React.forwardRef<
       "aria-describedby": describedBy,
     };
 
-    // Declarative mode (onChange is an event-key string): the value round-trips
-    // through the circuit — emit → set → frame → re-render — with arbitrary
-    // lag, and a plain controlled input clobbers the DOM back to the lagging
-    // frame value on every commit, eating keystrokes typed in between. Echo
-    // cancellation, same contract as the bus layer's bridgeEchoPendingRef:
-    // a value this input EMITTED is its own echo and never overwrites the DOM;
-    // a value it never emitted (a SEND clearing the draft, another tab's
-    // write) is genuinely external and applies.
     const isDeclarative = typeof onChange === "string";
-    const [localValue, setLocalValue] = React.useState<string | number | undefined>(value);
-    const pendingEchoRef = React.useRef<Set<string>>(new Set());
-    React.useEffect(() => {
-      if (!isDeclarative) return;
-      const incoming = value == null ? "" : String(value);
-      if (pendingEchoRef.current.has(incoming)) {
-        pendingEchoRef.current.delete(incoming);
-        return;
-      }
-      pendingEchoRef.current.clear();
-      setLocalValue(value);
-    }, [value, isDeclarative]);
-    const displayValue = isDeclarative ? localValue : value;
+    const { displayValue, record } = useFieldDraft(value, isDeclarative);
     const resolveIconNode = (i: IconInput | undefined, cls: string) => {
       if (!i) return null;
       if (typeof i === "string") return <Icon name={i} className={cls} />;
@@ -180,8 +161,7 @@ export const Input = React.forwardRef<
           ? { checked: (target as HTMLInputElement).checked }
           : { value: target.value };
         if (type !== 'checkbox') {
-          pendingEchoRef.current.add(target.value);
-          setLocalValue(target.value);
+          record(target.value);
         }
         eventBus.emit(`UI:${onChange}`, payload);
       } else {

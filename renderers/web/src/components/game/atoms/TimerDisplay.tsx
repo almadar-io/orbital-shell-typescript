@@ -21,6 +21,8 @@ export interface TimerDisplayProps extends Omit<React.AriaAttributes, keyof A11y
   lowThreshold?: number;
   /** Icon asset rendered to the left of the time value. Falls back to no icon. */
   iconAsset?: Asset;
+  /** Time text supplied by the program's presentation expression. */
+  displayText?: string;
 }
 
 const sizeMap = {
@@ -56,6 +58,7 @@ export function TimerDisplay({
   className,
   lowThreshold,
   iconAsset,
+  displayText,
   ...rest
 }: TimerDisplayProps) {
   const { t } = useTranslate();
@@ -77,7 +80,7 @@ export function TimerDisplay({
       {iconAsset && (
         <GameIcon assetUrl={iconAsset} icon="image" size={16} className="w-4 h-4 object-contain flex-shrink-0" />
       )}
-      {formatTime(seconds, format, t)}
+      {displayText ?? formatTime(seconds, format, t)}
     </Box>
   );
 }

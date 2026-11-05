@@ -4,10 +4,11 @@
  * custom-render grids keep per-item cards.
  */
 import React from 'react';
-import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { beforeAll, describe, it, expect } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { DataGrid, type DataGridField } from '../DataGrid';
-import { EventBusProvider } from '../../../../core';
+import { EventBusProvider, NavStackProvider, useEventBus } from '../../../../core';
+import { loadTestKernel } from '../../../../test-support/kernel-engine';
 
 const renderWithProvider = (ui: React.ReactElement) =>
   render(ui, { wrapper: ({ children }) => <EventBusProvider>{children}</EventBusProvider> });
@@ -27,6 +28,28 @@ const layoutOf = (container: HTMLElement) => container.querySelector('[data-grid
 const rowOf = (name: string) => screen.getByText(name).closest('[data-entity-row]') as HTMLElement;
 
 describe('DataGrid single-column rows', () => {
+  beforeAll(async () => { await loadTestKernel(); });
+
+  it('navigates to an authored row route without emitting its action event', () => {
+    const fired: string[] = [];
+    function Spy() {
+      const bus = useEventBus();
+      React.useEffect(() => bus.on('UI:VIEW', () => { fired.push('event'); }), [bus]);
+      return null;
+    }
+    render(
+      <EventBusProvider>
+        <Spy />
+        <NavStackProvider pages={[]} currentPath="/" navigate={(url) => { fired.push(url); }}>
+          <DataGrid entity={[rows[0]]} fields={fields} cols={1} itemActions={[{
+            label: 'Open', event: 'VIEW', navigatesTo: ['fn', 'row', ['str/concat', '/contacts/', '@row.id']], variant: 'primary',
+          }]} />
+        </NavStackProvider>
+      </EventBusProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Open/ }));
+    expect(fired).toEqual(['/contacts/1']);
+  });
   it('cols=1 renders one divided surface; rows carry no card chrome', () => {
     const { container } = renderWithProvider(<DataGrid entity={rows} fields={fields} cols={1} />);
     expect(layoutOf(container)).toBe('rows');

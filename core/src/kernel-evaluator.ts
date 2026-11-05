@@ -24,8 +24,54 @@ import type {
   TraceEffectsWire,
 } from './generated/kernel-wire';
 import type { VocabularyPack } from './i18n/index';
+import type { DependencyLayer } from './dependency-graph';
 import { setOwn } from './types/own-key';
-import type { EntityRow, EventPayload, JsonObject, JsonValue, OrbitalSchema, SExpr } from './types/index';
+import type { CircuitStepResult, EffectTrace, EntityRow, EventPayload, GuardEvaluation, JsonObject, JsonValue, OrbitalSchema, SExpr, Trait, TraitDescription, TransitionTrace } from './types/index';
+
+export interface AvlProjectionMachineWire {
+  states: readonly { name: string }[];
+  transitions: readonly { from: string | readonly string[]; to: string; event: string }[];
+}
+
+export interface AvlSceneStepWire {
+  orbital: string;
+  trait: string;
+  from: string;
+  result: CircuitStepResult;
+}
+
+export interface AvlTransitionPlaybackProjection {
+  stepIndex: number;
+  fired: boolean;
+  guard?: GuardEvaluation;
+  effects: EffectTrace[];
+}
+
+export interface AvlMachinePlaybackProjection {
+  activeState?: string;
+  activeTransition?: number;
+  visitedStates: string[];
+}
+
+export interface AvlTraitLevelWire extends JsonObject {
+  name: string;
+  linkedEntity: string;
+  states: { name: string; isInitial: boolean | null; isTerminal: boolean | null }[];
+  transitions: { from: string | string[]; to: string; event: string; guard: SExpr | null; effects: { type: string; args: SExpr[] }[]; index: number }[];
+  emittedEvents: string[];
+  listenedEvents: string[];
+}
+
+export interface AvlProgramTraitWire {
+  orbital: string;
+  trait: Pick<Trait, 'name' | 'sourceBehavior'>;
+  level: AvlTraitLevelWire;
+}
+
+export interface AvlTraitFlowWire {
+  units: { id: string; name: string; column: 'own' | DependencyLayer; traits: string[]; renderPieces: string[] }[];
+  edges: { source: string; target: string; events: string[] }[];
+}
 
 /** One delivery the program makes between two different traits: `emitterTrait` emits `event` and `listenerTrait` listens to it. */
 export interface EventWire {
@@ -49,6 +95,27 @@ export interface KernelEvaluatorExports {
   resolveRowBinding(term: string, bindingsJson: string): string;
   eventWires(schemaJson: string): string;
   validatePacks(packsJson: string): void;
+  expandFxLayer(layerJson: string, epochNowMs: number, dimension: string, tileWidth?: number, fontFamily?: string): string;
+  resolveFxView(itemJson: string, presetsJson?: string): string;
+  fxLifecycle(viewJson: string, epochNowMs: number, tickMs: number): string;
+  fxHash01(seed: string, salt: number): number;
+  avlTransitionPlayback(machineJson: string, transitionIndex: number, orbital: string, traitName: string, sceneJson: string, cursor: number): string;
+  avlTracePlayback(machineJson: string, traitName: string, tracesJson: string): string;
+  avlStateMachinePlayback(machineJson: string, orbital: string, traitName: string, sceneJson: string, cursor: number): string;
+  avlArmIndexes(machineJson: string, from: string, event: string): string;
+  avlFiredTransitionIndex(machineJson: string, stepJson: string): string;
+  avlTracedTransitionIndex(machineJson: string, traceJson: string): string;
+  avlTraitLevelFromDescription(descriptionJson: string): string;
+  avlTraitFlowGraph(schemaJson: string, orbital: string, layersJson: string): string;
+  avlProgramTraitLevels(schemaJson: string): string;
+  avlDescribedTransitionLines(descriptionJson: string, runningJson: string, transitionIndex: number): string;
+  skinWorldMatrices(bonesJson: string, poseJson: string): string;
+  skinVertices(meshJson: string, bindJson: string, currentJson: string): string;
+  skinComposeAffine(aJson: string, bJson: string): string;
+  skinInvertAffine(matrixJson: string): string;
+  skinApplyAffine(matrixJson: string, x: number, y: number): string;
+  skinTriangleAffine(srcJson: string, dstJson: string): string;
+  skinVertexBounds(pointsJson: string): string;
 }
 
 /** An expression the kernel's evaluator rejected. */
@@ -93,6 +160,28 @@ export interface KernelEvaluator {
   eventWires(schema: OrbitalSchema): EventWire[];
   /** The kernel's verdict on a set of language packs: returns when every pack loads, else throws the refusal naming each pack, section and word. */
   validatePacks(packs: readonly LanguagePackWire[]): void;
+  /** Pure world FX paint descriptors at the host's epoch paint clock. */
+  expandFxLayer(layerJson: string, epochNowMs: number, dimension: '2d' | '3d', tileWidth?: number, fontFamily?: string): string;
+  resolveFxView(itemJson: string, presetsJson?: string): string;
+  fxLifecycle(viewJson: string, epochNowMs: number, tickMs: number): string;
+  fxHash01(seed: string, salt: number): number;
+  avlTransitionPlayback(machine: AvlProjectionMachineWire, transitionIndex: number, orbital: string, traitName: string, scene: readonly AvlSceneStepWire[], cursor: number): AvlTransitionPlaybackProjection | null;
+  avlTracePlayback(machine: AvlProjectionMachineWire, traitName: string, traces: readonly TransitionTrace[]): AvlMachinePlaybackProjection;
+  avlStateMachinePlayback(machine: AvlProjectionMachineWire, orbital: string, traitName: string, scene: readonly AvlSceneStepWire[], cursor: number): AvlMachinePlaybackProjection;
+  avlArmIndexes(machine: AvlProjectionMachineWire, from: string, event: string): number[];
+  avlFiredTransitionIndex(machine: AvlProjectionMachineWire, step: AvlSceneStepWire): number | null;
+  avlTracedTransitionIndex(machine: AvlProjectionMachineWire, trace: TransitionTrace): number | null;
+  avlTraitLevelFromDescription(description: TraitDescription): AvlTraitLevelWire | null;
+  avlTraitFlowGraph(schema: OrbitalSchema, orbital: string, layers: Readonly<Record<string, DependencyLayer>>): AvlTraitFlowWire;
+  avlProgramTraitLevels(schema: OrbitalSchema): AvlProgramTraitWire[];
+  avlDescribedTransitionLines(description: TraitDescription, running: AvlProjectionMachineWire, transitionIndex: number): { start: number; end: number } | null;
+  skinWorldMatrices(bonesJson: string, poseJson: string): string;
+  skinVertices(meshJson: string, bindJson: string, currentJson: string): string;
+  skinComposeAffine(aJson: string, bJson: string): string;
+  skinInvertAffine(matrixJson: string): string;
+  skinApplyAffine(matrixJson: string, x: number, y: number): string;
+  skinTriangleAffine(srcJson: string, dstJson: string): string;
+  skinVertexBounds(pointsJson: string): string;
 }
 
 /** One language pack as the kernel's pack check reads it: a label for the refusal and the pack's vocabulary. */
@@ -156,6 +245,55 @@ export function createKernelEvaluator(kernel: KernelEvaluatorExports): KernelEva
     validatePacks(packs) {
       kernel.validatePacks(JSON.stringify(packs));
     },
+    expandFxLayer(layerJson, epochNowMs, dimension, tileWidth, fontFamily) {
+      return kernel.expandFxLayer(layerJson, epochNowMs, dimension, tileWidth, fontFamily);
+    },
+    resolveFxView(itemJson, presetsJson) {
+      return kernel.resolveFxView(itemJson, presetsJson);
+    },
+    fxLifecycle(viewJson, epochNowMs, tickMs) {
+      return kernel.fxLifecycle(viewJson, epochNowMs, tickMs);
+    },
+    fxHash01(seed, salt) {
+      return kernel.fxHash01(seed, salt);
+    },
+    avlTransitionPlayback(machine, transitionIndex, orbital, traitName, scene, cursor) {
+      return JSON.parse(kernel.avlTransitionPlayback(JSON.stringify(machine), transitionIndex, orbital, traitName, JSON.stringify(scene), cursor)) as AvlTransitionPlaybackProjection | null;
+    },
+    avlTracePlayback(machine, traitName, traces) {
+      return JSON.parse(kernel.avlTracePlayback(JSON.stringify(machine), traitName, JSON.stringify(traces))) as AvlMachinePlaybackProjection;
+    },
+    avlStateMachinePlayback(machine, orbital, traitName, scene, cursor) {
+      return JSON.parse(kernel.avlStateMachinePlayback(JSON.stringify(machine), orbital, traitName, JSON.stringify(scene), cursor)) as AvlMachinePlaybackProjection;
+    },
+    avlArmIndexes(machine, from, event) {
+      return JSON.parse(kernel.avlArmIndexes(JSON.stringify(machine), from, event)) as number[];
+    },
+    avlFiredTransitionIndex(machine, step) {
+      return JSON.parse(kernel.avlFiredTransitionIndex(JSON.stringify(machine), JSON.stringify(step))) as number | null;
+    },
+    avlTracedTransitionIndex(machine, trace) {
+      return JSON.parse(kernel.avlTracedTransitionIndex(JSON.stringify(machine), JSON.stringify(trace))) as number | null;
+    },
+    avlTraitLevelFromDescription(description) {
+      return JSON.parse(kernel.avlTraitLevelFromDescription(JSON.stringify(description))) as AvlTraitLevelWire | null;
+    },
+    avlTraitFlowGraph(schema, orbital, layers) {
+      return JSON.parse(kernel.avlTraitFlowGraph(JSON.stringify(schema), orbital, JSON.stringify(layers))) as AvlTraitFlowWire;
+    },
+    avlProgramTraitLevels(schema) {
+      return JSON.parse(kernel.avlProgramTraitLevels(JSON.stringify(schema))) as AvlProgramTraitWire[];
+    },
+    avlDescribedTransitionLines(description, running, transitionIndex) {
+      return JSON.parse(kernel.avlDescribedTransitionLines(JSON.stringify(description), JSON.stringify(running), transitionIndex)) as { start: number; end: number } | null;
+    },
+    skinWorldMatrices: (bonesJson, poseJson) => kernel.skinWorldMatrices(bonesJson, poseJson),
+    skinVertices: (meshJson, bindJson, currentJson) => kernel.skinVertices(meshJson, bindJson, currentJson),
+    skinComposeAffine: (aJson, bJson) => kernel.skinComposeAffine(aJson, bJson),
+    skinInvertAffine: (matrixJson) => kernel.skinInvertAffine(matrixJson),
+    skinApplyAffine: (matrixJson, x, y) => kernel.skinApplyAffine(matrixJson, x, y),
+    skinTriangleAffine: (srcJson, dstJson) => kernel.skinTriangleAffine(srcJson, dstJson),
+    skinVertexBounds: (pointsJson) => kernel.skinVertexBounds(pointsJson),
   };
 }
 
@@ -237,5 +375,26 @@ export function lazyKernelExports(load: () => KernelEvaluatorExports): KernelEva
     resolveRowBinding: (term, bindings) => kernel().resolveRowBinding(term, bindings),
     eventWires: (schemaJson) => kernel().eventWires(schemaJson),
     validatePacks: (packsJson) => kernel().validatePacks(packsJson),
+    expandFxLayer: (layer, epoch, dimension, tileWidth, fontFamily) => kernel().expandFxLayer(layer, epoch, dimension, tileWidth, fontFamily),
+    resolveFxView: (item, presets) => kernel().resolveFxView(item, presets),
+    fxLifecycle: (view, epoch, tickMs) => kernel().fxLifecycle(view, epoch, tickMs),
+    fxHash01: (seed, salt) => kernel().fxHash01(seed, salt),
+    avlTransitionPlayback: (machine, index, orbital, traitName, scene, cursor) => kernel().avlTransitionPlayback(machine, index, orbital, traitName, scene, cursor),
+    avlTracePlayback: (machine, traitName, traces) => kernel().avlTracePlayback(machine, traitName, traces),
+    avlStateMachinePlayback: (machine, orbital, traitName, scene, cursor) => kernel().avlStateMachinePlayback(machine, orbital, traitName, scene, cursor),
+    avlArmIndexes: (machine, from, event) => kernel().avlArmIndexes(machine, from, event),
+    avlFiredTransitionIndex: (machine, step) => kernel().avlFiredTransitionIndex(machine, step),
+    avlTracedTransitionIndex: (machine, trace) => kernel().avlTracedTransitionIndex(machine, trace),
+    avlTraitLevelFromDescription: (description) => kernel().avlTraitLevelFromDescription(description),
+    avlTraitFlowGraph: (schema, orbital, layers) => kernel().avlTraitFlowGraph(schema, orbital, layers),
+    avlProgramTraitLevels: (schema) => kernel().avlProgramTraitLevels(schema),
+    avlDescribedTransitionLines: (description, running, transitionIndex) => kernel().avlDescribedTransitionLines(description, running, transitionIndex),
+    skinWorldMatrices: (bones, pose) => kernel().skinWorldMatrices(bones, pose),
+    skinVertices: (mesh, bind, current) => kernel().skinVertices(mesh, bind, current),
+    skinComposeAffine: (a, b) => kernel().skinComposeAffine(a, b),
+    skinInvertAffine: (matrix) => kernel().skinInvertAffine(matrix),
+    skinApplyAffine: (matrix, x, y) => kernel().skinApplyAffine(matrix, x, y),
+    skinTriangleAffine: (src, dst) => kernel().skinTriangleAffine(src, dst),
+    skinVertexBounds: (points) => kernel().skinVertexBounds(points),
   };
 }

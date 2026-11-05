@@ -1,3 +1,5 @@
+import shapePaths from './band-shapes.json';
+
 export type BandEdge = 'none' | 'curve' | 'wave' | 'arc' | 'tilt' | 'step' | 'scallop';
 export type BandEdgeColor = 'background' | 'muted' | 'surface' | 'gradient' | 'inverse';
 
@@ -5,11 +7,11 @@ const shape = (d: string): string =>
   `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 100' preserveAspectRatio='none'><path d='${d}'/></svg>")`;
 
 export const BAND_SHAPES: Record<Exclude<BandEdge, 'none' | 'curve'>, string> = {
-  wave: shape('M0 60 C240 100 480 100 720 60 C960 20 1200 20 1440 60 V100 H0 Z'),
-  arc: shape('M0 100 Q720 0 1440 100 Z'),
-  tilt: shape('M0 100 L1440 0 V100 Z'),
-  step: shape('M0 100 V75 H360 V50 H720 V25 H1080 V0 H1440 V100 Z'),
-  scallop: shape('M0 100 V40 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 a60 40 0 0 1 120 0 V100 Z'),
+  wave: shape(shapePaths.wave),
+  arc: shape(shapePaths.arc),
+  tilt: shape(shapePaths.tilt),
+  step: shape(shapePaths.step),
+  scallop: shape(shapePaths.scallop),
 };
 
 const BAND_EDGE_HEIGHT = 'clamp(24px, 6vw, 96px)';

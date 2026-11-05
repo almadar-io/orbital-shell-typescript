@@ -530,6 +530,21 @@ export interface PatternEntry {
   type: string;
   category: string;
   description: string;
+  geometry?: {
+    unit: number;
+    variants: Record<string, {
+      height: number;
+      elements: Array<{
+        kind: string;
+        d?: string;
+        cx?: number;
+        cy?: number;
+        r?: number;
+        filled?: boolean;
+        opacity?: number;
+      }>;
+    }>;
+  };
   /** The `@almadar/shell-web` component file this pattern was scanned from, relative
    *  to the design-system root (e.g. `components/core/molecules/Carousel.tsx`)
    *  — `component.relativePath` at write time. Lets a downstream ACTIONABLE

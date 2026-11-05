@@ -105,7 +105,7 @@ export const ConditionalWrapper: React.FC<ConditionalWrapperProps> = ({
   animate = false,
 }) => {
   // If no condition is provided, always render children
-  if (!condition) {
+  if (condition === undefined || condition === null) {
     return <>{children}</>;
   }
 

@@ -15,6 +15,8 @@
 
 // The one definition of the container breakpoints and the modal min widths; the native shells read the same file.
 const nativeTokens = require('./src/core/tokens/native-tokens.json');
+const bandShapePaths = require('./src/core/lib/band-shapes.json');
+const bandMask = (path) => `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 100' preserveAspectRatio='none'><path d='${path}'/></svg>")`;
 
 // Tailwind can only apply an opacity modifier (`bg-primary/50`) to a color it
 // can compute alpha for itself — a bare `var(--color-x)` string is opaque to
@@ -36,6 +38,13 @@ const { allDesignClasses } = require('./dist/design-classes/index.cjs');
 module.exports = {
   darkMode: 'class',
   safelist: [
+    'band-edge-shape-curve',
+    ...Object.keys(bandShapePaths).map((name) => `band-edge-shape-${name}`),
+    'band-edge-color-background',
+    'band-edge-color-muted',
+    'band-edge-color-surface',
+    'band-edge-color-gradient',
+    'band-edge-color-inverse',
   'proof-marquee', 'proof-marquee-track', 'animate-almadar-marquee',
   'hover:[animation-play-state:paused]', 'motion-reduce:animate-none', 'motion-reduce:w-auto',
   'motion-reduce:flex-wrap', 'motion-reduce:justify-center', 'motion-reduce:hidden', 'motion-reduce:[mask-image:none]',
@@ -943,11 +952,31 @@ module.exports = {
         },
         '.band-edge': {
           position: 'absolute', left: '0', right: '0', 'pointer-events': 'none', 'z-index': '0',
+          height: 'clamp(24px, 6vw, 96px)',
           'mask-size': '100% 100%', '-webkit-mask-size': '100% 100%',
           'mask-repeat': 'no-repeat', '-webkit-mask-repeat': 'no-repeat',
         },
-        '.band-edge-top': { top: '0' },
+        '.band-edge-shape-curve': {
+          height: 'var(--surface-edge-height, clamp(24px, 6vw, 96px))',
+          'mask-image': 'var(--surface-edge-mask, none)',
+          '-webkit-mask-image': 'var(--surface-edge-mask, none)',
+        },
+        ...Object.fromEntries(Object.entries(bandShapePaths).map(([name, path]) => [`.band-edge-shape-${name}`, {
+          'mask-image': bandMask(path), '-webkit-mask-image': bandMask(path),
+        }])),
+        '.band-edge-color-background': {
+          background: 'var(--surface-page-image, none), var(--color-background)',
+          'background-size': 'var(--surface-page-image-size, auto), auto',
+          'background-attachment': 'fixed',
+        },
+        '.band-edge-color-muted': { background: 'var(--color-muted)' },
+        '.band-edge-color-surface': { background: 'var(--color-card)' },
+        '.band-edge-color-gradient': { background: 'var(--surface-accent-image, linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 12%, var(--color-background)), var(--color-background))), var(--color-muted)' },
+        '.band-edge-color-inverse': { background: 'var(--color-foreground)' },
+        '.band-edge-top': { top: '0', transform: 'rotate(180deg)' },
         '.band-edge-bottom': { bottom: '0' },
+        '.band-edge-top.band-edge-flip': { transform: 'scaleY(-1)' },
+        '.band-edge-bottom.band-edge-flip': { transform: 'scaleX(-1)' },
         '.band-gradient': {
           'background-color': 'var(--color-muted)',
           'background-image': 'var(--surface-accent-image, linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 12%, var(--color-background)), var(--color-background)))',

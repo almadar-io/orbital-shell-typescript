@@ -15,10 +15,9 @@ import React, { useCallback } from 'react';
 import { Box, Typography } from '../../../core';
 import { cn } from '../../../core';
 import { useTranslate } from '../../../core';
-import type { DisplayStateProps } from '../../core/organisms/types';
 import type { SlotItemData } from './TraitSlot';
 
-export interface ActionTileProps extends DisplayStateProps, Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
+export interface ActionTileProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
     /** The action data */
     action: SlotItemData;
     /** Size variant */
@@ -27,6 +26,8 @@ export interface ActionTileProps extends DisplayStateProps, Omit<React.AriaAttri
     disabled?: boolean;
     /** Category → color mapping */
     categoryColors?: Record<string, { bg: string; border: string }>;
+    /** Additional CSS classes */
+    className?: string;
 }
 
 const DRAG_MIME = 'application/x-almadar-slot-item';

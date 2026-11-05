@@ -1,19 +1,6 @@
-/**
- * Shared game display-font key → CSS font-family resolver.
- *
- * Used by both shell-level UI (GameShell) and canvas-level text (MathCanvas)
- * so a lolo `fontFamily: "future-narrow"` knob renders with the same face
- * whether it is painted by the DOM or by a canvas text pass.
- */
+import gameFontFamilies from '@almadar/core/patterns/game-font-families.json';
 
-export const GAME_FONT_KEYS: Record<string, string> = {
-  fredoka: "Fredoka",
-  future: "Kenney Future",
-  "future-narrow": "Kenney Future Narrow",
-  pixel: "Kenney Pixel",
-  blocks: "Kenney Blocks",
-  mini: "Kenney Mini",
-};
+export const GAME_FONT_KEYS: Readonly<Record<string, string>> = gameFontFamilies.aliases;
 
 /**
  * Resolve a font-family prop value:
@@ -24,6 +11,6 @@ export const GAME_FONT_KEYS: Record<string, string> = {
 export function resolveGameFontFamily(input: string | undefined | null): string | undefined {
   if (!input) return undefined;
   const resolved = GAME_FONT_KEYS[input];
-  if (resolved) return `'${resolved}', ui-sans-serif, system-ui, sans-serif`;
+  if (resolved) return `'${resolved}', ${gameFontFamilies.fallback}`;
   return input;
 }

@@ -35,8 +35,8 @@ import { groupRows } from '../../../lib/groupRows';
 import { useEventBus, useNavStack } from '../../../core';
 import { enterClassName } from '../../../lib/enter';
 import { useItemMoves } from '../../../lib/item-move';
-import { useRowActions, useRowActionPayload, useRowActionFire } from '../../../hooks/useRowActions';
-import type { RowActionCondition, RowActionPayload } from '../../../lib/row-action-when';
+import { useRowActions, useRowActionPayload, useRowActionFire, useRowActionRoute } from '../../../hooks/useRowActions';
+import type { RowActionCondition, RowActionPayload, RowActionRoute } from '../../../lib/row-action-when';
 import { useTranslate, useFormatContext } from '../../../core';
 import { Box } from '../../../core';
 import { VStack, HStack } from '../../../core';
@@ -75,8 +75,8 @@ export interface DataListItemAction {
   when?: RowActionCondition;
   /** Extra data the action sends, authored as `(fn row { key: <expr> })`; it emits `{ id, row }` plus these keys. */
   payload?: RowActionPayload;
-  /** Page the action opens instead of emitting; `{{row.<field>}}` is replaced with the row's value. */
-  navigatesTo?: string;
+  /** Literal route or `(fn row <string>)` destination; navigation suppresses the action event. */
+  navigatesTo?: RowActionRoute;
 }
 
 export interface DataListSwipeAction {
@@ -310,6 +310,7 @@ export function DataList({
   const rowActions = useRowActions();
   const actionPayload = useRowActionPayload();
   const { fire: fireRowAction, isRowPending } = useRowActionFire<DataListItemAction>();
+  const resolveActionRoute = useRowActionRoute();
   const { t } = useTranslate();
   const fmt = useFormatContext();
   // card-rows makes every row its own surface, so the list itself stays flat.
@@ -396,11 +397,9 @@ export function DataList({
 
   // navigatesTo-first with early return, as DataGrid does: a navigating action never also emits.
   const fireAction = (action: DataListItemAction, itemData: EntityRow) => {
-    if (action.navigatesTo) {
-      const url = action.navigatesTo.replace(/\{\{row\.(\w+(?:\.\w+)*)\}\}/g, (_, field: string) =>
-        String(itemData[field] ?? ''),
-      );
-      navStack.goTo(url);
+    if (action.navigatesTo !== undefined) {
+      const url = resolveActionRoute(action.navigatesTo, itemData);
+      if (url !== null) navStack.goTo(url);
       return;
     }
     fireRowAction(action, itemData, String(itemData.id ?? ""));

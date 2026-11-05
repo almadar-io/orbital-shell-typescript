@@ -7,6 +7,8 @@
 
 import React from 'react';
 import { Menu, MenuItem } from './Menu';
+import { LoadingState } from './LoadingState';
+import { ErrorState } from './ErrorState';
 import { Button } from '../../../core';
 import { Badge } from '../../../core';
 import { Box } from '../../../core';
@@ -92,6 +94,8 @@ export const Navigation: React.FC<NavigationProps> = ({
   items,
   orientation = 'horizontal',
   className,
+  isLoading = false,
+  error,
   ...rest
 }) => {
   const renderNavigationItem = (item: NavigationItem, hasSubMenu: boolean) => {
@@ -156,13 +160,14 @@ export const Navigation: React.FC<NavigationProps> = ({
     <Box
       as="nav"
       {...domPassthrough(rest)}
+      aria-busy={isLoading || undefined}
       className={cn(
-        'flex',
-        orientation === 'horizontal' ? 'flex-row items-center gap-1' : 'flex-col gap-1',
+        !isLoading && !error && 'flex',
+        !isLoading && !error && (orientation === 'horizontal' ? 'flex-row items-center gap-1' : 'flex-col gap-1'),
         className
       )}
     >
-      {items.map((item) => {
+      {isLoading ? <LoadingState /> : error ? <ErrorState role="alert" message={error.message} /> : items.map((item) => {
         const hasSubMenu = !!(item.subMenu && item.subMenu.length > 0);
         return renderNavigationItem(item, hasSubMenu);
       })}

@@ -18,6 +18,8 @@ import type {
   EventContractEntry,
   SyncReport,
 } from "./types.js";
+import patternTileGeometry from "./pattern-tile-geometry-source.json" with { type: "json" };
+import gameFontFamilies from "./game-font-families-source.json" with { type: "json" };
 
 interface RegistryFile {
   version: string;
@@ -210,6 +212,7 @@ function toPatternEntry(
   return {
     type: patternName,
     category,
+    ...(patternName === "pattern-tile" ? { geometry: patternTileGeometry } : {}),
     sourceFile: component.relativePath,
     tier: component.level,
     ...(component.family ? { family: component.family } : {}),
@@ -233,6 +236,24 @@ function toPatternEntry(
     ...(drawHost ? { drawHost: true } : {}),
     ...(component.client ? { client: component.client } : {}),
   };
+}
+
+export function writePatternTileGeometry(dryRun: boolean): string {
+  const outputPath = path.join(PATTERNS_DIR, "pattern-tile-geometry.json");
+  if (!dryRun) fs.writeFileSync(outputPath, `${JSON.stringify(patternTileGeometry, null, 2)}\n`);
+  return outputPath;
+}
+
+export function writeGameFontFamilies(dryRun: boolean): string[] {
+  const outputPaths = [
+    path.join(PATTERNS_DIR, "game-font-families.json"),
+    path.join(REPO_ROOT, "orbital-rust/crates/orbital-shell-rust/renderers/dioxus/assets/game-font-families.json"),
+  ];
+  if (!dryRun) {
+    const body = `${JSON.stringify(gameFontFamilies, null, 2)}\n`;
+    for (const outputPath of outputPaths) fs.writeFileSync(outputPath, body);
+  }
+  return outputPaths;
 }
 
 /** True when a prop schema is (or transitively contains) a core-`ScenePos`-typed

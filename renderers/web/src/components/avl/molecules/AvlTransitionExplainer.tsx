@@ -17,7 +17,7 @@ import type { AvlAnnotations } from '../../../lib/avl-annotations';
 
 /** A transition as `.lolo` data hands it over: `guard` is omitted when there is none. */
 export interface ExplainedTransition {
-  from: string;
+  from: string | string[];
   to: string;
   event: string;
   guard?: SExpr;

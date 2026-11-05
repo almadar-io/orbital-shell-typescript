@@ -40,4 +40,16 @@ describe('Breadcrumb', () => {
       expect(s.getAttribute('class')).toContain('rtl:-scale-x-100');
     }
   });
+
+  it('honors an authored current crumb even when it is not last', () => {
+    wrap(<Breadcrumb items={[{ label: 'Home', href: '/', isCurrent: true }, { label: 'Draft', href: '/draft', isCurrent: false }]} />);
+    expect(screen.getByText('Home').closest('[aria-current]')?.getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('link', { name: 'Draft' }).getAttribute('href')).toBe('/draft');
+    expect(screen.getByText('Draft').closest('[aria-current]')).toBeNull();
+  });
+
+  it('uses the final crumb as current when no item declares isCurrent', () => {
+    wrap(<Breadcrumb items={ITEMS} />);
+    expect(screen.getByText('Acme Holdings International').closest('[aria-current]')?.getAttribute('aria-current')).toBe('page');
+  });
 });

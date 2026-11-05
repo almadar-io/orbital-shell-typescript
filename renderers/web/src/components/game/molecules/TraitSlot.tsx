@@ -62,6 +62,10 @@ export interface TraitSlotProps extends Omit<React.AriaAttributes, keyof A11yPro
     locked?: boolean;
     /** Label shown when locked */
     lockLabel?: string;
+    /** Accessible name for an empty slot; author supplies translated text. */
+    emptyLabel?: string;
+    /** Accessible name for the remove control; author supplies translated text. */
+    removeLabel?: string;
     /** Whether slot is selected */
     selected?: boolean;
     /** Size variant */
@@ -129,6 +133,8 @@ export function TraitSlot({
     equippedItem,
     locked = false,
     lockLabel,
+    emptyLabel,
+    removeLabel,
     selected = false,
     size = 'md',
     showTooltip = true,
@@ -164,18 +170,16 @@ export function TraitSlot({
         if (locked) return;
         if (clickEvent) {
             emit(`UI:${clickEvent}`, { slotNumber });
-        } else {
-            onClick?.();
         }
+        onClick?.();
     }, [locked, clickEvent, slotNumber, emit, onClick]);
 
     const handleRemove = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         if (removeEvent) {
             emit(`UI:${removeEvent}`, { slotNumber });
-        } else {
-            onRemove?.();
         }
+        onRemove?.();
     }, [removeEvent, slotNumber, emit, onRemove]);
 
     // -- Drag handlers (source — dragging OUT of this slot) -------------------
@@ -214,7 +218,7 @@ export function TraitSlot({
         try {
             const item = JSON.parse(raw) as SlotItemData;
             if (dropEvent) emit(`UI:${dropEvent}`, { slotNumber, itemId: item.id });
-            else onItemDrop?.(item);
+            onItemDrop?.(item);
         } catch {
             // ignore malformed data
         }
@@ -280,7 +284,7 @@ export function TraitSlot({
                             : (catColor?.border || undefined),
             }}
             {...pressableProps(clickEvent || onClick ? handleClick : undefined, { disabled: locked })}
-            aria-label={equippedItem ? equippedItem.name : undefined}
+            aria-label={rest['aria-label'] ?? (equippedItem ? equippedItem.name : emptyLabel)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             draggable={draggable && !isEmpty}
@@ -326,7 +330,7 @@ export function TraitSlot({
                             position="absolute"
                             className="-top-1.5 -right-1.5 w-4 h-4 bg-error rounded-pill flex items-center justify-center cursor-pointer hover:bg-error/80 transition-colors"
                             {...pressableProps(handleRemove)}
-                            aria-label={t('common.remove')}
+                            aria-label={removeLabel || t('common.remove')}
                         >
                             <Typography variant="caption" className="text-foreground text-xs leading-none">
                                 {'\u00D7'}
