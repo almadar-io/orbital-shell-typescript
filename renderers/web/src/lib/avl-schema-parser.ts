@@ -26,7 +26,7 @@ import type {
   JsonValue,
   JsonObject,
   SExpr,
-  SExprObject, EntityPersistence, TraitDescription } from '@almadar/core';
+  SExprObject, EntityPersistence, TraitDescription, MountedTrait } from '@almadar/core';
 import { renderUiEntriesOf } from '@almadar/core/patterns';
 import { traitEventWires } from './avl-event-wires';
 
@@ -442,6 +442,20 @@ export function traitLevelFromDescription(description: TraitDescription): TraitL
     description.events.emits,
     description.events.listens,
   );
+}
+
+/** A mounted trait (`program/self { mounted: true }`) as AVL trait data; a transition from several states becomes one entry per state, sharing its index. Guards and effects are not part of the mounted answer. */
+export function traitLevelFromMounted(trait: MountedTrait): TraitLevelData {
+  return {
+    name: trait.trait,
+    linkedEntity: trait.linkedEntity ?? '',
+    states: trait.states.map((s) => ({ name: s.name, isInitial: s.isInitial, isTerminal: s.isTerminal })),
+    transitions: trait.transitions.flatMap((t) =>
+      t.from.map((from) => ({ from, to: t.to, event: t.event, guard: null, effects: [], index: t.index })),
+    ),
+    emittedEvents: trait.emits,
+    listenedEvents: trait.listens.map((l) => l.event),
+  };
 }
 
 function traitLevelOf(

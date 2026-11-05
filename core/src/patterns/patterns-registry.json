@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-05T04:18:40.443Z",
+  "exportedAt": "2026-11-05T11:50:52.857Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -10835,6 +10835,13 @@
           ],
           "description": "Declarative close event — emits UI:{closeEvent} via eventBus when drawer should close",
           "kind": "event"
+        },
+        "modal": {
+          "types": [
+            "boolean"
+          ],
+          "description": "Block the page behind it: an overlay, no page scroll, focus kept inside. `false` leaves the page usable beside the drawer (no overlay, no focus trap); Escape and the close button still close it.",
+          "default": true
         },
         "enter": {
           "types": [
@@ -42990,6 +42997,133 @@
             "sexpr"
           ],
           "description": "A described trait (`behavior/describe`), drawn from its machine when no `trait` is given."
+        },
+        "orbital": {
+          "types": [
+            "object"
+          ],
+          "description": "A whole mounted orbital (`program/self { mounted: true }`): every trait drawn as nested boxes on one canvas, instead of a single trait.",
+          "default": null,
+          "example": {
+            "page": "/orders",
+            "traits": [
+              {
+                "trait": "OrderPage",
+                "orbital": "Orders",
+                "parent": null,
+                "depth": 0,
+                "embeddedIn": [],
+                "renders": true,
+                "stepsIn": "browser",
+                "linkedEntity": "Order",
+                "states": [
+                  {
+                    "name": "browsing",
+                    "isInitial": true,
+                    "isTerminal": false
+                  },
+                  {
+                    "name": "editing",
+                    "isInitial": false,
+                    "isTerminal": false
+                  }
+                ],
+                "transitions": [
+                  {
+                    "index": 0,
+                    "from": [
+                      "browsing"
+                    ],
+                    "to": "editing",
+                    "event": "EDIT",
+                    "guarded": false,
+                    "emits": []
+                  },
+                  {
+                    "index": 1,
+                    "from": [
+                      "editing"
+                    ],
+                    "to": "browsing",
+                    "event": "CANCEL",
+                    "guarded": false,
+                    "emits": []
+                  }
+                ],
+                "emits": [],
+                "listens": [],
+                "instances": []
+              }
+            ]
+          }
+        },
+        "activeStates": {
+          "types": [
+            "array"
+          ],
+          "description": "Current state per trait in orbital mode; a trait without an entry shows the states of its running instances. @default []",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "trait": {
+                "types": [
+                  "string"
+                ]
+              },
+              "state": {
+                "types": [
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "trait",
+              "state"
+            ]
+          },
+          "default": [],
+          "example": [
+            {
+              "trait": "OrderPage",
+              "state": "browsing"
+            }
+          ]
+        },
+        "firedTransition": {
+          "types": [
+            "object"
+          ],
+          "description": "The last fired transition in orbital mode: its trait and the transition `index`. @default null",
+          "properties": {
+            "trait": {
+              "types": [
+                "string"
+              ]
+            },
+            "index": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "trait",
+            "index"
+          ],
+          "default": null,
+          "example": {
+            "trait": "OrderPage",
+            "index": 0
+          }
+        },
+        "expandDepth": {
+          "types": [
+            "number"
+          ],
+          "description": "Orbital mode: boxes at a trait depth below this draw their own machine (when they have more than one state). @default 2",
+          "default": 2
         },
         "isLoading": {
           "types": [

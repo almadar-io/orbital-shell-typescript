@@ -394,6 +394,47 @@ const TraitDescriptionObject = z.object({
 export const TraitDescriptionSchema: z.ZodType<TraitDescription, z.input<typeof TraitDescriptionObject>> = TraitDescriptionObject;
 
 
+/** One transition of a mounted trait (`program/self { mounted: true }`). */
+export type MountedTransition = {
+  index: number;
+  from: string[];
+  to: string;
+  event: string;
+  /** The transition carries a guard. */
+  guarded: boolean;
+  emits: string[];
+};
+
+export type MountedState = { name: string; isInitial: boolean; isTerminal: boolean };
+
+/** An event a mounted trait listens for; `event` is usually qualified `Trait.EVENT`. */
+export type MountedListen = { event: string; triggers: string | null };
+
+/** One trait of a mounted orbital, with where it sits in the trait tree. */
+export type MountedTrait = {
+  trait: string;
+  orbital: string | null;
+  parent: string | null;
+  depth: number;
+  /** Parent states whose transitions show this trait; empty when it is shown through config. */
+  embeddedIn: string[];
+  /** False when the trait never paints a slot (store, http, timer). */
+  renders: boolean;
+  /** The asking trait or a trait that listens to it: a view that traced it would trace its own work. */
+  observer: boolean;
+  stepsIn: 'browser' | 'server';
+  linkedEntity: string | null;
+  states: MountedState[];
+  transitions: MountedTransition[];
+  emits: string[];
+  listens: MountedListen[];
+  /** Each running instance of the trait in the asking session; empty when it never ran. */
+  instances: { entityId: string; state: string }[];
+};
+
+/** A whole mounted orbital: its traits in tree pre-order (roots in declared order, each followed depth-first by its embeds). */
+export type MountedOrbital = { page: string; traits: MountedTrait[] };
+
 /** What `behavior/describe` accepts: a trait value, an orbital value, or a whole behavior. */
 export const DescribeTargetSchema = z.union([TraitValueSchema, OrbitalValueSchema, BehaviorRefSchema]);
 export type DescribeTarget = TraitValue | OrbitalValue | BehaviorRef;

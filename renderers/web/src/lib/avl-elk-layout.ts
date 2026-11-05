@@ -7,7 +7,8 @@
  */
 
 import type { ELK, ElkNode, ElkExtendedEdge, ElkEdgeSection, ElkLabel } from 'elkjs/lib/elk-api.js';
-import type { TraitLevelData } from './avl-schema-parser';
+import type { MountedOrbital, MountedTrait } from '@almadar/core';
+import { traitLevelFromMounted, type TraitLevelData } from './avl-schema-parser';
 import { getStateRole, type StateRole } from './avl-theme';
 
 // ---------------------------------------------------------------------------
@@ -267,4 +268,342 @@ export function edgePath(points: Array<{ x: number; y: number }>): string {
   let d = `M ${points[0].x},${points[0].y}`;
   for (let i = 1; i < points.length; i++) d += ` L ${points[i].x},${points[i].y}`;
   return d;
+}
+
+// ---------------------------------------------------------------------------
+// Orbital layout — a whole mounted orbital as nested trait boxes
+// ---------------------------------------------------------------------------
+
+export type OrbitalBoxKind = 'machine' | 'collapsed' | 'chip';
+
+export interface OrbitalBox {
+  trait: string;
+  kind: OrbitalBoxKind;
+  lane: boolean;
+  /** The box this one sits inside; null for a root and for the background lane. */
+  parent: string | null;
+  /** The box holds child boxes. */
+  container: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface OrbitalStateNode {
+  trait: string;
+  name: string;
+  isInitial: boolean;
+  isTerminal: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface OrbitalTransitionEdge {
+  id: string;
+  trait: string;
+  index: number;
+  from: string;
+  to: string;
+  event: string;
+  points: Array<{ x: number; y: number }>;
+  labelX: number;
+  labelY: number;
+  labelW: number;
+  labelH: number;
+  isSelf: boolean;
+}
+
+export interface OrbitalEmbedEdge {
+  trait: string;
+  state: string;
+  points: Array<{ x: number; y: number }>;
+}
+
+export interface OrbitalWire {
+  key: string;
+  from: string;
+  to: string;
+  /** Each pair is one listen: the emitted event and the listener's `triggers`. */
+  pairs: Array<{ event: string; triggers: string | null }>;
+  points: Array<{ x: number; y: number }>;
+  labelX: number;
+  labelY: number;
+  labelW: number;
+  labelH: number;
+}
+
+export interface OrbitalLayout {
+  boxes: OrbitalBox[];
+  states: OrbitalStateNode[];
+  edges: OrbitalTransitionEdge[];
+  embeds: OrbitalEmbedEdge[];
+  wires: OrbitalWire[];
+  laneTop: number | null;
+  width: number;
+  height: number;
+}
+
+export interface OrbitalLayoutOptions {
+  expandDepth: number;
+  metrics: TraitLayoutMetrics;
+  charWidth: number;
+  /** Wire label width for an event name. */
+  wireLabelSize: (text: string) => { width: number; height: number };
+}
+
+const BOX_PAD = 16;
+const BOX_HEAD_MACHINE = 46;
+const BOX_HEAD_CONTAINER = 38;
+const COLLAPSED_H = 56;
+const CHIP_H = 28;
+const LANE_HEAD = 30;
+const LANE_MARGIN = 36;
+const LANE_MIN_WIDTH = 480;
+const PACK_ASPECT = 1.6;
+const PACK_GAP = 14;
+
+interface Point { x: number; y: number }
+interface Rect { x: number; y: number; width: number; height: number }
+
+function sectionPoints(e: ElkExtendedEdge): Point[] {
+  const points: Point[] = [];
+  for (const section of e.sections ?? []) {
+    points.push({ x: section.startPoint.x, y: section.startPoint.y });
+    for (const bp of section.bendPoints ?? []) points.push({ x: bp.x, y: bp.y });
+    points.push({ x: section.endPoint.x, y: section.endPoint.y });
+  }
+  return points;
+}
+
+/** A smooth connector between two boxes, leaving and entering on the sides that face each other. */
+export function boxWirePath(a: Rect, b: Rect): Point[] {
+  const ax = a.x + a.width / 2;
+  const ay = a.y + a.height / 2;
+  const bx = b.x + b.width / 2;
+  const by = b.y + b.height / 2;
+  if (b.x >= a.x + a.width) return [{ x: a.x + a.width, y: ay }, { x: b.x, y: by }];
+  if (a.x >= b.x + b.width) return [{ x: a.x, y: ay }, { x: b.x + b.width, y: by }];
+  if (by >= ay) return [{ x: ax, y: a.y + a.height }, { x: bx, y: b.y }];
+  return [{ x: ax, y: a.y }, { x: bx, y: b.y + b.height }];
+}
+
+function boxKind(trait: MountedTrait, expandDepth: number): OrbitalBoxKind {
+  if (trait.states.length <= 1) return 'chip';
+  return trait.depth < expandDepth ? 'machine' : 'collapsed';
+}
+
+function compactSize(trait: MountedTrait, kind: OrbitalBoxKind, charWidth: number): { width: number; height: number } {
+  if (kind === 'chip') return { width: Math.round(trait.trait.length * charWidth + 28), height: CHIP_H };
+  const sub = (trait.linkedEntity ?? '').length;
+  return { width: Math.max(132, Math.round(Math.max(trait.trait.length, sub) * charWidth + 64)), height: COLLAPSED_H };
+}
+
+function packOptions(padding: string, targetWidth?: number): { [key: string]: string } {
+  return {
+    'elk.algorithm': 'rectpacking',
+    'elk.aspectRatio': String(PACK_ASPECT),
+    'elk.rectpacking.orderBySize': 'false',
+    'elk.spacing.nodeNode': String(PACK_GAP),
+    'elk.padding': padding,
+    ...(targetWidth === undefined ? {} : { 'elk.rectpacking.widthApproximation.targetWidth': String(targetWidth) }),
+  };
+}
+
+export async function computeOrbitalLayout(orbital: MountedOrbital, options: OrbitalLayoutOptions): Promise<OrbitalLayout> {
+  const { metrics, expandDepth, charWidth } = options;
+  const byName = new Map(orbital.traits.map((t) => [t.trait, t]));
+  const levels = new Map(orbital.traits.map((t) => [t.trait, traitLevelFromMounted(t)]));
+
+  const lane = orbital.traits.filter((t) => !t.renders);
+  const tree = orbital.traits.filter((t) => t.renders);
+
+  // A rendering trait sits in its nearest rendering ancestor; with none it is a root of the main tree.
+  const effectiveParent = new Map<string, string | null>();
+  for (const t of tree) {
+    let cur = t.parent === null ? undefined : byName.get(t.parent);
+    while (cur !== undefined && !cur.renders) cur = cur.parent === null ? undefined : byName.get(cur.parent);
+    effectiveParent.set(t.trait, cur === undefined ? null : cur.trait);
+  }
+  const childrenOf = new Map<string, MountedTrait[]>();
+  const roots: MountedTrait[] = [];
+  for (const t of tree) {
+    const p = effectiveParent.get(t.trait) ?? null;
+    if (p === null) roots.push(t);
+    else childrenOf.set(p, [...(childrenOf.get(p) ?? []), t]);
+  }
+
+  const kinds = new Map(orbital.traits.map((t) => [t.trait, boxKind(t, expandDepth)]));
+
+  const wirePairs = new Map<string, { from: string; to: string; pairs: Array<{ event: string; triggers: string | null }> }>();
+  for (const listener of orbital.traits) {
+    for (const l of listener.listens) {
+      const dot = l.event.lastIndexOf('.');
+      if (dot < 0) continue;
+      const emitter = l.event.slice(0, dot);
+      const event = l.event.slice(dot + 1);
+      if (!byName.has(emitter)) continue;
+      const key = `${emitter}\u2192${listener.trait}`;
+      const entry = wirePairs.get(key) ?? { from: emitter, to: listener.trait, pairs: [] };
+      entry.pairs.push({ event, triggers: l.triggers });
+      wirePairs.set(key, entry);
+    }
+  }
+  const wireLabel = (pairs: Array<{ event: string }>): string => [...new Set(pairs.map((p) => p.event))].join(', ');
+
+  // Each hierarchy level is laid out on its own: states with layered, boxes with rectpacking.
+  const boxNode = (t: MountedTrait): ElkNode => {
+    const kind = kinds.get(t.trait) ?? 'chip';
+    const kids = childrenOf.get(t.trait) ?? [];
+    const level = levels.get(t.trait);
+    const titleWidth = Math.round(Math.max(t.trait.length, (t.linkedEntity ?? '').length) * charWidth + 32);
+    if (kind !== 'machine' && kids.length === 0) {
+      const size = compactSize(t, kind, charWidth);
+      return { id: `b:${t.trait}`, width: size.width, height: size.height };
+    }
+    const head = kind === 'machine' ? BOX_HEAD_MACHINE : BOX_HEAD_CONTAINER;
+    const padding = `[top=${head},left=${BOX_PAD},bottom=${BOX_PAD},right=${BOX_PAD}]`;
+    const minimum = { 'elk.nodeSize.constraints': 'MINIMUM_SIZE', 'elk.nodeSize.minimum': `(${titleWidth}, ${head + 20})` };
+    const kidNodes = kids.map(boxNode);
+    if (kind !== 'machine' || level === undefined) {
+      return { id: `b:${t.trait}`, children: kidNodes, layoutOptions: { ...packOptions(padding), ...minimum } };
+    }
+    const stateNodes: ElkNode[] = flowOrder(level).map((s) => {
+      const size = metrics.nodeSize(s.name);
+      return {
+        id: `s:${t.trait}:${s.name}`,
+        width: size.width,
+        height: size.height,
+        layoutOptions: { 'elk.partitioning.partition': '0', ...(s.isInitial ? { 'elk.layered.layering.layerConstraint': 'FIRST' } : {}) },
+      };
+    });
+    const group: ElkNode[] = kidNodes.length === 0 ? [] : [{
+      id: `k:${t.trait}`,
+      children: kidNodes,
+      layoutOptions: { ...packOptions('[top=0,left=0,bottom=0,right=0]'), 'elk.partitioning.partition': '1' },
+    }];
+    return {
+      id: `b:${t.trait}`,
+      children: [...stateNodes, ...group],
+      edges: level.transitions.map((tr, i) => {
+        const size = metrics.labelSize(tr);
+        return {
+          id: `x:${t.trait}:${i}`,
+          sources: [`s:${t.trait}:${tr.from}`],
+          targets: [`s:${t.trait}:${tr.to}`],
+          labels: [{ text: tr.event, width: size.width, height: size.height, layoutOptions: { 'elk.edgeLabels.inline': 'true' } }],
+        };
+      }),
+      layoutOptions: {
+        'elk.algorithm': 'layered',
+        'elk.direction': metrics.direction === 'rtl' ? 'LEFT' : 'RIGHT',
+        'elk.padding': padding,
+        'elk.partitioning.activate': 'true',
+        'elk.spacing.nodeNode': String(metrics.nodeSpacing),
+        'elk.spacing.edgeNode': '30',
+        'elk.spacing.edgeEdge': '24',
+        'elk.spacing.edgeLabel': '10',
+        'elk.layered.spacing.nodeNodeBetweenLayers': String(metrics.layerSpacing),
+        'elk.edgeRouting': 'ORTHOGONAL',
+        'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES',
+        'elk.layered.cycleBreaking.strategy': 'MODEL_ORDER',
+        'elk.edgeLabels.placement': 'CENTER',
+        'elk.layered.mergeEdges': 'false',
+        'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+        ...minimum,
+      },
+    };
+  };
+
+  const graph: ElkNode = {
+    id: 'root',
+    layoutOptions: { ...packOptions('[top=0,left=0,bottom=0,right=0]'), 'elk.hierarchyHandling': 'SEPARATE_CHILDREN' },
+    children: roots.map(boxNode),
+  };
+
+  const elkEngine = await loadElk();
+  const result: ElkNode = roots.length === 0 ? { id: 'root', width: 0, height: 0 } : await elkEngine.layout(graph);
+
+  const boxes: OrbitalBox[] = [];
+  const states: OrbitalStateNode[] = [];
+  const transitionEdges: OrbitalTransitionEdge[] = [];
+  const walk = (node: ElkNode, ox: number, oy: number, parent: string | null): void => {
+    for (const e of node.edges ?? []) {
+      const [, ...rest] = e.id.split(':');
+      const index = Number(rest[rest.length - 1]);
+      const trait = rest.slice(0, -1).join(':');
+      const tr = levels.get(trait)?.transitions[index];
+      if (tr === undefined) continue;
+      const label = (e.labels ?? [])[0];
+      transitionEdges.push({
+        id: e.id, trait, index: tr.index, from: tr.from, to: tr.to, event: tr.event,
+        points: sectionPoints(e).map((p) => ({ x: p.x + ox, y: p.y + oy })),
+        labelX: (label?.x ?? 0) + ox, labelY: (label?.y ?? 0) + oy, labelW: label?.width ?? 0, labelH: label?.height ?? 0, isSelf: tr.from === tr.to,
+      });
+    }
+    for (const c of node.children ?? []) {
+      const x = ox + (c.x ?? 0);
+      const y = oy + (c.y ?? 0);
+      if (c.id.startsWith('b:')) {
+        const name = c.id.slice(2);
+        boxes.push({ trait: name, kind: kinds.get(name) ?? 'chip', lane: false, parent, container: (childrenOf.get(name) ?? []).length > 0, x, y, width: c.width ?? 0, height: c.height ?? 0 });
+        walk(c, x, y, name);
+      } else if (c.id.startsWith('k:')) {
+        walk(c, x, y, parent);
+      } else if (c.id.startsWith('s:')) {
+        const [, trait, ...rest] = c.id.split(':');
+        const name = rest.join(':');
+        const info = byName.get(trait)?.states.find((s) => s.name === name);
+        states.push({ trait, name, isInitial: info?.isInitial ?? false, isTerminal: info?.isTerminal ?? false, x, y, width: c.width ?? 0, height: c.height ?? 0 });
+      }
+    }
+  };
+  walk(result, 0, 0, null);
+
+  let width = result.width ?? 0;
+  let height = result.height ?? 0;
+  let laneTop: number | null = null;
+
+  if (lane.length > 0) {
+    laneTop = height + LANE_MARGIN;
+    const laneWidth = Math.max(width, LANE_MIN_WIDTH);
+    const chipSize = new Map(lane.map((t) => [t.trait, compactSize(t, kinds.get(t.trait) === 'chip' ? 'chip' : 'collapsed', charWidth)]));
+    const packed: ElkNode = await elkEngine.layout({
+      id: 'lane',
+      layoutOptions: packOptions('[top=0,left=0,bottom=0,right=0]', laneWidth),
+      children: lane.map((t) => ({ id: `b:${t.trait}`, width: chipSize.get(t.trait)?.width ?? 0, height: chipSize.get(t.trait)?.height ?? 0 })),
+    });
+    for (const c of packed.children ?? []) {
+      const name = c.id.slice(2);
+      boxes.push({ trait: name, kind: kinds.get(name) === 'chip' ? 'chip' : 'collapsed', lane: true, parent: null, container: false, x: c.x ?? 0, y: (laneTop + LANE_HEAD) + (c.y ?? 0), width: c.width ?? 0, height: c.height ?? 0 });
+    }
+    width = Math.max(width, packed.width ?? 0);
+    height = laneTop + LANE_HEAD + (packed.height ?? 0);
+  }
+
+  const embeds: OrbitalEmbedEdge[] = [];
+  for (const t of tree) {
+    const parent = effectiveParent.get(t.trait) ?? null;
+    const child = boxes.find((b) => b.trait === t.trait);
+    if (parent === null || child === undefined) continue;
+    for (const state of t.embeddedIn) {
+      const node = states.find((s) => s.trait === parent && s.name === state);
+      if (node !== undefined) embeds.push({ trait: t.trait, state, points: boxWirePath(node, child) });
+    }
+  }
+
+  const wires: OrbitalWire[] = [];
+  for (const [key, w] of wirePairs) {
+    const a = boxes.find((b) => b.trait === w.from);
+    const b = boxes.find((x) => x.trait === w.to);
+    if (a === undefined || b === undefined) continue;
+    const points = boxWirePath(a, b);
+    const size = options.wireLabelSize(wireLabel(w.pairs));
+    const mid = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
+    wires.push({ key, from: w.from, to: w.to, pairs: w.pairs, points, labelX: mid.x - size.width / 2, labelY: mid.y - size.height / 2, labelW: size.width, labelH: size.height });
+  }
+
+  return { boxes, states, edges: transitionEdges, embeds, wires, laneTop, width, height };
 }

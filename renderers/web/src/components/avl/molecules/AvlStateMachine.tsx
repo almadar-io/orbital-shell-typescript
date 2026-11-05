@@ -65,15 +65,15 @@ export interface AvlStateMachineProps extends A11yProps {
   className?: string;
 }
 
-const MONO_CHAR = 7.3;
-const BODY_CHAR = 7.6;
+export const MONO_CHAR = 7.3;
+export const BODY_CHAR = 7.6;
 const NODE_H = 44;
-const PILL_H = 24;
+export const PILL_H = 24;
 const EFFECT_CHIP = 14;
 const EFFECT_GAP = 4;
-const MARGIN = 28;
-const MIN_SCALE = 0.85;
-const MAX_SCALE = 1.25;
+export const MARGIN = 28;
+export const MIN_SCALE = 0.85;
+export const MAX_SCALE = 1.25;
 
 type Transition = TraitLevelData['transitions'][number];
 
@@ -86,7 +86,7 @@ function guardText(t: Transition): string | null {
   return t.guard === undefined || t.guard === null ? null : formatSExpr(t.guard);
 }
 
-function pillWidth(t: Transition): number {
+export function pillWidth(t: Transition): number {
   return 20 + (guardText(t) === null ? 0 : 16) + t.event.length * MONO_CHAR + t.effects.length * (EFFECT_CHIP + EFFECT_GAP);
 }
 
@@ -94,7 +94,7 @@ function gearDiameter(name: string): number {
   return Math.max(96, Math.round(name.length * BODY_CHAR + 40));
 }
 
-function metricsFor(nodeShape: 'pill' | 'gear', direction: 'ltr' | 'rtl'): TraitLayoutMetrics {
+export function metricsFor(nodeShape: 'pill' | 'gear', direction: 'ltr' | 'rtl'): TraitLayoutMetrics {
   return {
   nodeSize: (name) => nodeShape === 'gear'
     ? { width: gearDiameter(name), height: gearDiameter(name) }

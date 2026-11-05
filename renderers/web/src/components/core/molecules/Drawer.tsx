@@ -70,6 +70,10 @@ export interface DrawerProps extends A11yProps {
   className?: string;
   /** Declarative close event — emits UI:{closeEvent} via eventBus when drawer should close */
   closeEvent?: EventKey;
+  /** Block the page behind it: an overlay, no page scroll, focus kept inside. `false` leaves the page usable beside the drawer (no overlay, no focus trap); Escape and the close button still close it.
+   * @default true
+   */
+  modal?: boolean;
 }
 
 // ============================================================================
@@ -107,6 +111,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   closeOnEscape = true,
   className,
   closeEvent,
+  modal = true,
   ...rest
 }) => {
   const eventBus = useEventBus();
@@ -118,7 +123,7 @@ export const Drawer: React.FC<DrawerProps> = ({
     if (closeEvent) eventBus.emit(`UI:${closeEvent}`, {});
     onClose();
   };
-  useDialogBehavior({ open: isOpen, containerRef: drawerRef, onEscape: emitClose, closeOnEscape });
+  useDialogBehavior({ open: isOpen, containerRef: drawerRef, onEscape: emitClose, closeOnEscape, modal });
 
   // Enter/exit motion (token-driven). The slide direction is flipped per
   // side via the --motion-drawer-sign CSS var consumed by the drawer keyframes.
@@ -126,7 +131,7 @@ export const Drawer: React.FC<DrawerProps> = ({
 
   // Prevent body scroll when open
   useEffect(() => {
-    if (contained) return;
+    if (contained || !modal) return;
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -135,7 +140,7 @@ export const Drawer: React.FC<DrawerProps> = ({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isOpen, contained]);
+  }, [isOpen, contained, modal]);
 
   if (!mounted) return null;
 
@@ -165,12 +170,13 @@ export const Drawer: React.FC<DrawerProps> = ({
 
   return (
     <>
-      {/* Overlay */}
-      <Overlay
-        isVisible={isOpen}
-        onClick={handleOverlayClick}
-        className={contained ? "absolute z-50" : "z-[60]"}
-      />
+      {modal && (
+        <Overlay
+          isVisible={isOpen}
+          onClick={handleOverlayClick}
+          className={contained ? "absolute z-50" : "z-[60]"}
+        />
+      )}
 
       {/* Drawer */}
       <Box
@@ -190,7 +196,7 @@ export const Drawer: React.FC<DrawerProps> = ({
         style={{ ...widthStyle, "--motion-drawer-sign": drawerSign, "--motion-drawer-enter-from-transform": slideTransform, "--motion-drawer-exit-to-transform": slideTransform } as React.CSSProperties}
         {...domPassthrough(rest)}
         role="dialog"
-        aria-modal="true"
+        aria-modal={modal}
         onAnimationEnd={onAnimationEnd}
         {...(title && !rest['aria-labelledby'] && { "aria-labelledby": titleId })}
       >
