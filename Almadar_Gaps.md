@@ -17,7 +17,11 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 
 - **G-ORBITAL-SHELL-TYPESCRIPT-140** — The web client swallows `effect-failed` / `repaint-failed` rejections on the host-dispatch fold path: `kernel-client.ts` `foldHostDispatch` (~552-575) returns only `clientEffectsByTrait` and `useTraitStateMachine.ts` (~357-360) hands it to `settleOutcome`; `response.rejections` is never read, logged or surfaced, so a failed render-ui left the launchpad's ci-status on 'Reading…' with no error anywhere (2026-11-01). Surface them as `sendLegs`/`mountAndSettle` do (a host never reads broken state as empty). orbital-shell-typescript renderers/web [mechanical] — rung: (3) host test that a fold with an effect-failed rejection surfaces it. Root cause: H2.
 
-Next code: `G-ORBITAL-SHELL-TYPESCRIPT-145`
+Next code: `G-ORBITAL-SHELL-TYPESCRIPT-147`
+
+- **G-ORBITAL-SHELL-TYPESCRIPT-145** [architectural] — The web host decides what the program should: Form evaluates `conditionalFields`, section `condition`, `hiddenCalculations`, `violationTriggers` and required/min/max validation in TS; DataList/TableView order and group rows (`sortBy`, `groupBy`); StatCard aggregates and filters rows for `field` metrics. EXEC-BOUND forbids a host evaluating expressions or ordering/filtering rows, and the native desktop (which may not copy them) therefore differs. Move each to the kernel/std (.lolo shapes the rows and resolves the conditions; hosts paint), then retire the TS copies. Rung (3): the paired web/desktop capture shows the difference whenever a program sets these props. Root cause: H1.
+
+- **G-ORBITAL-SHELL-TYPESCRIPT-146** [owner-decision] — `rowActionRoute` evaluates a row's route lambda in TS (extending the evaluator `when`/`payload` already use); it now throws a typed `RowActionRouteError` instead of a silent dead click. Is a host-side evaluator for row routes acceptable, or does the kernel resolve routes? (Raised on PR shell-typescript#2.) Root cause: H1.
 
 - **G-ORBITAL-SHELL-TYPESCRIPT-138** `[mechanical]` — `@almadar/eslint-plugin`'s own test command (`node --test` in tooling/eslint) fails before any rule runs: the installed `@typescript-eslint/parser` throws "does not support TS 7.0", so `no-as-unknown-as` and the new `no-json-roundtrip` RuleTester suites cannot run as checked in. Both passed (2/2) on 2026-10-30 through a preload that redirects the parser to the TS6-compatible copy. Fix: pin or upgrade the plugin's parser so its tests run on the workspace TypeScript. Rung: (3) the plugin's tests. Root cause: T4.
 
