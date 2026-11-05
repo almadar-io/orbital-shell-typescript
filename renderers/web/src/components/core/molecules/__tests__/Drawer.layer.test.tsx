@@ -28,4 +28,20 @@ describe('Drawer layer', () => {
     expect(document.body.style.overflow).toBe('hidden');
     expect(document.querySelectorAll('.fixed').length).toBeGreaterThan(1);
   });
+
+  it('header actions sit beside the close button, outside the title heading', () => {
+    render(
+      <Drawer isOpen modal={false} onClose={() => undefined} title="Trace" headerActions={<button type="button">Full screen</button>}>
+        <div />
+      </Drawer>,
+    );
+    const action = screen.getByRole('button', { name: 'Full screen' });
+    expect(screen.getByRole('heading', { name: 'Trace' }).contains(action)).toBe(false);
+    expect(action.closest('[role="dialog"]')).not.toBeNull();
+  });
+
+  it('control: without header actions the header holds only the title and the close button', () => {
+    render(<Drawer isOpen modal={false} onClose={() => undefined} title="Trace"><div /></Drawer>);
+    expect(screen.getAllByRole('button').map((b) => b.getAttribute('data-event'))).toEqual(['CLOSE']);
+  });
 });

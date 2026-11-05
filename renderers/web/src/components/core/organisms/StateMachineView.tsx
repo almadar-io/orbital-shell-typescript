@@ -22,7 +22,7 @@ export interface StateMachineViewProps extends Omit<AvlStateMachineProps, 'trait
   /** A described trait (`behavior/describe`), drawn from its machine when no `trait` is given. */
   description?: TraitDescription | null;
   /** A whole mounted orbital (`program/self { mounted: true }`): every trait drawn as nested boxes on one canvas, instead of a single trait.
-   * @example {"page":"/orders","traits":[{"trait":"OrderPage","orbital":"Orders","parent":null,"depth":0,"embeddedIn":[],"renders":true,"stepsIn":"browser","linkedEntity":"Order","states":[{"name":"browsing","isInitial":true,"isTerminal":false},{"name":"editing","isInitial":false,"isTerminal":false}],"transitions":[{"index":0,"from":["browsing"],"to":"editing","event":"EDIT","guarded":false,"emits":[]},{"index":1,"from":["editing"],"to":"browsing","event":"CANCEL","guarded":false,"emits":[]}],"emits":[],"listens":[],"instances":[]}]}
+   * @example {"page":"/orders","traits":[{"trait":"OrderPage","orbital":"Orders","parent":null,"depth":0,"embeddedIn":[],"renders":true,"linked":false,"stepsIn":"browser","linkedEntity":"Order","states":[{"name":"browsing","isInitial":true,"isTerminal":false},{"name":"editing","isInitial":false,"isTerminal":false}],"transitions":[{"index":0,"from":["browsing"],"to":"editing","event":"EDIT","guarded":false,"emits":[]},{"index":1,"from":["editing"],"to":"browsing","event":"CANCEL","guarded":false,"emits":[]}],"emits":[],"listens":[],"instances":[]}],"wires":[]}
    */
   orbital?: MountedOrbital | null;
   /** Current state per trait in orbital mode; a trait without an entry shows the states of its running instances. @default []
@@ -33,6 +33,10 @@ export interface StateMachineViewProps extends Omit<AvlStateMachineProps, 'trait
    * @example {"trait":"OrderPage","index":0}
    */
   firedTransition?: { trait: string; index: number } | null;
+  /** Orbital mode: the transitions the last dispatch fired, in order, drawn as one numbered route for a moment, then faded. @default []
+   * @example [{"trait":"OrderPage","index":0}]
+   */
+  route?: { trait: string; index: number }[];
   /** Orbital mode: boxes at a trait depth below this draw their own machine (when they have more than one state). @default 2 */
   expandDepth?: number;
   /** Orbital mode: the trait whose box is marked as chosen. @default "" */
@@ -47,14 +51,14 @@ export interface StateMachineViewProps extends Omit<AvlStateMachineProps, 'trait
   error?: UiError | null;
 }
 
-export const StateMachineView: React.FC<StateMachineViewProps> = ({ trait, description, orbital = null, activeStates, firedTransition, expandDepth, selectedTrait, selectEvent, maxHeight, isLoading = false, error = null, className, ...rest }) => {
+export const StateMachineView: React.FC<StateMachineViewProps> = ({ trait, description, orbital = null, activeStates, firedTransition, route, expandDepth, selectedTrait, selectEvent, maxHeight, isLoading = false, error = null, className, ...rest }) => {
   const { t } = useTranslate();
   const drawn = trait ?? (description ? traitLevelFromDescription(description) : null);
 
   if (isLoading) return <LoadingState message={t('stateMachine.loading')} />;
   if (error) return <ErrorState message={error instanceof Error ? error.message : String(error)} />;
   if (orbital !== null && orbital.traits.length > 0) {
-    return <AvlOrbitalMachine orbital={orbital} activeStates={activeStates} firedTransition={firedTransition} expandDepth={expandDepth} selectedTrait={selectedTrait} selectEvent={selectEvent} maxHeight={maxHeight} direction={rest.direction} className={className} />;
+    return <AvlOrbitalMachine orbital={orbital} activeStates={activeStates} firedTransition={firedTransition} route={route} expandDepth={expandDepth} selectedTrait={selectedTrait} selectEvent={selectEvent} maxHeight={maxHeight} direction={rest.direction} className={className} />;
   }
   if (!drawn) {
     return (

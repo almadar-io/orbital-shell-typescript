@@ -22,6 +22,7 @@ import type { EventKey, A11yProps } from "@almadar/core";
 import { Box } from '../../../core';
 import { Button } from '../../../core';
 import { Typography } from '../../../core';
+import { HStack } from '../../../core';
 import { Overlay } from '../../../core';
 import { usePresence } from '../../../core';
 import { cn } from '../../../core';
@@ -56,6 +57,8 @@ export interface DrawerProps extends A11yProps {
   children?: React.ReactNode;
   /** Footer content */
   footer?: React.ReactNode;
+  /** Controls in the header beside the close button, outside the title heading (e.g. a size toggle). */
+  headerActions?: React.ReactNode;
   /** Position (left or right) */
   position?: DrawerPosition;
   /** Width (CSS value or preset size) */
@@ -104,6 +107,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   title,
   children = null,
   footer,
+  headerActions,
   position = "right",
   width = "md",
   showCloseButton = true,
@@ -213,17 +217,21 @@ export const Drawer: React.FC<DrawerProps> = ({
                 {title}
               </Typography>
             )}
-            {showCloseButton && (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon="x"
-                onClick={handleClose}
-                data-event="CLOSE"
-                data-testid={actionTestId("CLOSE")}
-                aria-label={t('aria.closeDrawer')}
-                className={cn(!title && "ml-auto")}
-              />
+            {(headerActions || showCloseButton) && (
+              <HStack gap="sm" align="center" className={cn(!title && "ml-auto")}>
+                {headerActions}
+                {showCloseButton && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon="x"
+                    onClick={handleClose}
+                    data-event="CLOSE"
+                    data-testid={actionTestId("CLOSE")}
+                    aria-label={t('aria.closeDrawer')}
+                  />
+                )}
+              </HStack>
             )}
           </Box>
         )}

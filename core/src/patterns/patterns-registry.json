@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-05T19:16:50.478Z",
+  "exportedAt": "2026-11-05T20:56:33.295Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -10783,6 +10783,12 @@
             "node"
           ],
           "description": "Footer content"
+        },
+        "headerActions": {
+          "types": [
+            "node"
+          ],
+          "description": "Controls in the header beside the close button, outside the title heading (e.g. a size toggle)."
         },
         "position": {
           "types": [
@@ -43014,6 +43020,7 @@
                 "depth": 0,
                 "embeddedIn": [],
                 "renders": true,
+                "linked": false,
                 "stepsIn": "browser",
                 "linkedEntity": "Order",
                 "states": [
@@ -43054,7 +43061,8 @@
                 "listens": [],
                 "instances": []
               }
-            ]
+            ],
+            "wires": []
           }
         },
         "activeStates": {
@@ -43117,6 +43125,40 @@
             "trait": "OrderPage",
             "index": 0
           }
+        },
+        "route": {
+          "types": [
+            "array"
+          ],
+          "description": "Orbital mode: the transitions the last dispatch fired, in order, drawn as one numbered route for a moment, then faded. @default []",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "trait": {
+                "types": [
+                  "string"
+                ]
+              },
+              "index": {
+                "types": [
+                  "number"
+                ]
+              }
+            },
+            "required": [
+              "trait",
+              "index"
+            ]
+          },
+          "default": [],
+          "example": [
+            {
+              "trait": "OrderPage",
+              "index": 0
+            }
+          ]
         },
         "expandDepth": {
           "types": [

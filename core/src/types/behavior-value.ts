@@ -420,6 +420,8 @@ export type MountedTrait = {
   embeddedIn: string[];
   /** False when the trait never paints a slot (store, http, timer). */
   renders: boolean;
+  /** True for a trait of another orbital the page talks to by events (an imported orbital it never mounts); it has no parent. */
+  linked: boolean;
   /** The asking trait or a trait that listens to it: a view that traced it would trace its own work. */
   observer: boolean;
   stepsIn: 'browser' | 'server';
@@ -433,7 +435,10 @@ export type MountedTrait = {
 };
 
 /** A whole mounted orbital: its traits in tree pre-order (roots in declared order, each followed depth-first by its embeds). */
-export type MountedOrbital = { page: string; traits: MountedTrait[] };
+/** One delivery between two traits of the tree, by the kernel's delivery rule. */
+export type MountedWire = { from: string; to: string; event: string; triggers: string | null };
+
+export type MountedOrbital = { page: string; traits: MountedTrait[]; wires: MountedWire[] };
 
 /** What `behavior/describe` accepts: a trait value, an orbital value, or a whole behavior. */
 export const DescribeTargetSchema = z.union([TraitValueSchema, OrbitalValueSchema, BehaviorRefSchema]);

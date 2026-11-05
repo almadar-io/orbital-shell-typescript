@@ -335,8 +335,29 @@ export interface OrbitalWire {
   labelH: number;
 }
 
+/** A box around the linked traits of one other orbital the page talks to. */
+export interface OrbitalGroup {
+  orbital: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Self-transitions of one state folded into a chip on the state; listed in the node when open. */
+export interface OrbitalLoop {
+  trait: string;
+  state: string;
+  events: Array<{ event: string; index: number }>;
+  open: boolean;
+}
+
 export interface OrbitalLayout {
   boxes: OrbitalBox[];
+  loops: OrbitalLoop[];
+  groups: OrbitalGroup[];
+  /** Where the linked orbitals start; null when the page talks to none. */
+  groupTop: number | null;
   states: OrbitalStateNode[];
   edges: OrbitalTransitionEdge[];
   embeds: OrbitalEmbedEdge[];
@@ -352,6 +373,8 @@ export interface OrbitalLayoutOptions {
   open?: ReadonlySet<string>;
   /** Traits closed in place whatever their depth. */
   closed?: ReadonlySet<string>;
+  /** Folded self-transition lists shown open, keyed by `loopKey(trait, state)`. */
+  openLoops?: ReadonlySet<string>;
   metrics: TraitLayoutMetrics;
   charWidth: number;
   /** Wire label width for an event name. */
@@ -366,6 +389,14 @@ const CHIP_H = 28;
 /** Room in a box head for the trait glyph and, on a box that opens, its disclosure button. */
 const HEAD_GLYPH = 40;
 const HEAD_TOGGLE = 28;
+/** A state with this many self-transitions or more draws them as one chip instead of a stack of loops. */
+export const LOOP_FOLD = 3;
+/** Height of one listed event in an open loop list, and the room the closed chip needs under the name. */
+export const LOOP_LINE = 18;
+
+export function loopKey(trait: string, state: string): string {
+  return `${trait}\u0000${state}`;
+}
 const LANE_HEAD = 30;
 const LANE_MARGIN = 36;
 const LANE_MIN_WIDTH = 480;
@@ -426,8 +457,13 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
   const byName = new Map(orbital.traits.map((t) => [t.trait, t]));
   const levels = new Map(orbital.traits.map((t) => [t.trait, traitLevelFromMounted(t)]));
 
-  const lane = orbital.traits.filter((t) => !t.renders);
-  const tree = orbital.traits.filter((t) => t.renders);
+  const lane = orbital.traits.filter((t) => !t.renders && !t.linked);
+  const tree = orbital.traits.filter((t) => t.renders && !t.linked);
+  const linkedByOrbital = new Map<string, MountedTrait[]>();
+  for (const t of orbital.traits.filter((x) => x.linked)) {
+    const key = t.orbital ?? '';
+    linkedByOrbital.set(key, [...(linkedByOrbital.get(key) ?? []), t]);
+  }
 
   // A rendering trait sits in its nearest rendering ancestor; with none it is a root of the main tree.
   const effectiveParent = new Map<string, string | null>();
@@ -446,21 +482,17 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
 
   const open = options.open ?? new Set<string>();
   const closed = options.closed ?? new Set<string>();
+  const openLoops = options.openLoops ?? new Set<string>();
+  const loops: OrbitalLoop[] = [];
   const kinds = new Map(orbital.traits.map((t) => [t.trait, boxKind(t, expandDepth, open, closed)]));
 
   const wirePairs = new Map<string, { from: string; to: string; pairs: Array<{ event: string; triggers: string | null }> }>();
-  for (const listener of orbital.traits) {
-    for (const l of listener.listens) {
-      const dot = l.event.lastIndexOf('.');
-      if (dot < 0) continue;
-      const emitter = l.event.slice(0, dot);
-      const event = l.event.slice(dot + 1);
-      if (!byName.has(emitter)) continue;
-      const key = `${emitter}\u2192${listener.trait}`;
-      const entry = wirePairs.get(key) ?? { from: emitter, to: listener.trait, pairs: [] };
-      entry.pairs.push({ event, triggers: l.triggers });
-      wirePairs.set(key, entry);
-    }
+  for (const w of orbital.wires) {
+    if (!byName.has(w.from) || !byName.has(w.to)) continue;
+    const key = `${w.from}\u2192${w.to}`;
+    const entry = wirePairs.get(key) ?? { from: w.from, to: w.to, pairs: [] };
+    entry.pairs.push({ event: w.event, triggers: w.triggers });
+    wirePairs.set(key, entry);
   }
   const wireLabel = (pairs: Array<{ event: string }>): string => [...new Set(pairs.map((p) => p.event))].join(', ');
 
@@ -481,12 +513,27 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
     if (kind !== 'machine' || level === undefined) {
       return { id: `b:${t.trait}`, children: kidNodes, layoutOptions: { ...packOptions(padding), ...minimum } };
     }
+    const selfCount = new Map<string, number>();
+    for (const tr of level.transitions) if (tr.from === tr.to) selfCount.set(tr.from, (selfCount.get(tr.from) ?? 0) + 1);
+    const folds = (tr: { from: string; to: string }) => tr.from === tr.to && (selfCount.get(tr.from) ?? 0) >= LOOP_FOLD;
+    for (const [state, count] of selfCount) {
+      if (count < LOOP_FOLD) continue;
+      loops.push({
+        trait: t.trait,
+        state,
+        events: level.transitions.filter((tr) => tr.from === state && tr.to === state).map((tr) => ({ event: tr.event, index: tr.index })),
+        open: openLoops.has(loopKey(t.trait, state)),
+      });
+    }
     const stateNodes: ElkNode[] = flowOrder(level).map((s) => {
       const size = metrics.nodeSize(s.name);
+      const count = (selfCount.get(s.name) ?? 0) >= LOOP_FOLD ? selfCount.get(s.name) ?? 0 : 0;
+      const extra = count === 0 ? 0 : openLoops.has(loopKey(t.trait, s.name)) ? LOOP_LINE * (count + 1) + 8 : LOOP_LINE;
+      const longest = count === 0 ? 0 : Math.max(...level.transitions.filter((tr) => tr.from === s.name && tr.to === s.name).map((tr) => tr.event.length));
       return {
         id: `s:${t.trait}:${s.name}`,
-        width: size.width,
-        height: size.height,
+        width: Math.max(size.width, extra > LOOP_LINE ? Math.round(longest * charWidth + 40) : size.width),
+        height: size.height + extra,
         layoutOptions: { 'elk.partitioning.partition': '0', ...(s.isInitial ? { 'elk.layered.layering.layerConstraint': 'FIRST' } : {}) },
       };
     });
@@ -498,14 +545,15 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
     return {
       id: `b:${t.trait}`,
       children: [...stateNodes, ...group],
-      edges: level.transitions.map((tr, i) => {
+      edges: level.transitions.flatMap((tr, i) => {
+        if (folds(tr)) return [];
         const size = metrics.labelSize(tr);
-        return {
+        return [{
           id: `x:${t.trait}:${i}`,
           sources: [`s:${t.trait}:${tr.from}`],
           targets: [`s:${t.trait}:${tr.to}`],
           labels: [{ text: tr.event, width: size.width, height: size.height, layoutOptions: { 'elk.edgeLabels.inline': 'true' } }],
-        };
+        }];
       }),
       layoutOptions: {
         'elk.algorithm': 'layered',
@@ -538,6 +586,7 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
   const result: ElkNode = roots.length === 0 ? { id: 'root', width: 0, height: 0 } : await elkEngine.layout(graph);
 
   const boxes: OrbitalBox[] = [];
+  const groups: OrbitalGroup[] = [];
   const states: OrbitalStateNode[] = [];
   const transitionEdges: OrbitalTransitionEdge[] = [];
   const walk = (node: ElkNode, ox: number, oy: number, parent: string | null): void => {
@@ -561,6 +610,9 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
         const name = c.id.slice(2);
         boxes.push({ trait: name, kind: kinds.get(name) ?? 'chip', lane: false, parent, container: (childrenOf.get(name) ?? []).length > 0, x, y, width: c.width ?? 0, height: c.height ?? 0 });
         walk(c, x, y, name);
+      } else if (c.id.startsWith('g:')) {
+        groups.push({ orbital: c.id.slice(2), x, y, width: c.width ?? 0, height: c.height ?? 0 });
+        walk(c, x, y, null);
       } else if (c.id.startsWith('k:')) {
         walk(c, x, y, parent);
       } else if (c.id.startsWith('s:')) {
@@ -594,6 +646,28 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
     height = laneTop + LANE_HEAD + (packed.height ?? 0);
   }
 
+  let groupTop: number | null = null;
+  if (linkedByOrbital.size > 0) {
+    groupTop = height + LANE_MARGIN;
+    const padding = `[top=${BOX_HEAD_CONTAINER},left=${BOX_PAD},bottom=${BOX_PAD},right=${BOX_PAD}]`;
+    const packed: ElkNode = await elkEngine.layout({
+      id: 'groups',
+      layoutOptions: { ...packOptions('[top=0,left=0,bottom=0,right=0]', Math.max(width, LANE_MIN_WIDTH)), 'elk.hierarchyHandling': 'SEPARATE_CHILDREN' },
+      children: [...linkedByOrbital].map(([name, traits]) => ({
+        id: `g:${name}`,
+        children: traits.map(boxNode),
+        layoutOptions: {
+          ...packOptions(padding),
+          'elk.nodeSize.constraints': 'MINIMUM_SIZE',
+          'elk.nodeSize.minimum': `(${Math.round(name.length * charWidth + 32 + HEAD_GLYPH)}, ${BOX_HEAD_CONTAINER + 20})`,
+        },
+      })),
+    });
+    walk(packed, 0, groupTop + LANE_HEAD, null);
+    width = Math.max(width, packed.width ?? 0);
+    height = groupTop + LANE_HEAD + (packed.height ?? 0);
+  }
+
   const embeds: OrbitalEmbedEdge[] = [];
   for (const t of tree) {
     const parent = effectiveParent.get(t.trait) ?? null;
@@ -616,5 +690,5 @@ export async function computeOrbitalLayout(orbital: MountedOrbital, options: Orb
     wires.push({ key, from: w.from, to: w.to, pairs: w.pairs, points, labelX: mid.x - size.width / 2, labelY: mid.y - size.height / 2, labelW: size.width, labelH: size.height });
   }
 
-  return { boxes, states, edges: transitionEdges, embeds, wires, laneTop, width, height };
+  return { boxes, loops, groups, groupTop, states, edges: transitionEdges, embeds, wires, laneTop, width, height };
 }

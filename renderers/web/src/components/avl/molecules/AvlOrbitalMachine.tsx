@@ -5,7 +5,8 @@
  * trait is a box nested inside its parent, boxes within `expandDepth` draw
  * their own machine, the rest are compact boxes that open in place, traits
  * that never paint sit in a background lane, and `Trait.EVENT` listens are
- * dashed wires between boxes. Choosing a box emits `selectEvent`.
+ * dashed wires between boxes, drawn only for the chosen trait and the last
+ * dispatch's route. Choosing a box emits `selectEvent`.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,6 +15,7 @@ import { createLogger } from '@almadar/logger';
 import { Box } from '../../../core';
 import { Typography } from '../../../core';
 import { Button } from '../../../core';
+import { Icon } from '../../../core';
 import { useEventBus } from '../../../core';
 import { useTranslate } from '../../../core';
 import { useMediaQuery } from '../../../core';
@@ -21,6 +23,8 @@ import { domPassthrough } from '../../../core';
 import { useContainerWidth } from '../../../hooks/useContainerWidth';
 import {
   computeOrbitalLayout,
+  loopKey,
+  LOOP_LINE,
   roundedEdgePath,
   edgePath,
   type OrbitalBox,
@@ -35,7 +39,7 @@ const log = createLogger('almadar:ui:avl:orbital-machine');
 
 export interface AvlOrbitalMachineProps extends A11yProps {
   /** The mounted orbital to draw (`program/self { mounted: true }`).
-   * @example {"page":"/orders","traits":[{"trait":"OrderPage","orbital":"Orders","parent":null,"depth":0,"embeddedIn":[],"renders":true,"stepsIn":"browser","linkedEntity":"Order","states":[{"name":"browsing","isInitial":true,"isTerminal":false},{"name":"editing","isInitial":false,"isTerminal":false}],"transitions":[{"index":0,"from":["browsing"],"to":"editing","event":"EDIT","guarded":false,"emits":[]},{"index":1,"from":["editing"],"to":"browsing","event":"CANCEL","guarded":false,"emits":["ORDER_CLOSED"]}],"emits":["ORDER_CLOSED"],"listens":[],"instances":[]}]}
+   * @example {"page":"/orders","traits":[{"trait":"OrderPage","orbital":"Orders","parent":null,"depth":0,"embeddedIn":[],"renders":true,"linked":false,"stepsIn":"browser","linkedEntity":"Order","states":[{"name":"browsing","isInitial":true,"isTerminal":false},{"name":"editing","isInitial":false,"isTerminal":false}],"transitions":[{"index":0,"from":["browsing"],"to":"editing","event":"EDIT","guarded":false,"emits":[]},{"index":1,"from":["editing"],"to":"browsing","event":"CANCEL","guarded":false,"emits":["ORDER_CLOSED"]}],"emits":["ORDER_CLOSED"],"listens":[],"instances":[]}],"wires":[]}
    */
   orbital: MountedOrbital;
   /** Current state per trait; a trait without an entry shows the states of its running instances. @default []
@@ -46,6 +50,10 @@ export interface AvlOrbitalMachineProps extends A11yProps {
    * @example {"trait":"OrderPage","index":0}
    */
   firedTransition?: { trait: string; index: number } | null;
+  /** The transitions the last dispatch fired, in order: drawn as one numbered route for a moment, then faded. Without it the route is `firedTransition`. @default []
+   * @example [{"trait":"OrderPage","index":0}]
+   */
+  route?: { trait: string; index: number }[];
   /** Boxes at a trait depth below this draw their own machine (when they have more than one state). @default 2 */
   expandDepth?: number;
   /** The trait whose box is marked as chosen. @default "" */
@@ -60,7 +68,8 @@ export interface AvlOrbitalMachineProps extends A11yProps {
 }
 
 const MONO = 7.3;
-const PULSE_MS = 700;
+/** How long the last dispatch's route stays drawn before it fades. */
+const ROUTE_MS = 2400;
 const GLYPH_ROOM = 20;
 const NONE: ReadonlySet<string> = new Set<string>();
 
@@ -84,6 +93,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   orbital,
   activeStates = [],
   firedTransition = null,
+  route = [],
   expandDepth = 2,
   selectedTrait = '',
   selectEvent,
@@ -104,7 +114,10 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   const [layoutFailed, setLayoutFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [hotWire, setHotWire] = useState<string | null>(null);
-  const [pulse, setPulse] = useState<string | null>(null);
+  const [openLoops, setOpenLoops] = useState<ReadonlySet<string>>(NONE);
+  const [routeOn, setRouteOn] = useState(false);
+  const steps = useMemo(() => (route.length > 0 ? route : firedTransition === null ? [] : [firedTransition]), [route, firedTransition]);
+  const routeKey = JSON.stringify(steps);
   const orbitalKey = useMemo(() => JSON.stringify(orbital), [orbital]);
   const metrics = useMemo(() => metricsFor('pill', direction), [direction]);
 
@@ -120,7 +133,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   useEffect(() => {
     let live = true;
     setLayoutFailed(false);
-    computeOrbitalLayout(orbital, { expandDepth, open, closed, metrics, charWidth: BODY_CHAR, wireLabelSize })
+    computeOrbitalLayout(orbital, { expandDepth, open, closed, openLoops, metrics, charWidth: BODY_CHAR, wireLabelSize })
       .then((l) => { if (live) setLayout(l); })
       .catch((error) => {
         log.error('layout-failed', { page: orbital.page, error: error instanceof Error ? error : String(error) });
@@ -128,14 +141,22 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
       });
     return () => { live = false; };
     // orbital is captured by its serialized key.
-  }, [orbitalKey, expandDepth, open, closed, metrics, attempt]);
+  }, [orbitalKey, expandDepth, open, closed, openLoops, metrics, attempt]);
 
   useEffect(() => {
-    if (firedTransition === null) return;
-    setPulse(firedTransition.trait);
-    const timer = setTimeout(() => setPulse(null), PULSE_MS);
+    if (steps.length === 0) { setRouteOn(false); return; }
+    setRouteOn(true);
+    const timer = setTimeout(() => setRouteOn(false), ROUTE_MS);
     return () => clearTimeout(timer);
-  }, [firedTransition]);
+    // steps is captured by its serialized key: a new dispatch restarts the route.
+  }, [routeKey]);
+
+  const routeStep = useMemo(() => new Map(steps.map((st, i) => [`${st.trait}:${st.index}`, i + 1])), [steps]);
+  const routeFirst = useMemo(() => {
+    const out = new Map<string, number>();
+    steps.forEach((st, i) => { if (!out.has(st.trait)) out.set(st.trait, i); });
+    return out;
+  }, [steps]);
 
   const traits = useMemo(() => new Map(orbital.traits.map((tr) => [tr.trait, tr])), [orbital]);
   const actives = useMemo(
@@ -175,8 +196,19 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   const h = layout.height + 2 * MARGIN;
   const fit = hostWidth ? hostWidth / w : 1;
   const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, fit));
-  const pulseShadow = (trait: string) => (pulse === trait ? `0 0 0 4px ${avlTint(AVL_INK.focus, 28)}` : 'none');
-  const motion = reduceMotion ? 'none' : 'box-shadow 400ms ease-out, border-color 400ms ease-out';
+  const motion = reduceMotion ? 'none' : 'box-shadow 250ms ease-out, border-color 250ms ease-out';
+  const inkMotion = reduceMotion ? 'none' : 'stroke 250ms ease-out, stroke-opacity 250ms ease-out, opacity 250ms ease-out';
+  const onRoute = (trait: string, index: number) => routeOn && routeStep.has(`${trait}:${index}`);
+  const isNext = (trait: string, from: string) => actives.get(trait)?.has(from) === true;
+  const guarded = (trait: string, index: number) => traits.get(trait)?.transitions.find((x) => x.index === index)?.guarded === true;
+  const wireOnRoute = (from: string, to: string) => {
+    const a = routeFirst.get(from);
+    const b = routeFirst.get(to);
+    return routeOn && a !== undefined && b !== undefined && a < b;
+  };
+  const toggleLoops = (key: string) => setOpenLoops((s) => toggled(s, key, !s.has(key)));
+  // A wire draws only while it carries the last dispatch or touches the chosen trait: every other delivery stays out of sight.
+  const shownWires = layout.wires.filter((wire) => wireOnRoute(wire.from, wire.to) || wire.from === selectedTrait || wire.to === selectedTrait);
 
   const renderBox = (box: OrbitalBox, parent: OrbitalBox | null, depth: number): React.ReactNode => {
     const trait = traits.get(box.trait);
@@ -190,7 +222,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
     const label = active.length > 0
       ? t('stateMachine.boxLabel', { trait: trait.trait, state: active.join(', '), count: trait.states.length })
       : t('stateMachine.boxLabelIdle', { trait: trait.trait, count: trait.states.length });
-    const fired = pulse === box.trait;
+    const fired = routeOn && routeFirst.has(box.trait);
 
     const head = (
       <Box
@@ -261,7 +293,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
           height: box.height,
           background: depth % 2 === 0 ? AVL_INK.surface : AVL_INK.wash,
           border: `${chosen ? 2 : 1}px solid ${fired || chosen ? AVL_INK.focus : AVL_INK.line}`,
-          boxShadow: fired ? pulseShadow(box.trait) : 'var(--shadow-sm)',
+          boxShadow: fired ? `0 0 0 4px ${avlTint(AVL_INK.focus, 28)}` : 'var(--shadow-sm)',
           transition: motion,
         }}
       >
@@ -281,6 +313,25 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
         <Box className="relative" style={{ width: w * scale, height: h * scale, marginInline: w * scale < (hostWidth ?? 0) ? 'auto' : 0 }}>
           <Box className="absolute left-0 top-0" style={{ width: w, height: h, transform: `scale(${scale})`, transformOrigin: '0 0' }}>
             <Box className="absolute" style={{ left: MARGIN, top: MARGIN, width: layout.width, height: layout.height }}>
+              {layout.groupTop !== null ? (
+                <Box data-testid="avl-om-linked" className="absolute" style={{ left: 0, top: layout.groupTop, width: layout.width }}>
+                  <Typography variant="caption" color="muted">{t('stateMachine.linked')}</Typography>
+                </Box>
+              ) : null}
+              {layout.groups.map((g) => (
+                <Box
+                  key={`group-${g.orbital}`}
+                  data-testid="avl-om-group"
+                  data-orbital={g.orbital}
+                  className="absolute rounded-xl"
+                  style={{ left: g.x, top: g.y, width: g.width, height: g.height, border: `1px dashed ${AVL_INK.line}`, background: AVL_INK.canvas }}
+                >
+                  <Box className="flex items-center gap-2 px-3" style={{ height: 38, fontFamily: AVL_FONT.body }}>
+                    <AvlGlyph kind="orbital" size="xs" showCaption={false} aria-hidden="true" className="shrink-0" />
+                    <Box as="span" className="truncate" style={{ fontSize: 13, fontWeight: 600, color: AVL_INK.quiet }}>{g.orbital}</Box>
+                  </Box>
+                </Box>
+              ))}
               {roots.map((b) => renderBox(b, null, 0))}
               {layout.laneTop !== null ? (
                 <Box data-testid="avl-om-lane" className="absolute" style={{ left: 0, top: layout.laneTop, width: layout.width }}>
@@ -298,6 +349,9 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                 <marker id="avl-om-head-hot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
                   <path d="M0 0 L10 5 L0 10z" fill={AVL_INK.focus} />
                 </marker>
+                <marker id="avl-om-head-next" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0 0 L10 5 L0 10z" fill={AVL_INK.focus} fillOpacity={0.55} />
+                </marker>
               </defs>
               <g transform={`translate(${MARGIN},${MARGIN})`}>
                 {layout.states.filter((s) => s.isInitial).map((s) => {
@@ -313,8 +367,9 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                   <path key={`embed-${e.trait}-${e.state}`} data-testid="avl-om-embed" data-trait={e.trait} data-state={e.state} d={edgePath(e.points)} fill="none" stroke={AVL_INK.quiet} strokeOpacity={0.6} strokeWidth={AVL_STROKE.hairline} strokeDasharray="1 4" strokeLinecap="round" />
                 ))}
                 {layout.edges.map((e) => {
-                  const fired = firedTransition?.trait === e.trait && firedTransition.index === e.index;
-                  const lit = hot.get(e.trait)?.has(e.index) === true;
+                  const fired = onRoute(e.trait, e.index);
+                  const lit = fired || hot.get(e.trait)?.has(e.index) === true;
+                  const next = !lit && isNext(e.trait, e.from);
                   return (
                     <path
                       key={e.id}
@@ -323,25 +378,24 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                       data-event={e.event}
                       data-fired={fired ? 'true' : 'false'}
                       data-hot={lit ? 'true' : 'false'}
+                      data-next={next ? 'true' : 'false'}
                       d={roundedEdgePath(e.points, 10)}
                       fill="none"
-                      stroke={fired || lit ? AVL_INK.focus : AVL_INK.quiet}
-                      strokeOpacity={fired || lit ? 1 : 0.55}
-                      strokeWidth={fired || lit ? AVL_STROKE.active : AVL_STROKE.wire}
-                      markerEnd={`url(#avl-om-head${fired || lit ? '-hot' : ''})`}
+                      stroke={lit || next ? AVL_INK.focus : AVL_INK.quiet}
+                      strokeOpacity={lit ? 1 : next ? 0.5 : 0.3}
+                      strokeWidth={lit ? AVL_STROKE.active : AVL_STROKE.wire}
+                      markerEnd={`url(#avl-om-head${lit ? '-hot' : next ? '-next' : ''})`}
+                      style={{ transition: inkMotion }}
                     />
                   );
                 })}
-                {layout.states.filter((s) => actives.get(s.trait)?.has(s.name) === true).map((s) => (
-                  <rect key={`ring-${s.trait}-${s.name}`} x={s.x - 5} y={s.y - 5} width={s.width + 10} height={s.height + 10} rx={12} fill="none" stroke={AVL_INK.focus} strokeWidth={4} strokeOpacity={0.22} />
-                ))}
-                {layout.wires.map((wire) => {
-                  const lit = hotWire === wire.key;
+                {shownWires.map((wire) => {
+                  const lit = hotWire === wire.key || wireOnRoute(wire.from, wire.to);
                   const d = wirePath(wire);
                   const caption = t('stateMachine.wireLabel', { from: wire.from, event: [...new Set(wire.pairs.map((p) => p.event))].join(', '), to: wire.to });
                   return (
                     <g key={wire.key} data-testid="avl-om-wire" data-from={wire.from} data-to={wire.to} data-hot={lit ? 'true' : 'false'}>
-                      <path d={d} fill="none" stroke={lit ? AVL_INK.focus : AVL_INK.quiet} strokeOpacity={lit ? 1 : 0.75} strokeWidth={lit ? AVL_STROKE.active : AVL_STROKE.wire} strokeDasharray="6 4" markerEnd={`url(#avl-om-head${lit ? '-hot' : ''})`} />
+                      <path d={d} fill="none" stroke={lit ? AVL_INK.focus : AVL_INK.quiet} strokeOpacity={lit ? 1 : 0.45} strokeWidth={lit ? AVL_STROKE.active : AVL_STROKE.wire} strokeDasharray="6 4" markerEnd={`url(#avl-om-head${lit ? '-hot' : ''})`} style={{ transition: inkMotion }} />
                       <path
                         d={d}
                         fill="none"
@@ -364,30 +418,47 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
 
             <Box className="absolute" style={{ left: MARGIN, top: MARGIN, width: layout.width, height: layout.height, pointerEvents: 'none' }}>
               {layout.edges.map((e) => {
-                const fired = firedTransition?.trait === e.trait && firedTransition.index === e.index;
-                const lit = hot.get(e.trait)?.has(e.index) === true;
-                const emphasis = fired || lit;
+                const step = routeOn ? routeStep.get(`${e.trait}:${e.index}`) : undefined;
+                const emphasis = step !== undefined || hot.get(e.trait)?.has(e.index) === true;
+                const next = !emphasis && isNext(e.trait, e.from);
                 return (
                   <Box
                     key={`label-${e.id}`}
                     data-testid="avl-om-label"
                     data-trait={e.trait}
                     data-event={e.event}
+                    data-next={next ? 'true' : 'false'}
                     className="absolute flex items-center justify-center rounded-md px-2"
                     style={{
                       left: e.labelX, top: e.labelY, width: e.labelW, height: e.labelH,
                       background: AVL_INK.surface,
-                      border: `1px solid ${emphasis ? AVL_INK.focus : AVL_INK.line}`,
+                      border: `1px solid ${emphasis || next ? AVL_INK.focus : AVL_INK.line}`,
                       fontFamily: AVL_FONT.mono, fontSize: 12,
-                      color: emphasis ? AVL_INK.focus : AVL_INK.text,
+                      color: emphasis ? AVL_INK.focus : next ? AVL_INK.text : AVL_INK.quiet,
                       fontWeight: emphasis ? 600 : 400,
+                      transition: motion,
                     }}
                   >
                     <Box as="span" className="whitespace-nowrap">{e.event}</Box>
+                    {step !== undefined ? (
+                      <Box
+                        as="span"
+                        data-testid="avl-om-step"
+                        className="absolute flex items-center justify-center rounded-full"
+                        style={{ left: -9, top: -9, width: 18, height: 18, fontSize: 10, fontWeight: 700, background: AVL_INK.focus, color: AVL_INK.onFocus }}
+                      >
+                        {step}
+                      </Box>
+                    ) : null}
+                    {next && guarded(e.trait, e.index) ? (
+                      <Box as="span" data-testid="avl-om-guard" className="absolute" style={{ right: -10, top: -10 }}>
+                        <AvlGlyph kind="guard" size="xs" showCaption={false} aria-label={t('stateMachine.guarded')} />
+                      </Box>
+                    ) : null}
                   </Box>
                 );
               })}
-              {layout.wires.map((wire) => (
+              {shownWires.map((wire) => (
                 <Box
                   key={`wire-label-${wire.key}`}
                   data-testid="avl-om-wire-label"
@@ -407,6 +478,8 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
               ))}
               {layout.states.map((s) => {
                 const active = actives.get(s.trait)?.has(s.name) === true;
+                const loop = layout.loops.find((l) => l.trait === s.trait && l.state === s.name);
+                const loopFired = loop !== undefined && loop.events.some((ev) => onRoute(s.trait, ev.index));
                 return (
                   <Box
                     key={`${s.trait}:${s.name}`}
@@ -414,16 +487,54 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                     data-trait={s.trait}
                     data-state={s.name}
                     data-active={active ? 'true' : 'false'}
-                    className="absolute flex items-center justify-center rounded-lg"
+                    className="absolute flex flex-col items-center justify-center gap-1 rounded-lg"
                     style={{
                       left: s.x, top: s.y, width: s.width, height: s.height,
-                      background: AVL_INK.surface,
+                      background: active ? avlTint(AVL_INK.focus, 10) : AVL_INK.surface,
                       border: `${active ? 2 : 1}px solid ${active ? AVL_INK.focus : AVL_INK.line}`,
                       boxShadow: s.isTerminal ? `0 0 0 3px ${AVL_INK.surface}, 0 0 0 4px ${AVL_INK.line}` : 'var(--shadow-sm)',
-                      fontFamily: AVL_FONT.body, fontSize: 13, fontWeight: active ? 600 : 500, color: AVL_INK.text,
+                      fontFamily: AVL_FONT.body, fontSize: 13, fontWeight: active ? 600 : 500, color: active ? AVL_INK.text : AVL_INK.quiet,
                     }}
                   >
-                    {s.name}
+                    <Box as="span">{s.name}</Box>
+                    {loop !== undefined ? (
+                      <Box
+                        data-testid="avl-om-loops"
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={loop.open}
+                        aria-label={t('stateMachine.selfEvents', { state: s.name, count: loop.events.length })}
+                        className="flex cursor-pointer items-center gap-1 rounded-full px-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        style={{
+                          pointerEvents: 'auto', fontSize: 11, fontWeight: 600,
+                          background: loopFired && routeOn ? AVL_INK.focus : AVL_INK.wash,
+                          color: loopFired && routeOn ? AVL_INK.onFocus : AVL_INK.quiet,
+                          transition: motion,
+                        }}
+                        onClick={() => toggleLoops(loopKey(s.trait, s.name))}
+                        onKeyDown={(ev: React.KeyboardEvent) => {
+                          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggleLoops(loopKey(s.trait, s.name)); }
+                        }}
+                      >
+                        <Icon name="repeat" size="xs" />
+                        {loop.events.length}
+                      </Box>
+                    ) : null}
+                    {loop?.open === true ? (
+                      <Box data-testid="avl-om-loop-list" className="flex flex-col items-center" style={{ fontFamily: AVL_FONT.mono, fontSize: 11 }}>
+                        {loop.events.map((ev) => (
+                          <Box
+                            as="span"
+                            key={`${ev.index}`}
+                            data-fired={onRoute(s.trait, ev.index) ? 'true' : 'false'}
+                            className="whitespace-nowrap"
+                            style={{ lineHeight: `${LOOP_LINE}px`, color: onRoute(s.trait, ev.index) ? AVL_INK.focus : active ? AVL_INK.text : AVL_INK.quiet, fontWeight: onRoute(s.trait, ev.index) ? 600 : 400 }}
+                          >
+                            {ev.event}
+                          </Box>
+                        ))}
+                      </Box>
+                    ) : null}
                   </Box>
                 );
               })}
