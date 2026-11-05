@@ -5,7 +5,7 @@
 //! `XState` / `XEvent` type/interface declarations, entity-type collection
 //! from fetch/persist effects, and agent row-type aliases. The handler's
 //! return type is the shared `EventResponse` (`@app/shared`, aliasing
-//! `@almadar/core`'s `OrbitalEventResponse`, §156) — no per-trait response
+//! `@almadar/core`'s `EventResponse`, §156) — no per-trait response
 //! interface. Call sites keep their own imports and wiring; this module owns
 //! only the shared middle.
 //!

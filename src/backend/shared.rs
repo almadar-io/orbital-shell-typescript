@@ -684,33 +684,26 @@ export * from './schemas/entities.js';
  * @packageDocumentation
  */
 
-import type { EventPayload, EventPayloadValue, EntityRow, FieldValue, OrbitalEventRequest, OrbitalEventResponse, ServerEffectResult, EmittedEvent, ClientEffectTuple } from '@almadar/core';
+import type { EventPayload, EventPayloadValue, EntityRow, FieldValue, ServerEffectResult, EmittedEvent, ClientEffectTuple } from '@almadar/core';
 
 /**
- * Request body for sending an event to the server — `@almadar/core`'s
- * canonical `OrbitalEventRequest`, the single upstream owner of this shape
- * (§156: the JS interpreter's `OrbitalServerRuntime`/`ServerBridge` carry
- * the identical fields, so the two execution paths cannot drift): `event`,
- * `eventId`, `payload`, `entityId`, `targetTrait`, `user`, `clientId`,
- * `tick`, `sourceTrait`, `traits` (stateless per-trait addressing — this
- * compiled server seeds `state` from `traits[].from`, see `handlers.rs`),
- * `entityByTrait` (the `@entity` frame per trait, replacing the retired
- * single `fields`), and `behavior`.
+ * Request body and response of one event dispatch: `@almadar/core`'s
+ * `EventRequest`/`EventResponse`, generated from the kernel wire types, so
+ * the compiled server and the kernel cannot drift.
+ *
+ * `EventRequest`: `event`, `eventId`, `payload`, `entityId`, `targetTrait`,
+ * `user`, `clientId`, `tick`, `sourceTrait`, `traits` (stateless per-trait
+ * addressing; this compiled server seeds `state` from `traits[].from`, see
+ * `handlers.rs`), `entityByTrait` (the `@entity` frame per trait) and
+ * `behavior`.
+ *
+ * `EventResponse`: `success`, `transitioned`, `states` (whole-orbital
+ * snapshot keyed by trait name), `emittedEvents` (ALWAYS present, `[]` when
+ * none), `data`, `entityByTrait` (post-effect `@entity` frame per trait),
+ * `clientEffects`, `clientEffectsByTrait`, `effectResults`, `guardFailed`
+ * (`"<Trait>.<event>"` on every guard-rejection response), `error`.
  */
-export type EventRequest = OrbitalEventRequest;
-
-/**
- * Response from server after processing an event — `@almadar/core`'s
- * canonical `OrbitalEventResponse`, a straight alias (no hand-restated
- * subset, §156): `success`, `transitioned`, `states` (whole-orbital
- * snapshot keyed by trait name, replacing the retired single `newState`),
- * `emittedEvents` (ALWAYS present, `[]` when none),
- * `data`, `entityByTrait` (post-effect `@entity` frame per trait, replacing
- * the retired single `fields`), `clientEffects`, `clientEffectsByTrait`,
- * `effectResults`, `guardFailed` (`"<Trait>.<event>"` on every
- * guard-rejection response), `error`.
- */
-export type EventResponse = OrbitalEventResponse;
+export type { EventRequest, EventResponse } from '@almadar/core';
 
 export type { ServerEffectResult, EmittedEvent, ClientEffectTuple } from '@almadar/core';
 
@@ -1809,8 +1802,8 @@ mod config_named_type_import_tests {
 mod event_protocol_extends_core_tests {
     use super::*;
 
-    /// §156: `EventRequest`/`EventResponse` must be straight aliases of
-    /// `@almadar/core`'s canonical `OrbitalEventRequest`/`OrbitalEventResponse`
+    /// §156: `EventRequest`/`EventResponse` must be re-exports of
+    /// `@almadar/core`'s generated `EventRequest`/`EventResponse`
     /// — no hand-restated subset (`fields?: EntityRow`, a local `EmittedEvent`/
     /// `EffectResult`) — the two execution paths' event-protocol shapes drift
     /// the moment a hand-copied subset diverges from the canonical owner.
@@ -1822,21 +1815,20 @@ mod event_protocol_extends_core_tests {
 
         assert!(
             file.content.contains(
-                "import type { EventPayload, EventPayloadValue, EntityRow, FieldValue, OrbitalEventRequest, OrbitalEventResponse, ServerEffectResult, EmittedEvent, ClientEffectTuple } from '@almadar/core';"
+                "import type { EventPayload, EventPayloadValue, EntityRow, FieldValue, ServerEffectResult, EmittedEvent, ClientEffectTuple } from '@almadar/core';"
             ),
             "must import core's canonical event-wire types:\n{}",
             file.content
         );
         assert!(
             file.content
-                .contains("export type EventRequest = OrbitalEventRequest;"),
-            "EventRequest must be core's OrbitalEventRequest, not a hand-copied subset:\n{}",
+                .contains("export type { EventRequest, EventResponse } from '@almadar/core';"),
+            "EventRequest/EventResponse must be core's generated wire types, re-exported:\n{}",
             file.content
         );
         assert!(
-            file.content
-                .contains("export type EventResponse = OrbitalEventResponse;"),
-            "EventResponse must be core's OrbitalEventResponse, not a hand-restated interface:\n{}",
+            !file.content.contains("OrbitalEvent"),
+            "core no longer exports OrbitalEventRequest/OrbitalEventResponse:\n{}",
             file.content
         );
         assert!(
@@ -1858,7 +1850,7 @@ mod event_protocol_extends_core_tests {
 
     /// §156 fixture parity: every top-level key the recorded `render-ui-3`
     /// response fixture carries must be traceable in the generated types
-    /// file's text — a straight `= OrbitalEventResponse` alias documents its
+    /// file's text — the `EventResponse` re-export documents its
     /// members in its doc comment (see the header above `EventResponse`), so
     /// this is a string-level check, not a typecheck: it catches the doc
     /// comment (and thus a human reviewer) falling behind the wire shape the

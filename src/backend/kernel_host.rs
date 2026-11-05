@@ -11,13 +11,13 @@ const SHARED_DISPATCH: &str = r#"/**
  * @packageDocumentation
  */
 
-import type { OrbitalEventRequest, OrbitalEventResponse } from '@almadar/core';
+import type { EventRequest, EventResponse } from '@almadar/core';
 
 export interface DispatchPushItem {
   type: 'dispatch';
   orbitalName: string;
-  request: OrbitalEventRequest;
-  response: OrbitalEventResponse;
+  request: EventRequest;
+  response: EventResponse;
 }
 "#;
 
