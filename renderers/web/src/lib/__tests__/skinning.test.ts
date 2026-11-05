@@ -100,7 +100,7 @@ describe('skinVertices', () => {
 describe('invertAffine / composeAffine', () => {
     it('invertAffine inverts compose chains', () => {
         const world = computeWorldMatrices(bones, { root: 30, child: -15 });
-        const inv = invertAffine(world[1]);
+        const inv = invertAffine(world[1], 1);
         const identity = composeAffine(world[1], inv);
         closeTo(applyAffine(identity, 7, -3), 7, -3);
     });

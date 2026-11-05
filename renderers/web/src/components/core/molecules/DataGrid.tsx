@@ -337,8 +337,7 @@ export function DataGrid({
   // buttons and the overflow menu alike.
   const fireAction = (action: DataGridItemAction, itemData: EntityRow) => {
     if (action.navigatesTo !== undefined) {
-      const url = resolveActionRoute(action.navigatesTo, itemData);
-      if (url !== null) navStack.goTo(url);
+      navStack.goTo(resolveActionRoute(action.navigatesTo, itemData));
       return;
     }
     fireRowAction(action, itemData, String(itemData.id ?? ""));

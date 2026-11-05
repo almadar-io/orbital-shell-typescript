@@ -165,7 +165,7 @@ export const AvlStateMachine: React.FC<AvlStateMachineProps> = ({
 
   const visitOrder = useMemo(() => new Map((visitedStates ?? []).map((s, i) => [s, i + 1])), [visitedStates]);
   const nextFromActive = useMemo(
-    () => new Set(trait.transitions.filter((tr) => activeState !== undefined && (Array.isArray(tr.from) ? tr.from.includes(activeState) : tr.from === activeState)).map((tr) => tr.index)),
+    () => new Set(trait.transitions.filter((tr) => activeState !== undefined && tr.from === activeState).map((tr) => tr.index)),
     [trait.transitions, activeState],
   );
 
@@ -283,7 +283,7 @@ export const AvlStateMachine: React.FC<AvlStateMachineProps> = ({
                     tabIndex={clickable ? 0 : undefined}
                     aria-current={fired ? 'true' : undefined}
                     onClick={clickable ? () => {
-                      const payload = { index: tr.index, event: tr.event, from: e.from, to: tr.to };
+                      const payload = { index: tr.index, event: tr.event, from: tr.from, to: tr.to };
                       onTransitionClick?.(payload);
                       if (transitionClickEvent) eventBus.emit(`UI:${transitionClickEvent}`, payload);
                     } : undefined}

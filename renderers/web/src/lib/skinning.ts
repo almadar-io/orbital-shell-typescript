@@ -56,8 +56,9 @@ export function composeAffine(a: Affine2D, b: Affine2D): Affine2D {
     return JSON.parse(kernelEvaluator().skinComposeAffine(JSON.stringify(a), JSON.stringify(b))) as Affine2D;
 }
 
-export function invertAffine(m: Affine2D): Affine2D {
-    return JSON.parse(kernelEvaluator().skinInvertAffine(JSON.stringify(m))) as Affine2D;
+/** `bone` is the index the kernel names when the matrix is singular. */
+export function invertAffine(m: Affine2D, bone: number): Affine2D {
+    return JSON.parse(kernelEvaluator().skinInvertAffine(JSON.stringify(m), bone)) as Affine2D;
 }
 
 export function applyAffine(m: Affine2D, x: number, y: number): [number, number] {

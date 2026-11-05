@@ -9,7 +9,7 @@
  */
 import type React from 'react';
 import { kernelEvaluator, type Asset } from '@almadar/core';
-import type { DrawableBase, Projector } from '../../../lib/drawable/contract';
+import type { DrawableBase } from '../../../lib/drawable/contract';
 import type { DrawableNode } from '../../../lib/drawable/paintDispatch';
 import type { FxItem, FxPreset } from '../../../core';
 
@@ -32,17 +32,25 @@ export interface DrawFxLayerProps extends DrawableBase {
     textColor?: string;
 }
 
-/** Expand through the same pure Rust projector native Canvas calls at its paint clock. */
+const DEFAULT_TICK_MS = 500;
+const DEFAULT_TEXT_COLOR = '#ffe066';
+const DEFAULT_FONT_FAMILY = 'system-ui, sans-serif';
+
+/** Expand through the same pure Rust projector native Canvas calls at its paint clock; `tileWidth` is the pixels one world unit paints at. */
 export function expandFxLayer(
     node: DrawFxLayerProps,
     epochNowMs: number,
     dim: FxDimension,
-    projector?: Projector,
-    fontFamily?: string,
+    tileWidth: number,
+    fontFamily: string | undefined,
 ): DrawableNode[] {
-    return JSON.parse(kernelEvaluator().expandFxLayer(
-        JSON.stringify(node), epochNowMs, dim, projector?.tileWidth, fontFamily,
-    )) as DrawableNode[];
+    const layer = {
+        ...node,
+        tickMs: node.tickMs ?? DEFAULT_TICK_MS,
+        textColor: node.textColor ?? DEFAULT_TEXT_COLOR,
+        fontFamily: fontFamily ?? DEFAULT_FONT_FAMILY,
+    };
+    return JSON.parse(kernelEvaluator().expandFxLayer(JSON.stringify(layer), epochNowMs, dim, tileWidth)) as DrawableNode[];
 }
 
 /** Registry/standalone stub — the host paints this molecule; the DOM renders nothing. */

@@ -496,94 +496,6 @@ pub fn event_wires(schema_json: String) -> napi::Result<String> {
 }
 
 #[napi]
-pub fn avl_transition_playback(
-    machine_json: String,
-    transition_index: u32,
-    orbital: String,
-    trait_name: String,
-    scene_json: String,
-    cursor: i32,
-) -> napi::Result<String> {
-    api::avl_transition_playback(
-        &machine_json,
-        transition_index as usize,
-        &orbital,
-        &trait_name,
-        &scene_json,
-        cursor,
-    )
-    .map_err(js)
-}
-
-#[napi]
-pub fn avl_trace_playback(
-    machine_json: String,
-    trait_name: String,
-    traces_json: String,
-) -> napi::Result<String> {
-    api::avl_trace_playback(&machine_json, &trait_name, &traces_json).map_err(js)
-}
-
-#[napi]
-pub fn avl_state_machine_playback(
-    machine_json: String,
-    orbital: String,
-    trait_name: String,
-    scene_json: String,
-    cursor: i32,
-) -> napi::Result<String> {
-    api::avl_state_machine_playback(&machine_json, &orbital, &trait_name, &scene_json, cursor)
-        .map_err(js)
-}
-
-#[napi]
-pub fn avl_arm_indexes(machine_json: String, from: String, event: String) -> napi::Result<String> {
-    api::avl_arm_indexes(&machine_json, &from, &event).map_err(js)
-}
-
-#[napi]
-pub fn avl_fired_transition_index(machine_json: String, step_json: String) -> napi::Result<String> {
-    api::avl_fired_transition_index(&machine_json, &step_json).map_err(js)
-}
-
-#[napi]
-pub fn avl_traced_transition_index(
-    machine_json: String,
-    trace_json: String,
-) -> napi::Result<String> {
-    api::avl_traced_transition_index(&machine_json, &trace_json).map_err(js)
-}
-
-#[napi]
-pub fn avl_trait_level_from_description(description_json: String) -> napi::Result<String> {
-    api::avl_trait_level_from_description(&description_json).map_err(js)
-}
-
-#[napi]
-pub fn avl_trait_flow_graph(
-    schema_json: String,
-    orbital: String,
-    layers_json: String,
-) -> napi::Result<String> {
-    api::avl_trait_flow_graph(&schema_json, &orbital, &layers_json).map_err(js)
-}
-
-#[napi]
-pub fn avl_program_trait_levels(schema_json: String) -> napi::Result<String> {
-    api::avl_program_trait_levels(&schema_json).map_err(js)
-}
-
-#[napi]
-pub fn avl_described_transition_lines(
-    description_json: String,
-    running_json: String,
-    transition_index: u32,
-) -> napi::Result<String> {
-    api::avl_described_transition_lines(&description_json, &running_json, transition_index as usize)
-        .map_err(js)
-}
-
-#[napi]
 pub fn skin_world_matrices(bones_json: String, pose_json: String) -> napi::Result<String> {
     api::skin_world_matrices(&bones_json, &pose_json).map_err(js)
 }
@@ -603,8 +515,8 @@ pub fn skin_compose_affine(a_json: String, b_json: String) -> napi::Result<Strin
 }
 
 #[napi]
-pub fn skin_invert_affine(matrix_json: String) -> napi::Result<String> {
-    api::skin_invert_affine(&matrix_json).map_err(js)
+pub fn skin_invert_affine(matrix_json: String, bone: u32) -> napi::Result<String> {
+    api::skin_invert_affine(&matrix_json, bone).map_err(js)
 }
 
 #[napi]
@@ -662,17 +574,9 @@ pub fn expand_fx_layer(
     layer_json: String,
     epoch_now_ms: f64,
     dimension: String,
-    tile_width: Option<f64>,
-    font_family: Option<String>,
+    tile_width: f64,
 ) -> napi::Result<String> {
-    api::expand_fx_layer(
-        &layer_json,
-        epoch_now_ms,
-        &dimension,
-        tile_width,
-        font_family.as_deref(),
-    )
-    .map_err(js)
+    api::expand_fx_layer(&layer_json, epoch_now_ms, &dimension, tile_width).map_err(js)
 }
 
 #[napi]

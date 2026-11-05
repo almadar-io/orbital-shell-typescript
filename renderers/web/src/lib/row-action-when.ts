@@ -124,26 +124,36 @@ export function rowActionPayload<A extends RowConditionalAction>(
   }
 }
 
-/** Resolve a declared destination against the row and viewer. Invalid expressions do not navigate. */
+/** A declared destination that is malformed, not a string, or threw: the click cannot navigate, and says why. */
+export class RowActionRouteError extends Error {
+  readonly route: RowActionRoute;
+  readonly reason: string;
+
+  constructor(route: RowActionRoute, reason: string) {
+    super(`row action route ${JSON.stringify(route)} cannot be resolved: ${reason}`);
+    this.name = 'RowActionRouteError';
+    this.route = route;
+    this.reason = reason;
+  }
+}
+
+/** Resolve a declared destination against the row and viewer; throws `RowActionRouteError` when it does not resolve to a string. */
 export function rowActionRoute(
   destination: RowActionRoute,
   row: EntityRow,
   bindings: RowActionBindings,
-): string | null {
+): string {
   if (typeof destination === 'string') return destination;
   const lambda = lambdaParts(destination);
-  if (lambda === null) {
-    whenLog.warn('malformed-route', { route: JSON.stringify(destination) });
-    return null;
-  }
+  if (lambda === null) throw new RowActionRouteError(destination, 'not a (fn row <route>) lambda');
+  let value: ReturnType<typeof evaluateBinding>;
   try {
-    const value = evaluateBinding(contextFor(row, lambda.param, bindings), lambda.body);
-    if (typeof value === 'string') return value;
-    whenLog.warn('route-not-string', { route: JSON.stringify(destination) });
+    value = evaluateBinding(contextFor(row, lambda.param, bindings), lambda.body);
   } catch (error) {
-    whenLog.warn('route-threw', { message: error instanceof Error ? error.message : String(error) });
+    throw new RowActionRouteError(destination, error instanceof Error ? error.message : String(error));
   }
-  return null;
+  if (typeof value !== 'string') throw new RowActionRouteError(destination, 'the expression did not evaluate to a string');
+  return value;
 }
 
 /**

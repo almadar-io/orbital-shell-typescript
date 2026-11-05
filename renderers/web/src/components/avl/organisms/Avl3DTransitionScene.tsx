@@ -39,23 +39,14 @@ export const Avl3DTransitionScene: React.FC<Avl3DTransitionSceneProps> = ({
   const palette = useAvl3DPalette();
   const { t, locale } = useTranslate();
   if (!palette) return null;
-  const sources = Array.isArray(data.from) ? data.from : [data.from];
 
   return (
     <group>
       {/* From state (top) */}
-      {sources.map((from, index) => {
-        const x = (index - (sources.length - 1) / 2) * 2.5;
-        return (
-          <group key={`${from}-${index}`}>
-            <Avl3DStateNode name={from} position={[x, 4, 0]} />
-            <mesh position={[x / 2, 3.1, 0]} rotation={[0, 0, -Math.atan2(x, 1.8)]}>
-              <cylinderGeometry args={[0.02, 0.02, Math.hypot(x, 1.8), 6]} />
-              <meshStandardMaterial color={palette.transitionArc} transparent opacity={0.5} />
-            </mesh>
-          </group>
-        );
-      })}
+      <Avl3DStateNode
+        name={data.from}
+        position={[0, 4, 0]}
+      />
 
       {/* Event box */}
       <group position={[0, 2.2, 0]}>
@@ -75,6 +66,12 @@ export const Avl3DTransitionScene: React.FC<Avl3DTransitionSceneProps> = ({
           fontSize={13}
         />
       </group>
+
+      {/* Connecting line: from state -> event */}
+      <mesh position={[0, 3.1, 0]}>
+        <cylinderGeometry args={[0.02, 0.02, 1.2, 6]} />
+        <meshStandardMaterial color={palette.transitionArc} transparent opacity={0.5} />
+      </mesh>
 
       {/* Guard gate (if guard exists) */}
       {data.guard && (

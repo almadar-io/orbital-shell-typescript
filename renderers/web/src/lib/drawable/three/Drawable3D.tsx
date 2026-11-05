@@ -183,7 +183,7 @@ function FxLayer3D({
     });
     if (!live) return null;
     const epochNow = typeof performance !== 'undefined' ? performance.timeOrigin + performance.now() : 0;
-    const children = expandFxLayer(node, epochNow, '3d', undefined, undefined);
+    const children = expandFxLayer(node, epochNow, '3d', projector.cellSize, undefined);
     return (
         <>
             {children.map((c, i) => (

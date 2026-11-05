@@ -5,9 +5,8 @@
 
 pub mod handler_header;
 mod service;
-mod theme;
 pub mod ts_ident;
 
 pub use service::*;
-pub use theme::*;
+pub use orbital_core_base::theme::{client_themes, generate_theme_css, theme_font_imports, ClientTheme};
 pub(crate) use ts_ident::ts_member_name;

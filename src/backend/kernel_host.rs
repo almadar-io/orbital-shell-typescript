@@ -52,25 +52,7 @@ pub fn client_runtime_files(module: &OirModule, language: &str) -> Vec<(String, 
         "defaultTheme": default_theme,
         "defaultMode": default_mode,
     });
-    let default_preset;
-    let styled: &[orbital_core_base::schema::types::ThemeDefinition] = if module.themes.is_empty() {
-        default_preset = orbital_core_base::theme::ThemePresets::installed()
-            .get(orbital_core_base::theme::DEFAULT_THEME_BASE)
-            .cloned()
-            .into_iter()
-            .collect::<Vec<_>>();
-        &default_preset
-    } else {
-        &module.themes
-    };
-    let mut css = String::new();
-    for url in crate::codegen::theme_font_imports(styled) {
-        css.push_str(&format!("@import url(\"{url}\");\n"));
-    }
-    for theme in styled {
-        css.push_str(&crate::codegen::generate_theme_css(theme));
-        css.push('\n');
-    }
+    let css = orbital_core_base::theme::program_themes_css(&module.themes);
     let mut files = vec![
         ("client.json".to_string(), serde_json::to_string_pretty(&manifest).unwrap_or_default()),
         ("themes.css".to_string(), css),

@@ -398,8 +398,7 @@ export function DataList({
   // navigatesTo-first with early return, as DataGrid does: a navigating action never also emits.
   const fireAction = (action: DataListItemAction, itemData: EntityRow) => {
     if (action.navigatesTo !== undefined) {
-      const url = resolveActionRoute(action.navigatesTo, itemData);
-      if (url !== null) navStack.goTo(url);
+      navStack.goTo(resolveActionRoute(action.navigatesTo, itemData));
       return;
     }
     fireRowAction(action, itemData, String(itemData.id ?? ""));

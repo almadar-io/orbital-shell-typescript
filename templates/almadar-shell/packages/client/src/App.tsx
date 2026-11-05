@@ -58,7 +58,7 @@ function KernelApp(): React.ReactElement | null {
       {...(SERVERLESS ? {} : { transport })}
       lazyLoader={lazyLoader}
       schemaPath={PROGRAM_URL}
-      height="auto"
+      height="100dvh"
       frame="page"
       className="border-0 rounded-none"
       initialPagePath={firstPath.current}

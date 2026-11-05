@@ -68,18 +68,4 @@ describe('computeTraitLayout with renderer metrics', () => {
       expect(onWire, `${e.event} label off its wire`).toBe(true);
     }
   });
-
-  it('draws every declared source while keeping one transition index', async () => {
-    const trait: TraitLevelData = {
-      ...CYCLIC,
-      transitions: [{ from: ['browsing', 'editing'], to: 'saving', event: 'SAVE', guard: null, effects: [], index: 7 }],
-    };
-    const layout = await computeTraitLayout(trait, METRICS);
-    expect(layout.edges.map((edge) => ({ from: edge.from, to: edge.to, index: edge.index })))
-      .toEqual(expect.arrayContaining([
-        { from: 'browsing', to: 'saving', index: 7 },
-        { from: 'editing', to: 'saving', index: 7 },
-      ]));
-    expect(layout.edges).toHaveLength(2);
-  });
 });

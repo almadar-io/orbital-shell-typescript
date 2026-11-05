@@ -35,8 +35,8 @@ export function useRowActionPayload(): <A extends RowConditionalAction>(action: 
   );
 }
 
-/** Resolve an action destination with the same ambient viewer as its condition and payload. */
-export function useRowActionRoute(): (destination: RowActionRoute, row: EntityRow) => string | null {
+/** Resolve an action destination with the same ambient viewer as its condition and payload; an unresolvable one throws `RowActionRouteError`. */
+export function useRowActionRoute(): (destination: RowActionRoute, row: EntityRow) => string {
   const { user } = useUser();
   return useCallback((destination: RowActionRoute, row: EntityRow) => rowActionRoute(destination, row, { user }), [user]);
 }
