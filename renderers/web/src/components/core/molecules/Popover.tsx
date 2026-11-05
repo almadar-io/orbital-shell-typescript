@@ -374,6 +374,9 @@ export const Popover: React.FC<PopoverProps> = ({
       style={{
         left: placement.left,
         top: placement.top,
+        // Sized by its content, not by the room right of `left`: a placement-dependent width re-places it forever.
+        width: 'max-content',
+        maxWidth: `calc(100vw - ${2 * VIEWPORT_EDGE_PADDING}px)`,
         ...(popoverWidth === 0 ? { visibility: 'hidden' as const } : undefined),
       }}
       {...domPassthrough(rest)}
