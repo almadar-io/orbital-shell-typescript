@@ -26,13 +26,8 @@ export interface DispatchPushItem {
 /// Top-level keys the client never reads: `_metadata` and `ledger` are read only by the builders and
 /// behavior composition, never by `OrbPreview`, the client kernel or the wasm kernel (which is handed
 /// `{ name, orbitals }` only).
-const CLIENT_UNREAD_PROGRAM_KEYS: [&str; 2] = ["_metadata", "ledger"];
 
-/// Per-trait keys the client never reads: the wasm kernel's schema types carry them but no kernel
-/// code reads them, and no client path reads `sourceEntityDefinition`.
-const CLIENT_UNREAD_TRAIT_KEYS: [&str; 2] = ["effectRow", "sourceEntityDefinition"];
 
-/// The resolved program as the browser receives it: route pages only (the client takes the routes, EXEC-ENDPOINT-5). The server keeps the whole program.
 /// The program's files the program-independent web client reads at startup, by path under the
 /// client's public root: `client.json` (the `ClientManifest`), `themes.css` (the declared themes, or
 /// the runtime default preset when it declares none) and `language.json`, the installed language every browser
@@ -70,44 +65,7 @@ pub fn client_program_orb(schema: &orbital_core_base::schema::types::OrbitalSche
 }
 
 pub(crate) fn client_program(program: &serde_json::Value) -> serde_json::Value {
-    let mut projected = program.clone();
-    let Some(root) = projected.as_object_mut() else {
-        return projected;
-    };
-    for key in CLIENT_UNREAD_PROGRAM_KEYS {
-        root.remove(key);
-    }
-    if let Some(orbitals) = root
-        .get_mut("orbitals")
-        .and_then(serde_json::Value::as_array_mut)
-    {
-        // The client serves routes only (EXEC-ENDPOINT-5): an orbital whose every page is a protocol endpoint is the server's.
-        orbitals.retain(|orbital| !orbital_core_base::runs_on::serves_only_protocol_pages(orbital));
-        for orbital in orbitals {
-            if let Some(pages) = orbital
-                .get_mut("pages")
-                .and_then(serde_json::Value::as_array_mut)
-            {
-                pages.retain(|page| page.get("protocol").is_none());
-            }
-            let traits = orbital
-                .get_mut("traits")
-                .and_then(serde_json::Value::as_array_mut);
-            for trait_def in traits.into_iter().flatten() {
-                if let Some(trait_def) = trait_def.as_object_mut() {
-                    for key in CLIENT_UNREAD_TRAIT_KEYS {
-                        trait_def.remove(key);
-                    }
-                }
-            }
-        }
-    }
-    // A browser kernel has no operator table: the sites of the effects its traits run travel with the program.
-    let metadata = orbital_core_base::runs_on::client_program_metadata(root.get("orbitals").unwrap_or(&serde_json::Value::Null));
-    if !metadata.is_empty() {
-        root.insert("_metadata".to_string(), serde_json::Value::Object(metadata));
-    }
-    projected
+    orbital_core_base::runs_on::client_program(program)
 }
 
 impl TypeScriptBackend {
