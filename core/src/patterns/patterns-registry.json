@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-06T19:18:56.566Z",
+  "exportedAt": "2026-11-06T20:43:36.032Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -97014,6 +97014,11 @@
                 "string"
               ]
             },
+            "buffer": {
+              "types": [
+                "GpuBuffer"
+              ]
+            },
             "stride": {
               "types": [
                 "number"
@@ -97036,7 +97041,6 @@
             }
           },
           "propertyRequired": [
-            "data",
             "stride",
             "radius",
             "palette"
@@ -103281,6 +103285,11 @@
                 "string"
               ]
             },
+            "buffer": {
+              "types": [
+                "GpuBuffer"
+              ]
+            },
             "stride": {
               "types": [
                 "number"
@@ -103303,7 +103312,6 @@
             }
           },
           "propertyRequired": [
-            "data",
             "stride",
             "radius",
             "palette"

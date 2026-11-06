@@ -944,6 +944,7 @@ export {
   DeploymentSchema,
   unionOsGrants,
 } from "./os-grants.js";
+export type { GpuBuffer } from "./gpu.js";
 
 // ============================================================================
 // Pattern Types

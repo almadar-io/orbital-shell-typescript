@@ -15,7 +15,7 @@
 
 import * as React from 'react';
 import { useEffect, useId, useRef, useCallback, useMemo, useState } from 'react';
-import type { A11yProps, EventKey } from '@almadar/core';
+import type { A11yProps, EventKey, GpuBuffer } from '@almadar/core';
 import { useKeyMapEvents } from '../../../hooks/useKeyMapEvents';
 import { Box } from '../../../core';
 import { domPassthrough } from '../../../core';
@@ -123,8 +123,10 @@ export interface LearningShape extends DiagramMarkRoles {
  * 0-11, y in bits 12-23 and a `palette` index in bits 24-31. Drawn in one pass, without a shape per particle.
  */
 export interface LearningParticles {
-  /** The packed words as base64 bytes. */
-  data: string;
+  /** The packed words as base64 bytes (a CPU copy); exactly one of `data` or `buffer`. */
+  data?: string;
+  /** The packed words where they lie on the GPU (a program's compute output, drawn without a readback). */
+  buffer?: GpuBuffer;
   /** Bytes from one particle's word to the next. */
   stride: number;
   /** Drawn half-size of each particle, in scene pixels. */
@@ -614,7 +616,7 @@ function drawableNeedsAnimation(nodes: DrawableNode[] | undefined): boolean {
 
 /** Each palette index's particle positions, as x, y pairs. */
 export function decodeParticles(particles: LearningParticles): number[][] {
-  const binary = atob(particles.data);
+  const binary = atob(particles.data ?? '');
   const buckets: number[][] = particles.palette.map(() => []);
   if (buckets.length === 0 || particles.stride < 4) return buckets;
   for (let at = 0; at + 4 <= binary.length; at += particles.stride) {

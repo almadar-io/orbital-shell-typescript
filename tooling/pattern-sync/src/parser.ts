@@ -1415,6 +1415,9 @@ function mapTypeNode(
     // `string` config knob declared as the `asset` config type, which the
     // property inspector dispatches an AssetPicker on.
     if (typeName === "AssetUrl" && coreImports.has("AssetUrl")) return emptyMapped(["asset"]);
+    // `GpuBuffer` from `@almadar/core` — a sealed kernel handle; the registry type is the sealed type's name, so
+    // a prop typed with it takes only a `GpuBuffer` binding (EXEC-GPU-7).
+    if (typeName === "GpuBuffer" && coreImports.has("GpuBuffer")) return emptyMapped(["GpuBuffer"]);
     // `Asset` — the UNIFIED asset struct from `@almadar/core` (`{ url: AssetUrl; role;
     // category; animations?; style?; dimension?; aspect?; ... }`). It is an imported
     // interface (not in the local `interfaces` map), so expand it explicitly here so the
