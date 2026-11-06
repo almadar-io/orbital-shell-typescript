@@ -23,8 +23,19 @@ export type {
   SubstrateFailureWire,
 } from '@almadar/core/kernel-wire';
 
+/** The wasm `GpuHost` (orbital-wasm): the browser's GPU answerer, installed into a kernel `Server` with `installGpu`. */
+export interface KernelGpuHost {
+  closeAll(): void;
+}
+
 /** The `Server` class of `@almadar/kernel` (wasm-bindgen), as the runtime uses it. */
 export interface KernelServerHandle {
+  /** Install the GPU answerer: the server then holds every `gpu/` ask, and the host answers it by ticket. */
+  installGpu(gpu: KernelGpuHost): void;
+  /** Answer the held `gpu` ask `ticket`: the `IoAnswerWire` JSON to reply with. A deferred completion reaches `completed` as `HeldGpuCompletion` JSON, or `null`. */
+  answerGpu(ticket: number, completed: (completionJson: string) => void): Promise<string>;
+  /** Drop a held completion payload no request will start. */
+  dropHeldPayload(ticket: number): boolean;
   start(orbital: string, requestJson: string): string;
   resume(flight: number, repliesJson: string): string;
   /** The oldest request the kernel queued, started now the lane is free: a `NextWire` as JSON, or `null`. */

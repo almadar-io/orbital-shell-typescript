@@ -890,11 +890,6 @@
     "description": "A device reaches a resting state on some path without being closed"
   },
   {
-    "code": "ORB_GPU_READ_BEFORE_SUBMIT",
-    "category": "gpu",
-    "description": "A gpu/read of a buffer on a path where no gpu/submit success transition follows its last write or creation"
-  },
-  {
     "code": "ORB_GPU_SHADER_INVALID",
     "category": "os",
     "description": "A literal gpu/shader-create WGSL source that naga refuses to parse or validate"

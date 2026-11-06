@@ -571,6 +571,7 @@ export class OrbitalServerRuntime {
       deferCallOutcome: () => this.hostDispatchSink === null ? undefined : (call) => this.runDeferredOutcome(call.orbital, {
         event: call.event,
         ...(call.payload !== undefined ? { payload: call.payload } : {}),
+        ...(call.heldPayload !== undefined ? { heldPayload: call.heldPayload } : {}),
         targetTrait: call.traitName,
         ...(call.entityId !== undefined ? { entityId: call.entityId } : {}),
         ...(call.originClientId !== undefined ? { clientId: call.originClientId } : {}),

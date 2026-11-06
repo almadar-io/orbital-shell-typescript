@@ -34,7 +34,7 @@ type ProgramEffectResult = Extract<ProgramEffectOutcome, { ok: true }>['result']
 import { embedOnDevice, OnDeviceModelFailure, promptOnDevice } from '../effects/on-device-model.js';
 import { base64Standard, systemRandom, type CredentialAdminPort, type SecretPorts } from './secret-ports.js';
 import type { EventRequest, OsError } from '@almadar/core/kernel-wire';
-import type { CallSiteWire, IoAnswerWire, IoRequestWire, KernelModule, Settled, SubstrateFailureWire } from './wire.js';
+import type { CallSiteWire, IoAnswerWire, IoRequestWire, KernelGpuHost, KernelModule, Settled, SubstrateFailureWire } from './wire.js';
 import type { OsCompletionEvent, OsCompletionPort, OsHostPort, OsTlsPort } from './os-port.js';
 import { TabHostFailure, type BrowserTabPort } from '@almadar/core';
 
@@ -65,6 +65,8 @@ export interface DeferredCallOutcome {
   traitName: string;
   event: string;
   payload: EventPayload | undefined;
+  /** The payload is held in the kernel under this ticket (a `gpu/` completion): the request names it instead of carrying it. */
+  heldPayload?: number;
   entityId: string | undefined;
   originClientId: string | undefined;
   locale: string | undefined;
@@ -165,6 +167,27 @@ export interface KernelHostPorts {
   substrateCompletion?: (site: CallSiteWire, key: string, op: string, args: readonly JsonValue[], outcome: Settled<JsonValue, SubstrateFailureWire>) => OsCompletionEvent | null;
   /** The host clock in epoch milliseconds, answering the kernel's `clock` ask; absent, the system clock. */
   now?: () => number;
+  /** The browser's GPU answerer, installed into the kernel: every `gpu/` ask is then held and answered there. */
+  gpu?: KernelGpuHost;
+  /** The GPU answerer installed in the kernel (bound by the engine from `gpu`): it answers a held `gpu` ask by ticket, so its bytes never reach this host. */
+  heldGpu?: HeldGpuPort;
+}
+
+/** A deferred held `gpu/` ask's completion: the route event and the ticket its payload is held under in the kernel. */
+export interface HeldGpuCompletion {
+  orbital?: string;
+  traitName: string;
+  entityId?: string;
+  event: string;
+  heldPayload: number;
+}
+
+/** The kernel's own GPU answerer (orbital-wasm `Server.answerGpu`), bound to the kernel the host runs. */
+export interface HeldGpuPort {
+  /** `completed` runs once for a deferred ask: its completion, or `null` when the outcome takes no declared route. */
+  answer(ticket: number, completed: (completion: HeldGpuCompletion | null) => void): Promise<IoAnswerWire>;
+  /** Drop a held completion payload no request will start. */
+  drop(heldPayload: number): void;
 }
 
 /** What one dispatch brings to its answers. */
@@ -824,6 +847,43 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
   return { kind: 'os', result: await os.answer(op, args, asking) };
 }
 
+/**
+ * `gpu`: an ask the kernel holds for the GPU answerer installed in it. The host passes the ticket back and never sees the
+ * arguments or the answer. A deferred completion runs as a dispatch of its own through the follow-on sink, naming the
+ * payload the kernel holds; a cancelled key's completion is dropped.
+ */
+async function heldGpuAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'gpu' }>, scope: KernelAnswerScope): Promise<IoAnswerWire> {
+  const held = ports.heldGpu;
+  if (held === undefined) return { kind: 'os', result: { error: { kind: 'unsupported', message: `${request.op}: this host installed no gpu answerer` } } };
+  const { key } = request;
+  const lease = key === undefined ? undefined : ports.inFlightCalls.reserve(key);
+  if (key !== undefined && lease === undefined) {
+    return { kind: 'os', result: { error: { kind: 'invalid', message: `${request.op}: key ${key} already has a completion pending` } } };
+  }
+  const answer = await held.answer(request.ticket, (completion) => {
+    const aborted = lease?.signal.aborted === true;
+    lease?.release();
+    if (completion === null) return;
+    const sink = ports.deferCallOutcome();
+    if (aborted || sink === undefined) {
+      held.drop(completion.heldPayload);
+      return;
+    }
+    sink({
+      orbital: completion.orbital ?? scope.orbital,
+      traitName: completion.traitName,
+      event: completion.event,
+      payload: undefined,
+      heldPayload: completion.heldPayload,
+      entityId: completion.entityId,
+      originClientId: scope.originClientId,
+      locale: scope.locale,
+    });
+  });
+  if (answer.kind !== 'serviceDeferred') lease?.release();
+  return answer;
+}
+
 async function secret(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'secret' }>): Promise<IoAnswerWire> {
   const store = ports.secretPorts?.secrets;
   if (store === undefined) return { kind: 'secret', result: { error: SECRET_PORTS_UNAVAILABLE } };
@@ -1030,6 +1090,8 @@ export async function answerRequest(ports: KernelHostPorts, request: IoRequestWi
       return random(ports, request);
     case 'os':
       return osAnswer(ports, request, scope);
+    case 'gpu':
+      return heldGpuAnswer(ports, request, scope);
     case 'clock':
       return { kind: 'clock', result: { ok: (ports.now ?? Date.now)() } };
     case 'sealed':

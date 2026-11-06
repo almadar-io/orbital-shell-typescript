@@ -3,12 +3,12 @@
  * body bytes raw. The method, the url and the egress check are the kernel's. With `stream: true` the answer comes
  * as soon as the head arrives, with an empty body and a `handle`: `os/recv` on the handle answers the next bytes
  * (`{ data, eof }`, at most `count`) and `os/close` releases it. Every other `os` operation is refused
- * `unsupported`, as a native host refuses `os/fetch`. With a `gpu` port every `gpu/*` ask goes to it, the deferring
- * ones (`defer`) as background work; without one they answer `unsupported`.
+ * `unsupported`, as a native host refuses `os/fetch`. A `gpu/*` ask reaches this port only when no GPU answerer is
+ * installed in the kernel (the GPU answers inside the kernel, `KernelHostPorts.gpu`), so it answers `unsupported`.
  */
 import type { JsonValue } from '@almadar/core';
 import type { OsError, OsErrorKind, OsOp, Settled } from '@almadar/core/kernel-wire';
-import type { GpuAnswerPort, OsHostPort } from './os-port.js';
+import type { OsHostPort } from './os-port.js';
 import { base64Standard } from './secret-ports.js';
 
 type JsonObject = { [key: string]: JsonValue };
@@ -44,17 +44,10 @@ interface OpenBody {
 const failed = (kind: OsErrorKind, op: OsOp, message: string): { error: OsError } => ({ error: { kind, message: `${op}: ${message}` } });
 
 const isGpuOp = (op: OsOp): boolean => op.startsWith('gpu/');
-const noGpu = (op: OsOp): { error: OsError } => failed('unsupported', op, 'this host has no gpu');
+const noGpu = (op: OsOp): { error: OsError } => failed('unsupported', op, 'this host installed no gpu answerer');
 const fetchOnly = (op: OsOp): { error: OsError } => failed('unsupported', op, 'a browser host answers only os/fetch, and os/recv and os/close on the handle of a streamed one');
 
-export interface FetchOsHostOptions {
-  /** The gpu answerer the embedding app supplies; absent, every `gpu/*` ask answers `unsupported`. */
-  gpu?: GpuAnswerPort;
-}
-
-export function createFetchOsHost(performFetch: typeof fetch, options: FetchOsHostOptions = {}): OsHostPort {
-  const { gpu } = options;
-  const deferred = new Set<string>();
+export function createFetchOsHost(performFetch: typeof fetch): OsHostPort {
   const pending = new Set<AbortController>();
   const bodies = new Map<number, OpenBody>();
   let nextHandle = 1;
@@ -95,7 +88,7 @@ export function createFetchOsHost(performFetch: typeof fetch, options: FetchOsHo
 
   return {
     async answer(op: OsOp, args: JsonValue[]): Promise<Settled<JsonValue, OsError>> {
-      if (isGpuOp(op)) return gpu === undefined ? noGpu(op) : gpu.answer(op, args);
+      if (isGpuOp(op)) return noGpu(op);
       if (op === 'os/recv') return receive(args);
       if (op === 'os/close') return release(args);
       if (op !== 'os/fetch') return fetchOnly(op);
@@ -135,23 +128,7 @@ export function createFetchOsHost(performFetch: typeof fetch, options: FetchOsHo
         if (!kept) pending.delete(control);
       }
     },
-    defer(op: OsOp, args: JsonValue[], key: string, deliver: (outcome: Settled<JsonValue, OsError>) => void): Settled<null, OsError> {
-      if (!isGpuOp(op)) return fetchOnly(op);
-      if (gpu === undefined) return noGpu(op);
-      if (deferred.has(key)) return failed('invalid', op, `key ${key} already has a completion pending`);
-      deferred.add(key);
-      const finish = (outcome: Settled<JsonValue, OsError>): void => {
-        if (deferred.delete(key)) deliver(outcome);
-      };
-      gpu.answer(op, args).then(finish, (raised: unknown) => finish(failed('io', op, raised instanceof Error ? raised.message : 'the gpu failed')));
-      return { ok: null };
-    },
-    cancel(key: string): boolean {
-      return deferred.delete(key);
-    },
     close(): void {
-      gpu?.closeAll();
-      deferred.clear();
       for (const control of pending) control.abort();
       pending.clear();
       for (const open of bodies.values()) void open.reader.cancel().catch(() => undefined);

@@ -41,15 +41,6 @@ export interface OsAnchorProblem {
   message: string;
 }
 
-/**
- * The browser's gpu answerer (the wasm `GpuHost`): one `gpu/*` ask in, its answer out. Handles arrive as their plain
- * ids and bytes as base64 text, as every `os` ask crosses a JSON boundary; `closeAll` drops every object it holds.
- */
-export interface GpuAnswerPort {
-  answer(op: OsOp, args: JsonValue[]): Promise<Settled<JsonValue, OsError>>;
-  closeAll(): void;
-}
-
 /** What a host answers an `os` ask with; `close` drops every handle it holds, as the native `OsHandles::close_all`. */
 export interface OsHostPort {
   /** `orbital` is the orbital whose trait made the ask: its grants (plus the app's) answer it. */

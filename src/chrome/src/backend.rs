@@ -493,8 +493,8 @@ mod tests {
     #[test]
     fn the_worker_answers_gpu_asks_with_the_kernels_webgpu_answerer() {
         assert!(
-            WORKER.contains("createFetchOsHost(fetch, { gpu: new kernel.GpuHost() })"),
-            "EXEC-GPU-1: the browser host answers gpu/* through the wasm kernel's GpuHost over WebGPU"
+            WORKER.contains("gpu: new kernel.GpuHost()") && WORKER.contains("os: createFetchOsHost(fetch),"),
+            "EXEC-GPU-1: the browser host installs the wasm kernel's GpuHost in the kernel, which answers gpu/* over WebGPU itself"
         );
     }
 

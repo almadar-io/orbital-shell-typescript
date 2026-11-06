@@ -7,7 +7,7 @@ import { ExternalInputSchema, InboundAnswerSchema, InboundFoundSchema, InboundOn
 import type { ProgramSurface } from '@almadar/core/kernel-wire';
 import { LaneHeldByParkedDispatch } from './lane.js';
 
-import { decodeDueTicks, decodeNext, decodeProgress, decodeResolveProgress } from './decode.js';
+import { decodeAnswer, decodeDueTicks, decodeHeldCompletion, decodeNext, decodeProgress, decodeResolveProgress } from './decode.js';
 import { answerRequest, declareCapabilities, type KernelAnswerScope, type KernelHostPorts } from './host.js';
 import type { OsCompletionEvent } from './os-port.js';
 import type { FiredByOrbital, IoReplyWire, KernelModule, KernelServerHandle, ServerProgressWire } from './wire.js';
@@ -87,6 +87,12 @@ export class KernelEngine {
       ...ports,
       substrateMessage: (site, key, value): OsCompletionEvent | null => JSON.parse(kernel.osCompletionEvent(JSON.stringify({ ...site, emit: { success: site.emit.onMessage } }), key, JSON.stringify({ ok: value }))),
       substrateCompletion: (site, key, op, args, outcome): OsCompletionEvent | null => JSON.parse(kernel.substrateCompletionEvent(JSON.stringify(site), key, op, JSON.stringify(args), JSON.stringify(outcome))),
+      ...(ports.gpu !== undefined ? {
+        heldGpu: {
+          answer: async (ticket, completed) => decodeAnswer(await this.handle.answerGpu(ticket, (json) => completed(decodeHeldCompletion(json)))),
+          drop: (heldPayload) => { this.handle.dropHeldPayload(heldPayload); },
+        },
+      } : {}),
     };
     this.handle = providedHandle ?? forkedFrom?.fork() ?? this.openServer();
     this.declare();
@@ -111,8 +117,11 @@ export class KernelEngine {
   }
 
   /** A server over the host's ports. */
+  /** A server over the host's ports; the host's GPU answerer is installed in it, so it holds every `gpu/` ask. */
   private openServer(): KernelServerHandle {
-    return new this.kernel.Server(this.schemaJson, this.lazyDir);
+    const server = new this.kernel.Server(this.schemaJson, this.lazyDir);
+    if (this.ports.gpu !== undefined) server.installGpu(this.ports.gpu);
+    return server;
   }
 
   private declare(): void {

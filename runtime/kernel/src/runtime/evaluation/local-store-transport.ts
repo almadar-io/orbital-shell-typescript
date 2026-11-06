@@ -38,6 +38,8 @@ export interface LocalKernelOptions {
   tabs?: BrowserTabPort;
   /** The host's `os` port (`createFetchOsHost` in a browser); absent, every `os` ask is denied. */
   os?: OsHostPort;
+  /** The browser's GPU answerer (the kernel module's `GpuHost`), installed into the kernel; absent, every `gpu/` ask answers `unsupported`. */
+  gpu?: KernelHostPorts['gpu'];
 }
 
 /** A local store's rows as the kernel holds them: browser-stored entities in `store`, every other entity in `memory` (a native `MemoryStore` adapter). */
@@ -71,6 +73,7 @@ export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
     ...(options.onDevice !== undefined ? { onDevice: options.onDevice } : {}),
     ...(options.tabs !== undefined ? { tabs: options.tabs } : {}),
     ...(options.os !== undefined ? { os: options.os } : {}),
+    ...(options.gpu !== undefined ? { gpu: options.gpu } : {}),
   });
   // One client is served, and the ticks it asks for (`runTick`) are of traits it mounted.
   for (const trait of engine.programSurface().traits) engine.mountClient(LOCAL_CLIENT, trait.orbital, [trait.name]);

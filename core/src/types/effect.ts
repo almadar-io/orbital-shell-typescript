@@ -963,7 +963,7 @@ export type FfiEffect = ['ffi/call', ...SExpr[]];
  * submitted command list and readback, each handle a sealed value the kernel mints.
  * @example ['gpu/submit', '@entity.device', [{ compute: { pipeline: '@entity.pipeline', bindGroups: ['@entity.bindGroup'], dispatch: [64, 1, 1] } }], { emit: { success: 'DONE', failure: 'GPU_FAILED' } }]
  */
-export type GpuEffect = ['gpu/device-open' | 'gpu/device-close' | 'gpu/buffer-create' | 'gpu/texture-create' | 'gpu/sampler-create' | 'gpu/query-create' | 'gpu/shader-create' | 'gpu/pipeline-create' | 'gpu/bind-group-create' | 'gpu/write' | 'gpu/submit' | 'gpu/read' | 'gpu/release', ...SExpr[]];
+export type GpuEffect = ['gpu/device-open' | 'gpu/device-close' | 'gpu/buffer-create' | 'gpu/texture-create' | 'gpu/sampler-create' | 'gpu/query-create' | 'gpu/shader-create' | 'gpu/pipeline-create' | 'gpu/bind-group-create' | 'gpu/submit' | 'gpu/release', ...SExpr[]];
 
 /**
  * Program effects: read `.lolo` text into a quoted program, print one back,
@@ -1113,7 +1113,7 @@ export const EFFECT_OPERATORS = [
   'program/inputs', 'program/dispatch', 'program/open', 'program/navigate', 'program/close', 'program/live', 'program/self', 'program/tick', 'program/resolve-rows', 'persist/read-named',
   'mem/arena-new', 'mem/arena-drop', 'mem/alloc', 'mem/free', 'mem/borrow', 'mem/release', 'mem/write', 'mem/freeze',
   'mem/atomic-load', 'mem/atomic-store', 'mem/atomic-add', 'mem/atomic-cas', 'kernel/queue-front', 'kernel/queue-back', 'ffi/call',
-  'gpu/device-open', 'gpu/device-close', 'gpu/buffer-create', 'gpu/texture-create', 'gpu/sampler-create', 'gpu/query-create', 'gpu/shader-create', 'gpu/pipeline-create', 'gpu/bind-group-create', 'gpu/write', 'gpu/submit', 'gpu/read', 'gpu/release',
+  'gpu/device-open', 'gpu/device-close', 'gpu/buffer-create', 'gpu/texture-create', 'gpu/sampler-create', 'gpu/query-create', 'gpu/shader-create', 'gpu/pipeline-create', 'gpu/bind-group-create', 'gpu/submit', 'gpu/release',
 ] as const;
 
 /** Namespaced effect families (`<family>/<name>`, e.g. `llm/generate`) the {@link Effect} union declares. */

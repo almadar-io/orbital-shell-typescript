@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createFetchOsHost } from '../src/kernel/os-fetch-port.js';
-import { answerRequest, type KernelHostPorts } from '../src/kernel/host.js';
-import type { IoRequestWire, OsError, OsOp, Settled } from '@almadar/core/kernel-wire';
-import type { GpuAnswerPort } from '../src/kernel/os-port.js';
+import { answerRequest, type DeferredCallOutcome, type HeldGpuCompletion, type HeldGpuPort, type KernelHostPorts } from '../src/kernel/host.js';
+import { InFlightCalls } from '../src/effects/in-flight-calls.js';
+import type { IoAnswerWire, IoRequestWire, OsOp } from '@almadar/core/kernel-wire';
 import type { JsonValue } from '@almadar/core';
 
 const reply = (status: number, headers: Record<string, string>, body: string): Response => new Response(body, { status, headers });
@@ -107,72 +107,63 @@ describe('a browser program\'s os ask through the host loop', () => {
   });
 });
 
-describe('the browser os port (gpu/*)', () => {
-  const never = async (): Promise<Response> => { throw new Error('must not fetch'); };
-  const fake = (): { port: GpuAnswerPort; asked: Array<{ op: OsOp; args: JsonValue[] }>; closed: number[]; release: Array<() => void> } => {
-    const asked: Array<{ op: OsOp; args: JsonValue[] }> = [];
-    const closed: number[] = [];
-    const release: Array<() => void> = [];
-    const port: GpuAnswerPort = {
-      answer: (op, args) => {
-        asked.push({ op, args });
-        const id = asked.length;
-        return new Promise((resolve) => { release.push(() => resolve({ ok: { device: id } })); });
-      },
-      closeAll: () => { closed.push(1); },
+describe('a gpu ask the kernel holds (gpu/*)', () => {
+  const gpuAsk = (ticket: number, op: OsOp, key?: string): IoRequestWire => ({ kind: 'gpu', ticket, op, ...(key !== undefined ? { key } : {}) });
+  const scope = { orbital: 'Main', originClientId: 'tab-1', locale: 'en' };
+  const held = (answer: IoAnswerWire): { port: HeldGpuPort; asked: number[]; completions: Array<(c: HeldGpuCompletion | null) => void>; dropped: number[] } => {
+    const asked: number[] = [];
+    const completions: Array<(c: HeldGpuCompletion | null) => void> = [];
+    const dropped: number[] = [];
+    const port: HeldGpuPort = {
+      answer: async (ticket, completed) => { asked.push(ticket); completions.push(completed); return answer; },
+      drop: (heldPayload) => { dropped.push(heldPayload); },
     };
-    return { port, asked, closed, release };
+    return { port, asked, completions, dropped };
   };
+  const ports = (heldGpu: HeldGpuPort | undefined, sink: ((call: DeferredCallOutcome) => void) | undefined): KernelHostPorts =>
+    ({ deferCallOutcome: () => sink, inFlightCalls: new InFlightCalls(), ...(heldGpu !== undefined ? { heldGpu } : {}) } as KernelHostPorts);
+  const completion: HeldGpuCompletion = { traitName: 'Host', entityId: 'row-1', event: 'GOT', heldPayload: 41 };
 
-  it('answers a sync gpu ask through the port with its op and args', async () => {
-    const { port, asked, release } = fake();
-    const host = createFetchOsHost(never, { gpu: port });
-    const pending = host.answer('gpu/buffer-create', [1, { size: 4, usage: ['storage'] }]);
-    release[0]?.();
-    expect(await pending).toEqual({ ok: { device: 1 } });
-    expect(asked).toEqual([{ op: 'gpu/buffer-create', args: [1, { size: 4, usage: ['storage'] }] }]);
+  it('passes the ticket back and replies with the answer the kernel holds; the host never sees arguments', async () => {
+    const { port, asked } = held({ kind: 'gpuHeld', ticket: 7 });
+    expect(await answerRequest(ports(port, undefined), gpuAsk(3, 'gpu/buffer-create'), scope)).toEqual({ kind: 'gpuHeld', ticket: 7 });
+    expect(asked).toEqual([3]);
   });
 
-  it('defers a gpu ask: the port answer reaches deliver once, a cancelled key delivers nothing', async () => {
-    const { port, asked, release } = fake();
-    const host = createFetchOsHost(never, { gpu: port });
-    const delivered: Array<string> = [];
-    expect(host.defer?.('gpu/device-open', [{}], 'a', (outcome) => delivered.push(JSON.stringify(outcome)))).toEqual({ ok: null });
-    expect(host.defer?.('gpu/submit', [1, []], 'a', () => undefined)).toMatchObject({ error: { kind: 'invalid' } });
-    expect(host.defer?.('gpu/read', [2, 0, 4], 'b', (outcome) => delivered.push(JSON.stringify(outcome)))).toEqual({ ok: null });
-    expect(host.cancel?.('b')).toBe(true);
-    release.forEach((run) => run());
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(delivered).toEqual([JSON.stringify({ ok: { device: 1 } })]);
-    expect(asked.map((ask) => ask.op)).toEqual(['gpu/device-open', 'gpu/read']);
+  it('a deferred ask runs its completion through the follow-on sink naming the held payload, once per key', async () => {
+    const { port, completions, dropped } = held({ kind: 'serviceDeferred' });
+    const sunk: DeferredCallOutcome[] = [];
+    const host = ports(port, (call) => sunk.push(call));
+    expect(await answerRequest(host, gpuAsk(3, 'gpu/submit', 'k'), scope)).toEqual({ kind: 'serviceDeferred' });
+    expect(await answerRequest(host, gpuAsk(4, 'gpu/submit', 'k'), scope)).toMatchObject({ kind: 'os', result: { error: { kind: 'invalid' } } });
+    completions[0]?.(completion);
+    expect(sunk).toEqual([{ orbital: 'Main', traitName: 'Host', event: 'GOT', payload: undefined, heldPayload: 41, entityId: 'row-1', originClientId: 'tab-1', locale: 'en' }]);
+    expect(dropped).toEqual([]);
+    expect(await answerRequest(host, gpuAsk(5, 'gpu/submit', 'k'), scope)).toEqual({ kind: 'serviceDeferred' });
   });
 
-  it('delivers a port rejection as an io error', async () => {
-    const port: GpuAnswerPort = { answer: () => Promise.reject(new Error('lost')), closeAll: () => undefined };
-    const host = createFetchOsHost(never, { gpu: port });
-    const delivered: Array<Settled<JsonValue, OsError>> = [];
-    host.defer?.('gpu/read', [2, 0, 4], 'k', (outcome) => delivered.push(outcome));
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(delivered).toEqual([{ error: { kind: 'io', message: 'gpu/read: lost' } }]);
+  it('a completion that takes no route frees the key and starts nothing', async () => {
+    const { port, completions } = held({ kind: 'serviceDeferred' });
+    const sunk: DeferredCallOutcome[] = [];
+    const host = ports(port, (call) => sunk.push(call));
+    await answerRequest(host, gpuAsk(3, 'gpu/device-open', 'k'), scope);
+    completions[0]?.(null);
+    expect(sunk).toEqual([]);
+    expect(await answerRequest(host, gpuAsk(4, 'gpu/device-open', 'k'), scope)).toEqual({ kind: 'serviceDeferred' });
   });
 
-  it('close calls closeAll', () => {
-    const { port, closed } = fake();
-    createFetchOsHost(never, { gpu: port }).close();
-    expect(closed).toEqual([1]);
+  it('a completion with no sink to run it is dropped from the kernel, never left held', async () => {
+    const { port, completions, dropped } = held({ kind: 'serviceDeferred' });
+    await answerRequest(ports(port, undefined), gpuAsk(3, 'gpu/submit', 'k'), scope);
+    completions[0]?.(completion);
+    expect(dropped).toEqual([41]);
   });
 
-  it('control: without a gpu port every gpu ask answers unsupported with the host text, sync or deferred, and os/fetch is unaffected', async () => {
-    const host = createFetchOsHost(async () => reply(200, {}, 'ok'));
-    expect(await host.answer('gpu/buffer-create', [1, {}])).toEqual({ error: { kind: 'unsupported', message: 'gpu/buffer-create: this host has no gpu' } });
-    expect(host.defer?.('gpu/submit', [1, []], 'k', () => undefined)).toEqual({ error: { kind: 'unsupported', message: 'gpu/submit: this host has no gpu' } });
-    expect(await host.answer('os/fetch', ['GET', 'https://a.example.test/'])).toMatchObject({ ok: { status: 200 } });
-  });
-
-  it('control: a non-gpu deferring ask is refused unsupported and a gpu port is never asked', () => {
-    const { port, asked } = fake();
-    const host = createFetchOsHost(never, { gpu: port });
-    expect(host.defer?.('os/wait', [1], 'k', () => undefined)).toMatchObject({ error: { kind: 'unsupported' } });
-    expect(asked).toEqual([]);
+  it('control: with no answerer installed a held ask answers unsupported, and the browser os port answers a gpu ask unsupported', async () => {
+    expect(await answerRequest(ports(undefined, undefined), gpuAsk(3, 'gpu/submit'), scope)).toEqual({ kind: 'os', result: { error: { kind: 'unsupported', message: 'gpu/submit: this host installed no gpu answerer' } } });
+    const os = createFetchOsHost(async () => reply(200, {}, 'ok'));
+    expect(await os.answer('gpu/buffer-create', [1, {}])).toEqual({ error: { kind: 'unsupported', message: 'gpu/buffer-create: this host installed no gpu answerer' } });
+    expect(os.defer).toBeUndefined();
+    expect(await os.answer('os/fetch', ['GET', 'https://a.example.test/'])).toMatchObject({ ok: { status: 200 } });
   });
 });
