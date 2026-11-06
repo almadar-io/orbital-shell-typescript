@@ -118,6 +118,21 @@ export interface LearningShape extends DiagramMarkRoles {
 }
 
 /** A single top-right status chip (e.g. a live measurement or score). */
+/**
+ * Particles packed as data (a GPU readback, for one): one little-endian 32-bit word every `stride` bytes, x in bits
+ * 0-11, y in bits 12-23 and a `palette` index in bits 24-31. Drawn in one pass, without a shape per particle.
+ */
+export interface LearningParticles {
+  /** The packed words as base64 bytes. */
+  data: string;
+  /** Bytes from one particle's word to the next. */
+  stride: number;
+  /** Drawn half-size of each particle, in scene pixels. */
+  radius: number;
+  /** Particle colors by index: tone names, `var()` tokens or literals; an index past the end takes the last. */
+  palette: string[];
+}
+
 export interface LearningReadout {
   /** Chip label, shown before the value. */
   label: string;
@@ -187,6 +202,8 @@ export interface LearningCanvasProps extends A11yProps {
   fontFamily?: string;
   /** Declarative shapes to draw. */
   shapes?: LearningShape[];
+  /** Packed particles drawn under the shapes in one pass ({@link LearningParticles}). */
+  particles?: LearningParticles;
   /**
    * Neutral game-canvas drawables (e.g. `draw-sprite`, `draw-fx-layer`) painted
    * in world coordinates via the supplied `projector`. This lets the learning
@@ -595,6 +612,18 @@ function drawableNeedsAnimation(nodes: DrawableNode[] | undefined): boolean {
   });
 }
 
+/** Each palette index's particle positions, as x, y pairs. */
+export function decodeParticles(particles: LearningParticles): number[][] {
+  const binary = atob(particles.data);
+  const buckets: number[][] = particles.palette.map(() => []);
+  if (buckets.length === 0 || particles.stride < 4) return buckets;
+  for (let at = 0; at + 4 <= binary.length; at += particles.stride) {
+    const word = (binary.charCodeAt(at) | (binary.charCodeAt(at + 1) << 8) | (binary.charCodeAt(at + 2) << 16) | (binary.charCodeAt(at + 3) << 24)) >>> 0;
+    buckets[Math.min(word >>> 24, buckets.length - 1)].push(word & 4095, (word >>> 12) & 4095);
+  }
+  return buckets;
+}
+
 export const LearningCanvas: React.FC<LearningCanvasProps> = ({
   className,
   width = 600,
@@ -603,6 +632,7 @@ export const LearningCanvas: React.FC<LearningCanvasProps> = ({
   series,
   fontFamily,
   shapes = [],
+  particles,
   drawables,
   projector,
   readouts,
@@ -658,6 +688,8 @@ export const LearningCanvas: React.FC<LearningCanvasProps> = ({
     return [...shapes, ...traceOut, ...readoutOut];
   }, [shapes, traces, readouts, width, height, fontFamily, theme]);
 
+  const particlePoints = useMemo(() => (particles ? decodeParticles(particles) : undefined), [particles]);
+
   const draw = useCallback(() => {
     const _perfT = perfStart('learningcanvas:paint');
     const canvas = canvasRef.current;
@@ -676,6 +708,18 @@ export const LearningCanvas: React.FC<LearningCanvasProps> = ({
     ctx.fillStyle = markColor(theme, backgroundColor, canvas, 'fill');
     if (!backgroundColor) ctx.fillStyle = theme.ground;
     ctx.fillRect(0, 0, width, height);
+
+    if (particles && particlePoints) {
+      const size = particles.radius * 2;
+      particlePoints.forEach((points, index) => {
+        if (points.length === 0) return;
+        const color = particles.palette[Math.min(index, particles.palette.length - 1)];
+        ctx.fillStyle = markColor(theme, color, canvas, 'ink');
+        ctx.beginPath();
+        for (let k = 0; k < points.length; k += 2) ctx.rect(points[k] - particles.radius, points[k + 1] - particles.radius, size, size);
+        ctx.fill();
+      });
+    }
 
     // Text always renders in a final top pass so labels are never buried under paths/fills.
     for (const shape of derivedShapes) {
@@ -696,7 +740,7 @@ export const LearningCanvas: React.FC<LearningCanvasProps> = ({
     }
 
     perfEnd('learningcanvas:paint', _perfT);
-  }, [width, height, backgroundColor, derivedShapes, drawables, projector, needsAnim, theme, themeVersion, displayWidth, fontFamily]);
+  }, [width, height, backgroundColor, derivedShapes, particles, particlePoints, drawables, projector, needsAnim, theme, themeVersion, displayWidth, fontFamily]);
 
   useEffect(() => {
     draw();

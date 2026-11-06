@@ -18,7 +18,7 @@ import { domPassthrough } from '../../../core';
 import { Box, Card, Typography } from '../../../core';
 import { VStack } from '../../../core';
 import { LearningCanvas } from '../atoms/LearningCanvas';
-import type { LearningReadout, LearningShape, LearningTracePanel } from '../atoms/LearningCanvas';
+import type { LearningParticles, LearningReadout, LearningShape, LearningTracePanel } from '../atoms/LearningCanvas';
 import type { UiError } from '../../../core';
 import type { DrawableNode } from '../../../lib/drawable/paintDispatch';
 import type { CanvasLighting, CanvasPost } from '../../../lib/drawable/three/Canvas3DHost';
@@ -625,6 +625,8 @@ export interface PhysicsCanvasProps extends Omit<React.AriaAttributes, keyof A11
   /** 3D only: post-processing stack (bloom/vignette). */
   post?: CanvasPost;
   bodies?: LearningPhysicsBody[];
+  /** 2D mode: packed particles drawn in one pass under the bodies (a GPU readback), instead of a body per particle. */
+  particles?: LearningParticles;
   constraints?: LearningPhysicsConstraint[];
   showVelocity?: boolean;
   showForces?: boolean;
@@ -681,6 +683,7 @@ export const PhysicsCanvas: React.FC<PhysicsCanvasProps> = ({
   lighting,
   post,
   bodies = [],
+  particles,
   constraints = [],
   showVelocity = true,
   showForces = false,
@@ -986,6 +989,7 @@ export const PhysicsCanvas: React.FC<PhysicsCanvasProps> = ({
           keyMap={keyMap}
           keyUpMap={keyUpMap}
             shapes={derivedShapes}
+            {...(particles !== undefined ? { particles } : {})}
             readouts={readouts}
             traces={traces}
             interactive={interactive ?? false}

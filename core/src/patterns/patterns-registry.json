@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-06T03:25:33.553Z",
+  "exportedAt": "2026-11-06T17:28:23.349Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -97003,6 +97003,45 @@
           },
           "default": []
         },
+        "particles": {
+          "types": [
+            "object"
+          ],
+          "description": "Packed particles drawn under the shapes in one pass ({@link LearningParticles}).",
+          "properties": {
+            "data": {
+              "types": [
+                "string"
+              ]
+            },
+            "stride": {
+              "types": [
+                "number"
+              ]
+            },
+            "radius": {
+              "types": [
+                "number"
+              ]
+            },
+            "palette": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "string"
+                ]
+              }
+            }
+          },
+          "propertyRequired": [
+            "data",
+            "stride",
+            "radius",
+            "palette"
+          ]
+        },
         "drawables": {
           "types": [
             "array"
@@ -103230,6 +103269,45 @@
             ]
           },
           "default": []
+        },
+        "particles": {
+          "types": [
+            "object"
+          ],
+          "description": "2D mode: packed particles drawn in one pass under the bodies (a GPU readback), instead of a body per particle.",
+          "properties": {
+            "data": {
+              "types": [
+                "string"
+              ]
+            },
+            "stride": {
+              "types": [
+                "number"
+              ]
+            },
+            "radius": {
+              "types": [
+                "number"
+              ]
+            },
+            "palette": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "string"
+                ]
+              }
+            }
+          },
+          "propertyRequired": [
+            "data",
+            "stride",
+            "radius",
+            "palette"
+          ]
         },
         "constraints": {
           "types": [
