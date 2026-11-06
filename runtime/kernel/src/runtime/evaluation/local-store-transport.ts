@@ -3,7 +3,7 @@
  * (`openLocalKernel`), and this host answers its I/O. The offline preview and the browser-stored side of a
  * residence-routed host both use it.
  */
-import type { BrowserTabPort, MessageCatalogs, OnDeviceModelPorts, EventRequest, OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef } from '@almadar/core';
+import type { BrowserTabPort, OnDeviceModelPorts, EventRequest, OrbitalSchema, PersistenceAdapter, RowQueryPage, RowSetRef } from '@almadar/core';
 import { inlineTraitRefs, orbitalInlineEntities, storesRowsInBrowser } from '@almadar/core';
 import type { EffectHandlers } from '../types.js';
 import { KernelEngine, evaluateOnKernel } from '../../kernel/engine.js';
@@ -38,8 +38,6 @@ export interface LocalKernelOptions {
   tabs?: BrowserTabPort;
   /** The host's `os` port (`createFetchOsHost` in a browser); absent, every `os` ask is denied. */
   os?: OsHostPort;
-  /** The program's message catalogs, so `i18n/t` resolves for the request's locale. */
-  messages?: MessageCatalogs;
 }
 
 /** A local store's rows as the kernel holds them: browser-stored entities in `store`, every other entity in `memory` (a native `MemoryStore` adapter). */
@@ -74,7 +72,6 @@ export function openLocalKernel(options: LocalKernelOptions): KernelEngine {
     ...(options.tabs !== undefined ? { tabs: options.tabs } : {}),
     ...(options.os !== undefined ? { os: options.os } : {}),
   });
-  if (options.messages !== undefined) engine.setMessages(Object.keys(options.messages), options.messages);
   // One client is served, and the ticks it asks for (`runTick`) are of traits it mounted.
   for (const trait of engine.programSurface().traits) engine.mountClient(LOCAL_CLIENT, trait.orbital, [trait.name]);
   return engine;
@@ -85,6 +82,8 @@ export interface LocalStoreTransportOptions {
   kernelEngine: KernelEngine | Promise<KernelEngine>;
   /** The program the kernel runs; given, the transport resolves row-set references on that kernel. */
   schema?: OrbitalSchema;
+  /** The page's locale, read per request: a request naming none runs in it, as a server request carries its viewer's. */
+  locale?: () => string | undefined;
 }
 
 export function createLocalStoreTransport(options: LocalStoreTransportOptions): EventTransport {
@@ -92,7 +91,7 @@ export function createLocalStoreTransport(options: LocalStoreTransportOptions): 
     async (orbital: string, request: EventRequest) => evaluateOnKernel(
       { engine: await options.kernelEngine, orbital },
       request,
-      request.locale,
+      request.locale ?? options.locale?.(),
     ),
     {
       carriesCircuitState: false,

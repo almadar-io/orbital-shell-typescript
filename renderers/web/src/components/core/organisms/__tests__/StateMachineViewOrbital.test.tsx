@@ -2,7 +2,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
-import { EventBusProvider, useEventBus } from '../../../../core';
+import { EventBusProvider, getTraitPresence, TraitScopeProvider, useEventBus } from '../../../../core';
 import { StateMachineView } from '../StateMachineView';
 import type { MountedOrbital, MountedTrait } from '@almadar/core';
 
@@ -315,5 +315,135 @@ describe('StateMachineView orbital wires stay out of sight', () => {
     render(<StateMachineView orbital={orbital()} />);
     await waitFor(() => expect(boxes()).toHaveLength(4));
     expect(screen.queryAllByTestId('avl-om-wire')).toHaveLength(0);
+  });
+});
+
+describe('StateMachineView inspect picks a trait from the page', () => {
+  function Listen({ event, on }: { event: string; on: (payload: object | undefined) => void }) {
+    const bus = useEventBus();
+    React.useEffect(() => bus.on(`UI:${event}`, (e) => on(e.payload)), [bus, event, on]);
+    return null;
+  }
+  const rect = (left: number, top: number, width: number, height: number) => () => ({ left, top, width, height, right: left + width, bottom: top + height, x: left, y: top, toJSON: () => ({}) });
+  const orbital = (): MountedOrbital => ({
+    page: '/p',
+    wires: [],
+    traits: [trait('Parent'), trait('Child', { parent: 'Parent', depth: 3 })],
+  });
+  function Page({ onClick }: { onClick: () => void }) {
+    return (
+      <div data-trait-presence="Parent" style={{ display: 'contents' }}>
+        <div data-testid="parent-out" ref={(el) => { if (el) el.getBoundingClientRect = rect(0, 0, 400, 300); }}>
+          <div data-trait-presence="Host" style={{ display: 'contents' }}>
+            <div data-testid="host-out" ref={(el) => { if (el) el.getBoundingClientRect = rect(10, 10, 50, 20); }}>
+              <button type="button" data-testid="host-button" onClick={onClick}>host</button>
+            </div>
+          </div>
+          <div data-trait-presence="Child" style={{ display: 'contents' }}>
+            <div data-testid="child-out" ref={(el) => { if (el) el.getBoundingClientRect = rect(20, 40, 100, 60); }}>
+              <span data-testid="child-text">child</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  const scrolled = vi.fn();
+  Element.prototype.scrollIntoView = scrolled;
+
+  it('the innermost drawn trait under the pointer is outlined, and a click picks it, opens its box and scrolls to it', async () => {
+    const picked = vi.fn();
+    render(
+      <EventBusProvider debug={false}>
+        <Listen event="PICKED" on={picked} />
+        <Page onClick={() => undefined} />
+        <StateMachineView orbital={orbital()} expandDepth={2} pickEvent="PICKED" />
+      </EventBusProvider>,
+    );
+    await waitFor(() => expect(boxes()).toHaveLength(2));
+    expect(box('Child').dataset.kind).toBe('collapsed');
+    const toggle = screen.getByTestId('avl-om-inspect');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(getTraitPresence().isWatched('Child')).toBe(true);
+    fireEvent.pointerMove(screen.getByTestId('child-text'));
+    const outline = await screen.findByTestId('avl-om-inspected');
+    expect(outline.dataset.trait).toBe('Child');
+    expect(outline.style.left).toBe('20px');
+    expect(outline.style.width).toBe('100px');
+    fireEvent.click(screen.getByTestId('child-text'));
+    expect(picked).toHaveBeenCalledWith({ trait: 'Child' });
+    expect(screen.getByTestId('avl-om-inspect').getAttribute('aria-pressed')).toBe('false');
+    expect(getTraitPresence().isWatched('Child')).toBe(false);
+    expect(screen.queryByTestId('avl-om-inspected')).toBeNull();
+    await waitFor(() => expect(box('Child').dataset.kind).toBe('machine'));
+    await waitFor(() => expect(scrolled.mock.contexts.some((el) => el === box('Child'))).toBe(true));
+  });
+
+  it('a marked trait outside the drawn page passes to its drawn host; the page click never reaches its own handler', async () => {
+    const picked = vi.fn();
+    const pageClick = vi.fn();
+    render(
+      <EventBusProvider debug={false}>
+        <Listen event="PICKED" on={picked} />
+        <Page onClick={pageClick} />
+        <StateMachineView orbital={orbital()} pickEvent="PICKED" />
+      </EventBusProvider>,
+    );
+    await waitFor(() => expect(boxes()).toHaveLength(2));
+    fireEvent.click(screen.getByTestId('avl-om-inspect'));
+    fireEvent.pointerMove(screen.getByTestId('host-button'));
+    expect((await screen.findByTestId('avl-om-inspected')).dataset.trait).toBe('Parent');
+    fireEvent.click(screen.getByTestId('host-button'));
+    expect(picked).toHaveBeenCalledWith({ trait: 'Parent' });
+    expect(pageClick).not.toHaveBeenCalled();
+  });
+
+  it('Escape stops inspecting and the page works again; a box chosen while inspecting still selects (control)', async () => {
+    const picked = vi.fn();
+    const chosen = vi.fn();
+    const pageClick = vi.fn();
+    render(
+      <EventBusProvider debug={false}>
+        <Listen event="PICKED" on={picked} />
+        <Listen event="CHOSE" on={chosen} />
+        <Page onClick={pageClick} />
+        <StateMachineView orbital={orbital()} pickEvent="PICKED" selectEvent="CHOSE" />
+      </EventBusProvider>,
+    );
+    await waitFor(() => expect(boxes()).toHaveLength(2));
+    fireEvent.click(screen.getByTestId('avl-om-inspect'));
+    fireEvent.click(within(box('Child')).getByTestId('avl-om-head'));
+    expect(chosen).toHaveBeenCalledWith({ trait: 'Child' });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByTestId('avl-om-inspect').getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(screen.getByTestId('host-button'));
+    expect(pageClick).toHaveBeenCalledTimes(1);
+    expect(picked).not.toHaveBeenCalled();
+  });
+
+  it('shows no inspect toggle without pickEvent (control)', async () => {
+    render(<StateMachineView orbital={orbital()} />);
+    await waitFor(() => expect(boxes()).toHaveLength(2));
+    expect(screen.queryByTestId('avl-om-inspect')).toBeNull();
+  });
+});
+
+describe('StateMachineView inspect leaves its own host traits unmarked', () => {
+  it('a trait the view is drawn inside is never watched; the other drawn traits are (control)', async () => {
+    render(
+      <EventBusProvider debug={false}>
+        <TraitScopeProvider orbital="O" trait="Parent">
+          <StateMachineView orbital={{ page: '/p', wires: [], traits: [trait('Parent'), trait('Child', { parent: 'Parent', depth: 1 })] }} pickEvent="PICKED" />
+        </TraitScopeProvider>
+      </EventBusProvider>,
+    );
+    await waitFor(() => expect(boxes()).toHaveLength(2));
+    fireEvent.click(screen.getByTestId('avl-om-inspect'));
+    expect(getTraitPresence().isWatched('Child')).toBe(true);
+    expect(getTraitPresence().isWatched('Parent')).toBe(false);
+    expect(screen.getByTestId('avl-om-inspect').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(getTraitPresence().isWatched('Child')).toBe(false);
   });
 });

@@ -3,7 +3,7 @@
  * (`@almadar/kernel`, WebAssembly) decides every execution step; this host answers the I/O it asks for
  * and nothing else. The continuation of a stopped dispatch never leaves the wasm instance.
  */
-import { ExternalInputSchema, InboundAnswerSchema, InboundFoundSchema, InboundOnlySchema, NameListSchema, OptionalNameSchema, PayloadIssueSchema, PayloadJsonSchemaSchema, installKernelEvaluator, isEntityReferenceAny, MountSeedSchema, EntityRowSchema, EventPayloadSchema, type ExternalInput, type InboundAnswer, type InboundDelivery, type InboundRoute, type JsonSchema, type PayloadField, type PayloadIssue, type MountSeed, type EntityRow, type EventPayload, type EventStreamItem, type MessageCatalogs, type EventRequest, type EventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext, LiveBroadcastItemSchema, type LiveBroadcastItem, type JsonValue } from '@almadar/core';
+import { ExternalInputSchema, InboundAnswerSchema, InboundFoundSchema, InboundOnlySchema, NameListSchema, OptionalNameSchema, PayloadIssueSchema, PayloadJsonSchemaSchema, installKernelEvaluator, isEntityReferenceAny, MountSeedSchema, EntityRowSchema, EventPayloadSchema, type ExternalInput, type InboundAnswer, type InboundDelivery, type InboundRoute, type JsonSchema, type PayloadField, type PayloadIssue, type MountSeed, type EntityRow, type EventPayload, type EventStreamItem, type EventRequest, type EventResponse, type OrbitalSchema, type RowQueryPage, type RowSetRef, type UserContext, LiveBroadcastItemSchema, type LiveBroadcastItem, type JsonValue } from '@almadar/core';
 import type { ProgramSurface } from '@almadar/core/kernel-wire';
 import { LaneHeldByParkedDispatch } from './lane.js';
 
@@ -71,7 +71,6 @@ export class KernelEngine {
   private readonly turns = new Map<number, Turn>();
   private tickRelayIntervalMs: number | undefined;
   private stateful = false;
-  private messages: { locales: readonly string[]; catalogs: MessageCatalogs } = { locales: [], catalogs: {} };
 
   constructor(
     private readonly kernel: KernelModule,
@@ -95,13 +94,11 @@ export class KernelEngine {
 
   /**
    * A kernel on the same program, registered once, holding none of this one's session: every trait at its initial
-   * state, no rows the kernel held, its locales and mounted ticks kept. A stateless host serves each request a
+   * state, no rows the kernel held, its mounted ticks kept. A stateless host serves each request a
    * fork (EXEC-DIST-5), `ports` answering it.
    */
   fork(ports: KernelHostPorts = this.ports): KernelEngine {
-    const forked = new KernelEngine(this.kernel, this.schemaJson, ports, this.entityTypes, this.handle, undefined, this.preserveProgramContext, this.lazyDir);
-    forked.messages = this.messages;
-    return forked;
+    return new KernelEngine(this.kernel, this.schemaJson, ports, this.entityTypes, this.handle, undefined, this.preserveProgramContext, this.lazyDir);
   }
 
   forkProgram(program: OrbitalSchema, ports: KernelHostPorts = this.ports): KernelEngine {
@@ -140,7 +137,6 @@ export class KernelEngine {
     this.declare();
     if (this.tickRelayIntervalMs !== undefined) this.handle.setTickRelayInterval(this.tickRelayIntervalMs);
     if (this.stateful) this.handle.setStateful(true);
-    this.handle.setMessages(JSON.stringify(this.messages.locales), JSON.stringify(this.messages.catalogs));
     if (this.managedProgram !== undefined) this.handle.setManagedProgram(this.managedProgram);
   }
 
@@ -150,12 +146,6 @@ export class KernelEngine {
   setManagedProgram(program: OrbitalSchema): void {
     this.managedProgram = JSON.stringify(program);
     this.handle.setManagedProgram(this.managedProgram);
-  }
-
-  /** The program's declared locales and merged catalogs (a lazy page's behavior contributes its namespaced keys). */
-  setMessages(locales: readonly string[], catalogs: MessageCatalogs): void {
-    this.messages = { locales, catalogs };
-    this.handle.setMessages(JSON.stringify(locales), JSON.stringify(catalogs));
   }
 
   /** `client` mounted `traits` of `orbital`: their mount-scoped ticks fire while any client holds them. A request derives this itself; this is for a mount made outside a request. */

@@ -1,12 +1,9 @@
 name: CI almadar-shell
 
 on:
-  pull_request:
-    branches: [main]
-    paths: ['templates/almadar-shell/**']
   push:
-    branches: [main]
-    paths: ['templates/almadar-shell/**']
+    tags: ['v*']
+  workflow_dispatch:
 
 jobs:
   build-and-test:

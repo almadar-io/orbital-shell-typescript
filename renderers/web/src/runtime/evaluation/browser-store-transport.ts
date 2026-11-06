@@ -2,7 +2,7 @@
  * The browser store of a program's `[persistent: x, browser]` entities, opened once, and the in-process transport its legs run through. The runtime
  * host (`useBrowserStore`) and compiled static clients both open it here.
  */
-import type { BrowserTabPort, MessageCatalogs, MountSeed, OnDeviceModelPorts, OrbitalEntity, OrbitalDefinition, EventRequest, EventResponse, OrbitalSchema } from '@almadar/core';
+import type { BrowserTabPort, MountSeed, OnDeviceModelPorts, OrbitalEntity, OrbitalDefinition, EventRequest, EventResponse, OrbitalSchema } from '@almadar/core';
 import { orbitalInlineEntities, storesRowsInBrowser } from '@almadar/core';
 import type { KernelHostPorts } from '../../kernel/host.js';
 import type { OsHostPort } from '@almadar/shell-runtime/kernel/os-port';
@@ -57,8 +57,6 @@ export interface BrowserStoreTransportOptions {
   secretPorts?: SecretPorts;
   /** The host's `os` port (`createFetchOsHost(fetch)`); absent, every `os` ask of a leg is denied. */
   os?: OsHostPort;
-  /** The program's message catalogs, so a leg's `i18n/t` resolves for the request's locale. */
-  messages?: MessageCatalogs;
 }
 
 export async function openBrowserStoreTransport(options: BrowserStoreTransportOptions): Promise<EventTransport> {
@@ -77,8 +75,8 @@ export async function openBrowserStoreTransport(options: BrowserStoreTransportOp
       ...(options.callService !== undefined ? { callService: options.callService } : {}),
       ...(options.secretPorts !== undefined ? { secretPorts: options.secretPorts } : {}),
       ...(options.os !== undefined ? { os: options.os } : {}),
-      ...(options.messages !== undefined ? { messages: options.messages } : {}),
     }),
+    ...(options.locale !== undefined ? { locale: () => options.locale } : {}),
   });
 }
 
@@ -86,7 +84,7 @@ export async function openBrowserStoreTransport(options: BrowserStoreTransportOp
  * A compiled client's bundled `browserSchema.json`, served on the kernel like any local host. The program is the
  * resolved `orb` output: the kernel validates it when it registers, so the host does not parse it again.
  */
-export function openBundledBrowserStore(schema: OrbitalSchema, kernel: KernelModule, locale?: string, callService?: EffectHandlers['callService'], messages?: MessageCatalogs, secretPorts?: SecretPorts, os?: OsHostPort): Promise<EventTransport> {
+export function openBundledBrowserStore(schema: OrbitalSchema, kernel: KernelModule, locale?: string, callService?: EffectHandlers['callService'], secretPorts?: SecretPorts, os?: OsHostPort): Promise<EventTransport> {
   return openBrowserStoreTransport({
     databaseName: browserStoreName(schema.name, locale),
     schema,
@@ -95,7 +93,6 @@ export function openBundledBrowserStore(schema: OrbitalSchema, kernel: KernelMod
     ...(callService !== undefined ? { callService } : {}),
     ...(secretPorts !== undefined ? { secretPorts } : {}),
     ...(os !== undefined ? { os } : {}),
-    ...(messages !== undefined ? { messages } : {}),
   });
 }
 

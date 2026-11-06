@@ -122,7 +122,7 @@ describeKernel('useCircuitKernel on the kernel engine', () => {
   });
 
   it('a program stamped only with `resolved` registers on the kernel', async () => {
-    const stamp: OrbitalSchema['resolved'] = { orb: '18.0.5', typeContractVersion: 1 };
+    const stamp: OrbitalSchema['resolved'] = { orb: '18.0.5', typeContractVersion: 2 };
     const stamped = { resolved: stamp };
     const { result } = renderHook(() => useCircuitKernel({ stamp: stamped, orbitals: orbitals('runtime', [['set', '@entity.score', 5]]), engine: KERNEL_ENGINE }));
     await circuitReady(result);

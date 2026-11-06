@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-05T23:55:34.909Z",
+  "exportedAt": "2026-11-06T03:25:33.553Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -43248,6 +43248,20 @@
             }
           ]
         },
+        "pickEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Orbital mode: shows the inspect toggle; emitted with the trait picked from its output on the page.",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "trait",
+              "type": "string",
+              "required": true
+            }
+          ]
+        },
         "maxHeight": {
           "types": [
             "string"
@@ -49930,15 +49944,13 @@
           "types": [
             "number"
           ],
-          "description": "Map center latitude",
-          "default": 51.505
+          "description": "Map center latitude"
         },
         "centerLng": {
           "types": [
             "number"
           ],
-          "description": "Map center longitude",
-          "default": -0.09
+          "description": "Map center longitude"
         },
         "zoom": {
           "types": [
@@ -54171,12 +54183,11 @@
         },
         "onComplete": {
           "types": [
-            "function"
+            "string"
           ],
-          "description": "Called when the entire text has been revealed",
-          "kind": "callback",
-          "notification": true,
-          "callbackArgs": []
+          "description": "Event emitted (as UI:{onComplete}) when the entire text has been revealed; empty = none",
+          "kind": "event",
+          "notification": true
         },
         "enter": {
           "types": [
@@ -133894,7 +133905,7 @@
           "types": [
             "string"
           ],
-          "description": "Guest trait that painted this content (`rendered[].trait`); the kernel delivers a click as address `<source>.<EVENT>`. Data for the kernel; never rendered.",
+          "description": "The guest's page-root trait whose paint is `children`: their controls are scoped to it. Never rendered.",
           "required": true
         },
         "deliver": {
@@ -133959,6 +133970,11 @@
                 ]
               },
               "trait": {
+                "types": [
+                  "string"
+                ]
+              },
+              "orbital": {
                 "types": [
                   "string"
                 ]

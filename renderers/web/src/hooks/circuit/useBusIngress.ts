@@ -120,20 +120,28 @@ export function useBusIngress(
       }
     }
 
-    // A trait that paints a guest-view hears every event raised in its scope: the kernel routes one a painted guest
-    // control carries, or ignores it (G-CROSS-400).
+    // A trait that paints a guest-view hears every event raised in its scope. A guest paint is scoped to the guest trait
+    // that drew it, so one click fans out innermost-first: the painter's key, then the opener's. The opener is
+    // dispatched `<Painter>.<EVENT>` and the kernel delivers it to the guest that painted it (G-CROSS-400).
     const guestScopes = new Map<string, string>();
     for (const [traitName, surface] of surfaces) {
       if (surface.paintsGuestViews) guestScopes.set(`UI:${surface.orbital}.${traitName}.`, traitName);
     }
     if (guestScopes.size > 0 && eventBus.onAny !== undefined) {
+      const painters = new WeakMap<BusEventSource, string>();
       unsubscribes.push(eventBus.onAny((event) => {
         if (subscribedQualified.has(event.type) || deliveredHere(event.source)) return;
         for (const [scope, traitName] of guestScopes) {
           if (!event.type.startsWith(scope)) continue;
-          log.debug('guest-scope:fire', { key: event.type });
-          dispatch(traitName, event.type.slice(scope.length), event.payload, event.source);
+          const painter = event.source === undefined ? undefined : painters.get(event.source);
+          if (painter === undefined) return;
+          log.debug('guest-scope:fire', { key: event.type, painter });
+          dispatch(traitName, `${painter}.${event.type.slice(scope.length)}`, event.payload, event.source);
           return;
+        }
+        const [orbital, trait, key] = event.type.startsWith('UI:') ? event.type.slice(3).split('.') : [];
+        if (event.source !== undefined && orbital !== undefined && trait !== undefined && key !== undefined && !appTraitNames.has(trait) && !painters.has(event.source)) {
+          painters.set(event.source, trait);
         }
       }));
     }

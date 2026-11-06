@@ -44,8 +44,8 @@ export interface KernelInstance {
   /** The config the kernel binds as `@config` for a registered trait (JSON text); throws for an unregistered one. */
   traitConfig(traitName: string): string;
   getState(traitName: string, entityId?: string): string;
-  /** The viewer's locales (`string[]`, the first is painted) and their catalogs (`{ [locale]: { [key]: text } }`) for `i18n/t`. */
-  setMessages(localesJson: string, catalogsJson: string): void;
+  /** The page's locale `i18n/t` paints in when a dispatch names none; the program carries its own messages. */
+  setViewerLocale(locale: string | undefined): void;
   /** The host runs the listeners of every emit it marks `dispatched` (the JS runtime, `orbital-server`). */
   setHostFansOut(fansOut: boolean): void;
   /** Carry each hop's `@entity` before and after it on the dispatch's transitions, for a verifier (EXEC-STEP-10). */

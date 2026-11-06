@@ -128,22 +128,26 @@ describe('useBusIngress', () => {
     expect(deliver).not.toHaveBeenCalled();
   });
 
-  it('a trait that paints a guest-view hands every event raised in its scope to the kernel, once', () => {
+  it('a click on a guest paint reaches the opener named by its painter, once', () => {
     const settle = vi.fn<BusDispatch>(async () => {});
     const deliver = vi.fn<BusEmitDelivery>(async () => {});
     const guestHost = new Map([['Picker', { ...pickerSurface, paintsGuestViews: true }]]);
     const { result: bus } = renderHook(() => useEventBus());
     renderHook(() => useBusIngress(guestHost, circuit(guestHost), settle, deliver, bus.current, new Set(['Picker'])));
 
-    bus.current.emit('UI:IngressOrbital.Picker.SELECT_DAY', { day: 3 });
-    expect(settle).toHaveBeenCalledWith('Picker', 'SELECT_DAY', { day: 3 }, undefined);
-
-    settle.mockClear();
-    bus.current.emit('UI:IngressOrbital.Picker.PICK', { id: 'a' });
+    const click = {};
+    bus.current.emit('UI:Budgets.BudgetHeader.SELECT_DAY', { day: 3 }, click);
+    bus.current.emit('UI:Budgets.BudgetCatalog.SELECT_DAY', { day: 3 }, click);
+    bus.current.emit('UI:IngressOrbital.Picker.SELECT_DAY', { day: 3 }, click);
     expect(settle).toHaveBeenCalledTimes(1);
+    expect(settle).toHaveBeenCalledWith('Picker', 'BudgetHeader.SELECT_DAY', { day: 3 }, undefined);
 
     settle.mockClear();
-    bus.current.emit('UI:IngressOrbital.Other.SELECT_DAY', { day: 4 });
+    bus.current.emit('UI:IngressOrbital.Picker.SELECT_DAY', { day: 4 }, {});
+    expect(settle).not.toHaveBeenCalled();
+
+    settle.mockClear();
+    bus.current.emit('UI:IngressOrbital.Other.SELECT_DAY', { day: 4 }, click);
     expect(settle).not.toHaveBeenCalled();
   });
 

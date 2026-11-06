@@ -43,6 +43,8 @@ export interface StateMachineViewProps extends Omit<AvlStateMachineProps, 'trait
   selectedTrait?: string;
   /** Orbital mode: emitted with the trait's name when a box is chosen. */
   selectEvent?: EventEmit<{ trait: string }>;
+  /** Orbital mode: shows the inspect toggle; emitted with the trait picked from its output on the page. */
+  pickEvent?: EventEmit<{ trait: string }>;
   /** Orbital mode: the canvas scrolls inside this height. @default "calc(100vh - 9rem)" */
   maxHeight?: string;
   /** Loading state indicator */
@@ -51,14 +53,14 @@ export interface StateMachineViewProps extends Omit<AvlStateMachineProps, 'trait
   error?: UiError | null;
 }
 
-export const StateMachineView: React.FC<StateMachineViewProps> = ({ trait, description, orbital = null, activeStates, firedTransition, route, expandDepth, selectedTrait, selectEvent, maxHeight, isLoading = false, error = null, className, ...rest }) => {
+export const StateMachineView: React.FC<StateMachineViewProps> = ({ trait, description, orbital = null, activeStates, firedTransition, route, expandDepth, selectedTrait, selectEvent, pickEvent, maxHeight, isLoading = false, error = null, className, ...rest }) => {
   const { t } = useTranslate();
   const drawn = trait ?? (description ? traitLevelFromDescription(description) : null);
 
   if (isLoading) return <LoadingState message={t('stateMachine.loading')} />;
   if (error) return <ErrorState message={error instanceof Error ? error.message : String(error)} />;
   if (orbital !== null && orbital.traits.length > 0) {
-    return <AvlOrbitalMachine orbital={orbital} activeStates={activeStates} firedTransition={firedTransition} route={route} expandDepth={expandDepth} selectedTrait={selectedTrait} selectEvent={selectEvent} maxHeight={maxHeight} direction={rest.direction} className={className} />;
+    return <AvlOrbitalMachine orbital={orbital} activeStates={activeStates} firedTransition={firedTransition} route={route} expandDepth={expandDepth} selectedTrait={selectedTrait} selectEvent={selectEvent} pickEvent={pickEvent} maxHeight={maxHeight} direction={rest.direction} className={className} />;
   }
   if (!drawn) {
     return (

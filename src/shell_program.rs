@@ -3,7 +3,7 @@
 use crate::{
     express_shell, ExtraComponentMapping, TypeProjection, TypeScriptBackend,
 };
-use orbital_core_base::project::{copy_locales, copy_public, resolve_public_dir, write_project};
+use orbital_core_base::project::{copy_public, resolve_public_dir, write_project};
 use orbital_core_base::shell_protocol::{
     GenerateRequest, GenerateResponse, IrVersions, ShellDescription, ShellFailure, ShellOption, ShellProgram,
     CODE_BAD_REQUEST, CODE_GENERATE_FAILED, IR_VERSION,
@@ -132,7 +132,6 @@ impl ShellProgram for TypeScriptProgram {
         let generated = write_project(&request.module, output, &express_shell(), &backend, &request.write)?;
         let failed = |what: &str, e: std::io::Error| ShellFailure::new(CODE_GENERATE_FAILED, format!("{what}: {e}"));
         if let Some(source) = &request.source_path {
-            copy_locales(source, output).map_err(|e| failed("copy locales", e))?;
             if let Some(public) = request.resolved.as_ref().and_then(|r| r.public_dir.as_deref()) {
                 let from = resolve_public_dir(source, public).map_err(|m| ShellFailure::new(CODE_GENERATE_FAILED, m))?;
                 copy_public(&from, &output.join("packages/client/public")).map_err(|e| failed("copy public folder", e))?;

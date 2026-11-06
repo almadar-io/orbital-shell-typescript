@@ -1270,5 +1270,7 @@
   "debug.replayForward": "Next hop",
   "debug.replayPlay": "Play",
   "debug.replayPause": "Pause",
-  "debug.replayStep": "{{step}} / {{total}}"
+  "debug.replayStep": "{{step}} / {{total}}",
+  "stateMachine.inspect": "Inspect: pick a trait on the page",
+  "stateMachine.inspectHint": "Click a part of the page · Esc to stop"
 }

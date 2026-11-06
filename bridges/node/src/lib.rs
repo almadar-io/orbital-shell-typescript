@@ -32,20 +32,9 @@ struct DirLazySource {
 impl orbital_wasm::LazySource for DirLazySource {
     fn read(&self, file: &str) -> Result<orbital_wasm::LazyProgram, String> {
         let path = self.dir.join(file);
-        let text =
-            std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let schema: orbital_wasm::OrbitalSchema =
-            serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
-        let mut catalogs = std::collections::HashMap::new();
-        for locale in schema.locales.iter().flatten() {
-            let sidecar = path.with_extension(format!("{locale}.json"));
-            let raw = std::fs::read_to_string(&sidecar)
-                .map_err(|e| format!("{}: {e}", sidecar.display()))?;
-            let catalog =
-                serde_json::from_str(&raw).map_err(|e| format!("{}: {e}", sidecar.display()))?;
-            catalogs.insert(locale.clone(), catalog);
-        }
-        Ok(orbital_wasm::LazyProgram { schema, catalogs })
+        let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let schema: orbital_wasm::OrbitalSchema = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+        Ok(orbital_wasm::LazyProgram { schema })
     }
 }
 
@@ -328,16 +317,6 @@ impl Server {
             .map_err(js)?
             .api()
             .remount(&traits_json)
-            .map_err(js)
-    }
-
-    #[napi]
-    pub fn set_messages(&self, locales_json: String, catalogs_json: String) -> napi::Result<()> {
-        self.api
-            .get()
-            .map_err(js)?
-            .api()
-            .set_messages(&locales_json, &catalogs_json)
             .map_err(js)
     }
 

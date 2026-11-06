@@ -6,7 +6,9 @@
  * their own machine, the rest are compact boxes that open in place, traits
  * that never paint sit in a background lane, and `Trait.EVENT` listens are
  * dashed wires between boxes, drawn only for the chosen trait and the last
- * dispatch's route. Choosing a box emits `selectEvent`.
+ * dispatch's route. Choosing a box emits `selectEvent`; with `pickEvent` an
+ * inspect toggle picks a trait from its output on the page, then opens and
+ * scrolls to its box.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,10 +19,13 @@ import { Typography } from '../../../core';
 import { Button } from '../../../core';
 import { Icon } from '../../../core';
 import { useEventBus } from '../../../core';
+import { useTraitScopeChain } from '../../../core';
 import { useTranslate } from '../../../core';
 import { useMediaQuery } from '../../../core';
 import { domPassthrough } from '../../../core';
 import { useContainerWidth } from '../../../hooks/useContainerWidth';
+import { useTraitInspector } from '../../../hooks/useTraitInspector';
+import { ThemedPortal } from '../../../lib/ThemedPortal';
 import {
   computeOrbitalLayout,
   loopKey,
@@ -60,6 +65,8 @@ export interface AvlOrbitalMachineProps extends A11yProps {
   selectedTrait?: string;
   /** Emitted with the trait's name when a box is chosen. */
   selectEvent?: EventEmit<{ trait: string }>;
+  /** Shows the inspect toggle; emitted with the trait picked from its output on the page. */
+  pickEvent?: EventEmit<{ trait: string }>;
   /** The canvas scrolls inside this height. @default "calc(100vh - 9rem)" */
   maxHeight?: string;
   /** Flow direction. @default 'ltr' */
@@ -97,6 +104,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   expandDepth = 2,
   selectedTrait = '',
   selectEvent,
+  pickEvent,
   maxHeight = 'calc(100vh - 9rem)',
   direction = 'ltr',
   className,
@@ -116,6 +124,11 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   const [hotWire, setHotWire] = useState<string | null>(null);
   const [openLoops, setOpenLoops] = useState<ReadonlySet<string>>(NONE);
   const [routeOn, setRouteOn] = useState(false);
+  const [inspecting, setInspecting] = useState(false);
+  // The picked trait waits for the layout its opened boxes produce (`after` is the layout it was picked on).
+  const [focus, setFocus] = useState<{ trait: string; after: OrbitalLayout | null } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const layoutRef = useRef<OrbitalLayout | null>(null);
   const steps = useMemo(() => (route.length > 0 ? route : firedTransition === null ? [] : [firedTransition]), [route, firedTransition]);
   const routeKey = JSON.stringify(steps);
   const orbitalKey = useMemo(() => JSON.stringify(orbital), [orbital]);
@@ -124,6 +137,29 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   const select = useCallback((trait: string) => {
     if (selectEvent) eventBus.emit(`UI:${selectEvent}`, { trait });
   }, [eventBus, selectEvent]);
+
+  // A trait this view is drawn inside is never marked: marking it would remount the view itself.
+  const hosts = useTraitScopeChain();
+  const pickable = useMemo(() => orbital.traits.map((tr) => tr.trait).filter((name) => !hosts.some((h) => h.trait === name)), [orbital, hosts]);
+  const pick = useCallback((trait: string) => {
+    setInspecting(false);
+    const chain: string[] = [];
+    for (let name: string | null = trait; name !== null && !chain.includes(name); name = orbital.traits.find((tr) => tr.trait === name)?.parent ?? null) chain.push(name);
+    setOpen((s) => new Set([...s, ...chain]));
+    setClosed((s) => new Set([...s].filter((name) => !chain.includes(name))));
+    setFocus({ trait, after: layoutRef.current });
+    if (pickEvent) eventBus.emit(`UI:${pickEvent}`, { trait });
+  }, [eventBus, pickEvent, orbital]);
+  const stopInspecting = useCallback(() => setInspecting(false), []);
+  const inspected = useTraitInspector({ active: inspecting, pickable, exclude: rootRef, onPick: pick, onCancel: stopInspecting });
+
+  useEffect(() => {
+    layoutRef.current = layout;
+    if (focus === null || layout === null || layout === focus.after) return;
+    setFocus(null);
+    const box = hostRef.current?.querySelector(`[data-testid="avl-om-box"][data-trait="${CSS.escape(focus.trait)}"]`);
+    box?.scrollIntoView({ block: 'center', inline: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [focus, layout, reduceMotion]);
 
   const setExpanded = useCallback((trait: string, expanded: boolean) => {
     setOpen((s) => toggled(s, trait, expanded));
@@ -308,7 +344,40 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   const wirePath = (wire: OrbitalWire) => (wire.points.length > 2 ? roundedEdgePath(wire.points, 10) : edgePath(wire.points));
 
   return (
-    <Box data-testid="avl-orbital-machine" className={`min-w-0 max-w-full ${className ?? ''}`} style={{ width: '100%', minWidth: 0 }} {...passthrough}>
+    <Box ref={rootRef} data-testid="avl-orbital-machine" className={`min-w-0 max-w-full ${className ?? ''}`} style={{ width: '100%', minWidth: 0 }} {...passthrough}>
+      {pickEvent ? (
+        <Box className="flex items-center justify-end gap-2 pb-1">
+          {inspecting ? <Typography variant="caption" color="muted">{t('stateMachine.inspectHint')}</Typography> : null}
+          <Button
+            data-testid="avl-om-inspect"
+            variant={inspecting ? 'primary' : 'ghost'}
+            size="sm"
+            icon="square-mouse-pointer"
+            aria-pressed={inspecting}
+            aria-label={t('stateMachine.inspect')}
+            title={t('stateMachine.inspect')}
+            onClick={() => setInspecting((on) => !on)}
+          />
+        </Box>
+      ) : null}
+      {inspected !== null ? (
+        <ThemedPortal>
+          <Box
+            data-testid="avl-om-inspected"
+            data-trait={inspected.trait}
+            className="pointer-events-none fixed z-50 rounded-sm"
+            style={{ left: inspected.rect.left, top: inspected.rect.top, width: inspected.rect.width, height: inspected.rect.height, border: `2px solid ${AVL_INK.focus}`, background: avlTint(AVL_INK.focus, 12) }}
+          >
+            <Box
+              as="span"
+              className="absolute left-0 rounded-sm px-1.5 py-0.5"
+              style={{ bottom: '100%', marginBottom: 2, fontFamily: AVL_FONT.body, fontSize: 12, fontWeight: 600, background: AVL_INK.focus, color: AVL_INK.onFocus, whiteSpace: 'nowrap' }}
+            >
+              {inspected.trait}
+            </Box>
+          </Box>
+        </ThemedPortal>
+      ) : null}
       <Box ref={hostRef} className="min-w-0 max-w-full overflow-auto" style={{ width: '100%', minWidth: 0, maxHeight }}>
         <Box className="relative" style={{ width: w * scale, height: h * scale, marginInline: w * scale < (hostWidth ?? 0) ? 'auto' : 0 }}>
           <Box className="absolute left-0 top-0" style={{ width: w, height: h, transform: `scale(${scale})`, transformOrigin: '0 0' }}>

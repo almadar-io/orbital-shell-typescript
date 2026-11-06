@@ -82,7 +82,6 @@ export interface KernelServerHandle {
   tickResume(): void;
   tickPaused(): boolean;
   setCapabilities(entityType: string, queryJson: string, writeJson: string): void;
-  setMessages(localesJson: string, catalogsJson: string): void;
   /** The program (as JSON) whose declared credentials this server's credential effects manage beside its own. */
   setManagedProgram(programJson: string): void;
   lastError(): string;

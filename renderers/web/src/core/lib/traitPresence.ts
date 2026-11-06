@@ -27,7 +27,7 @@ export interface TraitPresence {
 const NEAR_VIEWPORT = '200px';
 
 /** The element boxes a wrapper renders, looking through `display: contents` layers. */
-function boxesOf(el: Element): Element[] {
+export function boxesOf(el: Element): Element[] {
   const out: Element[] = [];
   for (const child of Array.from(el.children)) {
     if (getComputedStyle(child).display === 'contents') out.push(...boxesOf(child));

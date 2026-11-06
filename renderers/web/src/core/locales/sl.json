@@ -1270,5 +1270,7 @@
   "debug.replayForward": "Naslednji korak",
   "debug.replayPlay": "Predvajaj",
   "debug.replayPause": "Premor",
-  "debug.replayStep": "{{step}} / {{total}}"
+  "debug.replayStep": "{{step}} / {{total}}",
+  "stateMachine.inspect": "Pregled: izberi lastnost na strani",
+  "stateMachine.inspectHint": "Klikni del strani · Esc za konec"
 }
