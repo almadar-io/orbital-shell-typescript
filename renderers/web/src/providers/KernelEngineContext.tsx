@@ -15,7 +15,7 @@ import { installNativeLanguages } from '@almadar/syntax';
 import type { KernelLoader, KernelModule } from '../lib/kernel-wire';
 import type { FrameScheduler } from '../lib/kernel-frames';
 import type { OsHostPort } from '@almadar/shell-runtime/kernel/os-port';
-import type { KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
+import type { KernelCanvas3DFactory, KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
 
 export interface KernelEngineValue {
   /** Resolves the initialised `@almadar/kernel` module, its language installed (`@almadar/shell-browser/kernel-loader`); shared by every circuit under the provider. */
@@ -26,6 +26,8 @@ export interface KernelEngineValue {
   os?: OsHostPort;
   /** The host's GPU answerer (the kernel module's `GpuHost`), made once after the module loads and installed into every circuit kernel under the provider; absent, a `gpu/` ask answers `unsupported`. */
   gpu?: () => KernelGpuHost;
+  /** Makes an orbital-canvas 3D view on a page canvas once the module has loaded; absent, a 3D canvas has no renderer. */
+  canvas3d?: KernelCanvas3DFactory;
 }
 
 export const KernelEngineContext = createContext<KernelEngineValue | null>(null);
@@ -48,10 +50,12 @@ export interface KernelEngineProviderProps {
   os?: OsHostPort;
   /** Makes the host's GPU answerer once the module has loaded (`() => new GpuHost()`). */
   gpu?: () => KernelGpuHost;
+  /** Makes a 3D view on a page canvas (`(canvas) => Canvas3D.create(canvas)`). */
+  canvas3d?: KernelCanvas3DFactory;
   children?: ReactNode;
 }
 
-export function KernelEngineProvider({ loader, scheduleFrame, os, gpu, children }: KernelEngineProviderProps): React.ReactElement {
+export function KernelEngineProvider({ loader, scheduleFrame, os, gpu, canvas3d, children }: KernelEngineProviderProps): React.ReactElement {
   const value = useMemo<KernelEngineValue>(() => {
     let module: Promise<KernelModule> | undefined;
     const load = (): Promise<KernelModule> =>
@@ -61,12 +65,14 @@ export function KernelEngineProvider({ loader, scheduleFrame, os, gpu, children 
         return loaded;
       });
     let gpuHost: KernelGpuHost | undefined;
+    const loadModule = (): Promise<KernelModule> => (module ??= load());
     return {
-      loadModule: () => (module ??= load()),
+      loadModule,
       ...(scheduleFrame !== undefined ? { scheduleFrame } : {}),
       ...(os !== undefined ? { os } : {}),
       ...(gpu !== undefined ? { gpu: () => (gpuHost ??= gpu()) } : {}),
+      ...(canvas3d !== undefined ? { canvas3d: (canvas: HTMLCanvasElement) => loadModule().then(() => canvas3d(canvas)) } : {}),
     };
-  }, [loader, scheduleFrame, os, gpu]);
+  }, [loader, scheduleFrame, os, gpu, canvas3d]);
   return <KernelEngineContext.Provider value={value}>{children}</KernelEngineContext.Provider>;
 }

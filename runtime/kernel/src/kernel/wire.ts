@@ -28,6 +28,32 @@ export interface KernelGpuHost {
   closeAll(): void;
 }
 
+/**
+ * The wasm `Canvas3D` (orbital-wasm): orbital-canvas drawing a `canvas mode:"3d"` render node into a page canvas, on
+ * the device the page's `GpuHost` shares. JSON crosses as text; `pointerUp` answers the click it made.
+ */
+export interface KernelCanvas3D {
+  setScene(nodeJson: string, themeJson: string): void;
+  resize(cssWidth: number, cssHeight: number, pixelRatio: number): void;
+  setReducedMotion(reduced: boolean): void;
+  render(): void;
+  /** Advances the canvas clock to `nowMs` (`performance.now()`) and camera damping; true when the frame changed. */
+  frame(nowMs: number): boolean;
+  /** False on the WebGL2 fallback, where GPU drawables are refused. */
+  webgpu(): boolean;
+  pointerDown(id: number, x: number, y: number, button: number, touch: boolean): void;
+  pointerMove(id: number, x: number, y: number): boolean;
+  /** `{"unit":{"id","x","z"}}`, `{"tile":{"x","z"}}` or `null`. */
+  pointerUp(id: number, x: number, y: number, unitEvents: boolean, tileEvents: boolean): string;
+  wheel(deltaY: number): boolean;
+  /** The camera as the user moved it, as JSON, or `null` before a scene. */
+  camera(): string;
+  free(): void;
+}
+
+/** Makes a `Canvas3D` on a page canvas (`(canvas) => Canvas3D.create(canvas)` from `@almadar/kernel/client`). */
+export type KernelCanvas3DFactory = (canvas: HTMLCanvasElement) => Promise<KernelCanvas3D>;
+
 /** The `Server` class of `@almadar/kernel` (wasm-bindgen), as the runtime uses it. */
 export interface KernelServerHandle {
   /** Install the GPU answerer: the server then holds every `gpu/` ask, and the host answers it by ticket. */
