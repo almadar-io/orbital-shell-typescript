@@ -76,7 +76,7 @@ try {
   // Readers (the launchpad service) serve `out` while this runs: build beside it, then swap by rename so they
   // only ever see a complete directory. rename(2) cannot replace a non-empty directory, so the old one moves aside first.
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  run('pnpm', ['exec', 'vite', 'build', '--outDir', staging, '--emptyOutDir'], client, { ALMADAR_GENERIC_CLIENT: '1' });
+  run('pnpm', ['exec', 'vite', 'build', '--outDir', staging, '--emptyOutDir'], client, { ALMADAR_GENERIC_CLIENT: '1', NODE_OPTIONS: '--max-old-space-size=6144' });
   if (fs.existsSync(out)) fs.renameSync(out, retired);
   fs.renameSync(staging, out);
 } finally {
