@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createFetchOsHost } from '../src/kernel/os-fetch-port.js';
 import { answerRequest, type KernelHostPorts } from '../src/kernel/host.js';
-import type { IoRequestWire, OsOp } from '@almadar/core/kernel-wire';
+import type { IoRequestWire, OsError, OsOp, Settled } from '@almadar/core/kernel-wire';
+import type { GpuAnswerPort } from '../src/kernel/os-port.js';
 import type { JsonValue } from '@almadar/core';
 
 const reply = (status: number, headers: Record<string, string>, body: string): Response => new Response(body, { status, headers });
@@ -102,5 +103,75 @@ describe('a browser program\'s os ask through the host loop', () => {
 
   it('control: a host constructed with no os port denies the same ask without fetching', async () => {
     expect(await answerRequest(withOs(undefined), osAsk('os/fetch', ['GET', 'https://a.example.test/x']), { orbital: 'Main' })).toMatchObject({ kind: 'os', result: { error: { kind: 'denied' } } });
+  });
+});
+
+describe('the browser os port (gpu/*)', () => {
+  const never = async (): Promise<Response> => { throw new Error('must not fetch'); };
+  const fake = (): { port: GpuAnswerPort; asked: Array<{ op: OsOp; args: JsonValue[] }>; closed: number[]; release: Array<() => void> } => {
+    const asked: Array<{ op: OsOp; args: JsonValue[] }> = [];
+    const closed: number[] = [];
+    const release: Array<() => void> = [];
+    const port: GpuAnswerPort = {
+      answer: (op, args) => {
+        asked.push({ op, args });
+        const id = asked.length;
+        return new Promise((resolve) => { release.push(() => resolve({ ok: { device: id } })); });
+      },
+      closeAll: () => { closed.push(1); },
+    };
+    return { port, asked, closed, release };
+  };
+
+  it('answers a sync gpu ask through the port with its op and args', async () => {
+    const { port, asked, release } = fake();
+    const host = createFetchOsHost(never, { gpu: port });
+    const pending = host.answer('gpu/buffer-create', [1, { size: 4, usage: ['storage'] }]);
+    release[0]?.();
+    expect(await pending).toEqual({ ok: { device: 1 } });
+    expect(asked).toEqual([{ op: 'gpu/buffer-create', args: [1, { size: 4, usage: ['storage'] }] }]);
+  });
+
+  it('defers a gpu ask: the port answer reaches deliver once, a cancelled key delivers nothing', async () => {
+    const { port, asked, release } = fake();
+    const host = createFetchOsHost(never, { gpu: port });
+    const delivered: Array<string> = [];
+    expect(host.defer?.('gpu/device-open', [{}], 'a', (outcome) => delivered.push(JSON.stringify(outcome)))).toEqual({ ok: null });
+    expect(host.defer?.('gpu/submit', [1, []], 'a', () => undefined)).toMatchObject({ error: { kind: 'invalid' } });
+    expect(host.defer?.('gpu/read', [2, 0, 4], 'b', (outcome) => delivered.push(JSON.stringify(outcome)))).toEqual({ ok: null });
+    expect(host.cancel?.('b')).toBe(true);
+    release.forEach((run) => run());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(delivered).toEqual([JSON.stringify({ ok: { device: 1 } })]);
+    expect(asked.map((ask) => ask.op)).toEqual(['gpu/device-open', 'gpu/read']);
+  });
+
+  it('delivers a port rejection as an io error', async () => {
+    const port: GpuAnswerPort = { answer: () => Promise.reject(new Error('lost')), closeAll: () => undefined };
+    const host = createFetchOsHost(never, { gpu: port });
+    const delivered: Array<Settled<JsonValue, OsError>> = [];
+    host.defer?.('gpu/read', [2, 0, 4], 'k', (outcome) => delivered.push(outcome));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(delivered).toEqual([{ error: { kind: 'io', message: 'gpu/read: lost' } }]);
+  });
+
+  it('close calls closeAll', () => {
+    const { port, closed } = fake();
+    createFetchOsHost(never, { gpu: port }).close();
+    expect(closed).toEqual([1]);
+  });
+
+  it('control: without a gpu port every gpu ask answers unsupported with the host text, sync or deferred, and os/fetch is unaffected', async () => {
+    const host = createFetchOsHost(async () => reply(200, {}, 'ok'));
+    expect(await host.answer('gpu/buffer-create', [1, {}])).toEqual({ error: { kind: 'unsupported', message: 'gpu/buffer-create: this host has no gpu' } });
+    expect(host.defer?.('gpu/submit', [1, []], 'k', () => undefined)).toEqual({ error: { kind: 'unsupported', message: 'gpu/submit: this host has no gpu' } });
+    expect(await host.answer('os/fetch', ['GET', 'https://a.example.test/'])).toMatchObject({ ok: { status: 200 } });
+  });
+
+  it('control: a non-gpu deferring ask is refused unsupported and a gpu port is never asked', () => {
+    const { port, asked } = fake();
+    const host = createFetchOsHost(never, { gpu: port });
+    expect(host.defer?.('os/wait', [1], 'k', () => undefined)).toMatchObject({ error: { kind: 'unsupported' } });
+    expect(asked).toEqual([]);
   });
 });

@@ -21,6 +21,9 @@ import { anchoredGrants, type OsAnchors, type OsGrantPort, type OsHostPort } fro
 const log = createLogger('almadar:host:os');
 const DEVICE_OPS: ReadonlySet<OsOp> = new Set<OsOp>(['os/mmio-read', 'os/mmio-write', 'os/irq-wait', 'os/irq-ack']);
 
+const isGpuOp = (op: OsOp): boolean => op.startsWith('gpu/');
+const noGpu = (op: OsOp): OsFailure => osFailure('unsupported', op, 'this host has no gpu');
+
 function failureOf(op: OsOp, raised: unknown): OsError {
   if (raised instanceof OsFailure) return raised.error;
   return { kind: 'io', message: `${op}: ${raised instanceof Error ? raised.message : String(raised)}` };
@@ -67,6 +70,7 @@ class NodeOsHost implements OsHostPort {
   }
 
   private async dispatch(op: OsOp, given: JsonValue[], orbital: string | undefined): Promise<JsonValue> {
+    if (isGpuOp(op)) throw noGpu(op);
     const args = this.resolved(op, given);
     const { fs, process, net, sys } = this.opsFor(orbital);
     if (op === 'os/close') {
@@ -111,6 +115,7 @@ class NodeOsHost implements OsHostPort {
   defer(op: OsOp, args: JsonValue[], key: string, deliver: (outcome: Settled<JsonValue, OsError>) => void, orbital?: string): Settled<null, OsError> {
     let blocking: Deferral;
     try {
+      if (isGpuOp(op)) throw noGpu(op);
       blocking = this.deferral(op, this.resolved(op, args), orbital);
     } catch (raised) {
       return { error: failureOf(op, raised) };

@@ -880,6 +880,31 @@
     "description": "A value is invalid for the position it is written in"
   },
   {
+    "code": "ORB_GPU_BINDING_MISMATCH",
+    "category": "os",
+    "description": "A gpu/bind-group-create whose literal entries do not fit the bindings its traced pipeline's entry points use in its WGSL"
+  },
+  {
+    "code": "ORB_GPU_LEAK",
+    "category": "gpu",
+    "description": "A device reaches a resting state on some path without being closed"
+  },
+  {
+    "code": "ORB_GPU_READ_BEFORE_SUBMIT",
+    "category": "gpu",
+    "description": "A gpu/read of a buffer on a path where no gpu/submit success transition follows its last write or creation"
+  },
+  {
+    "code": "ORB_GPU_SHADER_INVALID",
+    "category": "os",
+    "description": "A literal gpu/shader-create WGSL source that naga refuses to parse or validate"
+  },
+  {
+    "code": "ORB_GPU_USE_AFTER_RELEASE",
+    "category": "gpu",
+    "description": "A gpu/ call takes a handle after it was released or its device closed on some path, or a handle is released a second time"
+  },
+  {
     "code": "ORB_GUARD_ON_FRAME_FIELD_AUTHORIZES",
     "category": "guard",
     "description": "A guard reads an intrinsic frame field of an entity to authorize, but intrinsic fields are not trustworthy for access"

@@ -35,7 +35,7 @@ const hostReady: Promise<BrowserHost> = kernelReady.then((kernel) => {
     schema,
     kernel,
     tabs,
-    os: createFetchOsHost(fetch),
+    os: createFetchOsHost(fetch, { gpu: new kernel.GpuHost() }),
     ...(secretPorts !== undefined ? { secretPorts } : {}),
     onDevice: { model: promptModel, ...(embedder !== undefined ? { embedder } : {}) },
   });

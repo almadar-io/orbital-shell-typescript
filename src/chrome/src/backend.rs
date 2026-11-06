@@ -491,6 +491,14 @@ mod tests {
     }
 
     #[test]
+    fn the_worker_answers_gpu_asks_with_the_kernels_webgpu_answerer() {
+        assert!(
+            WORKER.contains("createFetchOsHost(fetch, { gpu: new kernel.GpuHost() })"),
+            "EXEC-GPU-1: the browser host answers gpu/* through the wasm kernel's GpuHost over WebGPU"
+        );
+    }
+
+    #[test]
     fn control_the_worker_registers_its_tab_listener_in_its_first_turn_not_after_the_kernel_loads() {
         let port = WORKER.find("chromeTabPort(").expect("tab port");
         let host = WORKER.find("kernelReady.then(").expect("host open");

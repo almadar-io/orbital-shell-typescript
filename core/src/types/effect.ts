@@ -959,11 +959,18 @@ export type KernelEffect = ['kernel/queue-front' | 'kernel/queue-back', ...SExpr
 export type FfiEffect = ['ffi/call', ...SExpr[]];
 
 /**
+ * A granted GPU ask answered by the host's installed answerer (EXEC-GPU-1..7): device, resources, shaders, pipelines, a
+ * submitted command list and readback, each handle a sealed value the kernel mints.
+ * @example ['gpu/submit', '@entity.device', [{ compute: { pipeline: '@entity.pipeline', bindGroups: ['@entity.bindGroup'], dispatch: [64, 1, 1] } }], { emit: { success: 'DONE', failure: 'GPU_FAILED' } }]
+ */
+export type GpuEffect = ['gpu/device-open' | 'gpu/device-close' | 'gpu/buffer-create' | 'gpu/texture-create' | 'gpu/sampler-create' | 'gpu/query-create' | 'gpu/shader-create' | 'gpu/pipeline-create' | 'gpu/bind-group-create' | 'gpu/write' | 'gpu/submit' | 'gpu/read' | 'gpu/release', ...SExpr[]];
+
+/**
  * Program effects: read `.lolo` text into a quoted program, print one back,
  * evaluate one (validate, then instantiate). Run `orb` on the server.
  * @example ['program/eval', '@entity.program', { emit: { success: 'BUILT', failure: 'BUILD_FAILED' } }]
  */
-export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/prove' | 'program/os-grants' | 'program/compose' | 'program/step' | 'program/live' | 'program/self' | 'program/tick' | 'program/resolve-rows' | 'program/open' | 'program/close', ...SExpr[]];
+export type ProgramEffect = ['program/read' | 'program/print' | 'program/eval' | 'program/validate' | 'program/prove' | 'program/os-grants' | 'program/compose' | 'program/step' | 'program/live' | 'program/self' | 'program/tick' | 'program/resolve-rows' | 'program/open' | 'program/navigate' | 'program/close', ...SExpr[]];
 
 /**
  * Agent-port effects, the three abilities an LLM tool loop is written with: `program/inputs` lists the
@@ -1043,6 +1050,7 @@ export type TypedEffect =
     | MemEffect
     | KernelEffect
     | FfiEffect
+    | GpuEffect
     | AgentPortEffect
     | SessionEffect
     | TraceEffect
@@ -1102,9 +1110,10 @@ export const EFFECT_OPERATORS = [
   'prob/seed', 'prob/condition', 'workspace/write-orbital', 'workspace/write-file',
   'workspace/write-schema', 'workspace/write-plan', 'workspace/archive-orbital', 'behavior/catalog',
   'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'behavior/packages', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/prove', 'program/os-grants', 'program/compose', 'program/step',
-  'program/inputs', 'program/dispatch', 'program/open', 'program/close', 'program/live', 'program/self', 'program/tick', 'program/resolve-rows', 'persist/read-named',
+  'program/inputs', 'program/dispatch', 'program/open', 'program/navigate', 'program/close', 'program/live', 'program/self', 'program/tick', 'program/resolve-rows', 'persist/read-named',
   'mem/arena-new', 'mem/arena-drop', 'mem/alloc', 'mem/free', 'mem/borrow', 'mem/release', 'mem/write', 'mem/freeze',
   'mem/atomic-load', 'mem/atomic-store', 'mem/atomic-add', 'mem/atomic-cas', 'kernel/queue-front', 'kernel/queue-back', 'ffi/call',
+  'gpu/device-open', 'gpu/device-close', 'gpu/buffer-create', 'gpu/texture-create', 'gpu/sampler-create', 'gpu/query-create', 'gpu/shader-create', 'gpu/pipeline-create', 'gpu/bind-group-create', 'gpu/write', 'gpu/submit', 'gpu/read', 'gpu/release',
 ] as const;
 
 /** Namespaced effect families (`<family>/<name>`, e.g. `llm/generate`) the {@link Effect} union declares. */
