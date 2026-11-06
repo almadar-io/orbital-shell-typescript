@@ -18,11 +18,9 @@ const HEX = /['"`]#[0-9a-fA-F]{3,8}\b/;
 const EXEMPT = new Set([
   'components/game/atoms/MiniMap.tsx',
   'lib/drawable/three/Lighting3D.tsx',
-  'lib/drawable/three/Scene3D.tsx',
   'lib/drawable/three/mesh3d.tsx',
   'lib/drawable/three/DrawMesh3D.tsx',
   'lib/drawable/three/ModelLoader.tsx',
-  'lib/drawable/three/hooks/useThree.ts',
   'lib/webPainter2d.ts',
 ]);
 

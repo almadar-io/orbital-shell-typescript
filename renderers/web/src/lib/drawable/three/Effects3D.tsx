@@ -1,8 +1,7 @@
 'use client';
 /**
  * Effects3D — canvas-level post-processing stack (bloom + vignette) for the 3D
- * draw-host. Mirrors `Avl3DEffects`' composer shape; mounted only when `post` is
- * authored, so the default (omitted) scene renders with no composer pass.
+ * draw-host. Mounted only when `post` is authored, so the default (omitted) scene renders with no composer pass.
  *
  * @packageDocumentation
  */

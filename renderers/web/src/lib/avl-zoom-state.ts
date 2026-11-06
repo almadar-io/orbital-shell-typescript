@@ -4,9 +4,8 @@
  * useReducer-based state machine managing which zoom level is displayed,
  * what is selected, and animation state.
  *
- * Shared by AvlOrbitalsCosmicZoom (2D) and Avl3DViewer (3D). The 3D
- * viewer drills through every level (`application → orbital → trait →
- * transition`); the 2D cosmic view skips the `'orbital'` level after
+ * Used by AvlOrbitalsCosmicZoom. The reducer supports every level
+ * (`application → orbital → trait → transition`); the 2D cosmic view skips the `'orbital'` level after
  * COSMIC-1 (no Orbital-View screen) by dispatching `JUMP_TO_TRAIT_CIRCUIT`
  * to land directly at `'trait'`.
  *

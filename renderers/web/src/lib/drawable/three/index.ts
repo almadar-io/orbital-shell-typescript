@@ -21,10 +21,8 @@ export { Canvas3DHost, Canvas3DHost as GameCanvas3D } from './Canvas3DHost';
 export type { Canvas3DHostProps, Canvas3DHostHandle } from './Canvas3DHost';
 
 // ---------------------------------------------------------------------------
-// Scene primitives (the R3F rendering internals the host + AVL viewer compose)
+// Scene primitives (the R3F rendering internals the host composes)
 // ---------------------------------------------------------------------------
-export { Scene3D, type Scene3DProps } from './Scene3D';
-export { Camera3D, type Camera3DProps, type Camera3DHandle, type CameraMode } from './Camera3D';
 export { Lighting3D, type Lighting3DProps } from './Lighting3D';
 export {
     Canvas3DLoadingState,
@@ -44,30 +42,6 @@ export {
 // Hooks
 // ---------------------------------------------------------------------------
 export {
-    useThree,
-    type UseThreeOptions,
-    type UseThreeReturn,
-} from './hooks/useThree';
-export {
-    useAssetLoader,
-    type UseAssetLoaderOptions,
-    type UseAssetLoaderReturn,
-    type AssetLoadingState,
-} from './hooks/useAssetLoader';
-export {
-    useSceneGraph,
-    type UseSceneGraphReturn,
-    type SceneGraphNode,
-    type NodeType,
-} from './hooks/useSceneGraph';
-export {
-    useRaycaster,
-    type UseRaycasterOptions,
-    type UseRaycasterReturn,
-    type RaycastHit,
-    type GridHit,
-} from './hooks/useRaycaster';
-export {
     useGameCanvas3DEvents,
     type UseGameCanvas3DEventsOptions,
     type UseGameCanvas3DEventsReturn,
@@ -75,13 +49,8 @@ export {
 } from './hooks/useGameCanvas3DEvents';
 
 // ---------------------------------------------------------------------------
-// Loaders + scene math
+// Scene math
 // ---------------------------------------------------------------------------
-export {
-    AssetLoader,
-    assetLoader,
-    type LoadedModel,
-} from './lib/AssetLoader';
 export type { UnitAnimationState } from '../../spriteAnimationTypes';
 export {
     gridToWorld,
@@ -98,39 +67,3 @@ export {
     type Grid3DConfig,
     type GridCoordinate,
 } from './lib/grid3D';
-export {
-    isInFrustum,
-    filterByFrustum,
-    getVisibleIndices,
-    calculateLODLevel,
-    updateInstanceLOD,
-    cullInstancedMesh,
-    SpatialHashGrid,
-    type CullingOptions,
-    type LODLevel,
-    type LODConfig,
-} from './lib/culling';
-
-// ---------------------------------------------------------------------------
-// AVL 3D organisms — R3F-dependent, so they ride THIS lazy chunk (never the
-// avl/index.ts main entry). They import the scene primitives above as leaf
-// modules; this barrel re-exports them (acyclic — no leaf re-enters here).
-// ---------------------------------------------------------------------------
-export { Avl3DViewer, type Avl3DViewerProps } from '../../../components/avl/organisms/Avl3DViewer';
-export { Avl3DApplicationScene, type Avl3DApplicationSceneProps } from '../../../components/avl/organisms/Avl3DApplicationScene';
-export { Avl3DOrbitalScene, type Avl3DOrbitalSceneProps } from '../../../components/avl/organisms/Avl3DOrbitalScene';
-export { Avl3DTraitScene, type Avl3DTraitSceneProps } from '../../../components/avl/organisms/Avl3DTraitScene';
-export { Avl3DTransitionScene, type Avl3DTransitionSceneProps } from '../../../components/avl/organisms/Avl3DTransitionScene';
-export { Avl3DEffects, type Avl3DEffectsProps } from '../../../components/avl/organisms/Avl3DEffects';
-export { Avl3DContext, useAvl3DConfig, type Avl3DModelOverrides, type Avl3DConfig } from '../../../providers/avl-3d-context';
-export {
-    AVL_3D_COLORS,
-    CAMERA_POSITIONS,
-    goldenSpiralPositions,
-    fibonacciSpherePositions,
-    orbitRingPositions,
-    arcCurve3D,
-    selfLoopCurve3D,
-    treeLayout3D,
-    type Position3D,
-} from '../../avl-3d-layout';

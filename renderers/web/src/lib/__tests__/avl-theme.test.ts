@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { AVL_INK, avlTint } from '../avl-theme';
-import { AVL_3D_COLORS } from '../avl-3d-layout';
 import { DOMAIN_COLORS } from '../../components/avl/molecules/AvlBehaviorGlyph';
 import { OPERATOR_CATEGORY_COLORS, STATE_COLORS, EFFECT_CATEGORY_COLORS, CONNECTION_COLORS, getStateRole, effectCategoryOf, effectZoneOf } from '../avl-theme';
 import { EFFECT_OPERATORS, EFFECT_OPERATOR_FAMILIES, FieldTagSchema } from '@almadar/core';
@@ -24,7 +23,6 @@ describe('AVL palettes are theme tokens', () => {
     EFFECT_CATEGORY_COLORS,
     CONNECTION_COLORS,
     AVL_INK,
-    AVL_3D_COLORS,
     DOMAIN_COLORS,
   };
   for (const [name, palette] of Object.entries(palettes)) {

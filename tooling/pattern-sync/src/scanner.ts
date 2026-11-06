@@ -625,7 +625,7 @@ function findPatternsMetadataFiles(componentsDir: string): string[] {
  *     `componentsDir`. `patterns.ts` is the source of truth for the code-split
  *     optional surfaces (the 3D / Three.js render-ui patterns) that are kept
  *     out of the main barrel; listing them here gives them factories without
- *     admitting the scene internals (Scene3D, Camera3D, …) that ship alongside.
+ *     admitting the scene internals (Lighting3D, ModelLoader, …) that ship alongside.
  *     Walking — instead of a fixed `game/.../three/patterns.ts` path — means a
  *     folder reorg can never silently drop them (the Wave-6 break).
  */

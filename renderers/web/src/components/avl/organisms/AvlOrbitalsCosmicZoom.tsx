@@ -305,8 +305,7 @@ export const AvlOrbitalsCosmicZoom: React.FC<AvlOrbitalsCosmicZoomProps> = ({
       {/* ── L4 (transition): HTML detail card with accordion-collapsed
             effects. Long render-ui args wrap inside each accordion's
             CodeBlock instead of being truncated. SVG variant
-            (`AvlTransitionScene`) is preserved for `Avl3DTransitionScene`
-            but no longer used by 2D cosmic. */}
+            (`AvlTransitionScene`) is no longer used by 2D cosmic. */}
       {state.level === 'transition' && selectedTransition && state.selectedOrbital && state.selectedTrait && (
         <Box
           position="absolute"

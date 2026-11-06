@@ -36,6 +36,3 @@ export { AvlSExpr, type AvlSExprProps } from './AvlSExpr';
 export { AvlLiteral, type AvlLiteralProps } from './AvlLiteral';
 export { AvlBindingRef, type AvlBindingRefProps } from './AvlBindingRef';
 
-// 3D Atoms (Three.js dependent - import via game/three barrel for SSR safety)
-export { Avl3DLabel, type Avl3DLabelProps } from './Avl3DLabel';
-export { Avl3DTooltip, type Avl3DTooltipProps } from './Avl3DTooltip';

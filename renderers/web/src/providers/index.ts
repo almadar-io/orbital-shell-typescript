@@ -127,7 +127,6 @@ export {
 } from './ArbitraryClassCompiler';
 export type { ArbitraryClassCompiler, ArbitraryClassCompilerProviderProps } from './ArbitraryClassCompiler';
 
-export { Avl3DContext, useAvl3DConfig, useAvl3DPalette, type Avl3DModelOverrides, type Avl3DConfig } from './avl-3d-context';
 
 // Note: EventBusContextType is exported from hooks/event-bus-types to avoid duplicate exports
 

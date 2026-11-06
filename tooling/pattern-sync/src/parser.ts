@@ -67,10 +67,6 @@ const NON_AUTHORABLE_BRAND_NAMES = new Set<string>([
   // Pre-computed visualizer layout — an author/runtime artifact, not a
   // drop-time JSON knob (StateMachineView renders nothing without it).
   "DomLayoutData",
-  // Imperative runtime instance handle (a class, not a plain object). The
-  // component uses a built-in singleton when omitted; a `{}` JSON default would
-  // be a truthy non-instance and break `customLoader || defaultLoader`.
-  "AssetLoader",
 ]);
 
 /** True when `node` is (or wraps, via array/union/parens) a type whose name is
