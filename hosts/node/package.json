@@ -1,6 +1,7 @@
 {
   "name": "@almadar/shell-node",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "orbRelease": { "severity": "normal" },
   "description": "Almadar TS shell node runtime pack: the Node os/* and program/* host of the kernel (os families, KernelProgram, workspace, program host).",
   "license": "BUSL-1.1",
   "type": "module",
@@ -40,12 +41,12 @@
     "test": "vitest --run"
   },
   "dependencies": {
-    "@almadar/core": "^10.129.0",
-    "@almadar/kernel": "^18.0.0",
-    "@almadar/logger": "^1.18.0",
+    "@almadar/core": "^11.1.0",
+    "@almadar/kernel": "^19.0.1",
+    "@almadar/logger": "^2.1.0",
     "zod": "^4.6.7",
-    "@almadar/std": "^16.255.0",
-    "@almadar/shell-runtime": "^0.1.0"
+    "@almadar/std": "^17.0.0",
+    "@almadar/shell-runtime": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
