@@ -14,13 +14,13 @@
     "prerender": "node scripts/prerender.mjs"
   },
   "dependencies": {
-    "@almadar/core": "^10.129.0",
-    "@almadar/kernel": "^18.0.0",
-    "@almadar/logger": "^1.18.0",
-    "@almadar/shell-browser": "^0.1.0",
-    "@almadar/shell-runtime": "^0.1.0",
-    "@almadar/shell-web": "^0.1.0",
-    "@almadar/syntax": "^1.21.0",
+    "@almadar/core": "^11.1.0",
+    "@almadar/kernel": "^19.0.1",
+    "@almadar/logger": "^2.1.0",
+    "@almadar/shell-browser": "^1.0.0",
+    "@almadar/shell-runtime": "^1.0.0",
+    "@almadar/shell-web": "^1.0.0",
+    "@almadar/syntax": "^2.0.0",
     "@monaco-editor/react": "^4.7.0",
     "@react-three/drei": "^9.92.0",
     "@react-three/fiber": "^9.0.0",
@@ -46,7 +46,7 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@almadar/eslint-plugin": "^2.22.0",
+    "@almadar/eslint-plugin": "^3.0.0",
     "@tailwindcss/container-queries": "^0.1.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
