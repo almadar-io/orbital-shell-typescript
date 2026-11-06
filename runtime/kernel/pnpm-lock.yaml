@@ -9,17 +9,17 @@ importers:
   .:
     dependencies:
       '@almadar/core':
-        specifier: ^10.129.0
-        version: 10.129.0
+        specifier: ^11.1.0
+        version: 11.1.0
       '@almadar/kernel':
-        specifier: ^18.0.0
-        version: 18.0.0
+        specifier: ^19.0.1
+        version: 19.0.1
       '@almadar/logger':
-        specifier: ^1.18.0
-        version: 1.18.0
+        specifier: ^2.1.0
+        version: 2.1.0
       '@almadar/std':
-        specifier: ^16.255.0
-        version: 16.256.0
+        specifier: ^17.0.0
+        version: 17.0.0
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -36,20 +36,20 @@ importers:
 
 packages:
 
-  '@almadar/core@10.129.0':
-    resolution: {integrity: sha512-cWuY81f61rimQEjhtc+KlMoWW2baxCHWGnk9IZQ4V/SrxDNZkTLHPDgybOT01e+AcWH2WaA3mY4V+WU5JBJAKA==}
+  '@almadar/core@11.1.0':
+    resolution: {integrity: sha512-JpN9N4elq7v+JYHh1Do2BvFOfFcpWn5/AxNKDYpuFD/RX8HNhWOGRtOcMx93LaiV3xPQS4qISHN2wql0/Vo8ng==}
     engines: {node: '>=22'}
 
-  '@almadar/kernel@18.0.0':
-    resolution: {integrity: sha512-N6VPyRFbsfWfkK7C2y/H9fAUUWVfK0So048HllHns8PlZrY209CT7vL9ZYoPvfC8Q5OPlaMZfT+Y9UbY4kMfYg==}
+  '@almadar/kernel@19.0.1':
+    resolution: {integrity: sha512-LUNDg/DKUGAFAFc17g3jQBnKGzGSDpTlX/mqMjhi/KaHe7ffvyLZFrM7m4jFhQXV9iPLtbDKrT4C8ycIQxMfYw==}
     engines: {node: '>=22'}
 
-  '@almadar/logger@1.18.0':
-    resolution: {integrity: sha512-9DkdCx3R4x0NGx6REkK6LD2H598pziE0MENeQctuuMf3SzNxAtEljIhv09HTHx7lySiVdbPm/4Qy+PnAq/Qc+w==}
+  '@almadar/logger@2.1.0':
+    resolution: {integrity: sha512-J6QgcbRj8SCVuqXcNA6mQAbhNRzPqaRKngQ39JZmGznZuqXa4KvBpfnACrZQErhZPObbnLZ8Nrz67gHI5xCs+A==}
     engines: {node: '>=22'}
 
-  '@almadar/std@16.256.0':
-    resolution: {integrity: sha512-0tG4fjT0g6NMYmk8zsGg5u4V27TCVzHlrbSs7HdTCLZqaw3o1Bjqzljaq3BLMZhQB1K8V/jgQSsDUR0HbHdt6w==}
+  '@almadar/std@17.0.0':
+    resolution: {integrity: sha512-F4a0WG734tssJWtfnfk+7X+GoU6bXJTf6Xf2sxALYJeoK06vqgZxs0M4zkE5FUKhcvMTkfbiUrWWn+isnCU1aQ==}
     engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -948,20 +948,20 @@ packages:
 
 snapshots:
 
-  '@almadar/core@10.129.0':
+  '@almadar/core@11.1.0':
     dependencies:
       '@noble/hashes': 1.8.0
       zod: 4.6.7
 
-  '@almadar/kernel@18.0.0': {}
+  '@almadar/kernel@19.0.1': {}
 
-  '@almadar/logger@1.18.0':
+  '@almadar/logger@2.1.0':
     dependencies:
-      '@almadar/core': 10.129.0
+      '@almadar/core': 11.1.0
 
-  '@almadar/std@16.256.0':
+  '@almadar/std@17.0.0':
     dependencies:
-      '@almadar/core': 10.129.0
+      '@almadar/core': 11.1.0
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true

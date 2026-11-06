@@ -8,8 +8,9 @@
  *   node tooling/scripts/build-web-client.mjs                       released @almadar/* from the template's lockfile
  *   node tooling/scripts/build-web-client.mjs --workspace <root>    the monorepo's @almadar/* sources, linked
  *
- * Before the template is copied, `orb tailwind-content` rewrites its tailwind-content.txt from the installed
- * behaviors (with --workspace, the ones resolved from <root>), so the bundled CSS carries their classes.
+ * With --workspace, `orb tailwind-content` first rewrites the template's tailwind-content.txt from the behaviors resolved
+ * from <root>, so the bundled CSS carries their classes. A release build uses the committed list: the private behaviors
+ * it is generated from are not installable there.
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -40,10 +41,11 @@ const WORKSPACE_PACKAGES = {
   '@almadar/eslint-plugin': 'orbital-rust/crates/orbital-shell-typescript/tooling/eslint',
 };
 
-const run = (cmd, argv, cwd, env = {}) => execFileSync(cmd, argv, { cwd, stdio: 'inherit', env: { ...process.env, ...env } });
+// pnpm is a .cmd shim on Windows, which only a shell resolves.
+const run = (cmd, argv, cwd, env = {}) => execFileSync(cmd, argv, { cwd, stdio: 'inherit', env: { ...process.env, ...env }, shell: process.platform === 'win32' });
 
 const tailwindContent = path.join(repo, 'templates', 'almadar-shell', 'packages', 'client', 'tailwind-content.txt');
-run('orb', ['tailwind-content', '--out', tailwindContent], workspace === undefined ? process.cwd() : path.resolve(workspace));
+if (workspace !== undefined) run('orb', ['tailwind-content', '--out', tailwindContent], path.resolve(workspace));
 
 const staging = `${out}.staging-${process.pid}`;
 const retired = `${out}.retired-${process.pid}`;
@@ -75,7 +77,7 @@ try {
   // Readers (the launchpad service) serve `out` while this runs: build beside it, then swap by rename so they
   // only ever see a complete directory. rename(2) cannot replace a non-empty directory, so the old one moves aside first.
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  run('pnpm', ['exec', 'vite', 'build', '--outDir', staging, '--emptyOutDir'], client, { ALMADAR_GENERIC_CLIENT: '1' });
+  run('pnpm', ['exec', 'vite', 'build', '--outDir', staging, '--emptyOutDir'], client, { ALMADAR_GENERIC_CLIENT: '1', NODE_OPTIONS: '--max-old-space-size=6144' });
   if (fs.existsSync(out)) fs.renameSync(out, retired);
   fs.renameSync(staging, out);
 } finally {

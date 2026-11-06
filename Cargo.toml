@@ -1,5 +1,5 @@
 [package]
-version = "18.0.0"
+version = "19.0.3"
 name = "orbital-shell-typescript"
 edition = "2021"
 license = "BUSL-1.1"

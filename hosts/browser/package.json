@@ -1,6 +1,7 @@
 {
   "name": "@almadar/shell-browser",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "orbRelease": { "severity": "normal" },
   "description": "Browser I/O ports for the Almadar TypeScript shell: IndexedDB, page facts and Firebase sign-in SDK.",
   "license": "BUSL-1.1",
   "type": "module",
@@ -42,7 +43,7 @@
     "test": "vitest --run"
   },
   "dependencies": {
-    "@almadar/core": "^10.129.0",
+    "@almadar/core": "^11.1.0",
     "firebase": "^11.1.0",
     "zod": "^4.6.7"
   },
