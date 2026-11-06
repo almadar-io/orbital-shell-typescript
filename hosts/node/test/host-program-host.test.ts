@@ -8,7 +8,7 @@ import { installWorkspaceHost, installedWorkspaceHost, uninstallWorkspaceHost, w
 
 // The program host runs the real `orb` (no mock of the thing under test). It
 // needs an installed binary; ORB_BIN names it explicitly in CI.
-const ORB = process.env['ORB_BIN'] ?? join(process.env['HOME'] ?? '', 'bin', 'orb');
+const ORB = process.env['ORB_BIN'] ?? join(process.env['HOME'] ?? '', 'bin', 'orb-dev');
 
 // orb resolves behavior packages by walking up from the project directory, so the
 // test projects live under this package, where an installed @almadar/std is reachable.

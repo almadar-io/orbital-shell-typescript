@@ -5,7 +5,7 @@ cd "$(dirname "$0")/../.."
 ORB=${ORB:-orb}
 G=scripts/gates
 KERNEL_JS="$PWD/../../../orbital-wasm/js"
-export ORB_BIN=${ORB_BIN:-$HOME/bin/orb} ALMADAR_KERNEL_NODE=${ALMADAR_KERNEL_NODE:-$HOME/bin/kernel.node} ALMADAR_KERNEL_DIR=${ALMADAR_KERNEL_DIR:-$KERNEL_JS}
+export ORB_BIN=${ORB_BIN:-$HOME/bin/orb-dev} ALMADAR_KERNEL_NODE=${ALMADAR_KERNEL_NODE:-$HOME/bin/kernel.node} ALMADAR_KERNEL_DIR=${ALMADAR_KERNEL_DIR:-$KERNEL_JS}
 mkdir -p $G/.observed $G/known-failures
 status=0
 

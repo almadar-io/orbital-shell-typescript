@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ProgramInspectionSchema } from '@almadar/core';
 import { runProgramEffect } from '../src/program/index.js';
 
-const orb = process.env['ORB_BIN'] ?? join(process.env['HOME'] ?? '', 'bin', 'orb');
+const orb = process.env['ORB_BIN'] ?? join(process.env['HOME'] ?? '', 'bin', 'orb-dev');
 const directories: string[] = [];
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });

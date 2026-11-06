@@ -60,7 +60,7 @@ describe('completeArgs', () => {
     });
 });
 
-const ORB = process.env.ORB_BIN ?? path.join(os.homedir(), 'bin', 'orb');
+const ORB = process.env.ORB_BIN ?? path.join(os.homedir(), 'bin', 'orb-dev');
 
 describe.skipIf(!fs.existsSync(ORB))('against the real orb', () => {
     it('a partial keyword at the top level completes to `orbital`', () => {

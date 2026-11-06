@@ -239,7 +239,7 @@ function canonicalizeOrb(value: unknown): unknown {
 function resolveOrbBin(): string | undefined {
   const fromEnv = process.env.ORB_BIN;
   if (fromEnv && existsSync(fromEnv)) return fromEnv;
-  const home = join(homedir(), 'bin/orb');
+  const home = join(homedir(), 'bin/orb-dev');
   if (existsSync(home)) return home;
   return undefined;
 }
@@ -247,7 +247,7 @@ function resolveOrbBin(): string | undefined {
 describe('translateLolo round-trips through the Rust parser', () => {
   const orbBin = resolveOrbBin();
   if (!orbBin) {
-    console.log('[i18n.test] ORB_BIN not set and ~/bin/orb missing — skipping the Rust parser round-trip.');
+    console.log('[i18n.test] ORB_BIN not set and ~/bin/orb-dev missing — skipping the Rust parser round-trip.');
   }
 
   it.skipIf(!orbBin)('ar and sl renderings lower to the same .orb as the English source', () => {

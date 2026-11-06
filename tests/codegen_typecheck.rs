@@ -33,7 +33,7 @@ use std::process::Command;
 
 /// Manual procedure to run the full Phase F.6 gate today:
 ///
-/// 1. From repo root: `~/bin/orbital compile projects/cart/cart.orb`.
+/// 1. From repo root: `~/bin/orb-dev compile projects/cart/cart.orb`.
 /// 2. `cd projects/cart && pnpm install`.
 /// 3. `pnpm exec tsc --noEmit`.
 /// 4. Expect exit 0; any non-zero exit is a Phase F.6 violation.

@@ -7,7 +7,7 @@ import { discoverBehaviorPackages } from '../src/behavior-package.js';
 
 // The discovery is `orb list --json --ancestors` (the std orb-packages atom): these run the real `orb` over temporary trees,
 // each holding the installed std the bootloader finds its commands in (ALMADAR_STD_DIR and ALMADAR_CORE_DIR, else the nearest installed ones).
-const ORB_BIN = process.env['ORB_BIN'] ?? join(process.env['HOME'] ?? '', 'bin', 'orb');
+const ORB_BIN = process.env['ORB_BIN'] ?? join(process.env['HOME'] ?? '', 'bin', 'orb-dev');
 
 function installed(name: 'std' | 'core', named: string | undefined): string | undefined {
   if (named !== undefined) return named;
