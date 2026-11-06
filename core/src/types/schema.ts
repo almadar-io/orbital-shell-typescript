@@ -122,13 +122,13 @@ export const SiteMetaSchema = z.object({
   signIn: z.string().startsWith('/').optional(),
 }).strict();
 
-/** A program's merged message catalogs: locale → qualified key (`<behavior>:<key>`) → message. `orb resolve` writes one `<stem>.<locale>.json` per locale. */
+/** A program's messages: locale → qualified key (`<behavior>:<key>`) → message. Resolution stores them in the program's `messages`. */
 export type MessageCatalogs = Record<string, Record<string, string>>;
 
 /** The compiler's resolution stamp (`ResolvedMark` in orbital-core): the `orb` version that resolved the program and its type-contract version. */
 export interface ResolvedMark {
   orb: string;
-  typeContractVersion: 1;
+  typeContractVersion: 2;
 }
 
 export interface OrbitalSchema {
@@ -203,6 +203,8 @@ export interface OrbitalSchema {
 
   /** `locales [en, ar, sl]` — the locales this program ships; every `(i18n/t …)` key must exist in each one's catalog. */
   locales?: string[];
+  /** The program's messages, written by resolution and never authored: the program carries its own text wherever it is opened. */
+  messages?: MessageCatalogs;
 
   /** `public: "./public"` — a folder beside the program copied verbatim to the built site's root. */
   publicDir?: string;
@@ -276,7 +278,7 @@ export const SchemaMetadataSchema = z.object({
 export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, object> = z.object({
   types: z.record(z.string(), TypeAliasMembersSchema).optional(),
   typeContractVersion: z.literal(1).optional(),
-  resolved: z.object({ orb: z.string(), typeContractVersion: z.literal(1) }).optional(),
+  resolved: z.object({ orb: z.string(), typeContractVersion: z.literal(2) }).optional(),
   name: z.string().min(1, "Schema name is required"),
   description: z.string().optional(),
   theme: ThemeRefSchema.optional(),
@@ -292,6 +294,7 @@ export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, object> = z.object({
     .array(OrbitalZodSchema)
     .min(1, "At least one orbital is required"),
   locales: z.array(z.string().min(1)).optional(),
+  messages: z.record(z.string(), z.record(z.string(), z.string())).optional(),
   publicDir: z.string().min(1).optional(),
   store: z.string().min(1).optional(),
   egress: z.array(z.string().min(1)).optional(),

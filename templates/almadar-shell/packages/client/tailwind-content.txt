@@ -20,6 +20,7 @@ Name
 [mask-image:linear-gradient(to_bottom,black_55%,transparent)]
 absolute
 actionLabel
+almadar-std/std-analytics-board
 almadar-std/std-app-hosting-board
 almadar-std/std-aws-board
 almadar-std/std-behavior-playground

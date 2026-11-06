@@ -49,7 +49,6 @@ import type {
 } from "@almadar/shell-runtime";
 import type {
   OrbitalSchema,
-  MessageCatalogs,
   OrbitalDefinition,
   BusEventSource,
   UserContext,
@@ -300,32 +299,9 @@ function needsResolving(schema: OrbitalSchema): boolean {
 }
 
 
-/** What `register` takes beside the schema: the program's catalogs and the folder its `uses lazy` behaviors sit beside (EXEC-LOAD-1). */
+/** What `register` takes beside the schema: the folder its `uses lazy` behaviors sit beside (EXEC-LOAD-1). The program carries its own messages. */
 export interface RegisterOptions {
-  messages?: MessageCatalogs;
   lazyDir?: string;
-}
-
-/** `orb resolve` writes each declared locale's merged catalog beside a `.orb` as `<stem>.<locale>.json`. */
-async function readSidecarCatalogs(
-  readFile: (path: string, encoding: 'utf-8') => Promise<string>,
-  orbPath: string,
-  locales: readonly string[],
-): Promise<MessageCatalogs> {
-  const messages: MessageCatalogs = {};
-  const stem = orbPath.replace(/\.orb$/, '');
-  for (const locale of locales) {
-    const catalogPath = `${stem}.${locale}.json`;
-    let catalogRaw: string;
-    try {
-      catalogRaw = await readFile(catalogPath, 'utf-8');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`registerFromFile: ${orbPath} declares locale "${locale}" but its catalog ${catalogPath} could not be read: ${msg}`);
-    }
-    messages[locale] = JSON.parse(catalogRaw) as Record<string, string>;
-  }
-  return messages;
 }
 
 export class OrbitalServerRuntime {
@@ -355,12 +331,8 @@ export class OrbitalServerRuntime {
   private programHandlersPromise: Promise<void> | null = null;
   private resolvedSchema: OrbitalSchema | null = null;
 
-  /** The program's declared `locales`, in declared order; the first is the default. */
-  private appLocales: readonly string[] = [];
   /** The folder the program's lazy files sit beside; the pages that name them are on `resolvedSchema.lazyPages`. */
   private lazyDir: string | undefined;
-  /** Merged message catalogs of every registered program (keys are behavior-qualified). */
-  private messages: MessageCatalogs = {};
   /** Wired by the hosting server (e.g. the playground SSE endpoint) via `setLiveBroadcastSink`. */
   private readonly liveSubscribers = new Set<(item: LiveBroadcastItem) => void>();
   private liveBroadcastSink: ((item: LiveBroadcastItem) => void) | null = null;
@@ -467,10 +439,6 @@ export class OrbitalServerRuntime {
     if (this.config.debug) {
       registerLog.debug('register:schema', { name: schema.name });
     }
-    this.appLocales = schema.locales ?? [];
-    for (const [locale, catalog] of Object.entries(options.messages ?? {})) {
-      this.messages[locale] = { ...this.messages[locale], ...catalog };
-    }
 
     // A program with imports is resolved by `orb`, the one resolver, from the configured base path; a host with
     // no `orb` to run (a browser) registers only resolved programs.
@@ -523,10 +491,8 @@ export class OrbitalServerRuntime {
       const msg = err instanceof Error ? err.message : String(err);
       throw new Error(`registerFromFile: ${path} is not valid JSON: ${msg}`);
     }
-    const locales = schema.locales ?? [];
-    const messages = await readSidecarCatalogs(readFile, path, locales);
     const { dirname } = await import('node:path');
-    await this.register(schema, { messages, lazyDir: dirname(path) });
+    await this.register(schema, { lazyDir: dirname(path) });
   }
 
   /** A program with imports resolved by `orb` from the configured base path (Node only: the one resolver is the compiler). */
@@ -663,7 +629,6 @@ export class OrbitalServerRuntime {
     this.kernelOs?.close();
     this.kernelOs = this.config.osHost?.(kernelOsGrants(kernel, () => this.requireKernelEngine()));
     this.kernelEngine = KernelEngine.open(kernel, schema, this.kernelPorts(), this.lazyDir);
-    this.kernelEngine.setMessages(this.appLocales, this.messages);
     this.kernelEngine.setStateful();
     this.programSurface = this.kernelEngine.programSurface();
     if (this.config.tickRelayIntervalMs !== undefined) this.kernelEngine.setTickRelayInterval(this.config.tickRelayIntervalMs);
@@ -757,8 +722,6 @@ export class OrbitalServerRuntime {
     this.kernelOs?.close();
     this.kernelOs = undefined;
     this.eventBus.clear();
-    this.messages = {};
-    this.appLocales = [];
 
     this.programHandlersPromise = null;
 
@@ -992,10 +955,6 @@ export class OrbitalServerRuntime {
     if (!lazySchema.orbitals.some((o) => o.name === orbitalName)) {
       throw new Error(`lazy orbital "${orbitalName}" is not in ${first.orbRef}, found: ${lazySchema.orbitals.map((o) => o.name).join(', ')}`);
     }
-    for (const [locale, catalog] of Object.entries(await readSidecarCatalogs(readFile, lazyPath, lazySchema.locales ?? []))) {
-      this.messages[locale] = { ...this.messages[locale], ...catalog };
-    }
-    this.kernelEngine?.setMessages(this.appLocales, this.messages);
     for (const orbital of lazySchema.orbitals) {
       await this.registerOrbitalAsync(orbital);
     }

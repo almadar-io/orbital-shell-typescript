@@ -112,7 +112,7 @@ function scripted(log: string[], service = false): KernelModule {
     tickResume(): void {}
     tickPaused(): boolean { return false; }
     setCapabilities(): void {}
-    setMessages(): void {}
+    setViewerLocale(): void {}
     setManagedProgram(): void {}
     lastError(): string { return ''; }
     osAllows(): boolean { return false; }

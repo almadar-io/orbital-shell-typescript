@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { GuestView } from '../GuestView';
 import { EventBusProvider, useEventBus } from '../../../../core';
 
@@ -138,5 +138,64 @@ describe('GuestView route', () => {
       </EventBusProvider>,
     );
     expect(await screen.findByText('at:/host')).toBeTruthy();
+  });
+});
+
+describe('GuestView scopes each guest paint to its painter', () => {
+  const keys: string[] = [];
+  const Listen = () => {
+    const bus = useEventBus();
+    React.useEffect(() => bus.onAny?.((e) => { keys.push(e.type); }), [bus]);
+    return null;
+  };
+  const Click = () => {
+    const bus = useEventBus();
+    return <button onClick={() => bus.emit('UI:CREATE', {})}>add</button>;
+  };
+
+  it('a control in the page-root paint emits under the guest trait that drew it', () => {
+    keys.length = 0;
+    wrap(
+      <>
+        <Listen />
+        <GuestView guest="guest-1" source="BudgetLayout" deliver="GUEST_CLICK" paints={[{ slot: 'main', trait: 'BudgetLayout', orbital: 'Budgets', embedded: false, content: null }]}>
+          <Click />
+        </GuestView>
+      </>,
+    );
+    screen.getByText('add').click();
+    expect(keys).toContain('UI:Budgets.BudgetLayout.CREATE');
+  });
+
+  it('control: a paint whose orbital the guest did not name is not scoped', () => {
+    keys.length = 0;
+    wrap(
+      <>
+        <Listen />
+        <GuestView guest="guest-1" source="BudgetLayout" deliver="GUEST_CLICK" paints={[{ slot: 'main', trait: 'BudgetLayout', embedded: false, content: null }]}>
+          <Click />
+        </GuestView>
+      </>,
+    );
+    screen.getByText('add').click();
+    expect(keys.some((key) => key.includes('BudgetLayout'))).toBe(false);
+  });
+});
+
+describe('GuestView clears what the guest stopped painting', () => {
+  const dialog = { slot: 'modal' as const, trait: 'Create', embedded: false, content: { type: 'typography', content: 'the form' } };
+  const page = { slot: 'main' as const, trait: 'Root', embedded: false, content: { type: 'typography', content: 'page' } };
+
+  it('a modal paint that leaves the paints is cleared from the view', async () => {
+    const { container, rerender } = wrap(<GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" paints={[page, dialog]}><span>root</span></GuestView>);
+    expect(container.textContent).toContain('the form');
+    rerender(<EventBusProvider debug={false}><GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" paints={[page]}><span>root</span></GuestView></EventBusProvider>);
+    await waitFor(() => expect(container.textContent).not.toContain('the form'));
+  });
+
+  it('control: a paint still held stays', () => {
+    const { container, rerender } = wrap(<GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" paints={[page, dialog]}><span>root</span></GuestView>);
+    rerender(<EventBusProvider debug={false}><GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" paints={[page, dialog]}><span>root</span></GuestView></EventBusProvider>);
+    expect(container.textContent).toContain('the form');
   });
 });

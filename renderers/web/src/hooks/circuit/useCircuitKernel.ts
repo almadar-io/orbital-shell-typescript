@@ -50,16 +50,19 @@ import { KernelLoaderMissingError, type KernelEngineValue } from '../../provider
 import { useTranslate, useRenderI18n } from '../../core';
 
 /** A program's type-contract stamp: the kernel refuses to register a program carrying neither field. */
-export type ProgramStamp = Pick<OrbitalSchema, 'resolved' | 'typeContractVersion' | 'theme' | 'themes'>;
+export type ProgramStamp = Pick<OrbitalSchema, 'resolved' | 'typeContractVersion' | 'theme' | 'themes' | 'locales' | 'messages'>;
 
 /** The program-level fields a kernel registration carries, field for field; nothing is minted. The app's `theme` and
- *  `themes` are the keys `theme/set` may bind and `@currentTheme` falls back to. */
+ *  `themes` are the keys `theme/set` may bind and `@currentTheme` falls back to; `locales` and `messages` are the text
+ *  `i18n/t` paints. */
 export function programStamp(schema: ProgramStamp): ProgramStamp {
   return {
     ...(schema.resolved !== undefined ? { resolved: schema.resolved } : {}),
     ...(schema.typeContractVersion !== undefined ? { typeContractVersion: schema.typeContractVersion } : {}),
     ...(schema.theme !== undefined ? { theme: schema.theme } : {}),
     ...(schema.themes !== undefined ? { themes: schema.themes } : {}),
+    ...(schema.locales !== undefined ? { locales: schema.locales } : {}),
+    ...(schema.messages !== undefined ? { messages: schema.messages } : {}),
   };
 }
 
@@ -216,41 +219,35 @@ export function useCircuitKernel(
   const { locale } = useTranslate();
   const i18n = useRenderI18n();
 
-  // A local leg opens with the catalog current then; a locale switch sets the new one on every open leg, never reopening it.
-  const catalog = useRef(i18n);
-  catalog.current = i18n;
-  const openLegs = useMemo<Array<Promise<ReturnType<typeof openLocalKernel>>>>(
-    () => [],
-    [loadModule, orbitalName, orbitals, metadata, stamp, options.callService, options.engine?.os],
-  );
+  // A local leg reads the page's locale per request, so a locale switch never reopens it.
+  const pageLocale = useRef(i18n?.locale);
+  pageLocale.current = i18n?.locale;
 
   const store = useMemo(
     () => createMemoryCircuitStore(memoryTraitDefinitions(traitIndex), options.observer),
     [traitIndex, options.observer],
   );
 
-  // A local leg runs on a kernel of its own over its store, with the viewer's catalog for `i18n/t`.
+  // A local leg runs on a kernel of its own over its store; the program carries the messages `i18n/t` reads.
   const localTransport = useCallback(
     (store: PersistenceAdapter): EventTransport => {
       const schema: OrbitalSchema = { name: orbitalName, orbitals: [...orbitals], ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) };
-      const opening = catalog.current;
       const kernelEngine = loadModule().then((kernel) => openLocalKernel({
           kernel,
           schema,
           persistence: localStorePersistence(schema, store, nativeMemoryPersistence(kernel)),
           ...(options.callService !== undefined ? { callService: options.callService } : {}),
           ...(options.engine?.os !== undefined ? { os: options.engine.os } : {}),
-          ...(opening !== undefined ? { messages: { [opening.locale]: opening.messages } } : {}),
         }));
       // The failure reaches the first request through the transport; a store nothing dispatches to stays quiet.
       kernelEngine.catch(() => undefined);
-      openLegs.push(kernelEngine);
       return createLocalStoreTransport({
         kernelEngine,
         schema,
+        locale: () => pageLocale.current,
       });
     },
-    [openLegs, loadModule, orbitalName, orbitals, metadata, stamp, options.callService, options.engine?.os],
+    [loadModule, orbitalName, orbitals, metadata, stamp, options.callService, options.engine?.os],
   );
   const offlineTransport = useMemo(
     () => (options.transport !== undefined || options.persistence === undefined ? undefined : localTransport(options.persistence)),
@@ -282,14 +279,12 @@ export function useCircuitKernel(
     if (!awaitTopology) topology.resolve({ carriesCircuitState: confirmedCarries });
   }, [awaitTopology, confirmedCarries, topology]);
 
-  // A transition the client paints locally resolves `i18n/t` against the viewer's catalog, as the server leg does.
+  // A transition the client paints locally resolves `i18n/t` in the page's locale, as the server leg does.
+  const viewerLocale = i18n?.locale;
   useEffect(() => {
-    if (i18n === undefined) return;
-    void kernelInstance.then((k) => k.setMessages(JSON.stringify([i18n.locale]), JSON.stringify({ [i18n.locale]: i18n.messages })));
-    for (const leg of openLegs) {
-      void leg.then((engine) => engine.setMessages([i18n.locale], { [i18n.locale]: i18n.messages }), () => undefined);
-    }
-  }, [kernelInstance, i18n, openLegs]);
+    if (viewerLocale === undefined) return;
+    void kernelInstance.then((k) => k.setViewerLocale(viewerLocale));
+  }, [kernelInstance, viewerLocale]);
   const kernelClient = useMemo<KernelClient>(() => createLazyKernelClient({
     instance: kernelInstance,
     store,

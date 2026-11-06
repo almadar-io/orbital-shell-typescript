@@ -132632,7 +132632,7 @@
           "types": [
             "string"
           ],
-          "description": "Guest trait that painted this content (`rendered[].trait`); the kernel delivers a click as address `<source>.<EVENT>`. Data for the kernel; never rendered.",
+          "description": "The guest's page-root trait whose paint is `children`: their controls are scoped to it. Never rendered.",
           "required": true
         },
         "deliver": {
@@ -132697,6 +132697,11 @@
                 ]
               },
               "trait": {
+                "types": [
+                  "string"
+                ]
+              },
+              "orbital": {
                 "types": [
                   "string"
                 ]

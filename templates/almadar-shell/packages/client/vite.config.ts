@@ -1,31 +1,6 @@
-import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import fs from 'fs';
 import path from 'path';
-
-/**
- * The program's locale messages (the compiled app's root `locales/`) at `/locales/<locale>.json`: served in dev and
- * copied into the build. The prebuilt program-independent client is built with ALMADAR_GENERIC_CLIENT=1 and carries
- * none: `orb serve` serves the program's.
- */
-function programLocales(): Plugin {
-  const dir = path.resolve(__dirname, '../../locales');
-  const files = (): string[] => fs.readdirSync(dir).filter((name) => name.endsWith('.json'));
-  return {
-    name: 'almadar-program-locales',
-    configureServer(server) {
-      server.middlewares.use('/locales', (req, res, next) => {
-        const name = path.basename(req.url ?? '');
-        if (!files().includes(name)) return next();
-        res.setHeader('Content-Type', 'application/json');
-        res.end(fs.readFileSync(path.join(dir, name)));
-      });
-    },
-    generateBundle() {
-      for (const name of files()) this.emitFile({ type: 'asset', fileName: `locales/${name}`, source: fs.readFileSync(path.join(dir, name)) });
-    },
-  };
-}
 
 const CHUNKS: ReadonlyArray<readonly [string, ReadonlyArray<string>]> = [
   ['kernel', ['/node_modules/@almadar/kernel/']],
@@ -49,7 +24,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     envDir,
-    plugins: env.ALMADAR_GENERIC_CLIENT === '1' ? [react()] : [react(), programLocales()],
+    plugins: [react()],
 
     resolve: {
       alias: {
