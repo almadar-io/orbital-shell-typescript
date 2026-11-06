@@ -1274,5 +1274,7 @@
   "debug.replayForward": "الخطوة التالية",
   "debug.replayPlay": "تشغيل",
   "debug.replayPause": "إيقاف مؤقت",
-  "debug.replayStep": "{{step}} / {{total}}"
+  "debug.replayStep": "{{step}} / {{total}}",
+  "stateMachine.inspect": "فحص: اختر سمة من الصفحة",
+  "stateMachine.inspectHint": "انقر جزءًا من الصفحة · Esc للإيقاف"
 }

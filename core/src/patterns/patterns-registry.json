@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-05T20:56:33.295Z",
+  "exportedAt": "2026-11-06T01:22:04.358Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -43179,6 +43179,20 @@
             "string"
           ],
           "description": "Orbital mode: emitted with the trait's name when a box is chosen.",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "trait",
+              "type": "string",
+              "required": true
+            }
+          ]
+        },
+        "pickEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Orbital mode: shows the inspect toggle; emitted with the trait picked from its output on the page.",
           "kind": "event-ref",
           "emitPayloadSchema": [
             {
