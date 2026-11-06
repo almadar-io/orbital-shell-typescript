@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-05T21:14:13.342Z",
+  "exportedAt": "2026-11-05T23:55:34.909Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -42963,14 +42963,8 @@
                 "properties": {
                   "from": {
                     "types": [
-                      "string",
-                      "array"
-                    ],
-                    "items": {
-                      "types": [
-                        "string"
-                      ]
-                    }
+                      "string"
+                    ]
                   },
                   "to": {
                     "types": [
@@ -75632,14 +75626,8 @@
                       "properties": {
                         "from": {
                           "types": [
-                            "string",
-                            "array"
-                          ],
-                          "items": {
-                            "types": [
-                              "string"
-                            ]
-                          }
+                            "string"
+                          ]
                         },
                         "to": {
                           "types": [
@@ -76389,14 +76377,8 @@
                       "properties": {
                         "from": {
                           "types": [
-                            "string",
-                            "array"
-                          ],
-                          "items": {
-                            "types": [
-                              "string"
-                            ]
-                          }
+                            "string"
+                          ]
                         },
                         "to": {
                           "types": [
@@ -121854,14 +121836,8 @@
                 "properties": {
                   "from": {
                     "types": [
-                      "string",
-                      "array"
-                    ],
-                    "items": {
-                      "types": [
-                        "string"
-                      ]
-                    }
+                      "string"
+                    ]
                   },
                   "to": {
                     "types": [
@@ -126415,14 +126391,8 @@
           "properties": {
             "from": {
               "types": [
-                "string",
-                "array"
-              ],
-              "items": {
-                "types": [
-                  "string"
-                ]
-              }
+                "string"
+              ]
             },
             "to": {
               "types": [
@@ -131805,14 +131775,8 @@
           "properties": {
             "from": {
               "types": [
-                "string",
-                "array"
-              ],
-              "items": {
-                "types": [
-                  "string"
-                ]
-              }
+                "string"
+              ]
             },
             "to": {
               "types": [
