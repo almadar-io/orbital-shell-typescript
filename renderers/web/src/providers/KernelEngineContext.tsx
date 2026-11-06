@@ -15,7 +15,7 @@ import { installNativeLanguages } from '@almadar/syntax';
 import type { KernelLoader, KernelModule } from '../lib/kernel-wire';
 import type { FrameScheduler } from '../lib/kernel-frames';
 import type { OsHostPort } from '@almadar/shell-runtime/kernel/os-port';
-import type { KernelCanvas3DFactory, KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
+import type { KernelCanvas3DFactory, KernelGpuHost, KernelSceneCanvasFactory } from '@almadar/shell-runtime/kernel/wire';
 
 export interface KernelEngineValue {
   /** Resolves the initialised `@almadar/kernel` module, its language installed (`@almadar/shell-browser/kernel-loader`); shared by every circuit under the provider. */
@@ -28,6 +28,8 @@ export interface KernelEngineValue {
   gpu?: () => KernelGpuHost;
   /** Makes an orbital-canvas 3D view on a page canvas once the module has loaded; absent, a 3D canvas has no renderer. */
   canvas3d?: KernelCanvas3DFactory;
+  /** Makes an orbital-canvas scene canvas (2D instruments, diagrams) on a page canvas once the module has loaded. */
+  sceneCanvas?: KernelSceneCanvasFactory;
 }
 
 export const KernelEngineContext = createContext<KernelEngineValue | null>(null);
@@ -52,10 +54,12 @@ export interface KernelEngineProviderProps {
   gpu?: () => KernelGpuHost;
   /** Makes a 3D view on a page canvas (`(canvas) => Canvas3D.create(canvas)`). */
   canvas3d?: KernelCanvas3DFactory;
+  /** Makes a scene canvas on a page canvas (`(canvas) => SceneCanvas.create(canvas)`). */
+  sceneCanvas?: KernelSceneCanvasFactory;
   children?: ReactNode;
 }
 
-export function KernelEngineProvider({ loader, scheduleFrame, os, gpu, canvas3d, children }: KernelEngineProviderProps): React.ReactElement {
+export function KernelEngineProvider({ loader, scheduleFrame, os, gpu, canvas3d, sceneCanvas, children }: KernelEngineProviderProps): React.ReactElement {
   const value = useMemo<KernelEngineValue>(() => {
     let module: Promise<KernelModule> | undefined;
     const load = (): Promise<KernelModule> =>
@@ -72,7 +76,8 @@ export function KernelEngineProvider({ loader, scheduleFrame, os, gpu, canvas3d,
       ...(os !== undefined ? { os } : {}),
       ...(gpu !== undefined ? { gpu: () => (gpuHost ??= gpu()) } : {}),
       ...(canvas3d !== undefined ? { canvas3d: (canvas: HTMLCanvasElement) => loadModule().then(() => canvas3d(canvas)) } : {}),
+      ...(sceneCanvas !== undefined ? { sceneCanvas: (canvas: HTMLCanvasElement) => loadModule().then(() => sceneCanvas(canvas)) } : {}),
     };
-  }, [loader, scheduleFrame, os, gpu, canvas3d]);
+  }, [loader, scheduleFrame, os, gpu, canvas3d, sceneCanvas]);
   return <KernelEngineContext.Provider value={value}>{children}</KernelEngineContext.Provider>;
 }

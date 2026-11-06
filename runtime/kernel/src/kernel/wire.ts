@@ -51,6 +51,30 @@ export interface KernelCanvas3D {
   free(): void;
 }
 
+/**
+ * The wasm `SceneCanvas` (orbital-wasm): orbital-canvas mapping and drawing a canvas-style render node (learning
+ * instruments, diagrams, a 2D game `canvas`) into a page canvas, with its own layout, clock and input.
+ */
+export interface KernelSceneCanvas {
+  setScene(nodeJson: string): void;
+  resize(cssWidth: number, cssHeight: number, pixelRatio: number): void;
+  setMotion(enabled: boolean): void;
+  /** Advances the scene clock to `nowMs`; true while the page should keep drawing. */
+  frame(nowMs: number): boolean;
+  render(): void;
+  /** `touch-down`, `touch-move`, `touch-up` or `touch-cancel`, in CSS pixels. */
+  input(kind: string, x: number, y: number, button: number): void;
+  zoom(factor: number, x: number, y: number): void;
+  doubleTap(x: number, y: number): void;
+  /** `[{ "event", "payload" }]` queued by input. */
+  takeEvents(): string;
+  webgpu(): boolean;
+  free(): void;
+}
+
+/** Makes a `SceneCanvas` on a page canvas (`(canvas) => SceneCanvas.create(canvas)` from `@almadar/kernel/client`). */
+export type KernelSceneCanvasFactory = (canvas: HTMLCanvasElement) => Promise<KernelSceneCanvas>;
+
 /** Makes a `Canvas3D` on a page canvas (`(canvas) => Canvas3D.create(canvas)` from `@almadar/kernel/client`). */
 export type KernelCanvas3DFactory = (canvas: HTMLCanvasElement) => Promise<KernelCanvas3D>;
 

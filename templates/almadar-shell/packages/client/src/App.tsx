@@ -21,7 +21,7 @@ import { loadProgram } from './client-program';
 import { AuthProvider, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
 import { loadKernel } from './kernel-host';
-import { Canvas3D, GpuHost } from '@almadar/kernel/client';
+import { Canvas3D, GpuHost, SceneCanvas } from '@almadar/kernel/client';
 import { LocaleRoot } from './locale';
 import { ThemeProvider } from '@almadar/shell-web/core';
 
@@ -30,6 +30,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? '';
 /** The browser's GPU answerer, made once the kernel module has loaded: a program's `gpu/` asks run on WebGPU in the page. */
 const makeGpu = (): GpuHost => new GpuHost();
 const makeCanvas3D = (canvas: HTMLCanvasElement): Promise<Canvas3D> => Canvas3D.create(canvas);
+const makeSceneCanvas = (canvas: HTMLCanvasElement): Promise<SceneCanvas> => SceneCanvas.create(canvas);
 // `orb compile --mode client --no-server` writes VITE_SERVER=none: a static site whose program runs wholly in the browser.
 const SERVERLESS = import.meta.env.VITE_SERVER === 'none';
 // The lazy pages' programs sit beside program.client.orb, at each page's orbRef.
@@ -88,7 +89,7 @@ export function App({ manifest }: AppProps): React.ReactElement {
       : {};
   return (
     <ThemeProvider {...themeProps}>
-      <KernelEngineProvider loader={loader} gpu={makeGpu} canvas3d={makeCanvas3D}>
+      <KernelEngineProvider loader={loader} gpu={makeGpu} canvas3d={makeCanvas3D} sceneCanvas={makeSceneCanvas}>
         <AuthProvider>
           <BrowserRouter>
             <LocaleRoot manifest={manifest}>
