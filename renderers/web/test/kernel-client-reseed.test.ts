@@ -46,6 +46,9 @@ function fakeKernel(reseeded: string[]): KernelInstance {
   const refuse = (): never => { throw new Error('not used by this test'); };
   return {
     dispatch: () => JSON.stringify(dispatchWire),
+    installGpu: refuse,
+    dispatchHeld: refuse,
+    dropHeldPayload: refuse,
     dispatchMount: () => JSON.stringify(mountWire),
     openFlight: () => 2,
     foldInOrder: () => applied(),

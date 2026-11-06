@@ -1,18 +1,30 @@
 /** Decoders for what the kernel hands back as JSON: the generated decoders of `@almadar/core/kernel-wire`, which throw naming the failing path. */
 import {
   decodeFiredTick,
+  decodeHeldGpuCompletion,
+  decodeIoAnswerWire,
   decodeIoRequestWire,
   decodeNextWire,
   decodeResolveProgressWire,
   decodeServerProgressWire,
 } from '@almadar/core/kernel-wire';
 import type { JsonValue } from '@almadar/core';
-import type { FiredByOrbital, NextWire, ResolveProgressWire, ServerProgressWire } from './wire.js';
+import type { FiredByOrbital, IoAnswerWire, NextWire, ResolveProgressWire, ServerProgressWire } from './wire.js';
+import type { HeldGpuCompletion } from '@almadar/core/kernel-wire';
 
 export { decodeIoRequestWire as decodeRequest };
 
 export function decodeProgress(json: string): ServerProgressWire {
   return decodeServerProgressWire(JSON.parse(json));
+}
+
+export function decodeAnswer(json: string): IoAnswerWire {
+  return decodeIoAnswerWire(JSON.parse(json));
+}
+
+export function decodeHeldCompletion(json: string): HeldGpuCompletion | null {
+  const value: JsonValue = JSON.parse(json);
+  return value === null ? null : decodeHeldGpuCompletion(value);
 }
 
 export function decodeNext(json: string): NextWire | null {

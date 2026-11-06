@@ -39,4 +39,45 @@ describe('OsGrants (generated from the Rust OsGrants)', () => {
     expect(merged.anchored).toEqual(full.anchored);
     expect(unionOsGrants(undefined, undefined)).toEqual({});
   });
+
+  it('carries mem, kernel, ffi, gpu and credentials through a union with {} on either side', () => {
+    const held: OsGrants = {
+      mem: [{ target: 'arena:a', kinds: ['create'] }],
+      kernel: [{ target: 'queue:q', kinds: ['read'] }],
+      ffi: [{ library: 'libm', symbol: 'cos', signature: '(f64)->f64' }],
+      gpu: [{ target: 'device:1024', kinds: ['open'] }],
+      credentials: ['admin'],
+    };
+    expect(unionOsGrants(held, {})).toEqual(held);
+    expect(unionOsGrants({}, held)).toEqual(held);
+    expect(unionOsGrants(held, undefined)).toEqual(held);
+  });
+
+  it('unions mem, kernel and gpu kinds per target and ffi and credentials without duplicates, as the Rust OsGrants::union', () => {
+    const a: OsGrants = {
+      mem: [{ target: 'arena:a', kinds: ['create'] }],
+      kernel: [{ target: 'queue:q', kinds: ['read'] }],
+      ffi: [{ library: 'libm', symbol: 'cos', signature: '(f64)->f64' }],
+      gpu: [{ target: 'device:1024', kinds: ['open'] }],
+      credentials: ['admin'],
+    };
+    const b: OsGrants = {
+      mem: [{ target: 'arena:a', kinds: ['free', 'create'] }, { target: 'arena:b', kinds: ['atomic'] }],
+      kernel: [{ target: 'queue:q', kinds: ['spawn'] }],
+      ffi: [{ library: 'libm', symbol: 'cos', signature: '(f64)->f64' }, { library: 'libm', symbol: 'sin', signature: '(f64)->f64' }],
+      gpu: [{ target: 'device:1024', kinds: ['compute', 'open'] }, { target: 'device:2048', kinds: ['render'] }],
+      credentials: ['admin'],
+    };
+    expect(unionOsGrants(a, b)).toEqual({
+      mem: [{ target: 'arena:a', kinds: ['create', 'free'] }, { target: 'arena:b', kinds: ['atomic'] }],
+      kernel: [{ target: 'queue:q', kinds: ['read', 'spawn'] }],
+      ffi: [{ library: 'libm', symbol: 'cos', signature: '(f64)->f64' }, { library: 'libm', symbol: 'sin', signature: '(f64)->f64' }],
+      gpu: [{ target: 'device:1024', kinds: ['open', 'compute'] }, { target: 'device:2048', kinds: ['render'] }],
+      credentials: ['admin'],
+    });
+  });
+
+  it('control: a family neither side declares stays absent', () => {
+    expect(unionOsGrants({ mem: [{ target: 'arena:a', kinds: ['create'] }] }, { exec: ['ls'] })).toEqual({ mem: [{ target: 'arena:a', kinds: ['create'] }], exec: ['ls'] });
+  });
 });

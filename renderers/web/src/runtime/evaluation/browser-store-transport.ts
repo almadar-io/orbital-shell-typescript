@@ -57,6 +57,8 @@ export interface BrowserStoreTransportOptions {
   secretPorts?: SecretPorts;
   /** The host's `os` port (`createFetchOsHost(fetch)`); absent, every `os` ask of a leg is denied. */
   os?: OsHostPort;
+  /** The browser's GPU answerer (the kernel module's `GpuHost`), installed into the kernel; absent, every `gpu/` ask answers `unsupported`. */
+  gpu?: KernelHostPorts['gpu'];
 }
 
 export async function openBrowserStoreTransport(options: BrowserStoreTransportOptions): Promise<EventTransport> {
@@ -75,6 +77,7 @@ export async function openBrowserStoreTransport(options: BrowserStoreTransportOp
       ...(options.callService !== undefined ? { callService: options.callService } : {}),
       ...(options.secretPorts !== undefined ? { secretPorts: options.secretPorts } : {}),
       ...(options.os !== undefined ? { os: options.os } : {}),
+      ...(options.gpu !== undefined ? { gpu: options.gpu } : {}),
     }),
     ...(options.locale !== undefined ? { locale: () => options.locale } : {}),
   });
@@ -111,6 +114,8 @@ export interface BrowserHostOptions {
   tabs?: BrowserTabPort;
   /** The host's `os` port (`createFetchOsHost(fetch)`): the browser's only os operation is `os/fetch`; absent, every `os` ask is denied. */
   os?: OsHostPort;
+  /** The browser's GPU answerer (the kernel module's `GpuHost`), installed into the kernel: every `gpu/` ask is answered there and its bytes never reach this host; absent, a `gpu/` ask answers `unsupported`. */
+  gpu?: KernelHostPorts['gpu'];
   factory?: IDBFactory;
   /** The viewer's locale: a first visit starts with the entity's `instances` written for it. */
   locale?: string;
@@ -180,6 +185,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
     ...(options.onDevice !== undefined ? { onDevice: options.onDevice } : {}),
     ...(options.tabs !== undefined ? { tabs: options.tabs } : {}),
     ...(options.os !== undefined ? { os: options.os } : {}),
+    ...(options.gpu !== undefined ? { gpu: options.gpu } : {}),
   });
   const local = createLocalStoreTransport({ kernelEngine });
   transport = local;
@@ -188,6 +194,7 @@ export async function openBrowserHost(options: BrowserHostOptions): Promise<Brow
     const request: EventRequest = {
       event: call.event,
       ...(call.payload !== undefined ? { payload: call.payload } : {}),
+      ...(call.heldPayload !== undefined ? { heldPayload: call.heldPayload } : {}),
       targetTrait: call.traitName,
       ...(call.entityId !== undefined ? { entityId: call.entityId } : {}),
       ...(call.originClientId !== undefined ? { clientId: call.originClientId } : {}),

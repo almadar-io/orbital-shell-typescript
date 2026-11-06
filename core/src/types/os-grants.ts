@@ -14,10 +14,14 @@ export type {
   DesktopKind,
   DevGrant,
   DevKind,
+  FfiGrant,
   FsGrant,
   FsMode,
+  GpuGrant,
   GrantAnchor,
+  KernelGrant,
   KvMode,
+  MemGrant,
   NetGrant,
   NetKind,
   NetPart,
@@ -37,6 +41,11 @@ export function unionOsGrants(a: OsGrants | undefined, b: OsGrants | undefined):
     }
     return [...out.values()];
   };
+  const distinct = <T>(x: readonly T[] | undefined, y: readonly T[] | undefined): T[] => {
+    const out = new Map<string, T>();
+    for (const g of [...(x ?? []), ...(y ?? [])]) out.set(JSON.stringify(g), g);
+    return [...out.values()];
+  };
   const out: OsGrants = {};
   const fs = keyed(a?.fs, b?.fs, (g) => g.glob, (g) => g.modes, (g, modes) => ({ ...g, modes }));
   const net = keyed(a?.net, b?.net, (g) => g.target, (g) => g.kinds, (g, kinds) => ({ ...g, kinds }));
@@ -44,17 +53,18 @@ export function unionOsGrants(a: OsGrants | undefined, b: OsGrants | undefined):
   if (net.length > 0) out.net = net;
   const dev = keyed(a?.dev, b?.dev, (g) => g.target, (g) => g.kinds, (g, kinds) => ({ ...g, kinds }));
   if (dev.length > 0) out.dev = dev;
+  const mem = keyed(a?.mem, b?.mem, (g) => g.target, (g) => g.kinds, (g, kinds) => ({ ...g, kinds }));
+  const kernel = keyed(a?.kernel, b?.kernel, (g) => g.target, (g) => g.kinds, (g, kinds) => ({ ...g, kinds }));
+  const gpu = keyed(a?.gpu, b?.gpu, (g) => g.target, (g) => g.kinds, (g, kinds) => ({ ...g, kinds }));
+  if (mem.length > 0) out.mem = mem;
+  if (kernel.length > 0) out.kernel = kernel;
+  if (gpu.length > 0) out.gpu = gpu;
   const kv: Record<string, KvMode[]> = {};
   for (const store of [...Object.keys(a?.kv ?? {}), ...Object.keys(b?.kv ?? {})]) {
     kv[store] = list(a?.kv?.[store], b?.kv?.[store]);
   }
   if (Object.keys(kv).length > 0) out.kv = kv;
   const anchored: AnchoredGrants = {};
-  const distinct = <T>(x: readonly T[] | undefined, y: readonly T[] | undefined): T[] => {
-    const out = new Map<string, T>();
-    for (const g of [...(x ?? []), ...(y ?? [])]) out.set(JSON.stringify(g), g);
-    return [...out.values()];
-  };
   const anchoredFs = distinct(a?.anchored?.fs, b?.anchored?.fs);
   const anchoredExec = distinct(a?.anchored?.exec, b?.anchored?.exec);
   const anchoredNet = distinct(a?.anchored?.net, b?.anchored?.net);
@@ -67,6 +77,10 @@ export function unionOsGrants(a: OsGrants | undefined, b: OsGrants | undefined):
   const stdio = list(a?.stdio, b?.stdio);
   const sys = list(a?.sys, b?.sys);
   const desktop = list(a?.desktop, b?.desktop);
+  const ffi = distinct(a?.ffi, b?.ffi);
+  const credentials = list(a?.credentials, b?.credentials);
+  if (ffi.length > 0) out.ffi = ffi;
+  if (credentials.length > 0) out.credentials = credentials;
   if (exec.length > 0) out.exec = exec;
   if (env.length > 0) out.env = env;
   if (stdio.length > 0) out.stdio = stdio;

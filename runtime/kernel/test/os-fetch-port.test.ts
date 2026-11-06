@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createFetchOsHost } from '../src/kernel/os-fetch-port.js';
-import { answerRequest, type KernelHostPorts } from '../src/kernel/host.js';
-import type { IoRequestWire, OsOp } from '@almadar/core/kernel-wire';
+import { answerRequest, type DeferredCallOutcome, type HeldGpuCompletion, type HeldGpuPort, type KernelHostPorts } from '../src/kernel/host.js';
+import { InFlightCalls } from '../src/effects/in-flight-calls.js';
+import type { IoAnswerWire, IoRequestWire, OsOp } from '@almadar/core/kernel-wire';
 import type { JsonValue } from '@almadar/core';
 
 const reply = (status: number, headers: Record<string, string>, body: string): Response => new Response(body, { status, headers });
@@ -100,7 +101,69 @@ describe('a browser program\'s os ask through the host loop', () => {
     expect(await answerRequest(withOs(os), osAsk('os/close', [1]), scope)).toEqual({ kind: 'os', result: { ok: {} } });
   });
 
-  it('control: a host constructed with no os port denies the same ask without fetching', async () => {
-    expect(await answerRequest(withOs(undefined), osAsk('os/fetch', ['GET', 'https://a.example.test/x']), { orbital: 'Main' })).toMatchObject({ kind: 'os', result: { error: { kind: 'denied' } } });
+  it('control: a host constructed with no os port answers the same ask unsupported without fetching (G-CROSS-469, twin of with_no_host_every_op_is_unsupported)', async () => {
+    expect(await answerRequest(withOs(undefined), osAsk('os/fetch', ['GET', 'https://a.example.test/x']), { orbital: 'Main' })).toEqual({ kind: 'os', result: { error: { kind: 'unsupported', message: 'os/fetch: no os host configured' } } });
+    expect(await answerRequest(withOs(undefined), osAsk('gpu/device-open', [{}]), { orbital: 'Main' })).toEqual({ kind: 'os', result: { error: { kind: 'unsupported', message: 'gpu/device-open: no os host configured' } } });
+  });
+});
+
+describe('a gpu ask the kernel holds (gpu/*)', () => {
+  const gpuAsk = (ticket: number, op: OsOp, key?: string): IoRequestWire => ({ kind: 'gpu', ticket, op, ...(key !== undefined ? { key } : {}) });
+  const scope = { orbital: 'Main', originClientId: 'tab-1', locale: 'en' };
+  const held = (answer: IoAnswerWire): { port: HeldGpuPort; asked: number[]; completions: Array<(c: HeldGpuCompletion | null) => void>; dropped: number[] } => {
+    const asked: number[] = [];
+    const completions: Array<(c: HeldGpuCompletion | null) => void> = [];
+    const dropped: number[] = [];
+    const port: HeldGpuPort = {
+      answer: async (ticket, completed) => { asked.push(ticket); completions.push(completed); return answer; },
+      drop: (heldPayload) => { dropped.push(heldPayload); },
+    };
+    return { port, asked, completions, dropped };
+  };
+  const ports = (heldGpu: HeldGpuPort | undefined, sink: ((call: DeferredCallOutcome) => void) | undefined): KernelHostPorts =>
+    ({ deferCallOutcome: () => sink, inFlightCalls: new InFlightCalls(), ...(heldGpu !== undefined ? { heldGpu } : {}) } as KernelHostPorts);
+  const completion: HeldGpuCompletion = { traitName: 'Host', entityId: 'row-1', event: 'GOT', heldPayload: 41 };
+
+  it('passes the ticket back and replies with the answer the kernel holds; the host never sees arguments', async () => {
+    const { port, asked } = held({ kind: 'gpuHeld', ticket: 7 });
+    expect(await answerRequest(ports(port, undefined), gpuAsk(3, 'gpu/buffer-create'), scope)).toEqual({ kind: 'gpuHeld', ticket: 7 });
+    expect(asked).toEqual([3]);
+  });
+
+  it('a deferred ask runs its completion through the follow-on sink naming the held payload, once per key', async () => {
+    const { port, completions, dropped } = held({ kind: 'serviceDeferred' });
+    const sunk: DeferredCallOutcome[] = [];
+    const host = ports(port, (call) => sunk.push(call));
+    expect(await answerRequest(host, gpuAsk(3, 'gpu/submit', 'k'), scope)).toEqual({ kind: 'serviceDeferred' });
+    expect(await answerRequest(host, gpuAsk(4, 'gpu/submit', 'k'), scope)).toMatchObject({ kind: 'os', result: { error: { kind: 'invalid' } } });
+    completions[0]?.(completion);
+    expect(sunk).toEqual([{ orbital: 'Main', traitName: 'Host', event: 'GOT', payload: undefined, heldPayload: 41, entityId: 'row-1', originClientId: 'tab-1', locale: 'en' }]);
+    expect(dropped).toEqual([]);
+    expect(await answerRequest(host, gpuAsk(5, 'gpu/submit', 'k'), scope)).toEqual({ kind: 'serviceDeferred' });
+  });
+
+  it('a completion that takes no route frees the key and starts nothing', async () => {
+    const { port, completions } = held({ kind: 'serviceDeferred' });
+    const sunk: DeferredCallOutcome[] = [];
+    const host = ports(port, (call) => sunk.push(call));
+    await answerRequest(host, gpuAsk(3, 'gpu/device-open', 'k'), scope);
+    completions[0]?.(null);
+    expect(sunk).toEqual([]);
+    expect(await answerRequest(host, gpuAsk(4, 'gpu/device-open', 'k'), scope)).toEqual({ kind: 'serviceDeferred' });
+  });
+
+  it('a completion with no sink to run it is dropped from the kernel, never left held', async () => {
+    const { port, completions, dropped } = held({ kind: 'serviceDeferred' });
+    await answerRequest(ports(port, undefined), gpuAsk(3, 'gpu/submit', 'k'), scope);
+    completions[0]?.(completion);
+    expect(dropped).toEqual([41]);
+  });
+
+  it('control: with no answerer installed a held ask answers unsupported, and the browser os port answers a gpu ask unsupported', async () => {
+    expect(await answerRequest(ports(undefined, undefined), gpuAsk(3, 'gpu/submit'), scope)).toEqual({ kind: 'os', result: { error: { kind: 'unsupported', message: 'gpu/submit: this host installed no gpu answerer' } } });
+    const os = createFetchOsHost(async () => reply(200, {}, 'ok'));
+    expect(await os.answer('gpu/buffer-create', [1, {}])).toEqual({ error: { kind: 'unsupported', message: 'gpu/buffer-create: this host installed no gpu answerer' } });
+    expect(os.defer).toBeUndefined();
+    expect(await os.answer('os/fetch', ['GET', 'https://a.example.test/'])).toMatchObject({ ok: { status: 200 } });
   });
 });

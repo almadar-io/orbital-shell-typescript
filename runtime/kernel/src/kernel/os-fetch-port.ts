@@ -3,7 +3,8 @@
  * body bytes raw. The method, the url and the egress check are the kernel's. With `stream: true` the answer comes
  * as soon as the head arrives, with an empty body and a `handle`: `os/recv` on the handle answers the next bytes
  * (`{ data, eof }`, at most `count`) and `os/close` releases it. Every other `os` operation is refused
- * `unsupported`, as a native host refuses `os/fetch`.
+ * `unsupported`, as a native host refuses `os/fetch`. A `gpu/*` ask reaches this port only when no GPU answerer is
+ * installed in the kernel (the GPU answers inside the kernel, `KernelHostPorts.gpu`), so it answers `unsupported`.
  */
 import type { JsonValue } from '@almadar/core';
 import type { OsError, OsErrorKind, OsOp, Settled } from '@almadar/core/kernel-wire';
@@ -40,7 +41,11 @@ interface OpenBody {
   held: Uint8Array;
 }
 
-const failed = (kind: OsErrorKind, op: OsOp, message: string): Settled<JsonValue, OsError> => ({ error: { kind, message: `${op}: ${message}` } });
+const failed = (kind: OsErrorKind, op: OsOp, message: string): { error: OsError } => ({ error: { kind, message: `${op}: ${message}` } });
+
+const isGpuOp = (op: OsOp): boolean => op.startsWith('gpu/');
+const noGpu = (op: OsOp): { error: OsError } => failed('unsupported', op, 'this host installed no gpu answerer');
+const fetchOnly = (op: OsOp): { error: OsError } => failed('unsupported', op, 'a browser host answers only os/fetch, and os/recv and os/close on the handle of a streamed one');
 
 export function createFetchOsHost(performFetch: typeof fetch): OsHostPort {
   const pending = new Set<AbortController>();
@@ -83,9 +88,10 @@ export function createFetchOsHost(performFetch: typeof fetch): OsHostPort {
 
   return {
     async answer(op: OsOp, args: JsonValue[]): Promise<Settled<JsonValue, OsError>> {
+      if (isGpuOp(op)) return noGpu(op);
       if (op === 'os/recv') return receive(args);
       if (op === 'os/close') return release(args);
-      if (op !== 'os/fetch') return { error: { kind: 'unsupported', message: `${op}: a browser host answers only os/fetch, and os/recv and os/close on the handle of a streamed one` } };
+      if (op !== 'os/fetch') return fetchOnly(op);
       const [method, url, request] = args;
       if (typeof method !== 'string' || typeof url !== 'string') return fail('invalid', 'the method and the url must be text');
       if (request !== undefined && !isRecord(request)) return fail('invalid', 'the request must be { headers?, body?, timeoutMs?, stream? }');

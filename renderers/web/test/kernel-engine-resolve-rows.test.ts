@@ -53,6 +53,9 @@ function scripted(log: string[], service = false): KernelModule {
       return JSON.stringify({ status: 'done', rows: rows.filter((r) => reference.ids.includes(String(r.id))), total: rows.length });
     }
     abandon(flight: number): boolean { log.push(`abandon ${flight}`); return true; }
+    installGpu(): void { throw new Error('not used by this test'); }
+    answerGpu(): Promise<string> { throw new Error('not used by this test'); }
+    dropHeldPayload(): boolean { throw new Error('not used by this test'); }
     bootMounts(): string { return '[]'; }
     routeMounts(_routePath: string): string { return '[]'; }
     pageCircuit(_page?: string, _route?: string): string { throw new Error('not used by this test'); }

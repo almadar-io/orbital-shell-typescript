@@ -118,12 +118,13 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
   'workspace/write-orbital': 'system', 'workspace/write-file': 'system', 'workspace/write-schema': 'system',
   'workspace/write-plan': 'system', 'workspace/archive-orbital': 'system',
   'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/packages': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
-  'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/prove': 'system', 'program/os-grants': 'system', 'program/compose': 'system', 'program/step': 'system',
+  'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/prove': 'system', 'program/os-grants': 'system', 'program/compose': 'system', 'program/step': 'system', 'program/navigate': 'system',
   'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'program/open': 'system', 'program/close': 'system', 'persist/read-named': 'system',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'compute',
   'oauth-authorize': 'system', 'oauth-connection-status': 'system', 'oauth-connection-forget': 'system',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',  'mem/arena-new': 'system', 'mem/arena-drop': 'system', 'mem/alloc': 'system', 'mem/free': 'system', 'mem/borrow': 'system', 'mem/release': 'system', 'mem/write': 'system', 'mem/freeze': 'system', 'mem/atomic-load': 'system', 'mem/atomic-store': 'system', 'mem/atomic-add': 'system', 'mem/atomic-cas': 'system',
   'kernel/queue-front': 'communication', 'kernel/queue-back': 'communication', 'ffi/call': 'system',
+  'gpu/device-open': 'system', 'gpu/device-close': 'system', 'gpu/buffer-create': 'system', 'gpu/texture-create': 'system', 'gpu/sampler-create': 'system', 'gpu/query-create': 'system', 'gpu/shader-create': 'system', 'gpu/pipeline-create': 'system', 'gpu/bind-group-create': 'system', 'gpu/submit': 'system', 'gpu/release': 'system',
 };
 
 const EFFECT_FAMILY_CATEGORY: Record<EffectOperatorFamily, EffectCategory> = {
@@ -148,12 +149,13 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
   'workspace/write-orbital': 'system', 'workspace/write-file': 'system', 'workspace/write-schema': 'system',
   'workspace/write-plan': 'system', 'workspace/archive-orbital': 'system',
   'behavior/catalog': 'system', 'behavior/describe': 'system', 'behavior/packages': 'system', 'behavior/source': 'system', 'behavior/resolve': 'system', 'behavior/dependencies': 'system',
-  'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/prove': 'system', 'program/os-grants': 'system', 'program/compose': 'system', 'program/step': 'system',
+  'program/read': 'system', 'program/print': 'system', 'program/eval': 'system', 'program/validate': 'system', 'program/prove': 'system', 'program/os-grants': 'system', 'program/compose': 'system', 'program/step': 'system', 'program/navigate': 'system',
   'program/resolve-rows': 'system', 'program/self': 'system', 'program/tick': 'system', 'program/inputs': 'system', 'program/dispatch': 'system', 'program/live': 'system', 'program/open': 'system', 'program/close': 'system', 'persist/read-named': 'system',
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'system',
   'oauth-authorize': 'remote', 'oauth-connection-status': 'remote', 'oauth-connection-forget': 'remote',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',  'mem/arena-new': 'system', 'mem/arena-drop': 'system', 'mem/alloc': 'system', 'mem/free': 'system', 'mem/borrow': 'system', 'mem/release': 'system', 'mem/write': 'system', 'mem/freeze': 'system', 'mem/atomic-load': 'system', 'mem/atomic-store': 'system', 'mem/atomic-add': 'system', 'mem/atomic-cas': 'system',
   'kernel/queue-front': 'bus', 'kernel/queue-back': 'bus', 'ffi/call': 'system',
+  'gpu/device-open': 'system', 'gpu/device-close': 'system', 'gpu/buffer-create': 'system', 'gpu/texture-create': 'system', 'gpu/sampler-create': 'system', 'gpu/query-create': 'system', 'gpu/shader-create': 'system', 'gpu/pipeline-create': 'system', 'gpu/bind-group-create': 'system', 'gpu/submit': 'system', 'gpu/release': 'system',
 };
 
 const EFFECT_FAMILY_ZONE: Record<EffectOperatorFamily, EffectZone> = {
@@ -212,6 +214,9 @@ export const OPERATOR_CATEGORY_COLORS: Record<OperatorCategory, string> = {
   'std-session': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-success)'),
   'std-audio': avlBlend('var(--color-accent)', 50, 'var(--color-warning)'), 'std-auth': avlBlend('var(--color-warning)', 60, 'var(--color-primary)'),
   'std-trace': 'var(--color-muted-foreground)', 'std-behavior': avlBlend('var(--color-accent)', 60, 'var(--color-success)'),
+  'std-mem': avlBlend('var(--color-muted-foreground)', 70, 'var(--color-error)'), 'std-mem-read': avlBlend('var(--color-muted-foreground)', 70, 'var(--color-info)'),
+  'std-kernel': avlBlend('var(--color-muted-foreground)', 70, 'var(--color-accent)'), 'std-kernel-read': avlBlend('var(--color-muted-foreground)', 70, 'var(--color-success)'),
+  'std-ffi': avlBlend('var(--color-muted-foreground)', 70, 'var(--color-warning)'), 'std-gpu': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-accent)'),
 };
 
 /** Where an effect head lands; null when @almadar/core declares no such effect. */
