@@ -17,10 +17,6 @@ const HEX = /['"`]#[0-9a-fA-F]{3,8}\b/;
 /** Engine fallbacks still carrying literals (G-UI-066). Remove an entry when its file is clean. */
 const EXEMPT = new Set([
   'components/game/atoms/MiniMap.tsx',
-  'lib/drawable/three/Lighting3D.tsx',
-  'lib/drawable/three/mesh3d.tsx',
-  'lib/drawable/three/DrawMesh3D.tsx',
-  'lib/drawable/three/ModelLoader.tsx',
   'lib/webPainter2d.ts',
 ]);
 
@@ -46,7 +42,7 @@ const drawingFiles = SCAN_DIRS.flatMap((d) => walk(path.join(ROOT, d)))
 describe('drawing surfaces carry no hardcoded colors', () => {
   it('finds the drawing surfaces it guards', () => {
     const rels = drawingFiles.map((f) => f.rel);
-    for (const known of ['components/learning/atoms/LearningCanvas.tsx', 'components/core/molecules/GraphCanvas.tsx', 'components/game/molecules/Canvas2D.tsx', 'lib/drawable/three/Canvas3DHost.tsx']) {
+    for (const known of ['components/core/molecules/GraphCanvas.tsx', 'components/game/molecules/Canvas2D.tsx']) {
       expect(rels).toContain(known);
     }
   });

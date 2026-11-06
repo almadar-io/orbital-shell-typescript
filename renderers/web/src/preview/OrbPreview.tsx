@@ -51,6 +51,7 @@ import { programStamp, type ProgramStamp } from '../hooks/circuit/useCircuitKern
 import { KernelEngineProvider, useKernelEngine } from '../providers/KernelEngineContext';
 import { ClientTicksPausedContext } from '../hooks/circuit/useClientTicks';
 import type { KernelLoader } from '../lib/kernel-wire';
+import type { KernelCanvas3DFactory, KernelSceneCanvasFactory } from '@almadar/shell-runtime/kernel/wire';
 import { RowSetResolverProvider } from '../providers/RowSetResolverContext';
 import { createCircuitRowSetResolver } from '../lib/store-row-set-resolver';
 import { browserRowSets } from '../lib/browser-row-sets';
@@ -318,16 +319,17 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
 
   const activeOrbitalTheme = useMemo(() => resolvePreviewTheme(schema, pageName), [schema, pageName]);
   const { locale } = useTranslate();
-  // A host that runs the whole program keeps its browser-stored entities; this view opens none.
-  const browserStore = useBrowserStore(schema.name ?? 'app', transport?.hostsBrowserStore === true ? NO_ORBITALS : schema.orbitals, locale);
+  // A host that runs the whole program keeps its browser-stored entities; this view opens none and resolves none.
+  const hostKeepsBrowserRows = transport?.hostsBrowserStore === true;
+  const browserStore = useBrowserStore(schema.name ?? 'app', hostKeepsBrowserRows ? NO_ORBITALS : schema.orbitals, locale);
 
   const bridge = useServerBridge();
   const kernelEngine = useKernelEngine();
   const browserRows = useMemo(
-    () => (browserStore.status === 'ready' && kernelEngine !== null
+    () => (!hostKeepsBrowserRows && browserStore.status === 'ready' && kernelEngine !== null
       ? browserRowSets(kernelEngine, { name: schema.name ?? 'app', orbitals: schema.orbitals, ...programStamp(schema) }, browserStore.store)
       : undefined),
-    [browserStore, kernelEngine, schema.name, schema.orbitals],
+    [hostKeepsBrowserRows, browserStore, kernelEngine, schema.name, schema.orbitals],
   );
   useEffect(() => () => browserRows?.dispose(), [browserRows]);
   const rowSets = useMemo(() => {
@@ -438,6 +440,10 @@ export interface OrbPreviewProps {
    * preview runs under whatever engine the host's own `KernelEngineProvider` selects.
    */
   kernelLoader?: KernelLoader;
+  /** With `kernelLoader`: makes the 3D view a `canvas` mode:"3d" draws on (`(canvas) => Canvas3D.create(canvas)`). */
+  canvas3d?: KernelCanvas3DFactory;
+  /** With `kernelLoader`: makes the scene canvas the learning and 2D canvases draw on (`(canvas) => SceneCanvas.create(canvas)`). */
+  sceneCanvas?: KernelSceneCanvasFactory;
   /**
    * How long (ms) to wait for the server bridge to connect before assuming
    * it's unreachable and falling back to local-only execution. Default
@@ -598,6 +604,8 @@ export function OrbPreview({
   transport,
   getAccessToken,
   kernelLoader,
+  canvas3d,
+  sceneCanvas,
   initialPagePath,
   isolated = false,
   fit = false,
@@ -927,7 +935,7 @@ export function OrbPreview({
       </ServerBridgeProvider>
     ) : node;
     const engined = kernelLoader !== undefined ? (
-      <KernelEngineProvider loader={kernelLoader}>{bridged}</KernelEngineProvider>
+      <KernelEngineProvider loader={kernelLoader} canvas3d={canvas3d} sceneCanvas={sceneCanvas}>{bridged}</KernelEngineProvider>
     ) : bridged;
     return <ClientTicksPausedContext.Provider value={paused}>{engined}</ClientTicksPausedContext.Provider>;
   };

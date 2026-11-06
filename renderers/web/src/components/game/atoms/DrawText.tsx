@@ -3,8 +3,7 @@
  * `draw-text` — the neutral text drawable atom (dimension-agnostic).
  *
  * ONE descriptor (`DrawTextProps`, grounded in core `ScenePos`) with TWO backends:
- * `paintText` (2D, here) and an R3F billboarded `<Text>` (`Text3D` in
- * `lib/drawable/mesh3d`, kept OUT of this file so the 2D path never pulls R3F).
+ * `paintText` (2D, here) and billboarded text in orbital-canvas's 3D scene.
  * Paints a string at a scene position with font/color/alignment. The React
  * component renders `null` (a drawable is painted by the host, not the DOM).
  */

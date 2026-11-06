@@ -62,11 +62,6 @@
       "import": "./dist/lib/index.js",
       "default": "./dist/lib/index.js"
     },
-    "./three": {
-      "types": "./dist/three/index.d.ts",
-      "import": "./dist/three/index.js",
-      "default": "./dist/three/index.js"
-    },
     "./avl": {
       "types": "./dist/avl/index.d.ts",
       "import": "./dist/avl/index.js",
@@ -180,9 +175,6 @@
   },
   "devDependencies": {
     "@almadar/eslint-plugin": "^3.0.0",
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.6.0",
-    "@react-three/postprocessing": "3.0.4",
     "@tanstack/react-query": "^5.0.0",
     "@testing-library/jest-dom": "^6.4.0",
     "@testing-library/react": "^14.2.0",
@@ -193,7 +185,6 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/react-syntax-highlighter": "^15.5.0",
-    "@types/three": "^0.160.0",
     "@typescript-eslint/parser": "8.65.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^4.2.0",
@@ -207,14 +198,11 @@
     "jsdom": "^24.0.0",
     "katex": "^0.16.0",
     "postcss": "^8.4.35",
-    "postprocessing": "6.39.0",
     "react": "^19.0.0",
     "react-compiler-runtime": "19.0.0-beta-af1b7da-20250417",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.18.2",
     "tailwindcss": "^3.4.0",
-    "three": "^0.160.1",
-    "three-stdlib": "^2.35.6",
     "tsup": "^9.0.0",
     "tsx": "^4.7.0",
     "turbo": "^2.8.17",
@@ -232,30 +220,14 @@
     "node": ">=22.19.0"
   },
   "peerDependencies": {
-    "@react-three/drei": "^10.7.7",
-    "@react-three/fiber": "^9.0.0",
-    "@react-three/postprocessing": "^3.0.0",
     "@tanstack/react-query": "^5.0.0",
     "postcss": "^8.4.35",
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0",
     "react-router-dom": "^7.0.0",
-    "tailwindcss": "^3.4.0",
-    "three": "^0.160.0"
+    "tailwindcss": "^3.4.0"
   },
   "peerDependenciesMeta": {
-    "@react-three/drei": {
-      "optional": true
-    },
-    "@react-three/fiber": {
-      "optional": true
-    },
-    "@react-three/postprocessing": {
-      "optional": true
-    },
-    "three": {
-      "optional": true
-    },
     "postcss": {
       "optional": true
     },

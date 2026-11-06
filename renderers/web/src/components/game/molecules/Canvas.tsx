@@ -19,27 +19,23 @@
  * shapes so the single value stays assignable to either host's prop (the two hosts
  * still emit their own coordinate shape at runtime).
  *
- * The 3D host (three.js/R3F) is lazy-imported so a 2D-only app never pulls the
- * 3D bundle — the code-split boundary the drawable atoms were built R3F-free for.
+ * The 3D painter is orbital-canvas (wasm), handed the pattern's own props as its
+ * scene config.
  *
  * @packageDocumentation
  */
 
 import * as React from 'react';
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createLogger } from '@almadar/logger';
-import type { A11yProps, Asset, AssetUrl, Camera, EventEmit, EventKey } from '@almadar/core';
-import { domPassthrough } from '../../../core';
+import type { A11yProps, Asset, AssetUrl, Camera, EventEmit, EventKey, PatternConfig } from '@almadar/core';
+import { cn, domPassthrough, useTranslate } from '../../../core';
 import type { DrawableNode } from '../../../lib/drawable/paintDispatch';
 import { DrawableRegistryContext, type DrawableRegistrar } from '../../../lib/drawable/registry';
 import { Canvas2D, type CameraMode as Canvas2DCameraMode, type Projection } from './Canvas2D';
-import type { Canvas3DHostProps, CanvasLighting, CanvasPost } from '../../../lib/drawable/three/Canvas3DHost';
-
-/** Lazy 3D host — keeps three/R3F out of the bundle unless a 3D canvas renders: the package's one
- *  split ESM build makes this `import()` its own chunk (the `./three` entry). */
-const Canvas3DHost = lazy(() =>
-    import('../../../lib/drawable/three').then((m) => ({ default: m.Canvas3DHost })),
-);
+import type { CanvasLighting, CanvasPost } from '../../../lib/drawable/scene3dTypes';
+import { OrbitalCanvas3D } from '../../../lib/drawable/orbital/OrbitalCanvas3D';
+import { cameraConfig } from '../../../lib/drawable/orbital/sceneConfig';
 
 /** Painter selection. Same `drawables` for both; differ only in projection + rasterizer. */
 export type CanvasMode = '2d' | '3d';
@@ -143,11 +139,6 @@ export function to2DCamera(mode: Camera['mode'], controls?: boolean): Canvas2DCa
     return 'pan-zoom';
 }
 
-/** 3D `cameraMode` maps 1:1 from the neutral Camera mode (same vocabulary). */
-function to3DCameraMode(mode: Camera['mode']): Canvas3DHostProps['cameraMode'] {
-    return mode ?? 'isometric';
-}
-
 export function Canvas({
     mode = '2d',
     drawables,
@@ -190,13 +181,9 @@ export function Canvas({
     canvasLog.debug('Canvas render', { mode, drawablesCount: drawables?.length, projection, camera: camera ? JSON.stringify(camera) : undefined });
     const zoom = camera?.zoom;
 
-    // 3D-mode JSX drawable children — collected HERE (the main chunk) rather than
-    // in the lazy 3D host: the three chunk bundles its own copy of `registry.ts`,
-    // so a provider inside it would be a DIFFERENT context object from the one the
-    // drawable atoms' `useContext` reads. Children render in a hidden DOM div
-    // (React context cannot cross the R3F renderer boundary anyway), register
-    // during the pass, and the commit effect adopts them into state so the host
-    // re-renders with the merged `drawables`. Canvas2D keeps its own provider.
+    // 3D-mode JSX drawable children render in a hidden DOM div, register during the
+    // pass, and the commit effect adopts them into state so the 3D canvas re-renders
+    // with the merged `drawables`. Canvas2D keeps its own provider.
     const childDrawablesRef = useRef<DrawableNode[]>([]);
     if (mode === '3d') childDrawablesRef.current = [];
     const registerChildDrawable: DrawableRegistrar = useCallback((node) => {
@@ -216,19 +203,18 @@ export function Canvas({
         );
     });
 
-    if (mode === '3d') {
-        const props3d: Canvas3DHostProps = {
-            className,
-            drawables: [...(drawables ?? []), ...childDrawables],
-            isLoading,
-            cameraMode: to3DCameraMode(camera?.mode),
-            ...(camera?.controls === false ? { controlsEnabled: false } : {}),
-            ...(zoom !== undefined ? { zoom } : {}),
-            ...(camera?.fov !== undefined ? { fov: camera.fov } : {}),
-            ...(camera?.azimuth !== undefined ? { azimuth: camera.azimuth } : {}),
-            ...(camera?.elevation !== undefined ? { elevation: camera.elevation } : {}),
-            ...(camera?.target !== undefined ? { followTarget: camera.target } : {}),
+    const { t } = useTranslate();
+    const config3d = useMemo<PatternConfig<'canvas'>>(
+        () => ({
+            type: 'canvas',
+            mode: '3d',
+            camera: cameraConfig(camera),
+            projection,
             unitScale,
+            showMinimap,
+            fit,
+            tileWidth,
+            backgroundImage,
             backgroundColor,
             worldWidth,
             worldHeight,
@@ -247,12 +233,38 @@ export function Canvas({
             featureClickEvent,
             keyMap,
             keyUpMap,
-        };
+            editable,
+            selectedId: selectedId ?? undefined,
+            selectEvent,
+            moveEvent,
+        }),
+        [camera, projection, unitScale, showMinimap, fit, tileWidth, backgroundImage, backgroundColor, worldWidth, worldHeight, pixelsPerUnit, showGrid, shadows, showCoordinates, showTileInfo, fogOfWar, lighting, post, tileClickEvent, unitClickEvent, tileHoverEvent, tileLeaveEvent, featureClickEvent, keyMap, keyUpMap, editable, selectedId, selectEvent, moveEvent],
+    );
+    const allDrawables = useMemo(() => [...(drawables ?? []), ...childDrawables], [drawables, childDrawables]);
+
+    if (mode === '3d') {
         return (
             <>
-                <Suspense fallback={null}>
-                    <Canvas3DHost {...props3d} />
-                </Suspense>
+                {isLoading ? (
+                    <div className={cn('game-canvas-3d game-canvas-3d--loading', className)}>
+                        <div className="game-canvas-3d__loading">{t('canvas3d.loadingScene')}</div>
+                    </div>
+                ) : (
+                    <OrbitalCanvas3D
+                        pattern="canvas"
+                        config={config3d}
+                        drawables={allDrawables}
+                        className={className}
+                        tileClickEvent={tileClickEvent}
+                        unitClickEvent={unitClickEvent}
+                        keyMap={keyMap}
+                        keyUpMap={keyUpMap}
+                        {...(onSelect !== undefined ? { onSelect } : {})}
+                        {...(onMove !== undefined ? { onMove } : {})}
+                        {...(selectEvent !== undefined ? { selectEvent } : {})}
+                        {...(moveEvent !== undefined ? { moveEvent } : {})}
+                    />
+                )}
                 {/* Hidden mount for JSX drawable children — they render null but
                     register their descriptors via DrawableRegistryContext. */}
                 {React.Children.count(children) > 0 && (

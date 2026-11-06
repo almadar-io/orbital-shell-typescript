@@ -4,9 +4,7 @@
  *
  * ONE descriptor (`DrawSpriteProps`, grounded in core `ScenePos` + `Asset`) with
  * TWO backends: `paintSprite` (2D, here — via the portable `Painter2D` seam) and
- * an R3F mesh (`Sprite3D` in `lib/drawable/mesh3d`, kept OUT of this file so the
- * 2D paint path never pulls `three`/`drei` into an app bundle — the codebase
- * code-splits R3F). The canvas host picks the backend by `mode`; that is what
+ * orbital-canvas's 3D scene (the `canvas` mode:"3d" mapper). The canvas host picks the backend by `mode`; that is what
  * makes canvas-2d and canvas-3d the same `children` interface. Genre uses (tile,
  * unit body, feature, effect, movement ghost, background cover) are all this atom
  * with different `anchor`/`size`/`frame`/`flip`/`shadow` — composed in `.lolo`,

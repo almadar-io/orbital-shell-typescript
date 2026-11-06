@@ -37,17 +37,22 @@ export interface KernelCanvas3D {
   resize(cssWidth: number, cssHeight: number, pixelRatio: number): void;
   setReducedMotion(reduced: boolean): void;
   render(): void;
-  /** Advances the canvas clock to `nowMs` (`performance.now()`) and camera damping; true when the frame changed. */
-  frame(nowMs: number): boolean;
+  /** Advances the canvas clock to `nowMs` (`performance.now()`) with the page clock `epochMs` (`performance.timeOrigin + now`), eases a following camera and the orbit damping; true when the frame changed. */
+  frame(nowMs: number, epochMs: number): boolean;
   /** False on the WebGL2 fallback, where GPU drawables are refused. */
   webgpu(): boolean;
   pointerDown(id: number, x: number, y: number, button: number, touch: boolean): void;
   pointerMove(id: number, x: number, y: number): boolean;
-  /** `{"unit":{"id","x","z"}}`, `{"tile":{"x","z"}}` or `null`. */
+  pointerLeave(): void;
+  /** `{"unit":{"id","x","z"}}`, `{"tile":{"x","z"}}`, `{"select":{"id"}}`, `{"move":{"id","x","y"}}`, `{"shape":{"id","index"}}` (a learning canvas's click payload) or `null`. */
   pointerUp(id: number, x: number, y: number, unitEvents: boolean, tileEvents: boolean): string;
   wheel(deltaY: number): boolean;
   /** The camera as the user moved it, as JSON, or `null` before a scene. */
   camera(): string;
+  /** `[x, y, z]` as JSON; true when the camera moved. */
+  setCameraPosition(positionJson: string): boolean;
+  lookAt(targetJson: string): boolean;
+  resetCamera(): boolean;
   free(): void;
 }
 
@@ -64,7 +69,8 @@ export interface KernelSceneCanvas {
   render(): void;
   /** `touch-down`, `touch-move`, `touch-up` or `touch-cancel`, in CSS pixels. */
   input(kind: string, x: number, y: number, button: number): void;
-  zoom(factor: number, x: number, y: number): void;
+  /** Whether the scene took the zoom (a pannable scene); the page scrolls when it did not. */
+  zoom(factor: number, x: number, y: number): boolean;
   doubleTap(x: number, y: number): void;
   /** `[{ "event", "payload" }]` queued by input. */
   takeEvents(): string;

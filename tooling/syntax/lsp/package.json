@@ -30,9 +30,6 @@
     "tsup": "^9.0.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
-  "overrides": {
-    "three": "^0.160.1"
-  },
   "files": [
     "dist",
     "bin"

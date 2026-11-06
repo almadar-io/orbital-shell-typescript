@@ -10,6 +10,11 @@ import './index.css';
 
 const consentAsk = chromeConsent(() => chrome.identity);
 
+// The view's own kernel (its circuit, and the canvases a scene draws on) loads on first use, not with the panel.
+const loadPanelKernel = () => import('./generated/kernel').then(({ kernelReady }) => kernelReady);
+const makeCanvas3D = (canvas: HTMLCanvasElement) => loadPanelKernel().then((kernel) => kernel.Canvas3D.create(canvas));
+const makeSceneCanvas = (canvas: HTMLCanvasElement) => loadPanelKernel().then((kernel) => kernel.SceneCanvas.create(canvas));
+
 const schema = parseOrbitalSchema(JSON.parse(programText));
 
 // The worker runs the whole program, browser-stored entities included; the panel only shows it.
@@ -29,7 +34,19 @@ function Panel() {
       port.disconnect();
     };
   }, [port]);
-  return <OrbPreview key={connection} schema={schema} transport={transport} initialPagePath="/" onConsentAsk={consentAsk} height="100vh" />;
+  return (
+    <OrbPreview
+      key={connection}
+      schema={schema}
+      transport={transport}
+      kernelLoader={loadPanelKernel}
+      canvas3d={makeCanvas3D}
+      sceneCanvas={makeSceneCanvas}
+      initialPagePath="/"
+      onConsentAsk={consentAsk}
+      height="100vh"
+    />
+  );
 }
 
 const root = document.getElementById('root');

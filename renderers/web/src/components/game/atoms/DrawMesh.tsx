@@ -2,9 +2,8 @@
 /**
  * `draw-mesh` — the volumetric 3D drawable atom (3D-canvas backend).
  *
- * ONE descriptor (`DrawMeshProps`, grounded in core `ScenePos`) with the R3F
- * backend `Mesh3D` in `lib/drawable/three/DrawMesh3D` (kept OUT of this file so
- * the 2D path never pulls three). A parametric primitive (box, sphere, capsule,
+ * ONE descriptor (`DrawMeshProps`, grounded in core `ScenePos`) drawn by
+ * orbital-canvas's 3D scene. A parametric primitive (box, sphere, capsule,
  * cylinder, cone, torus, plane, circle — `plane`/`circle` lie flat in the
  * scene ground plane facing up, matching the 2D painter) or a raw-geometry `polyhedron`
  * (`vertices` + `faces` as plain data) at a scene position — `position.z` is

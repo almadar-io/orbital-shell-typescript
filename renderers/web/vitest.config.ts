@@ -1,7 +1,4 @@
-import { createRequire } from 'node:module';
 import { defineConfig } from 'vitest/config';
-
-const THREE_ENTRY = createRequire(import.meta.url).resolve('three');
 
 const RENDER_KERNEL_SETUP = ['./vitest.setup.ts', './test/ui/helpers/kernel-evaluator.setup.ts', './test/ui/helpers/kernel-engine-default.setup.ts'];
 
@@ -27,11 +24,8 @@ export default defineConfig({
         },
       },
       {
-        // r3f is bundled into the transform so its `three` is the one the components import (one instance, one Color class).
-        resolve: { dedupe: ['three'], alias: [{ find: /^three$/, replacement: THREE_ENTRY }] },
         // Every circuit runs on the kernel: the setup supplies the test kernel where a host would pass its loader.
         test: {
-          server: { deps: { inline: [/@react-three\/fiber/] } },
           name: 'render',
           include: ['test/ui/**/*.test.{ts,tsx}', 'src/**/__tests__/**/*.test.{ts,tsx}'],
           exclude: [

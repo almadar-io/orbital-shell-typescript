@@ -166,17 +166,6 @@ export {
   type AlgoGraphEdgeState,
   type AlgoGraphLayout,
 } from '../../learning/molecules/AlgoGraphCanvas';
-export {
-  LearningScene3D,
-  type LearningScene3DProps,
-  type Learning3DPoint,
-  type MeshSphereOpts,
-  meshSphere,
-  cylinderBetween,
-  arrowBetween,
-  billboardLabel,
-  get3DClickPayload,
-} from '../../learning/molecules/learningScene3D';
 
 // Graph visualization
 export { GraphView, type GraphViewProps, type GraphViewNode, type GraphViewEdge } from './GraphView';

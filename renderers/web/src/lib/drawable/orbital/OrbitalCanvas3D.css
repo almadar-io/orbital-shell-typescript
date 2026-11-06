@@ -1,0 +1,562 @@
+/* The 3D canvas surface, loading and error states (carried over from the three.js host so scenes look the same). */
+/**
+ * GameCanvas3D Styles
+ *
+ * Styling for the 3D game canvas component.
+ */
+
+.game-canvas-3d {
+    background: #1a1a2e;
+    border-radius: 8px;
+}
+
+.game-canvas-3d canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Loading State */
+.game-canvas-3d--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.game-canvas-3d__loading {
+    padding: 20px 40px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 16px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Error State */
+.game-canvas-3d--error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #2e1a1a 0%, #3e1616 100%);
+}
+
+.game-canvas-3d__error {
+    position: relative;
+    z-index: 1;
+    padding: 20px 40px;
+    background: rgba(255, 0, 0, 0.2);
+    border: 1px solid rgba(255, 0, 0, 0.3);
+    border-radius: 8px;
+    color: #ff6b6b;
+    font-size: 14px;
+}
+
+/* Coordinate Overlay */
+.game-canvas-3d__coordinates {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 4px;
+    color: #ffffff;
+    font-family: monospace;
+    font-size: 12px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Tile Info Overlay */
+.game-canvas-3d__tile-info {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 6px;
+    color: #ffffff;
+    pointer-events: none;
+    z-index: 10;
+    min-width: 120px;
+}
+
+.tile-info__type {
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: capitalize;
+    margin-bottom: 4px;
+}
+
+.tile-info__terrain {
+    font-size: 12px;
+    color: #aaaaaa;
+}
+
+/* Animations */
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Camera Mode Indicators */
+.game-canvas-3d[data-camera-mode='isometric']::before {
+    content: 'Isometric';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    pointer-events: none;
+}
+
+.game-canvas-3d[data-camera-mode='perspective']::before {
+    content: 'Perspective';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    pointer-events: none;
+}
+
+.game-canvas-3d[data-camera-mode='top-down']::before {
+    content: 'Top Down';
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    pointer-events: none;
+}
+
+/* Overlay Modes */
+.game-canvas-3d[data-overlay='hidden'] .game-canvas-3d__coordinates,
+.game-canvas-3d[data-overlay='hidden'] .game-canvas-3d__tile-info,
+.game-canvas-3d[data-overlay='hidden']::before {
+    display: none;
+}
+
+/* Orientation Modes */
+.game-canvas-3d[data-orientation='rotated'] {
+    /* Custom styles for rotated view */
+}
+
+/* Selection Highlight Effect */
+.game-canvas-3d canvas {
+    cursor: crosshair;
+}
+
+.game-canvas-3d canvas:active {
+    cursor: grabbing;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .game-canvas-3d__coordinates,
+    .game-canvas-3d__tile-info {
+        font-size: 10px;
+        padding: 6px 10px;
+    }
+
+    .game-canvas-3d::before {
+        font-size: 9px;
+        padding: 4px 8px;
+    }
+}
+
+/* Focus Styles */
+.game-canvas-3d:focus {
+    outline: 2px solid #4488ff;
+    outline-offset: 2px;
+}
+
+/* Transition for smooth camera changes */
+.game-canvas-3d canvas {
+    transition: opacity 0.3s ease;
+}
+
+/* Tooltip/Context Menu Styles */
+.game-canvas-3d__context-menu {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 8px 0;
+    min-width: 150px;
+    z-index: 100;
+}
+
+.game-canvas-3d__context-menu-item {
+    padding: 8px 16px;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.15s ease;
+}
+
+.game-canvas-3d__context-menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.game-canvas-3d__context-menu-item--danger {
+    color: #ff6b6b;
+}
+
+.game-canvas-3d__context-menu-item--danger:hover {
+    background: rgba(255, 0, 0, 0.2);
+}
+/**
+ * Canvas3DLoadingState Styles
+ */
+
+.canvas-3d-loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    overflow: hidden;
+    z-index: 100;
+}
+
+.canvas-3d-loading__content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Spinner */
+.canvas-3d-loading__spinner {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+
+.spinner__ring {
+    position: absolute;
+    inset: 0;
+    border: 4px solid transparent;
+    border-top-color: #4488ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.spinner__ring--secondary {
+    inset: 10px;
+    border-top-color: #ff6b6b;
+    animation-duration: 1.5s;
+    animation-direction: reverse;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Message */
+.canvas-3d-loading__message {
+    font-size: 20px;
+    font-weight: 600;
+    color: #ffffff;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
+.canvas-3d-loading__details {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+    font-family: monospace;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Progress Bar */
+.canvas-3d-loading__progress {
+    width: 100%;
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.progress__bar {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress__fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4488ff, #ff6b6b);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.progress__text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.progress__percentage {
+    font-weight: 600;
+    color: #4488ff;
+}
+
+.progress__count {
+    font-family: monospace;
+}
+
+/* Background Grid */
+.canvas-3d-loading__background {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    opacity: 0.3;
+}
+
+.bg__grid {
+    position: absolute;
+    inset: -50%;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+    0% {
+        transform: perspective(500px) rotateX(60deg) translateY(0);
+    }
+    100% {
+        transform: perspective(500px) rotateX(60deg) translateY(50px);
+    }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .canvas-3d-loading__content {
+        padding: 30px 20px;
+        margin: 20px;
+    }
+
+    .canvas-3d-loading__spinner {
+        width: 60px;
+        height: 60px;
+    }
+
+    .canvas-3d-loading__message {
+        font-size: 16px;
+    }
+
+    .canvas-3d-loading__details {
+        font-size: 12px;
+    }
+}
+/**
+ * Canvas3DErrorBoundary Styles
+ */
+
+.canvas-3d-error {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #2e1a1a 0%, #3e1616 50%, #4a1a1a 100%);
+    padding: 20px;
+    z-index: 100;
+}
+
+.canvas-3d-error__content {
+    max-width: 600px;
+    width: 100%;
+    padding: 40px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 100, 100, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    text-align: center;
+}
+
+.canvas-3d-error__icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-10px); }
+    75% { transform: translateX(10px); }
+}
+
+.canvas-3d-error__title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ff6b6b;
+    margin: 0 0 16px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.canvas-3d-error__message {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0 0 24px;
+    line-height: 1.5;
+}
+
+/* Error Details */
+.canvas-3d-error__details {
+    margin: 24px 0;
+    text-align: start;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.canvas-3d-error__details summary {
+    padding: 12px 16px;
+    cursor: pointer;
+    color: #ff9999;
+    font-weight: 600;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.canvas-3d-error__details summary:hover {
+    background: rgba(255, 100, 100, 0.1);
+}
+
+.error__stack,
+.error__component-stack {
+    padding: 16px;
+    margin: 0;
+    font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #ffaaaa;
+    background: rgba(0, 0, 0, 0.5);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.error__component-stack {
+    border-top: 1px solid rgba(255, 100, 100, 0.2);
+    color: #ff8888;
+}
+
+/* Actions */
+.canvas-3d-error__actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+
+.error__button {
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.error__button--primary {
+    background: linear-gradient(135deg, #ff6b6b, #ff4444);
+    color: white;
+}
+
+.error__button--primary:hover {
+    background: linear-gradient(135deg, #ff8888, #ff6666);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4);
+}
+
+.error__button--secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.error__button--secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.error__button:active {
+    transform: translateY(0);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .canvas-3d-error__content {
+        padding: 30px 20px;
+    }
+
+    .canvas-3d-error__icon {
+        font-size: 48px;
+    }
+
+    .canvas-3d-error__title {
+        font-size: 22px;
+    }
+
+    .canvas-3d-error__message {
+        font-size: 14px;
+    }
+
+    .canvas-3d-error__actions {
+        flex-direction: column;
+    }
+
+    .error__button {
+        width: 100%;
+    }
+}

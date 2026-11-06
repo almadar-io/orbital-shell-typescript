@@ -3,8 +3,7 @@
  * `draw-shape` — the neutral vector-fill/stroke drawable atom (dimension-agnostic).
  *
  * ONE descriptor (`DrawShapeProps`, grounded in core `ScenePos`) with TWO
- * backends: `paintShape` (2D, here) and an R3F ground-plane mesh (`Shape3D` in
- * `lib/drawable/mesh3d`, kept OUT of this file so the 2D path never pulls R3F).
+ * backends: `paintShape` (2D, here) and a ground-plane mesh in orbital-canvas's 3D scene.
  * Paints a cell footprint, an axis-aligned rect, an ellipse, a poly, or an SVG
  * path at a scene position, fill and/or stroke. Genre uses (tile fallback, iso/hex
  * diamond fallback, cell highlight, feature disc, unit selection ring, unit

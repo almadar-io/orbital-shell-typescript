@@ -7,7 +7,8 @@
  * @packageDocumentation
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import type { EventKey } from '@almadar/core';
+import { createLogger } from '@almadar/logger';
+import type { EventKey, PatternConfig } from '@almadar/core';
 import type { KernelCanvas3D } from '@almadar/shell-runtime/kernel/wire';
 import { useEventBus, cn, useTranslate } from '../../../core';
 import { usePrefersReducedMotion } from '../../../core/hooks/usePrefersReducedMotion';
@@ -18,24 +19,40 @@ import type { CanvasTheme } from '@almadar/core';
 import { resolveDrawableColors } from '../themeDrawables';
 import type { DrawableNode } from '../paintDispatch';
 import { keyMapCode, resolveKeyMapEvent } from '../../keyMapEvent';
-import type { CanvasProps } from '../../../components/game/molecules/Canvas';
+import './OrbitalCanvas3D.css';
 
-export interface OrbitalCanvas3DProps {
-    /** The `canvas` render node's props as the pattern declares them (camera, lighting, post, shadows, …). */
-    canvas: Readonly<Omit<CanvasProps, 'children' | 'drawables'>>;
-    /** Every drawable: the authored list and the JSX children the unified Canvas collected. */
-    drawables: readonly DrawableNode[];
+/** The patterns orbital-canvas draws in 3D. */
+export type Pattern3D = 'canvas' | 'physics-canvas' | 'biology-canvas' | 'chemistry-canvas';
+
+export interface OrbitalCanvas3DProps<P extends Pattern3D> {
+    pattern: P;
+    /** The render node's props as the pattern declares them (camera, lighting, post, shadows, …). */
+    config: PatternConfig<P>;
+    /** For `canvas`: every drawable, the authored list and the JSX children the unified Canvas collected. */
+    drawables?: readonly DrawableNode[];
+    /** A learning canvas's click on one of its items: orbital-canvas resolves the pattern's `{ id, index }` payload. */
+    onShapeClick?: (payload: { id: string; index: number }) => void;
     className?: string;
     series?: readonly string[];
     tileClickEvent?: string;
     unitClickEvent?: string;
     keyMap?: Record<string, EventKey>;
     keyUpMap?: Record<string, EventKey>;
+    /** Edit mode (`editable`): a click that changes the selection, before `selectEvent`. */
+    onSelect?: (id: string | null) => void;
+    /** Edit mode: a drag dropped on a new scene cell, before `moveEvent`. */
+    onMove?: (id: string, x: number, y: number) => void;
+    selectEvent?: string;
+    moveEvent?: string;
 }
 
+/** A release as the view resolves it: a click (`unit`/`tile`), or in edit mode a selection or a move (scene cells). */
 interface PickJson {
     unit?: { id: string; x: number; z: number };
     tile?: { x: number; z: number };
+    select?: { id: string | null };
+    move?: { id: string; x: number; y: number };
+    shape?: { id: string; index: number };
 }
 
 /** The theme's scene tokens and tones, as orbital-canvas's `SceneTheme` reads them. */
@@ -54,16 +71,24 @@ function sceneThemeJson(theme: CanvasTheme | null): string {
     });
 }
 
-export function OrbitalCanvas3D({
-    canvas,
+const log = createLogger('almadar:ui:orbital-canvas3d');
+
+export function OrbitalCanvas3D<P extends Pattern3D>({
+    pattern,
+    config,
     drawables,
+    onShapeClick,
     className,
     series,
     tileClickEvent,
     unitClickEvent,
     keyMap,
     keyUpMap,
-}: OrbitalCanvas3DProps): React.ReactElement {
+    onSelect,
+    onMove,
+    selectEvent,
+    moveEvent,
+}: OrbitalCanvas3DProps<P>): React.ReactElement {
     const engine = useKernelEngine();
     const factory = engine?.canvas3d;
     const eventBus = useEventBus();
@@ -113,7 +138,7 @@ export function OrbitalCanvas3D({
             if (view) {
                 let moving = false;
                 try {
-                    moving = view.frame(now);
+                    moving = view.frame(now, performance.timeOrigin + now);
                 } catch (cause) {
                     setError(String(cause));
                 }
@@ -135,11 +160,16 @@ export function OrbitalCanvas3D({
         return () => cancelAnimationFrame(frame);
     }, [ready]);
 
+    useEffect(() => {
+        if (error !== null) log.error('scene not drawn', { error });
+    }, [error]);
+
     const nodeJson = useMemo(() => {
         const scope = containerRef.current;
+        if (!drawables) return JSON.stringify({ ...config, type: pattern, mode: '3d' });
         const resolved = theme && scope ? resolveDrawableColors([...drawables], (c) => markColor(theme, c, scope, 'ink')) : [...drawables];
-        return JSON.stringify({ ...canvas, type: 'canvas', mode: '3d', drawables: resolved });
-    }, [canvas, drawables, theme]);
+        return JSON.stringify({ ...config, type: pattern, mode: '3d', drawables: resolved });
+    }, [config, pattern, drawables, theme]);
     const themeJson = useMemo(() => sceneThemeJson(theme), [theme]);
 
     useEffect(() => {
@@ -222,16 +252,10 @@ export function OrbitalCanvas3D({
         return { x: e.clientX - box.left, y: e.clientY - box.top };
     };
 
-    if (error) {
-        return (
-            <div className={cn('game-canvas-3d game-canvas-3d--error', className)}>
-                <div className="game-canvas-3d__error">{t('canvas3d.errorWithMessage', { message: error })}</div>
-            </div>
-        );
-    }
-
+    // The canvas stays mounted through an error: the view is bound to this element, and a remounted canvas would never be drawn.
     return (
-        <div ref={containerRef} className={cn('game-canvas-3d relative w-full overflow-hidden', className)} style={{ flex: '1 1 0', minHeight: '400px' }}>
+        <div ref={containerRef} className={cn('game-canvas-3d relative w-full overflow-hidden', error && 'game-canvas-3d--error', className)} style={{ flex: '1 1 0', minHeight: '400px' }}>
+            {error && <div className="game-canvas-3d__error">{t('canvas3d.errorWithMessage', { message: error })}</div>}
             <canvas
                 ref={canvasRef}
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none' }}
@@ -243,14 +267,25 @@ export function OrbitalCanvas3D({
                 }}
                 onPointerMove={(e) => {
                     const { x, y } = point(e);
-                    if (viewRef.current?.pointerMove(e.pointerId, x, y)) drawRef.current();
+                    try {
+                        if (viewRef.current?.pointerMove(e.pointerId, x, y)) drawRef.current();
+                    } catch (cause) {
+                        setError(String(cause));
+                    }
                 }}
                 onPointerUp={(e) => {
                     const { x, y } = point(e);
                     const view = viewRef.current;
                     if (!view) return;
-                    const pick = JSON.parse(view.pointerUp(e.pointerId, x, y, unitClickEvent !== undefined, tileClickEvent !== undefined)) as PickJson | null;
-                    if (pick?.unit && unitClickEvent) eventBus.emit(`UI:${unitClickEvent}`, { unitId: pick.unit.id, x: pick.unit.x, z: pick.unit.z });
+                    const pick = JSON.parse(view.pointerUp(e.pointerId, x, y, unitClickEvent !== undefined || onShapeClick !== undefined, tileClickEvent !== undefined)) as PickJson | null;
+                    if (pick?.select) {
+                        onSelect?.(pick.select.id);
+                        if (selectEvent) eventBus.emit(`UI:${selectEvent}`, { id: pick.select.id });
+                    } else if (pick?.move) {
+                        onMove?.(pick.move.id, pick.move.x, pick.move.y);
+                        if (moveEvent) eventBus.emit(`UI:${moveEvent}`, { id: pick.move.id, x: pick.move.x, y: pick.move.y });
+                    } else if (pick?.shape) onShapeClick?.(pick.shape);
+                    else if (pick?.unit && unitClickEvent) eventBus.emit(`UI:${unitClickEvent}`, { unitId: pick.unit.id, x: pick.unit.x, z: pick.unit.z });
                     else if (pick?.tile && tileClickEvent) eventBus.emit(`UI:${tileClickEvent}`, { x: pick.tile.x, z: pick.tile.z });
                     drawRef.current();
                 }}

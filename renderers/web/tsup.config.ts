@@ -17,7 +17,6 @@ const ESM_ENTRIES = {
   'renderer/index': 'src/renderer/index.ts',
   'runtime/index': 'src/preview/index.ts',
   'lib/index': 'src/lib/index.ts',
-  'three/index': 'src/lib/drawable/three/index.ts',
   'avl/index': 'src/avl/index.ts',
   'storage/browser/index': 'src/storage/browser/index.ts',
   'auth/browser/index': 'src/auth/browser/index.ts',

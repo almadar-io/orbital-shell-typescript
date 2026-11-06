@@ -2,8 +2,7 @@
  * Curated list of the neutral DRAWABLE render-ui pattern components — the
  * dimension-agnostic primitives a canvas draw-host paints under its `children`.
  *
- * These atoms/molecules are R3F-free (the 3D mesh backends live in
- * `lib/drawable/mesh3d`, pulled in only by the code-split 3D host), so they are
+ * These atoms/molecules carry no painter (orbital-canvas draws them in 3D), so they are
  * safe to admit to the public pattern surface. `pattern-sync` discovers
  * `patterns.ts` files by walking the tree and admits exactly the names listed
  * here, taking each one's tier from its source path (atoms / molecules) — so the

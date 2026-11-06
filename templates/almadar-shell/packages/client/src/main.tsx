@@ -1,6 +1,6 @@
 /**
- * Entry point (kernel host): reads the program's `ClientManifest` (`client.json`), links the program's
- * `themes.css`, then renders the App, which loads the locale catalog each route names; a prerendered
+ * Entry point (kernel host): reads the program's `ClientManifest` (`client.json`) while the program's `themes.css`
+ * loads, then renders the App, which loads the locale catalog each route names; a prerendered
  * page stays on screen until the live page has rendered. A missing
  * manifest stops the boot with the reason: a client without its program has nothing to show.
  *
@@ -26,12 +26,29 @@ async function boot(): Promise<void> {
   // The program, the kernel and its language download together, not each after the component that asks for it mounts.
   void loadProgram().catch(() => undefined);
   void loadKernel().catch(() => undefined);
+  const themes = linkThemes();
   const manifest = parseClientManifest(await fetchJson('client.json'));
+  await themes;
+  mount(<App manifest={manifest} />);
+}
+
+/**
+ * Link the program's `themes.css`, settled once it has loaded: the App mounts after it, because a surface resolves
+ * its theme tokens on mount (a canvas reads them once) and would read none before the sheet applies.
+ */
+function linkThemes(): Promise<void> {
   const themes = document.createElement('link');
   themes.rel = 'stylesheet';
   themes.href = `${import.meta.env.BASE_URL}themes.css`;
+  const settledSheet = new Promise<void>((resolve) => {
+    themes.addEventListener('load', () => resolve());
+    themes.addEventListener('error', () => {
+      console.error(`themes.css: failed to load ${themes.href}; the page renders without the program's themes`);
+      resolve();
+    });
+  });
   document.head.append(themes);
-  mount(<App manifest={manifest} />);
+  return settledSheet;
 }
 
 /** The live tree is shown once its main slot has content and nothing is loading: the mark `prerender.mjs` waits for. */
