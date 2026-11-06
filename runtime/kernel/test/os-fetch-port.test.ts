@@ -101,8 +101,9 @@ describe('a browser program\'s os ask through the host loop', () => {
     expect(await answerRequest(withOs(os), osAsk('os/close', [1]), scope)).toEqual({ kind: 'os', result: { ok: {} } });
   });
 
-  it('control: a host constructed with no os port denies the same ask without fetching', async () => {
-    expect(await answerRequest(withOs(undefined), osAsk('os/fetch', ['GET', 'https://a.example.test/x']), { orbital: 'Main' })).toMatchObject({ kind: 'os', result: { error: { kind: 'denied' } } });
+  it('control: a host constructed with no os port answers the same ask unsupported without fetching (G-CROSS-469, twin of with_no_host_every_op_is_unsupported)', async () => {
+    expect(await answerRequest(withOs(undefined), osAsk('os/fetch', ['GET', 'https://a.example.test/x']), { orbital: 'Main' })).toEqual({ kind: 'os', result: { error: { kind: 'unsupported', message: 'os/fetch: no os host configured' } } });
+    expect(await answerRequest(withOs(undefined), osAsk('gpu/device-open', [{}]), { orbital: 'Main' })).toEqual({ kind: 'os', result: { error: { kind: 'unsupported', message: 'gpu/device-open: no os host configured' } } });
   });
 });
 

@@ -757,7 +757,7 @@ async function withCredentialSegments(ports: KernelHostPorts, op: string, args: 
 
 async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, { kind: 'os' }>, scope: KernelAnswerScope): Promise<IoAnswerWire> {
   const { os } = ports;
-  if (os === undefined) return { kind: 'os', result: { error: { kind: 'denied', message: `${request.op}: no os host configured` } } };
+  if (os === undefined) return { kind: 'os', result: { error: { kind: 'unsupported', message: `${request.op}: no os host configured` } } };
   const { op, key, site, orbital: asking } = request;
   const completions = ports.osCompletions;
   const sink = ports.deferCallOutcome();
