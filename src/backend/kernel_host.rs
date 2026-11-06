@@ -39,7 +39,8 @@ pub fn client_runtime_files(module: &OirModule, language: &str) -> Vec<(String, 
         "sl" => ("sl", "ltr"),
         _ => ("en", "ltr"),
     };
-    let (themes, default_theme, default_mode) = crate::codegen::client_themes(&module.themes, module.default_theme.as_deref());
+    let painted = orbital_core_base::theme::program_themes(&module.themes);
+    let (themes, default_theme, default_mode) = crate::codegen::client_themes(&painted, module.default_theme.as_deref());
     let manifest = serde_json::json!({
         "locale": locale,
         "direction": direction,
@@ -149,6 +150,36 @@ impl TypeScriptBackend {
             }
         }
         warnings
+    }
+}
+
+#[cfg(test)]
+mod client_theme_tests {
+    use super::client_runtime_files;
+    use crate::backend::OirModule;
+
+    fn file(files: &[(String, String)], name: &str) -> String {
+        files.iter().find(|(path, _)| path == name).map(|(_, body)| body.clone()).expect(name)
+    }
+
+    #[test]
+    fn a_program_without_themes_names_the_preset_its_themes_css_defines() {
+        let files = client_runtime_files(&OirModule::new("app", "1.0.0"), "en");
+        let manifest: serde_json::Value = serde_json::from_str(&file(&files, "client.json")).unwrap();
+        let theme = manifest["defaultTheme"].as_str().expect("a default theme");
+        assert_eq!(manifest["themes"][0]["name"], theme);
+        assert!(file(&files, "themes.css").contains(&format!("[data-theme=\"{theme}-light\"]")), "the sheet defines the theme the client applies");
+    }
+
+    #[test]
+    fn control_a_declared_theme_is_the_one_listed_and_painted() {
+        let mut module = OirModule::new("app", "1.0.0");
+        module.themes = vec![orbital_core_base::theme::ThemePresets::installed().get("clay").cloned().expect("clay")];
+        let files = client_runtime_files(&module, "en");
+        let manifest: serde_json::Value = serde_json::from_str(&file(&files, "client.json")).unwrap();
+        assert_eq!(manifest["defaultTheme"], "clay");
+        assert!(file(&files, "themes.css").contains("[data-theme=\"clay-light\"]"));
+        assert!(!file(&files, "themes.css").contains("[data-theme=\"minimalist-light\"]"));
     }
 }
 
