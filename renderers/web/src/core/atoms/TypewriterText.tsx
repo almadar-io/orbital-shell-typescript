@@ -5,12 +5,13 @@
  * Reveals text character-by-character with a blinking cursor
  * that disappears after the full text has been typed out.
  */
-import type { A11yProps } from '@almadar/core';
+import type { A11yProps, EventKey } from '@almadar/core';
 import { domPassthrough } from '../lib/domPassthrough';
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "../lib/cn";
 import { Typography } from "./Typography";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
+import { useEventBus } from "../hooks/useEventBus";
 
 export interface TypewriterTextProps extends A11yProps {
   /** The full text to reveal */
@@ -22,10 +23,10 @@ export interface TypewriterTextProps extends A11yProps {
   /** Additional class names */
   className?: string;
   /**
-   * Called when the entire text has been revealed
+   * Event emitted (as UI:{onComplete}) when the entire text has been revealed; empty = none
    * @notification
    */
-  onComplete?: () => void;
+  onComplete?: EventKey;
 }
 
 export const TypewriterText: React.FC<TypewriterTextProps> = ({
@@ -40,8 +41,11 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
   const [charCount, setCharCount] = useState(0);
   const [started, setStarted] = useState(startDelay === 0);
   const reducedMotion = usePrefersReducedMotion();
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  const eventBus = useEventBus();
+  const completeRef = useRef<() => void>(() => undefined);
+  completeRef.current = () => {
+    if (onComplete) eventBus.emit(`UI:${onComplete}`, {});
+  };
 
   // Handle start delay
   useEffect(() => {
@@ -72,7 +76,7 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
     if (!started) return undefined;
 
     if (reducedMotion || charCount >= safeText.length) {
-      onCompleteRef.current?.();
+      completeRef.current();
       return undefined;
     }
 

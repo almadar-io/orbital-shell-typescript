@@ -106,7 +106,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   const iconName: string | undefined =
     typeof icon === "string" ? (ICON_NAME_ALIASES[icon] ?? icon) : undefined;
   const iconComponent: LucideIcon | undefined =
-    typeof icon === "function" ? icon : undefined;
+    typeof icon === "string" ? undefined : icon;
   const hasIcon = Boolean(iconName || iconComponent);
 
   // Determine color scheme based on variant or destructive flag

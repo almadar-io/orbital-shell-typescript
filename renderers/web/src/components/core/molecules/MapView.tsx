@@ -70,9 +70,9 @@ export interface MapViewProps extends A11yProps {
   /** Routes (polylines with optional popups) drawn over the tile layer */
   routes?: MapRouteData[];
   /** Map center latitude */
-  centerLat?: number;
+  centerLat?: number | null;
   /** Map center longitude */
-  centerLng?: number;
+  centerLng?: number | null;
   /** Zoom level (1-18, default 13) */
   zoom?: number;
   /** Height of the map container (default "400px") */
@@ -92,6 +92,10 @@ export interface MapViewProps extends A11yProps {
   /** Show attribution (default true) */
   showAttribution?: boolean;
 }
+
+/** The pattern contract's declared centre (ui-map-view `centerLat`/`centerLng` defaults). */
+const DEFAULT_CENTER_LAT = 51.505;
+const DEFAULT_CENTER_LNG = -0.09;
 
 /**
  * Lazy implementation: every leaflet/react-leaflet import lives inside this
@@ -167,8 +171,8 @@ const MapViewImpl = lazy(async () => {
   function MapViewInner({
     markers = [],
     routes = [],
-    centerLat = 51.505,
-    centerLng = -0.09,
+    centerLat: centerLatProp,
+    centerLng: centerLngProp,
     zoom = 13,
     height = '400px',
     onMarkerClick,
@@ -181,6 +185,8 @@ const MapViewImpl = lazy(async () => {
     surface = 'auto',
     ...rest
   }: MapViewProps) {
+    const centerLat = centerLatProp ?? DEFAULT_CENTER_LAT;
+    const centerLng = centerLngProp ?? DEFAULT_CENTER_LNG;
     const contentSurface = useContentSurface(surface);
     const eventBus = useEventBus();
     const [clickedPosition, setClickedPosition] = useState<{ lat: number; lng: number } | null>(null);

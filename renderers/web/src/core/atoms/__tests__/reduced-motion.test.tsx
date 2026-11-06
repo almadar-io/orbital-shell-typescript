@@ -7,6 +7,12 @@ import { AnimatedReveal } from '../../index';
 import { EventBusProvider } from '../../index';
 import { useEventBus } from '../../index';
 
+function BusListener({ type, onEvent }: { type: string; onEvent: () => void }) {
+  const bus = useEventBus();
+  React.useEffect(() => bus.on(type, onEvent), [bus, type, onEvent]);
+  return null;
+}
+
 function setReducedMotion(reduce: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches: reduce && query.includes('prefers-reduced-motion'),
@@ -58,10 +64,28 @@ describe('TypewriterText', () => {
 
   it('shows the full text at once and completes under prefers-reduced-motion', () => {
     setReducedMotion(true);
-    const onComplete = vi.fn();
-    render(<TypewriterText text="Hello" speed={100} onComplete={onComplete} />);
+    const heard = vi.fn();
+    render(
+      <EventBusProvider debug={false}>
+        <BusListener type="UI:TYPED" onEvent={heard} />
+        <TypewriterText text="Hello" speed={100} onComplete="TYPED" />
+      </EventBusProvider>,
+    );
     expect(screen.getByText('Hello')).toBeInstanceOf(HTMLElement);
-    expect(onComplete).toHaveBeenCalled();
+    expect(heard).toHaveBeenCalled();
+  });
+
+  it('control: an empty onComplete emits nothing and does not throw', () => {
+    setReducedMotion(true);
+    const heard = vi.fn();
+    render(
+      <EventBusProvider debug={false}>
+        <BusListener type="UI:TYPED" onEvent={heard} />
+        <TypewriterText text="Hello" speed={100} onComplete="" />
+      </EventBusProvider>,
+    );
+    expect(screen.getByText('Hello')).toBeInstanceOf(HTMLElement);
+    expect(heard).not.toHaveBeenCalled();
   });
 
   it('edge: empty text under reduced motion renders no cursor', () => {

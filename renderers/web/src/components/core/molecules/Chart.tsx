@@ -812,7 +812,7 @@ const ScatterChart: React.FC<{
                 const cy =
                     padding.top + chartHeight - ((p.y - minY) / rangeY) * chartHeight;
                 const r = p.size ?? 5;
-                const color = p.color ?? CHART_COLORS[idx % CHART_COLORS.length];
+                const color = p.color || CHART_COLORS[idx % CHART_COLORS.length];
                 return (
                     <circle
                         key={idx}
