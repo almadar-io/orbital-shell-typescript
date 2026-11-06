@@ -41,7 +41,8 @@ const WORKSPACE_PACKAGES = {
   '@almadar/eslint-plugin': 'orbital-rust/crates/orbital-shell-typescript/tooling/eslint',
 };
 
-const run = (cmd, argv, cwd, env = {}) => execFileSync(cmd, argv, { cwd, stdio: 'inherit', env: { ...process.env, ...env } });
+// pnpm is a .cmd shim on Windows, which only a shell resolves.
+const run = (cmd, argv, cwd, env = {}) => execFileSync(cmd, argv, { cwd, stdio: 'inherit', env: { ...process.env, ...env }, shell: process.platform === 'win32' });
 
 const tailwindContent = path.join(repo, 'templates', 'almadar-shell', 'packages', 'client', 'tailwind-content.txt');
 if (workspace !== undefined) run('orb', ['tailwind-content', '--out', tailwindContent], path.resolve(workspace));
