@@ -1,6 +1,6 @@
 {
   "name": "@almadar/core",
-  "version": "11.0.1",
+  "version": "11.1.0",
   "orbRelease": { "severity": "normal" },
   "description": "Core schema types and definitions for Almadar",
   "type": "module",
