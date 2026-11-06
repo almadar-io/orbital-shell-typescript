@@ -8,8 +8,9 @@
  *   node tooling/scripts/build-web-client.mjs                       released @almadar/* from the template's lockfile
  *   node tooling/scripts/build-web-client.mjs --workspace <root>    the monorepo's @almadar/* sources, linked
  *
- * Before the template is copied, `orb tailwind-content` rewrites its tailwind-content.txt from the installed
- * behaviors (with --workspace, the ones resolved from <root>), so the bundled CSS carries their classes.
+ * With --workspace, `orb tailwind-content` first rewrites the template's tailwind-content.txt from the behaviors resolved
+ * from <root>, so the bundled CSS carries their classes. A release build uses the committed list: the private behaviors
+ * it is generated from are not installable there.
  */
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -43,7 +44,7 @@ const WORKSPACE_PACKAGES = {
 const run = (cmd, argv, cwd, env = {}) => execFileSync(cmd, argv, { cwd, stdio: 'inherit', env: { ...process.env, ...env } });
 
 const tailwindContent = path.join(repo, 'templates', 'almadar-shell', 'packages', 'client', 'tailwind-content.txt');
-run('orb', ['tailwind-content', '--out', tailwindContent], workspace === undefined ? process.cwd() : path.resolve(workspace));
+if (workspace !== undefined) run('orb', ['tailwind-content', '--out', tailwindContent], path.resolve(workspace));
 
 const staging = `${out}.staging-${process.pid}`;
 const retired = `${out}.retired-${process.pid}`;
