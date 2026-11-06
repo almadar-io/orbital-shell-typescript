@@ -6,10 +6,17 @@
  */
 
 import type { KernelModule as RuntimeKernelModule } from '../index';
+import type { KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
 
 /** The `Kernel` class `@almadar/kernel` exports: JSON strings in, JSON strings out. */
 export interface KernelInstance {
   dispatch(traitName: string, entityId: string | undefined, event: string, payloadJson?: string): string;
+  /** Install the GPU answerer: every `gpu/` ask is held in the kernel and answered in ask order, and each outcome's route event reaches `completed` as `HeldGpuCompletion` JSON (`null` when it takes no route) for the host to dispatch with `dispatchHeld`. */
+  installGpu(gpu: KernelGpuHost, completed: (completionJson: string) => void): void;
+  /** `dispatch` with the payload the kernel holds under `heldPayload` (a gpu completion's), taken once. */
+  dispatchHeld(traitName: string, entityId: string | undefined, event: string, heldPayload: number): string;
+  /** Drop a held completion payload no dispatch will take. */
+  dropHeldPayload(heldPayload: number): boolean;
   /** A flight for work the kernel did not wire (a dispatch the host ran on its own, a frame's browser leg). */
   openFlight(): number;
   /** `applyServerResponse` in flight order (EXEC-CONC-8): a `FoldProgressWire` as JSON, folded now or queued behind an older flight. */

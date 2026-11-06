@@ -21,10 +21,14 @@ import { loadProgram } from './client-program';
 import { AuthProvider, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
 import { loadKernel } from './kernel-host';
+import { GpuHost } from '@almadar/kernel/client';
 import { LocaleRoot } from './locale';
 import { ThemeProvider } from '@almadar/shell-web/core';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+/** The browser's GPU answerer, made once the kernel module has loaded: a program's `gpu/` asks run on WebGPU in the page. */
+const makeGpu = (): GpuHost => new GpuHost();
 // `orb compile --mode client --no-server` writes VITE_SERVER=none: a static site whose program runs wholly in the browser.
 const SERVERLESS = import.meta.env.VITE_SERVER === 'none';
 // The lazy pages' programs sit beside program.client.orb, at each page's orbRef.
@@ -83,7 +87,7 @@ export function App({ manifest }: AppProps): React.ReactElement {
       : {};
   return (
     <ThemeProvider {...themeProps}>
-      <KernelEngineProvider loader={loader}>
+      <KernelEngineProvider loader={loader} gpu={makeGpu}>
         <AuthProvider>
           <BrowserRouter>
             <LocaleRoot manifest={manifest}>

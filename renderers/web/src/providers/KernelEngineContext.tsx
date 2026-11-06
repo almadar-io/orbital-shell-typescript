@@ -15,6 +15,7 @@ import { installNativeLanguages } from '@almadar/syntax';
 import type { KernelLoader, KernelModule } from '../lib/kernel-wire';
 import type { FrameScheduler } from '../lib/kernel-frames';
 import type { OsHostPort } from '@almadar/shell-runtime/kernel/os-port';
+import type { KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
 
 export interface KernelEngineValue {
   /** Resolves the initialised `@almadar/kernel` module, its language installed (`@almadar/shell-browser/kernel-loader`); shared by every circuit under the provider. */
@@ -23,6 +24,8 @@ export interface KernelEngineValue {
   scheduleFrame?: FrameScheduler;
   /** The host's `os` port (`createFetchOsHost(fetch)`) every local-store kernel under the provider is opened with; absent, a program's `os` asks are denied. */
   os?: OsHostPort;
+  /** The host's GPU answerer (the kernel module's `GpuHost`), made once after the module loads and installed into every circuit kernel under the provider; absent, a `gpu/` ask answers `unsupported`. */
+  gpu?: () => KernelGpuHost;
 }
 
 export const KernelEngineContext = createContext<KernelEngineValue | null>(null);
@@ -43,10 +46,12 @@ export interface KernelEngineProviderProps {
   loader: KernelLoader;
   scheduleFrame?: FrameScheduler;
   os?: OsHostPort;
+  /** Makes the host's GPU answerer once the module has loaded (`() => new GpuHost()`). */
+  gpu?: () => KernelGpuHost;
   children?: ReactNode;
 }
 
-export function KernelEngineProvider({ loader, scheduleFrame, os, children }: KernelEngineProviderProps): React.ReactElement {
+export function KernelEngineProvider({ loader, scheduleFrame, os, gpu, children }: KernelEngineProviderProps): React.ReactElement {
   const value = useMemo<KernelEngineValue>(() => {
     let module: Promise<KernelModule> | undefined;
     const load = (): Promise<KernelModule> =>
@@ -55,11 +60,13 @@ export function KernelEngineProvider({ loader, scheduleFrame, os, children }: Ke
         installNativeLanguages();
         return loaded;
       });
+    let gpuHost: KernelGpuHost | undefined;
     return {
       loadModule: () => (module ??= load()),
       ...(scheduleFrame !== undefined ? { scheduleFrame } : {}),
       ...(os !== undefined ? { os } : {}),
+      ...(gpu !== undefined ? { gpu: () => (gpuHost ??= gpu()) } : {}),
     };
-  }, [loader, scheduleFrame, os]);
+  }, [loader, scheduleFrame, os, gpu]);
   return <KernelEngineContext.Provider value={value}>{children}</KernelEngineContext.Provider>;
 }

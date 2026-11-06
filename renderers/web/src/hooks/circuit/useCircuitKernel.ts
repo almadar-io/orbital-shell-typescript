@@ -285,6 +285,8 @@ export function useCircuitKernel(
     if (viewerLocale === undefined) return;
     void kernelInstance.then((k) => k.setViewerLocale(viewerLocale));
   }, [kernelInstance, viewerLocale]);
+  const makeGpu = options.engine.gpu;
+  const gpu = useMemo(() => (makeGpu === undefined ? undefined : kernelInstance.then(() => makeGpu())), [kernelInstance, makeGpu]);
   const kernelClient = useMemo<KernelClient>(() => createLazyKernelClient({
     instance: kernelInstance,
     store,
@@ -292,7 +294,8 @@ export function useCircuitKernel(
     topology: topology.promise,
     ...(options.observer !== undefined ? { observer: options.observer } : {}),
     ...(effectiveTransport !== undefined ? { transport: effectiveTransport } : {}),
-  }), [kernelInstance, store, traitIndex, topology, effectiveTransport, options.observer]);
+    ...(gpu !== undefined ? { gpu } : {}),
+  }), [kernelInstance, store, traitIndex, topology, effectiveTransport, options.observer, gpu]);
   const rawKernel: ClientKernel = kernelClient;
 
   // Stamp the per-tab clientId and the viewer's locale onto every dispatch

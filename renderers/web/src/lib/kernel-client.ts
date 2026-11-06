@@ -37,6 +37,8 @@ import type { FrameScheduler } from './kernel-frames';
 import { getTraitPresence, presenceGroup } from '../core';
 import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, Entered, FoldedNextWire, FoldProgressWire, FrameDelta, Left, MountWire, PageCircuit, TraitSnapshot } from '@almadar/core/kernel-wire';
 import type { KernelInstance } from './kernel-wire';
+import type { KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
+import { decodeHeldCompletion } from '@almadar/shell-runtime/kernel/decode';
 
 const log = createLogger('almadar:ui:kernel-client');
 
@@ -98,6 +100,8 @@ export interface KernelClientOptions {
   topology: Promise<{ carriesCircuitState: boolean }>;
   /** Hears every executed hop of every response the kernel produces (the verification timeline). */
   observer?: TransitionObserver;
+  /** The GPU answerer installed into the kernel before its first dispatch; absent, a `gpu/` ask answers `unsupported`. */
+  gpu?: Promise<KernelGpuHost | undefined>;
 }
 
 const defaultFrameScheduler: FrameScheduler = (callback) => {
@@ -121,8 +125,9 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   const { store, traitIndex, transport } = opts;
   let loaded: KernelInstance | undefined;
   const configs = new Map<string, TraitConfig>();
-  const ready = opts.instance.then((k) => {
+  const ready = Promise.all([opts.instance, opts.gpu]).then(([k, gpu]) => {
     loaded = k;
+    if (gpu !== undefined) k.installGpu(gpu, (json) => deliverGpuCompletion(k, json));
     return k;
   });
   // The load failure reaches every call that awaits `ready`; a client nothing dispatches through stays quiet.
@@ -464,12 +469,35 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       store.notify();
       return { response, mode: parse<DispatchMode>(k.dispatchMode(request.runTick.trait)) };
     }
-    const wire = parse<DispatchWire>(k.dispatch(traitName, request.entityId, request.event, payloadJson(request.payload)));
+    const wire = parse<DispatchWire>(request.heldPayload !== undefined
+      ? k.dispatchHeld(traitName, request.entityId, request.event, request.heldPayload)
+      : k.dispatch(traitName, request.entityId, request.event, payloadJson(request.payload)));
     try {
       return await settleDispatch(k, wire, request, hooks, progress);
     } finally {
       endFlight(k, wire.flight);
     }
+  };
+
+  /** The painters of the running frame clocks (`startFrames`): a dispatch no view started is painted as a frame is. */
+  const framePainters = new Set<(outcomes: ClientKernelOutcome[]) => void>();
+
+  /** A held gpu ask finished in the kernel: its route event runs as a dispatch of its own, with the payload the kernel holds, painted as a frame. */
+  const deliverGpuCompletion = (k: KernelInstance, json: string): void => {
+    const completion = decodeHeldCompletion(json);
+    if (completion === null) return;
+    const request: EventRequest = {
+      event: completion.event,
+      targetTrait: completion.traitName,
+      heldPayload: completion.heldPayload,
+      ...(completion.entityId !== undefined ? { entityId: completion.entityId } : {}),
+    };
+    dispatchOne(request, [], false).then((outcome) => {
+      for (const paint of framePainters) paint([outcome]);
+    }).catch((error: Error) => {
+      k.dropHeldPayload(completion.heldPayload);
+      log.error('gpu-completion-failed', { trait: completion.traitName, event: completion.event, error: error.message });
+    });
   };
 
   const settleDispatch = async (k: KernelInstance, wire: DispatchWire, request: EventRequest, hooks: ClientDispatchHooks[], progress: boolean): Promise<ClientKernelOutcome> => {
@@ -648,6 +676,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     framePause: () => loaded?.framePause(),
     frameResume: () => loaded?.frameResume(),
     startFrames: (onFrame, schedule = defaultFrameScheduler) => {
+      framePainters.add(onFrame);
       const presence = getTraitPresence();
       const releases = visibleGroups.map(([, group]) => presence.watch(group));
       let stopped = false;
@@ -693,6 +722,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       }).catch((error: Error) => log.error('kernel-frame-failed', { error: error.message }));
       return () => {
         stopped = true;
+        framePainters.delete(onFrame);
         driver?.stop();
         releases.forEach((release) => release());
       };
