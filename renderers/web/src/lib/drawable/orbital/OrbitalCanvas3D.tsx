@@ -55,22 +55,6 @@ interface PickJson {
     shape?: { id: string; index: number };
 }
 
-/** The theme's scene tokens and tones, as orbital-canvas's `SceneTheme` reads them. */
-function sceneThemeJson(theme: CanvasTheme | null): string {
-    if (!theme) return '{}';
-    return JSON.stringify({
-        ground: theme.ground === 'transparent' ? null : theme.ground,
-        ambient: theme.scene.ambient,
-        key: theme.scene.key,
-        keyColor: theme.scene.keyColor,
-        roughness: theme.scene.roughness,
-        metalness: theme.scene.metalness,
-        flat: theme.scene.flat,
-        outline: theme.scene.outline,
-        tones: Object.fromEntries(Object.entries(theme.tones).filter(([, css]) => css !== 'currentColor')),
-    });
-}
-
 const log = createLogger('almadar:ui:orbital-canvas3d');
 
 export function OrbitalCanvas3D<P extends Pattern3D>({
@@ -170,7 +154,7 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
         const resolved = theme && scope ? resolveDrawableColors([...drawables], (c) => markColor(theme, c, scope, 'ink')) : [...drawables];
         return JSON.stringify({ ...config, type: pattern, mode: '3d', drawables: resolved });
     }, [config, pattern, drawables, theme]);
-    const themeJson = useMemo(() => sceneThemeJson(theme), [theme]);
+    const themeJson = useMemo(() => JSON.stringify(theme), [theme]);
 
     useEffect(() => {
         const view = viewRef.current;

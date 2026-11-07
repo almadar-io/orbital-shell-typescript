@@ -1,4 +1,4 @@
-import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
+import { initializeApp, getApps, type FirebaseApp } from '@firebase/app';
 import {
   GoogleAuthProvider,
   browserLocalPersistence,
@@ -18,7 +18,7 @@ import {
   updateProfile,
   type Auth,
   type User,
-} from 'firebase/auth';
+} from '@firebase/auth';
 import { z } from 'zod';
 import { JsonValueSchema, toPayloadValue, type JsonObject } from '@almadar/core';
 

@@ -33,6 +33,7 @@ export interface KernelGpuHost {
  * the device the page's `GpuHost` shares. JSON crosses as text; `pointerUp` answers the click it made.
  */
 export interface KernelCanvas3D {
+  /** `themeJson`: the page's resolved canvas theme, or `null`; orbital-canvas reads its scene axis, ground and tones. */
   setScene(nodeJson: string, themeJson: string): void;
   resize(cssWidth: number, cssHeight: number, pixelRatio: number): void;
   setReducedMotion(reduced: boolean): void;
