@@ -1,5 +1,10 @@
 [
   {
+    "code": "ORB_ENTITY_FIELD_DEFAULT_SHAPE_MISMATCH",
+    "category": "entity",
+    "description": "An entity field's declared default does not fit the field's declared type: the singleton row built from the defaults would be refused by the kernel's row intake."
+  },
+  {
     "code": "ORB_T_MISSING_RENDER_UI",
     "category": "trait",
     "description": "Interaction trait missing render_ui effects"
