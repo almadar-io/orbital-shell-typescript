@@ -1,62 +1,68 @@
 'use client';
 /**
- * `game-audio-cue` — declarative audio driver (dimension-agnostic).
+ * `game-audio-cue` — plays the sounds std-audio-cue has already resolved.
  *
- * Renders null; mounts the package's `useGameAudio` hook and keeps it in
- * sync with props so a state machine can own cue/music/mute/volume as
- * ordinary entity fields. `cueSeq` is the re-trigger signal for `cue` — a
- * one-shot fires on every `cueSeq` bump, even when `cue` repeats the same
- * key, and never on mount.
+ * Renders null. `cuePlay` fires on every `cueSeq` bump (never on mount),
+ * `musicPlay` crossfades over its `fadeMs` (an empty key fades out),
+ * `autostart` starts on the first user gesture while unmuted. `manifest` and
+ * `baseUrl` serve only the key-addressed audio/* host port.
  */
 import { useEffect, useRef } from 'react';
 import { useGameAudio } from '../../../hooks/useGameAudio';
-import type { SoundEntry } from '@almadar/core';
+import type { AudioPlay, SoundEntry } from '@almadar/core';
 
 export interface GameAudioCueProps {
-    /** Manifest key played as a one-shot SFX each time `cueSeq` advances. */
-    cue?: string;
-    /** Monotonically increasing counter — bumping it re-triggers `cue`. */
+    /** Monotonically increasing counter — bumping it plays `cuePlay` once. */
     cueSeq?: number;
-    /** Manifest key to crossfade to as looping background music; unset/empty stops music. */
-    music?: string;
+    /** The resolved one-shot to play on the next `cueSeq` bump. */
+    cuePlay?: AudioPlay;
+    /** The resolved looping track; an empty key fades the current one out. */
+    musicPlay?: AudioPlay;
+    /** Resolved sounds started on the first user gesture while unmuted. */
+    autostart?: AudioPlay[];
     /** Muted state, owned externally and mirrored into the hook. */
     muted?: boolean;
     /** Master volume 0-1, owned externally and mirrored into the hook. */
     volume?: number;
-    /** Sound manifest — keys mapped to sound definitions (path, volume, loop, ...). */
+    /** Sound manifest — answers the audio/* host port by key. */
     manifest: Record<string, SoundEntry>;
     /** Base URL prepended to every manifest path. */
     baseUrl?: string;
 }
 
 export function GameAudioCue({
-    cue,
     cueSeq,
-    music,
+    cuePlay,
+    musicPlay,
+    autostart,
     muted,
     volume,
     manifest,
     baseUrl,
 }: GameAudioCueProps): null {
-    const { play, playMusic, stopMusic, setMuted, setMasterVolume } = useGameAudio({
+    const { playPlan, playMusicPlan, setMuted, setMasterVolume } = useGameAudio({
         manifest,
         baseUrl,
         initialMuted: muted,
         initialVolume: volume,
+        autostart: autostart ?? [],
     });
 
     const prevCueSeqRef = useRef(cueSeq);
     useEffect(() => {
-        if (cue && cueSeq !== undefined && cueSeq !== prevCueSeqRef.current) {
-            play(cue);
+        if (cuePlay && cueSeq !== undefined && cueSeq !== prevCueSeqRef.current) {
+            playPlan(cuePlay);
         }
         prevCueSeqRef.current = cueSeq;
-    }, [cue, cueSeq, play]);
+    }, [cuePlay, cueSeq, playPlan]);
 
+    const musicKey = musicPlay?.key ?? '';
+    const musicSource = musicPlay?.source ?? '';
+    const musicRef = useRef(musicPlay);
+    musicRef.current = musicPlay;
     useEffect(() => {
-        if (music) playMusic(music);
-        else stopMusic();
-    }, [music, playMusic, stopMusic]);
+        if (musicRef.current) playMusicPlan(musicRef.current);
+    }, [musicKey, musicSource, playMusicPlan]);
 
     useEffect(() => {
         if (muted !== undefined) setMuted(muted);

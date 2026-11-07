@@ -152,9 +152,14 @@ export function resolveCanvasTheme(scope: Element): CanvasTheme {
   const r = new ScopeReader(scope);
   try {
     const tones = {} as Record<DiagramTone, string>;
+    const unresolvedTones: DiagramTone[] = [];
     for (const tone of DIAGRAM_TONES) {
       const c = r.color(toneVar(tone));
-      tones[tone] = c ? colorCss(c) : 'currentColor';
+      if (c) tones[tone] = colorCss(c);
+      else {
+        tones[tone] = 'transparent';
+        unresolvedTones.push(tone);
+      }
     }
     const surface = (name: string): string => {
       const c = r.color(name);
@@ -173,6 +178,7 @@ export function resolveCanvasTheme(scope: Element): CanvasTheme {
         onPrimary: surface('--color-primary-foreground'),
       },
       tones,
+      unresolvedTones,
       series: SERIES_TONES.map((t) => tones[t]),
       strokes: {
         thin: r.length('--diagram-stroke-thin', 1),

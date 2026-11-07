@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import type { OrbitalSchema } from '@almadar/core';
-import { createHttpTransport, SessionEndedError } from '@almadar/shell-runtime/client/EventTransport';
+import { createHttpTransport, SessionEndedError, TransportStatusError } from '@almadar/shell-runtime/client/EventTransport';
 
 describe('createHttpTransport — behavior addressing', () => {
   it('stamps the registered schema name on every posted event', async () => {
@@ -40,9 +40,10 @@ describe('createHttpTransport — an ended session', () => {
     await expect(transport.send('Main', { event: 'READ_BACK', targetTrait: 'Viewer' })).rejects.toBeInstanceOf(SessionEndedError);
   });
 
-  it('control: any other refusal answers as it does today', async () => {
+  it('control: any other refusal is a typed TransportStatusError carrying its status and code', async () => {
     const transport = transportAnswering(404, { error: 'Orbital not found', code: 'ORBITAL_NOT_FOUND' });
-    const answered = await transport.send('Main', { event: 'READ_BACK', targetTrait: 'Viewer' });
-    expect((answered as unknown as { code: string }).code).toBe('ORBITAL_NOT_FOUND');
+    const failure = await transport.send('Main', { event: 'READ_BACK', targetTrait: 'Viewer' }).catch((err: Error) => err);
+    expect(failure).toBeInstanceOf(TransportStatusError);
+    expect(failure).toMatchObject({ status: 404, refusal: { code: 'ORBITAL_NOT_FOUND', error: 'Orbital not found' } });
   });
 });

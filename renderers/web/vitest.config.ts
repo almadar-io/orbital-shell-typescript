@@ -20,7 +20,7 @@ export default defineConfig({
           include: ['src/core/**/__tests__/*.test.{ts,tsx}'],
           environment: 'jsdom',
           globals: true,
-          setupFiles: ['./vitest.setup.ts'],
+          setupFiles: ['./vitest.setup.ts', './test/ui/helpers/kernel-evaluator.setup.ts'],
         },
       },
       {

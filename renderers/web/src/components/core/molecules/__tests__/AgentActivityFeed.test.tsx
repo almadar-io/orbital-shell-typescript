@@ -332,3 +332,25 @@ describe('AgentActivityFeed — the done row counts the orbitals the run finishe
   });
 });
 
+
+describe('G-ORBITAL-SHELL-TYPESCRIPT-150: an activity outside the TraceActivity union', () => {
+  const unknownKind = (): TraceActivity => JSON.parse('{"type":"mystery_kind","timestamp":21}');
+
+  it('g_orbital_shell_typescript_150_unknown_type_renders_a_typed_fallback_row', () => {
+    wrap(<AgentActivityRow activity={unknownKind()} facts={NO_FACTS} />);
+    const row = screen.getByTestId('agent-activity-unknown');
+    expect(row.textContent).toContain('mystery_kind');
+  });
+
+  it('g_orbital_shell_typescript_150_unknown_type_does_not_take_down_its_neighbours', () => {
+    wrap(<AgentActivityFeed activities={[change, unknownKind(), { type: 'done', orbitalCount: 1, timestamp: 22 }]} />);
+    expect(screen.getByTestId('agent-activity-schema_change')).toBeTruthy();
+    expect(screen.getByTestId('agent-activity-done')).toBeTruthy();
+  });
+
+  it('control: a known type still renders its own row', () => {
+    wrap(<AgentActivityRow activity={change} facts={NO_FACTS} />);
+    expect(screen.getByTestId('agent-activity-schema_change')).toBeTruthy();
+    expect(screen.queryByTestId('agent-activity-unknown')).toBeNull();
+  });
+});

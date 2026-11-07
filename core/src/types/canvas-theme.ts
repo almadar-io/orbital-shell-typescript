@@ -128,6 +128,8 @@ export interface CanvasTheme {
    */
   surfaces: Readonly<Record<'muted' | 'card' | 'onPrimary', string>>;
   tones: Readonly<Record<DiagramTone, string>>;
+  /** Tones whose `--color-*` var did not resolve on the scope; their `tones` entry is not a colour. */
+  unresolvedTones: readonly DiagramTone[];
   series: readonly string[];
   strokes: Readonly<Record<DiagramStrokeWeight, number>>;
   lineCap: DiagramLineCap;

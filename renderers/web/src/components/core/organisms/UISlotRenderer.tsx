@@ -521,7 +521,16 @@ function UISlotComponent(props: UISlotComponentProps): React.ReactElement | null
   return props.slot === "system" ? <Box className="sr-only">{inner}</Box> : inner;
 }
 
-function UISlotComponentInner({
+/** The render-time marker resolve throws a typed error on a failed row set; the boundary paints it for every slot kind. */
+function UISlotComponentInner(props: UISlotComponentProps): React.ReactElement | null {
+  return (
+    <ErrorBoundary>
+      <ResolvedSlotContent {...props} />
+    </ErrorBoundary>
+  );
+}
+
+function ResolvedSlotContent({
   slot,
   portal = false,
   position,

@@ -165,8 +165,8 @@
     }
   ],
   "resolved": {
-    "orb": "18.0.5",
-    "typeContractVersion": 1
+    "orb": "19.0.0",
+    "typeContractVersion": 2
   },
   "schemaVersion": 1,
   "themeDefinitions": [

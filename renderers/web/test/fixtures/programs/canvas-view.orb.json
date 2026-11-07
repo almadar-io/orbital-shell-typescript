@@ -78,7 +78,7 @@
         "id": "evt_X5E7X01WCYY6F816RJ1BGGSSJP",
         "kind": "event",
         "owner": "workspace",
-        "parent": "trt_HNW32P6XSXEWYSVYX308G2PHZV",
+        "parent": "trt_MQR0V4M7H73RKSMRT8PT36W6EC",
         "renames": []
       },
       "evt_XH45EDX87HM3RZPKSYWKKQHQV7": {
@@ -448,7 +448,7 @@
           "name": "Stats",
           "sourceBehavior": {
             "alias": "Stat",
-            "behavior": "./stat-card",
+            "behavior": "/Users/osamaalghanmi/kflow.ai.builder/orbital-rust/crates/orbital-shell-typescript/renderers/web/test/fixtures/programs/stat-card",
             "originalName": "StatCardRender"
           },
           "sourceDeclaration": {
@@ -532,7 +532,7 @@
       "uses": [
         {
           "as": "Stat",
-          "from": "./stat-card"
+          "from": "/Users/osamaalghanmi/kflow.ai.builder/orbital-rust/crates/orbital-shell-typescript/renderers/web/test/fixtures/programs/stat-card"
         }
       ]
     },
@@ -632,14 +632,14 @@
       "uses": [
         {
           "as": "Stat",
-          "from": "./stat-card"
+          "from": "/Users/osamaalghanmi/kflow.ai.builder/orbital-rust/crates/orbital-shell-typescript/renderers/web/test/fixtures/programs/stat-card"
         }
       ]
     }
   ],
   "resolved": {
-    "orb": "18.0.5",
-    "typeContractVersion": 1
+    "orb": "19.0.0",
+    "typeContractVersion": 2
   },
   "schemaVersion": 1,
   "themeDefinitions": [

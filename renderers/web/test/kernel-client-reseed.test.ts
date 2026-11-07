@@ -19,6 +19,7 @@ const mountWire: MountWire = {
   } satisfies DispatchWire],
   legs: [],
   statefulLegs: [],
+  hops: [],
   failed: null,
 };
 
@@ -140,6 +141,7 @@ describe('kernel client — a mount group with a client-only seed', () => {
       orbital: 'Main', seeds: seeds.map((s) => s.seed), alreadyDelivered: [], awaiting: [], foldSeeded: [],
       leg: { event: 'INIT', mount: seeds.map((s): MountSeed => ({ trait: s.seed.trait, event: 'INIT' })), clientId: 'tab-a' },
     }],
+    hops: [],
     failed: null,
   });
   const mountOver = (mount: MountWire, sent: EventRequest[]) => {
@@ -208,7 +210,7 @@ describe('kernel client — a mount seed its topology posts in no group', () => 
   // `Match` holds a stateful leg only (flight 0); `Sources` delegated (flight 1): a carried-state host is posted Sources alone.
   const match = seedWire('Match', 0);
   const sources = seedWire('Sources', 1);
-  const mount: MountWire = { seeds: [match, sources], legs: [group([sources])], statefulLegs: [group([match, sources])], failed: null };
+  const mount: MountWire = { seeds: [match, sources], legs: [group([sources])], statefulLegs: [group([match, sources])], hops: [], failed: null };
   const run = async (carriesCircuitState: boolean) => {
     const log: string[] = [];
     const kernel: KernelInstance = {

@@ -1807,6 +1807,11 @@
         "doc": ""
       },
       {
+        "name": "applies_to",
+        "type": "Vec<String>",
+        "doc": "`in <state>, ...`: the trait states the tick runs in; empty = every state."
+      },
+      {
         "name": "background",
         "type": "bool",
         "doc": "`[background]`: runs with no client mounted."

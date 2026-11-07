@@ -126,6 +126,10 @@ export interface KernelServerHandle {
   bootMounts(side: string): string;
   /** The kernel's mounts for a client opening `routePath`: `MountSeed[]` as JSON. */
   routeMounts(routePath: string): string;
+  /** What a browser is told of an `EventResponse` (JSON): the kernel's client view (EXEC-DIST-8), as JSON. */
+  clientView(responseJson: string): string;
+  /** The payload a deferred completion's push carries to the browser (EXEC-QUEUE-10): JSON. */
+  browserCompletionPayload(traitName: string, payloadJson: string): string;
   /** One question about the registered program (a `ContractQuery`: the declared inputs, inbound hooks, entity owner, scoped rows): its answer as JSON. */
   contractQuery(queryJson: string): string;
   mount(traitsJson: string): void;

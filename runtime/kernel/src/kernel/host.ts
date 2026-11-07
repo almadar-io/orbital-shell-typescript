@@ -623,7 +623,7 @@ async function deliverAgentAsk(op: 'program/dispatch' | 'program/inputs' | 'prog
     const parsed = parse(payload, third);
     if ('error' in parsed) return { ok: false, error: parsed.error, errors: [{ code: 'INVALID_REQUEST', message: parsed.error, status: 400 }] };
     const orbital = typeof third['orbital'] === 'string' ? third['orbital'] : '';
-    const answered = await host.dispatchRequest(orbital, parsed.ok, third['input'] === true, stream);
+    const answered = await host.dispatchRequest(orbital, parsed.ok, third['input'] === true, stream, third['wire'] === true);
     if (!answered.ok) return { ok: false, error: answered.error, errors: [{ code: answered.code, message: answered.error, status: answered.status }] };
     if (!stream) return { ok: true, result: answered.response };
     if (answered.streamItems === undefined) return { ok: false, error: 'program/dispatch: this host does not answer stream items' };

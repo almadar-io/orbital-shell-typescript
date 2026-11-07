@@ -1231,6 +1231,7 @@
   "agentActivity.change.trait-config-changed": "Spremenjene nastavitve {{orbitalName}}",
   "agentActivity.change.theme-changed": "Spremenjena tema {{orbitalName}}",
   "agentActivity.llmResponse": "Surov odgovor LLM",
+  "agentActivity.unknown": "Neznana dejavnost: {{kind}}",
   "agentActivity.llmDuration": "{{seconds}} s",
   "agentActivity.llmTokens": "{{prompt}} vhodnih / {{completion}} izhodnih žetonov",
   "agentActivity.llmResponseLabel": "Odgovor",
@@ -1272,5 +1273,9 @@
   "debug.replayPause": "Premor",
   "debug.replayStep": "{{step}} / {{total}}",
   "stateMachine.inspect": "Pregled: izberi lastnost na strani",
-  "stateMachine.inspectHint": "Klikni del strani · Esc za konec"
+  "stateMachine.inspectHint": "Klikni del strani · Esc za konec",
+  "themeToggle.switchToLight": "Preklopi na svetli način",
+  "themeToggle.switchToDark": "Preklopi na temni način",
+  "themeToggle.light": "Svetla",
+  "themeToggle.dark": "Temna"
 }

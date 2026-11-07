@@ -145,6 +145,11 @@
     "description": "one dispatch's delegated effects reach browser-stored rows and server work"
   },
   {
+    "code": "ORB_LANGUAGE_DATA_FAULT",
+    "category": "effect",
+    "description": "the installed language data cannot answer a lookup the validated program needs"
+  },
+  {
     "code": "ORB_EFF_SLOT_CONFLICT",
     "category": "effect",
     "description": "Multiple render_ui effects targeting same slot"

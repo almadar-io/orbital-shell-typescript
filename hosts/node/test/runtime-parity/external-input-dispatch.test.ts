@@ -166,6 +166,51 @@ describeWithMemoryKernel('[pending-install: kernel.node TraitSurface.name, trait
   });
 });
 
+// Twin of `the_client_view_drops_an_emit_only_server_traits_listen_to` (orbital-core exec_dist/server_frame_echo.rs, EXEC-DIST-8):
+// a `wire` answer is the kernel's client view, so an emit only server traits hear never reaches the browser.
+describeWithMemoryKernel('OrbitalServerRuntime.dispatchEventRequest answers a browser the kernel client view (EXEC-DIST-8)', () => {
+  const idle = (arms: Array<Record<string, unknown>>) => ({ states: [{ name: 'idle', isInitial: true }], transitions: arms });
+  const handoff = (): OrbitalSchema => ({
+    name: 'handoff-app',
+    typeContractVersion: 1,
+    version: '1.0.0',
+    orbitals: [{
+      name: 'Main',
+      pages: [],
+      entity: { name: 'Job', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+      traits: [
+        { name: 'Source', linkedEntity: 'Job', emits: [{ event: 'OUTSIDE', scope: 'external' }],
+          stateMachine: idle([{ from: 'idle', to: 'idle', event: 'GO', effects: [['emit', 'HANDOFF', { blob: 'server-only-payload' }], ['emit', 'PAINT', { label: 'for-the-client' }], ['emit', 'OUTSIDE', {}]] }]) },
+        { name: 'Sink', linkedEntity: 'Job', listens: [{ event: 'HANDOFF', triggers: 'TAKE', source: { kind: 'trait', trait: 'Source' } }],
+          stateMachine: idle([{ from: 'idle', to: 'idle', event: 'TAKE', effects: [] }]) },
+        { name: 'Painter', linkedEntity: 'Job', dispatch: 'client', listens: [{ event: 'PAINT', triggers: 'SHOW', source: { kind: 'trait', trait: 'Source' } }],
+          stateMachine: idle([{ from: 'idle', to: 'idle', event: 'SHOW', effects: [] }]) },
+      ],
+    }],
+  } as OrbitalSchema);
+  const emitted = async (wire: boolean) => {
+    const runtime = new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
+    await runtime.register(handoff());
+    const answered = await runtime.dispatchEventRequest('Main', { event: 'GO', targetTrait: 'Source' }, false, false, wire);
+    if (!answered.ok) throw new Error(answered.error);
+    return answered.response.emittedEvents.map((e) => e.event);
+  };
+
+  it('a wire answer drops an emit only server traits listen to', async () => {
+    expect(await emitted(true)).not.toContain('HANDOFF');
+  });
+
+  it('control: a wire answer keeps the emit a client trait hears and the external one', async () => {
+    const names = await emitted(true);
+    expect(names).toContain('PAINT');
+    expect(names).toContain('OUTSIDE');
+  });
+
+  it('control: without wire the host answers the full response', async () => {
+    expect(await emitted(false)).toContain('HANDOFF');
+  });
+});
+
 describeWithMemoryKernel('OrbitalServerRuntime program/resolve-rows (rows resolve for the requesting session's identity, EXEC-IDENTITY-1)', () => {
   const OWNED: SExpr = ['=', ['object/get', '@entity', 'ownerId'], '@user.id'];
   const ownedNotes = async () => {

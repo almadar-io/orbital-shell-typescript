@@ -30,6 +30,9 @@ class DataTransferPolyfill {
 class DragEventPolyfill extends MouseEvent {}
 
 beforeAll(() => {
+  if (typeof Element.prototype.scrollIntoView !== 'function') {
+    Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, writable: true, value: () => undefined });
+  }
   if (typeof window.DragEvent === 'undefined') {
     Object.defineProperty(window, 'DragEvent', {
       configurable: true,

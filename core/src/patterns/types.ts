@@ -47,6 +47,11 @@ import type { EventPayloadValue } from '../types/expression.js';
  *                     declares none: feeds the awaiting-skeleton prediction,
  *                     never passed on (a declaring component carries no kind).
  *
+ * - `"class-string"` — the prop value is a CSS class string (or an `if` form
+ *                     of class strings) the renderer applies to an element.
+ *                     `orb tailwind-content` reads every prop carrying it, so
+ *                     its tokens reach the prebuilt client's Tailwind list.
+ *
  * Reserved for future use: `"config-binding"`. Add here rather than
  * inventing per-consumer markers.
  */
@@ -60,6 +65,7 @@ export const PROP_KINDS = [
   'entity',
   'entry',
   'skeleton',
+  'class-string',
 ] as const;
 export type PropKind = (typeof PROP_KINDS)[number];
 

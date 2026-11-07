@@ -1231,6 +1231,7 @@
   "agentActivity.change.trait-config-changed": "Changed the settings of {{orbitalName}}",
   "agentActivity.change.theme-changed": "Changed the theme of {{orbitalName}}",
   "agentActivity.llmResponse": "Raw LLM response",
+  "agentActivity.unknown": "Unknown activity: {{kind}}",
   "agentActivity.llmDuration": "{{seconds}}s",
   "agentActivity.llmTokens": "{{prompt}} in / {{completion}} out tokens",
   "agentActivity.llmResponseLabel": "Response",
@@ -1272,5 +1273,9 @@
   "debug.replayPause": "Pause",
   "debug.replayStep": "{{step}} / {{total}}",
   "stateMachine.inspect": "Inspect: pick a trait on the page",
-  "stateMachine.inspectHint": "Click a part of the page · Esc to stop"
+  "stateMachine.inspectHint": "Click a part of the page · Esc to stop",
+  "themeToggle.switchToLight": "Switch to light mode",
+  "themeToggle.switchToDark": "Switch to dark mode",
+  "themeToggle.light": "Light",
+  "themeToggle.dark": "Dark"
 }

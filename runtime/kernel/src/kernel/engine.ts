@@ -7,7 +7,7 @@ import { ExternalInputSchema, InboundAnswerSchema, InboundFoundSchema, InboundOn
 import type { ProgramSurface } from '@almadar/core/kernel-wire';
 import { LaneHeldByParkedDispatch } from './lane.js';
 
-import { decodeAnswer, decodeDueTicks, decodeHeldCompletion, decodeNext, decodeProgress, decodeResolveProgress } from './decode.js';
+import { decodeAnswer, decodeDueTicks, decodeHeldCompletion, decodeNext, decodeProgress, decodeResolveProgress, decodeResponse } from './decode.js';
 import { answerRequest, declareCapabilities, type KernelAnswerScope, type KernelHostPorts } from './host.js';
 import type { OsCompletionEvent } from './os-port.js';
 import type { FiredByOrbital, IoReplyWire, KernelModule, KernelServerHandle, ServerProgressWire } from './wire.js';
@@ -221,6 +221,17 @@ export class KernelEngine {
   /** What this host mounts when it starts: the kernel's boot mounts for the side it serves (EXEC-ENDPOINT-3). */
   bootMounts(side: 'server' | 'process'): MountSeed[] {
     return MountSeedSchema.array().parse(JSON.parse(this.handle.bootMounts(side)));
+  }
+
+  /** What a browser is told of `response`: the kernel's client view (EXEC-DIST-8). */
+  clientView(response: EventResponse): EventResponse {
+    return decodeResponse(this.handle.clientView(JSON.stringify(response)));
+  }
+
+  /** The payload a deferred completion's push carries to the browser (EXEC-QUEUE-10): none when the completing trait runs on the server. */
+  browserCompletionPayload(traitName: string, payload: EventPayload | undefined): EventPayload | undefined {
+    const shaped: EventPayload | null = JSON.parse(this.handle.browserCompletionPayload(traitName, JSON.stringify(payload ?? null)));
+    return shaped === null ? undefined : shaped;
   }
 
   /** What mounts when a client opens `routePath` (EXEC-ENDPOINT-3). */

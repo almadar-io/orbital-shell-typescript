@@ -785,6 +785,30 @@ export type AudioManifest = Record<string, SoundEntry>;
 
 export const AudioManifestSchema = z.record(z.string(), SoundEntrySchema);
 
+/** A sound std-audio-cue has already resolved: the host plays it as given. */
+export interface AudioPlay {
+    /** Manifest key; empty on a music plan means stop. */
+    key: string;
+    /** Full source URL or asset path (base URL already applied). */
+    source: string;
+    /** Entry volume 0-1, multiplied by the master volume. */
+    volume: number;
+    loop: boolean;
+    /** Concurrent instances kept for this key. */
+    poolSize: number;
+    /** Crossfade (music) or fade-out (stop) length in milliseconds. */
+    fadeMs: number;
+}
+
+export const AudioPlaySchema = z.object({
+    key: z.string(),
+    source: z.string(),
+    volume: z.number(),
+    loop: z.boolean(),
+    poolSize: z.number(),
+    fadeMs: z.number(),
+});
+
 export const MANIFEST_CANVAS_AFFINITIES = ['isometric', 'hex', 'flat', 'side', '3d', 'none'] as const;
 
 export type ManifestCanvasAffinity = (typeof MANIFEST_CANVAS_AFFINITIES)[number];

@@ -1008,6 +1008,7 @@ export {
   type ManifestEntryInput,
   type SoundEntry,
   type AudioManifest,
+  type AudioPlay,
   // Schemas
   EntityRoleSchema,
   VisualStyleSchema,
@@ -1021,6 +1022,7 @@ export {
   SpriteSheetAtlasSchema,
   SoundEntrySchema,
   AudioManifestSchema,
+  AudioPlaySchema,
   SubTextureSchema,
   TextureAtlasSchema,
   TilesheetSchema,

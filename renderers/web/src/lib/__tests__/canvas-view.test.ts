@@ -4,6 +4,7 @@
  * transitions — one per distinct render for designers, one per transition
  * otherwise, imported behaviors grouped by alias.
  */
+import { basename } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import type { OrbitalSchema } from '@almadar/core';
 import { composedProgram } from '../../../test/ui/helpers/composed-program';
@@ -37,7 +38,7 @@ describe('stateOptionsOf', () => {
 
   it('an imported behavior is an option group holding its own states', () => {
     const { groups } = stateOptionsOf(schema, 'Tasks', 'transitions');
-    expect(groups.map((g) => [g.alias, g.behaviorName])).toEqual([['Stat', './stat-card']]);
+    expect(groups.map((g) => [g.alias, basename(g.behaviorName)])).toEqual([['Stat', 'stat-card']]);
     expect(events(groups[0].options)).toEqual(['INIT', 'REFRESH']);
   });
 

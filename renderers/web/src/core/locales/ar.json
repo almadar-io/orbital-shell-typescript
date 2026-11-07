@@ -1231,6 +1231,7 @@
   "agentActivity.change.trait-config-changed": "تم تغيير إعدادات {{orbitalName}}",
   "agentActivity.change.theme-changed": "تم تغيير سمة {{orbitalName}}",
   "agentActivity.llmResponse": "استجابة LLM خام",
+  "agentActivity.unknown": "نشاط غير معروف: {{kind}}",
   "agentActivity.llmDuration": "{{seconds}} ث",
   "agentActivity.llmTokens": "{{prompt}} داخل / {{completion}} خارج",
   "agentActivity.llmResponseLabel": "الاستجابة",
@@ -1272,5 +1273,9 @@
   "debug.replayPause": "إيقاف مؤقت",
   "debug.replayStep": "{{step}} / {{total}}",
   "stateMachine.inspect": "فحص: اختر سمة من الصفحة",
-  "stateMachine.inspectHint": "انقر جزءًا من الصفحة · Esc للإيقاف"
+  "stateMachine.inspectHint": "انقر جزءًا من الصفحة · Esc للإيقاف",
+  "themeToggle.switchToLight": "التبديل إلى الوضع الفاتح",
+  "themeToggle.switchToDark": "التبديل إلى الوضع الداكن",
+  "themeToggle.light": "فاتح",
+  "themeToggle.dark": "داكن"
 }

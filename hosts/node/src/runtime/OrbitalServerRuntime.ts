@@ -848,9 +848,18 @@ export class OrbitalServerRuntime {
   /** Run a follow-on step's call outcome as its own dispatch, and hand its result to the host-dispatch sink. */
   private runDeferredOutcome(orbitalName: string, request: EventRequest): void {
     void this.processOrbitalEvent(orbitalName, request).then(
-      (response) => this.hostDispatchSink?.({ orbitalName, request, response, ...(request.clientId !== undefined ? { originClientId: request.clientId } : {}) }),
+      (response) => this.hostDispatchSink?.(this.browserDispatchItem(orbitalName, request, response)),
       (error: Error) => effectLog.error('deferred-outcome:failed', { orbitalName, event: request.event, trait: request.targetTrait, error: error.message }),
     );
+  }
+
+  /** A deferred outcome for the tab that asked is what that browser is told of it: the kernel's client view and completion payload (EXEC-DIST-8, EXEC-QUEUE-10). */
+  private browserDispatchItem(orbitalName: string, request: EventRequest, response: EventResponse): HostDispatchItem {
+    if (request.clientId === undefined) return { orbitalName, request, response };
+    const engine = this.requireKernelEngine();
+    const payload = request.targetTrait === undefined ? request.payload : engine.browserCompletionPayload(request.targetTrait, request.payload);
+    const { payload: _held, ...rest } = request;
+    return { orbitalName, request: payload === undefined ? rest : { ...rest, payload }, response: engine.clientView(response), originClientId: request.clientId };
   }
 
   /**
@@ -997,9 +1006,9 @@ export class OrbitalServerRuntime {
         return this.requireKernelEngine().readRows(entity, await this.persistence.list(entity), user);
       },
       supportsDispatchStream: true,
-      dispatchRequest: (orbital, request, input, stream) => {
+      dispatchRequest: (orbital, request, input, stream, wire) => {
         assertReentry?.();
-        return this.dispatchEventRequest(orbital, request, input, stream);
+        return this.dispatchEventRequest(orbital, request, input, stream, wire);
       },
       deliverInbound: (name, delivery) => this.deliverInbound(name, delivery),
       resolveRows: (reference, clientId) => this.resolveRows(reference, clientId),
@@ -1016,14 +1025,18 @@ export class OrbitalServerRuntime {
     parsed: EventRequest,
     input: boolean,
     stream = false,
+    wire = false,
   ): Promise<DispatchRequestOutcome> {
     const request: EventRequest = parsed;
     const streamItems: EventStreamItem[] = [];
     const onPush = stream ? (item: PushItem): void => { streamItems.push({ ...item, timestamp: item.timestamp ?? Date.now() }); } : undefined;
-    const answer = (response: EventResponse): DispatchRequestOutcome => ({
-      ok: true, response,
-      ...(stream ? { streamItems: [...streamItems, { type: 'complete', data: response, timestamp: Date.now() }] } : {}),
-    });
+    const answer = (full: EventResponse): DispatchRequestOutcome => {
+      const response = wire ? this.requireKernelEngine().clientView(full) : full;
+      return {
+        ok: true, response,
+        ...(stream ? { streamItems: [...streamItems, { type: 'complete', data: response, timestamp: Date.now() }] } : {}),
+      };
+    };
     if ((await this.resolveRegisteredOrbital(orbital)) === undefined) {
       return { ok: false, error: `Orbital not found: ${orbital}`, code: 'ORBITAL_NOT_FOUND', status: 404 };
     }

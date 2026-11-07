@@ -4,12 +4,22 @@
 2
 @md:[--live-machine-code:calc(100dvh_-_10rem)]
 @md:[--live-machine-diagram:calc(100dvh_-_7rem)]
+@md:basis-0
+@md:focus-within:grow-[
+@md:grow-[
+@md:hover:grow-[
 @md:text-3xl
+@md:w-auto
+@sm:basis-0
 @sm:basis-auto
 @sm:block
 @sm:flex-row
+@sm:focus-within:grow-[
+@sm:grow-[
+@sm:hover:grow-[
 @sm:text-xl
 @sm:w-16
+@sm:w-auto
 Class
 Name
 [--live-machine-code:calc(55dvh_-_11rem)]
@@ -18,6 +28,7 @@ Name
 [animation-duration:120s]
 [animation-duration:140s]
 [mask-image:linear-gradient(to_bottom,black_55%,transparent)]
+]
 absolute
 actionLabel
 almadar-std/std-analytics-board
@@ -88,6 +99,7 @@ description
 designer
 duration-500
 duration-normal
+ease-out
 end-2
 explorer
 file
@@ -195,6 +207,7 @@ motion-reduce:animate-none
 motion-reduce:flex-wrap
 motion-reduce:hidden
 motion-reduce:justify-center
+motion-reduce:transition-none
 motion-reduce:w-auto
 mt-0.5
 mt-16
@@ -319,6 +332,7 @@ tracking-tight
 tracking-tighter
 tracking-wide
 tracking-widest
+transition-[flex-grow]
 transition-all
 transition-colors
 transition-opacity

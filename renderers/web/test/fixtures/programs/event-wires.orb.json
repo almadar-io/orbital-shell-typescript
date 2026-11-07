@@ -138,7 +138,7 @@
           "name": "Sender",
           "sourceBehavior": {
             "alias": "Wire",
-            "behavior": "./wire-emitter",
+            "behavior": "/Users/osamaalghanmi/kflow.ai.builder/orbital-rust/crates/orbital-shell-typescript/renderers/web/test/fixtures/programs/wire-emitter",
             "originalName": "Emitter"
           },
           "sourceDeclaration": {
@@ -197,7 +197,7 @@
       "uses": [
         {
           "as": "Wire",
-          "from": "./wire-emitter"
+          "from": "/Users/osamaalghanmi/kflow.ai.builder/orbital-rust/crates/orbital-shell-typescript/renderers/web/test/fixtures/programs/wire-emitter"
         }
       ]
     },
@@ -298,14 +298,14 @@
       "uses": [
         {
           "as": "Wire",
-          "from": "./wire-emitter"
+          "from": "/Users/osamaalghanmi/kflow.ai.builder/orbital-rust/crates/orbital-shell-typescript/renderers/web/test/fixtures/programs/wire-emitter"
         }
       ]
     }
   ],
   "resolved": {
-    "orb": "18.0.5",
-    "typeContractVersion": 1
+    "orb": "19.0.0",
+    "typeContractVersion": 2
   },
   "schemaVersion": 1,
   "themeDefinitions": [

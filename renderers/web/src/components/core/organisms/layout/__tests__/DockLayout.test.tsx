@@ -73,7 +73,7 @@ describe('DockLayout', () => {
     expect(screen.getByTestId('bottom-panel')).toBeInTheDocument();
     expect(screen.getByTestId('status-bar')).toBeInTheDocument();
     expect(screen.getByTestId('secondary-sidebar')).toBeInTheDocument();
-    expect(screen.getByTestId('split-pane-horizontal')).toBeInTheDocument();
+    expect(screen.getAllByTestId('split-pane-horizontal')).toHaveLength(2);
     expect(screen.getByTestId('split-pane-vertical')).toBeInTheDocument();
   });
 

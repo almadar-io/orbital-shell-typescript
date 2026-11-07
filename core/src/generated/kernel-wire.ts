@@ -426,6 +426,12 @@ legs: Array<MountLegWire>,
  */
 statefulLegs: Array<MountLegWire>, 
 /**
+ * The server hops the seeds' cascades owe that the host's replay of the mount cannot reach (a step on the way ran as
+ * a delivery to a `[client]` trait a browser runs, EXEC-ENDPOINT-3a), in seed order: each is posted after the mount
+ * legs, on every topology, and folded as a dispatch's leg is (EXEC-DIST-10).
+ */
+hops: Array<RoutedLeg>, 
+/**
  * The seed that failed to dispatch; the batch stopped there and carries no legs.
  */
 failed: MountFailure | null, };
@@ -1334,7 +1340,7 @@ function checkMountSeed(v: JsonValue | undefined): boolean {
 }
 
 function checkMountWire(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && (Array.isArray(v["seeds"]) && v["seeds"].every((e) => checkDispatchWire(e))) && (Array.isArray(v["legs"]) && v["legs"].every((e) => checkMountLegWire(e))) && (Array.isArray(v["statefulLegs"]) && v["statefulLegs"].every((e) => checkMountLegWire(e))) && (checkMountFailure(v["failed"]) || v["failed"] === null));
+  return (isRecord(v) && (Array.isArray(v["seeds"]) && v["seeds"].every((e) => checkDispatchWire(e))) && (Array.isArray(v["legs"]) && v["legs"].every((e) => checkMountLegWire(e))) && (Array.isArray(v["statefulLegs"]) && v["statefulLegs"].every((e) => checkMountLegWire(e))) && (Array.isArray(v["hops"]) && v["hops"].every((e) => checkRoutedLeg(e))) && (checkMountFailure(v["failed"]) || v["failed"] === null));
 }
 
 function checkNavigateOptions(v: JsonValue | undefined): boolean {
@@ -2054,7 +2060,7 @@ function buildMountSeed(v: JsonValue | undefined, p: string): MountSeed {
 }
 
 function buildMountWire(v: JsonValue | undefined, p: string): MountWire {
-  return obj(v, p, null, (r0) => ({ "seeds": list(r0["seeds"], p + '.seeds', (e1, q1) => buildDispatchWire(e1, q1)), "legs": list(r0["legs"], p + '.legs', (e1, q1) => buildMountLegWire(e1, q1)), "statefulLegs": list(r0["statefulLegs"], p + '.statefulLegs', (e1, q1) => buildMountLegWire(e1, q1)), "failed": r0["failed"] === undefined ? null : (r0["failed"] === null ? null : buildMountFailure(r0["failed"], p + '.failed')) }));
+  return obj(v, p, null, (r0) => ({ "seeds": list(r0["seeds"], p + '.seeds', (e1, q1) => buildDispatchWire(e1, q1)), "legs": list(r0["legs"], p + '.legs', (e1, q1) => buildMountLegWire(e1, q1)), "statefulLegs": list(r0["statefulLegs"], p + '.statefulLegs', (e1, q1) => buildMountLegWire(e1, q1)), "hops": list(r0["hops"], p + '.hops', (e1, q1) => buildRoutedLeg(e1, q1)), "failed": r0["failed"] === undefined ? null : (r0["failed"] === null ? null : buildMountFailure(r0["failed"], p + '.failed')) }));
 }
 
 function buildNavigateOptions(v: JsonValue | undefined, p: string): NavigateOptions {

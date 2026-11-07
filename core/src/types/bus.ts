@@ -443,10 +443,11 @@ export interface ServiceHostPorts {
    * A `program/dispatch` event request (owner, 2026-10-21): dispatch `request` on `orbital` as the HTTP events
    * route does (`input: true` admits only a declared external input, as the inputs route). `request` is what the kernel
    * parsed (`EventRequest::from_dispatch`); its `user` is the dispatch's viewer when the call names one.
+   * `wire` answers a browser: the response is the kernel's client view (EXEC-DIST-8).
    * A host that does not serve event requests leaves it out.
    */
   supportsDispatchStream?: true;
-  dispatchRequest?(orbital: string, request: EventRequest, input: boolean, stream?: boolean): Promise<DispatchRequestOutcome>;
+  dispatchRequest?(orbital: string, request: EventRequest, input: boolean, stream?: boolean, wire?: boolean): Promise<DispatchRequestOutcome>;
   /** A `program/dispatch { inbound }` delivery through the inbound route, credential check and answer path. */
   deliverInbound?(name: string, delivery: { headers: Readonly<Record<string, string>>; rawBody: string }): Promise<{ status: number; body: string }>;
   /** The host's last `steps` traced dispatch steps, oldest first; a host that keeps no trace leaves it out. */

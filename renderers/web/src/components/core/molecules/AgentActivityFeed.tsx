@@ -9,7 +9,7 @@
  */
 
 import React, { useEffect, useRef } from 'react';
-import type { SemanticChangeKind, TraceActivity } from '@almadar/core';
+import { TRACE_ACTIVITY_TYPES, type SemanticChangeKind, type TraceActivity } from '@almadar/core';
 import { Accordion } from './Accordion';
 import { EmptyState } from './EmptyState';
 import { MarkdownContent } from './markdown/MarkdownContent';
@@ -43,6 +43,8 @@ const CHANGE_KIND_ICON: Record<SemanticChangeKind, string> = {
   'theme-changed': 'palette',
   'behavior-composed': 'layers',
 };
+
+const KNOWN_ACTIVITY_TYPES: ReadonlySet<string> = new Set(TRACE_ACTIVITY_TYPES);
 
 type RowColor = 'muted' | 'success' | 'error' | 'warning' | 'primary';
 
@@ -190,6 +192,10 @@ function describe(activity: TraceActivity, t: TranslateFunction, facts: RowFacts
       return { icon: 'circle-x', color: 'muted', text: activity.message || t('agentActivity.cancelled'), details: [] };
     case 'llm_response':
       return { icon: 'cpu', color: 'muted', text: t('agentActivity.llmResponse'), details: [activity.content] };
+    default: {
+      const unhandled: never = activity;
+      throw new Error(`describe: unhandled activity ${JSON.stringify(unhandled)}`);
+    }
   }
 }
 
@@ -257,6 +263,15 @@ export interface AgentActivityRowProps {
 
 export function AgentActivityRow({ activity, onJump, facts }: AgentActivityRowProps): React.ReactElement {
   const { t } = useTranslate();
+
+  if (!KNOWN_ACTIVITY_TYPES.has(activity.type)) {
+    return (
+      <Box className="flex items-start gap-2 w-full" data-testid="agent-activity-unknown">
+        <Icon name="help-circle" size="sm" color="muted" className="mt-0.5 shrink-0" />
+        <Typography variant="body2" color="muted" className="break-words">{t('agentActivity.unknown', { kind: activity.type })}</Typography>
+      </Box>
+    );
+  }
 
   if (activity.type === 'llm_response') return <LlmResponseRow activity={activity} />;
 

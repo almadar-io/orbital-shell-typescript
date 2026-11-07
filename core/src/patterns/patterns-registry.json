@@ -1,6 +1,7 @@
 {
   "version": "1.0.0",
   "exportedAt": "2026-11-07T03:57:49.631Z",
+  "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -21,7 +22,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -1820,7 +1822,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -2179,7 +2182,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "entity": {
           "types": [
@@ -3409,7 +3413,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "entity": {
           "types": [
@@ -4574,7 +4579,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "event": {
           "types": [
@@ -5026,7 +5032,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "variant": {
           "types": [
@@ -5812,7 +5819,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -6225,7 +6233,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -6596,7 +6605,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "stepClickEvent": {
           "types": [
@@ -7065,7 +7075,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -8082,7 +8093,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -8556,7 +8568,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "pageChangeEvent": {
           "types": [
@@ -8927,7 +8940,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "destructive": {
           "types": [
@@ -9282,7 +9296,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "fullPage": {
           "types": [
@@ -9619,7 +9634,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "retryEvent": {
           "types": [
@@ -10001,7 +10017,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "dismissEvent": {
           "types": [
@@ -10400,7 +10417,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "closeEvent": {
           "types": [
@@ -10841,7 +10859,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class name"
+          "description": "Additional class name",
+          "kind": "class-string"
         },
         "closeEvent": {
           "types": [
@@ -11301,7 +11320,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -11607,7 +11627,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "style": {
           "types": [
@@ -12408,7 +12429,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "style": {
           "types": [
@@ -12780,7 +12802,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "style": {
           "types": [
@@ -13136,7 +13159,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -13470,7 +13494,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -13795,7 +13820,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "mode": {
           "types": [
@@ -14157,7 +14183,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "variant": {
           "types": [
@@ -14689,7 +14716,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "variant": {
           "types": [
@@ -15225,7 +15253,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "onClick": {
           "types": [
@@ -15598,7 +15627,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "strokeWidth": {
           "types": [
@@ -15920,7 +15950,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "variant": {
           "types": [
@@ -16404,7 +16435,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -16708,7 +16740,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "size": {
           "types": [
@@ -17035,7 +17068,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "placeholder": {
           "types": [
@@ -17310,7 +17344,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "label": {
           "types": [
@@ -17683,7 +17718,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "label": {
           "types": [
@@ -18191,7 +18227,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "checked": {
           "types": [
@@ -18537,7 +18574,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "options": {
           "types": [
@@ -18972,7 +19010,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -19276,7 +19315,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "text": {
           "types": [
@@ -19667,7 +19707,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "dismissEvent": {
           "types": [
@@ -20027,7 +20068,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -20396,7 +20438,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -20827,7 +20870,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "header": {
           "types": [
@@ -21259,7 +21303,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "toggleEvent": {
           "types": [
@@ -21633,7 +21678,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -22001,7 +22047,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -22449,7 +22496,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "onAdd": {
           "types": [
@@ -22975,7 +23023,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -23299,7 +23348,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "blur": {
           "types": [
@@ -23693,7 +23743,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "style": {
           "types": [
@@ -24128,7 +24179,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -24474,7 +24526,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "size": {
           "types": [
@@ -25127,7 +25180,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "style": {
           "types": [
@@ -25580,7 +25634,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "entity": {
           "types": [
@@ -26085,7 +26140,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -26522,7 +26578,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -26852,7 +26909,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -27234,7 +27292,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -27539,7 +27598,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "placeholder": {
           "types": [
@@ -28116,7 +28176,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "searchPlaceholder": {
           "types": [
@@ -28488,7 +28549,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "closeEvent": {
           "types": [
@@ -28912,7 +28974,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "message": {
           "types": [
@@ -29260,7 +29323,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -29633,7 +29697,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -30001,7 +30066,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -30241,7 +30307,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -30668,7 +30735,8 @@
             "string"
           ],
           "description": "Additional CSS classes",
-          "default": ""
+          "default": "",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -31060,7 +31128,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -31073,13 +31142,15 @@
           "types": [
             "string"
           ],
-          "description": "Header custom class name"
+          "description": "Header custom class name",
+          "kind": "class-string"
         },
         "contentClassName": {
           "types": [
             "string"
           ],
-          "description": "Content custom class name"
+          "description": "Content custom class name",
+          "kind": "class-string"
         },
         "as": {
           "types": [
@@ -31425,7 +31496,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -31998,19 +32070,22 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "leftClassName": {
           "types": [
             "string"
           ],
-          "description": "Left/first panel class name"
+          "description": "Left/first panel class name",
+          "kind": "class-string"
         },
         "rightClassName": {
           "types": [
             "string"
           ],
-          "description": "Right/second panel class name"
+          "description": "Right/second panel class name",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -32407,7 +32482,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -33052,7 +33128,8 @@
           "types": [
             "string"
           ],
-          "description": "External styling override"
+          "description": "External styling override",
+          "kind": "class-string"
         },
         "onIncrement": {
           "types": [
@@ -33824,7 +33901,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class name"
+          "description": "Additional class name",
+          "kind": "class-string"
         },
         "title": {
           "types": [
@@ -34191,7 +34269,8 @@
           "types": [
             "string"
           ],
-          "description": "Extra class name on the root container"
+          "description": "Extra class name on the root container",
+          "kind": "class-string"
         },
         "showTopBar": {
           "types": [
@@ -35121,7 +35200,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -35555,7 +35635,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -35872,7 +35953,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -36387,7 +36469,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -37126,7 +37209,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -37639,7 +37723,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -38857,7 +38942,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -39176,7 +39262,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes for the wrapper"
+          "description": "Additional CSS classes for the wrapper",
+          "kind": "class-string"
         },
         "onError": {
           "types": [
@@ -39360,7 +39447,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -39680,7 +39768,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -40026,7 +40115,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "editable": {
           "types": [
@@ -41376,7 +41466,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -41681,7 +41772,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -42239,7 +42331,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -42902,7 +42995,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "trait": {
           "types": [
@@ -43618,7 +43712,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -43949,7 +44044,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -44261,7 +44357,8 @@
           "types": [
             "string"
           ],
-          "description": "Optional className for the outer wrapper"
+          "description": "Optional className for the outer wrapper",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -44602,7 +44699,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -45056,7 +45154,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "surface": {
           "types": [
@@ -45518,7 +45617,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "direction": {
           "types": [
@@ -45882,7 +45982,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -46217,7 +46318,8 @@
           "types": [
             "string"
           ],
-          "description": "Optional className for the outer container"
+          "description": "Optional className for the outer container",
+          "kind": "class-string"
         },
         "height": {
           "types": [
@@ -46729,7 +46831,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "showLabels": {
           "types": [
@@ -47150,7 +47253,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -47496,7 +47600,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "size": {
           "types": [
@@ -48234,7 +48339,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -49221,7 +49327,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -50098,7 +50205,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "showAttribution": {
           "types": [
@@ -50410,7 +50518,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "min": {
           "types": [
@@ -50831,7 +50940,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "status": {
           "types": [
@@ -51176,7 +51286,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "value": {
           "types": [
@@ -51607,7 +51718,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -51995,7 +52107,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "label": {
           "types": [
@@ -52388,7 +52501,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "label": {
           "types": [
@@ -52840,7 +52954,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -53184,7 +53299,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -53510,7 +53626,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -53853,7 +53970,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -54179,7 +54297,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "onComplete": {
           "types": [
@@ -54716,7 +54835,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -55051,7 +55171,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -55431,7 +55552,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -55878,7 +56000,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -56353,7 +56476,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -56737,7 +56861,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -57101,7 +57226,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -57501,7 +57627,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -57850,7 +57977,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -58158,7 +58286,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "src": {
           "types": [
@@ -58548,7 +58677,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "trigger": {
           "types": [
@@ -60064,7 +60194,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -60421,7 +60552,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -60556,7 +60688,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class name for the container"
+          "description": "Additional class name for the container",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -61031,7 +61164,8 @@
           "types": [
             "string"
           ],
-          "description": "CSS class"
+          "description": "CSS class",
+          "kind": "class-string"
         },
         "indent": {
           "types": [
@@ -61343,7 +61477,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "variant": {
           "types": [
@@ -61849,7 +61984,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -62282,7 +62418,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -62703,7 +62840,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -63089,7 +63227,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "label": {
           "types": [
@@ -63656,7 +63795,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -64166,7 +64306,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -64690,7 +64831,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes."
+          "description": "Additional CSS classes.",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -65192,7 +65334,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -65667,7 +65810,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -66132,7 +66276,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -66611,7 +66756,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -67057,7 +67203,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -67422,7 +67569,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "animated": {
           "types": [
@@ -68067,7 +68215,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "locale": {
           "types": [
@@ -68423,7 +68572,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "lowThreshold": {
           "types": [
@@ -68892,7 +69042,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "asRoot": {
           "types": [
@@ -69279,7 +69430,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "asRoot": {
           "types": [
@@ -69661,7 +69813,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "asRoot": {
           "types": [
@@ -70043,7 +70196,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "highlights": {
           "types": [
@@ -70437,7 +70591,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "asRoot": {
           "types": [
@@ -70812,7 +70967,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "asRoot": {
           "types": [
@@ -71185,7 +71341,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "asRoot": {
           "types": [
@@ -71558,7 +71715,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "label": {
           "types": [
@@ -71939,7 +72097,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "asRoot": {
           "types": [
@@ -72319,7 +72478,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "label": {
           "types": [
@@ -72698,7 +72858,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "asRoot": {
           "types": [
@@ -73072,7 +73233,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "labels": {
           "types": [
@@ -73436,7 +73598,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -73795,7 +73958,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -74120,7 +74284,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -74469,7 +74634,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -74813,7 +74979,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -75124,7 +75291,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -77737,7 +77905,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "transparent": {
           "types": [
@@ -78333,7 +78502,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -78900,7 +79070,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -79218,7 +79389,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "muted": {
           "types": [
@@ -80181,7 +80353,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -81329,7 +81502,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -81891,7 +82065,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -82771,7 +82946,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -83076,7 +83252,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -83605,19 +83782,22 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "leftClassName": {
           "types": [
             "string"
           ],
-          "description": "Class for left/top pane"
+          "description": "Class for left/top pane",
+          "kind": "class-string"
         },
         "rightClassName": {
           "types": [
             "string"
           ],
-          "description": "Class for right/bottom pane"
+          "description": "Class for right/bottom pane",
+          "kind": "class-string"
         },
         "onRatioChange": {
           "types": [
@@ -84021,7 +84201,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -84361,19 +84542,22 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "masterClassName": {
           "types": [
             "string"
           ],
-          "description": "Class for master pane"
+          "description": "Class for master pane",
+          "kind": "class-string"
         },
         "detailClassName": {
           "types": [
             "string"
           ],
-          "description": "Class for detail pane"
+          "description": "Class for detail pane",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -84732,7 +84916,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes."
+          "description": "Additional CSS classes.",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -85164,7 +85349,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes."
+          "description": "Additional CSS classes.",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -85468,7 +85654,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -85777,7 +85964,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -86167,7 +86355,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the outer container."
+          "description": "Additional CSS classes applied to the outer container.",
+          "kind": "class-string"
         },
         "addEvent": {
           "types": [
@@ -87076,7 +87265,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the table root."
+          "description": "Additional CSS classes applied to the table root.",
+          "kind": "class-string"
         },
         "emptyMessage": {
           "types": [
@@ -87531,7 +87721,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -88188,7 +88379,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -88542,7 +88734,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -88854,7 +89047,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -89186,7 +89380,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -89641,7 +89836,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -90360,13 +90556,15 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes for the root container"
+          "description": "Additional CSS classes for the root container",
+          "kind": "class-string"
         },
         "containerClassName": {
           "types": [
             "string"
           ],
-          "description": "CSS classes for the outer wrapping div"
+          "description": "CSS classes for the outer wrapping div",
+          "kind": "class-string"
         },
         "userProgress": {
           "types": [
@@ -90842,7 +91040,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -91399,7 +91598,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -93378,7 +93578,8 @@
           "types": [
             "string"
           ],
-          "description": "--- Closed-circuit ---"
+          "description": "--- Closed-circuit ---",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -94564,7 +94765,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -94997,7 +95199,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes."
+          "description": "Additional CSS classes.",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -95367,7 +95570,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "style": {
           "types": [
@@ -95817,7 +96021,8 @@
           "types": [
             "string"
           ],
-          "description": "Custom class name"
+          "description": "Custom class name",
+          "kind": "class-string"
         },
         "style": {
           "types": [
@@ -96202,7 +96407,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -96623,7 +96829,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes."
+          "description": "Additional CSS classes.",
+          "kind": "class-string"
         },
         "width": {
           "types": [
@@ -97709,7 +97916,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "width": {
           "types": [
@@ -99493,7 +99701,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "width": {
           "types": [
@@ -101262,7 +101471,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "width": {
           "types": [
@@ -102772,7 +102982,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "width": {
           "types": [
@@ -104923,7 +105134,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -105302,7 +105514,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -105607,7 +105820,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "width": {
           "types": [
@@ -106909,7 +107123,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "style": {
           "types": [
@@ -107094,7 +107309,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "style": {
           "types": [
@@ -109615,7 +109831,8 @@
           "types": [
             "string"
           ],
-          "description": "--- Shared view config ---"
+          "description": "--- Shared view config ---",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -110639,7 +110856,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "children": {
           "types": [
@@ -110965,7 +111183,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -111423,7 +111642,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -111785,7 +112005,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -112230,7 +112451,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -112811,7 +113033,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the trigger button"
+          "description": "Additional CSS classes applied to the trigger button",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -113612,7 +113835,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "width": {
           "types": [
@@ -114735,7 +114959,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names on the outermost element."
+          "description": "Additional class names on the outermost element.",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -115527,7 +115752,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -116014,7 +116240,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -116509,7 +116736,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -116904,7 +117132,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes on the positioned root"
+          "description": "Additional CSS classes on the positioned root",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -117458,43 +117687,50 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes on the root frame."
+          "description": "Additional CSS classes on the root frame.",
+          "kind": "class-string"
         },
         "railClassName": {
           "types": [
             "string"
           ],
-          "description": "railClassName prop"
+          "description": "railClassName prop",
+          "kind": "class-string"
         },
         "sidebarClassName": {
           "types": [
             "string"
           ],
-          "description": "sidebarClassName prop"
+          "description": "sidebarClassName prop",
+          "kind": "class-string"
         },
         "mainClassName": {
           "types": [
             "string"
           ],
-          "description": "mainClassName prop"
+          "description": "mainClassName prop",
+          "kind": "class-string"
         },
         "bottomPanelClassName": {
           "types": [
             "string"
           ],
-          "description": "bottomPanelClassName prop"
+          "description": "bottomPanelClassName prop",
+          "kind": "class-string"
         },
         "statusBarClassName": {
           "types": [
             "string"
           ],
-          "description": "statusBarClassName prop"
+          "description": "statusBarClassName prop",
+          "kind": "class-string"
         },
         "secondarySidebarClassName": {
           "types": [
             "string"
           ],
-          "description": "secondarySidebarClassName prop"
+          "description": "secondarySidebarClassName prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -117994,7 +118230,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes on the overlay's dialog"
+          "description": "Additional CSS classes on the overlay's dialog",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -118296,23 +118533,154 @@
       ],
       "typicalSize": "small",
       "propsSchema": {
-        "cue": {
-          "types": [
-            "string"
-          ],
-          "description": "Manifest key played as a one-shot SFX each time `cueSeq` advances."
-        },
         "cueSeq": {
           "types": [
             "number"
           ],
-          "description": "Monotonically increasing counter — bumping it re-triggers `cue`."
+          "description": "Monotonically increasing counter — bumping it plays `cuePlay` once."
         },
-        "music": {
+        "cuePlay": {
           "types": [
-            "string"
+            "object"
           ],
-          "description": "Manifest key to crossfade to as looping background music; unset/empty stops music."
+          "description": "The resolved one-shot to play on the next `cueSeq` bump.",
+          "properties": {
+            "key": {
+              "types": [
+                "string"
+              ]
+            },
+            "source": {
+              "types": [
+                "string"
+              ]
+            },
+            "volume": {
+              "types": [
+                "number"
+              ]
+            },
+            "loop": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "poolSize": {
+              "types": [
+                "number"
+              ]
+            },
+            "fadeMs": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "key",
+            "source",
+            "volume",
+            "loop",
+            "poolSize",
+            "fadeMs"
+          ]
+        },
+        "musicPlay": {
+          "types": [
+            "object"
+          ],
+          "description": "The resolved looping track; an empty key fades the current one out.",
+          "properties": {
+            "key": {
+              "types": [
+                "string"
+              ]
+            },
+            "source": {
+              "types": [
+                "string"
+              ]
+            },
+            "volume": {
+              "types": [
+                "number"
+              ]
+            },
+            "loop": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "poolSize": {
+              "types": [
+                "number"
+              ]
+            },
+            "fadeMs": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "key",
+            "source",
+            "volume",
+            "loop",
+            "poolSize",
+            "fadeMs"
+          ]
+        },
+        "autostart": {
+          "types": [
+            "array"
+          ],
+          "description": "Resolved sounds started on the first user gesture while unmuted.",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "key": {
+                "types": [
+                  "string"
+                ]
+              },
+              "source": {
+                "types": [
+                  "string"
+                ]
+              },
+              "volume": {
+                "types": [
+                  "number"
+                ]
+              },
+              "loop": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "poolSize": {
+                "types": [
+                  "number"
+                ]
+              },
+              "fadeMs": {
+                "types": [
+                  "number"
+                ]
+              }
+            },
+            "required": [
+              "key",
+              "source",
+              "volume",
+              "loop",
+              "poolSize",
+              "fadeMs"
+            ]
+          }
         },
         "muted": {
           "types": [
@@ -118330,7 +118698,7 @@
           "types": [
             "object"
           ],
-          "description": "Sound manifest — keys mapped to sound definitions (path, volume, loop, ...).",
+          "description": "Sound manifest — answers the audio/* host port by key.",
           "required": true,
           "mapValue": {
             "types": [
@@ -118463,7 +118831,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "draggable": {
           "types": [
@@ -119253,7 +119622,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes"
+          "description": "Additional CSS classes",
+          "kind": "class-string"
         },
         "isLoading": {
           "types": [
@@ -119707,7 +120077,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -120084,7 +120455,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -120197,7 +120569,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional CSS classes applied to the root element."
+          "description": "Additional CSS classes applied to the root element.",
+          "kind": "class-string"
         },
         "variant": {
           "types": [
@@ -120795,7 +121168,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -121174,7 +121548,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -121575,7 +121950,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -122434,7 +122810,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -122869,7 +123246,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -124209,7 +124587,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -126361,7 +126740,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -126671,7 +127051,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -126996,7 +127377,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "width": {
           "types": [
@@ -133141,7 +133523,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -133364,7 +133747,8 @@
           "types": [
             "string"
           ],
-          "description": "className prop"
+          "description": "className prop",
+          "kind": "class-string"
         },
         "enter": {
           "types": [
@@ -133600,7 +133984,8 @@
           "types": [
             "string"
           ],
-          "description": "Additional class names"
+          "description": "Additional class names",
+          "kind": "class-string"
         },
         "enter": {
           "types": [

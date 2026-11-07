@@ -27,12 +27,16 @@ import { useRef, useState, useCallback, useEffect } from 'react';
 /** Core owns the sound-manifest shape (`@almadar/core` `types/asset.ts`) so the
  *  pattern extractor and the generated `.lolo` factories resolve the same
  *  declaration; re-exported here for the hook's existing consumers. */
-export type { SoundEntry, AudioManifest } from '@almadar/core';
-import type { SoundEntry, AudioManifest } from '@almadar/core';
+export type { SoundEntry, AudioManifest, AudioPlay } from '@almadar/core';
+import type { SoundEntry, AudioManifest, AudioPlay } from '@almadar/core';
 
 export interface GameAudioControls {
     /** Play a sound effect (instant, pooled) */
     play: (key: string) => void;
+    /** Play a sound std-audio-cue already resolved */
+    playPlan: (plan: AudioPlay) => void;
+    /** Crossfade to a resolved track; an empty key fades out over `fadeMs` */
+    playMusicPlan: (plan: AudioPlay) => void;
     /** Stop all instances of a sound effect */
     stop: (key: string) => void;
     /** Stop all sounds including music */
@@ -56,6 +60,8 @@ export interface UseGameAudioOptions {
     initialMuted?: boolean;
     /** Master volume 0–1 (default 1) */
     initialVolume?: number;
+    /** Resolved sounds to start on the first user gesture; derived from the manifest when absent */
+    autostart?: AudioPlay[];
 }
 
 // =============================================================================
@@ -71,6 +77,18 @@ function pickPath(entry: SoundEntry): string {
     return entry.path;
 }
 
+/** Key-addressed playback (the audio/* host port) resolves a manifest entry here. */
+function resolveEntry(key: string, entry: SoundEntry, baseUrl: string, music: boolean): AudioPlay {
+    return {
+        key,
+        source: baseUrl + (music && Array.isArray(entry.path) ? entry.path[0] : pickPath(entry)),
+        volume: entry.volume ?? 1,
+        loop: music ? true : entry.loop ?? false,
+        poolSize: Math.max(1, entry.poolSize ?? 1),
+        fadeMs: music ? (entry.crossfade === false ? 0 : entry.crossfadeDurationMs ?? 1500) : 0,
+    };
+}
+
 // =============================================================================
 // Hook
 // =============================================================================
@@ -80,6 +98,7 @@ export function useGameAudio({
     baseUrl = '',
     initialMuted = false,
     initialVolume = 1,
+    autostart,
 }: UseGameAudioOptions): GameAudioControls {
     const [muted, setMutedState] = useState(initialMuted);
     const [masterVolume, setMasterVolumeState] = useState(initialVolume);
@@ -97,18 +116,18 @@ export function useGameAudio({
     // -------------------------------------------------------------------------
 
     const poolsRef = useRef(new Map<string, AudioPool>());
+    const poolPlansRef = useRef(new Map<string, AudioPlay>());
 
-    const getOrCreateElement = useCallback((key: string): HTMLAudioElement | null => {
-        const entry = manifestRef.current[key];
-        if (!entry) return null;
-
+    const getOrCreateElement = useCallback((plan: AudioPlay): HTMLAudioElement | null => {
+        const key = plan.key;
+        poolPlansRef.current.set(key, plan);
         let pool = poolsRef.current.get(key);
         if (!pool) {
             pool = [];
             poolsRef.current.set(key, pool);
         }
 
-        const maxSize = entry.poolSize ?? 1;
+        const maxSize = Math.max(1, plan.poolSize);
 
         // Prefer a finished/idle element
         for (const audio of pool) {
@@ -119,15 +138,14 @@ export function useGameAudio({
 
         // Create a new element if pool isn't at capacity
         if (pool.length < maxSize) {
-            const src = baseUrl + pickPath(entry);
-            const audio = new Audio(src);
-            audio.loop = entry.loop ?? false;
+            const audio = new Audio(plan.source);
+            audio.loop = plan.loop;
             pool.push(audio);
             return audio;
         }
 
         // Pool full: for non-looping sounds, reuse the furthest-along one
-        if (!entry.loop) {
+        if (!plan.loop) {
             let oldest = pool[0];
             for (const audio of pool) {
                 if (audio.currentTime > oldest.currentTime) {
@@ -136,23 +154,22 @@ export function useGameAudio({
             }
             oldest.pause();
             oldest.currentTime = 0;
+            oldest.src = plan.source;
             return oldest;
         }
 
         // Looping sound already playing — don't interrupt
         return null;
-    }, [baseUrl]);
+    }, []);
 
-    const play = useCallback((key: string) => {
-        if (mutedRef.current) return;
-        const entry = manifestRef.current[key];
-        if (!entry) return;
+    const playPlan = useCallback((plan: AudioPlay) => {
+        if (mutedRef.current || !plan.key) return;
 
-        const audio = getOrCreateElement(key);
+        const audio = getOrCreateElement(plan);
         if (!audio) return;
 
-        audio.volume = Math.min(1, (entry.volume ?? 1) * volumeRef.current);
-        if (!entry.loop) {
+        audio.volume = Math.min(1, plan.volume * volumeRef.current);
+        if (!plan.loop) {
             audio.currentTime = 0;
         }
 
@@ -164,6 +181,12 @@ export function useGameAudio({
             });
         }
     }, [getOrCreateElement]);
+
+    const play = useCallback((key: string) => {
+        const entry = manifestRef.current[key];
+        if (!entry) return;
+        playPlan(resolveEntry(key, entry, baseUrl, false));
+    }, [baseUrl, playPlan]);
 
     const stop = useCallback((key: string) => {
         const pool = poolsRef.current.get(key);
@@ -179,10 +202,11 @@ export function useGameAudio({
     // -------------------------------------------------------------------------
 
     const currentMusicKeyRef = useRef<string | null>(null);
+    const currentMusicPlanRef = useRef<AudioPlay | null>(null);
     const currentMusicElRef = useRef<HTMLAudioElement | null>(null);
     const musicFadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    /** Music key requested before browser unlock — played on first gesture */
-    const pendingMusicKeyRef = useRef<string | null>(null);
+    /** Music requested before browser unlock — played on first gesture */
+    const pendingMusicRef = useRef<AudioPlay | null>(null);
 
     const clearMusicFade = useCallback(() => {
         if (musicFadeRef.current) {
@@ -191,36 +215,34 @@ export function useGameAudio({
         }
     }, []);
 
-    const playMusic = useCallback((key: string) => {
-        if (key === currentMusicKeyRef.current) return;
-        pendingMusicKeyRef.current = key;
+    const startMusicPlan = useCallback((plan: AudioPlay) => {
+        if (plan.key === currentMusicKeyRef.current) return;
+        pendingMusicRef.current = plan;
 
-        const entry = manifestRef.current[key];
-        if (!entry) return;
-
-        const fadeDurationMs = entry.crossfadeDurationMs ?? 1500;
         const stepMs = 50;
-        const totalSteps = Math.max(1, fadeDurationMs / stepMs);
-        const targetVolume = Math.min(1, (entry.volume ?? 1) * volumeRef.current);
+        const totalSteps = Math.max(1, plan.fadeMs / stepMs);
+        const targetVolume = Math.min(1, plan.volume * volumeRef.current);
 
         clearMusicFade();
 
-        // Create new music element
-        const src = baseUrl + (Array.isArray(entry.path) ? entry.path[0] : entry.path);
-        const incoming = new Audio(src);
+        const incoming = new Audio(plan.source);
         incoming.loop = true;
         incoming.volume = 0;
 
         const outgoing = currentMusicElRef.current;
         const outgoingStartVol = outgoing?.volume ?? 0;
+        const outgoingKey = currentMusicKeyRef.current;
+        const outgoingPlan = currentMusicPlanRef.current;
 
-        currentMusicKeyRef.current = key;
+        currentMusicKeyRef.current = plan.key;
+        currentMusicPlanRef.current = plan;
         currentMusicElRef.current = incoming;
 
         if (!mutedRef.current) {
             incoming.play().catch(() => {
-                // Blocked — will retry when user interacts (pendingMusicKeyRef is set)
-                currentMusicKeyRef.current = null;
+                // Blocked — will retry when user interacts (pendingMusicRef is set)
+                currentMusicKeyRef.current = outgoingKey;
+                currentMusicPlanRef.current = outgoingPlan;
                 currentMusicElRef.current = outgoing;
             });
         }
@@ -246,15 +268,16 @@ export function useGameAudio({
                 }
             }
         }, stepMs);
-    }, [baseUrl, clearMusicFade]);
+    }, [clearMusicFade]);
 
     const stopMusic = useCallback((fadeDurationMs = 1000) => {
+        pendingMusicRef.current = null;
         const outgoing = currentMusicElRef.current;
         if (!outgoing) return;
 
         currentMusicKeyRef.current = null;
+        currentMusicPlanRef.current = null;
         currentMusicElRef.current = null;
-        pendingMusicKeyRef.current = null;
         clearMusicFade();
 
         const startVolume = outgoing.volume;
@@ -273,6 +296,17 @@ export function useGameAudio({
             }
         }, stepMs);
     }, [clearMusicFade]);
+
+    const playMusicPlan = useCallback((plan: AudioPlay) => {
+        if (plan.key) startMusicPlan(plan);
+        else stopMusic(plan.fadeMs);
+    }, [startMusicPlan, stopMusic]);
+
+    const playMusic = useCallback((key: string) => {
+        const entry = manifestRef.current[key];
+        if (!entry) return;
+        startMusicPlan(resolveEntry(key, entry, baseUrl, true));
+    }, [baseUrl, startMusicPlan]);
 
     // -------------------------------------------------------------------------
     // Mute / volume controls
@@ -293,7 +327,7 @@ export function useGameAudio({
         if (value) {
             // Pause all looping SFX
             for (const [key, pool] of poolsRef.current.entries()) {
-                if (manifestRef.current[key]?.loop) {
+                if (poolPlansRef.current.get(key)?.loop) {
                     for (const audio of pool) {
                         if (!audio.paused) audio.pause();
                     }
@@ -304,8 +338,7 @@ export function useGameAudio({
         } else {
             // Resume looping autostart SFX
             for (const [key, pool] of poolsRef.current.entries()) {
-                const entry = manifestRef.current[key];
-                if (entry?.loop && entry?.autostart) {
+                if (poolPlansRef.current.get(key)?.loop && autostartKeysRef.current.has(key)) {
                     for (const audio of pool) {
                         if (audio.paused) audio.play().catch(() => {});
                     }
@@ -324,15 +357,14 @@ export function useGameAudio({
         setMasterVolumeState(clamped);
         // Update all SFX elements
         for (const [key, pool] of poolsRef.current.entries()) {
-            const entryVol = manifestRef.current[key]?.volume ?? 1;
+            const entryVol = poolPlansRef.current.get(key)?.volume ?? 1;
             for (const audio of pool) {
                 audio.volume = Math.min(1, entryVol * clamped);
             }
         }
         // Update music element (only if not mid-fade)
         if (!musicFadeRef.current && currentMusicElRef.current) {
-            const key = currentMusicKeyRef.current;
-            const entryVol = key ? (manifestRef.current[key]?.volume ?? 1) : 1;
+            const entryVol = currentMusicPlanRef.current?.volume ?? 1;
             currentMusicElRef.current.volume = Math.min(1, entryVol * clamped);
         }
     }, []);
@@ -342,11 +374,18 @@ export function useGameAudio({
     // -------------------------------------------------------------------------
 
     const unlockedRef = useRef(false);
+    const autostartPlans = autostart ?? Object.keys(manifest)
+        .filter(k => manifest[k].autostart)
+        .map(k => resolveEntry(k, manifest[k], baseUrl, false));
+    const autostartKeysRef = useRef(new Set<string>());
+    autostartKeysRef.current = new Set(autostartPlans.map(p => p.key));
+    const autostartRef = useRef(autostartPlans);
+    autostartRef.current = autostartPlans;
+    const autostartSignature = autostartPlans.map(p => p.key + '\u0000' + p.source).join('\u0001');
 
     useEffect(() => {
-        const autoKeys = Object.keys(manifest).filter(k => manifest[k].autostart);
-        const hasPendingMusic = () => pendingMusicKeyRef.current !== null;
-        const hasAutoStart = autoKeys.length > 0;
+        const hasPendingMusic = () => pendingMusicRef.current !== null;
+        const hasAutoStart = autostartRef.current.length > 0;
 
         if (!hasAutoStart && !hasPendingMusic()) return;
 
@@ -355,14 +394,13 @@ export function useGameAudio({
             unlockedRef.current = true;
 
             if (!mutedRef.current) {
-                // Play autostart SFX
-                for (const key of autoKeys) {
-                    play(key);
+                for (const plan of autostartRef.current) {
+                    playPlan(plan);
                 }
                 // Play pending music (requested before unlock)
-                const pending = pendingMusicKeyRef.current;
-                if (pending && pending !== currentMusicKeyRef.current) {
-                    playMusic(pending);
+                const pending = pendingMusicRef.current;
+                if (pending && pending.key !== currentMusicKeyRef.current) {
+                    startMusicPlan(pending);
                 }
             }
         };
@@ -376,7 +414,7 @@ export function useGameAudio({
             document.removeEventListener('keydown', unlock);
             document.removeEventListener('touchstart', unlock);
         };
-    }, [manifest, play, playMusic]);
+    }, [autostartSignature, playPlan, startMusicPlan]);
 
     // -------------------------------------------------------------------------
     // Cleanup on unmount
@@ -402,6 +440,7 @@ export function useGameAudio({
 
     return {
         play, stop, stopAll,
+        playPlan, playMusicPlan,
         playMusic, stopMusic,
         muted, setMuted,
         masterVolume, setMasterVolume,

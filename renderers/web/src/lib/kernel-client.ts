@@ -574,6 +574,23 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         outcome.serverEffects.clientEffectsByTrait?.push(...(posted.serverEffects.clientEffectsByTrait ?? []));
         outcome.emittedEvents.push(...posted.foldedEmits);
       }
+      // The hops the host's replay of the mount cannot reach leave after it, each folded as a dispatch's leg (EXEC-DIST-10).
+      for (const hop of mount.hops) {
+        const flight = k.openFlight();
+        let posted: Posted;
+        try {
+          const planned: PlannedLeg = { orbital: hop.orbital, leg: hop.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight };
+          posted = await sendLegs(k, [planned], baseRequest, { rollback: false, mount: false }, outcome.seeds[0]!.local);
+        } finally {
+          endFlight(k, flight);
+        }
+        outcome.posted = true;
+        outcome.success = outcome.success && posted.success;
+        if (posted.error !== undefined) outcome.error = posted.error;
+        outcome.rejections.push(...posted.rejections);
+        outcome.serverEffects.clientEffectsByTrait?.push(...(posted.serverEffects.clientEffectsByTrait ?? []));
+        outcome.emittedEvents.push(...posted.foldedEmits);
+      }
       return outcome;
   };
 

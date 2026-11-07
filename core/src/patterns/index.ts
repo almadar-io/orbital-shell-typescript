@@ -103,6 +103,7 @@ export type PatternEntry = {
 export type PatternsRegistry = {
   version?: string;
   exportedAt?: string;
+  maintenance?: string;
   patterns: Record<string, PatternEntry>;
   categories?: string[];
 };
