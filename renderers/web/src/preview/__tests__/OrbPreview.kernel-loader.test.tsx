@@ -140,21 +140,20 @@ orbital Site {
 const greeting = (name: string): OrbitalSchema => ({ ...clientProgram(greetingProgram, { 'locales/en/site.json': JSON.stringify({ 'hero.title': 'Hello' }) }), name });
 
 describeKernel('OrbPreview — the client kernel paints i18n/t', () => {
-  it('from the catalog of the viewer the host provides', async () => {
+  it('from the catalog the resolved program carries, which the kernel installs (EXEC-LOAD-1)', async () => {
+    render(<OrbPreview schema={greeting(`i18n-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} />);
+    expect(await screen.findByText('Hello', undefined, { timeout: 15_000 })).toBeTruthy();
+  }, 20_000);
+
+  it('control: a catalog the host provides never replaces the program\'s own messages', async () => {
     const messages = { 'site:hero.title': 'Hello from the catalog' };
     render(
       <I18nProvider value={{ locale: 'en', direction: 'ltr', t: createTranslate(messages), messages }}>
         <OrbPreview schema={greeting(`i18n-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} />
       </I18nProvider>,
     );
-    expect(await screen.findByText('Hello from the catalog', undefined, { timeout: 15_000 })).toBeTruthy();
-  }, 20_000);
-
-  it('control: with no catalog the message paints empty, never the declared key or another locale', async () => {
-    render(<OrbPreview schema={greeting(`i18n-${Math.random()}`)} isolated kernelLoader={loadFreshClientKernel} />);
     const main = await screen.findByTestId('ui-slot-main', undefined, { timeout: 15_000 });
-    await waitFor(() => expect(main.getAttribute('data-slot-mode')).toBe('content'));
-    expect(main.textContent).toBe('');
+    await waitFor(() => expect(main.textContent).toBe('Hello'));
     expect(screen.queryByText('Hello from the catalog')).toBeNull();
   }, 20_000);
 });
