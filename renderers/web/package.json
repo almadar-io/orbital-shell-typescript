@@ -1,6 +1,6 @@
 {
   "name": "@almadar/shell-web",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "orbRelease": { "severity": "normal" },
   "description": "Almadar TS shell web renderer pack: the browser host ports of the kernel (transports, stores, client kernel, http/oauth/os ports) and the React render substrate (components, hooks, providers, preview runtime, themes, Tailwind preset) the generated web app and the TS host program import.",
   "license": "BUSL-1.1",
@@ -138,11 +138,11 @@
     "verify:dist-esm": "node scripts/verify-dist-esm.mjs"
   },
   "dependencies": {
-    "@almadar/core": "^11.1.0",
+    "@almadar/core": "^11.3.0",
     "@almadar/kernel": "^19.0.1",
-    "@almadar/logger": "^2.1.0",
-    "@almadar/std": "^17.0.0",
-    "@almadar/syntax": "^2.0.0",
+    "@almadar/logger": "^2.3.0",
+    "@almadar/std": "^17.1.0",
+    "@almadar/syntax": "^2.1.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -170,8 +170,8 @@
     "remark-math": "^6.0.0",
     "tailwind-merge": "^2.2.0",
     "zod": "^4.6.7",
-    "@almadar/shell-browser": "^1.0.0",
-    "@almadar/shell-runtime": "^1.0.0"
+    "@almadar/shell-browser": "^1.1.0",
+    "@almadar/shell-runtime": "^1.1.0"
   },
   "devDependencies": {
     "@almadar/eslint-plugin": "^3.0.0",
