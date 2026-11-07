@@ -60,7 +60,7 @@ pub(crate) fn struct_fields_ts(
 /// this one struct — the recursion now lives once in `orbital-core`, so a new
 /// `OirType` variant forces an explicit decision here (and in every other
 /// backend) at compile time. The two axes: `catalog` (a `Row` of an entity the
-/// catalog lacks widens to `EntityRow`) and `payload` (bus-payload dates as `Date | string`). Enum values ride the `enum_values`
+/// catalog lacks widens to `EntityRow`) and `payload` (a reference carries the row). Enum values ride the `enum_values`
 /// sidecar (a lolo `format:` union lowers to `String` + `enum_values`, so they
 /// can't live on `OirType::Enum`).
 pub(crate) struct TsRenderer<'a> {
@@ -86,14 +86,13 @@ impl TargetTypeRenderer for TsRenderer<'_> {
         "boolean".to_string()
     }
     fn date(&self) -> String {
-        // A bus payload date legitimately arrives as the serialized string OR an
-        // in-memory `Date`.
+        // A host input may hand a live `Date`; a bus payload is `JsonValue`, so it carries the wire value.
         // `number` is in every union because BOTH paths store `time/now` as
         // epoch milliseconds (`Date.now()`) — a date-typed field's at-rest
         // value domain is honestly `string | number` (ISO seed or ms write),
         // and typing it `string` alone made every `time/now` write a TS2352
         // non-overlap cast (C-COMPILED-PATH-RED §25, date-as-number cluster).
-        if self.payload {
+        if self.host_input {
             return "Date | string | number".to_string();
         }
         "string | number".to_string()
@@ -186,7 +185,11 @@ impl TargetTypeRenderer for TsRenderer<'_> {
     fn tuple(&self, _items_ty: &[OirType], items: Vec<String>) -> String {
         format!("[{}]", items.join(", "))
     }
-    fn map(&self, _key_ty: &OirType, key: String, _value_ty: &OirType, value: String) -> String {
+    fn map(&self, key_ty: &OirType, key: String, value_ty: &OirType, value: String) -> String {
+        if matches!(key_ty, OirType::String) && matches!(value_ty, OirType::TypeRef { .. }) {
+            let value = if self.host_input { format!("{value} | undefined") } else { value };
+            return format!("{{ [key: string]: {value} }}");
+        }
         if self.host_input {
             format!("Record<{}, {} | undefined>", key, value)
         } else {
@@ -333,12 +336,7 @@ impl TypeScriptBackend {
     }
 
     /// Render an `OirType` as an inline TypeScript type for the BUS payload
-    /// context. Identical to `map_type` except a date is `Date | string` — a
-    /// payload date legitimately arrives as the serialized string OR an
-    /// in-memory `Date` (both are in `EventPayloadValue`), so this matches what
-    /// a component callback hands back (e.g. `CalendarEvent.startTime:
-    /// string | Date`). Recurses through structs/arrays/optionals; used only
-    /// for anonymous struct payload fields.
+    /// context: a reference carries the row, not an id.
     pub(crate) fn payload_struct_ts(&self, oir_type: &OirType) -> String {
         render_type(
             &TsRenderer {
@@ -523,6 +521,50 @@ mod array_of_union_tests {
         assert_eq!(
             map_type_ts(&ty, None, None),
             "string[]"
+        );
+    }
+}
+
+#[cfg(test)]
+mod map_of_named_type_tests {
+    use super::*;
+
+    fn map_of(value: OirType) -> OirType {
+        OirType::Map { key: Box::new(OirType::String), value: Box::new(value) }
+    }
+
+    /// A mapped type cannot be recursive (TS2456), so a map reaching a named type renders an index signature.
+    #[test]
+    fn a_string_map_of_a_named_type_renders_an_index_signature() {
+        let ty = map_of(OirType::TypeRef { name: "JsonValue".into() });
+        assert_eq!(map_type_ts(&ty, None, None), "{ [key: string]: JsonValue }");
+        assert_eq!(
+            map_type_ts_with_projection(&ty, None, None, TypeProjection::HostInput, None),
+            "{ [key: string]: JsonValue | undefined }"
+        );
+    }
+
+    #[test]
+    fn control_a_string_map_of_a_plain_type_stays_a_record() {
+        assert_eq!(map_type_ts(&map_of(OirType::Number), None, None), "Record<string, number>");
+    }
+}
+
+#[cfg(test)]
+mod payload_date_tests {
+    use super::*;
+
+    /// A bus payload is a `JsonValue` (`EventPayloadValue`), so its date is the wire `string | number` (TS2411 otherwise).
+    #[test]
+    fn a_payload_date_is_its_wire_value() {
+        assert_eq!(TypeScriptBackend::new().payload_struct_ts(&OirType::Date), "string | number");
+    }
+
+    #[test]
+    fn control_a_host_input_date_still_takes_a_live_date() {
+        assert_eq!(
+            map_type_ts_with_projection(&OirType::Date, None, None, TypeProjection::HostInput, None),
+            "Date | string | number"
         );
     }
 }

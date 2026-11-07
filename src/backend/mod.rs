@@ -356,11 +356,7 @@ mod tests {
     #[test]
     fn char_payload_wrapper_date_optional_and_enum_struct() {
         let b = TypeScriptBackend::new();
-        // Payload dates accept the live `Date` too.
-        assert_eq!(
-            b.payload_struct_ts(&OirType::Date),
-            "Date | string | number"
-        );
+        assert_eq!(b.payload_struct_ts(&OirType::Date), "string | number");
         assert_eq!(b.payload_struct_ts(&OirType::Number), "number");
         // Nullability is the value type's `| null` in every position; presence is `required`.
         assert_eq!(

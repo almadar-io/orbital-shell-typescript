@@ -804,22 +804,17 @@ export type { UserContext } from '@almadar/core';
                             trait_def.name,
                             crate::codegen::ts_ident::ts_symbol_name(&event.key)
                         );
-                        let mut field_rows: Vec<(String, String)> = schema
-                            .iter()
-                            .map(|(k, v)| {
+                        let field_rows: Vec<(String, String, bool)> = event
+                            .payload_fields()
+                            .into_iter()
+                            .map(|field| {
+                                let (k, v) = (&field.name, &field.field_type);
                                 // Substitute non-local entity references
                                 // with `EntityRow` before mapping to TS, so
                                 // molecules that inherit imported atoms'
                                 // events don't produce phantom imports.
                                 let v_local = rewrite_non_local_entity_refs(v, &local_entity_names);
                                 let ts = match &v_local {
-                                    // An anonymous struct payload field (e.g. an
-                                    // object callback arg like `CalendarEvent`) is
-                                    // rendered for the BUS context: a date can
-                                    // arrive as the serialized string OR an
-                                    // in-memory `Date`, so nested date fields emit
-                                    // as `Date | string` — matching what the
-                                    // component callback hands back.
                                     OirType::Struct { .. } => self.payload_struct_ts(&v_local),
                                     // Every other payload field — including a
                                     // bare `Reference` and `Array<Reference>` —
@@ -844,30 +839,19 @@ export type { UserContext } from '@almadar/core';
                                     &mut entity_imports,
                                 );
                                 any_sexpr_payload |= self.field_type_uses_sexpr(&v_local);
-                                (k.clone(), ts)
+                                (k.clone(), ts, field.required)
                             })
                             .collect();
-                        field_rows.sort_by(|a, b| a.0.cmp(&b.0));
                         let body = field_rows
                             .into_iter()
-                            .map(|(k, v)| format!("  {}: {};", ts_member_name(&k), v))
+                            .map(|(k, v, required)| {
+                                format!("  {}{}: {};", ts_member_name(&k), if required { "" } else { "?" }, v)
+                            })
                             .collect::<Vec<_>>()
                             .join("\n");
-                        // Explicit `[key: string]: EventPayloadValue` index
-                        // signature alongside the declared fields. Plain
-                        // `extends EventPayload` doesn't reliably propagate the
-                        // index signature: TS reports
-                        //   "Index signature for type 'string' is missing in type 'X'"
-                        // when X is passed to a parameter typed `EventPayload`,
-                        // even though X structurally satisfies it. Inlining the
-                        // index signature makes assignability hold without a
-                        // cast at every dispatch / sendEvent call site. Field
-                        // types emit as EventPayload-compatible members (Json
-                        // → EventPayload, primitives → primitives).
-                        payload_blocks.push(format!(
-                            "export interface {} {{\n  [key: string]: EventPayloadValue;\n{}\n}}",
-                            iface_name, body
-                        ));
+                        // A type alias, not an interface: it is assignable to `EventPayload` by its implicit
+                        // index signature, which an optional key beside an explicit one breaks (TS2411).
+                        payload_blocks.push(format!("export type {} = {{\n{}\n}};", iface_name, body));
                         iface_name
                     }
                     _ => "void".to_string(),
@@ -2056,6 +2040,24 @@ mod nested_named_type_import_tests {
                 && l.contains("'@almadar/core'")),
             "{ts}"
         );
+    }
+
+    #[test]
+    fn a_payload_key_not_marked_required_is_optional() {
+        let mut m = OirModule::new("App", "1.0.0");
+        let mut t = OirTrait::new("Score");
+        let mut e = OirEvent::new("UNITS_CHANGED");
+        e.payload_schema = Some(
+            [("alive".to_string(), OirType::Number), ("title".to_string(), OirType::String)]
+                .into_iter()
+                .collect(),
+        );
+        e.payload_required_fields = ["title".to_string()].into_iter().collect();
+        t.events.push(e);
+        m.traits.push(t);
+        let ts = TypeScriptBackend::new().generate_shared_event_types(&m).content;
+        assert!(ts.contains("  alive?: number;\n"), "{ts}");
+        assert!(ts.contains("  title: string;\n"), "{ts}");
     }
 
     #[test]
