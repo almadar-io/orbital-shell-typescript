@@ -75,6 +75,11 @@
     "description": "An `emits` entry names a declared type that is not an Event type"
   },
   {
+    "code": "ORB_T_TYPE_UNION_ARM_COLLISION",
+    "category": "trait",
+    "description": "Two arms of one union name the same model arm (two lists, two maps, two objects)"
+  },
+  {
     "code": "ORB_P_UNKNOWN_PROTOCOL",
     "category": "page",
     "description": "A page names a protocol that is no row of the protocol table"
