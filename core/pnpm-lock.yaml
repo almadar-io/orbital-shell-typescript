@@ -22,11 +22,11 @@ importers:
         specifier: ^19.0.1
         version: 19.0.1
       '@almadar/lolo-ar':
-        specifier: ^2.1.0
-        version: 2.1.0
+        specifier: ^2.2.0
+        version: 2.2.0
       '@almadar/lolo-sl':
-        specifier: ^2.1.0
-        version: 2.1.0
+        specifier: ^2.2.0
+        version: 2.2.0
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -67,12 +67,12 @@ packages:
     resolution: {integrity: sha512-LUNDg/DKUGAFAFc17g3jQBnKGzGSDpTlX/mqMjhi/KaHe7ffvyLZFrM7m4jFhQXV9iPLtbDKrT4C8ycIQxMfYw==}
     engines: {node: '>=22'}
 
-  '@almadar/lolo-ar@2.1.0':
-    resolution: {integrity: sha512-hyNiXiRAnRjtie5G2seVTh4lnjpUcQ/bmR92aFNF1J280OCyq0BZp/xeGF5fiG8Y+Qbg74CwCw4QsJhgveN3yQ==}
+  '@almadar/lolo-ar@2.2.0':
+    resolution: {integrity: sha512-aTIDcaRbzBhlSoVzC9SWRsVsVACRReie3K7el8dL1EmS3LqnNfgiC7VbZm5PhYNn0fyzd/Tnopk0TKhgPtgwhA==}
     engines: {node: '>=22'}
 
-  '@almadar/lolo-sl@2.1.0':
-    resolution: {integrity: sha512-MG7Ba8RThzP1KGaBoVaqNVyF2uffTgrzGd3j8tefXIuLI5j/Xqygh2EeDkvMwIglXlgH+KJ4GrR4MnG4IrTGxg==}
+  '@almadar/lolo-sl@2.2.0':
+    resolution: {integrity: sha512-FfSh51o8ZVf5P/vl81JkefbN6BEs8COVJvmU1j0VVOnh1p1Sr5oxZaSiKYn3MJtFy+smMjjk1/D/GDUrmWy+yA==}
     engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -1456,9 +1456,9 @@ snapshots:
 
   '@almadar/kernel@19.0.1': {}
 
-  '@almadar/lolo-ar@2.1.0': {}
+  '@almadar/lolo-ar@2.2.0': {}
 
-  '@almadar/lolo-sl@2.1.0': {}
+  '@almadar/lolo-sl@2.2.0': {}
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
