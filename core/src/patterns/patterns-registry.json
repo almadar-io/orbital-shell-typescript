@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-06T20:43:36.032Z",
+  "exportedAt": "2026-11-07T03:57:49.631Z",
   "patterns": {
     "detail-panel": {
       "type": "detail-panel",
@@ -97778,7 +97778,7 @@
           "types": [
             "string"
           ],
-          "description": "Painter: 2D raster (default) or 3D mesh scene via the lazy three.js host.",
+          "description": "Painter: 2D raster (default) or 3D mesh scene, both drawn by orbital-canvas.",
           "enumValues": [
             "2d",
             "3d"
@@ -98949,7 +98949,7 @@
           "types": [
             "array"
           ],
-          "description": "Top-right status chip row, forwarded to LearningCanvas verbatim.",
+          "description": "Top-right status chip row (the LearningCanvas vocabulary).",
           "items": {
             "types": [
               "object"
@@ -98982,7 +98982,7 @@
           "types": [
             "array"
           ],
-          "description": "Inset sparkline panels, forwarded to LearningCanvas verbatim.",
+          "description": "Inset sparkline panels (the LearningCanvas vocabulary).",
           "items": {
             "types": [
               "object"
@@ -99562,7 +99562,7 @@
           "types": [
             "string"
           ],
-          "description": "Painter: 2D raster (default) or 3D mesh scene via the lazy three.js host.",
+          "description": "Painter: 2D raster (default) or 3D mesh scene, both drawn by orbital-canvas.",
           "enumValues": [
             "2d",
             "3d"
@@ -100718,7 +100718,7 @@
           "types": [
             "array"
           ],
-          "description": "Top-right status chip row, forwarded to LearningCanvas verbatim.",
+          "description": "Top-right status chip row (the LearningCanvas vocabulary).",
           "items": {
             "types": [
               "object"
@@ -100751,7 +100751,7 @@
           "types": [
             "array"
           ],
-          "description": "Inset sparkline panels, forwarded to LearningCanvas verbatim.",
+          "description": "Inset sparkline panels (the LearningCanvas vocabulary).",
           "items": {
             "types": [
               "object"
@@ -102212,7 +102212,7 @@
           "types": [
             "array"
           ],
-          "description": "Top-right status chips, forwarded verbatim to LearningCanvas.",
+          "description": "Top-right status chips (the LearningCanvas vocabulary).",
           "items": {
             "types": [
               "object"
@@ -102245,7 +102245,7 @@
           "types": [
             "array"
           ],
-          "description": "Inset sparkline panels, forwarded verbatim to LearningCanvas.",
+          "description": "Inset sparkline panels (the LearningCanvas vocabulary).",
           "items": {
             "types": [
               "object"
@@ -102841,7 +102841,7 @@
           "types": [
             "string"
           ],
-          "description": "Painter: 2D raster (default) or 3D mesh scene via the lazy three.js host.",
+          "description": "Painter: 2D raster (default) or 3D mesh scene, both drawn by orbital-canvas.",
           "enumValues": [
             "2d",
             "3d"
@@ -104276,7 +104276,7 @@
           "types": [
             "array"
           ],
-          "description": "Top-right status chip row, forwarded to LearningCanvas verbatim.",
+          "description": "Top-right status chip row (the LearningCanvas vocabulary).",
           "items": {
             "types": [
               "object"
@@ -104309,7 +104309,7 @@
           "types": [
             "array"
           ],
-          "description": "Inset sparkline panels, forwarded to LearningCanvas verbatim.",
+          "description": "Inset sparkline panels (the LearningCanvas vocabulary).",
           "items": {
             "types": [
               "object"
@@ -115205,7 +115205,7 @@
           "types": [
             "array"
           ],
-          "description": "Consumer-declared effect vocabulary — one row per fx `type` (look + recipe). Unknown types fall back to a neutral spark burst.",
+          "description": "Consumer-declared effect vocabulary — one row per fx `type` (look, recipe and motion). An item whose `type` has no row draws only from its own fields, and a missing required field is a typed error.",
           "items": {
             "types": [
               "object"
@@ -115306,7 +115306,11 @@
               }
             },
             "required": [
-              "type"
+              "type",
+              "gravity",
+              "vx",
+              "vy",
+              "vz"
             ]
           }
         },

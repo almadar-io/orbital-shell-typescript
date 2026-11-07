@@ -20,7 +20,7 @@ export interface DrawFxLayerProps extends DrawableBase {
     type: 'draw-fx-layer';
     /** The live fx entries — the mechanic's `@entity.fx` list passed whole; `space: "screen"` entries are skipped (the overlay owns those). */
     items: FxItem[];
-    /** Consumer-declared effect vocabulary — one row per fx `type` (look + recipe). Unknown types fall back to a neutral spark burst. */
+    /** Consumer-declared effect vocabulary — one row per fx `type` (look, recipe and motion). An item whose `type` has no row draws only from its own fields, and a missing required field is a typed error. */
     presets?: FxPreset[];
     /** Vector art per fx type (an asset-art map: type → anim-state → drawables); a type's `idle` state wins over sprites/procedural. */
     art?: Record<string, Record<string, DrawableNode[]>>;

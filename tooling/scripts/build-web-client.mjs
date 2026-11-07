@@ -45,7 +45,8 @@ const WORKSPACE_PACKAGES = {
 const run = (cmd, argv, cwd, env = {}) => execFileSync(cmd, argv, { cwd, stdio: 'inherit', env: { ...process.env, ...env }, shell: process.platform === 'win32' });
 
 const tailwindContent = path.join(repo, 'templates', 'almadar-shell', 'packages', 'client', 'tailwind-content.txt');
-if (workspace !== undefined) run('orb', ['tailwind-content', '--out', tailwindContent], path.resolve(workspace));
+// A workspace build is a dev build, and the dev binary is orb-dev (orb is only the installed release).
+if (workspace !== undefined) run(process.env.ORB_BIN ?? 'orb-dev', ['tailwind-content', '--out', tailwindContent], path.resolve(workspace));
 
 const staging = `${out}.staging-${process.pid}`;
 const retired = `${out}.retired-${process.pid}`;

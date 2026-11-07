@@ -28,12 +28,12 @@ const at = { x: 0, y: 0 };
 describe('resolveDrawableColors', () => {
   it('resolves fx preset colors (tone names) and keeps literal ones', () => {
     const nodes: DrawableNode[] = [
-      { type: 'draw-fx-layer', items: [], tickMs: 500, presets: [{ type: 'pickup', color: 'series-2', color2: '#123456' }, { type: 'hit', color: 'ink' }] },
+      { type: 'draw-fx-layer', items: [], tickMs: 500, presets: [{ type: 'pickup', color: 'series-2', color2: '#123456', gravity: 0, vx: 0, vy: 0, vz: 0 }, { type: 'hit', color: 'ink', gravity: 0, vx: 0, vy: 0, vz: 0 }] },
     ];
     const [layer] = resolveDrawableColors(nodes, resolve);
     expect(layer.type === 'draw-fx-layer' && layer.presets).toEqual([
-      { type: 'pickup', color: 'rgb(2, 2, 2)', color2: '#123456' },
-      { type: 'hit', color: 'rgb(1, 1, 1)' },
+      { type: 'pickup', color: 'rgb(2, 2, 2)', color2: '#123456', gravity: 0, vx: 0, vy: 0, vz: 0 },
+      { type: 'hit', color: 'rgb(1, 1, 1)', gravity: 0, vx: 0, vy: 0, vz: 0 },
     ]);
   });
 

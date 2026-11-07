@@ -38,7 +38,7 @@ export interface FxItem {
     id: string;
     /** Effect-kind key into the consumer-declared `FxPreset[]` table. */
     type: string;
-    /** Canonical scene position; when absent the renderer derives it from `x`/`z`/`y`. */
+    /** Scene position `{x, y: ground row, z: height}`; the fx mechanic stamps it from `x`/`z`/`y`, and the layer refuses an item without it. */
     position?: ScenePos;
     /** Scene x in world units. */
     x: number;
@@ -94,11 +94,11 @@ export interface FxPreset {
     /** Glow strength — soft shadow blur in world units around procedural particles. */
     glow?: number;
     /** Downward acceleration in world-units/sec² applied to the drift. */
-    gravity?: number;
-    /** Default drift velocities, world-units/sec. */
-    vx?: number;
-    vy?: number;
-    vz?: number;
+    gravity: number;
+    /** Drift velocities in world-units/sec; an item's own velocity wins. `vy` is the height axis, read in 3D only. */
+    vx: number;
+    vy: number;
+    vz: number;
     /** Render substrate routing for this kind. */
     space?: FxSpace;
     /** Screen-space render kind for this kind. */
