@@ -18,8 +18,10 @@ module.exports = grammar({
   word: $ => $.identifier,
 
   // `(a b)` — `a` is the call head (sexpr_op) but also matches the
-  // identifier alternative of _sexpr_arg. Harmless: GLR keeps both and
-  // the op-first parse always wins for ≥1 identifier. Without this the
+  // identifier alternative of _sexpr_arg. GLR keeps both and the
+  // _sexpr_arg parse wins for an identifier head (a bare `identifier`
+  // child; highlights.scm anchors on it); sexpr_op materializes for
+  // symbol heads only. Without this the
   // reformed `sexpr` rule (op and args as independent slots, needed for
   // nested group-as-arg forms) won't generate.
   conflicts: $ => [

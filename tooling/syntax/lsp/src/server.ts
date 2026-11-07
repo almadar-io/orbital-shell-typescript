@@ -20,6 +20,7 @@ import {
     Diagnostic,
     DiagnosticSeverity,
     CompletionItem,
+    Hover,
     TextDocumentPositionParams,
 } from 'vscode-languageserver/node';
 
@@ -28,6 +29,7 @@ import { diagnosticFor, ValidateItem } from './diagnostic.js';
 import { PreviewServer } from './preview/preview-server.js';
 import { resolveOrbBinary as resolveOrbBinaryPure } from './binary-resolution.js';
 import { byteOffsetOf, completeArgs, parseCompleteOutput, toCompletionItems } from './completion.js';
+import { hoverFor, parseSignatures, Signatures } from './hover.js';
 import { execFile } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -97,6 +99,7 @@ connection.onInitialize((params: InitializeParams) => {
         capabilities: {
             textDocumentSync: TextDocumentSyncKind.Full,
             completionProvider: { triggerCharacters: ['(', '<', '"', '/', '.', '@'] },
+            hoverProvider: true,
         },
     };
 });
@@ -178,6 +181,38 @@ connection.onCompletion((params): Promise<CompletionItem[]> => {
     const doc = documents.get(params.textDocument.uri);
     if (!doc || !doc.uri.toLowerCase().endsWith('.lolo')) return Promise.resolve([]);
     return runComplete(doc.uri, doc.getText(), params, doc.offsetAt(params.position));
+});
+
+let signaturesPending: Promise<Signatures | undefined> | undefined;
+
+/** The `orb signatures` catalog, read once per server (resolved from the workspace root). */
+function loadSignatures(cwd: string): Promise<Signatures | undefined> {
+    signaturesPending ??= new Promise((resolve) => {
+        const binaryPath = resolveOrbBinary();
+        if (!binaryPath) {
+            resolve(undefined);
+            return;
+        }
+        execFile(binaryPath, ['signatures'], { cwd, timeout: 30_000, maxBuffer: 64 * 1024 * 1024 }, (error, stdout, stderr) => {
+            try {
+                resolve(parseSignatures(stdout));
+            } catch (parseError) {
+                connection.console.error(`OrbLSP: orb signatures failed: ${error?.message ?? stderr} (${String(parseError)})`);
+                signaturesPending = undefined;
+                resolve(undefined);
+            }
+        });
+    });
+    return signaturesPending;
+}
+
+connection.onHover(async (params): Promise<Hover | null> => {
+    const doc = documents.get(params.textDocument.uri);
+    if (!doc || !doc.uri.toLowerCase().endsWith('.lolo')) return null;
+    const filePath = decodeURIComponent(doc.uri.replace('file://', ''));
+    const signatures = await loadSignatures(workspaceRoot ?? path.dirname(filePath));
+    if (signatures === undefined) return null;
+    return hoverFor(signatures, doc.getText(), doc.offsetAt(params.position), params.position) ?? null;
 });
 
 function runValidate(filePath: string): Promise<ValidateResult> {

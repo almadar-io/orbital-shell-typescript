@@ -53,6 +53,16 @@ describe('DashboardLayout layoutMode drawer', () => {
     expect(aside()?.hasAttribute('inert')).toBe(true);
   });
 
+  it('closes on Escape while open, and Escape with it closed changes nothing', () => {
+    renderLayout(1440, 'drawer');
+    act(() => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    expect(aside()?.hasAttribute('inert')).toBe(true);
+    act(() => { fireEvent.click(screen.getByRole('button', { name: 'Open sidebar' })); });
+    expect(aside()?.hasAttribute('inert')).toBe(false);
+    act(() => { fireEvent.keyDown(document, { key: 'Escape' }); });
+    expect(aside()?.hasAttribute('inert')).toBe(true);
+  });
+
   it('names the app in the top bar, since the sidebar header is hidden', () => {
     renderLayout(1440, 'drawer');
     expect(screen.getByRole('banner').textContent).toContain('Learn');

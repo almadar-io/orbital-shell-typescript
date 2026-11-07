@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo, useContext } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from '../../../core';
 import type { IconInput } from '../../../core';
-import { Button, Input, Badge, ThemeToggle, Avatar } from '../../../core';
+import { Button, Input, Badge, ThemeToggle, Avatar, useDialogBehavior } from '../../../core';
 import { Box } from '../../../core';
 import { HStack, VStack } from '../../../core';
 import { Typography } from '../../../core';
@@ -308,6 +308,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   const showSidebar = layoutMode === "sidebar" || isDrawer;
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  useDialogBehavior({
+    open: showSidebar && offCanvas && sidebarOpen,
+    containerRef: sidebarRef,
+    onEscape: () => setSidebarOpen(false),
+  });
   const showHeader = layoutMode !== "minimal";
   const showBottomNav = layoutMode === "bottomnav";
   const isTopNav = layoutMode === "topnav";
@@ -343,6 +349,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {showSidebar && (
         <Box
           as="aside"
+          ref={sidebarRef}
           inert={offCanvas && !sidebarOpen ? true : undefined}
           className={cn(
             "z-30 flex-shrink-0 bg-card surface-material border-e-[length:var(--border-width)] border-border",

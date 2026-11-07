@@ -85,4 +85,33 @@ describe('multi-source slot aggregation — trait attribution', () => {
     expect(children[0]._sourceTrait).toBeUndefined();
     expect(children[1]._sourceTrait).toBe('RealTrait');
   });
+
+  it('G-ORBITAL-SHELL-TYPESCRIPT-040: stacks by the declared trait order, not write timing', () => {
+    const { result } = renderHook(() => useUISlotManager());
+
+    act(() => {
+      result.current.setDeclaredTraitOrder(['PicksHeader', 'PicksList']);
+      result.current.render({ target: 'main', pattern: 'data-grid', sourceTrait: 'PicksList' });
+      result.current.render({ target: 'main', pattern: 'stat-display', sourceTrait: 'PicksHeader' });
+    });
+
+    const stackProps = result.current.slots['main']?.props;
+    if (typeof stackProps === 'string' || stackProps === undefined) throw new Error(`expected object props, got ${typeof stackProps}`);
+    expect(childrenOf(stackProps).map((c) => c._sourceTrait)).toEqual(['PicksHeader', 'PicksList']);
+  });
+
+  it('G-ORBITAL-SHELL-TYPESCRIPT-040 control: an undeclared writer follows the declared ones in write order', () => {
+    const { result } = renderHook(() => useUISlotManager());
+
+    act(() => {
+      result.current.render({ target: 'main', pattern: 'data-grid', sourceTrait: 'Stray' });
+      result.current.render({ target: 'main', pattern: 'stat-display', sourceTrait: 'B' });
+      result.current.render({ target: 'main', pattern: 'stat-display', sourceTrait: 'A' });
+      result.current.setDeclaredTraitOrder(['A', 'B']);
+    });
+
+    const stackProps = result.current.slots['main']?.props;
+    if (typeof stackProps === 'string' || stackProps === undefined) throw new Error(`expected object props, got ${typeof stackProps}`);
+    expect(childrenOf(stackProps).map((c) => c._sourceTrait)).toEqual(['A', 'B', 'Stray']);
+  });
 });

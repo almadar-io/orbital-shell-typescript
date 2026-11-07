@@ -21,7 +21,6 @@ import type {
   MutationOpWire,
   MutationVerdictWire,
   RowBindingWire,
-  TraceEffectsWire,
 } from './generated/kernel-wire';
 import type { VocabularyPack } from './i18n/index';
 import { setOwn } from './types/own-key';
@@ -90,8 +89,6 @@ export interface KernelEvaluator {
   evaluateGuard(context: EvalContextWire, guard: SExpr): GuardOutcomeWire;
   /** One expression with every node's entry, value and exit by structural path. */
   evaluateTraced(context: EvalContextWire, expression: SExpr): EvalTracedWire;
-  /** Effects run in order against the context's row: a trace per effect, the events raised, the writes made and the row after them. */
-  traceEffects(context: EvalContextWire, effects: readonly SExpr[]): TraceEffectsWire;
   /** A listen route's `with { field: <expr> }` mapping applied to the source payload, in one crossing. */
   mapListenPayload(mapping: Readonly<Record<string, SExpr>>, payload: EventPayload): EventPayload;
   /** The rows that pass the declared `@read` policy and the call-site filter, under the bindings' viewer. */
@@ -152,9 +149,6 @@ export function createKernelEvaluator(kernel: KernelEvaluatorExports): KernelEva
     },
     evaluateTraced(context, expression) {
       return JSON.parse(kernel.evaluateTraced(JSON.stringify(context), JSON.stringify(expression))) as EvalTracedWire;
-    },
-    traceEffects(context, effects) {
-      return JSON.parse(kernel.traceEffects(JSON.stringify(context), JSON.stringify(effects))) as TraceEffectsWire;
     },
     mapListenPayload(mapping, payload) {
       return JSON.parse(kernel.mapListenPayload(JSON.stringify(mapping), JSON.stringify(payload))) as EventPayload;
@@ -271,7 +265,6 @@ export function lazyKernelExports(load: () => KernelEvaluatorExports): KernelEva
     resolveValues: (context, values) => kernel().resolveValues(context, values),
     evaluateGuards: (context, guards) => kernel().evaluateGuards(context, guards),
     evaluateTraced: (context, expression) => kernel().evaluateTraced(context, expression),
-    traceEffects: (context, effects) => kernel().traceEffects(context, effects),
     mapListenPayload: (mapping, payload) => kernel().mapListenPayload(mapping, payload),
     scopeRows: (bindings, rows, policy, filter, entityType) => kernel().scopeRows(bindings, rows, policy, filter, entityType),
     checkMutationAccess: (operation, bindings, row, policy, entityType) =>

@@ -28,6 +28,7 @@
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
 import { createRequire } from 'module';
 import { join, relative, resolve } from 'path';
+import { safelistEntryLine } from './lib/safelist-entry.mjs';
 
 const requireCjs = createRequire(import.meta.url);
 const { compileTailwindClasses } = requireCjs('../tailwind-compile.cjs') as {
@@ -216,7 +217,7 @@ if (fix) {
     process.exit(1);
   }
 
-  const newEntries = missing.map(m => `  '${m.cls}',`).join('\n');
+  const newEntries = missing.map(m => safelistEntryLine(m.cls)).join('\n');
   const comment = `  // Auto-added by audit-tailwind-safelist.ts (${new Date().toISOString().split('T')[0]})`;
   const updated = presetContent.slice(0, safelistEndIdx) +
     '\n' + comment + '\n' + newEntries + '\n' +

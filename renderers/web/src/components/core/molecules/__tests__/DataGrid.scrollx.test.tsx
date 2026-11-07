@@ -28,9 +28,18 @@ describe('DataGrid scrollX board', () => {
     expect(grid?.className).toContain('[&>*]:snap-start');
   });
 
+  it('G-ORBITAL-SHELL-TYPESCRIPT-044: the scrolling board is a focusable labelled region', () => {
+    const { container } = withBus(<DataGrid entity={rows} fields={[{ name: 'name' }]} scrollX />);
+    const grid = container.querySelector<HTMLElement>('.grid-flow-col');
+    expect(grid?.getAttribute('tabindex')).toBe('0');
+    expect(grid?.getAttribute('role')).toBe('region');
+    expect(grid?.getAttribute('aria-label')).toBeTruthy();
+  });
+
   it('control: a wrapping grid neither snaps nor caps columns', () => {
     const { container } = withBus(<DataGrid entity={rows} fields={[{ name: 'name' }]} />);
     expect(container.querySelector('.snap-x')).toBeNull();
     expect(container.querySelector('.grid-flow-col')).toBeNull();
+    expect(container.querySelector('[data-grid-layout="cards"]')?.getAttribute('tabindex')).toBeNull();
   });
 });

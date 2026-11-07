@@ -58,7 +58,11 @@ bg-[var(--color-surface)]/95
 bg-[var(--color-surface-hover)]
 bg-[var(--color-surface-subtle)]
 bg-background
+bg-background/50
 bg-card
+bg-card/40
+bg-card/60
+bg-card/70
 bg-error
 bg-muted
 bg-primary
@@ -79,6 +83,8 @@ border-l-2
 border-l-4
 border-l-[var(--color-primary)]
 border-primary
+border-primary/20
+border-primary/25
 border-r
 border-t
 border-x
@@ -114,17 +120,22 @@ font-normal
 font-semibold
 gap-0
 gap-1
+gap-6
+gap-8
 generating
 grid
 grid-cols-1
 group
 group-focus-within:opacity-100
+group-hover:bg-primary/20
 group-hover:opacity-100
 h-0.5
 h-10
+h-11
 h-2.5
 h-7
 h-8
+h-9
 h-96
 h-[800px]
 h-[calc(100vh-9rem)]
@@ -134,8 +145,14 @@ h-screen
 hidden
 highlighted
 history
+hover:-translate-y-0.5
 hover:[animation-play-state:paused]
 hover:bg-[var(--color-surface-hover)]
+hover:bg-card
+hover:bg-primary/10
+hover:border-primary/40
+hover:border-primary/50
+hover:shadow-elevation-card
 hover:shadow-elevation-dialog
 hover:shadow-elevation-md
 hover:shadow-lg
@@ -155,6 +172,8 @@ justify-start
 leading-relaxed
 leading-tight
 lg:flex
+lg:grid-cols-[minmax(0,1fr)_320px]
+lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]
 lg:hidden
 lg:sticky
 lg:top-6
@@ -170,6 +189,7 @@ max-w-3xl
 max-w-4xl
 max-w-5xl
 max-w-6xl
+max-w-7xl
 max-w-md
 max-w-prose
 max-w-sm
@@ -182,6 +202,7 @@ md:flex
 md:hidden
 md:max-h-none
 md:opacity-60
+md:p-10
 md:py-24
 md:py-28
 md:text-8xl
@@ -220,6 +241,7 @@ opacity-10
 opacity-100
 opacity-30
 opacity-50
+opacity-70
 output
 overflow-auto
 overflow-hidden
@@ -237,6 +259,7 @@ p-card-md
 p-card-xl
 p-md
 pb-1
+pb-12
 pb-2
 pb-28
 pb-3
@@ -318,6 +341,7 @@ text-base
 text-card-foreground
 text-center
 text-foreground
+text-left
 text-lg
 text-pretty
 text-primary
@@ -328,6 +352,7 @@ toggle
 top-0
 top-1/2
 top-2
+tracking-[0.3em]
 tracking-tight
 tracking-tighter
 tracking-wide
@@ -340,6 +365,7 @@ transition-shadow
 truncate
 uppercase
 w-10
+w-11
 w-12
 w-14
 w-2.5
@@ -352,6 +378,7 @@ w-7
 w-72
 w-8
 w-80
+w-9
 w-[1280px]
 w-[300px]
 w-[390px]

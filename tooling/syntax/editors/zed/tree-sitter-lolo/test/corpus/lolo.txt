@@ -125,8 +125,7 @@ orbital O {
           (arrow)
           target: (identifier)
           (sexpr
-            (sexpr_op
-              (identifier))
+            (identifier)
             (sigil)
             (number)))))))
 
@@ -173,8 +172,7 @@ orbital O {
             (sigil)
             (number))
           (sexpr
-            (sexpr_op
-              (identifier))
+            (identifier)
             (sigil)
             (number)))))))
 

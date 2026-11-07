@@ -86,17 +86,6 @@ export type {
 } from '../hooks/useClientEffects';
 
 // ============================================================================
-// Data Resolution
-// ============================================================================
-
-export {
-  resolveEntityData,
-  resolveEntityDataWithQuery,
-  resolveEntityById,
-  hasEntities,
-} from '../lib/data-resolver';
-
-// ============================================================================
 // Slot Definitions
 // ============================================================================
 

@@ -29,7 +29,7 @@ import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createLogger } from '@almadar/logger';
 import type { A11yProps, Asset, AssetUrl, Camera, EventEmit, EventKey, PatternConfig } from '@almadar/core';
-import { cn, domPassthrough, useTranslate } from '../../../core';
+import { Box, cn, domPassthrough, useTranslate } from '../../../core';
 import type { DrawableNode } from '../../../lib/drawable/paintDispatch';
 import { DrawableRegistryContext, type DrawableRegistrar } from '../../../lib/drawable/registry';
 import { Canvas2D, type CameraMode as Canvas2DCameraMode, type Projection } from './Canvas2D';
@@ -45,6 +45,8 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     mode?: CanvasMode;
     /** Neutral drawable descriptors — the `draw-*` children. Routed to the host's painter. */
     drawables?: DrawableNode[];
+    /** Text alternative for the scene, rendered as visually hidden text and linked by aria-describedby. */
+    description?: string;
     /** Neutral camera pose. Mapped to the underlying host's framing + zoom. */
     camera?: Camera;
     /** 2D grid layout (2D mode only): isometric / hex / flat / free / side. */
@@ -176,6 +178,7 @@ export function Canvas({
     selectEvent,
     moveEvent,
     children,
+    description,
     ...rest
 }: CanvasProps): React.JSX.Element {
     canvasLog.debug('Canvas render', { mode, drawablesCount: drawables?.length, projection, camera: camera ? JSON.stringify(camera) : undefined });
@@ -204,6 +207,7 @@ export function Canvas({
     });
 
     const { t } = useTranslate();
+    const descId = React.useId();
     const config3d = useMemo<PatternConfig<'canvas'>>(
         () => ({
             type: 'canvas',
@@ -244,7 +248,8 @@ export function Canvas({
 
     if (mode === '3d') {
         return (
-            <>
+            <div role="img" aria-label={t('aria.canvasScene')} {...(description ? { 'aria-describedby': descId } : {})} {...domPassthrough(rest)} className="contents">
+                {description && <Box id={descId} className="sr-only">{description}</Box>}
                 {isLoading ? (
                     <div className={cn('game-canvas-3d game-canvas-3d--loading', className)}>
                         <div className="game-canvas-3d__loading">{t('canvas3d.loadingScene')}</div>
@@ -272,13 +277,14 @@ export function Canvas({
                         <div aria-hidden="true" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>{children}</div>
                     </DrawableRegistryContext.Provider>
                 )}
-            </>
+            </div>
         );
     }
 
     return (
         <Canvas2D
             {...domPassthrough(rest)}
+            {...(description !== undefined ? { description } : {})}
             className={className}
             drawables={drawables}
             isLoading={isLoading}

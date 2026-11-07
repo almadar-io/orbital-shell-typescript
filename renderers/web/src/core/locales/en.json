@@ -140,6 +140,7 @@
   "aria.closeMenu": "Close menu",
   "aria.openSidebar": "Open sidebar",
   "aria.openRow": "Open item {{position}}",
+  "aria.scrollableBoard": "Scrollable board",
   "sidebar.expand": "Expand sidebar",
   "sidebar.collapse": "Collapse sidebar",
   "sidebar.close": "Close sidebar",

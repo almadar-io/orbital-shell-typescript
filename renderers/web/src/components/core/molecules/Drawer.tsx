@@ -32,6 +32,7 @@ import { useTranslate } from '../../../core';
 import { useDialogBehavior } from '../../../core';
 
 import { domPassthrough } from '../../../core';
+import { ThemedPortal } from '../../../lib/ThemedPortal';
 // ============================================================================
 // Types
 // ============================================================================
@@ -175,7 +176,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   // a sign var declared on :root does not re-substitute per element.
   const slideTransform = position === "right" ? "translateX(100%)" : "translateX(-100%)";
 
-  return (
+  const layer = (
     <>
       {modal && (
         <Overlay
@@ -257,6 +258,7 @@ export const Drawer: React.FC<DrawerProps> = ({
 
     </>
   );
+  return contained ? layer : <ThemedPortal>{layer}</ThemedPortal>;
 };
 
 Drawer.displayName = "Drawer";

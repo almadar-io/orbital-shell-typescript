@@ -43,4 +43,18 @@ describe('Canvas camera.controls', () => {
     expect(to2DCamera('perspective', undefined)).toBe('pan-zoom');
     expect(to2DCamera('follow', false)).toBe('follow');
   });
+
+  it('G-ORBITAL-SHELL-TYPESCRIPT-060: a 3D canvas is a named image carrying the authored aria-label, layout-neutral', () => {
+    seen.length = 0;
+    const { container } = render(<Canvas mode="3d" aria-label="Battle board" />);
+    const img = container.querySelector('[role="img"]');
+    expect(img?.getAttribute('aria-label')).toBe('Battle board');
+    expect(img?.className).toBe('contents');
+  });
+
+  it('G-ORBITAL-SHELL-TYPESCRIPT-060 control: without an authored label it keeps the 2D default name', () => {
+    seen.length = 0;
+    const { container } = render(<Canvas mode="3d" />);
+    expect(container.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('Game scene');
+  });
 });

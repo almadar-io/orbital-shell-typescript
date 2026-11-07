@@ -44,4 +44,22 @@ describe('Drawer layer', () => {
     render(<Drawer isOpen modal={false} onClose={() => undefined} title="Trace"><div /></Drawer>);
     expect(screen.getAllByRole('button').map((b) => b.getAttribute('data-event'))).toEqual(['CLOSE']);
   });
+
+  it('G-ORBITAL-SHELL-TYPESCRIPT-056: an uncontained drawer escapes a stacking-context ancestor through the portal', () => {
+    const { container } = render(
+      <div data-testid="sticky" style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+        <Drawer isOpen onClose={() => undefined} title="Menu"><div data-testid="content" /></Drawer>
+      </div>,
+    );
+    expect(container.contains(screen.getByRole('dialog'))).toBe(false);
+  });
+
+  it('G-ORBITAL-SHELL-TYPESCRIPT-056 control: a contained drawer stays inside its frame', () => {
+    const { container } = render(
+      <div data-testid="frame" style={{ position: 'relative' }}>
+        <Drawer isOpen contained onClose={() => undefined} title="Menu"><div data-testid="content" /></Drawer>
+      </div>,
+    );
+    expect(container.contains(screen.getByRole('dialog'))).toBe(true);
+  });
 });

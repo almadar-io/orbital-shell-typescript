@@ -424,6 +424,10 @@ export function useTraitStateMachine(
     aliveRef.current = true;
     return () => { aliveRef.current = false; };
   }, []);
+  const pageTraits = circuit.status === 'ready' ? circuit.page.traits : undefined;
+  useEffect(() => {
+    if (pageTraits !== undefined) uiSlots.setDeclaredTraitOrder(pageTraits);
+  }, [pageTraits, uiSlots]);
   const kernelClientRef = useRef(kernelClient);
   kernelClientRef.current = kernelClient;
   useEffect(() => () => {

@@ -18,12 +18,12 @@ import { OrbPreview } from '@almadar/shell-web/runtime';
 import type { ClientManifest } from '@almadar/core';
 import { hostSignIn } from '@almadar/shell-web/auth/react';
 import { loadProgram } from './client-program';
-import { AuthProvider, useAuthContext } from './features/auth';
+import { AuthProvider, PersonaSwitcher, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
 import { loadKernel } from './kernel-host';
 import { Canvas3D, GpuHost, SceneCanvas } from '@almadar/kernel/client';
 import { LocaleRoot } from './locale';
-import { ThemeProvider } from '@almadar/shell-web/core';
+import { Box, ThemeProvider } from '@almadar/shell-web/core';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -97,6 +97,9 @@ export function App({ manifest }: AppProps): React.ReactElement {
                 <Route path="/login" element={<Login />} />
                 <Route path="*" element={<KernelApp />} />
               </Routes>
+              <Box className="fixed bottom-3 left-3 z-[1000]">
+                <PersonaSwitcher />
+              </Box>
             </LocaleRoot>
           </BrowserRouter>
         </AuthProvider>

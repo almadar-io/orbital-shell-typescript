@@ -136,6 +136,7 @@
   "aria.closeMenu": "إغلاق القائمة",
   "aria.openSidebar": "فتح الشريط الجانبي",
   "aria.openRow": "فتح العنصر {{position}}",
+  "aria.scrollableBoard": "لوحة قابلة للتمرير",
   "sidebar.expand": "توسيع الشريط الجانبي",
   "sidebar.collapse": "طي الشريط الجانبي",
   "sidebar.close": "إغلاق الشريط الجانبي",

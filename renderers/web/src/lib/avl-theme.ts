@@ -190,14 +190,8 @@ export function asEffectOperator(head: string): EffectOperator | null {
 
 // ─── Operators (keyed on @almadar/std's OperatorCategory) ─────
 
-// Categories @almadar/std's canonical-operators.json already ships but its built types do not yet declare (G-UI-091).
-const PENDING_STD_CATEGORY_COLORS = {
-  'std-behavior-value': avlBlend('var(--color-accent)', 40, 'var(--color-success)'),
-  'std-program': avlBlend('var(--color-accent)', 60, 'var(--color-info)'),
-};
-
 export const OPERATOR_CATEGORY_COLORS: Record<OperatorCategory, string> = {
-  ...PENDING_STD_CATEGORY_COLORS,
+  'std-behavior-value': avlBlend('var(--color-accent)', 40, 'var(--color-success)'), 'std-program': avlBlend('var(--color-accent)', 60, 'var(--color-info)'),
   'arithmetic': 'var(--color-primary)', 'comparison': 'var(--color-warning)', 'logic': 'var(--color-accent)',
   'control': 'var(--color-error)', 'effect': avlBlend('var(--color-warning)', 60, 'var(--color-error)'), 'collection': 'var(--color-info)',
   'std-math': 'var(--color-primary)', 'std-str': 'var(--color-success)', 'std-array': 'var(--color-info)',

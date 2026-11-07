@@ -149,8 +149,9 @@ export const Input = React.forwardRef<
       error
         ? "border-error focus:border-error focus:ring-error"
         : "",
-      resolvedLeftIcon && "pl-10",
-      (rightIcon || showClearButton) && "pr-10",
+      resolvedLeftIcon && "pl-[calc(var(--icon-default-size,16px)+1.5rem)]",
+      rightIcon && !showClearButton && "pr-[calc(var(--icon-default-size,16px)+1.5rem)]",
+      showClearButton && "pr-10",
       className,
     );
 

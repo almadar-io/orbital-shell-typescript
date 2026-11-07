@@ -19,6 +19,24 @@ export type ColorToken =
   | 'error'
   | 'muted';
 
+const COLOR_TOKEN_VARS: Record<ColorToken, string> = {
+  primary: 'var(--color-primary)',
+  secondary: 'var(--color-secondary)',
+  success: 'var(--color-success)',
+  warning: 'var(--color-warning)',
+  error: 'var(--color-error)',
+  muted: 'var(--color-muted)',
+};
+
+export function isColorToken(value: string): value is ColorToken {
+  return Object.prototype.hasOwnProperty.call(COLOR_TOKEN_VARS, value);
+}
+
+/** A palette token's CSS variable, or the raw CSS color value passed through. */
+export function resolveColorToken(color: ColorToken | string): string {
+  return isColorToken(color) ? COLOR_TOKEN_VARS[color] : color;
+}
+
 /**
  * Concrete error-state shape read by display components (`error.message`,
  * occasionally `error.stack`). Structurally assignable from the global `Error`,

@@ -232,6 +232,8 @@ export interface UISlotManager {
    * inlined as JSX inside the layout's pattern, not writing slots.
    */
   updateTraitContent: (traitName: string, content: Omit<SlotContent, 'id' | 'sourceTrait'>) => string;
+  /** The page's declared trait order, which multi-writer slots stack by (not by write timing). */
+  setDeclaredTraitOrder: (traits: readonly string[]) => void;
 }
 
 /** Per-source slot entry map: key = sourceTrait (or sentinel when none). */
@@ -258,6 +260,8 @@ const DEFAULT_SLOTS: Partial<Record<UISlot, SlotContent | null>> = ALL_SLOTS.red
   {} as Partial<Record<UISlot, SlotContent | null>>,
 );
 
+const NO_DECLARED_ORDER: ReadonlyMap<string, number> = new Map();
+
 const DEFAULT_SOURCES: Partial<Record<UISlot, SlotSources>> = ALL_SLOTS.reduce(
   (acc, slot) => {
     acc[slot] = {};
@@ -276,18 +280,20 @@ const DEFAULT_SOURCES: Partial<Record<UISlot, SlotSources>> = ALL_SLOTS.reduce(
 
 /**
  * Collapse a slot's per-source SlotContent map into a single SlotContent
- * that the renderer can consume. Sources iterate in insertion order
- * (Object.keys preserves string-key insertion order in modern runtimes),
- * which matches the `.lolo` page-level trait declaration order.
+ * that the renderer can consume. Sources stack in the page's declared trait
+ * order (`setDeclaredTraitOrder`, from the kernel's page circuit); a source the
+ * page does not declare follows them in first-write order.
  *
  * - 0 sources → null (empty slot).
  * - 1 source → that SlotContent verbatim.
  * - 2+ sources → synthetic `stack` wrapper whose children are the
  *   pattern configs of each source in order.
  */
-function aggregateSlot(sources: SlotSources | undefined): SlotContent | null {
+function aggregateSlot(sources: SlotSources | undefined, declaredOrder: ReadonlyMap<string, number>): SlotContent | null {
   if (!sources) return null;
-  const entries = Object.entries(sources);
+  const entries = Object.entries(sources).sort(
+    ([a], [b]) => (declaredOrder.get(a) ?? Infinity) - (declaredOrder.get(b) ?? Infinity) || 0,
+  );
   if (entries.length === 0) return null;
   if (entries.length === 1) return entries[0][1];
 
@@ -355,6 +361,13 @@ export function useUISlotManager(): UISlotManager {
   // single-segment (no `.slot` suffix), so consumers only need the
   // trait's last-emitted frame regardless of which slot it targeted.
   const traitIndexRef = useRef<Map<string, SlotContent>>(new Map());
+  const [declaredOrder, setDeclaredOrder] = useState<ReadonlyMap<string, number>>(NO_DECLARED_ORDER);
+  const declaredOrderRef = useRef<ReadonlyMap<string, number>>(NO_DECLARED_ORDER);
+  const setDeclaredTraitOrder = useCallback((traits: readonly string[]) => {
+    const next = new Map(traits.map((trait, index) => [trait, index]));
+    declaredOrderRef.current = next;
+    setDeclaredOrder(next);
+  }, []);
   const traitSubscribersRef = useRef<Map<string, Set<TraitChangeCallback>>>(new Map());
 
   // Computed aggregate `slots` — memoised so React consumers only see
@@ -362,10 +375,10 @@ export function useUISlotManager(): UISlotManager {
   const slots = useMemo<Partial<Record<UISlot, SlotContent | null>>>(() => {
     const out: Partial<Record<UISlot, SlotContent | null>> = { ...DEFAULT_SLOTS };
     for (const slot of ALL_SLOTS) {
-      out[slot] = aggregateSlot(sources[slot]);
+      out[slot] = aggregateSlot(sources[slot], declaredOrder);
     }
     return out;
-  }, [sources]);
+  }, [sources, declaredOrder]);
 
   // Clean up timers on unmount
   useEffect(() => {
@@ -466,7 +479,7 @@ export function useUISlotManager(): UISlotManager {
               const next = { ...slotSources };
               delete next[sourceKey];
               const updated = { ...prev, [config.target]: next };
-              notifySubscribers(config.target, aggregateSlot(next));
+              notifySubscribers(config.target, aggregateSlot(next, declaredOrderRef.current));
               return updated;
             }
             return prev;
@@ -554,7 +567,7 @@ export function useUISlotManager(): UISlotManager {
           priority: content.priority,
         });
 
-        notifySubscribers(config.target, aggregateSlot(nextSources));
+        notifySubscribers(config.target, aggregateSlot(nextSources, declaredOrderRef.current));
         return nextAll;
       });
 
@@ -623,7 +636,7 @@ export function useUISlotManager(): UISlotManager {
         const nextSources: SlotSources = { ...slotSources };
         delete nextSources[sourceKey];
         log.info('slot:cleared', { slot, sourceTrait, lastPatternType: content.pattern });
-        notifySubscribers(slot, aggregateSlot(nextSources));
+        notifySubscribers(slot, aggregateSlot(nextSources, declaredOrderRef.current));
         return { ...prev, [slot]: nextSources };
       });
     },
@@ -654,7 +667,7 @@ export function useUISlotManager(): UISlotManager {
           }
           const nextSources: SlotSources = { ...slotSources };
           delete nextSources[matchKey];
-          notifySubscribers(slot, aggregateSlot(nextSources));
+          notifySubscribers(slot, aggregateSlot(nextSources, declaredOrderRef.current));
           return { ...prev, [slot]: nextSources };
         }
         return prev;
@@ -767,6 +780,7 @@ export function useUISlotManager(): UISlotManager {
     getTraitContent,
     subscribeTrait,
     updateTraitContent,
+    setDeclaredTraitOrder,
   };
 }
 

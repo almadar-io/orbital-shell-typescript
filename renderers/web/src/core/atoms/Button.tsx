@@ -134,9 +134,9 @@ const variantStyles = {
 variantStyles.destructive = variantStyles.danger;
 
 const sizeStyles = {
-  sm: "h-button-sm px-3 text-sm",
-  md: "h-button-md px-4 text-sm",
-  lg: "h-button-lg px-6 text-base",
+  sm: "min-h-button-sm py-1 px-3 text-sm",
+  md: "min-h-button-md py-1 px-4 text-sm",
+  lg: "min-h-button-lg py-1 px-6 text-base",
 };
 
 const iconSizeStyles = {

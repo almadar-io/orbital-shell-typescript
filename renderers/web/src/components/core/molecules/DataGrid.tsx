@@ -456,6 +456,7 @@ export function DataGrid({
       <Box
         data-grid-layout={asRows ? 'rows' : 'cards'}
         data-item-move-root={nestedMoves.id}
+        {...(scrollX ? { role: 'region', tabIndex: 0, 'aria-label': t('aria.scrollableBoard') } : {})}
         className={cn(
           asRows
             ? cn('flex flex-col divide-y divide-border', contentSurface.className && cn(contentSurface.className, 'overflow-hidden'))

@@ -136,6 +136,7 @@
   "aria.closeMenu": "Zapri meni",
   "aria.openSidebar": "Odpri stransko vrstico",
   "aria.openRow": "Odpri element {{position}}",
+  "aria.scrollableBoard": "Drsljiva tabla",
   "sidebar.expand": "Razširi stransko vrstico",
   "sidebar.collapse": "Strni stransko vrstico",
   "sidebar.close": "Zapri stransko vrstico",

@@ -17,20 +17,11 @@
  */
 
 import React, { useId } from 'react';
-import { cn } from '../../../core';
+import { cn, resolveColorToken } from '../../../core';
 import type { ColorToken } from '../../../core';
 
 export type EdgeVariant = 'arch' | 'vine' | 'lattice';
 export type EdgeSide = 'left' | 'right' | 'both';
-
-const colorTokenVars: Record<ColorToken, string> = {
-  primary: 'var(--color-primary)',
-  secondary: 'var(--color-secondary)',
-  success: 'var(--color-success)',
-  warning: 'var(--color-warning)',
-  error: 'var(--color-error)',
-  muted: 'var(--color-muted)',
-};
 
 export interface EdgeDecorationProps {
     /** Which decorative element */
@@ -268,9 +259,7 @@ export const EdgeDecoration: React.FC<EdgeDecorationProps> = ({
 }) => {
     const id = useId();
     const Variant = VARIANT_MAP[variant];
-    const resolvedColor = color in colorTokenVars
-        ? colorTokenVars[color as ColorToken]
-        : color;
+    const resolvedColor = resolveColorToken(color);
 
     const sides: ('left' | 'right')[] =
         side === 'both' ? ['left', 'right'] : [side];

@@ -492,6 +492,10 @@ module.exports = {
   "after:content-['']",
   'after:rounded-[inherit]',
   'grow-[1.6]',
+
+  // Input leading/trailing icon padding follows the icon size token (G-ORBITAL-SHELL-TYPESCRIPT-070)
+  'pl-[calc(var(--icon-default-size,16px)+1.5rem)]',
+  'pr-[calc(var(--icon-default-size,16px)+1.5rem)]',
 ],
   theme: {
     fontFamily: {

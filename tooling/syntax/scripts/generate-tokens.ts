@@ -12,7 +12,6 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSy
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'node:module';
-import { STD_OPERATORS } from '@almadar/std';
 import { behaviorRegistryDir, discoverBehaviorPackages } from '@almadar/core/behavior-package';
 import { readVocabularyPacks } from '@almadar/core/language-data';
 
@@ -20,6 +19,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Read patterns registry (merged from almadar-patterns into almadar-core)
+// The canonical operator table the installed @almadar/std ships as data, so a stale `dist` cannot drift it.
+const STD_OPERATORS: Record<string, { category: string }> = JSON.parse(
+  readFileSync(createRequire(import.meta.url).resolve('@almadar/std/canonical-operators.json'), 'utf-8'),
+).operators;
+
 const patternsPath = createRequire(import.meta.url).resolve('@almadar/core/patterns/patterns-registry.json');
 const patterns = JSON.parse(readFileSync(patternsPath, 'utf-8'));
 
