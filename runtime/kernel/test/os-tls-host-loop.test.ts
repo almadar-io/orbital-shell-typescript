@@ -98,7 +98,7 @@ describe('a keyed routed os/recv the host defers', () => {
     let deliverRaw: ((outcome: Outcome) => void) | undefined;
     const os: OsHostPort = {
       answer: async () => ({ error: { kind: 'unsupported', message: 'unused' } }),
-      defer: (_op, _args, _key, deliver) => { deliverRaw = deliver; return { ok: null }; },
+      defer: (_op, _args, _key, _site, deliver) => { deliverRaw = deliver; return { ok: null }; },
       close: () => undefined,
     };
     const host: KernelHostPorts = {
@@ -138,7 +138,7 @@ describe('a keyed routed os/recv the host defers', () => {
       deferCallOutcome: () => (outcome) => { delivered.push(outcome); },
       os: {
         answer: () => new Promise(() => undefined),
-        defer: (_op, _args, _key, deliver) => { parked.deliver = deliver; return { ok: null }; },
+        defer: (_op, _args, _key, _site, deliver) => { parked.deliver = deliver; return { ok: null }; },
         cancel: () => true,
         close: () => undefined,
       },

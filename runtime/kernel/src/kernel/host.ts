@@ -154,7 +154,7 @@ export interface KernelHostPorts {
   onDevice?: OnDeviceModelPorts;
   /** The browser's tabs for the `browser/tab-*` effects; absent, a tab ask fails `unavailable`. */
   tabs?: BrowserTabPort;
-  /** The `os` effect's host (the Node shell supplies none, G-ORB-308); absent, every `os` ask is denied, as the native host does with none. */
+  /** The `os` effect's host (the native add-on's `OsHost` through `createNativeOsPort`; a wasm kernel has none); absent, every `os` ask answers `unsupported`. */
   os?: OsHostPort;
   /** What the kernel decides about a deferred `os` call (which ops defer, the event an outcome fires); absent, every `os` ask is answered in place. */
   osCompletions?: OsCompletionPort;
@@ -810,10 +810,14 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
       sink({ orbital, traitName: site.trait, event: fired.event, payload: isJsonObject(fired.payload) ? fired.payload : undefined, entityId: site.entityId, originClientId: scope.originClientId, locale: scope.locale });
       return true;
     };
-    const started = await os.stream(op, args, key, (value) => deliver(message(site, key, value)), (error) => {
+    const started = await os.stream(op, args, key, site, (value) => deliver(message(site, key, value)), (error) => {
       lease.release();
       lease.signal.removeEventListener('abort', stop);
       deliver(completions.event(site, key, { error }));
+    }, (final) => {
+      lease.release();
+      lease.signal.removeEventListener('abort', stop);
+      if (final !== null) deliver(completions.event(site, key, final));
     }, asking);
     if ('error' in started) { lease.release(); lease.signal.removeEventListener('abort', stop); }
     return { kind: 'os', result: started };
@@ -838,7 +842,7 @@ async function osAnswer(ports: KernelHostPorts, request: Extract<IoRequestWire, 
         locale: scope.locale,
       });
     };
-    const started = os.defer(op, args, key, (raw) => {
+    const started = os.defer(op, args, key, site, (raw) => {
       completeTls(ports, os, key, raw, finish);
     }, asking);
     if ('error' in started) { lease.release(); lease.signal.removeEventListener('abort', cancel); }

@@ -1,4 +1,4 @@
-// G-ORB-308 (owner ruling 2026-10-16: no JS `os/`): the Node host never answers an `os` ask itself, whatever its options.
+// G-ORB-308 (owner ruling 2026-10-16: no JS `os/`): the Node host never answers an `os` ask itself; on the wasm engine (the default) every one is `unsupported`, whatever its options. The native engine's `os_host` answers are bridges/node/tests/os.test.mjs.
 // The fixture program asks `os/spawn`; an answered ask runs its hook to the 200 branch, an unsupported one to the 500 branch.
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';

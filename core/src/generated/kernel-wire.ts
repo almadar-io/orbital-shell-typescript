@@ -476,6 +476,8 @@ export type OsGrantsReport = { findings: Array<OsGrantFinding>, };
 
 export type OsOp = "os/read-file" | "os/write-file" | "os/append-file" | "os/open" | "os/close" | "os/read" | "os/write" | "os/seek" | "os/truncate" | "os/fsync" | "os/copy" | "os/rename" | "os/remove" | "os/link" | "os/symlink" | "os/readlink" | "os/watch-files" | "os/mkdir" | "os/rmdir" | "os/list-dir" | "os/glob" | "os/mktemp" | "os/realpath" | "os/cwd" | "os/chdir" | "os/stat" | "os/lstat" | "os/access" | "os/exists" | "os/chmod" | "os/chown" | "os/utimes" | "os/spawn" | "os/wait" | "os/kill" | "os/pid" | "os/ppid" | "os/current-exe" | "os/watch-process" | "os/watch-signal" | "os/getenv" | "os/setenv" | "os/unsetenv" | "os/environ" | "os/watch-env" | "os/stdin-read" | "os/stdout-write" | "os/stderr-write" | "os/isatty" | "os/tty-size" | "os/tcp-connect" | "os/tcp-listen" | "os/tls-upgrade" | "os/send" | "os/recv" | "os/udp-bind" | "os/sendto" | "os/recvfrom" | "os/dns-resolve" | "os/shutdown" | "os/watch-port" | "os/fetch" | "os/clock-monotonic" | "os/uid" | "os/gid" | "os/username" | "os/group-of" | "os/watch-cron" | "os/cpu-usage" | "os/memory-info" | "os/uptime" | "os/load-avg" | "os/hostname" | "os/uname" | "os/disk-usage" | "os/mounts" | "os/disk-io" | "os/network-interfaces" | "os/network-stats" | "os/network-connected" | "os/default-gateway" | "os/battery-status" | "os/ac-power" | "os/thermal-zones" | "os/notify" | "os/speak" | "os/brightness-get" | "os/brightness-set" | "os/volume-get" | "os/volume-set" | "os/volume-mute" | "os/suspend" | "os/hibernate" | "os/mmio-read" | "os/mmio-write" | "os/irq-wait" | "os/irq-ack" | "kv/get" | "kv/put" | "kv/delete" | "kv/scan" | "kv/batch" | "mem/arena-new" | "mem/arena-drop" | "mem/alloc" | "mem/free" | "mem/borrow" | "mem/release" | "mem/write" | "mem/freeze" | "mem/atomic-load" | "mem/atomic-store" | "mem/atomic-add" | "mem/atomic-cas" | "kernel/queue-front" | "kernel/queue-back" | "ffi/call" | "gpu/device-open" | "gpu/device-close" | "gpu/buffer-create" | "gpu/texture-create" | "gpu/sampler-create" | "gpu/query-create" | "gpu/shader-create" | "gpu/pipeline-create" | "gpu/bind-group-create" | "gpu/submit" | "gpu/release";
 
+export type PageAncestor = { path: string, page: string, };
+
 export type PageCircuit = { route?: string, page?: string, notFound: boolean, mounts: Array<MountSeed>, embedded: Array<string>, embeddedBy: Array<string>, orbitalByTrait: { [key in string]: string }, linkedEntityByTrait: { [key in string]: string }, 
 /**
  * The traits the page binds: its own, then the ones it embeds.
@@ -485,7 +487,11 @@ traits: Array<string>,
  * The entities the page needs: each bound trait's linked entity and every entity reached through declared
  * relation fields of those, transitively, sorted (EXEC-SEED-7).
  */
-entities: Array<string>, };
+entities: Array<string>, 
+/**
+ * The declared route pages whose pattern matches a strict prefix of the route, shallowest first (the nav-stack cold-load seed).
+ */
+ancestors: Array<PageAncestor>, };
 
 export type PageFactFieldWire = "hostname" | "referrer" | "screenWidth" | "href";
 

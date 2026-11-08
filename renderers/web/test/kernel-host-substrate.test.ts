@@ -67,7 +67,7 @@ it('defers keyed substrate answers, preserves context and suppresses cancelled c
   const shared: KernelHostPorts = {
     ...host,
     programEffect: () => async () => { await crossGate; return { ok: true, result: 'value' }; },
-    os: { answer: async () => ({ ok: null }), defer: (_op, _args, _key, deliver) => { completeOs = deliver; return { ok: null }; }, cancel: () => { cancelledOs += 1; return true; }, close: () => undefined },
+    os: { answer: async () => ({ ok: null }), defer: (_op, _args, _key, _site, deliver) => { completeOs = deliver; return { ok: null }; }, cancel: () => { cancelledOs += 1; return true; }, close: () => undefined },
     osCompletions: { defers: () => true, streams: () => false, event: () => ({ event: 'OS_DONE', payload: {} }) },
   };
   const os = decodeRequest({ kind: 'os', op: 'os/wait', args: [1], key: 'shared', site: { trait: 'Worker', followOn: true, emit: { success: 'OS_DONE' } } });
@@ -117,7 +117,7 @@ it('frees a deferred os key at its completion at once, and after the parked TLS 
     deferCallOutcome: () => (outcome) => { delivered.push(outcome); },
     os: {
       answer: () => new Promise((resolve) => { finishAsk = resolve; }),
-      defer: (_op, _args, _key, deliver) => { completeOs = deliver; return { ok: null }; },
+      defer: (_op, _args, _key, _site, deliver) => { completeOs = deliver; return { ok: null }; },
       cancel: () => true,
       close: () => undefined,
     },

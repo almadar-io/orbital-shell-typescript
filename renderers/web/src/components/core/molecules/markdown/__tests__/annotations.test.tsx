@@ -4,7 +4,7 @@ import type { BusEventListener } from '@almadar/core';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MarkdownContent } from '../MarkdownContent';
 import { CodeBlock } from '../CodeBlock';
-import { SegmentRenderer } from '../../../organisms/SegmentRenderer';
+import { SegmentRenderer, type LessonSegment } from '../../../organisms/SegmentRenderer';
 import { EventBusProvider } from '../../../../../core';
 import { useEventBus } from '../../../../../core';
 
@@ -169,21 +169,21 @@ describe('annotation highlights', () => {
   });
 });
 
-describe('SegmentRenderer lesson + shared annotation', () => {
-  const lesson = [
-    '<activate>What do you know?</activate>',
-    'Intro text about gravity.',
-    '<reflect>Why does it matter?</reflect>',
-    '<bloom level="apply"><question>Compute g?</question><answer>9.8</answer></bloom>',
-  ].join('\n\n');
+describe('SegmentRenderer segments + shared annotation', () => {
+  const lesson: LessonSegment[] = [
+    { type: 'activate', question: 'What do you know?' },
+    { type: 'markdown', content: 'Intro text about gravity.' },
+    { type: 'reflect', prompt: 'Why does it matter?' },
+    { type: 'bloom', level: 'apply', question: 'Compute g?', answer: '9.8' },
+  ];
 
-  it('parses a raw lesson and routes block interactions to declared events', () => {
+  it('renders lesson segments and routes block interactions to declared events', () => {
     const act1 = vi.fn();
     const refl = vi.fn();
     const bloom = vi.fn();
     withBus(
       <SegmentRenderer
-        lesson={lesson}
+        segments={lesson}
         activationSaveEvent="ACT"
         reflectionSaveEvent="REFL"
         bloomAnswerEvent="BLOOM"
@@ -199,18 +199,10 @@ describe('SegmentRenderer lesson + shared annotation', () => {
     expect(bloom).toHaveBeenCalledWith(expect.objectContaining({ payload: { index: 0, level: 'apply' } }));
   });
 
-  it('control: segments still render when lesson is absent', () => {
-    withBus(<SegmentRenderer segments={[{ type: 'markdown', content: 'From segments' }]} />, {});
-    expect(screen.getByText('From segments')).toBeInTheDocument();
-  });
-
-  it('control: lesson wins over segments', () => {
-    withBus(
-      <SegmentRenderer lesson="From lesson" segments={[{ type: 'markdown', content: 'From segments' }]} />,
-      {},
-    );
-    expect(screen.getByText('From lesson')).toBeInTheDocument();
-    expect(screen.queryByText('From segments')).toBeNull();
+  it('control: no segments renders no lesson blocks', () => {
+    withBus(<SegmentRenderer />, {});
+    expect(screen.queryByText('What do you know?')).toBeNull();
+    expect(screen.queryByRole('button', { name: /skip/i })).toBeNull();
   });
 
   it('one action bar over the whole lesson, highlights once across segments', () => {

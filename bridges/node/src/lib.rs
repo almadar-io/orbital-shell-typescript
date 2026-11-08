@@ -3,8 +3,19 @@
 //! decision is `orbital_core::embed`'s.
 
 use napi::bindgen_prelude::Error;
-use napi::Env;
+use napi::threadsafe_function::{
+    ErrorStrategy, ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode,
+};
+use napi::{Env, JsFunction};
 use napi_derive::napi;
+use orbital_core::embed::wire::{CallSiteWire, Settled};
+use orbital_core::js_readable::to_js_readable_json;
+use orbital_core::runtime::os::{OsError, OsOp};
+use orbital_core::runtime::os_grants::{EnvSnapshot, OsAnchors};
+use orbital_core::runtime::os_host::completion::OsCompletionSink;
+use orbital_core::runtime::os_host::{answer_os, OsHandles, OsHost as KernelOsHost};
+use orbital_core::runtime::resumable::{CallSite, IoAnswer, IoRequest};
+use orbital_core::Value;
 use orbital_wasm::api;
 use orbital_wasm::stored::{ServerHandle, Slot};
 
@@ -32,8 +43,10 @@ struct DirLazySource {
 impl orbital_wasm::LazySource for DirLazySource {
     fn read(&self, file: &str) -> Result<orbital_wasm::LazyProgram, String> {
         let path = self.dir.join(file);
-        let text = std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-        let schema: orbital_wasm::OrbitalSchema = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+        let text =
+            std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let schema: orbital_wasm::OrbitalSchema =
+            serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
         Ok(orbital_wasm::LazyProgram { schema })
     }
 }
@@ -443,6 +456,204 @@ impl Server {
     pub fn last_error(&self) -> napi::Result<String> {
         Ok(self.api.get().map_err(js)?.api().last_error())
     }
+}
+
+type Completion = (String, String, String);
+
+fn settled_json(outcome: Result<Value, OsError>) -> String {
+    let settled: Settled<Value, OsError> = outcome.into();
+    to_js_readable_json(&settled).unwrap_or_else(|message| {
+        serde_json::json!({ "error": { "kind": "io", "message": message } }).to_string()
+    })
+}
+
+/// Hands each completion the kernel's `os_host` produces to the host's callback as `(key, kind, json)`, `kind` being
+/// `complete`, `message` or `ended`; the host owns the call site of each key and what it fires.
+struct JsSink(ThreadsafeFunction<Completion, ErrorStrategy::Fatal>);
+
+impl JsSink {
+    fn tell(&self, key: &str, kind: &str, json: String) {
+        let _ = self.0.call(
+            (key.to_string(), kind.to_string(), json),
+            ThreadsafeFunctionCallMode::NonBlocking,
+        );
+    }
+}
+
+impl OsCompletionSink for JsSink {
+    fn complete(&self, _: &CallSite, key: &str, outcome: Result<Value, OsError>) {
+        self.tell(key, "complete", settled_json(outcome));
+    }
+
+    fn message(&self, _: &CallSite, key: &str, event: Value) {
+        self.tell(key, "message", settled_json(Ok(event)));
+    }
+
+    fn ended(&self, _: &CallSite, key: &str) {
+        self.tell(key, "ended", "null".to_string());
+    }
+}
+
+fn anchors_of(json: &str) -> Result<OsAnchors, String> {
+    let wire: serde_json::Value =
+        serde_json::from_str(json).map_err(|e| format!("anchors_json: {e}"))?;
+    let path = |name: &str| {
+        wire.get(name)
+            .and_then(serde_json::Value::as_str)
+            .map(std::path::PathBuf::from)
+    };
+    let mut env = Vec::new();
+    if let Some(pairs) = wire.get("env").and_then(serde_json::Value::as_object) {
+        for (name, value) in pairs {
+            let text = value
+                .as_str()
+                .ok_or_else(|| format!("anchors_json: env {name} is not text"))?;
+            env.push((name.clone(), text.to_string()));
+        }
+    }
+    Ok(OsAnchors {
+        home: path("home"),
+        start: path("start"),
+        exe_dir: path("exeDir"),
+        exe: path("exe"),
+        env: EnvSnapshot::from_pairs(env),
+        ..OsAnchors::default()
+    })
+}
+
+/// The `os/` answerer of the native kernel: `orbital-core`'s `os_host`, answering under the grants a `Server` holds. The
+/// handles it opens (fds, sockets, processes) live as long as this object; a keyed ask completes through the callback.
+#[napi]
+pub struct OsHost {
+    handles: std::sync::Arc<OsHandles>,
+}
+
+#[napi]
+impl OsHost {
+    /// `anchors_json`: where `~/` and `./` paths resolve (the `Server.setOsAnchors` shape). `on_completion(key, kind, json)`:
+    /// a deferred keyed ask finished (`complete`), a stream produced an event (`message`) or ended (`ended`).
+    #[napi(constructor)]
+    pub fn new(env: Env, anchors_json: String, on_completion: JsFunction) -> napi::Result<Self> {
+        let anchors = anchors_of(&anchors_json).map_err(js)?;
+        let mut tsfn: ThreadsafeFunction<Completion, ErrorStrategy::Fatal> = on_completion
+            .create_threadsafe_function(0, |ctx: ThreadSafeCallContext<Completion>| {
+                Ok(vec![
+                    ctx.env.create_string(&ctx.value.0)?,
+                    ctx.env.create_string(&ctx.value.1)?,
+                    ctx.env.create_string(&ctx.value.2)?,
+                ])
+            })?;
+        tsfn.unref(&env)?;
+        let handles = std::sync::Arc::new(OsHandles {
+            anchors,
+            ..OsHandles::default()
+        });
+        handles
+            .completions
+            .set_sink(std::sync::Arc::new(JsSink(tsfn)));
+        Ok(Self { handles })
+    }
+
+    /// One `os/` ask in place, under the grants of `orbital` in `server`: a `Settled<value, OsError>` as JSON.
+    #[napi]
+    pub fn answer(
+        &self,
+        server: &Server,
+        op: String,
+        args_json: String,
+        orbital: Option<String>,
+    ) -> napi::Result<String> {
+        let request = os_request(&op, &args_json, None, None, orbital.clone())?;
+        self.ask(server, &request, orbital.as_deref())
+    }
+
+    /// A keyed ask from the call site `site_json` (a `CallSiteWire`): `{"deferred":true}` when it runs in the background
+    /// and completes through the callback, else the in-place `Settled` answer (a stream answers once, then messages).
+    #[napi]
+    pub fn answer_keyed(
+        &self,
+        server: &Server,
+        op: String,
+        args_json: String,
+        key: String,
+        site_json: String,
+        orbital: Option<String>,
+    ) -> napi::Result<String> {
+        let request = os_request(
+            &op,
+            &args_json,
+            Some(key),
+            Some(&site_json),
+            orbital.clone(),
+        )?;
+        self.ask(server, &request, orbital.as_deref())
+    }
+
+    /// Drop the pending completion of `key`, or stop its stream; `false` when none is open.
+    #[napi]
+    pub fn cancel(&self, key: String) -> bool {
+        self.handles.cancel_completion(&key)
+    }
+
+    /// Close every handle this host holds.
+    #[napi]
+    pub fn close(&self) {
+        self.handles.close_all();
+    }
+
+    fn ask(
+        &self,
+        server: &Server,
+        request: &IoRequest,
+        orbital: Option<&str>,
+    ) -> napi::Result<String> {
+        let grants = server
+            .api
+            .get()
+            .map_err(js)?
+            .api()
+            .embedded()
+            .os_grants_for(orbital);
+        let on_event = |_: Option<&CallSite>, _: Value| {};
+        let host = KernelOsHost {
+            grants: &grants,
+            handles: &*self.handles,
+            on_event: &on_event,
+            secrets: None,
+        };
+        match answer_os(Some(&host), request) {
+            IoAnswer::Os(answer) => Ok(settled_json(answer.map(|secret| secret.into_inner()))),
+            IoAnswer::ServiceDeferred => Ok(r#"{"deferred":true}"#.to_string()),
+            other => Err(js(format!("an os ask answered as {other:?}"))),
+        }
+    }
+}
+
+fn os_request(
+    op: &str,
+    args_json: &str,
+    key: Option<String>,
+    site_json: Option<&str>,
+    orbital: Option<String>,
+) -> napi::Result<IoRequest> {
+    let op = OsOp::from_name(op).ok_or_else(|| js(format!("{op} is not an os operation")))?;
+    let args: Vec<Value> =
+        orbital_core::json_value::parse_deep_json(args_json, "args_json").map_err(js)?;
+    let site = match site_json {
+        Some(text) => Some(CallSite::from(
+            orbital_core::json_value::parse_deep_json::<CallSiteWire>(text, "site_json")
+                .map_err(js)?,
+        )),
+        None => None,
+    };
+    Ok(IoRequest::Os {
+        op,
+        args,
+        key,
+        site,
+        principal: None,
+        orbital,
+    })
 }
 
 #[napi]

@@ -338,6 +338,11 @@ export class KernelEngine {
     return this.handle.osAllows(requirementJson, orbital);
   }
 
+  /** The server the kernel runs on now, for the native `OsHost` to answer under its grants; it changes when the engine reopens. */
+  serverHandle(): KernelServerHandle {
+    return this.handle;
+  }
+
   /** Whether `url`'s origin is declared in the program's `egress` (the kernel's rule). */
   egressAllows(url: string): boolean {
     return this.handle.egressAllows(url);

@@ -89,6 +89,7 @@ import { dispatchInbound } from "@almadar/shell-runtime";
 import { asEventId, asTraitId, orbitalInlineEntities } from "@almadar/core";
 import { defaultCallService } from "@almadar/shell-runtime";
 import { KernelEngine, type InboundContract, type KernelHostPorts } from "@almadar/shell-runtime";
+import { nativeOsHost } from "../os-native.js";
 import { kernelEventRequestParser, kernelOsCompletions, kernelOsGrants, kernelOsTls, type OsGrantPort, type OsHostPort } from "@almadar/shell-runtime";
 import { createSecretPorts, createSecretStore, InFlightCalls, type SecretPorts, type SecretPortsOptions, type KernelModule } from "@almadar/shell-runtime";
 import { installNodeHostPorts } from "../host-ports.js";
@@ -221,7 +222,7 @@ export interface OrbitalServerRuntimeConfig {
    */
   secretPorts?: SecretPortsOptions;
   /**
-   * Builds the `os` host of the kernel engine from the grant port backed by the kernel (the Node shell ships none, G-ORB-308). Absent, every `os` ask is denied, as the native host does with none.
+   * Builds the `os` host of the kernel engine from the grant port backed by the kernel. Absent, the native add-on's `OsHost` answers (`orbital-core`'s `os_host`, in Rust); a wasm kernel has none and answers every `os` ask `unsupported`.
    */
   osHost?: (grants: OsGrantPort) => OsHostPort;
   /** The clock the kernel's `clock` ask is answered from, in epoch milliseconds; absent, the system clock. */
@@ -627,7 +628,7 @@ export class OrbitalServerRuntime {
     this.inFlightCalls.cancelAll();
     this.kernelEngine?.dispose();
     this.kernelOs?.close();
-    this.kernelOs = this.config.osHost?.(kernelOsGrants(kernel, () => this.requireKernelEngine()));
+    this.kernelOs = this.config.osHost?.(kernelOsGrants(kernel, () => this.requireKernelEngine())) ?? nativeOsHost(kernel, () => this.requireKernelEngine().serverHandle());
     this.kernelEngine = KernelEngine.open(kernel, schema, this.kernelPorts(), this.lazyDir);
     this.kernelEngine.setStateful();
     this.programSurface = this.kernelEngine.programSurface();

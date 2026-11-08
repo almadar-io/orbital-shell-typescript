@@ -28,7 +28,6 @@ import { CodeRunnerPanel, type CodeSimulationOutput } from './CodeRunnerPanel';
 import { cn } from '../../../core';
 import type { A11yProps, EventEmit } from '@almadar/core';
 import { domPassthrough } from '../../../core';
-import { parseLessonSegments } from '../../../lib/parseLessonSegments';
 
 export type { CodeSimulationOutput };
 
@@ -52,7 +51,7 @@ export type LessonSegment =
 
 /**
  * User progress state passed into SegmentRenderer. Declared here (rather than
- * alongside `LessonSegment` in `lib/parseLessonSegments.ts`) so the
+ * in a `lib/` module) so the
  * pattern-sync scanner — which only indexes types under `components/**` —
  * can resolve it to a concrete `.lolo` object shape instead of `json`.
  */
@@ -63,10 +62,8 @@ export interface LessonUserProgress {
 }
 
 export interface SegmentRendererProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
-  /** Parsed lesson segments (see `parseLessonSegments`). Ignored when `lesson` is given. */
+  /** The lesson as segments (std-lesson-segments parses lesson text into them). */
   segments?: LessonSegment[];
-  /** Raw lesson markdown with learning tags; parsed with `parseLessonSegments` and rendered */
-  lesson?: string;
   /** Event emitted when the activation prompt is saved or skipped (as `UI:<activationSaveEvent>`) */
   activationSaveEvent?: EventEmit<{ response: string }>;
   /** Event emitted when a reflection note is saved (as `UI:<reflectionSaveEvent>`) */
@@ -116,7 +113,6 @@ export interface SegmentRendererProps extends Omit<React.AriaAttributes, keyof A
 
 export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
   segments: segmentsProp,
-  lesson,
   activationSaveEvent,
   reflectionSaveEvent,
   bloomAnswerEvent,
@@ -136,10 +132,7 @@ export const SegmentRenderer: React.FC<SegmentRendererProps> = ({
   onRenderVisualization,
   ...rest
 }) => {
-  const segments = useMemo(
-    () => (lesson !== undefined ? parseLessonSegments(lesson) : (segmentsProp ?? [])),
-    [lesson, segmentsProp],
-  );
+  const segments = useMemo(() => segmentsProp ?? [], [segmentsProp]);
 
   const annotationOwner = useMemo(() => {
     const owner = new Map<number, ContentAnnotation[]>();

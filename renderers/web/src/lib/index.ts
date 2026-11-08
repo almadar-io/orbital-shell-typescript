@@ -52,8 +52,7 @@ export * from './keyMapEvent';
 
 // Content parsing
 export * from './parseContentSegments';
-export { parseLessonSegments } from './parseLessonSegments';
-export type { LessonSegment } from './parseLessonSegments';
+export type { LessonSegment } from '../components/core/organisms/SegmentRenderer';
 
 // Al-Jazari state-machine diagram layout (framework-free — server-side SVG renderers use this)
 export * from './jazari';

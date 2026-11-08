@@ -163,6 +163,25 @@ export interface KernelServerHandle {
   free(): void;
 }
 
+/** The native add-on's `OsHost` (`orbital-core`'s `os_host`): `os/` asks answered in Rust under the grants of the `server` handle given. */
+/** What the native `os` port needs of a server handle: it is the add-on's own `Server` that `OsHost` reads the grants from. */
+export type NativeOsServer = Pick<KernelServerHandle, 'setOsAnchors'>;
+
+export interface NativeOsHost {
+  /** One ask in place: a `Settled<value, OsError>` as JSON. */
+  answer(server: NativeOsServer, op: string, argsJson: string, orbital?: string): string;
+  /** A keyed ask from `siteJson` (a `CallSiteWire`): `{"deferred":true}` when it completes through the callback, else the in-place `Settled`. */
+  answerKeyed(server: NativeOsServer, op: string, argsJson: string, key: string, siteJson: string, orbital?: string): string;
+  /** Drop the pending completion of `key`, or stop its stream; `false` when none is open. */
+  cancel(key: string): boolean;
+  close(): void;
+}
+
+/** The `OsHost` constructor: `anchorsJson` places `~/` and `./`; `onCompletion(key, kind, json)` reports a deferred call finished (`complete`), a stream event (`message`) or a stream's end (`ended`). */
+export interface NativeOsHostClass {
+  new (anchorsJson: string, onCompletion: (key: string, kind: string, json: string) => void): NativeOsHost;
+}
+
 /** The `Server` constructor of a kernel module. */
 export interface KernelServerClass {
   /** `lazyDir`: the folder the program's `uses lazy` files sit beside; the kernel loads each on the first dispatch that reaches it (EXEC-LOAD-2). */
@@ -172,6 +191,8 @@ export interface KernelServerClass {
 /** An initialised `@almadar/kernel` module: what `OrbitalServerRuntime({ engine: 'kernel' })` is handed. */
 export interface KernelModule extends KernelEvaluatorExports {
   Server: KernelServerClass;
+  /** The native add-on's `os/` answerer; absent from the wasm module, whose host answers every `os` ask `unsupported`. */
+  OsHost?: NativeOsHostClass;
   /** Whether the absolute `glob` matches `path`, as the one-grant matcher `os/glob` filters with. */
   osGlobMatches(glob: string, path: string): boolean;
   /** `is_public_address`: the rule an outbound host name must pass. */

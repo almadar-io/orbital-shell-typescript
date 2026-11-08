@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-08T06:58:44.266Z",
+  "exportedAt": "2026-11-08T18:40:30.441Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -90221,7 +90221,7 @@
           "types": [
             "array"
           ],
-          "description": "Parsed lesson segments (see `parseLessonSegments`). Ignored when `lesson` is given.",
+          "description": "The lesson as segments (std-lesson-segments parses lesson text into them).",
           "items": {
             "types": [
               "object"
@@ -90473,12 +90473,6 @@
             ],
             "discriminator": "type"
           }
-        },
-        "lesson": {
-          "types": [
-            "string"
-          ],
-          "description": "Raw lesson markdown with learning tags; parsed with `parseLessonSegments` and rendered"
         },
         "activationSaveEvent": {
           "types": [

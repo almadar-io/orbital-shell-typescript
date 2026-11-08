@@ -318,7 +318,7 @@ export { ActivationBlock, type ActivationBlockProps } from './ActivationBlock';
 export { ReflectionBlock, type ReflectionBlockProps } from './ReflectionBlock';
 export { ConnectionBlock, type ConnectionBlockProps } from './ConnectionBlock';
 export { BloomQuizBlock, type BloomQuizBlockProps, type BloomLevel } from './BloomQuizBlock';
-export { parseLessonSegments, type LessonSegment } from '../../../lib/parseLessonSegments';
+export type { LessonSegment } from '../organisms/SegmentRenderer';
 export type { LessonUserProgress } from '../organisms/SegmentRenderer';
 export { parseMarkdownWithCodeBlocks, type MixedSegment } from '../../../lib/lessonSegmentUtils';
 

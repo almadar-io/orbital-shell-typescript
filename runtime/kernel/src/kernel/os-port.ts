@@ -1,9 +1,11 @@
 /**
  * The `os` ports of a kernel host, with no Node builtin in sight so the browser bundle can import them.
- * The Node host has no answerer (G-ORB-308); the grant check is the Rust `OsGrants` (`allows` below), never TypeScript.
+ * The only `os` answerer a host ships is the native add-on's `OsHost` (`orbital-core`'s `os_host`, behind `createNativeOsPort`);
+ * a wasm kernel installs none, so every `os` ask is `unsupported`. The grant check is the Rust `OsGrants` (`allows` below), never TypeScript.
  */
 import type { JsonValue } from '@almadar/core';
 import type { CallSiteWire, OsError, OsOp, Settled } from '@almadar/core/kernel-wire';
+import type { NativeOsHostClass, NativeOsServer } from './wire.js';
 
 export type OsFsMode = 'read' | 'write' | 'create' | 'remove' | 'meta';
 export type OsNetKind = 'tcp' | 'udp' | 'listen';
@@ -50,13 +52,14 @@ export interface OsHostPort {
    * in-place `error`; `ok` means the work runs in the background and its outcome reaches `deliver` once, unless
    * the key is cancelled first. A host with no `defer` answers every ask in place.
    */
-  defer?(op: OsOp, args: JsonValue[], key: string, deliver: (outcome: Settled<JsonValue, OsError>) => void, orbital?: string): Settled<null, OsError>;
+  defer?(op: OsOp, args: JsonValue[], key: string, site: CallSiteWire, deliver: (outcome: Settled<JsonValue, OsError>) => void, orbital?: string): Settled<null, OsError>;
   /**
    * A keyed stream (`OsOp::is_stream`, EXEC-QUEUE-12): the host binds and answers once in place, then hands each message
    * to `message` until it ends; `message` answers `false` when no one takes it any more. A failure after the answer
-   * reaches `fail` once. A host with no `stream` answers every stream ask in place, as unsupported.
+   * reaches `fail` once; any other end reaches `ended` once, with the call's final outcome (a stream that closes on a
+   * success, for example stdin at end of file) or `null` when it ends with none. After `fail` or `ended` the key is closed. A host with no `stream` answers every stream ask in place, as unsupported.
    */
-  stream?(op: OsOp, args: JsonValue[], key: string, message: (value: JsonValue) => boolean, fail: (error: OsError) => void, orbital?: string): Promise<Settled<JsonValue, OsError>>;
+  stream?(op: OsOp, args: JsonValue[], key: string, site: CallSiteWire, message: (value: JsonValue) => boolean, fail: (error: OsError) => void, ended: (final: { ok: JsonValue } | null) => void, orbital?: string): Promise<Settled<JsonValue, OsError>>;
   /** `OsHandles::cancel_completion`: drop the pending completion of `key`, or stop its stream; `false` when none is open. */
   cancel?(key: string): boolean;
   close(): void;
@@ -193,5 +196,102 @@ export function anchoredGrants(grants: OsGrantPort, anchors: OsAnchors): OsGrant
   return {
     ...grants,
     allows: (need, orbital) => (need.need === 'fs' ? anchoredForms(anchors, need.path).some((path) => grants.allows({ ...need, path }, orbital)) : grants.allows(need, orbital)),
+  };
+}
+
+type NativeListener =
+  | { kind: 'defer'; deliver: (outcome: Settled<JsonValue, OsError>) => void }
+  | { kind: 'stream'; message: (value: JsonValue) => boolean; fail: (error: OsError) => void; ended: (final: { ok: JsonValue } | null) => void };
+
+type NativeAnswer = Settled<JsonValue, OsError> | { deferred: true };
+
+/**
+ * The `os` port over the native add-on's `OsHost`: the kernel's `os_host` answers every ask in Rust, under the grants
+ * `server()` holds; this routes each completion the add-on reports to the call that asked for it. `anchors` is where `~/`
+ * and `./` resolve, handed to the add-on and to each server handle the first time it answers.
+ */
+export function createNativeOsPort(host: NativeOsHostClass, anchors: OsAnchors, server: () => NativeOsServer): OsHostPort {
+  const anchorsJson = JSON.stringify(anchors);
+  const listeners = new Map<string, NativeListener>();
+  const anchored = new WeakSet<NativeOsServer>();
+  const serverOf = (): NativeOsServer => {
+    const handle = server();
+    if (!anchored.has(handle)) {
+      handle.setOsAnchors(anchorsJson);
+      anchored.add(handle);
+    }
+    return handle;
+  };
+  const failure = (cause: unknown): { error: OsError } => ({ error: { kind: 'invalid', message: cause instanceof Error ? cause.message : String(cause) } });
+  const native = new host(anchorsJson, (key, kind, json) => {
+    const listener = listeners.get(key);
+    if (listener === undefined) return;
+    if (kind === 'ended') {
+      listeners.delete(key);
+      if (listener.kind === 'stream') listener.ended(null);
+      return;
+    }
+    const settled: Settled<JsonValue, OsError> = JSON.parse(json);
+    if (listener.kind === 'defer') {
+      listeners.delete(key);
+      listener.deliver(settled);
+    } else if (kind === 'message' && 'ok' in settled) {
+      if (!listener.message(settled.ok)) {
+        listeners.delete(key);
+        native.cancel(key);
+      }
+    } else if (kind === 'complete') {
+      listeners.delete(key);
+      if ('error' in settled) listener.fail(settled.error);
+      else listener.ended(settled);
+    }
+  });
+  const keyed = (op: OsOp, args: JsonValue[], key: string, site: CallSiteWire, orbital: string | undefined): NativeAnswer => {
+    const answered: NativeAnswer = JSON.parse(native.answerKeyed(serverOf(), op, JSON.stringify(args), key, JSON.stringify(site), orbital));
+    return answered;
+  };
+  return {
+    answer: async (op, args, orbital) => {
+      try {
+        const answered: Settled<JsonValue, OsError> = JSON.parse(native.answer(serverOf(), op, JSON.stringify(args), orbital));
+        return answered;
+      } catch (cause) {
+        return failure(cause);
+      }
+    },
+    defer: (op, args, key, site, deliver, orbital) => {
+      listeners.set(key, { kind: 'defer', deliver });
+      try {
+        const answered = keyed(op, args, key, site, orbital);
+        if ('deferred' in answered) return { ok: null };
+        listeners.delete(key);
+        if ('error' in answered) return answered;
+        queueMicrotask(() => deliver(answered));
+        return { ok: null };
+      } catch (cause) {
+        listeners.delete(key);
+        return failure(cause);
+      }
+    },
+    stream: async (op, args, key, site, message, fail, ended, orbital) => {
+      listeners.set(key, { kind: 'stream', message, fail, ended });
+      try {
+        const answered = keyed(op, args, key, site, orbital);
+        if ('deferred' in answered) return { ok: null };
+        if ('error' in answered) listeners.delete(key);
+        return answered;
+      } catch (cause) {
+        listeners.delete(key);
+        return failure(cause);
+      }
+    },
+    cancel: (key) => {
+      listeners.delete(key);
+      return native.cancel(key);
+    },
+    close: () => {
+      listeners.clear();
+      native.close();
+    },
   };
 }

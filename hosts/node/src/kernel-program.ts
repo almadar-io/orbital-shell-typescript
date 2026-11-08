@@ -1,15 +1,16 @@
 /**
  * Node-only: run one `.lolo`/`.orb` program on the kernel engine and read what it emits. The program's own atoms
- * (for example `std-llm`) do the work; this host answers the secret, random and credential asks and nothing else; it answers no `os` ask, so every one is `unsupported` (G-ORB-308).
+ * (for example `std-llm`) do the work; this host answers the secret, random and credential asks. An `os` ask is answered by the native add-on's `OsHost` (`orbital-core`'s `os_host`, in Rust, under the program's grants) on `engine: 'native'`, each in place; on the wasm engine every `os` ask is `unsupported` (owner ruling 2026-10-16: no JS `os/`).
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import type { KernelMemoryStoreExports, EmittedEvent, EntityRow, EventPayload, InboundAnswer, InboundDelivery, OrbitalSchema, TransitionRejection, UserContext } from '@almadar/core';
-import { dispatchInbound, KernelEngine, NativeMemoryPersistenceAdapter, createSecretPorts, InFlightCalls, type KernelHostPorts, type SecretPorts, type SecretPortsOptions, type KernelModule } from '@almadar/shell-runtime';
+import { dispatchInbound, KernelEngine, NativeMemoryPersistenceAdapter, createSecretPorts, InFlightCalls, type KernelHostPorts, type SecretPorts, type SecretPortsOptions, type KernelModule, type OsHostPort } from '@almadar/shell-runtime';
 import { resolveOrbBinary } from '@almadar/core/behavior-package';
 import { tickEventKey } from '@almadar/core';
 import { installNodeHostPorts } from './host-ports.js';
+import { nativeOsHost } from './os-native.js';
 import { createNodeTokenPost } from './token-post.js';
 import { loadKernelModule, loadNativeKernelModule, resolveNativeAddon, type LoadedKernel } from './kernel-loader.js';
 
@@ -81,6 +82,7 @@ export class KernelProgram {
     private readonly schema: OrbitalSchema,
     private readonly secretPorts: SecretPorts,
     private readonly persistence: NativeMemoryPersistenceAdapter,
+    private readonly os: OsHostPort | undefined,
   ) {}
 
   static async open(schema: OrbitalSchema, options: KernelProgramOptions): Promise<KernelProgram> {
@@ -111,8 +113,10 @@ export class KernelProgram {
       deferCallOutcome: () => undefined,
       secretPorts,
     };
+    const os = nativeOsHost(kernel, () => requireEngine().serverHandle());
+    if (os !== undefined) ports.os = os;
     engine = KernelEngine.open(kernel, schema, ports);
-    return new KernelProgram(engine, schema, secretPorts, persistence);
+    return new KernelProgram(engine, schema, secretPorts, persistence, os);
   }
 
   /** Fire `event` at the orbital as `user` (the program's `@user`), wait for its whole cascade (every secret ask included), and return what it emitted. */
@@ -152,6 +156,7 @@ export class KernelProgram {
   }
 
   close(): void {
+    this.os?.close();
     this.engine.dispose();
   }
 }
