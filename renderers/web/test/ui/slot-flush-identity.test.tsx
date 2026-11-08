@@ -85,3 +85,75 @@ describe('useUISlots flush sink — structural sharing', () => {
         expect(result.current.slots['main']?.pattern).toBe('stack');
     });
 });
+
+describe('useUISlots embedded trait content — structural sharing', () => {
+    it('an all-equal re-write of an embedded trait notifies no subscriber', () => {
+        const { result } = renderHook(() => useUISlotManager());
+        let notified = 0;
+        act(() => {
+            result.current.subscribeTrait('Child', () => { notified += 1; });
+            result.current.updateTraitContent('Child', { pattern: 'stack', props: descriptor('a'), slot: 'main', priority: 0 });
+        });
+        const first = result.current.getTraitContent('Child');
+        expect(notified).toBe(1);
+        act(() => {
+            result.current.updateTraitContent('Child', { pattern: 'stack', props: descriptor('a'), slot: 'main', priority: 0 });
+        });
+        expect(notified).toBe(1);
+        expect(result.current.getTraitContent('Child')).toBe(first);
+    });
+
+    it('control: a changed embedded write notifies with the new content', () => {
+        const { result } = renderHook(() => useUISlotManager());
+        let notified = 0;
+        act(() => {
+            result.current.subscribeTrait('Child', () => { notified += 1; });
+            result.current.updateTraitContent('Child', { pattern: 'stack', props: descriptor('a'), slot: 'main', priority: 0 });
+            result.current.updateTraitContent('Child', { pattern: 'stack', props: descriptor('b'), slot: 'main', priority: 0 });
+        });
+        expect(notified).toBe(2);
+        const props = result.current.getTraitContent('Child')?.props;
+        if (typeof props === 'string' || props === undefined) throw new Error(`expected object props, got ${typeof props}`);
+        expect((props.children as ReadonlyArray<{ note: string }>)[0].note).toBe('b');
+    });
+});
+
+describe('useUISlots flush sink — an identical write schedules nothing', () => {
+    it('re-writing the same content does not re-render the slot manager', () => {
+        let renders = 0;
+        const { result } = renderHook(() => { renders += 1; return useUISlotManager(); });
+        act(() => {
+            result.current.render({ target: 'main', pattern: 'game-shell', sourceTrait: 'World', props: descriptor('a') });
+        });
+        const settled = renders;
+        act(() => {
+            result.current.render({ target: 'main', pattern: 'game-shell', sourceTrait: 'World', props: descriptor('a') });
+        });
+        expect(renders).toBe(settled);
+    });
+
+    it('control: A, then B, then A again ends on A', () => {
+        const { result } = renderHook(() => useUISlotManager());
+        act(() => {
+            result.current.render({ target: 'main', pattern: 'game-shell', sourceTrait: 'World', props: descriptor('a') });
+            result.current.render({ target: 'main', pattern: 'game-shell', sourceTrait: 'World', props: descriptor('b') });
+            result.current.render({ target: 'main', pattern: 'game-shell', sourceTrait: 'World', props: descriptor('a') });
+        });
+        const props = result.current.slots['main']?.props;
+        if (typeof props === 'string' || props === undefined) throw new Error(`expected object props, got ${typeof props}`);
+        expect((props.children as ReadonlyArray<{ note: string }>)[0].note).toBe('a');
+    });
+
+    it('control: the same content written after its source was cleared is shown again', () => {
+        const { result } = renderHook(() => useUISlotManager());
+        act(() => {
+            result.current.render({ target: 'main', pattern: 'game-shell', sourceTrait: 'World', props: descriptor('a') });
+        });
+        act(() => { result.current.clearBySource('main', 'World'); });
+        expect(result.current.slots['main']).toBeNull();
+        act(() => {
+            result.current.render({ target: 'main', pattern: 'game-shell', sourceTrait: 'World', props: descriptor('a') });
+        });
+        expect(result.current.slots['main']?.pattern).toBe('game-shell');
+    });
+});

@@ -34,6 +34,8 @@ export interface MenuItem {
   id?: string;
   /** Item label */
   label: string;
+  /** A second, quieter line under the label. */
+  description?: string;
   /** Item icon (Lucide icon name or component) */
   icon?: IconInput;
   /** Item badge */
@@ -274,9 +276,7 @@ function SubMenu({
               ) : (
                 <Icon icon={item.icon} size="sm" className={cn("flex-shrink-0", isDanger && "text-error")} />
               ))}
-            <Typography variant="small" className="flex-1">
-              {item.label}
-            </Typography>
+            <MenuItemText item={item} />
             {item.badge !== undefined && (
               <span className="ml-auto text-xs font-medium">{item.badge}</span>
             )}
@@ -287,6 +287,27 @@ function SubMenu({
   );
 
   return typeof document !== "undefined" ? (<ThemedPortal>{panel}</ThemedPortal>) : panel;
+}
+
+// An item's label, and its description as a quieter second line under it.
+function MenuItemText({ item }: { item: MenuItem }) {
+  if (item.description === undefined || item.description === "") {
+    return (
+      <Typography variant="small" className="flex-1">
+        {item.label}
+      </Typography>
+    );
+  }
+  return (
+    <Box className="flex flex-1 min-w-0 flex-col">
+      <Typography variant="small" weight="semibold">
+        {item.label}
+      </Typography>
+      <Typography variant="caption" color="muted">
+        {item.description}
+      </Typography>
+    </Box>
+  );
 }
 
 // One menu row. Submenus open on hover, which never fires on touch — so a tap
@@ -370,12 +391,7 @@ function MenuItemRow({
             ) : (
               <Icon icon={item.icon} size="sm" className={cn("flex-shrink-0", isDanger && "text-error")} />
             ))}
-          <Typography
-            variant="small"
-            className="flex-1"
-          >
-            {item.label}
-          </Typography>
+          <MenuItemText item={item} />
           {item.badge !== undefined && (
             <Badge variant="default" size="sm">
               {item.badge}
@@ -429,7 +445,10 @@ export const Menu: React.FC<MenuProps> = ({
   // A wrapped trigger that already holds a control (a render-ui `button`
   // pattern): that control carries the menu semantics and keeps focus, so the
   // wrapper never becomes a second button around it.
-  const [innerControl, setInnerControl] = useState<HTMLElement | null>(null);
+  // The control inside a wrapped trigger: its node in a ref (a re-rendered trigger may be a new node every render), and
+  // only whether there is one in state, so a new node never re-renders the menu.
+  const innerControlRef = useRef<HTMLElement | null>(null);
+  const [hasInnerControl, setHasInnerControl] = useState(false);
   const focusReturnRef = useRef<HTMLElement | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -485,7 +504,7 @@ export const Menu: React.FC<MenuProps> = ({
     setIsOpen(true);
   };
 
-  focusReturnRef.current = innerControl ?? triggerRef.current;
+  focusReturnRef.current = innerControlRef.current ?? triggerRef.current;
   useDialogBehavior({ open: isOpen, containerRef: menuRef, onEscape: closeMenu, modal: false, returnFocusRef: focusReturnRef });
 
   // Focus lands once, when the panel first mounts.
@@ -509,16 +528,16 @@ export const Menu: React.FC<MenuProps> = ({
 
   const wrapsTrigger = !React.isValidElement(trigger);
   useLayoutEffect(() => {
-    setInnerControl(wrapsTrigger ? triggerRef.current?.querySelector<HTMLElement>(TRIGGER_CONTROL_SELECTOR) ?? null : null);
-  }, [wrapsTrigger, trigger]);
-
-  useLayoutEffect(() => {
-    if (!innerControl) return;
-    innerControl.setAttribute("aria-haspopup", "menu");
-    innerControl.setAttribute("aria-expanded", String(isOpen));
-    if (isOpen) innerControl.setAttribute("aria-controls", menuId);
-    else innerControl.removeAttribute("aria-controls");
-  }, [innerControl, isOpen, menuId]);
+    const control = wrapsTrigger ? triggerRef.current?.querySelector<HTMLElement>(TRIGGER_CONTROL_SELECTOR) ?? null : null;
+    innerControlRef.current = control;
+    focusReturnRef.current = control ?? triggerRef.current;
+    if ((control !== null) !== hasInnerControl) setHasInnerControl(control !== null);
+    if (!control) return;
+    control.setAttribute("aria-haspopup", "menu");
+    control.setAttribute("aria-expanded", String(isOpen));
+    if (isOpen) control.setAttribute("aria-controls", menuId);
+    else control.removeAttribute("aria-controls");
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -573,9 +592,9 @@ export const Menu: React.FC<MenuProps> = ({
       as="span"
       ref={(el: HTMLDivElement | null) => { triggerRef.current = el; }}
       onClick={handleToggle}
-      {...(innerControl ? undefined : { role: "button", tabIndex: 0, ...triggerA11y })}
+      {...(hasInnerControl ? undefined : { role: "button", tabIndex: 0, ...triggerA11y })}
       onKeyDown={(e: React.KeyboardEvent<HTMLElement>) => {
-        if (!innerControl && (e.key === "Enter" || e.key === " ")) {
+        if (!hasInnerControl && (e.key === "Enter" || e.key === " ")) {
           e.preventDefault();
           handleToggle();
         } else {

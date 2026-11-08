@@ -378,6 +378,7 @@ import { domPassthrough } from '../../../../core';
 import { useEditorCapabilities } from './useEditorCapabilities';
 import { SelectionAnnotator } from './SelectionAnnotator';
 import { computeLineDiff } from '../../../../lib/lineDiff';
+import { BufferCodeBlock } from './BufferCodeBlock';
 
 const log = createLogger('almadar:ui:markdown-code');
 
@@ -522,6 +523,47 @@ export interface CodeViewerFile {
   language?: CodeLanguage;
 }
 
+/** Buffer mode: a position in the text, zero-based line and character column (the units of `str/len`). */
+export interface CodeCursor {
+  row: number;
+  col: number;
+}
+
+/** Buffer mode: the selected range, end inclusive of the cursor's character; `linewise` selects whole lines. */
+export interface CodeSelection {
+  fromRow: number;
+  fromCol: number;
+  toRow: number;
+  toCol: number;
+  linewise: boolean;
+}
+
+/**
+ * Buffer mode: a painted range, `to` exclusive. `tone` names a theme color role: syntax
+ * (keyword, string, comment, number, type, function, operator, punctuation, variable) or
+ * annotation (search, review, review-recent, error, warning, info). `label` is its accessible name.
+ */
+export interface CodeDecoration {
+  id: string;
+  fromRow: number;
+  fromCol: number;
+  toRow: number;
+  toCol: number;
+  tone: string;
+  label?: string;
+}
+
+/** Buffer mode: a note anchored below a range; `busy` shows that more is on its way. */
+export interface CodePopover {
+  fromRow: number;
+  fromCol: number;
+  toRow: number;
+  toCol: number;
+  title: string;
+  sections: { heading: string; lines: string[] }[];
+  busy: boolean;
+}
+
 export interface CodeBlockProps extends A11yProps {
   /** The code content to display */
   code?: string;
@@ -654,6 +696,51 @@ export interface CodeBlockProps extends A11yProps {
    * @tier presentation
    */
   operators?: readonly EditorOperator[];
+  /**
+   * Buffer mode: when set, the program owns the text and the cursor (std-text-buffer) and this
+   * surface only paints them — `code` split on newlines, the caret here, `selection`,
+   * `decorations` and `popover` — and emits input as events: every keydown through `onKey`, a
+   * press through `onPointerDown`, the character the pointer rests over through `onHover`. It
+   * never edits, moves the caret or interprets a key itself, and keeps the cursor line in view.
+   * @tier presentation
+   */
+  cursor?: CodeCursor;
+  /**
+   * Buffer mode: the caret shape the program's mode asks for.
+   * @tier presentation
+   */
+  caret?: EditorCaret;
+  /**
+   * Buffer mode: the selected range to paint (VISUAL), or none.
+   * @tier presentation
+   */
+  selection?: CodeSelection | null;
+  /**
+   * Buffer mode: ranges painted by tone (syntax colors, search hits, review highlights).
+   * @tier presentation
+   */
+  decorations?: CodeDecoration[];
+  /**
+   * Buffer mode: a note anchored below a range, or none.
+   * @tier presentation
+   */
+  popover?: CodePopover | null;
+  /**
+   * Number each line by its distance from the cursor line; the cursor line shows its own number.
+   * @tier presentation
+   */
+  relativeLineNumbers?: boolean;
+  /**
+   * Buffer mode: emits UI:{onPointerDown} with the zero-based row and column a pointer pressed.
+   * @tier presentation
+   */
+  onPointerDown?: EventEmit<{ editorId: string; row: number; col: number }>;
+  /**
+   * Buffer mode: emits UI:{onHover} with the zero-based row and column the pointer moved onto
+   * (once per character it enters).
+   * @tier presentation
+   */
+  onHover?: EventEmit<{ editorId: string; row: number; col: number }>;
   /**
    * Editable only: answers the caret's valid continuations after a keystroke (and on
    * Ctrl-Space); they show under the editor and Tab or a click inserts one.
@@ -921,7 +1008,7 @@ function translateProgram(source: string, language: string, lang: LanguageCode):
   return source;
 }
 
-export const CodeBlock = React.memo<CodeBlockProps>(
+const ClassicCodeBlock = React.memo<CodeBlockProps>(
   ({
     code: rawCode,
     language = 'text',
@@ -2451,6 +2538,13 @@ export const CodeBlock = React.memo<CodeBlockProps>(
     prev.noteEvent === next.noteEvent &&
     prev.askLabel === next.askLabel &&
     prev.noteLabel === next.noteLabel,
+);
+
+ClassicCodeBlock.displayName = 'ClassicCodeBlock';
+
+/** Buffer mode is on exactly when the program supplies a `cursor`; every other block is the classic one. */
+export const CodeBlock = React.memo<CodeBlockProps>((props) =>
+  props.cursor !== undefined ? <BufferCodeBlock {...props} cursor={props.cursor} /> : <ClassicCodeBlock {...props} />,
 );
 
 CodeBlock.displayName = 'CodeBlock';

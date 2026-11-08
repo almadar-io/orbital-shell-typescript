@@ -26,7 +26,7 @@ export default defineConfig({
   format: ['esm'],
   dts: true,
   clean: true,
-  sourcemap: true,
+  sourcemap: false,
   splitting: true,
   treeshake: true,
   outDir: 'dist',

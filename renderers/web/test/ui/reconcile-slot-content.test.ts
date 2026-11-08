@@ -82,11 +82,28 @@ describe('reconcileSlotProps', () => {
         expect(reconcileSlotProps(prev, diff).equal).toBe(false);
     });
 
-    it('React elements and functions compare by identity only', () => {
-        const el = React.createElement('div');
+    it('a React element rebuilt with the same type, key, ref and props is equal and keeps the previous element', () => {
+        const prev = React.createElement('div', { key: 'k', title: 'a' }, React.createElement('span', null, 'x'));
+        const next = React.createElement('div', { key: 'k', title: 'a' }, React.createElement('span', null, 'x'));
+        const result = reconcileSlotProps({ c: prev }, { c: next });
+        expect(result.equal).toBe(true);
+        expect((result.value as { c: SlotPropValue }).c).toBe(prev);
+    });
+
+    it('control: a rebuilt element with another type, key, prop or callback is not equal', () => {
+        const base = (): React.ReactElement => React.createElement('div', { key: 'k', title: 'a' });
+        expect(reconcileSlotProps({ c: base() }, { c: React.createElement('section', { key: 'k', title: 'a' }) }).equal).toBe(false);
+        expect(reconcileSlotProps({ c: base() }, { c: React.createElement('div', { key: 'j', title: 'a' }) }).equal).toBe(false);
+        expect(reconcileSlotProps({ c: base() }, { c: React.createElement('div', { key: 'k', title: 'b' }) }).equal).toBe(false);
+        const onClick = (): void => undefined;
+        expect(reconcileSlotProps(
+            { c: React.createElement('button', { onClick }) },
+            { c: React.createElement('button', { onClick: (): void => undefined }) },
+        ).equal).toBe(false);
+    });
+
+    it('functions compare by identity only', () => {
         const fn = (): void => undefined;
-        expect(reconcileSlotProps({ c: el }, { c: el }).equal).toBe(true);
-        expect(reconcileSlotProps({ c: el }, { c: React.createElement('div') }).equal).toBe(false);
         expect(reconcileSlotProps({ f: fn as SlotPropValue }, { f: fn as SlotPropValue }).equal).toBe(true);
         expect(reconcileSlotProps({ f: fn as SlotPropValue }, { f: ((): void => undefined) as SlotPropValue }).equal).toBe(false);
     });

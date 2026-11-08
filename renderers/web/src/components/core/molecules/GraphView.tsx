@@ -116,6 +116,30 @@ export function edgeEndpoints(
   };
 }
 
+/** A radial edge as a smooth curve that leaves its source along its own spoke and reaches the target along the
+ * target's, both measured from `center` (the radial layout's centre). From the centre itself it is a straight spoke. */
+export function radialEdgePath(
+  center: { x: number; y: number },
+  source: { x: number; y: number },
+  target: { x: number; y: number },
+): string {
+  const rs = Math.hypot(source.x - center.x, source.y - center.y);
+  const rt = Math.hypot(target.x - center.x, target.y - center.y);
+  if (rs < 1 || rt < 1) return `M${source.x},${source.y} L${target.x},${target.y}`;
+  const mid = (rs + rt) / 2;
+  const toward = (p: { x: number; y: number }, r: number) => {
+    const a = Math.atan2(p.y - center.y, p.x - center.x);
+    return `${center.x + r * Math.cos(a)},${center.y + r * Math.sin(a)}`;
+  };
+  return `M${source.x},${source.y} C${toward(source, mid)} ${toward(target, mid)} ${target.x},${target.y}`;
+}
+
+/** The distinct ring radii of a radial layout around `center`, innermost first (the centre itself excluded). */
+export function radialRings(center: { x: number; y: number }, points: ReadonlyArray<{ x: number; y: number }>): number[] {
+  const radii = points.map((p) => Math.round(Math.hypot(p.x - center.x, p.y - center.y))).filter((r) => r > 1);
+  return [...new Set(radii)].sort((a, b) => a - b);
+}
+
 function resolveNodeColor(node: GraphViewNode, groups: string[]): string {
   if (node.color) return node.color;
   if (node.group) {
@@ -315,6 +339,8 @@ export const GraphView: React.FC<GraphViewProps> = ({
     };
   }, [nodes, edges, w, h, groups, layout]);
 
+  const center = useMemo(() => ({ x: w / 2, y: h / 2 }), [w, h]);
+
   // Compute viewBox for zoom-to-fit
   const viewBox = useMemo(() => {
     if (!zoomToFit || !settled || simNodes.length === 0) {
@@ -331,10 +357,17 @@ export const GraphView: React.FC<GraphViewProps> = ({
       maxX = Math.max(maxX, node.x + node.size);
       maxY = Math.max(maxY, node.y + node.size);
     }
+    if (layout === 'radial') {
+      const outer = radialRings(center, simNodes).at(-1) ?? 0;
+      minX = Math.min(minX, center.x - outer);
+      minY = Math.min(minY, center.y - outer);
+      maxX = Math.max(maxX, center.x + outer);
+      maxY = Math.max(maxY, center.y + outer);
+    }
     const fitW = maxX - minX + pad * 2;
     const fitH = maxY - minY + pad * 2;
     return `${minX - pad} ${minY - pad} ${fitW} ${fitH}`;
-  }, [zoomToFit, settled, simNodes, w, h]);
+  }, [zoomToFit, settled, simNodes, w, h, layout, center]);
 
   // Build a node lookup map for edge rendering
   const nodeMap = useMemo(() => {
@@ -404,7 +437,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
         viewBox={viewBox}
         preserveAspectRatio="xMidYMid meet"
       >
-        {layout !== 'force' && (
+        {(layout === 'flow' || layout === 'tree') && (
           <defs>
             <marker
               id={arrowMarkerId}
@@ -420,6 +453,21 @@ export const GraphView: React.FC<GraphViewProps> = ({
           </defs>
         )}
 
+        {/* Orbits */}
+        {layout === 'radial' && radialRings(center, simNodes).map((r) => (
+          <circle
+            key={`ring-${r}`}
+            cx={center.x}
+            cy={center.y}
+            r={r}
+            fill="none"
+            stroke="var(--color-border)"
+            strokeWidth={1}
+            strokeDasharray="2 5"
+            opacity={0.7}
+          />
+        ))}
+
         {/* Edges */}
         {edges.map((edge, idx) => {
           const source = nodeMap.get(edge.source);
@@ -429,30 +477,48 @@ export const GraphView: React.FC<GraphViewProps> = ({
           const isHighlighted = hoveredId
             ? connectedIds.has(edge.source) && connectedIds.has(edge.target)
             : true;
-          const ends = layout !== 'force'
+          const directed = layout === 'flow' || layout === 'tree';
+          const ends = directed
             ? edgeEndpoints(source, target)
             : { x1: source.x, y1: source.y, x2: target.x, y2: target.y };
+          const stroke = edge.color ?? (layout === 'radial' ? target.color : DEFAULT_EDGE_COLOR);
+          const lit = Boolean(hoveredId) && isHighlighted;
 
           return (
             <g key={`edge-${idx}`}>
-              <line
-                x1={ends.x1}
-                y1={ends.y1}
-                x2={ends.x2}
-                y2={ends.y2}
-                stroke={edge.color ?? DEFAULT_EDGE_COLOR}
-                color={edge.color ?? DEFAULT_EDGE_COLOR}
-                strokeWidth={1.5}
-                opacity={isHighlighted ? 0.8 : 0.15}
-                markerEnd={layout !== 'force' ? `url(#${arrowMarkerId})` : undefined}
-              />
+              {layout === 'radial' ? (
+                <path
+                  d={radialEdgePath(center, source, target)}
+                  fill="none"
+                  stroke={stroke}
+                  strokeWidth={lit ? 2 : 1.25}
+                  strokeLinecap="round"
+                  opacity={hoveredId ? (isHighlighted ? 0.9 : 0.08) : 0.45}
+                />
+              ) : (
+                <line
+                  x1={ends.x1}
+                  y1={ends.y1}
+                  x2={ends.x2}
+                  y2={ends.y2}
+                  stroke={stroke}
+                  color={stroke}
+                  strokeWidth={lit ? 2 : 1.25}
+                  strokeLinecap="round"
+                  opacity={hoveredId ? (isHighlighted ? 0.9 : 0.1) : 0.6}
+                  markerEnd={directed ? `url(#${arrowMarkerId})` : undefined}
+                />
+              )}
               {showLabels && edge.label && (
                 <text
                   x={(source.x + target.x) / 2}
                   y={(source.y + target.y) / 2 - 6}
                   textAnchor="middle"
                   fill="var(--color-muted-foreground)"
-                  fontSize={9}
+                  fontSize={10}
+                  stroke="var(--color-card)"
+                  strokeWidth={3}
+                  paintOrder="stroke"
                   opacity={isHighlighted ? 0.9 : 0.2}
                 >
                   {edge.label}
@@ -466,11 +532,13 @@ export const GraphView: React.FC<GraphViewProps> = ({
         {simNodes.map((node) => {
           const isHighlighted = hoveredId ? connectedIds.has(node.id) : true;
           const isHovered = hoveredId === node.id;
+          const r = isHovered ? node.size * 1.25 : node.size;
 
           return (
             <g
               key={node.id}
               style={{ cursor: onNodeClick ? 'pointer' : 'default' }}
+              opacity={isHighlighted ? 1 : 0.3}
               onMouseEnter={() => handleNodeMouseEnter(node)}
               onMouseLeave={handleNodeMouseLeave}
               {...pressableProps<SVGGElement>(onNodeClick ? () => handleNodeClickInternal(node) : undefined)}
@@ -486,21 +554,32 @@ export const GraphView: React.FC<GraphViewProps> = ({
               <circle
                 cx={node.x}
                 cy={node.y}
-                r={isHovered ? node.size * 1.4 : node.size}
+                r={r + Math.max(4, node.size * 0.45)}
                 fill={node.color}
-                opacity={isHighlighted ? 1 : 0.3}
-                stroke={isHovered ? 'var(--color-background)' : 'none'}
-                strokeWidth={isHovered ? 2 : 0}
+                opacity={isHovered ? 0.28 : 0.14}
+                style={{ transition: 'r 160ms ease, opacity 160ms ease' }}
               />
-              {showLabels && (
+              <circle
+                cx={node.x}
+                cy={node.y}
+                r={r}
+                fill={node.color}
+                stroke="var(--color-card)"
+                strokeWidth={2}
+                style={{ transition: 'r 160ms ease' }}
+              />
+              {showLabels && (node.label ?? node.id) !== '' && (
                 <text
                   x={node.x}
-                  y={node.y + node.size + 12}
+                  y={node.y + r + Math.max(4, node.size * 0.45) + 12}
                   textAnchor="middle"
                   fill="var(--color-foreground)"
-                  fontSize={11}
-                  fontWeight={isHovered ? 'bold' : 'normal'}
-                  opacity={isHighlighted ? 0.9 : 0.2}
+                  fontSize={11.5}
+                  fontWeight={isHovered ? 600 : 500}
+                  stroke="var(--color-card)"
+                  strokeWidth={3.5}
+                  strokeLinejoin="round"
+                  paintOrder="stroke"
                 >
                   {node.label ?? node.id}
                 </text>

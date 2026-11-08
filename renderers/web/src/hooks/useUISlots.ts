@@ -361,6 +361,9 @@ export function useUISlotManager(): UISlotManager {
   // single-segment (no `.slot` suffix), so consumers only need the
   // trait's last-emitted frame regardless of which slot it targeted.
   const traitIndexRef = useRef<Map<string, SlotContent>>(new Map());
+  // The content each slot source was last asked to show, so a write that changes nothing schedules no state update:
+  // even a no-op updater re-renders this manager's tree, and a host that writes from its render effect would loop.
+  const lastWriteRef = useRef<Map<string, SlotContent>>(new Map());
   const [declaredOrder, setDeclaredOrder] = useState<ReadonlyMap<string, number>>(NO_DECLARED_ORDER);
   const declaredOrderRef = useRef<ReadonlyMap<string, number>>(NO_DECLARED_ORDER);
   const setDeclaredTraitOrder = useCallback((traits: readonly string[]) => {
@@ -459,6 +462,26 @@ export function useUISlotManager(): UISlotManager {
         fromState: config.fromState,
         entity: config.entity,
       };
+
+      const writeKey = `${config.target}\u0000${sourceKey}`;
+      const last = lastWriteRef.current.get(writeKey);
+      if (
+        last &&
+        !(config.autoDismissMs && config.autoDismissMs > 0) &&
+        last.autoDismissAt === undefined &&
+        last.priority === content.priority &&
+        last.pattern === content.pattern &&
+        last.transitionEvent === content.transitionEvent &&
+        last.fromState === content.fromState &&
+        last.entity === content.entity &&
+        last.nodeId === content.nodeId &&
+        (last.onDismiss === undefined) === (content.onDismiss === undefined) &&
+        reconcileSlotProps(last.props, content.props).equal
+      ) {
+        log.debug('slot:write-unchanged', { slot: config.target, sourceKey, pattern: content.pattern });
+        return id;
+      }
+      lastWriteRef.current.set(writeKey, content);
 
       // Set auto-dismiss timer if specified
       if (config.autoDismissMs && config.autoDismissMs > 0) {
@@ -579,6 +602,7 @@ export function useUISlotManager(): UISlotManager {
   // Clear a specific slot — wipes all source entries.
   const clear = useCallback(
     (slot: UISlot) => {
+      for (const key of [...lastWriteRef.current.keys()]) if (key.startsWith(`${slot}\u0000`)) lastWriteRef.current.delete(key);
       setSources((prev) => {
         const slotSources = prev[slot];
         if (!slotSources || Object.keys(slotSources).length === 0) {
@@ -608,6 +632,7 @@ export function useUISlotManager(): UISlotManager {
   const clearBySource = useCallback(
     (slot: UISlot, sourceTrait: string) => {
       const sourceKey = sourceTrait;
+      lastWriteRef.current.delete(`${slot}\u0000${sourceKey}`);
       setSources((prev) => {
         const slotSources = prev[slot];
         if (!slotSources || !(sourceKey in slotSources)) {
@@ -646,6 +671,7 @@ export function useUISlotManager(): UISlotManager {
   // Clear content by ID — finds and removes the matching entry.
   const clearById = useCallback(
     (id: string) => {
+      for (const [key, written] of [...lastWriteRef.current]) if (written.id === id) lastWriteRef.current.delete(key);
       setSources((prev) => {
         for (const slot of ALL_SLOTS) {
           const slotSources = prev[slot];
@@ -678,6 +704,7 @@ export function useUISlotManager(): UISlotManager {
 
   // Clear all slots
   const clearAll = useCallback(() => {
+    lastWriteRef.current.clear();
     // Clear all timers
     timersRef.current.forEach((timer) => clearTimeout(timer));
     timersRef.current.clear();
@@ -760,6 +787,23 @@ export function useUISlotManager(): UISlotManager {
       // subtree instead of remounting it.
       const id = `slot-content-trait-${traitName}`;
       const fullContent: SlotContent = { ...content, id, sourceTrait: traitName };
+      // Structural sharing, as `render()` does: a re-write that changes nothing keeps the stored content and notifies
+      // no subscriber, so a host that repaints its embedded children on every render settles instead of looping.
+      const existing = traitIndexRef.current.get(traitName);
+      if (
+        existing &&
+        existing.slot === fullContent.slot &&
+        existing.priority === fullContent.priority &&
+        existing.pattern === fullContent.pattern &&
+        existing.transitionEvent === fullContent.transitionEvent &&
+        existing.fromState === fullContent.fromState &&
+        existing.entity === fullContent.entity &&
+        existing.nodeId === fullContent.nodeId
+      ) {
+        const reconciled = reconcileSlotProps(existing.props, fullContent.props);
+        if (reconciled.equal) return id;
+        fullContent.props = reconciled.value;
+      }
       indexTraitRender(traitName, fullContent);
       notifyTraitSubscribers(traitName, fullContent);
       return id;

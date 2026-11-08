@@ -278,20 +278,46 @@ function layoutRadial(
 
   const { depth, visitOrder } = bfsDepthAndOrder(nodeIds, adjacency, roots);
   const maxDepth = Math.max(...Array.from(depth.values()));
-  const ringGroups = groupByTier(nodeIds, depth, maxDepth);
+  const order = (a: string, b: string) => (visitOrder.get(a) ?? 0) - (visitOrder.get(b) ?? 0);
 
-  const positions = new Map<string, LayoutPoint>();
-  for (let d = 0; d <= maxDepth; d++) {
-    const ordered = [...ringGroups[d]].sort(
-      (a, b) => (visitOrder.get(a) ?? 0) - (visitOrder.get(b) ?? 0),
-    );
-    const radius = (d * maxRadius) / Math.max(1, maxDepth);
-    const k = ordered.length;
-    ordered.forEach((id, i) => {
-      const angle = (i / k) * 2 * Math.PI;
-      positions.set(id, { id, x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) });
-    });
+  // A radial tree: each node's children share its angular sector, sized by their leaf counts, so an edge never
+  // crosses to the far side of the centre. The tree parent is the earliest-visited in-neighbour one ring in.
+  const children = new Map<string, string[]>(nodeIds.map((id) => [id, []]));
+  const tops: string[] = [];
+  for (const id of [...nodeIds].sort(order)) {
+    const d = depth.get(id) ?? 0;
+    const parent = (adjacency.in.get(id) ?? [])
+      .filter((p) => (depth.get(p) ?? 0) === d - 1)
+      .sort(order)[0];
+    if (d > 0 && parent !== undefined) children.get(parent)?.push(id);
+    else tops.push(id);
   }
+  const weight = new Map<string, number>();
+  const weigh = (id: string): number => {
+    const own = (children.get(id) ?? []).reduce((sum, child) => sum + weigh(child), 0);
+    const w = Math.max(1, own);
+    weight.set(id, w);
+    return w;
+  };
+  tops.forEach(weigh);
+
+  const centred = tops.length === 1;
+  const radiusAt = (d: number) =>
+    centred ? (d * maxRadius) / Math.max(1, maxDepth) : ((d + 1) * maxRadius) / (maxDepth + 1);
+  const positions = new Map<string, LayoutPoint>();
+  const place = (ids: string[], from: number, to: number) => {
+    const total = ids.reduce((sum, id) => sum + (weight.get(id) ?? 1), 0);
+    let at = from;
+    for (const id of ids) {
+      const span = ((to - from) * (weight.get(id) ?? 1)) / total;
+      const angle = at + span / 2;
+      const radius = radiusAt(depth.get(id) ?? 0);
+      positions.set(id, { id, x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) });
+      place(children.get(id) ?? [], at, at + span);
+      at += span;
+    }
+  };
+  place(tops, -Math.PI / 2, (3 * Math.PI) / 2);
 
   return nodeIds.map((id) => positions.get(id) as LayoutPoint);
 }

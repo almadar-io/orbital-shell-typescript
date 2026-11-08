@@ -72,6 +72,12 @@ function isPlainSlotObject(value: SlotPropValue): value is PlainSlotObject {
   return true;
 }
 
+/** An element's ref: React 19 carries it in props, earlier versions on the element. */
+function elementRef(element: React.ReactElement): React.Ref<Element> | undefined {
+  const props = element.props as { ref?: React.Ref<Element> } | null;
+  return props?.ref ?? (element as React.ReactElement & { ref?: React.Ref<Element> }).ref;
+}
+
 function shareValue(prev: SlotPropValue, next: SlotPropValue): ReconcileResult<SlotPropValue> {
   if (Object.is(prev, next)) return { value: prev, equal: true };
 
@@ -93,9 +99,15 @@ function shareValue(prev: SlotPropValue, next: SlotPropValue): ReconcileResult<S
       : { value: next, equal: false };
   }
 
-  // Functions, React elements, class instances: identity only (Object.is
-  // above already covered equality) — never recurse into them.
+  // Functions and class instances: identity only (Object.is above already covered equality).
   if (typeof prev === 'function' || typeof next === 'function') return { value: next, equal: false };
+  // A React element rebuilt from the same descriptor (a host re-projecting a paint every render) is the same element:
+  // same type, key and ref, and props that reconcile equal, as React itself decides to keep a subtree.
+  if (React.isValidElement(prev) && React.isValidElement(next)) {
+    if (prev.type !== next.type || prev.key !== next.key || elementRef(prev) !== elementRef(next)) return { value: next, equal: false };
+    const props = shareValue(prev.props as SlotPropValue, next.props as SlotPropValue);
+    return props.equal ? { value: prev, equal: true } : { value: next, equal: false };
+  }
   if (React.isValidElement(prev) || React.isValidElement(next)) return { value: next, equal: false };
 
   if (Array.isArray(prev) && Array.isArray(next)) {
