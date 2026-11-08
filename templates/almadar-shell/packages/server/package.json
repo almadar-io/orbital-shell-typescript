@@ -13,9 +13,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@almadar/core": "^11.1.0",
-    "@almadar/shell-node": "^1.0.0",
-    "@almadar/std": "^17.0.0",
+    "@almadar/core": "^11.3.0",
+    "@almadar/shell-node": "^1.1.0",
+    "@almadar/std": "^17.1.0",
     "dotenv": "^16.4.7"
   },
   "devDependencies": {
