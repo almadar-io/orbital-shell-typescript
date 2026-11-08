@@ -695,6 +695,11 @@
     "description": "A page's content owner repaints its region on a user-triggered event with a body that offers no way on"
   },
   {
+    "code": "ORB_CLIENT_ENTITY_SERVER_ONLY",
+    "category": "orbital",
+    "description": "A client trait is linked to the entity of an orbital whose every page is a protocol endpoint, which the client program leaves out"
+  },
+  {
     "code": "ORB_COMPOSED_STATE_UNREACHABLE",
     "category": "circuit",
     "description": "A composed trait can never enter some states because nothing in the program sends the events that enter them"
@@ -1138,6 +1143,11 @@
     "code": "ORB_JSON_ROUNDTRIP",
     "category": "lint",
     "description": "json/parse re-parses what json/stringify just serialized; a stringify→parse round trip launders a value's type past the checker (owner hard rule, CLAUDE.md). Narrow with `as`."
+  },
+  {
+    "code": "ORB_JSON_STRINGIFY_KEY",
+    "category": "lint",
+    "description": "json/stringify is an operand of =, !=, array/unique, array/indexOf or an object/set key; compare or key by value/key instead of serialized text"
   },
   {
     "code": "ORB_LINT_FINDING_CODE_UNDECLARED",

@@ -1,17 +1,16 @@
 /**
  * Node-only: run one `.lolo`/`.orb` program on the kernel engine and read what it emits. The program's own atoms
- * (for example `std-llm`) do the work; this host answers the secret, random, credential and `os` asks and nothing else.
+ * (for example `std-llm`) do the work; this host answers the secret, random and credential asks and nothing else; it answers no `os` ask, so every one is `unsupported` (G-ORB-308).
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import type { KernelMemoryStoreExports, EmittedEvent, EntityRow, EventPayload, InboundAnswer, InboundDelivery, OrbitalSchema, TransitionRejection, UserContext } from '@almadar/core';
-import { dispatchInbound, KernelEngine, NativeMemoryPersistenceAdapter, createSecretPorts, InFlightCalls, kernelOsGrants, type KernelHostPorts, type SecretPorts, type SecretPortsOptions, type KernelModule, type OsHostPort } from '@almadar/shell-runtime';
+import { dispatchInbound, KernelEngine, NativeMemoryPersistenceAdapter, createSecretPorts, InFlightCalls, type KernelHostPorts, type SecretPorts, type SecretPortsOptions, type KernelModule } from '@almadar/shell-runtime';
 import { resolveOrbBinary } from '@almadar/core/behavior-package';
 import { tickEventKey } from '@almadar/core';
 import { installNodeHostPorts } from './host-ports.js';
 import { createNodeTokenPost } from './token-post.js';
-import { createNodeOsHost } from './os-node.js';
 import { loadKernelModule, loadNativeKernelModule, resolveNativeAddon, type LoadedKernel } from './kernel-loader.js';
 
 export interface KernelProgramOptions {
@@ -27,8 +26,6 @@ export interface KernelProgramOptions {
   secretPorts?: Pick<SecretPortsOptions, 'secrets' | 'random'>;
   /** Rows the program's in-memory store starts with, by entity name (a catalog the host already holds). */
   seed?: Record<string, EntityRow[]>;
-  /** Answer the program's `os` effects with the Node host (its grants are the program's own); absent, every `os` ask is denied. */
-  os?: boolean;
 }
 
 export interface ProgramRun {
@@ -81,7 +78,6 @@ export async function resolveProgramFile(path: string, cwd: string = dirname(res
 export class KernelProgram {
   private constructor(
     private readonly engine: KernelEngine,
-    private readonly os: OsHostPort | undefined,
     private readonly schema: OrbitalSchema,
     private readonly secretPorts: SecretPorts,
     private readonly persistence: NativeMemoryPersistenceAdapter,
@@ -96,7 +92,7 @@ export class KernelProgram {
     installNodeHostPorts();
     let engine: KernelEngine | undefined;
     const requireEngine = (): KernelEngine => {
-      if (engine === undefined) throw new Error('KernelProgram: an os ask arrived before the program opened');
+      if (engine === undefined) throw new Error('KernelProgram: an ask arrived before the program opened');
       return engine;
     };
     const tokenPost = createNodeTokenPost({ egressAllows: (url) => requireEngine().egressAllows(url), isPublicAddress: (ip) => kernel.isPublicAddress(ip) });
@@ -105,7 +101,6 @@ export class KernelProgram {
     for (const [entityType, rows] of Object.entries(options.seed ?? {})) {
       for (const row of rows) await persistence.writeWhere({ kind: 'upsert', entityType, data: row });
     }
-    const os = options.os === true ? createNodeOsHost(kernelOsGrants(kernel, requireEngine)) : undefined;
     const ports: KernelHostPorts = {
       persistence,
       callService: async () => null,
@@ -115,10 +110,9 @@ export class KernelProgram {
       deliverLive: () => undefined,
       deferCallOutcome: () => undefined,
       secretPorts,
-      ...(os !== undefined ? { os } : {}),
     };
     engine = KernelEngine.open(kernel, schema, ports);
-    return new KernelProgram(engine, os, schema, secretPorts, persistence);
+    return new KernelProgram(engine, schema, secretPorts, persistence);
   }
 
   /** Fire `event` at the orbital as `user` (the program's `@user`), wait for its whole cascade (every secret ask included), and return what it emitted. */
@@ -158,7 +152,6 @@ export class KernelProgram {
   }
 
   close(): void {
-    this.os?.close();
     this.engine.dispose();
   }
 }

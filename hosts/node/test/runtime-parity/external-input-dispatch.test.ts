@@ -211,6 +211,50 @@ describeWithMemoryKernel('OrbitalServerRuntime.dispatchEventRequest answers a br
   });
 });
 
+// Twin of `the_client_view_keeps_a_server_traits_held_field_no_browser_step_reads_on_the_host` and its control (orbital-core
+// exec_dist/server_frame_echo.rs, EXEC-DIST-8): a wire answer sends a session's frames narrowed to the fields the browser reads.
+describeWithMemoryKernel('OrbitalServerRuntime.dispatchEventRequest sends a browser only the frame fields it reads (EXEC-DIST-8)', () => {
+  const held = (): OrbitalSchema => ({
+    name: 'held-app',
+    typeContractVersion: 1,
+    version: '1.0.0',
+    orbitals: [{
+      name: 'Main',
+      pages: [],
+      entity: { name: 'Box', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'blob', type: 'string' }, { name: 'label', type: 'string' }] },
+      traits: [
+        { name: 'Holder', linkedEntity: 'Box',
+          stateMachine: { states: [{ name: 'idle', isInitial: true }], transitions: [
+            { from: 'idle', to: 'idle', event: 'INIT', effects: [['call-service', 'mailer', 'send', { body: '@entity.blob' }, { emit: { success: 'TAKEN' } }]] },
+            { from: 'idle', to: 'idle', event: 'TAKEN', effects: [] },
+            { from: 'idle', to: 'idle', event: 'GO', effects: [['set', '@entity.blob', 'a-large-held-value'], ['set', '@entity.label', 'shown'], ['render-ui', 'main', { type: 'typography', content: 'Now @entity.label' }]] },
+          ] } },
+      ],
+    }],
+  } as OrbitalSchema);
+  const holder = async (wire: boolean): Promise<Record<string, unknown>> => {
+    const runtime = new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });
+    await runtime.register(held());
+    const answered = await runtime.dispatchEventRequest('Main', { event: 'GO', targetTrait: 'Holder' }, false, false, wire);
+    if (!answered.ok) throw new Error(answered.error);
+    const fields: Record<string, unknown> = {};
+    for (const op of answered.response.frames?.ops ?? []) {
+      if (op[0] === 'put' && op[1] === 'Holder') Object.assign(fields, op[2]);
+      if (op[0] === 'set' && op[1].Holder) Object.assign(fields, op[1].Holder);
+    }
+    return fields;
+  };
+
+  it('a wire answer keeps a held field no browser step reads on the host', async () => {
+    expect(await holder(true)).not.toHaveProperty('blob');
+  });
+
+  it('control: a wire answer keeps the field a render reads, and without wire every written field', async () => {
+    expect(await holder(true)).toHaveProperty('label', 'shown');
+    expect(await holder(false)).toHaveProperty('blob', 'a-large-held-value');
+  });
+});
+
 describeWithMemoryKernel('OrbitalServerRuntime program/resolve-rows (rows resolve for the requesting session's identity, EXEC-IDENTITY-1)', () => {
   const OWNED: SExpr = ['=', ['object/get', '@entity', 'ownerId'], '@user.id'];
   const ownedNotes = async () => {

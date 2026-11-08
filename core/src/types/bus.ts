@@ -19,7 +19,7 @@ import type { RowQueryPage } from "../service-types.js";
 import { ServerEffectResultSchema, type ServerEffectResult } from "./effect-result.js";
 import type { ExternalInput } from "../access/contract.js";
 import { JsonValueSchema, type JsonObject, type JsonValue } from "./json.js";
-import { isEventResponse, type ClientEffectByTrait, type HostAskCompletion, type EventRequest, type EventResponse, type FrameDelta, type HopEffect, type HopEffectStatus, type TransitionHop, type TransitionRejection, type TransitionRejectionCode } from "../generated/kernel-wire.js";
+import { isEventResponse, type BusEventSource, type ClientEffect, type ClientEffectByTrait, type DeliveryRecord, type DispatchLog, type EmittedEvent, type MountSeed, type HostAskCompletion, type EventRequest, type EventResponse, type FrameDelta, type HopEffect, type HopEffectStatus, type TransitionHop, type TransitionRejection, type TransitionRejectionCode } from "../generated/kernel-wire.js";
 
 export type { ClientEffectByTrait, HopEffect, HopEffectStatus, TransitionHop, TransitionRejection, TransitionRejectionCode };
 
@@ -110,79 +110,8 @@ export type EventListen<P> = string & { readonly __listenPayload?: P };
 // entity prop by the `EntityRow` type identity and derives record-vs-collection
 // from array-vs-not, so no brand is needed.
 
-/**
- * Identifies the origin of a bus event. Used by cross-trait listeners to
- * filter emits from specific orbitals, traits, transitions, or ticks.
- *
- * `transition` and `tick` are optional runtime-internal details; most
- * consumers only care about `orbital` and `trait`.
- */
-export type BusEventSource = {
-  orbital?: string;
-  /** V4 dual-carry id sibling of `orbital` — stable across an orbital rename. */
-  orbitalId?: OrbitalId;
-  trait?: string;
-  /** V4 dual-carry id sibling of `trait` — stable across a trait rename. */
-  traitId?: TraitId;
-  /** V4 dual-carry id of the emitted event — stable across an event rename. */
-  eventId?: EventId;
-  transition?: string;
-  tick?: string;
-  /**
-   * True when the orbital bridge re-broadcasts an event onto the bus
-   * (any source — both echoes of the dispatched event and server-side
-   * cascade emits via `(emit X)` / `fetch.emit.success`). Cross-trait
-   * listeners filter on this flag so the click-time qualified emit
-   * (which has no `fromBridge`) doesn't double-fire alongside the
-   * post-server bridge confirmation. See `dispatched` for the narrower
-   * "echo of the just-dispatched event" signal.
-   */
-  fromBridge?: boolean;
-  /**
-   * True ONLY for bridge echoes the receiving tab already processed, so
-   * the originating trait's self-subscription skips them instead of
-   * re-dispatching its own echo (infinite loop / double execution).
-   * Set by path 1 of useOrbitalBridge (compiled shell — echo of the
-   * just-dispatched event; server-side cascade emits there carry
-   * `fromBridge: true` but NOT `dispatched`, so they still reach the
-   * source trait's transition handler, e.g. `loading -> browsing` on a
-   * fetch's `emit.success`) and by ServerBridge (runtime path — stamped
-   * on exactly one response-cascade echo per event the dispatch delivered
-   * locally on the bare key, `stampLocallyDeliveredEchoes`; server-only
-   * results stay unstamped). Cross-trait `listens` never filter on this
-   * flag, so their delivery is unaffected. Push-leg events from OTHER
-   * tabs (multiplayer) are never stamped.
-   */
-  dispatched?: boolean;
-  /**
-   * The client that originated the dispatch whose effects emitted this
-   * event (from `EventRequest.clientId`); absent for headless
-   * dispatches (ticks, circuit-router probes, walkers). The server-side
-   * listens fan-out skips client-originated cascade emits — under dual
-   * execution the originating client relays every cascade hop through the
-   * bridge itself, so the server dispatching the same hop double-ran it
-   * (one Send persisted two rows). Headless topology keeps the fan-out:
-   * there is no client to drive the circuit.
-   */
-  originClientId?: string;
-  /**
-   * Per-activation key a UI control stamps on the event it emits, so it can
-   * show its own busy state for exactly as long as the dispatches that event
-   * started are in flight (`@almadar/ui` lib/pendingDispatch). Never set by
-   * the bridge or the server.
-   */
-  pendingKey?: string;
-  /**
-   * Set by a server-role kernel on a `persist` effect's `emit.success` envelope: the one emit a live-push
-   * host (`setLiveBroadcastSink`) also fans out to every other connected client.
-   */
-  persistSuccess?: boolean;
-  /**
-   * The row of the emitting trait's entity that made the emit, when the trait's rows are addressed by a `per`
-   * listener. A listener with a `per` clause evaluates its own key; one without ignores this.
-   */
-  instanceKey?: string;
-};
+/** Identifies the origin of a bus event (cross-trait listeners filter on it): the generated kernel wire type, one copy. */
+export type { BusEventSource };
 
 // The third type param is `object` on schemas nesting a branded-id
 // `.refine(<type predicate>)` field: the refine's parsed INPUT is a plain
@@ -190,18 +119,8 @@ export type BusEventSource = {
 // `z.ZodType<T>` mis-typechecks. `object` is what the wire actually carries
 // (a JSON body) — never `unknown`.
 
-/** The delivery a transition is processing: `@event`, and one element of `@prevEvents` (Runtime Spec Clause 5.5). */
-export type DeliveryRecord = {
-  event: string;
-  payload?: EventPayload;
-  source: BusEventSource;
-};
-
-/** A trait's log so far in a dispatch that began elsewhere (`@prevEvents` / `@prevStates`), carried on the request. */
-export type DispatchLog = {
-  prevEvents: DeliveryRecord[];
-  prevStates: string[];
-};
+/** The delivery a transition is processing (`@event`, one element of `@prevEvents`) and a dispatch's log so far: the generated kernel wire types, one copy. */
+export type { DeliveryRecord, DispatchLog };
 
 /** Zod twin of `BusEventSource`. */
 export const BusEventSourceSchema: z.ZodType<BusEventSource, object> = z.object({
@@ -257,18 +176,8 @@ export type BusEventListener = (event: BusEvent) => void;
 /** Returned by `on()` / `once()` to detach a listener. */
 export type Unsubscribe = () => void;
 
-/**
- * One event a transition's effects emitted, carried back to the client to
- * re-dispatch (in order) so the state machine advances through the
- * cascade without server-side recursion. Named/shaped to match the
- * generated compiled-path `EmittedEvent` (orbital-shell-typescript's
- * `shared/types.ts`) so the two execution paths agree on one shape.
- */
-export type EmittedEvent = {
-  event: string;
-  payload?: EventPayload;
-  source?: BusEventSource;
-};
+/** One event a transition's effects emitted, carried back to the client to re-dispatch in order: the generated kernel wire type, one copy. */
+export type { EmittedEvent };
 
 /** Zod twin of `EmittedEvent`. Third type param `object`, see `BusEventSourceSchema`. */
 export const EmittedEventSchema: z.ZodType<EmittedEvent, object> = z.object({
@@ -314,11 +223,8 @@ export type ClientHostAskTuple = ['host-ask', string, JsonValue[]] | ['host-ask'
 /** The return address of a `host-ask` (EXEC-DIST-13/14): the generated wire type, one copy. */
 export type { HostAskCompletion };
 
-export type ClientEffectTuple =
-  | ClientRenderUITuple
-  | ClientNavigateTuple
-  | ClientNavigateBackTuple
-  | ClientHostAskTuple;
+/** The effect tuple shipped in `EventResponse.clientEffectsByTrait`: the generated kernel wire `ClientEffect`, one copy. */
+export type ClientEffectTuple = ClientEffect;
 
 /** Zod twin of `ClientRenderUITuple`. */
 export const ClientRenderUITupleSchema = z.tuple([z.literal('render-ui'), z.string(), z.record(z.string(), JsonValueSchema).nullable()]);
@@ -383,11 +289,8 @@ export function tickEventKey(tickName: string): string {
 }
 export type LifecycleEvent = (typeof LIFECYCLE_EVENTS)[number];
 
-/** One trait of a mount batch and the lifecycle event it runs. */
-export type MountSeed = {
-  trait: string;
-  event: LifecycleEvent;
-};
+/** One trait of a mount batch and the lifecycle event it runs: the generated kernel wire type, one copy. */
+export type { MountSeed };
 
 export const MountSeedSchema = z.object({ trait: z.string(), event: z.enum(LIFECYCLE_EVENTS) });
 

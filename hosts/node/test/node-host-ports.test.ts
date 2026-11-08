@@ -1,8 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as wasm from '@almadar/kernel';
-import type { JsonValue } from '@almadar/core';
-import { createNodeOsHost } from '../src/os-node.js';
 import { describe, expect, it } from 'vitest';
 import { CredentialVault, getEffectiveCredentialStore, runWithCredentialScope, type CredentialRowsPort } from '@almadar/shell-runtime';
 import { installNodeHostPorts } from '../src/index.js';
@@ -30,46 +28,3 @@ describe('node host ports', () => {
   });
 });
 
-
-describe('raw Node network asks', () => {
-  it('os/getenv answers no value key for an unset variable, as the table declares { value? } (twin of the Rust os host)', async () => {
-    const host = createNodeOsHost({ allows: () => true, globMatches: () => false, isPublicAddress: () => false, anchor: () => [], resolveArgs: (_op, args) => ({ ok: args }) });
-    try {
-      expect(await host.answer('os/getenv', ['ZZ_NEVER_SET_X'])).toEqual({ ok: {} });
-      expect(await host.answer('os/getenv', ['PATH'])).toEqual({ ok: { value: process.env.PATH } });
-    } finally { host.close(); }
-  });
-
-  it('answers an ask against its calling orbital\'s grants: the granted orbital is answered, a sibling and an unnamed caller are denied (twin of the Rust os_grants_per_orbital tests)', async () => {
-    const granted = (orbital?: string): boolean => orbital === 'A';
-    const host = createNodeOsHost({ allows: (_need, orbital) => granted(orbital), globMatches: () => false, isPublicAddress: () => false, anchor: () => [], resolveArgs: (_op, args) => ({ ok: args }) });
-    try {
-      expect(await host.answer('os/getenv', ['PATH'], 'A')).toEqual({ ok: { value: process.env.PATH } });
-      expect(await host.answer('os/getenv', ['PATH'], 'B')).toMatchObject({ error: { kind: 'denied' } });
-      expect(await host.answer('os/getenv', ['PATH'])).toMatchObject({ error: { kind: 'denied' } });
-    } finally { host.close(); }
-  });
-
-  it('refuses tcp-listen without stream context using the shared canonical host fixture', async () => {
-    const fixture: { steps: Array<{ op?: string; key?: string; args?: JsonValue[]; expect?: JsonValue }> } = JSON.parse(readFileSync(new URL('./fixtures/os-asks.json', import.meta.url), 'utf8'));
-    const step = fixture.steps.find((entry) => entry.op === 'os/tcp-listen' && entry.key === undefined);
-    if (step?.args === undefined || step.expect === undefined) throw new Error('missing unkeyed listener fixture');
-    const host = createNodeOsHost({ allows: () => false, globMatches: () => false, isPublicAddress: () => false, anchor: () => [], resolveArgs: (_op, args) => ({ ok: args }) });
-    try {
-      expect(await host.answer('os/tcp-listen', step.args)).toEqual(step.expect);
-      expect(await host.answer('os/tcp-connect', ['127.0.0.1', 1])).toMatchObject({ error: { kind: 'denied' } });
-      expect(await host.answer('os/watch-port', [])).toMatchObject({ error: { kind: 'unsupported' } });
-    } finally { host.close(); }
-  });
-
-  it('refuses os/fetch typed, naming the ports it speaks HTTP over (twin of the Rust os host)', async () => {
-    const host = createNodeOsHost({ allows: () => true, globMatches: () => false, isPublicAddress: () => false, anchor: () => [], resolveArgs: (_op, args) => ({ ok: args }) });
-    try {
-      const refused = await host.answer('os/fetch', ['GET', 'https://a.example.test/']);
-      expect(refused).toMatchObject({ error: { kind: 'unsupported' } });
-      expect(JSON.stringify(refused)).toContain('os/tcp-connect');
-      expect(await host.answer('os/fetch', ['GET', 'https://a.example.test/', { stream: true }])).toMatchObject({ error: { kind: 'unsupported' } });
-      expect(await host.answer('os/exists', ['/'])).not.toMatchObject({ error: { kind: 'unsupported' } });
-    } finally { host.close(); }
-  });
-});

@@ -28,8 +28,8 @@ import type {
 
 /**
  * `src/generated/kernel-wire.ts` is generated from the Rust embed wire (`orbital-core`
- * `embed::wire`). Each generated type is compared with the `@almadar/core` type it mirrors, which
- * is the contract:
+ * `embed::wire`). Each generated type is compared with the `@almadar/core` type that carries it. Core re-exports
+ * the generated wire types (`Identical`) and keeps only the ones with no re-export yet as hand types, which is the contract:
  *  - `Mutual<G, C>` holds when each is assignable to the other;
  *  - `SameKeys<G, C>` holds when both declare exactly the same property names (assignability alone
  *    lets a side silently omit an optional property the other declares).
@@ -38,40 +38,42 @@ import type {
  */
 type Mutual<G, C> = [G] extends [C] ? ([C] extends [G] ? true : false) : false;
 type SameKeys<G, C> = [keyof G] extends [keyof C] ? ([keyof C] extends [keyof G] ? true : false) : false;
+/** Holds when both are the same type (a re-export of the generated one), not merely assignable to each other. */
+type Identical<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type Expect<Actual extends Expected, Expected> = Actual;
 
 interface Mirror {
   // identical on both sides
-  dispatchMode: Expect<Mutual<Wire.DispatchMode, DispatchMode>, true>;
+  dispatchMode: Expect<Identical<Wire.DispatchMode, DispatchMode>, true>;
   awaitingTrait: Expect<Mutual<Wire.AwaitingTrait, AwaitingTrait>, true>;
   awaitingTraitKeys: Expect<SameKeys<Wire.AwaitingTrait, AwaitingTrait>, true>;
   rejectionCode: Expect<Mutual<Wire.TransitionRejectionCode, TransitionRejectionCode>, true>;
   rejection: Expect<Mutual<Wire.TransitionRejection, TransitionRejection>, true>;
   rejectionKeys: Expect<SameKeys<Wire.TransitionRejection, TransitionRejection>, true>;
-  emitted: Expect<Mutual<Wire.EmittedEvent, EmittedEvent>, true>;
+  emitted: Expect<Identical<Wire.EmittedEvent, EmittedEvent>, true>;
   emittedKeys: Expect<SameKeys<Wire.EmittedEvent, EmittedEvent>, true>;
-  delivery: Expect<Mutual<Wire.DeliveryRecord, DeliveryRecord>, true>;
+  delivery: Expect<Identical<Wire.DeliveryRecord, DeliveryRecord>, true>;
   deliveryKeys: Expect<SameKeys<Wire.DeliveryRecord, DeliveryRecord>, true>;
-  dispatchLog: Expect<Mutual<Wire.DispatchLog, DispatchLog>, true>;
+  dispatchLog: Expect<Identical<Wire.DispatchLog, DispatchLog>, true>;
   dispatchLogKeys: Expect<SameKeys<Wire.DispatchLog, DispatchLog>, true>;
-  busEventSource: Expect<Mutual<Wire.BusEventSource, BusEventSource>, true>;
+  busEventSource: Expect<Identical<Wire.BusEventSource, BusEventSource>, true>;
 
   busEventSourceKeys: Expect<SameKeys<Wire.BusEventSource, BusEventSource>, true>;
-  mountSeed: Expect<Mutual<Wire.MountSeed, MountSeed>, true>;
+  mountSeed: Expect<Identical<Wire.MountSeed, MountSeed>, true>;
   transitionTrace: Expect<Mutual<Wire.TransitionHop, TransitionHop>, true>;
   transitionTraceKeys: Expect<SameKeys<Wire.TransitionHop, TransitionHop>, true>;
-  clientEffect: Expect<Mutual<Wire.ClientEffect, ClientEffectTuple>, true>;
-  serverEffectResult: Expect<Mutual<Wire.ServerEffectResult, ServerEffectResult>, true>;
+  clientEffect: Expect<Identical<Wire.ClientEffect, ClientEffectTuple>, true>;
+  serverEffectResult: Expect<Identical<Wire.ServerEffectResult, ServerEffectResult>, true>;
   serverEffectResultKeys: Expect<SameKeys<Wire.ServerEffectResult, ServerEffectResult>, true>;
   clientEffectByTrait: Expect<Mutual<Wire.ClientEffectByTrait, ClientEffectByTrait>, true>;
-  rowSetRef: Expect<Mutual<Wire.RowSetRef, RowSetRef>, true>;
-  rowQuery: Expect<Mutual<Wire.RowQuery, RowQuery>, true>;
-  queryCapabilities: Expect<Mutual<Wire.QueryCapabilities, QueryCapabilities>, true>;
-  writeCapabilities: Expect<Mutual<Wire.WriteCapabilities, WriteCapabilities>, true>;
+  rowSetRef: Expect<Identical<Wire.RowSetRef, RowSetRef>, true>;
+  rowQuery: Expect<Identical<Wire.RowQuery, RowQuery>, true>;
+  queryCapabilities: Expect<Identical<Wire.QueryCapabilities, QueryCapabilities>, true>;
+  writeCapabilities: Expect<Identical<Wire.WriteCapabilities, WriteCapabilities>, true>;
   writeCapabilitiesKeys: Expect<SameKeys<Wire.WriteCapabilities, WriteCapabilities>, true>;
-  rowWriteOp: Expect<Mutual<Wire.RowWriteOp, RowWriteOp>, true>;
+  rowWriteOp: Expect<Identical<Wire.RowWriteOp, RowWriteOp>, true>;
   rekeyKeys: Expect<SameKeys<Extract<Wire.RowWriteOp, { kind: 'rekey' }>, Extract<RowWriteOp, { kind: 'rekey' }>>, true>;
-  rowWriteOutcome: Expect<Mutual<Wire.RowWriteOutcome, RowWriteOutcome>, true>;
+  rowWriteOutcome: Expect<Identical<Wire.RowWriteOutcome, RowWriteOutcome>, true>;
   // the wire is JSON: a request, a response and everything a stream carries is a `JsonValue` as it stands
     emittedIsJson: Expect<EmittedEvent, JsonValue>;
   clientEffectIsJson: Expect<ClientEffectTuple, JsonValue>;
@@ -85,6 +87,12 @@ describe('kernel wire mirror', () => {
     const generated = readFileSync(fileURLToPath(new URL('../src/generated/kernel-wire.ts', import.meta.url)), 'utf8');
     const names = ['DispatchMode', 'AwaitingTrait', 'TransitionRejectionCode', 'TransitionRejection', 'EmittedEvent', 'DeliveryRecord', 'DispatchLog', 'BusEventSource', 'MountSeed', 'TransitionHop', 'HopEffect', 'CallSiteWire', 'CallRoutesWire', 'ClientEffect', 'ServerEffectResult', 'ClientEffectByTrait', 'EventRequest', 'EventResponse'];
     for (const name of names) expect(generated).toContain(`export type ${name} = `);
+  });
+
+  it('control: a re-declared copy is not identical to the generated type', () => {
+    type Copy = { trait: string; event: string };
+    const notIdentical: Expect<Identical<Copy, Wire.AwaitingTrait>, false> = false;
+    expect(notIdentical).toBe(false);
   });
 
   it('control: a shape that differs from the core type is not mutual and has different keys', () => {

@@ -509,7 +509,11 @@ export type PlayedEffect = { type: string, args: Array<JsonValue>, status: Playe
 /**
  * The effect failed and the program routed that failure to its declared `emit.failure` event.
  */
-routed: boolean, };
+routed: boolean, 
+/**
+ * The body effects a compound (`let` / `do` / `if` / `when`) ran, in order; absent for a leaf effect.
+ */
+nested?: Array<PlayedEffect>, };
 
 export type PlayedEffectStatus = "executed" | "failed" | "skipped";
 
@@ -1412,7 +1416,7 @@ function checkPendingRequestWire(v: JsonValue | undefined): boolean {
 }
 
 function checkPlayedEffect(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["type"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && checkPlayedEffectStatus(v["status"]) && (v["error"] === undefined || typeof v["error"] === 'string') && typeof v["routed"] === 'boolean');
+  return (isRecord(v) && typeof v["type"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && checkPlayedEffectStatus(v["status"]) && (v["error"] === undefined || typeof v["error"] === 'string') && typeof v["routed"] === 'boolean' && (v["nested"] === undefined || (Array.isArray(v["nested"]) && v["nested"].every((e) => checkPlayedEffect(e)))));
 }
 
 function checkPlayedEffectStatus(v: JsonValue | undefined): boolean {
@@ -2132,7 +2136,7 @@ function buildPendingRequestWire(v: JsonValue | undefined, p: string): PendingRe
 }
 
 function buildPlayedEffect(v: JsonValue | undefined, p: string): PlayedEffect {
-  return obj(v, p, null, (r0) => ({ "type": str(r0["type"], p + '.type'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), "status": buildPlayedEffectStatus(r0["status"], p + '.status'), ...(r0["error"] === undefined || r0["error"] === null ? {} : { "error": str(r0["error"], p + '.error') }), "routed": bool(r0["routed"], p + '.routed') }));
+  return obj(v, p, null, (r0) => ({ "type": str(r0["type"], p + '.type'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), "status": buildPlayedEffectStatus(r0["status"], p + '.status'), ...(r0["error"] === undefined || r0["error"] === null ? {} : { "error": str(r0["error"], p + '.error') }), "routed": bool(r0["routed"], p + '.routed'), ...(r0["nested"] === undefined || r0["nested"] === null ? {} : { "nested": list(r0["nested"], p + '.nested', (e1, q1) => buildPlayedEffect(e1, q1)) }) }));
 }
 
 function buildPlayedEffectStatus(v: JsonValue | undefined, p: string): PlayedEffectStatus {

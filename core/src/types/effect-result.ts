@@ -12,6 +12,7 @@
  */
 
 import { z } from 'zod';
+import type { ServerEffectResult } from '../generated/kernel-wire.js';
 import { EntityRowSchema, type EntityRow } from './entity.js';
 import { SERVER_REPORTED_EFFECTS, type ServerReportedEffect, type NamespacedEffectName } from './effect.js';
 import { EventPayloadValueSchema, type EventPayloadValue } from './expression.js';
@@ -34,36 +35,8 @@ export const ServerBatchSummarySchema: z.ZodType<ServerBatchSummary> = z.object(
   totalCount: z.number(),
 });
 
-export type ServerEffectResult = {
-  /**
-   * The reported effect's head (`SERVER_REPORTED_EFFECTS`, derived from the
-   * effect union in `effect.ts`), or `"substrate"` — the one wire grouping
-   * for the namespaced operators (`trace/*`, `memory/*`, `session/*`,
-   * `behavior/*`, `compose/*`), whose head rides `name`.
-   */
-  effect: ServerReportedEffect | "substrate";
-  action?: string;
-  entityType?: string;
-  /** The invoked namespaced operator (e.g. `"llm/generate"`), set only on `effect: "substrate"`. */
-  name?: NamespacedEffectName;
-  /** Entity row for CRUD/set/swap, the batch summary for `persist batch`, the raw service/substrate result. */
-  data?: EntityRow | ServerBatchSummary | EventPayloadValue;
-  success: boolean;
-  /**
-   * Set when a persist failed because an access policy rejected it or the
-   * write resolved no row key — mirrors `OrbitalServerRuntime.EffectResult`
-   * so the offline-preview and real-server persist paths report the same
-   * denial discriminator to the verification trace.
-   */
-  denied?: true;
-  error?: string;
-  /** Coded failure reason for a persist that resolved no target row (`not-found`, `no-row-key`), created on a taken id (`duplicate-id`), or was refused by a declared policy (`denied`), or a `@derived` field could not be computed (`derived-failed`, EXEC-STEP-8). */
-  code?: "not-found" | "no-row-key" | "duplicate-id" | "denied" | "derived-failed";
-  /** What the effect addressed: an `http` effect's `<METHOD> <origin><path>`, an `emit` entry's event name. */
-  target?: string;
-  /** The declared `emit.failure` event the program routed this effect's failure to; absent when it declares none. */
-  routed?: string;
-};
+/** The wire shape a server-executed effect reports on `EventResponse.effectResults`: the generated kernel wire type, one copy. */
+export type { ServerEffectResult };
 
 /** Zod twin of `ServerEffectResult`. */
 export const ServerEffectResultSchema: z.ZodType<ServerEffectResult> = z.object({

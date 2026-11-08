@@ -19,7 +19,7 @@ import { BehaviorRefSchema, OrbitalValueSchema, TraitValueSchema } from './types
 import { ConfigFieldDeclarationSchema, TraitConfigValueSchema } from './types/trait.js';
 import { ViewerSchema } from './types/user.js';
 import { JsonValueSchema } from './types/json.js';
-import { EvalPathSchema, MachineRowSchema, PlayedStepSchema } from './types/program-machine.js';
+import { EvalPathSchema, MachineRowSchema, PlayedNestedSchema, PlayedStepSchema } from './types/program-machine.js';
 
 /** One member or type in the `.orb` field-definition shape. */
 export interface ProgramTypeField {
@@ -44,7 +44,7 @@ export class ProgramTypeError extends Error {
 /**
  * Schemas whose value is program data the language holds as `SExpr` and never reads member by member: an
  * expression, a JSON-shaped config value, a declaration of a config knob or an entity field, a page title that is
- * a literal or an `i18n/t` call, a JSON value or event payload, a trace path. Matched by schema identity, so the list is the only place a type is named.
+ * a literal or an `i18n/t` call, a JSON value or event payload, a trace path, the nested effects of a compound effect. Matched by schema identity, so the list is the only place a type is named.
  */
 const PROGRAM_DATA: readonly z.ZodType[] = [
   SExprSchema,
@@ -55,6 +55,7 @@ const PROGRAM_DATA: readonly z.ZodType[] = [
   JsonValueSchema,
   EventPayloadSchema,
   EvalPathSchema,
+  PlayedNestedSchema,
 ];
 
 const SEXPR: ProgramTypeField = { type: 'SExpr' };

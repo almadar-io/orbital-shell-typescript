@@ -49,32 +49,6 @@ export interface MappedPattern {
 }
 
 // ============================================================================
-// Event Response Types
-// ============================================================================
-
-/**
- * Response from server after processing an event.
- * This is the unified response format for both Builder and compiled shells.
- */
-export interface EventResponse {
-  /** Whether the event was processed successfully */
-  success: boolean;
-  /** New state after transition (if transition occurred) */
-  newState?: string;
-  /** Data fetched by server effects (e.g., { Task: [...] }) */
-  data?: Record<string, EntityRow[]>;
-  /** Results of individual effect executions (for debugging) */
-  effectResults?: Array<{
-    effect: string;
-    success: boolean;
-    data?: FieldValue;
-    error?: string;
-  }>;
-  /** Error message if success is false */
-  error?: string;
-}
-
-// ============================================================================
 // Executor Configuration Types
 // ============================================================================
 

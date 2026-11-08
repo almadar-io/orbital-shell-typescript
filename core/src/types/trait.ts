@@ -21,6 +21,7 @@ import type { AnyPatternConfig } from '../patterns/index.js';
 import type { Expression, SExpr } from './expression.js';
 import { ExpressionSchema, SExprSchema } from './expression.js';
 import { JsonValueSchema } from './json.js';
+import type { DispatchMode } from '../generated/kernel-wire.js';
 import { EntityFieldSchema, TypeVariableSchema, type EntityField, type TypeVariable } from './field.js';
 
 // ============================================================================
@@ -1302,7 +1303,7 @@ export const EffectRowSchema = z.array(EffectUseSchema);
  * (runtime kernel) return) — same variant spellings, so a value round-trips
  * on the wire unchanged.
  */
-export type DispatchMode = 'persistedAwaited' | 'hybridClientOnly' | 'runtimeOptimistic';
+export type { DispatchMode };
 
 export const DispatchModeSchema = z.enum(['persistedAwaited', 'hybridClientOnly', 'runtimeOptimistic']);
 

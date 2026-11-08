@@ -83,12 +83,16 @@ const EvalStepWireSchema: z.ZodType<EvalStepWire> = z.object({
   error: z.string().optional(),
 });
 
+/** The body effects of a compound effect: recursive, so the language holds it as program data rather than a record. */
+export const PlayedNestedSchema: z.ZodType<PlayedEffect[]> = z.lazy(() => z.array(PlayedEffectSchema));
+
 const PlayedEffectSchema: z.ZodType<PlayedEffect> = z.object({
   type: z.string(),
   args: z.array(JsonValueSchema),
   status: z.enum(['executed', 'failed', 'skipped']),
   error: z.string().optional(),
   routed: z.boolean(),
+  nested: PlayedNestedSchema.optional(),
 });
 
 const PropositionBindingsSchema: z.ZodType<PropositionBindings> = z.object({

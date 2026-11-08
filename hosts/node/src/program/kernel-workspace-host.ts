@@ -110,7 +110,7 @@ export function kernelWorkspaceHost(options: KernelWorkspaceHostOptions): Worksp
         const file = join(dir, 'workspace-host.lolo');
         writeFileSync(file, programText(granted, options.bucket));
         const schema = await resolveProgramFile(file, options.projectRoot, options.orb);
-        return await KernelProgram.open(schema, { ...options.kernel, languageFrom: options.projectRoot, os: true });
+        return await KernelProgram.open(schema, { ...options.kernel, languageFrom: options.projectRoot });
       } finally {
         rmSync(dir, { recursive: true, force: true });
       }

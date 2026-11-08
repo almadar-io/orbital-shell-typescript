@@ -28,9 +28,6 @@ export type {
   PatternConfig,
   MappedPattern,
 
-  // Response types
-  EventResponse,
-
   // Slot types
   UISlot,
   SlotType,
@@ -40,6 +37,9 @@ export type {
   DataContext,
   DataResolution,
 } from '../types/renderer-types';
+
+// The server's answer to an event is the generated kernel wire type, one copy.
+export type { EventResponse } from '@almadar/core';
 
 // ============================================================================
 // Pattern Resolution

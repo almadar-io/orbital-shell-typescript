@@ -154,7 +154,7 @@ export interface KernelHostPorts {
   onDevice?: OnDeviceModelPorts;
   /** The browser's tabs for the `browser/tab-*` effects; absent, a tab ask fails `unavailable`. */
   tabs?: BrowserTabPort;
-  /** The `os` effect's host (Node: `createNodeOsHost` from `@almadar/shell-node`); absent, every `os` ask is denied, as the native host does with none. */
+  /** The `os` effect's host (the Node shell supplies none, G-ORB-308); absent, every `os` ask is denied, as the native host does with none. */
   os?: OsHostPort;
   /** What the kernel decides about a deferred `os` call (which ops defer, the event an outcome fires); absent, every `os` ask is answered in place. */
   osCompletions?: OsCompletionPort;

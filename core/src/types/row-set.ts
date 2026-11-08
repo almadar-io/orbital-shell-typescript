@@ -1,18 +1,10 @@
 import { z } from "zod";
 import { RowQuerySchema } from "../row-query.js";
-import type { RowQuery } from "../service-types.js";
+import type { RowSetRef } from "../generated/kernel-wire.js";
 import type { RuntimeValue } from "./json.js";
 
-/**
- * A fetched page by reference: `ids` = the window in order, `total` = matches before the window at
- * dispatch time, `query` = what produced it (its predicates, incl. the @read policy, re-count `total`; order and window are ignored).
- */
-export type RowSetRef = {
-  entityType: string;
-  ids: string[];
-  total: number;
-  query: RowQuery;
-};
+/** A fetched page by reference (`ids` the window, `total` the matches, `query` what produced it): the generated kernel wire type, one copy. */
+export type { RowSetRef };
 
 export const RowSetRefSchema: z.ZodType<RowSetRef> = z.object({
   entityType: z.string(),

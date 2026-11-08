@@ -15,6 +15,7 @@
 import type { EventPayload, EventPayloadValue, LogMeta } from './types/expression.js';
 import type { ServiceParams } from './types/service.js';
 import type { EntityRow, FieldValue } from './types/entity.js';
+import type { OperatorValueKinds, QueryCapabilities, RowCommitWrite, RowCompareOp, RowIdPage, RowNearest, RowOperator, RowOrder, RowPredicate, RowQuery, RowTotalMode, RowValueKind, RowWriteBatch, RowWriteFailureMode, RowWriteOp, RowWriteOutcome, WriteCapabilities } from './generated/kernel-wire.js';
 
 // ============================================================================
 // Service Action Names (generated from services-registry.json)
@@ -320,163 +321,8 @@ export type RowPage<T> = {
   total: number;
 };
 
-/** The comparison members of `StoreFilterOp`. */
-export type RowCompareOp = Extract<StoreFilterOp, "==" | "!=" | "<" | "<=" | ">" | ">=">;
-
-/**
- * A row predicate with two-valued logic: a missing or null field satisfies only `!=` against a
- * non-null value and `isNull: true`, and fails every other leaf, so `not` of a failing leaf holds.
- * Leaves reuse the `StoreFilterOp` meanings: `member` is `in`, `hasElement` is `array-contains`,
- * `contains` is a substring test.
- */
-export type RowPredicate =
-  | { kind: "compare"; field: string; op: RowCompareOp; value: FieldValue }
-  | { kind: "member"; field: string; values: FieldValue[] }
-  | { kind: "hasElement"; field: string; value: FieldValue }
-  | { kind: "contains"; field: string; text: string; caseSensitive: boolean }
-  | { kind: "isNull"; field: string; isNull: boolean }
-  | { kind: "all"; of: RowPredicate[] }
-  | { kind: "any"; of: RowPredicate[] }
-  | { kind: "not"; of: RowPredicate }
-  | { kind: "const"; value: boolean };
-
-/** One sort key. Missing and null values sort last in both directions; ties break by `id` ascending. A query with no `order` is ordered by `createdAt` ascending, then `id` (EXEC-FETCH-1). */
-export type RowOrder = {
-  field: string;
-  direction: "asc" | "desc";
-};
-
-/**
- * A vector-similarity query: up to `k` rows ordered by descending cosine similarity of `field` to `vector`
- * (EXEC-FETCH-2). A row whose field is absent, null or of zero norm is skipped; a stored vector that is not a
- * `[number]` of the query's length, a zero-norm query or a non-positive `k` fails.
- */
-export type RowNearest = {
-  field: string;
-  vector: number[];
-  k: number;
-};
-
-/**
- * A pushed-down query: rows matching `policy` AND `filter`, ordered, then windowed. `policy` is the
- * entity's `@read` predicate already specialised to the viewer; `filter` is the call-site filter.
- */
-export type RowQuery = {
-  policy?: RowPredicate;
-  filter?: RowPredicate;
-  /** Absent = `createdAt` ascending, then `id` ascending (EXEC-FETCH-1). */
-  order?: RowOrder;
-  offset?: number;
-  /** Absent = no limit. */
-  limit?: number;
-  /** Absent = `exact`. With `none` the store need not count; `total` is then only the window's size. */
-  total?: RowTotalMode;
-  /** The nearest `k` rows among those `policy` and `filter` admit. Excludes `order`, `offset` and `limit`; `total` is the count returned. */
-  nearest?: RowNearest;
-};
-
 /** The answer to a `RowQuery`: the window, and `total` = every match before the window. */
 export type RowQueryPage = RowPage<EntityRow>;
-
-/** Value kinds a store can compare, in `compare`/`member`/`hasElement` operands. */
-export type RowValueKind = "string" | "number" | "boolean" | "date" | "null";
-
-/** Every operator a `RowPredicate` leaf can carry. */
-export type RowOperator = RowCompareOp | "member" | "hasElement" | "contains";
-
-/** The value kinds one operator accepts on a store; an operator not listed accepts every kind. */
-export type OperatorValueKinds = {
-  operator: RowOperator;
-  valueKinds: RowValueKind[];
-};
-
-/** Whether `total` counts every match (`exact`, the default) or the store may skip the count (`none`). */
-export type RowTotalMode = "exact" | "none";
-
-/** What an adapter's `queryPage` honours for one entity type. */
-export type QueryCapabilities = {
-  leaves: ("compare" | "member" | "hasElement" | "contains" | "isNull")[];
-  combinators: ("all" | "any" | "not")[];
-  compareOps: RowCompareOp[];
-  /** Per operator x value kind restrictions; absent = every kind for every declared operator. */
-  operatorValueKinds?: OperatorValueKinds[];
-  orderableFields: { kind: "every-field" } | { kind: "listed"; fields: string[] };
-  /** offset and limit. */
-  window: boolean;
-  /** `total` counts every match, not the window. Needed only for `total: exact` queries. */
-  exactTotal: boolean;
-  /** `queryIds` is implemented. */
-  idsOnly?: boolean;
-  /** `nearest` is pushed down: the store ranks by cosine similarity itself (EXEC-FETCH-2). */
-  nearest?: boolean;
-};
-
-/** The answer to a `queryIds`: the window's ids in order, and `total` as in `RowQueryPage`. */
-export type RowIdPage = {
-  ids: string[];
-  total: number;
-};
-
-/**
- * One write. `create` fails (`duplicate-id`) when its id is taken. `upsert` creates the row or replaces it
- * whole by id (`created` / `updated`), keeping the existing `createdAt`. `update` changes an existing row only
- * (never an upsert) and merges `data` over it with `id` stamped last; `guard` is tested against the pre-image.
- * `delete` likewise. Native `rekey` moves an existing id with insertion-order collision semantics; support is explicit.
- */
-export type RowWriteOp =
-  | { kind: "create"; entityType: string; data: EntityRow }
-  | { kind: "upsert"; entityType: string; data: EntityRow }
-  | { kind: "update"; entityType: string; id: string; data: EntityRow; guard?: RowPredicate }
-  | { kind: "delete"; entityType: string; id: string; guard?: RowPredicate }
-  | { kind: "rekey"; entityType: string; id: string; newId: string; guard?: RowPredicate };
-
-/**
- * What one write did. `before` (the pre-image) is present exactly when the op carried a guard.
- * `rolled-back` is only produced inside an `atomic` batch that failed: the op had succeeded and was undone.
- */
-export type RowWriteOutcome =
-  | { kind: "created"; row: EntityRow }
-  | { kind: "updated"; row: EntityRow; before?: EntityRow }
-  | { kind: "deleted"; before?: EntityRow }
-  | { kind: "not-found" }
-  | { kind: "duplicate-id" }
-  | { kind: "refused" }
-  | { kind: "failed"; message: string }
-  | { kind: "rolled-back" };
-
-/**
- * `atomic`: all ops apply or none do (a `persist batch`); on failure the outcomes are `rolled-back` for
- * every earlier op, then the failing outcome, and nothing is written.
- * `stop`: ops apply in order and stop at the first failure; earlier ops stay applied, later ones are
- * not attempted and have no outcome (a run of plain `persist` effects).
- */
-export type RowWriteFailureMode = "atomic" | "stop";
-
-export type RowWriteBatch = {
-  ops: RowWriteOp[];
-  onFailure: RowWriteFailureMode;
-};
-
-/** What an adapter's `writeWhere`/`writeBatch` honours for one entity type. */
-export type WriteCapabilities = {
-  /** The guard predicates the store can test; a `Pick` of the query capabilities. */
-  guards: Pick<QueryCapabilities, "leaves" | "combinators" | "compareOps">;
-  /** `writeWhere` tests the guard and the existence of the row in one step. */
-  conditional: boolean;
-  /** Outcomes carry the written row. */
-  returnsRow: boolean;
-  /** `writeBatch` with `onFailure: "stop"`. */
-  stopRuns: boolean;
-  /** `writeBatch` with `onFailure: "atomic"`; needs transactions. */
-  atomicBatch: boolean;
-  /** Native id moves; absent means unsupported. */
-  rekey?: boolean;
-  /** The store commits rows the kernel decided (`commitRows`) and holds no write semantics (EXEC-STORE-5). */
-  commitRows?: boolean;
-};
-
-/** What a compare-and-commit does to one row the kernel read. */
-export type RowCommitWrite = { kind: "keep" } | { kind: "put"; row: EntityRow } | { kind: "delete" };
 
 /** One row of a compare-and-commit: the version the kernel read (`null` when absent) and what it writes (EXEC-STORE-5). */
 export type RowCommit = {
@@ -599,3 +445,6 @@ export function createLazyService<T>(factory: () => T): LazyService<T> {
     },
   };
 }
+
+/** The row-query, write and capability types are the generated kernel wire types, one copy. */
+export type { OperatorValueKinds, QueryCapabilities, RowCommitWrite, RowCompareOp, RowIdPage, RowNearest, RowOperator, RowOrder, RowPredicate, RowQuery, RowTotalMode, RowValueKind, RowWriteBatch, RowWriteFailureMode, RowWriteOp, RowWriteOutcome, WriteCapabilities };

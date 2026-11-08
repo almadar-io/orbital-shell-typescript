@@ -1,6 +1,6 @@
 /**
  * The `os` ports of a kernel host, with no Node builtin in sight so the browser bundle can import them.
- * The Node answerer is `os-node.ts`; the grant check is the Rust `OsGrants` (`allows` below), never TypeScript.
+ * The Node host has no answerer (G-ORB-308); the grant check is the Rust `OsGrants` (`allows` below), never TypeScript.
  */
 import type { JsonValue } from '@almadar/core';
 import type { CallSiteWire, OsError, OsOp, Settled } from '@almadar/core/kernel-wire';

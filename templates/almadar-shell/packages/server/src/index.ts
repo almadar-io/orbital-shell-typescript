@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { OrbitalSchema } from '@almadar/core';
-import { createNodeOsHost, loadNativeKernelModule, OrbitalServerRuntime, processAnchors } from '@almadar/shell-node';
+import { loadNativeKernelModule, OrbitalServerRuntime } from '@almadar/shell-node';
 
 const KERNEL_DIR_ENV = 'ORBITAL_KERNEL_DIR';
 const server = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -20,7 +20,6 @@ const kernel = await loadNativeKernelModule(join(process.env[KERNEL_DIR_ENV] || 
 const runtime = new OrbitalServerRuntime({
   kernel,
   secretPorts: {},
-  osHost: (grants) => createNodeOsHost(grants, { anchors: { ...processAnchors(), start: project } }),
 });
 await runtime.register(program);
 

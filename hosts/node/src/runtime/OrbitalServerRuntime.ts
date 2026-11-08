@@ -221,8 +221,7 @@ export interface OrbitalServerRuntimeConfig {
    */
   secretPorts?: SecretPortsOptions;
   /**
-   * Builds the `os` host of the kernel engine from the grant port backed by the kernel (`createNodeOsHost` from
-   * `@almadar/shell-node`). Absent, every `os` ask is denied, as the native host does with none.
+   * Builds the `os` host of the kernel engine from the grant port backed by the kernel (the Node shell ships none, G-ORB-308). Absent, every `os` ask is denied, as the native host does with none.
    */
   osHost?: (grants: OsGrantPort) => OsHostPort;
   /** The clock the kernel's `clock` ask is answered from, in epoch milliseconds; absent, the system clock. */
