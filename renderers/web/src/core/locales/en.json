@@ -1279,5 +1279,7 @@
   "themeToggle.switchToLight": "Switch to light mode",
   "themeToggle.switchToDark": "Switch to dark mode",
   "themeToggle.light": "Light",
-  "themeToggle.dark": "Dark"
+  "themeToggle.dark": "Dark",
+  "agentActivity.toolDone": "{{tool}} — done",
+  "agentActivity.toolFailed": "{{tool}} — failed"
 }

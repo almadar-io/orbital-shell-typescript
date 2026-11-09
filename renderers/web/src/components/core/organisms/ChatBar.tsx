@@ -40,6 +40,8 @@ export interface ChatFocusRequest {
   id: string | number;
   /** Shown in the input until the next message is sent. */
   placeholder?: string;
+  /** Put in the input, replacing what is there, for the user to edit and send. */
+  text?: string;
 }
 
 export interface ChatBarProps extends DisplayStateProps, Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
@@ -98,12 +100,14 @@ export function ChatBar({
   const focus = editFocus ?? null;
   const requestId = focusRequest?.id;
   const requestPlaceholder = focusRequest?.placeholder;
+  const requestText = focusRequest?.text;
 
   useEffect(() => {
     if (requestId === undefined) return;
     if (requestPlaceholder !== undefined && requestPlaceholder.length > 0) setRequestedPlaceholder(requestPlaceholder);
+    if (requestText !== undefined) setInputValue(requestText);
     inputRef.current?.focus();
-  }, [requestId, requestPlaceholder]);
+  }, [requestId, requestPlaceholder, requestText]);
 
   // Grow with the text up to about six lines, then scroll inside the input.
   useLayoutEffect(() => {

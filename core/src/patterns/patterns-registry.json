@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-09T04:49:13.806Z",
+  "exportedAt": "2026-11-09T16:44:50.431Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -91405,6 +91405,11 @@
               "types": [
                 "string"
               ]
+            },
+            "text": {
+              "types": [
+                "string"
+              ]
             }
           },
           "propertyRequired": [
@@ -125807,6 +125812,12 @@
             "settled",
             "readyCount"
           ]
+        },
+        "toolLabel": {
+          "types": [
+            "string"
+          ],
+          "description": "The declared label of the tool a tool step names, shown in place of its address."
         }
       }
     },
@@ -126822,6 +126833,33 @@
           ],
           "description": "The agent is running — the feed shows it is thinking.",
           "default": false
+        },
+        "toolLabels": {
+          "types": [
+            "array"
+          ],
+          "description": "Declared labels of the tools a step can name: a step of a listed tool shows its label, not its address.",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "tool": {
+                "types": [
+                  "string"
+                ]
+              },
+              "label": {
+                "types": [
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "tool",
+              "label"
+            ]
+          }
         },
         "className": {
           "types": [

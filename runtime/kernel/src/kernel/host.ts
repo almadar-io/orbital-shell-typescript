@@ -94,7 +94,7 @@ export type HostSignInRequest =
   | { method: 'customToken'; token: string };
 
 /** What a sign-in answers: the viewer, or `{ sent: true }` for an email link that was only sent. */
-export type HostSignInAnswer = { uid: string; email?: string; displayName?: string } | { sent: true };
+export type HostSignInAnswer = { uid: string; email?: string; displayName?: string; idToken?: string } | { sent: true };
 
 /** The one object `auth/consent` takes: the authorize URL the viewer is sent to. */
 export interface HostConsentRequest {

@@ -193,8 +193,9 @@ const FIREBASE_FAILURE_KIND: Readonly<Record<string, HostAskFailureKind>> = {
   'auth/operation-not-allowed': 'unavailable',
 };
 
-function userAnswer(user: SignedInUser): HostSignInAnswer {
-  return { uid: user.uid, ...(user.email !== undefined ? { email: user.email } : {}), ...(user.name !== undefined ? { displayName: user.name } : {}) };
+async function userAnswer(auth: BrowserAuth, user: SignedInUser): Promise<HostSignInAnswer> {
+  const idToken = await auth.idToken();
+  return { uid: user.uid, ...(user.email !== undefined ? { email: user.email } : {}), ...(user.name !== undefined ? { displayName: user.name } : {}), ...(idToken !== undefined ? { idToken } : {}) };
 }
 
 /**
@@ -205,14 +206,14 @@ function userAnswer(user: SignedInUser): HostSignInAnswer {
 export function hostSignIn(auth: BrowserAuth): (request: HostSignInRequest) => Promise<HostSignInAnswer> {
   return async (request) => {
     try {
-      if (request.method === 'google') return userAnswer(await auth.signInWithGoogle());
-      if (request.method === 'email') return userAnswer(await auth.signInWithEmail(request.email, request.password));
-      if (request.method === 'customToken') return userAnswer(await auth.signInWithCustomToken(request.token));
+      if (request.method === 'google') return userAnswer(auth, await auth.signInWithGoogle());
+      if (request.method === 'email') return userAnswer(auth, await auth.signInWithEmail(request.email, request.password));
+      if (request.method === 'customToken') return userAnswer(auth, await auth.signInWithCustomToken(request.token));
       if ('continueUrl' in request) {
         await auth.sendSignInLinkToEmail(request.email, request.continueUrl);
         return { sent: true };
       }
-      return userAnswer(await auth.signInWithEmailLink(request.email, request.link));
+      return userAnswer(auth, await auth.signInWithEmailLink(request.email, request.link));
     } catch (error) {
       const code = typeof error === 'object' && error !== null && 'code' in error && typeof error.code === 'string' ? error.code : undefined;
       throw new HostAskError(code !== undefined ? (FIREBASE_FAILURE_KIND[code] ?? 'unavailable') : 'unavailable', error instanceof Error ? error.message : String(error));

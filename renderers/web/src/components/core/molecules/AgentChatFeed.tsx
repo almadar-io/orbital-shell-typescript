@@ -29,8 +29,18 @@ export interface AgentChatFeedProps {
   idPrefix: string;
   /** The agent is running — the feed shows it is thinking. */
   working?: boolean;
+  /** Declared labels of the tools a step can name: a step of a listed tool shows its label, not its address. */
+  toolLabels?: readonly AgentToolLabel[];
   className?: string;
 }
+
+/** The label a tool's steps are shown under. */
+export interface AgentToolLabel {
+  tool: string;
+  label: string;
+}
+
+type LabelOf = (activity: TraceActivity) => string | undefined;
 
 /** One exchange: the user's request, the steps the assistant took, and what it answered. */
 interface ChatTurn {
@@ -136,19 +146,21 @@ function CopyReply({ text }: { text: string }): React.ReactElement {
   );
 }
 
-function StepRows({ steps }: { steps: readonly TraceActivity[] }): React.ReactElement {
-  const facts = activityRowFacts(steps, (a) => a);
+function StepRows({ steps, labelOf }: { steps: readonly TraceActivity[]; labelOf: LabelOf }): React.ReactElement {
+  const shown = steps.filter((step) => !(step.type === 'tool_result' && step.success && labelOf(step) !== undefined));
+  const facts = activityRowFacts(shown, (a) => a);
   return (
     <VStack gap="xs" className="w-full">
-      {steps.map((step, i) => (
-        <AgentActivityRow key={`${step.type}-${step.timestamp}-${i}`} activity={step} facts={facts[i]} />
+      {shown.map((step, i) => (
+        <AgentActivityRow key={`${step.type}-${step.timestamp}-${i}`} activity={step} facts={facts[i]} toolLabel={labelOf(step)} />
       ))}
     </VStack>
   );
 }
 
-function TurnSteps({ steps, showRawLlm, onToggleRaw, idPrefix, index }: {
+function TurnSteps({ steps, showRawLlm, onToggleRaw, idPrefix, index, labelOf }: {
   steps: readonly TraceActivity[];
+  labelOf: LabelOf;
   showRawLlm: boolean;
   onToggleRaw: (checked: boolean) => void;
   idPrefix: string;
@@ -178,15 +190,19 @@ function TurnSteps({ steps, showRawLlm, onToggleRaw, idPrefix, index }: {
           {hasRaw ? (
             <Switch checked={showRawLlm} onChange={onToggleRaw} label={t('agentActivity.showRawLlm')} id={`${idPrefix}-show-raw-llm-${index}`} />
           ) : null}
-          <StepRows steps={visible} />
+          <StepRows steps={visible} labelOf={labelOf} />
         </VStack>
       ) : null}
     </VStack>
   );
 }
 
-export function AgentChatFeed({ activities, emptyTitle, rawLlmPreferenceKey, idPrefix, working = false, className }: AgentChatFeedProps): React.ReactElement {
+export function AgentChatFeed({ activities, emptyTitle, rawLlmPreferenceKey, idPrefix, working = false, toolLabels, className }: AgentChatFeedProps): React.ReactElement {
   const { t } = useTranslate();
+  const labelOf = useMemo<LabelOf>(() => {
+    const labels = new Map((toolLabels ?? []).map((entry) => [entry.tool, entry.label]));
+    return (activity) => (activity.type === 'tool_call' || activity.type === 'tool_result' ? labels.get(activity.tool) : undefined);
+  }, [toolLabels]);
   const [showRawLlm, setShowRawLlm] = useState(() => readFlag(rawLlmPreferenceKey));
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -256,9 +272,9 @@ export function AgentChatFeed({ activities, emptyTitle, rawLlmPreferenceKey, idP
                   </VStack>
                 ) : null}
                 {live ? (
-                  <StepRows steps={showRawLlm ? turn.steps : turn.steps.filter((s) => s.type !== 'llm_response')} />
+                  <StepRows steps={showRawLlm ? turn.steps : turn.steps.filter((s) => s.type !== 'llm_response')} labelOf={labelOf} />
                 ) : (
-                  <TurnSteps steps={turn.steps} showRawLlm={showRawLlm} onToggleRaw={handleToggle} idPrefix={idPrefix} index={i} />
+                  <TurnSteps steps={turn.steps} showRawLlm={showRawLlm} onToggleRaw={handleToggle} idPrefix={idPrefix} index={i} labelOf={labelOf} />
                 )}
                 {turn.replies.map((reply, r) => (
                   <VStack key={`reply-${reply.timestamp}-${r}`} gap="none" className="w-full">

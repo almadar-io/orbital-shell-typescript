@@ -82,4 +82,33 @@ describe('AgentChatFeed', () => {
     feed([]);
     expect(screen.getByText('Ask me anything')).toBeTruthy();
   });
+
+  it('a step whose tool has a declared label shows the label, not the address', () => {
+    render(<AgentChatFeed activities={turn(T0)} working emptyTitle="e" rawLlmPreferenceKey="test-raw" idPrefix="t" toolLabels={[{ tool: 'TaskPersistor.DO_CREATE', label: 'Ustvarjam nalogo' }]} />);
+    const call = screen.getByTestId('agent-activity-tool_call');
+    expect(call.textContent).toContain('Ustvarjam nalogo');
+    expect(call.textContent).not.toContain('TaskPersistor.DO_CREATE');
+    expect(screen.queryByTestId('agent-activity-tool_result')).toBeNull();
+  });
+
+  it('control: a successful step of an unlabelled tool keeps its result row', () => {
+    render(<AgentChatFeed activities={turn(T0)} working emptyTitle="e" rawLlmPreferenceKey="test-raw" idPrefix="t" />);
+    expect(screen.getByTestId('agent-activity-tool_result')).toBeTruthy();
+  });
+
+  it('control: a step whose tool has no declared label shows its address', () => {
+    render(<AgentChatFeed activities={turn(T0)} working emptyTitle="e" rawLlmPreferenceKey="test-raw" idPrefix="t" toolLabels={[{ tool: 'Other.TOOL', label: 'Drugo' }]} />);
+    expect(screen.getByTestId('agent-activity-tool_call').textContent).toContain('TaskPersistor.DO_CREATE');
+  });
+
+  it('edge: a failed step keeps its declared label and its error', () => {
+    const failed: TraceActivity[] = [
+      { type: 'message', role: 'user', content: 'q', timestamp: T0 },
+      { type: 'tool_result', tool: 'Shop.OPEN_PAGE', kind: 'input', success: false, detail: 'net::ERR_NAME_NOT_RESOLVED', resultText: '{}', timestamp: T0 + 1 },
+    ];
+    render(<AgentChatFeed activities={failed} working emptyTitle="e" rawLlmPreferenceKey="test-raw" idPrefix="t" toolLabels={[{ tool: 'Shop.OPEN_PAGE', label: 'Odpiram stran' }]} />);
+    const row = screen.getByTestId('agent-activity-tool_result');
+    expect(row.textContent).toContain('Odpiram stran');
+    expect(row.textContent).toContain('net::ERR_NAME_NOT_RESOLVED');
+  });
 });

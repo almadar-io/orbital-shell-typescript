@@ -1279,5 +1279,7 @@
   "themeToggle.switchToLight": "التبديل إلى الوضع الفاتح",
   "themeToggle.switchToDark": "التبديل إلى الوضع الداكن",
   "themeToggle.light": "فاتح",
-  "themeToggle.dark": "داكن"
+  "themeToggle.dark": "داكن",
+  "agentActivity.toolDone": "{{tool}} — تم",
+  "agentActivity.toolFailed": "{{tool}} — تعذّر"
 }

@@ -1279,5 +1279,7 @@
   "themeToggle.switchToLight": "Preklopi na svetli način",
   "themeToggle.switchToDark": "Preklopi na temni način",
   "themeToggle.light": "Svetla",
-  "themeToggle.dark": "Temna"
+  "themeToggle.dark": "Temna",
+  "agentActivity.toolDone": "{{tool}} — končano",
+  "agentActivity.toolFailed": "{{tool}} — ni uspelo"
 }

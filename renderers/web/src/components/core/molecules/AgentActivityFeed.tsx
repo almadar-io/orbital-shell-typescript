@@ -111,7 +111,7 @@ export function activityRowFacts<T>(items: readonly T[], activityOf: (item: T) =
   return facts;
 }
 
-function describe(activity: TraceActivity, t: TranslateFunction, facts: RowFacts): RowSpec {
+function describe(activity: TraceActivity, t: TranslateFunction, facts: RowFacts, toolLabel?: string): RowSpec {
   switch (activity.type) {
     case 'message':
       return { icon: 'info', color: 'muted', text: activity.content, details: [] };
@@ -119,7 +119,7 @@ function describe(activity: TraceActivity, t: TranslateFunction, facts: RowFacts
       return {
         icon: 'wrench',
         color: 'muted',
-        text: t('agentActivity.toolCall', { tool: activity.tool }),
+        text: toolLabel ?? t('agentActivity.toolCall', { tool: activity.tool }),
         details: [],
         ...(activity.argsText !== '' && activity.argsText !== '{}' ? { raw: activity.argsText } : {}),
       };
@@ -127,7 +127,7 @@ function describe(activity: TraceActivity, t: TranslateFunction, facts: RowFacts
       return {
         icon: activity.success ? 'corner-down-right' : 'alert-circle',
         color: activity.success ? 'muted' : 'error',
-        text: t('agentActivity.toolResult', { tool: activity.tool }),
+        text: toolLabel !== undefined ? t(activity.success ? 'agentActivity.toolDone' : 'agentActivity.toolFailed', { tool: toolLabel }) : t('agentActivity.toolResult', { tool: activity.tool }),
         details: [
           ...(activity.detail !== undefined ? [activity.detail] : []),
           ...(activity.rows !== undefined ? [t('agentActivity.toolRows', { count: activity.rows })] : []),
@@ -259,9 +259,11 @@ export interface AgentActivityRowProps {
   onJump?: (target: AgentActivityJumpTarget) => void;
   /** What the row knows from its list (`activityRowFacts`). */
   facts: RowFacts;
+  /** The declared label of the tool a tool step names, shown in place of its address. */
+  toolLabel?: string;
 }
 
-export function AgentActivityRow({ activity, onJump, facts }: AgentActivityRowProps): React.ReactElement {
+export function AgentActivityRow({ activity, onJump, facts, toolLabel }: AgentActivityRowProps): React.ReactElement {
   const { t } = useTranslate();
 
   if (!KNOWN_ACTIVITY_TYPES.has(activity.type)) {
@@ -297,7 +299,7 @@ export function AgentActivityRow({ activity, onJump, facts }: AgentActivityRowPr
     );
   }
 
-  const spec = describe(activity, t, facts);
+  const spec = describe(activity, t, facts, toolLabel);
   const target = jumpTargetOf(activity);
   return (
     <Box className="flex items-start gap-2 w-full" data-testid={`agent-activity-${activity.type}`}>
