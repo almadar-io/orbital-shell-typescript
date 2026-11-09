@@ -67,7 +67,7 @@ export function useDialogBehavior({ open, containerRef, onEscape, closeOnEscape 
 
     const container = containerRef.current;
     if (modal && container && !container.contains(document.activeElement)) {
-      (focusables(container)[0] ?? container).focus();
+      (focusables(container)[0] ?? container).focus({ preventScroll: true });
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -109,7 +109,7 @@ export function useDialogBehavior({ open, containerRef, onEscape, closeOnEscape 
       const current = containerRef.current ?? container;
       const focusInside = current?.contains(active) ?? false;
       const focusLeftWithDialog = focusInside || active === null || active === document.body;
-      if (opener && opener.isConnected && focusLeftWithDialog) opener.focus();
+      if (opener && opener.isConnected && focusLeftWithDialog) opener.focus({ preventScroll: true });
     };
   }, [open, containerRef, modal, returnFocusRef]);
 }

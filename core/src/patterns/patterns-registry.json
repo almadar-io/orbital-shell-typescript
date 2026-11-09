@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-08T19:50:26.949Z",
+  "exportedAt": "2026-11-09T02:19:08.673Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -61744,6 +61744,14 @@
               "required": true
             }
           ]
+        },
+        "clickPayload": {
+          "types": [
+            "object"
+          ],
+          "description": "Payload sent with clickEvent beside the label, so a pill rendered from data names its item without matching on text",
+          "payloadFor": "clickEvent",
+          "eventPayloadBrand": true
         },
         "removeEvent": {
           "types": [

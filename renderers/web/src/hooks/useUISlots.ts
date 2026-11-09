@@ -368,6 +368,8 @@ export function useUISlotManager(): UISlotManager {
   const declaredOrderRef = useRef<ReadonlyMap<string, number>>(NO_DECLARED_ORDER);
   const setDeclaredTraitOrder = useCallback((traits: readonly string[]) => {
     const next = new Map(traits.map((trait, index) => [trait, index]));
+    const held = declaredOrderRef.current;
+    if (held.size === next.size && [...next].every(([trait, index]) => held.get(trait) === index)) return;
     declaredOrderRef.current = next;
     setDeclaredOrder(next);
   }, []);
@@ -811,7 +813,8 @@ export function useUISlotManager(): UISlotManager {
     [indexTraitRender, notifyTraitSubscribers],
   );
 
-  return {
+  // One object until a member changes: effects key on the manager, and a fresh object per render refires them every commit.
+  return useMemo(() => ({
     slots,
     render,
     clear,
@@ -825,7 +828,7 @@ export function useUISlotManager(): UISlotManager {
     subscribeTrait,
     updateTraitContent,
     setDeclaredTraitOrder,
-  };
+  }), [slots, render, clear, clearBySource, clearById, clearAll, subscribe, hasContent, getContent, getTraitContent, subscribeTrait, updateTraitContent, setDeclaredTraitOrder]);
 }
 
 // ============================================================================

@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import type { A11yProps, EventEmit } from "@almadar/core";
+import type { A11yProps, EventEmit, EventPayload } from "@almadar/core";
 import { cn } from "../lib/cn";
 import { pressableProps } from "../lib/pressable";
 import { useEventBus } from "../hooks/useEventBus";
@@ -37,6 +37,10 @@ export interface FilterPillProps extends Omit<React.HTMLAttributes<HTMLSpanEleme
   onClick?: () => void;
   /** Event name dispatched via event bus when the pill body is clicked. Payload: { label } */
   clickEvent?: EventEmit<{ label: string | number | undefined }>;
+  /** Payload sent with clickEvent beside the label, so a pill rendered from data names its item without matching on text
+   *  @payloadFor clickEvent
+   */
+  clickPayload?: EventPayload;
   /** Event name dispatched via event bus when the remove (×) button is clicked. Payload: { label }
    *  @offByDefault */
   removeEvent?: EventEmit<{ label: string | number | undefined }>;
@@ -95,6 +99,7 @@ export const FilterPill = React.forwardRef<HTMLSpanElement, FilterPillProps>(
       removable = true,
       onClick,
       clickEvent,
+      clickPayload,
       removeEvent,
       children,
       selected,
@@ -110,8 +115,8 @@ export const FilterPill = React.forwardRef<HTMLSpanElement, FilterPillProps>(
 
     const handleClick = useCallback(() => {
       onClick?.();
-      if (clickEvent) eventBus.emit(`UI:${clickEvent}`, { ...(payloadLabel !== undefined ? { label: payloadLabel } : {}) });
-    }, [onClick, clickEvent, eventBus, payloadLabel]);
+      if (clickEvent) eventBus.emit(`UI:${clickEvent}`, { ...(payloadLabel !== undefined ? { label: payloadLabel } : {}), ...(clickPayload ?? {}) });
+    }, [onClick, clickEvent, clickPayload, eventBus, payloadLabel]);
 
     const handleRemove = useCallback(() => {
       onRemove?.();

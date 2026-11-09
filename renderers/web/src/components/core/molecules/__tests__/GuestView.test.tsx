@@ -107,6 +107,35 @@ describe('GuestView keeps the guest inside its frame', () => {
   });
 });
 
+describe('GuestView keeps a toast on its own clock and its overlays inside the frame', () => {
+  const toast = { slot: 'toast' as const, trait: 'Modal', embedded: false, content: { type: 'alert', message: 'Cancelled' } };
+  const page = { slot: 'main' as const, trait: 'Root', embedded: false, content: { type: 'typography', content: 'page' } };
+
+  it('a toast that leaves the paints is not torn down with them', async () => {
+    const view = (paints: typeof toast[] | Array<typeof page | typeof toast>) => (
+      <EventBusProvider debug={false}><GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" paints={paints}><span>root</span></GuestView></EventBusProvider>
+    );
+    const { container, rerender } = render(view([page, toast]));
+    await waitFor(() => expect(container.textContent).toContain('Cancelled'));
+    rerender(view([page]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(container.textContent).toContain('Cancelled');
+  });
+
+  it('the frame is the containing block of anything the guest fixes in place', () => {
+    const { container } = wrap(<GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK"><span>x</span></GuestView>);
+    const frame = container.querySelector<HTMLElement>('[data-guest-frame]');
+    expect(frame?.style.contain).toBe('layout');
+  });
+
+  it('control: the frame that scrolls sits inside it, so a fixed button stays put', () => {
+    const { container } = wrap(<GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK"><span>x</span></GuestView>);
+    const frame = container.querySelector<HTMLElement>('[data-guest-frame]');
+    expect(frame?.className).not.toContain('overflow-auto');
+    expect(frame?.querySelector('.overflow-auto')).not.toBeNull();
+  });
+});
+
 describe('GuestView navigation', () => {
   const seen: Array<{ type: string; payload: unknown }> = [];
   const Listen = () => {

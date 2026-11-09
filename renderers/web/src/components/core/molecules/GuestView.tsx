@@ -22,7 +22,7 @@ import { CurrentPagePathProvider } from '../../../providers/CurrentPagePathConte
 import type { SlotProps } from '../../../providers/UISlotContext';
 import { convertFnFormLambdasInProps } from '../../../lib/fn-form-lambda';
 import { unwrapPattern } from '../../../hooks/circuit/useSlotFlush';
-import { paintsInTraitFrame } from '../../../lib/slot-definitions';
+import { isNotificationSlot, paintsInTraitFrame } from '../../../lib/slot-definitions';
 
 const log = createLogger('almadar:ui:guest-view');
 
@@ -65,7 +65,7 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
     // A paint the guest no longer holds was cleared (the session drops a slot its trait painted empty): clear it here too.
     const held = new Set(paints.map((paint) => `${paint.slot}\u0000${paint.trait}`));
     for (const [key, gone] of seeded.current) {
-      if (!held.has(key)) slotsRef.current.clearBySource(gone.slot, gone.trait);
+      if (!held.has(key) && !isNotificationSlot(gone.slot)) slotsRef.current.clearBySource(gone.slot, gone.trait);
     }
     seeded.current = new Map(paints.map((paint) => [`${paint.slot}\u0000${paint.trait}`, paint]));
     for (const paint of paints) {
@@ -115,10 +115,12 @@ export const GuestView: React.FC<GuestViewProps> = ({ guest, source, navigate, r
     <UISlotProvider>
       {paints !== undefined && <SeedGuestPaints paints={paints} />}
       {inHostRouter ? <HostHrefBaseProbe onBase={setHostHrefBase} /> : null}
-      <Box ref={frameRef} fullWidth fullHeight className="relative overflow-auto">
-        {route === undefined
-          ? <UISlotRenderer hudMode="inline" includeHud main={main} />
-          : <CurrentPagePathProvider value={route}><UISlotRenderer hudMode="inline" includeHud main={main} /></CurrentPagePathProvider>}
+      <Box data-guest-frame="" fullWidth fullHeight className="relative" style={{ contain: 'layout' }}>
+        <Box ref={frameRef} fullWidth fullHeight className="relative overflow-auto">
+          {route === undefined
+            ? <UISlotRenderer hudMode="inline" includeHud main={main} />
+            : <CurrentPagePathProvider value={route}><UISlotRenderer hudMode="inline" includeHud main={main} /></CurrentPagePathProvider>}
+        </Box>
       </Box>
     </UISlotProvider>
     </EntitySchemaProvider>
