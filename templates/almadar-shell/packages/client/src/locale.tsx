@@ -10,8 +10,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { localeDirection, localeOfPath, type ClientManifest, type OrbitalSchema } from '@almadar/core';
-import { I18nProvider, createTranslate } from '@almadar/shell-web/core';
+import { I18nProvider, createTranslate, type I18nContextValue } from '@almadar/shell-web/core';
 import { loadProgram } from './client-program';
+
+/** The provider value of `locale`: the program's catalog, with built-in labels from the UI's catalog for that locale. */
+export function localeValue(program: OrbitalSchema, locale: string): I18nContextValue {
+  const messages = program.messages?.[locale] ?? {};
+  return { locale, direction: localeDirection(locale), messages, t: createTranslate(messages, locale) };
+}
 
 export function LocaleRoot({ manifest, children }: { manifest: ClientManifest; children: React.ReactNode }): React.ReactElement | null {
   const { pathname } = useLocation();
@@ -21,11 +27,7 @@ export function LocaleRoot({ manifest, children }: { manifest: ClientManifest; c
     loadProgram().then(setProgram, setFailure);
   }, []);
   const locale = program === undefined ? undefined : (localeOfPath(pathname, program.locales ?? []) ?? manifest.locale);
-  const value = useMemo(() => {
-    if (program === undefined || locale === undefined) return undefined;
-    const messages = program.messages?.[locale] ?? {};
-    return { locale, direction: localeDirection(locale), messages, t: createTranslate(messages) };
-  }, [program, locale]);
+  const value = useMemo(() => (program === undefined || locale === undefined ? undefined : localeValue(program, locale)), [program, locale]);
   if (failure) throw failure;
   if (value === undefined) return null;
   return <I18nProvider value={value} documentRoot>{children}</I18nProvider>;
