@@ -1,6 +1,6 @@
 {
   "name": "@almadar/shell-runtime",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "orbRelease": { "severity": "normal" },
   "description": "Renderer-neutral kernel adapters and client orchestration for Almadar TypeScript hosts.",
   "license": "BUSL-1.1",
@@ -27,10 +27,10 @@
     "test": "vitest --run"
   },
   "dependencies": {
-    "@almadar/core": "^11.3.0",
-    "@almadar/kernel": "^19.0.1",
-    "@almadar/logger": "^2.3.0",
-    "@almadar/std": "^17.1.0"
+    "@almadar/core": "^11.4.0",
+    "@almadar/kernel": "^19.2.0",
+    "@almadar/logger": "^2.4.0",
+    "@almadar/std": "^17.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
