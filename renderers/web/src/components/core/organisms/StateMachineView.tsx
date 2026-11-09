@@ -11,7 +11,7 @@ import { LoadingState } from '../molecules/LoadingState';
 import { ErrorState } from '../molecules/ErrorState';
 import { AvlStateMachine, type AvlStateMachineProps } from '../../avl/molecules/AvlStateMachine';
 import type { EventEmit, MountedOrbital, TraitDescription } from '@almadar/core';
-import { AvlOrbitalMachine } from '../../avl/molecules/AvlOrbitalMachine';
+import { AvlOrbitalMachine, type OrbitalFocusTarget } from '../../avl/molecules/AvlOrbitalMachine';
 import { traitLevelFromDescription, type TraitLevelData } from '../../../lib/avl-schema-parser';
 import { useTranslate } from '../../../core';
 import type { UiError } from '../../../core';
@@ -45,6 +45,10 @@ export interface StateMachineViewProps extends Omit<AvlStateMachineProps, 'trait
   selectEvent?: EventEmit<{ trait: string }>;
   /** Orbital mode: shows the inspect toggle; emitted with the trait picked from its output on the page. */
   pickEvent?: EventEmit<{ trait: string }>;
+  /** Orbital mode: a transition to scroll to; its trait's box opens and the canvas scrolls to the transition. @default null
+   * @example {"trait":"OrderPage","event":"EDIT","from":"browsing","to":"editing","nonce":1}
+   */
+  focusTarget?: OrbitalFocusTarget | null;
   /** Orbital mode: the canvas scrolls inside this height. @default "calc(100vh - 9rem)" */
   maxHeight?: string;
   /** Loading state indicator */
@@ -53,14 +57,14 @@ export interface StateMachineViewProps extends Omit<AvlStateMachineProps, 'trait
   error?: UiError | null;
 }
 
-export const StateMachineView: React.FC<StateMachineViewProps> = ({ trait, description, orbital = null, activeStates, firedTransition, route, expandDepth, selectedTrait, selectEvent, pickEvent, maxHeight, isLoading = false, error = null, className, ...rest }) => {
+export const StateMachineView: React.FC<StateMachineViewProps> = ({ trait, description, orbital = null, activeStates, firedTransition, route, expandDepth, selectedTrait, selectEvent, pickEvent, focusTarget, maxHeight, isLoading = false, error = null, className, ...rest }) => {
   const { t } = useTranslate();
   const drawn = trait ?? (description ? traitLevelFromDescription(description) : null);
 
   if (isLoading) return <LoadingState message={t('stateMachine.loading')} />;
   if (error) return <ErrorState message={error instanceof Error ? error.message : String(error)} />;
   if (orbital !== null && orbital.traits.length > 0) {
-    return <AvlOrbitalMachine orbital={orbital} activeStates={activeStates} firedTransition={firedTransition} route={route} expandDepth={expandDepth} selectedTrait={selectedTrait} selectEvent={selectEvent} pickEvent={pickEvent} maxHeight={maxHeight} direction={rest.direction} className={className} />;
+    return <AvlOrbitalMachine orbital={orbital} activeStates={activeStates} firedTransition={firedTransition} route={route} expandDepth={expandDepth} selectedTrait={selectedTrait} selectEvent={selectEvent} pickEvent={pickEvent} focusTarget={focusTarget} maxHeight={maxHeight} direction={rest.direction} className={className} />;
   }
   if (!drawn) {
     return (

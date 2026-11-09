@@ -16,9 +16,9 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 
 
 
-Next code: `G-ORBITAL-SHELL-TYPESCRIPT-159`
+Next code: `G-ORBITAL-SHELL-TYPESCRIPT-160`
 
-- **G-ORBITAL-SHELL-TYPESCRIPT-158** [mechanical] — `test/ui/kernel-engine.test.tsx` fails 2 tests (`a mount posts one leg…`, `control: a mount of client-only seeds posts nothing`) with `Cannot read properties of undefined (reading 'flight')` at `src/lib/kernel-client.ts:685`: the mount wire has no `announced` field, likely a stale test build of the wasm kernel; not confirmed (2026-11-09). Owner: orbital-shell-typescript renderers/web. Rung: (3) the renderer suite. Root cause: one-off.
+
 
 - **G-ORBITAL-SHELL-TYPESCRIPT-157** [mechanical] — `tsc --noEmit` in `renderers/web` reports 9 errors in 6 files outside the kernel client (seen 2026-11-09; cause not investigated, possibly other sessions' in-flight work or stale package builds): `src/lib/avl-theme.ts:210` (`std-trace` is not a known key), `src/components/core/molecules/__tests__/GuestView.test.tsx`, `src/lib/__tests__/mermaidTheme.test.ts`, `test/kernel-engine-resolve-rows.test.ts` (`Handle` lacks `clientView`, `browserCompletionPayload`), `test/runtime/ui/contract.test.ts` and `test/ui/server-bridge-auth.test.tsx` (`setDeclaredTraitOrder`). Owner: orbital-shell-typescript renderers/web. Repro: `npx tsc --noEmit -p .` in `renderers/web`. Rung: (3) a typecheck in the local release gate. Root cause: periphery.
 - **G-ORBITAL-SHELL-TYPESCRIPT-156** [mechanical] — `renderers/web/test/ui/slot-flush-host-ask.test.ts` fails: an `audio/play-sound` host-ask handed to `useSlotFlush.applyClientEffects` beside `auth/sign-out` never reaches the installed audio (`registerHostAudio`), heard `['sign-out']` not `['sign-out', 'audio/play-sound']`. Found 2026-11-08 while unsticking the suite's stale slot stubs (17 files lacked `setDeclaredTraitOrder`, fixed the same day); unrelated to the guest portal-paint fix. Likely the in-flight audio rework (uncommitted `packages/almadar-std/modules/audio.ts` turns `audio/play-sound` into one resolved `AudioPlay` arg); check with that work before changing the test. Reproduce: `npx vitest run test/ui/slot-flush-host-ask.test.ts`. Prevention rung: none (the test is the verifier and caught it; nobody ran the file). Root cause: one-off.

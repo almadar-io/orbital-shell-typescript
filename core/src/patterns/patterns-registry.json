@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-09T02:19:08.673Z",
+  "exportedAt": "2026-11-09T04:49:13.806Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -976,6 +976,16 @@
                 }
               },
               "labels": {
+                "types": [
+                  "object"
+                ],
+                "mapValue": {
+                  "types": [
+                    "string"
+                  ]
+                }
+              },
+              "iconMap": {
                 "types": [
                   "object"
                 ],
@@ -43574,6 +43584,54 @@
               "required": true
             }
           ]
+        },
+        "focusTarget": {
+          "types": [
+            "object"
+          ],
+          "description": "Orbital mode: a transition to scroll to; its trait's box opens and the canvas scrolls to the transition. @default null",
+          "properties": {
+            "trait": {
+              "types": [
+                "string"
+              ]
+            },
+            "event": {
+              "types": [
+                "string"
+              ]
+            },
+            "from": {
+              "types": [
+                "string"
+              ]
+            },
+            "to": {
+              "types": [
+                "string"
+              ]
+            },
+            "nonce": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "trait",
+            "event",
+            "from",
+            "to",
+            "nonce"
+          ],
+          "default": null,
+          "example": {
+            "trait": "OrderPage",
+            "event": "EDIT",
+            "from": "browsing",
+            "to": "editing",
+            "nonce": 1
+          }
         },
         "maxHeight": {
           "types": [
@@ -87059,6 +87117,16 @@
                   ]
                 }
               },
+              "iconMap": {
+                "types": [
+                  "object"
+                ],
+                "mapValue": {
+                  "types": [
+                    "string"
+                  ]
+                }
+              },
               "variant": {
                 "types": [
                   "string"
@@ -87181,6 +87249,16 @@
                 }
               },
               "labels": {
+                "types": [
+                  "object"
+                ],
+                "mapValue": {
+                  "types": [
+                    "string"
+                  ]
+                }
+              },
+              "iconMap": {
                 "types": [
                   "object"
                 ],

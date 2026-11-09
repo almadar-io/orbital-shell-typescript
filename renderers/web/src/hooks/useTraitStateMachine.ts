@@ -31,6 +31,7 @@ import type {
   ServiceParams,
 } from '@almadar/core';
 import { TraitMountError } from '@almadar/shell-runtime/client/trait-mount-error';
+import { TransportStatusError } from '@almadar/shell-runtime/client/EventTransport';
 import type { EventTransport } from '../index';
 import type { ClientKernelOutcome, TraitState } from '../index';
 import { createLogger } from '@almadar/logger';
@@ -364,7 +365,12 @@ export function useTraitStateMachine(
       const { traitIndex: shown, kernel: running, settleOutcome: settle } = pushRef.current;
       const traitName = request.targetTrait;
       const ownsFrame = (frame: string): boolean => [...shown.byName.values()].some((entry) => entry.frameKey === frame);
-      if (traitName === undefined || !hostDispatchInView(request, response, (t) => shown.byName.has(t), ownsFrame)) return;
+      if (traitName === undefined || !hostDispatchInView(request, response, (t) => shown.byName.has(t), ownsFrame)) {
+        // A dispatch of a trait this view does not run (a server-only orbital's) can still emit what this view's own
+        // traits listen for: the kernel delivers each emit to the listeners it has, and to no one else (EXEC-DIST-2).
+        for (const emitted of response.success ? response.emittedEvents : []) void running.deliverToListeners(emitted);
+        return;
+      }
       void running.foldHostDispatch(request, response).then((outcome) =>
         settle(traitName, request.event, request.payload, outcome));
     }, { clientId: getTabClientId() });
@@ -461,10 +467,15 @@ export function useTraitStateMachine(
         const cause = err instanceof TraitMountError ? err.original : err;
         stateLog.warn('mount:failed', { traits, failed, error: message, stack: cause instanceof Error ? cause.stack : undefined });
         if (!aliveRef.current) return;
+        const refused = err instanceof TransportStatusError ? err : undefined;
         uiSlots.render({
           target: 'main',
           pattern: 'error-state',
-          props: { title: t('error.traitMountFailed', { trait: failed }), message, 'data-testid': TRAIT_MOUNT_ERROR_TESTID },
+          props: {
+            title: refused !== undefined ? t('error.serverRefused') : t('error.traitMountFailed', { trait: failed }),
+            message: refused?.refusal?.error ?? message,
+            'data-testid': TRAIT_MOUNT_ERROR_TESTID,
+          },
           sourceTrait: MOUNT_ERROR_SOURCE,
         });
       });

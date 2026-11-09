@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { EventBusProvider, getTraitPresence, TraitScopeProvider, useEventBus } from '../../../../core';
 import { StateMachineView } from '../StateMachineView';
@@ -445,5 +445,73 @@ describe('StateMachineView inspect leaves its own host traits unmarked', () => {
     expect(screen.getByTestId('avl-om-inspect').getAttribute('aria-pressed')).toBe('true');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(getTraitPresence().isWatched('Child')).toBe(false);
+  });
+});
+
+describe('StateMachineView focusTarget scrolls to a transition', () => {
+  const scrolled = vi.fn();
+  const target = (patch: Partial<{ trait: string; event: string; from: string; to: string; nonce: number }> = {}) => ({ trait: 'T', event: 'STOP', from: 'busy', to: 'idle', nonce: 1, ...patch });
+  const scrolledTo = () => scrolled.mock.contexts.filter((el): el is HTMLElement => el instanceof HTMLElement);
+  const labels = () => screen.getAllByTestId('avl-om-label');
+  const label = (event: string) => labels().find((l) => l.dataset.event === event)!;
+  const orbital = (): MountedOrbital => ({ page: '/p', wires: [], traits: [trait('T')] });
+
+  beforeEach(() => {
+    scrolled.mockClear();
+    Element.prototype.scrollIntoView = scrolled;
+  });
+
+  it('scrolls to the label of the transition the target names', async () => {
+    render(<StateMachineView orbital={orbital()} focusTarget={target()} />);
+    await waitFor(() => expect(scrolledTo()).toContain(label('STOP')));
+    expect(scrolledTo()).not.toContain(label('GO'));
+  });
+
+  it('scrolls to nothing without a target (control)', async () => {
+    render(<StateMachineView orbital={orbital()} />);
+    await waitFor(() => expect(labels()).toHaveLength(2));
+    expect(scrolled).not.toHaveBeenCalled();
+  });
+
+  it('a target naming a transition the trait has leaves the page where it is (control)', async () => {
+    render(<StateMachineView orbital={orbital()} focusTarget={target({ event: 'GONE', from: 'idle', to: 'idle' })} />);
+    await waitFor(() => expect(scrolledTo()).toContain(box('T')));
+    expect(scrolledTo().some((el) => el.dataset.testid === 'avl-om-label')).toBe(false);
+  });
+
+  it('the same transition asked again with a new nonce scrolls again', async () => {
+    const { rerender } = render(<StateMachineView orbital={orbital()} focusTarget={target()} />);
+    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+    rerender(<StateMachineView orbital={orbital()} focusTarget={target({ nonce: 2 })} />);
+    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(2));
+  });
+
+  it('the same nonce rendered again does not scroll again (control)', async () => {
+    const { rerender } = render(<StateMachineView orbital={orbital()} focusTarget={target()} />);
+    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+    rerender(<StateMachineView orbital={orbital()} focusTarget={target()} activeStates={[{ trait: 'T', state: 'busy' }]} />);
+    await waitFor(() => expect(label('STOP').dataset.next).toBe('true'));
+    expect(scrolled).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens a collapsed trait and scrolls to the transition inside it', async () => {
+    const deep: MountedOrbital = { page: '/p', wires: [], traits: [trait('Top'), trait('Deep', { parent: 'Top', depth: 2 })] };
+    render(<StateMachineView orbital={deep} expandDepth={2} focusTarget={target({ trait: 'Deep' })} />);
+    await waitFor(() => expect(box('Deep').dataset.kind).toBe('machine'));
+    await waitFor(() => expect(scrolledTo().some((el) => el.dataset.testid === 'avl-om-label' && el.dataset.trait === 'Deep' && el.dataset.event === 'STOP')).toBe(true));
+  });
+
+  it('opens a folded self-transition list and scrolls to the event in it', async () => {
+    const loopy = trait('L', {
+      transitions: [
+        { index: 0, from: ['idle'], to: 'idle', event: 'A', guarded: false, emits: [] },
+        { index: 1, from: ['idle'], to: 'idle', event: 'B', guarded: false, emits: [] },
+        { index: 2, from: ['idle'], to: 'idle', event: 'C', guarded: false, emits: [] },
+        { index: 3, from: ['idle'], to: 'busy', event: 'GO', guarded: false, emits: [] },
+      ],
+    });
+    render(<StateMachineView orbital={{ page: '/p', wires: [], traits: [loopy] }} focusTarget={target({ trait: 'L', event: 'B', from: 'idle', to: 'idle' })} />);
+    await waitFor(() => expect(screen.getByTestId('avl-om-loop-list').textContent).toBe('ABC'));
+    await waitFor(() => expect(scrolledTo().some((el) => el.dataset.testid === 'avl-om-loop-event' && el.dataset.event === 'B')).toBe(true));
   });
 });

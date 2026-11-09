@@ -77,6 +77,8 @@ export interface TableViewColumn {
   colorMap?: Readonly<Record<string, BadgeColor>>;
   /** Display text per exact value (for `format: 'badge'`); unmapped values show as stored */
   labels?: Readonly<Record<string, string>>;
+  /** Lucide icon name per exact value (for `format: 'badge'`), shown inside the badge so status is never colour alone */
+  iconMap?: Readonly<Record<string, string>>;
   /** `h3`/`h4` marks the row's title column: on narrow tables it heads the stacked card, unlabelled */
   variant?: 'h3' | 'h4';
   /** Lucide icon name or component shown before the header label. */
@@ -597,7 +599,7 @@ export function TableView({
               return (
                 <Box key={col.key} role="cell" className={cellBase}>
                   {stackedLabel}
-                  {asControl(<Badge variant={badgeVariantFor(String(raw), col.colorMap)} size="sm" className="whitespace-nowrap">{label}</Badge>)}
+                  {asControl(<Badge variant={badgeVariantFor(String(raw), col.colorMap)} size="sm" icon={col.iconMap?.[String(raw)]} className="whitespace-nowrap">{label}</Badge>)}
                 </Box>
               );
             }

@@ -58,6 +58,7 @@
   "status.archived": "مؤرشف",
   "error.generic": "حدث خطأ ما",
   "error.traitMountFailed": "تعذّر بدء {{trait}}",
+  "error.serverRefused": "رفض الخادم هذه الصفحة",
   "error.retry": "حاول مرة أخرى",
   "error.notFound": "غير موجود",
   "error.loadFailed": "فشل التحميل: {{message}}",

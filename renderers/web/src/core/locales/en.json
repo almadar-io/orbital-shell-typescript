@@ -59,6 +59,7 @@
   "status.archived": "Archived",
   "error.generic": "Something went wrong",
   "error.traitMountFailed": "{{trait}} failed to start",
+  "error.serverRefused": "The server refused this page",
   "error.retry": "Try again",
   "error.notFound": "Not found",
   "error.loadFailed": "Failed to load: {{message}}",

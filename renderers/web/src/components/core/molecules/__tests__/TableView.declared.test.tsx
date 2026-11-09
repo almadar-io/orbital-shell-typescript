@@ -43,6 +43,24 @@ describe('TableView badge colour', () => {
   });
 });
 
+describe('TableView badge icon', () => {
+  const cols = (iconMap?: Record<string, string>): readonly TableViewColumn[] => [
+    { key: 'name', header: 'Name' },
+    { key: 'status', header: 'Status', format: 'badge', iconMap },
+  ];
+  it('renders the declared iconMap icon inside the badge', () => {
+    wrap(<TableView entity={rows} columns={cols({ failed: 'x-circle' })} />);
+    const badge = screen.getByText(/failed/i).closest('.rounded-pill') as HTMLElement;
+    expect(badge.querySelector('svg')).not.toBeNull();
+  });
+
+  it('control: without iconMap the badge has no icon', () => {
+    wrap(<TableView entity={rows} columns={cols()} />);
+    const badge = screen.getByText(/failed/i).closest('.rounded-pill') as HTMLElement;
+    expect(badge.querySelector('svg')).toBeNull();
+  });
+});
+
 describe('TableView row click', () => {
   const columns: readonly TableViewColumn[] = [{ key: 'name', header: 'Name' }];
   const actions = [{ event: 'OPEN', label: 'Open' }];

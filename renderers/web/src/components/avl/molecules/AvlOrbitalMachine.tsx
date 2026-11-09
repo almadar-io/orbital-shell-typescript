@@ -42,6 +42,16 @@ import { BODY_CHAR, MARGIN, MAX_SCALE, MIN_SCALE, PILL_H, metricsFor } from './A
 
 const log = createLogger('almadar:ui:avl:orbital-machine');
 
+export interface OrbitalFocusTarget {
+  trait: string;
+  /** The event of the transition to show; empty shows the trait's box. */
+  event: string;
+  from: string;
+  to: string;
+  /** Changes with each request, so asking for the same transition again scrolls again. */
+  nonce: number;
+}
+
 export interface AvlOrbitalMachineProps extends A11yProps {
   /** The mounted orbital to draw (`program/self { mounted: true }`).
    * @example {"page":"/orders","traits":[{"trait":"OrderPage","orbital":"Orders","parent":null,"depth":0,"embeddedIn":[],"renders":true,"linked":false,"stepsIn":"browser","linkedEntity":"Order","states":[{"name":"browsing","isInitial":true,"isTerminal":false},{"name":"editing","isInitial":false,"isTerminal":false}],"transitions":[{"index":0,"from":["browsing"],"to":"editing","event":"EDIT","guarded":false,"emits":[]},{"index":1,"from":["editing"],"to":"browsing","event":"CANCEL","guarded":false,"emits":["ORDER_CLOSED"]}],"emits":["ORDER_CLOSED"],"listens":[],"instances":[]}],"wires":[]}
@@ -67,6 +77,10 @@ export interface AvlOrbitalMachineProps extends A11yProps {
   selectEvent?: EventEmit<{ trait: string }>;
   /** Shows the inspect toggle; emitted with the trait picked from its output on the page. */
   pickEvent?: EventEmit<{ trait: string }>;
+  /** A transition to scroll to: its trait's box opens and the canvas scrolls to the transition's label, or to its event in a folded self-transition list. @default null
+   * @example {"trait":"OrderPage","event":"EDIT","from":"browsing","to":"editing","nonce":1}
+   */
+  focusTarget?: OrbitalFocusTarget | null;
   /** The canvas scrolls inside this height. @default "calc(100vh - 9rem)" */
   maxHeight?: string;
   /** Flow direction. @default 'ltr' */
@@ -105,6 +119,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   selectedTrait = '',
   selectEvent,
   pickEvent,
+  focusTarget = null,
   maxHeight = 'calc(100vh - 9rem)',
   direction = 'ltr',
   className,
@@ -126,7 +141,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   const [routeOn, setRouteOn] = useState(false);
   const [inspecting, setInspecting] = useState(false);
   // The picked trait waits for the layout its opened boxes produce (`after` is the layout it was picked on).
-  const [focus, setFocus] = useState<{ trait: string; after: OrbitalLayout | null } | null>(null);
+  const [focus, setFocus] = useState<{ trait: string; at: { event: string; from: string; to: string } | null; after: OrbitalLayout | null } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const layoutRef = useRef<OrbitalLayout | null>(null);
   const steps = useMemo(() => (route.length > 0 ? route : firedTransition === null ? [] : [firedTransition]), [route, firedTransition]);
@@ -141,15 +156,19 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
   // A trait this view is drawn inside is never marked: marking it would remount the view itself.
   const hosts = useTraitScopeChain();
   const pickable = useMemo(() => orbital.traits.map((tr) => tr.trait).filter((name) => !hosts.some((h) => h.trait === name)), [orbital, hosts]);
-  const pick = useCallback((trait: string) => {
-    setInspecting(false);
+  const reveal = useCallback((trait: string, at: { event: string; from: string; to: string } | null) => {
     const chain: string[] = [];
     for (let name: string | null = trait; name !== null && !chain.includes(name); name = orbital.traits.find((tr) => tr.trait === name)?.parent ?? null) chain.push(name);
     setOpen((s) => new Set([...s, ...chain]));
     setClosed((s) => new Set([...s].filter((name) => !chain.includes(name))));
-    setFocus({ trait, after: layoutRef.current });
+    if (at !== null && at.from === at.to) setOpenLoops((s) => toggled(s, loopKey(trait, at.from), true));
+    setFocus({ trait, at, after: layoutRef.current });
+  }, [orbital]);
+  const pick = useCallback((trait: string) => {
+    setInspecting(false);
+    reveal(trait, null);
     if (pickEvent) eventBus.emit(`UI:${pickEvent}`, { trait });
-  }, [eventBus, pickEvent, orbital]);
+  }, [eventBus, pickEvent, reveal]);
   const stopInspecting = useCallback(() => setInspecting(false), []);
   const inspected = useTraitInspector({ active: inspecting, pickable, exclude: rootRef, onPick: pick, onCancel: stopInspecting });
 
@@ -157,9 +176,24 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
     layoutRef.current = layout;
     if (focus === null || layout === null || layout === focus.after) return;
     setFocus(null);
-    const box = hostRef.current?.querySelector(`[data-testid="avl-om-box"][data-trait="${CSS.escape(focus.trait)}"]`);
-    box?.scrollIntoView({ block: 'center', inline: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+    const host = hostRef.current;
+    if (host === null) return;
+    const trait = CSS.escape(focus.trait);
+    const at = focus.at !== null && focus.at.event !== '' ? focus.at : null;
+    const found = at === null
+      ? null
+      : host.querySelector(`[data-testid="avl-om-label"][data-trait="${trait}"][data-event="${CSS.escape(at.event)}"][data-from="${CSS.escape(at.from)}"][data-to="${CSS.escape(at.to)}"]`)
+        ?? host.querySelector(`[data-testid="avl-om-loop-event"][data-trait="${trait}"][data-state="${CSS.escape(at.from)}"][data-event="${CSS.escape(at.event)}"]`);
+    const target = found ?? host.querySelector(`[data-testid="avl-om-box"][data-trait="${trait}"]`);
+    target?.scrollIntoView({ block: 'center', inline: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
   }, [focus, layout, reduceMotion]);
+
+  const focusKey = focusTarget === null ? '' : JSON.stringify(focusTarget);
+  useEffect(() => {
+    if (focusTarget === null) return;
+    reveal(focusTarget.trait, { event: focusTarget.event, from: focusTarget.from, to: focusTarget.to });
+    // focusTarget is captured by its serialized key: a new nonce asks again.
+  }, [focusKey]);
 
   const setExpanded = useCallback((trait: string, expanded: boolean) => {
     setOpen((s) => toggled(s, trait, expanded));
@@ -496,6 +530,8 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                     data-testid="avl-om-label"
                     data-trait={e.trait}
                     data-event={e.event}
+                    data-from={e.from}
+                    data-to={e.to}
                     data-next={next ? 'true' : 'false'}
                     className="absolute flex items-center justify-center rounded-md px-2"
                     style={{
@@ -595,6 +631,10 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                           <Box
                             as="span"
                             key={`${ev.index}`}
+                            data-testid="avl-om-loop-event"
+                            data-trait={s.trait}
+                            data-state={s.name}
+                            data-event={ev.event}
                             data-fired={onRoute(s.trait, ev.index) ? 'true' : 'false'}
                             className="whitespace-nowrap"
                             style={{ lineHeight: `${LOOP_LINE}px`, color: onRoute(s.trait, ev.index) ? AVL_INK.focus : active ? AVL_INK.text : AVL_INK.quiet, fontWeight: onRoute(s.trait, ev.index) ? 600 : 400 }}
