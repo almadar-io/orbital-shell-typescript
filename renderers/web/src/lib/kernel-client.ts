@@ -528,12 +528,14 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         const kept = mountedSeeds.get(wire.orbital) ?? [];
         if (!kept.some((s) => s.trait === wire.seed.trait)) mountedSeeds.set(wire.orbital, [...kept, { trait: wire.seed.trait, event: seeds.find((s) => s.trait === wire.seed.trait)?.event ?? 'INIT' }]);
       }
-      for (const wire of wires) {
+      const announced = mount.announced;
+      for (const wire of announced !== null ? [announced, ...wires] : wires) {
         log.debug('mount', { trait: wire.seed.trait, event: wire.seed.event, mode: wire.mode, legs: wire.serverLegs.length, success: wire.response.success });
         trace(k, wire.response);
         mirror(wire.response);
       }
       store.notify();
+      if (announced !== null) hooks?.onLocal?.(announced.seed.trait, announced.response);
       for (const wire of wires) hooks?.onLocal?.(wire.seed.trait, wire.response);
       const outcome: MountOutcome = {
         seeds: wires.map((w) => ({ trait: w.seed.trait, event: w.seed.event, mode: w.mode, local: w.response })),
@@ -544,6 +546,21 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         emittedEvents: [],
       };
       if (transport === undefined) return outcome;
+      // The browser's own $MOUNT ran before the seeds, so the server work its listeners reached leaves first (EXEC-SEED-7).
+      if (announced !== null && announced.serverLegs.length > 0) {
+        let posted: Posted;
+        try {
+          posted = await post(k, announced, baseRequest, { rollback: false, awaiting: false });
+        } finally {
+          endFlight(k, announced.flight);
+        }
+        outcome.posted = true;
+        outcome.success = outcome.success && posted.success;
+        if (posted.error !== undefined) outcome.error = posted.error;
+        outcome.rejections.push(...posted.rejections);
+        outcome.serverEffects.clientEffectsByTrait?.push(...(posted.serverEffects.clientEffectsByTrait ?? []));
+        outcome.emittedEvents.push(...posted.foldedEmits);
+      }
       const topology = await opts.topology;
       // A group folds under its oldest seed's flight, so the groups go in flight order and each ends its flights before the next.
       const groups = (topology.carriesCircuitState ? mount.legs : mount.statefulLegs)
@@ -661,10 +678,11 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       await scopeTail;
       const baseRequest = base ?? {};
       k.mount(JSON.stringify(seeds.map((s) => s.trait)));
-      const mount = parse<MountWire>(k.dispatchMount(JSON.stringify(seeds), baseRequest.entityId, payloadJson(baseRequest.payload), baseRequest.route));
+      const mount = parse<MountWire>(k.dispatchMount(JSON.stringify(seeds), baseRequest.entityId, payloadJson(baseRequest.payload), baseRequest.route, baseRequest.crumb));
       try {
         return await settleMount(k, mount, seeds, hooks, baseRequest);
       } finally {
+        if (mount.announced !== null) endFlight(k, mount.announced.flight);
         for (const wire of mount.seeds) endFlight(k, wire.flight);
       }
     },

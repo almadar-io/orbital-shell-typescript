@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-08T18:40:30.441Z",
+  "exportedAt": "2026-11-08T19:50:26.949Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -11944,6 +11944,44 @@
           ],
           "description": "Content that appears or changes inside the box eases in instead of switching in one frame (new rows, swapped views, changed text), played in presentation motion (the theme's dramatic duration, standard easing) so it can be watched. Off under reduced motion.",
           "default": false
+        },
+        "marquee": {
+          "types": [
+            "object"
+          ],
+          "description": "Scroll the content as a moving strip (pauses on hover; stands still and wraps under reduced motion)",
+          "properties": {
+            "direction": {
+              "types": [
+                "string"
+              ],
+              "enumValues": [
+                "start",
+                "end"
+              ]
+            },
+            "speed": {
+              "types": [
+                "number"
+              ]
+            },
+            "clip": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "loop": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "direction",
+            "speed",
+            "clip",
+            "loop"
+          ]
         },
         "backdrop": {
           "types": [
@@ -118731,70 +118769,6 @@
             "number"
           ],
           "description": "Master volume 0-1, owned externally and mirrored into the hook."
-        },
-        "manifest": {
-          "types": [
-            "object"
-          ],
-          "description": "Sound manifest — answers the audio/* host port by key.",
-          "required": true,
-          "mapValue": {
-            "types": [
-              "object"
-            ],
-            "properties": {
-              "path": {
-                "types": [
-                  "string",
-                  "array"
-                ],
-                "items": {
-                  "types": [
-                    "string"
-                  ]
-                }
-              },
-              "volume": {
-                "types": [
-                  "number"
-                ]
-              },
-              "loop": {
-                "types": [
-                  "boolean"
-                ]
-              },
-              "poolSize": {
-                "types": [
-                  "number"
-                ]
-              },
-              "autostart": {
-                "types": [
-                  "boolean"
-                ]
-              },
-              "crossfade": {
-                "types": [
-                  "boolean"
-                ]
-              },
-              "crossfadeDurationMs": {
-                "types": [
-                  "number"
-                ]
-              }
-            },
-            "required": [
-              "path"
-            ]
-          }
-        },
-        "baseUrl": {
-          "types": [
-            "string"
-          ],
-          "description": "Base URL prepended to every manifest path."
         }
       }
     },

@@ -211,6 +211,41 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
     expect(runtime.getState('Main', 'ViewT')).toMatchObject({ currentState: 'idle' });
   });
 
+  // Twin of orbital-shell-rust `run::tests::a_boot_mount_and_a_background_tick_share_the_runtime_entity_s_frame` (G-CROSS-538/539).
+  it('a boot trait\'s [background] tick runs on this host\'s clock and reads the frame its INIT wrote', async () => {
+    const schema: OrbitalSchema = {
+      name: 'ticking',
+      typeContractVersion: 1,
+      version: '1.0.0',
+      orbitals: [{
+        name: 'Main',
+        pages: [{ name: 'Bg', path: '', protocol: 'boot', traits: [{ ref: 'Starter' }] }],
+        entity: { name: 'Flow', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }, { name: 'due', type: 'boolean', nullable: true }] },
+        traits: [{
+          name: 'Starter',
+          linkedEntity: 'Flow',
+          stateMachine: {
+            states: [{ name: 'idle', isInitial: true }, { name: 'waiting' }, { name: 'started' }],
+            events: [{ key: 'INIT', name: 'INIT' }, { key: 'DUE', name: 'DUE' }],
+            transitions: [
+              { from: 'idle', to: 'waiting', event: 'INIT', effects: [['set', '@entity.due', true]] },
+              { from: 'waiting', to: 'started', event: 'DUE', effects: [['set', '@entity.due', null]] },
+            ],
+          },
+          ticks: [{ name: 'beat', interval: 10, runsInBackground: true, appliesTo: ['waiting'], guard: ['=', '@entity.due', true], effects: [['emit', 'DUE', {}]] }],
+          emits: [{ event: 'DUE' }],
+        }],
+      }],
+    };
+    const runtime = await open(schema, { persistence: await nativeMemory() });
+    try {
+      expect(runtime.getState('Main', 'Starter')).toMatchObject({ currentState: 'waiting' });
+      await expect.poll(() => runtime.getState('Main', 'Starter'), { timeout: 3000, interval: 20 }).toMatchObject({ currentState: 'started' });
+    } finally {
+      runtime.unregisterAll();
+    }
+  });
+
   it('control: the JS engine, unselected, gives the same states and leaves the kernel unopened', async () => {
     const persistence = await nativeMemory();
     const runtime = new OrbitalServerRuntime({ kernel, persistence });

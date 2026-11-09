@@ -135,6 +135,14 @@ export function isNotificationSlot(slot: string): boolean {
 }
 
 /**
+ * Whether a paint goes to its trait's embed frame instead of the slot: an embedded trait's inline renders do, while a
+ * portal slot (toast, modal, drawer, …) renders in that slot like any trait's. Every painter routes through this.
+ */
+export function paintsInTraitFrame(traitEmbedded: boolean, slot: string): boolean {
+  return traitEmbedded && !isNotificationSlot(slot);
+}
+
+/**
  * Get all slots of a specific type.
  */
 function getSlotsByType(type: SlotType): UISlot[] {

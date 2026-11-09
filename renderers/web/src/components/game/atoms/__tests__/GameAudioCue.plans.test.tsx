@@ -40,7 +40,6 @@ function cue(props: { cueSeq: number; muted?: boolean; musicPlay?: AudioPlay }) 
       autostart={[]}
       muted={props.muted ?? false}
       volume={0.8}
-      manifest={{}}
     />
   );
 }

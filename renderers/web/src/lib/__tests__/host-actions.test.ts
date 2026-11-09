@@ -8,9 +8,10 @@ describe('web host actions', () => {
     let signedOut = 0;
     const offAudio = registerHostAudio((ask) => { heard.push(ask); });
     const offSignOut = registerHostSignOut(() => { signedOut += 1; });
-    webHostActions.audio?.({ op: 'audio/play-sound', key: 'footstep' });
+    const step = { key: 'footstep', source: '/sfx/step.ogg', volume: 1, loop: false, poolSize: 1, fadeMs: 0 };
+    webHostActions.audio?.({ op: 'audio/play-sound', play: step });
     void webHostActions.signOut?.();
-    expect(heard).toEqual([{ op: 'audio/play-sound', key: 'footstep' }]);
+    expect(heard).toEqual([{ op: 'audio/play-sound', play: step }]);
     expect(signedOut).toBe(1);
     offAudio();
     offSignOut();

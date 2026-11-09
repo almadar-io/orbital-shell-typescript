@@ -27,6 +27,7 @@ function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn>; update
     getContent: vi.fn(() => null),
     getTraitContent: vi.fn(() => null),
     subscribeTrait: vi.fn(() => () => undefined),
+    setDeclaredTraitOrder: vi.fn(),
     updateTraitContent: vi.fn(() => 'id'),
   };
 }

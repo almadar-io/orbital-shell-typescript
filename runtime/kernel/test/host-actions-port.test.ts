@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { answerRequest, consentFromRedirect, HostAskError, hostAskReturn, parseConsentRequest, parseSignInRequest, performHostAnswer, performHostAsk, type HostAudioAsk, type KernelHostPorts } from '../src/kernel/host.js';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
+import type { JsonValue } from '@almadar/core';
 
 function ports(hostActions?: KernelHostPorts['hostActions']): KernelHostPorts {
   return {
@@ -22,23 +23,25 @@ function ports(hostActions?: KernelHostPorts['hostActions']): KernelHostPorts {
 }
 
 const scope = { orbital: 'Main' };
-const ask = (op: string, args: string[] = []) => ({ kind: 'substrate' as const, op, args, key: undefined, site: undefined });
+const step = { key: 'footstep', source: '/sfx/step-2.ogg', volume: 0.8, loop: false, poolSize: 3, fadeMs: 0 };
+const theme = { key: 'theme', source: '/music/theme.ogg', volume: 0.6, loop: true, poolSize: 1, fadeMs: 1500 };
+const ask = (op: string, args: JsonValue[] = []) => ({ kind: 'substrate' as const, op, args, key: undefined, site: undefined });
 const ok = { kind: 'substrate', result: { ok: null } };
 
 describe('renderer-neutral audio and sign-out asks (twin of the Rust substrate-ask test)', () => {
-  it('hands each audio ask to the host with its key, absent where the op names none', async () => {
+  it('hands each audio ask to the host with the resolved play, the key or the fade length', async () => {
     const seen: HostAudioAsk[] = [];
     const host = ports({ audio: (a) => { seen.push(a); } });
-    for (const [op, args] of [['audio/play-sound', ['footstep']], ['audio/stop-sound', ['footstep']], ['audio/stop-sound', []], ['audio/change-music', ['theme']], ['audio/change-music', []], ['audio/stop-music', []]] as const) {
-      expect(await answerRequest(host, ask(op, [...args]), scope)).toEqual(ok);
+    const asks: Array<[string, JsonValue[]]> = [['audio/play-sound', [step]], ['audio/stop-sound', ['footstep']], ['audio/stop-sound', []], ['audio/change-music', [theme]], ['audio/stop-music', [800]]];
+    for (const [op, args] of asks) {
+      expect(await answerRequest(host, ask(op, args), scope)).toEqual(ok);
     }
     expect(seen).toEqual([
-      { op: 'audio/play-sound', key: 'footstep' },
+      { op: 'audio/play-sound', play: step },
       { op: 'audio/stop-sound', key: 'footstep' },
       { op: 'audio/stop-sound', key: undefined },
-      { op: 'audio/change-music', key: 'theme' },
-      { op: 'audio/change-music', key: undefined },
-      { op: 'audio/stop-music' },
+      { op: 'audio/change-music', play: theme },
+      { op: 'audio/stop-music', fadeMs: 800 },
     ]);
   });
 
@@ -49,19 +52,22 @@ describe('renderer-neutral audio and sign-out asks (twin of the Rust substrate-a
   });
 
   it('control: a host with no audio or sign-out refuses each ask by name instead of doing nothing', async () => {
-    const refused = await answerRequest(ports(), ask('audio/play-sound', ['footstep']), scope);
+    const refused = await answerRequest(ports(), ask('audio/play-sound', [step]), scope);
     expect(refused).toEqual({ kind: 'substrate', result: { error: { message: 'no host audio is configured for audio/play-sound', errors: [] } } });
     const noSignOut = await answerRequest(ports({ audio: () => undefined }), ask('auth/sign-out'), scope);
     expect(noSignOut).toEqual({ kind: 'substrate', result: { error: { message: 'no host sign-out is configured for auth/sign-out', errors: [] } } });
   });
 
-  it('control: a play-sound with no key, or an extra argument, is refused before the host hears it', async () => {
+  it('control: a bare key, a play missing a field, or a stop with no fade length is refused before the host hears it', async () => {
     const seen: HostAudioAsk[] = [];
     const host = ports({ audio: (a) => { seen.push(a); } });
-    const noKey = await answerRequest(host, ask('audio/play-sound'), scope);
-    expect(noKey).toMatchObject({ result: { error: { message: 'audio/play-sound: the key must be one non-empty text' } } });
-    const extra = await answerRequest(host, ask('audio/stop-music', ['x']), scope);
-    expect(extra).toMatchObject({ result: { error: { message: 'audio/stop-music takes no arguments' } } });
+    const bareKey = await answerRequest(host, ask('audio/play-sound', ['footstep']), scope);
+    expect(bareKey).toMatchObject({ result: { error: { message: 'audio/play-sound takes one resolved AudioPlay { key, source, volume, loop, poolSize, fadeMs }' } } });
+    const { source: _source, ...noSource } = theme;
+    const partial = await answerRequest(host, ask('audio/change-music', [noSource]), scope);
+    expect(partial).toMatchObject({ result: { error: { message: 'audio/change-music takes one resolved AudioPlay { key, source, volume, loop, poolSize, fadeMs }' } } });
+    const noFade = await answerRequest(host, ask('audio/stop-music'), scope);
+    expect(noFade).toMatchObject({ result: { error: { message: 'audio/stop-music takes one fade length in milliseconds' } } });
     expect(seen).toEqual([]);
   });
 });
@@ -71,13 +77,13 @@ describe('a client host answers a `host-ask` client effect with the same actions
     const seen: string[] = [];
     const actions = { audio: (a: HostAudioAsk) => { seen.push(a.op); }, signOut: () => { seen.push('sign-out'); } };
     expect(await performHostAsk(actions, 'auth/sign-out', [])).toEqual({ ok: null });
-    expect(await performHostAsk(actions, 'audio/play-sound', ['footstep'])).toEqual({ ok: null });
+    expect(await performHostAsk(actions, 'audio/play-sound', [step])).toEqual({ ok: null });
     expect(seen).toEqual(['sign-out', 'audio/play-sound']);
   });
 
   it('control: an ask the host cannot answer, or answers badly, is refused by name', async () => {
     expect(await performHostAsk(undefined, 'auth/sign-out', [])).toEqual({ error: 'no host sign-out is configured for auth/sign-out' });
-    expect(await performHostAsk({}, 'audio/stop-music', [])).toEqual({ error: 'no host audio is configured for audio/stop-music' });
+    expect(await performHostAsk({}, 'audio/stop-music', [500])).toEqual({ error: 'no host audio is configured for audio/stop-music' });
     expect(await performHostAsk({ audio: () => undefined }, 'browser/clipboard-write', ['x'])).toEqual({ error: 'no host action is configured for browser/clipboard-write' });
     expect(await performHostAsk({ signOut: () => { throw new Error('offline'); } }, 'auth/sign-out', [])).toEqual({ error: 'offline' });
   });

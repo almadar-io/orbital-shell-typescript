@@ -47,6 +47,7 @@ describe('@almadar/runtime/ui contract validators', () => {
       subscribe: vi.fn(),
       getTraitContent: vi.fn(),
       subscribeTrait: vi.fn(),
+      setDeclaredTraitOrder: vi.fn(),
       updateTraitContent: vi.fn(),
     };
 

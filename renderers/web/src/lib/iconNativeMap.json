@@ -935,6 +935,438 @@
   "unlink": {
    "sfSymbol": "link",
    "materialSymbol": "link_off"
+  },
+  "alert-octagon": {
+   "sfSymbol": "exclamationmark.octagon",
+   "materialSymbol": "report"
+  },
+  "area-chart": {
+   "sfSymbol": "chart.line.uptrend.xyaxis",
+   "materialSymbol": "area_chart"
+  },
+  "arrow-left-right": {
+   "sfSymbol": "arrow.left.arrow.right",
+   "materialSymbol": "swap_horiz"
+  },
+  "banknote": {
+   "sfSymbol": "banknote",
+   "materialSymbol": "payments"
+  },
+  "bar-chart": {
+   "sfSymbol": "chart.bar",
+   "materialSymbol": "bar_chart"
+  },
+  "bar-chart-2": {
+   "sfSymbol": "chart.bar",
+   "materialSymbol": "bar_chart"
+  },
+  "bar-chart-3": {
+   "sfSymbol": "chart.bar.xaxis",
+   "materialSymbol": "bar_chart"
+  },
+  "bell-ring": {
+   "sfSymbol": "bell.badge",
+   "materialSymbol": "notifications_active"
+  },
+  "binary": {
+   "sfSymbol": "number",
+   "materialSymbol": "numbers"
+  },
+  "bitcoin": {
+   "sfSymbol": "bitcoinsign.circle",
+   "materialSymbol": "currency_bitcoin"
+  },
+  "bluetooth": {
+   "sfSymbol": "antenna.radiowaves.left.and.right",
+   "materialSymbol": "bluetooth"
+  },
+  "book-open-check": {
+   "sfSymbol": "text.badge.checkmark",
+   "materialSymbol": "library_add_check"
+  },
+  "bot": {
+   "sfSymbol": "cpu",
+   "materialSymbol": "smart_toy"
+  },
+  "boxes": {
+   "sfSymbol": "shippingbox",
+   "materialSymbol": "inventory_2"
+  },
+  "brain": {
+   "sfSymbol": "brain",
+   "materialSymbol": "psychology"
+  },
+  "brain-circuit": {
+   "sfSymbol": "brain.head.profile",
+   "materialSymbol": "psychology"
+  },
+  "calculator": {
+   "sfSymbol": "plus.forwardslash.minus",
+   "materialSymbol": "calculate"
+  },
+  "calendar-check": {
+   "sfSymbol": "calendar.badge.checkmark",
+   "materialSymbol": "event_available"
+  },
+  "calendar-days": {
+   "sfSymbol": "calendar",
+   "materialSymbol": "calendar_month"
+  },
+  "calendar-plus": {
+   "sfSymbol": "calendar.badge.plus",
+   "materialSymbol": "edit_calendar"
+  },
+  "candlestick-chart": {
+   "sfSymbol": "chart.bar.xaxis",
+   "materialSymbol": "candlestick_chart"
+  },
+  "chart-line": {
+   "sfSymbol": "chart.xyaxis.line",
+   "materialSymbol": "show_chart"
+  },
+  "chef-hat": {
+   "sfSymbol": "frying.pan",
+   "materialSymbol": "restaurant_menu"
+  },
+  "circle-help": {
+   "sfSymbol": "questionmark.circle",
+   "materialSymbol": "help"
+  },
+  "circle-play": {
+   "sfSymbol": "play.circle",
+   "materialSymbol": "play_circle"
+  },
+  "clipboard-list": {
+   "sfSymbol": "list.clipboard",
+   "materialSymbol": "assignment"
+  },
+  "cloud": {
+   "sfSymbol": "cloud",
+   "materialSymbol": "cloud"
+  },
+  "cloud-upload": {
+   "sfSymbol": "icloud.and.arrow.up",
+   "materialSymbol": "cloud_upload"
+  },
+  "code-2": {
+   "sfSymbol": "chevron.left.forwardslash.chevron.right",
+   "materialSymbol": "code"
+  },
+  "cog": {
+   "sfSymbol": "gearshape",
+   "materialSymbol": "settings"
+  },
+  "coins": {
+   "sfSymbol": "dollarsign.circle",
+   "materialSymbol": "toll"
+  },
+  "compass": {
+   "sfSymbol": "safari",
+   "materialSymbol": "explore"
+  },
+  "container": {
+   "sfSymbol": "cube",
+   "materialSymbol": "view_in_ar"
+  },
+  "database": {
+   "sfSymbol": "cylinder.split.1x2",
+   "materialSymbol": "storage"
+  },
+  "database-zap": {
+   "sfSymbol": "cylinder.split.1x2",
+   "materialSymbol": "storage"
+  },
+  "dumbbell": {
+   "sfSymbol": "dumbbell",
+   "materialSymbol": "fitness_center"
+  },
+  "file-clock": {
+   "sfSymbol": "doc.badge.clock",
+   "materialSymbol": "pending_actions"
+  },
+  "file-code-2": {
+   "sfSymbol": "doc.plaintext",
+   "materialSymbol": "integration_instructions"
+  },
+  "file-diff": {
+   "sfSymbol": "doc.on.doc",
+   "materialSymbol": "difference"
+  },
+  "file-spreadsheet": {
+   "sfSymbol": "tablecells",
+   "materialSymbol": "table_chart"
+  },
+  "folder-kanban": {
+   "sfSymbol": "folder",
+   "materialSymbol": "view_kanban"
+  },
+  "fuel": {
+   "sfSymbol": "fuelpump",
+   "materialSymbol": "local_gas_station"
+  },
+  "git-fork": {
+   "sfSymbol": "arrow.triangle.branch",
+   "materialSymbol": "call_split"
+  },
+  "git-pull-request": {
+   "sfSymbol": "arrow.triangle.pull",
+   "materialSymbol": "merge_type"
+  },
+  "hand-heart": {
+   "sfSymbol": "hand.raised",
+   "materialSymbol": "volunteer_activism"
+  },
+  "hard-drive": {
+   "sfSymbol": "internaldrive",
+   "materialSymbol": "storage"
+  },
+  "hard-hat": {
+   "sfSymbol": "wrench.and.screwdriver",
+   "materialSymbol": "engineering"
+  },
+  "hash": {
+   "sfSymbol": "number",
+   "materialSymbol": "tag"
+  },
+  "heart-handshake": {
+   "sfSymbol": "heart.circle",
+   "materialSymbol": "handshake"
+  },
+  "heart-pulse": {
+   "sfSymbol": "heart.text.square",
+   "materialSymbol": "monitor_heart"
+  },
+  "hourglass": {
+   "sfSymbol": "hourglass",
+   "materialSymbol": "hourglass_empty"
+  },
+  "house": {
+   "sfSymbol": "house",
+   "materialSymbol": "home"
+  },
+  "id-card": {
+   "sfSymbol": "person.text.rectangle",
+   "materialSymbol": "badge"
+  },
+  "kanban": {
+   "sfSymbol": "rectangle.split.3x1",
+   "materialSymbol": "view_kanban"
+  },
+  "kanban-square": {
+   "sfSymbol": "rectangle.split.3x1",
+   "materialSymbol": "view_kanban"
+  },
+  "landmark": {
+   "sfSymbol": "building.columns",
+   "materialSymbol": "account_balance"
+  },
+  "layout-template": {
+   "sfSymbol": "rectangle.3.group",
+   "materialSymbol": "dashboard"
+  },
+  "library": {
+   "sfSymbol": "books.vertical",
+   "materialSymbol": "local_library"
+  },
+  "life-buoy": {
+   "sfSymbol": "lifepreserver",
+   "materialSymbol": "support"
+  },
+  "line-chart": {
+   "sfSymbol": "chart.xyaxis.line",
+   "materialSymbol": "show_chart"
+  },
+  "list-checks": {
+   "sfSymbol": "checklist",
+   "materialSymbol": "checklist"
+  },
+  "list-todo": {
+   "sfSymbol": "checklist",
+   "materialSymbol": "checklist"
+  },
+  "map": {
+   "sfSymbol": "map",
+   "materialSymbol": "map"
+  },
+  "megaphone": {
+   "sfSymbol": "megaphone",
+   "materialSymbol": "campaign"
+  },
+  "message-square-text": {
+   "sfSymbol": "text.bubble",
+   "materialSymbol": "chat"
+  },
+  "mountain": {
+   "sfSymbol": "mountain.2",
+   "materialSymbol": "terrain"
+  },
+  "newspaper": {
+   "sfSymbol": "newspaper",
+   "materialSymbol": "newspaper"
+  },
+  "notebook-pen": {
+   "sfSymbol": "square.and.pencil",
+   "materialSymbol": "edit_note"
+  },
+  "orbit": {
+   "sfSymbol": "scope",
+   "materialSymbol": "track_changes"
+  },
+  "palette": {
+   "sfSymbol": "paintpalette",
+   "materialSymbol": "palette"
+  },
+  "palmtree": {
+   "sfSymbol": "beach.umbrella",
+   "materialSymbol": "beach_access"
+  },
+  "panel-bottom-open": {
+   "sfSymbol": "rectangle.bottomthird.inset.filled",
+   "materialSymbol": "vertical_align_bottom"
+  },
+  "panel-right-open": {
+   "sfSymbol": "sidebar.right",
+   "materialSymbol": "last_page"
+  },
+  "pie-chart": {
+   "sfSymbol": "chart.pie",
+   "materialSymbol": "pie_chart"
+  },
+  "piggy-bank": {
+   "sfSymbol": "dollarsign.circle",
+   "materialSymbol": "savings"
+  },
+  "pill": {
+   "sfSymbol": "pills",
+   "materialSymbol": "medication"
+  },
+  "plug": {
+   "sfSymbol": "powerplug",
+   "materialSymbol": "power"
+  },
+  "qr-code": {
+   "sfSymbol": "qrcode",
+   "materialSymbol": "qr_code"
+  },
+  "radio": {
+   "sfSymbol": "dot.radiowaves.left.and.right",
+   "materialSymbol": "sensors"
+  },
+  "radio-tower": {
+   "sfSymbol": "antenna.radiowaves.left.and.right",
+   "materialSymbol": "cell_tower"
+  },
+  "receipt": {
+   "sfSymbol": "receipt",
+   "materialSymbol": "receipt"
+  },
+  "rss": {
+   "sfSymbol": "dot.radiowaves.up.forward",
+   "materialSymbol": "rss_feed"
+  },
+  "scan-barcode": {
+   "sfSymbol": "barcode.viewfinder",
+   "materialSymbol": "qr_code_scanner"
+  },
+  "scan-line": {
+   "sfSymbol": "viewfinder",
+   "materialSymbol": "document_scanner"
+  },
+  "server": {
+   "sfSymbol": "server.rack",
+   "materialSymbol": "dns"
+  },
+  "settings-2": {
+   "sfSymbol": "slider.horizontal.3",
+   "materialSymbol": "tune"
+  },
+  "shield-alert": {
+   "sfSymbol": "exclamationmark.shield",
+   "materialSymbol": "gpp_maybe"
+  },
+  "ship-wheel": {
+   "sfSymbol": "steeringwheel",
+   "materialSymbol": "directions_boat"
+  },
+  "shopping-bag": {
+   "sfSymbol": "bag",
+   "materialSymbol": "shopping_bag"
+  },
+  "siren": {
+   "sfSymbol": "light.beacon.max",
+   "materialSymbol": "notification_important"
+  },
+  "split": {
+   "sfSymbol": "arrow.triangle.branch",
+   "materialSymbol": "call_split"
+  },
+  "stamp": {
+   "sfSymbol": "seal",
+   "materialSymbol": "approval"
+  },
+  "stethoscope": {
+   "sfSymbol": "stethoscope",
+   "materialSymbol": "medical_services"
+  },
+  "table": {
+   "sfSymbol": "tablecells",
+   "materialSymbol": "table_chart"
+  },
+  "tablet-smartphone": {
+   "sfSymbol": "ipad.and.iphone",
+   "materialSymbol": "devices"
+  },
+  "thermometer": {
+   "sfSymbol": "thermometer.medium",
+   "materialSymbol": "thermostat"
+  },
+  "ticket": {
+   "sfSymbol": "ticket",
+   "materialSymbol": "confirmation_number"
+  },
+  "timer": {
+   "sfSymbol": "timer",
+   "materialSymbol": "timer"
+  },
+  "truck": {
+   "sfSymbol": "truck.box",
+   "materialSymbol": "local_shipping"
+  },
+  "user-cog": {
+   "sfSymbol": "person.crop.circle.badge.exclamationmark",
+   "materialSymbol": "manage_accounts"
+  },
+  "user-round": {
+   "sfSymbol": "person.circle",
+   "materialSymbol": "account_circle"
+  },
+  "user-search": {
+   "sfSymbol": "person.crop.circle.badge.questionmark",
+   "materialSymbol": "person_search"
+  },
+  "user-x": {
+   "sfSymbol": "person.badge.minus",
+   "materialSymbol": "person_remove"
+  },
+  "utensils": {
+   "sfSymbol": "fork.knife",
+   "materialSymbol": "restaurant"
+  },
+  "wallet": {
+   "sfSymbol": "wallet.pass",
+   "materialSymbol": "account_balance_wallet"
+  },
+  "webhook": {
+   "sfSymbol": "point.3.connected.trianglepath.dotted",
+   "materialSymbol": "webhook"
+  },
+  "youtube": {
+   "sfSymbol": "play.rectangle",
+   "materialSymbol": "smart_display"
+  },
+  "zap": {
+   "sfSymbol": "bolt",
+   "materialSymbol": "bolt"
   }
  },
  "categories": {
@@ -1170,7 +1602,115 @@
   "sticky-note": "behavior-registry vocabulary",
   "store": "behavior-registry vocabulary",
   "target": "behavior-registry vocabulary",
-  "unlink": "behavior-registry vocabulary"
+  "unlink": "behavior-registry vocabulary",
+  "alert-octagon": "status",
+  "area-chart": "misc",
+  "arrow-left-right": "navigation & chrome",
+  "banknote": "misc",
+  "bar-chart": "misc",
+  "bar-chart-2": "misc",
+  "bar-chart-3": "misc",
+  "bell-ring": "communication",
+  "binary": "misc",
+  "bitcoin": "misc",
+  "bluetooth": "misc",
+  "book-open-check": "misc",
+  "bot": "misc",
+  "boxes": "misc",
+  "brain": "misc",
+  "brain-circuit": "misc",
+  "calculator": "misc",
+  "calendar-check": "misc",
+  "calendar-days": "misc",
+  "calendar-plus": "misc",
+  "candlestick-chart": "misc",
+  "chart-line": "misc",
+  "chef-hat": "misc",
+  "circle-help": "status",
+  "circle-play": "media",
+  "clipboard-list": "files",
+  "cloud": "misc",
+  "cloud-upload": "files",
+  "code-2": "files",
+  "cog": "actions",
+  "coins": "misc",
+  "compass": "navigation & chrome",
+  "container": "misc",
+  "database": "misc",
+  "database-zap": "misc",
+  "dumbbell": "misc",
+  "file-clock": "files",
+  "file-code-2": "files",
+  "file-diff": "files",
+  "file-spreadsheet": "files",
+  "folder-kanban": "files",
+  "fuel": "misc",
+  "git-fork": "misc",
+  "git-pull-request": "misc",
+  "hand-heart": "misc",
+  "hard-drive": "misc",
+  "hard-hat": "misc",
+  "hash": "misc",
+  "heart-handshake": "misc",
+  "heart-pulse": "misc",
+  "hourglass": "status",
+  "house": "navigation & chrome",
+  "id-card": "misc",
+  "kanban": "misc",
+  "kanban-square": "misc",
+  "landmark": "misc",
+  "layout-template": "navigation & chrome",
+  "library": "misc",
+  "life-buoy": "misc",
+  "line-chart": "misc",
+  "list-checks": "misc",
+  "list-todo": "misc",
+  "map": "navigation & chrome",
+  "megaphone": "communication",
+  "message-square-text": "communication",
+  "mountain": "misc",
+  "newspaper": "misc",
+  "notebook-pen": "editing / typography",
+  "orbit": "misc",
+  "palette": "misc",
+  "palmtree": "misc",
+  "panel-bottom-open": "navigation & chrome",
+  "panel-right-open": "navigation & chrome",
+  "pie-chart": "misc",
+  "piggy-bank": "misc",
+  "pill": "misc",
+  "plug": "misc",
+  "qr-code": "misc",
+  "radio": "misc",
+  "radio-tower": "misc",
+  "receipt": "misc",
+  "rss": "communication",
+  "scan-barcode": "misc",
+  "scan-line": "misc",
+  "server": "misc",
+  "settings-2": "actions",
+  "shield-alert": "status",
+  "ship-wheel": "misc",
+  "shopping-bag": "misc",
+  "siren": "status",
+  "split": "misc",
+  "stamp": "misc",
+  "stethoscope": "misc",
+  "table": "misc",
+  "tablet-smartphone": "misc",
+  "thermometer": "misc",
+  "ticket": "misc",
+  "timer": "status",
+  "truck": "misc",
+  "user-cog": "misc",
+  "user-round": "misc",
+  "user-search": "misc",
+  "user-x": "misc",
+  "utensils": "misc",
+  "wallet": "misc",
+  "webhook": "misc",
+  "youtube": "media",
+  "zap": "misc"
  },
  "notes": {
   "panel-left": "`left_panel_open`/`right_panel_open` (Material Symbols) have no\n`Icons.Filled.*` member in androidx `material-icons-extended` (a newer\nMaterial-Symbols-only pair) — `first_page`/`last_page` are the closest\ndirectional stand-ins that actually compile (verified wave C5).",

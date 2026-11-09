@@ -96,9 +96,13 @@ function NavStackRefBridge({ apiRef }: { apiRef: React.MutableRefObject<NavStack
  * its own `sendEvent`/mount-time dispatch resolves — this component only
  * decides WHICH transport (or none) the kernel dispatches through.
  */
-function TraitInitializer({ pageName, routeParams, mountKey, orbitals, metadata, stamp, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, hasBridge, children }: {
+function TraitInitializer({ pageName, routePath, crumb, routeParams, mountKey, orbitals, metadata, stamp, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, hasBridge, children }: {
   /** The page the kernel answers the circuit of; absent: the initial page. */
   pageName?: string;
+  /** The concrete path the page is opened at: `$MOUNT.route` and the declared ancestors derive from it. */
+  routePath?: string;
+  /** The crumb of the navigate that opened `routePath`, passed through to the kernel's `$MOUNT`. */
+  crumb?: string;
   /** Route params from a parameterized page path — merged into every INIT payload. */
   routeParams?: Record<string, string>;
   /** The mounted page's identity — keys the once-per-mount INIT guard. */
@@ -156,6 +160,8 @@ function TraitInitializer({ pageName, routeParams, mountKey, orbitals, metadata,
   const { entityBindingSource, awaitingSkeletonSource, circuit, sessionTheme } = useTraitStateMachine(uiSlots, {
     orbitals,
     ...(pageName !== undefined ? { page: pageName } : {}),
+    ...(routePath !== undefined ? { routePath } : {}),
+    ...(crumb !== undefined ? { crumb } : {}),
     ...(metadata !== undefined ? { metadata } : {}),
     ...(stamp !== undefined ? { stamp } : {}),
     ...(onNavigate !== undefined ? { navigate: onNavigate } : {}),
@@ -282,7 +288,7 @@ function FitToBox({ children, mode = 'box' }: { children: React.ReactNode; mode?
  * When `serverUrl` is provided, wraps with ServerBridgeProvider and
  * forwards events to the server after local processing.
  */
-function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, pageName, routeParams, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, themeOverride, frame }: {
+function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, pageName, routePath, crumb, routeParams, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, themeOverride, frame }: {
   schema: OrbitalSchema;
   /** See OrbPreviewProps.frame. */
   frame: 'contained' | 'page';
@@ -291,6 +297,10 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   getAccessToken?: AccessTokenProvider;
   mockData?: EntityData;
   pageName?: string;
+  /** The concrete path the page is opened at, forwarded to TraitInitializer. */
+  routePath?: string;
+  /** The crumb of the navigate that opened `routePath`, forwarded to TraitInitializer. */
+  crumb?: string;
   /** Route params extracted from a parameterized page path (`/x/:id`) — merged into INIT payloads. */
   routeParams?: Record<string, string>;
   onNavigate?: (path: string, params?: Record<string, string>, crumb?: string) => void;
@@ -347,6 +357,8 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
     <VerificationProvider enabled>
               <TraitInitializer
           pageName={pageName}
+          {...(routePath !== undefined ? { routePath } : {})}
+          {...(crumb !== undefined ? { crumb } : {})}
           routeParams={routeParams}
           mountKey={pageName}
           orbitals={schema.orbitals}
@@ -783,6 +795,8 @@ export function OrbPreview({
     return pattern.replace(/:([A-Za-z0-9_]+)/g, (whole, key: string) => routeParams[key] ?? whole);
   }, [currentPagePath, routeParams]);
   const navStackRef = useRef<NavStackApi | null>(null);
+  const [crumbedNavigate, setCrumbedNavigate] = useState<{ path: string; crumb: string } | null>(null);
+  const openedCrumb = crumbedNavigate !== null && crumbedNavigate.path === concreteCurrentPath ? crumbedNavigate.crumb : undefined;
 
   // Navigate handler: when a ['navigate', '/path'] effect fires OR a
   // sidebar `<Link>` click is intercepted, find the matching page and
@@ -901,6 +915,7 @@ export function OrbPreview({
   const handleNavigateEffect = useCallback(
     (path: string, params?: Record<string, string>, crumb?: string) => {
       navStackRef.current?.beginNavigate(path, crumb);
+      setCrumbedNavigate(crumb !== undefined && crumb !== '' ? { path, crumb } : null);
       handleNavigate(path, params);
     },
     [handleNavigate],
@@ -1019,6 +1034,8 @@ export function OrbPreview({
                     getAccessToken={getAccessToken}
                     mockData={effectiveMockData}
                     pageName={currentPage}
+                    routePath={concreteCurrentPath}
+                    {...(openedCrumb !== undefined ? { crumb: openedCrumb } : {})}
                     routeParams={routeParams}
                     onNavigate={handleNavigateEffect}
                     onNavigateBack={handleNavigateBack}
@@ -1036,6 +1053,8 @@ export function OrbPreview({
                   getAccessToken={getAccessToken}
                   mockData={effectiveMockData}
                   pageName={currentPage}
+                  routePath={concreteCurrentPath}
+                  {...(openedCrumb !== undefined ? { crumb: openedCrumb } : {})}
                   routeParams={routeParams}
                   onNavigate={handleNavigateEffect}
                   onNavigateBack={handleNavigateBack}

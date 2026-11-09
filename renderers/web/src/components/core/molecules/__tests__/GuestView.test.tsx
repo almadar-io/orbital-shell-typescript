@@ -43,6 +43,48 @@ describe('GuestView embedded paints', () => {
   });
 });
 
+describe('GuestView routes an embedded trait\'s portal paint to its slot', () => {
+  const mapPaints = () => [
+    { slot: 'main', trait: 'Map', embedded: true, content: { type: 'typography', content: 'map failed' } },
+    { slot: 'toast', trait: 'Map', embedded: true, content: { type: 'alert', variant: 'error', message: 'map toast' } },
+  ];
+
+  it('keeps the inline paint in the trait frame, shows the toast in its slot, and settles on an identical repaint', async () => {
+    const { UISlotContext } = await import('../../../../providers/UISlotContext');
+    const notified: string[] = [];
+    const Probe = () => {
+      const slots = React.useContext(UISlotContext);
+      React.useEffect(() => slots?.subscribeTrait('Map', (content) => notified.push(content?.pattern ?? 'null')), [slots]);
+      return <span>{`frame:${slots?.getTraitContent('Map')?.pattern ?? 'missing'}`}</span>;
+    };
+    const view = (paints: ReturnType<typeof mapPaints>) => (
+      <EventBusProvider debug={false}>
+        <GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" paints={paints}><Probe /></GuestView>
+      </EventBusProvider>
+    );
+    const { container, rerender } = render(view(mapPaints()));
+    rerender(view(mapPaints()));
+    expect(container.textContent).toContain('frame:typography');
+    expect(container.textContent).toContain('map toast');
+    notified.length = 0;
+    rerender(view(mapPaints()));
+    expect(notified).toEqual([]);
+  });
+
+  it('edge: an embedded trait that paints only a toast leaves its frame empty', async () => {
+    const { UISlotContext } = await import('../../../../providers/UISlotContext');
+    const Probe = () => {
+      const slots = React.useContext(UISlotContext);
+      return <span>{`frame:${slots?.getTraitContent('Map')?.pattern ?? 'missing'}`}</span>;
+    };
+    const { container } = wrap(
+      <GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" paints={[mapPaints()[1]]}><Probe /></GuestView>,
+    );
+    expect(container.textContent).toContain('map toast');
+    expect(container.textContent).toContain('frame:missing');
+  });
+});
+
 describe('GuestView keeps the guest inside its frame', () => {
   it('renders a slot the guest paints besides main inside the view, never the host portal root', () => {
     const { container } = wrap(

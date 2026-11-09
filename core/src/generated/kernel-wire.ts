@@ -235,10 +235,15 @@ dispatchLog?: DispatchLog,
  */
 mount?: Array<MountSeed>, 
 /**
- * The route a `mount` batch opens: the kernel delivers `$MOUNT { page, route, traits, entities }` to the traits that
+ * The route a `mount` batch opens: the kernel delivers `$MOUNT { page, route, traits, entities, ancestors, label?, crumb? }` to the traits that
  * listen for it before the batch's seeds run (EXEC-SEED-7). Absent: a mount that opens no route delivers none.
  */
 route?: string, 
+/**
+ * The crumb of the `(navigate path payload { crumb })` that opened `route`: `$MOUNT` carries it as `crumb`
+ * (EXEC-SEED-7). Absent: the route was not opened by a crumbed navigate. Meaningful only with `route`.
+ */
+crumb?: string, 
 /**
  * Where this leg runs, set by the kernel on every leg it builds (EXEC-DIST-6).
  */
@@ -416,7 +421,12 @@ foldSeeded: Array<string>, };
 
 export type MountSeed = { trait: string, event: LifecycleEvent, };
 
-export type MountWire = { seeds: Array<DispatchWire>, 
+export type MountWire = { 
+/**
+ * The browser's own `$MOUNT` for the route it opens, to the `[client]` route traits that listen (EXEC-SEED-7): it ran
+ * before the seeds, and its legs are posted before the mount legs, on every topology. Absent when none listens.
+ */
+announced: DispatchWire | null, seeds: Array<DispatchWire>, 
 /**
  * For a host that carries the circuit state (stateless): a leg per orbital whose seeds delegated effects.
  */
@@ -476,9 +486,17 @@ export type OsGrantsReport = { findings: Array<OsGrantFinding>, };
 
 export type OsOp = "os/read-file" | "os/write-file" | "os/append-file" | "os/open" | "os/close" | "os/read" | "os/write" | "os/seek" | "os/truncate" | "os/fsync" | "os/copy" | "os/rename" | "os/remove" | "os/link" | "os/symlink" | "os/readlink" | "os/watch-files" | "os/mkdir" | "os/rmdir" | "os/list-dir" | "os/glob" | "os/mktemp" | "os/realpath" | "os/cwd" | "os/chdir" | "os/stat" | "os/lstat" | "os/access" | "os/exists" | "os/chmod" | "os/chown" | "os/utimes" | "os/spawn" | "os/wait" | "os/kill" | "os/pid" | "os/ppid" | "os/current-exe" | "os/watch-process" | "os/watch-signal" | "os/getenv" | "os/setenv" | "os/unsetenv" | "os/environ" | "os/watch-env" | "os/stdin-read" | "os/stdout-write" | "os/stderr-write" | "os/isatty" | "os/tty-size" | "os/tcp-connect" | "os/tcp-listen" | "os/tls-upgrade" | "os/send" | "os/recv" | "os/udp-bind" | "os/sendto" | "os/recvfrom" | "os/dns-resolve" | "os/shutdown" | "os/watch-port" | "os/fetch" | "os/clock-monotonic" | "os/uid" | "os/gid" | "os/username" | "os/group-of" | "os/watch-cron" | "os/cpu-usage" | "os/memory-info" | "os/uptime" | "os/load-avg" | "os/hostname" | "os/uname" | "os/disk-usage" | "os/mounts" | "os/disk-io" | "os/network-interfaces" | "os/network-stats" | "os/network-connected" | "os/default-gateway" | "os/battery-status" | "os/ac-power" | "os/thermal-zones" | "os/notify" | "os/speak" | "os/brightness-get" | "os/brightness-set" | "os/volume-get" | "os/volume-set" | "os/volume-mute" | "os/suspend" | "os/hibernate" | "os/mmio-read" | "os/mmio-write" | "os/irq-wait" | "os/irq-ack" | "kv/get" | "kv/put" | "kv/delete" | "kv/scan" | "kv/batch" | "mem/arena-new" | "mem/arena-drop" | "mem/alloc" | "mem/free" | "mem/borrow" | "mem/release" | "mem/write" | "mem/freeze" | "mem/atomic-load" | "mem/atomic-store" | "mem/atomic-add" | "mem/atomic-cas" | "kernel/queue-front" | "kernel/queue-back" | "ffi/call" | "gpu/device-open" | "gpu/device-close" | "gpu/buffer-create" | "gpu/texture-create" | "gpu/sampler-create" | "gpu/query-create" | "gpu/shader-create" | "gpu/pipeline-create" | "gpu/bind-group-create" | "gpu/submit" | "gpu/release";
 
-export type PageAncestor = { path: string, page: string, };
+export type PageAncestor = { path: string, page: string, 
+/**
+ * The ancestor page's declared nav `@label`; absent when it declares none.
+ */
+label?: string, };
 
-export type PageCircuit = { route?: string, page?: string, notFound: boolean, mounts: Array<MountSeed>, embedded: Array<string>, embeddedBy: Array<string>, orbitalByTrait: { [key in string]: string }, linkedEntityByTrait: { [key in string]: string }, 
+export type PageCircuit = { route?: string, page?: string, 
+/**
+ * The resolved page's declared nav `@label`; absent when it declares none.
+ */
+label?: string, notFound: boolean, mounts: Array<MountSeed>, embedded: Array<string>, embeddedBy: Array<string>, orbitalByTrait: { [key in string]: string }, linkedEntityByTrait: { [key in string]: string }, 
 /**
  * The traits the page binds: its own, then the ones it embeds.
  */
@@ -1182,7 +1200,7 @@ function checkEvalStepWire(v: JsonValue | undefined): boolean {
 }
 
 function checkEventRequest(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["event"] === 'string' && (v["eventId"] === undefined || accepts((x, q) => asEventId(str(x, q)), v["eventId"])) && (v["payload"] === undefined || accepts((x, q) => rec(x, q), v["payload"])) && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["targetTrait"] === undefined || typeof v["targetTrait"] === 'string') && (v["clientId"] === undefined || typeof v["clientId"] === 'string') && (v["locale"] === undefined || typeof v["locale"] === 'string') && (v["tick"] === undefined || typeof v["tick"] === 'string') && (v["sourceTrait"] === undefined || typeof v["sourceTrait"] === 'string') && (v["runTick"] === undefined || checkRunTick(v["runTick"])) && (v["traits"] === undefined || (Array.isArray(v["traits"]) && v["traits"].every((e) => checkTraitFrom(e)))) && (v["entityByTrait"] === undefined || (isRecord(v["entityByTrait"]) && Object.values(v["entityByTrait"]).every((e) => accepts((x, q) => entityRow(x, q), e)))) && (v["behavior"] === undefined || typeof v["behavior"] === 'string') && (v["delivery"] === undefined || checkDeliveryRecord(v["delivery"])) && (v["dispatchLog"] === undefined || checkDispatchLog(v["dispatchLog"])) && (v["mount"] === undefined || (Array.isArray(v["mount"]) && v["mount"].every((e) => checkMountSeed(e)))) && (v["route"] === undefined || typeof v["route"] === 'string') && (v["residence"] === undefined || checkLegResidence(v["residence"])) && (v["framesSince"] === undefined || typeof v["framesSince"] === 'number') && (v["heldPayload"] === undefined || typeof v["heldPayload"] === 'number'));
+  return (isRecord(v) && typeof v["event"] === 'string' && (v["eventId"] === undefined || accepts((x, q) => asEventId(str(x, q)), v["eventId"])) && (v["payload"] === undefined || accepts((x, q) => rec(x, q), v["payload"])) && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["targetTrait"] === undefined || typeof v["targetTrait"] === 'string') && (v["clientId"] === undefined || typeof v["clientId"] === 'string') && (v["locale"] === undefined || typeof v["locale"] === 'string') && (v["tick"] === undefined || typeof v["tick"] === 'string') && (v["sourceTrait"] === undefined || typeof v["sourceTrait"] === 'string') && (v["runTick"] === undefined || checkRunTick(v["runTick"])) && (v["traits"] === undefined || (Array.isArray(v["traits"]) && v["traits"].every((e) => checkTraitFrom(e)))) && (v["entityByTrait"] === undefined || (isRecord(v["entityByTrait"]) && Object.values(v["entityByTrait"]).every((e) => accepts((x, q) => entityRow(x, q), e)))) && (v["behavior"] === undefined || typeof v["behavior"] === 'string') && (v["delivery"] === undefined || checkDeliveryRecord(v["delivery"])) && (v["dispatchLog"] === undefined || checkDispatchLog(v["dispatchLog"])) && (v["mount"] === undefined || (Array.isArray(v["mount"]) && v["mount"].every((e) => checkMountSeed(e)))) && (v["route"] === undefined || typeof v["route"] === 'string') && (v["crumb"] === undefined || typeof v["crumb"] === 'string') && (v["residence"] === undefined || checkLegResidence(v["residence"])) && (v["framesSince"] === undefined || typeof v["framesSince"] === 'number') && (v["heldPayload"] === undefined || typeof v["heldPayload"] === 'number'));
 }
 
 function checkEventResponse(v: JsonValue | undefined): boolean {
@@ -1350,7 +1368,7 @@ function checkMountSeed(v: JsonValue | undefined): boolean {
 }
 
 function checkMountWire(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && (Array.isArray(v["seeds"]) && v["seeds"].every((e) => checkDispatchWire(e))) && (Array.isArray(v["legs"]) && v["legs"].every((e) => checkMountLegWire(e))) && (Array.isArray(v["statefulLegs"]) && v["statefulLegs"].every((e) => checkMountLegWire(e))) && (Array.isArray(v["hops"]) && v["hops"].every((e) => checkRoutedLeg(e))) && (checkMountFailure(v["failed"]) || v["failed"] === null));
+  return (isRecord(v) && (checkDispatchWire(v["announced"]) || v["announced"] === null) && (Array.isArray(v["seeds"]) && v["seeds"].every((e) => checkDispatchWire(e))) && (Array.isArray(v["legs"]) && v["legs"].every((e) => checkMountLegWire(e))) && (Array.isArray(v["statefulLegs"]) && v["statefulLegs"].every((e) => checkMountLegWire(e))) && (Array.isArray(v["hops"]) && v["hops"].every((e) => checkRoutedLeg(e))) && (checkMountFailure(v["failed"]) || v["failed"] === null));
 }
 
 function checkNavigateOptions(v: JsonValue | undefined): boolean {
@@ -1902,7 +1920,7 @@ function buildEvalStepWire(v: JsonValue | undefined, p: string): EvalStepWire {
 }
 
 function buildEventRequest(v: JsonValue | undefined, p: string): EventRequest {
-  return obj(v, p, null, (r0) => ({ "event": str(r0["event"], p + '.event'), ...(r0["eventId"] === undefined || r0["eventId"] === null ? {} : { "eventId": asEventId(str(r0["eventId"], p + '.eventId')) }), ...(r0["payload"] === undefined || r0["payload"] === null ? {} : { "payload": rec(r0["payload"], p + '.payload') }), ...(r0["entityId"] === undefined || r0["entityId"] === null ? {} : { "entityId": str(r0["entityId"], p + '.entityId') }), ...(r0["targetTrait"] === undefined || r0["targetTrait"] === null ? {} : { "targetTrait": str(r0["targetTrait"], p + '.targetTrait') }), ...(r0["clientId"] === undefined || r0["clientId"] === null ? {} : { "clientId": str(r0["clientId"], p + '.clientId') }), ...(r0["locale"] === undefined || r0["locale"] === null ? {} : { "locale": str(r0["locale"], p + '.locale') }), ...(r0["tick"] === undefined || r0["tick"] === null ? {} : { "tick": str(r0["tick"], p + '.tick') }), ...(r0["sourceTrait"] === undefined || r0["sourceTrait"] === null ? {} : { "sourceTrait": str(r0["sourceTrait"], p + '.sourceTrait') }), ...(r0["runTick"] === undefined || r0["runTick"] === null ? {} : { "runTick": buildRunTick(r0["runTick"], p + '.runTick') }), ...(r0["traits"] === undefined || r0["traits"] === null ? {} : { "traits": list(r0["traits"], p + '.traits', (e1, q1) => buildTraitFrom(e1, q1)) }), ...(r0["entityByTrait"] === undefined || r0["entityByTrait"] === null ? {} : { "entityByTrait": dict(r0["entityByTrait"], p + '.entityByTrait', (e1, q1) => entityRow(e1, q1)) }), ...(r0["behavior"] === undefined || r0["behavior"] === null ? {} : { "behavior": str(r0["behavior"], p + '.behavior') }), ...(r0["delivery"] === undefined || r0["delivery"] === null ? {} : { "delivery": buildDeliveryRecord(r0["delivery"], p + '.delivery') }), ...(r0["dispatchLog"] === undefined || r0["dispatchLog"] === null ? {} : { "dispatchLog": buildDispatchLog(r0["dispatchLog"], p + '.dispatchLog') }), ...(r0["mount"] === undefined || r0["mount"] === null ? {} : { "mount": list(r0["mount"], p + '.mount', (e1, q1) => buildMountSeed(e1, q1)) }), ...(r0["route"] === undefined || r0["route"] === null ? {} : { "route": str(r0["route"], p + '.route') }), ...(r0["residence"] === undefined || r0["residence"] === null ? {} : { "residence": buildLegResidence(r0["residence"], p + '.residence') }), ...(r0["framesSince"] === undefined || r0["framesSince"] === null ? {} : { "framesSince": int(r0["framesSince"], p + '.framesSince', 0, Number.MAX_SAFE_INTEGER, "u64") }), ...(r0["heldPayload"] === undefined || r0["heldPayload"] === null ? {} : { "heldPayload": int(r0["heldPayload"], p + '.heldPayload', 0, Number.MAX_SAFE_INTEGER, "u64") }) }));
+  return obj(v, p, null, (r0) => ({ "event": str(r0["event"], p + '.event'), ...(r0["eventId"] === undefined || r0["eventId"] === null ? {} : { "eventId": asEventId(str(r0["eventId"], p + '.eventId')) }), ...(r0["payload"] === undefined || r0["payload"] === null ? {} : { "payload": rec(r0["payload"], p + '.payload') }), ...(r0["entityId"] === undefined || r0["entityId"] === null ? {} : { "entityId": str(r0["entityId"], p + '.entityId') }), ...(r0["targetTrait"] === undefined || r0["targetTrait"] === null ? {} : { "targetTrait": str(r0["targetTrait"], p + '.targetTrait') }), ...(r0["clientId"] === undefined || r0["clientId"] === null ? {} : { "clientId": str(r0["clientId"], p + '.clientId') }), ...(r0["locale"] === undefined || r0["locale"] === null ? {} : { "locale": str(r0["locale"], p + '.locale') }), ...(r0["tick"] === undefined || r0["tick"] === null ? {} : { "tick": str(r0["tick"], p + '.tick') }), ...(r0["sourceTrait"] === undefined || r0["sourceTrait"] === null ? {} : { "sourceTrait": str(r0["sourceTrait"], p + '.sourceTrait') }), ...(r0["runTick"] === undefined || r0["runTick"] === null ? {} : { "runTick": buildRunTick(r0["runTick"], p + '.runTick') }), ...(r0["traits"] === undefined || r0["traits"] === null ? {} : { "traits": list(r0["traits"], p + '.traits', (e1, q1) => buildTraitFrom(e1, q1)) }), ...(r0["entityByTrait"] === undefined || r0["entityByTrait"] === null ? {} : { "entityByTrait": dict(r0["entityByTrait"], p + '.entityByTrait', (e1, q1) => entityRow(e1, q1)) }), ...(r0["behavior"] === undefined || r0["behavior"] === null ? {} : { "behavior": str(r0["behavior"], p + '.behavior') }), ...(r0["delivery"] === undefined || r0["delivery"] === null ? {} : { "delivery": buildDeliveryRecord(r0["delivery"], p + '.delivery') }), ...(r0["dispatchLog"] === undefined || r0["dispatchLog"] === null ? {} : { "dispatchLog": buildDispatchLog(r0["dispatchLog"], p + '.dispatchLog') }), ...(r0["mount"] === undefined || r0["mount"] === null ? {} : { "mount": list(r0["mount"], p + '.mount', (e1, q1) => buildMountSeed(e1, q1)) }), ...(r0["route"] === undefined || r0["route"] === null ? {} : { "route": str(r0["route"], p + '.route') }), ...(r0["crumb"] === undefined || r0["crumb"] === null ? {} : { "crumb": str(r0["crumb"], p + '.crumb') }), ...(r0["residence"] === undefined || r0["residence"] === null ? {} : { "residence": buildLegResidence(r0["residence"], p + '.residence') }), ...(r0["framesSince"] === undefined || r0["framesSince"] === null ? {} : { "framesSince": int(r0["framesSince"], p + '.framesSince', 0, Number.MAX_SAFE_INTEGER, "u64") }), ...(r0["heldPayload"] === undefined || r0["heldPayload"] === null ? {} : { "heldPayload": int(r0["heldPayload"], p + '.heldPayload', 0, Number.MAX_SAFE_INTEGER, "u64") }) }));
 }
 
 function buildEventResponse(v: JsonValue | undefined, p: string): EventResponse {
@@ -2070,7 +2088,7 @@ function buildMountSeed(v: JsonValue | undefined, p: string): MountSeed {
 }
 
 function buildMountWire(v: JsonValue | undefined, p: string): MountWire {
-  return obj(v, p, null, (r0) => ({ "seeds": list(r0["seeds"], p + '.seeds', (e1, q1) => buildDispatchWire(e1, q1)), "legs": list(r0["legs"], p + '.legs', (e1, q1) => buildMountLegWire(e1, q1)), "statefulLegs": list(r0["statefulLegs"], p + '.statefulLegs', (e1, q1) => buildMountLegWire(e1, q1)), "hops": list(r0["hops"], p + '.hops', (e1, q1) => buildRoutedLeg(e1, q1)), "failed": r0["failed"] === undefined ? null : (r0["failed"] === null ? null : buildMountFailure(r0["failed"], p + '.failed')) }));
+  return obj(v, p, null, (r0) => ({ "announced": r0["announced"] === undefined ? null : (r0["announced"] === null ? null : buildDispatchWire(r0["announced"], p + '.announced')), "seeds": list(r0["seeds"], p + '.seeds', (e1, q1) => buildDispatchWire(e1, q1)), "legs": list(r0["legs"], p + '.legs', (e1, q1) => buildMountLegWire(e1, q1)), "statefulLegs": list(r0["statefulLegs"], p + '.statefulLegs', (e1, q1) => buildMountLegWire(e1, q1)), "hops": list(r0["hops"], p + '.hops', (e1, q1) => buildRoutedLeg(e1, q1)), "failed": r0["failed"] === undefined ? null : (r0["failed"] === null ? null : buildMountFailure(r0["failed"], p + '.failed')) }));
 }
 
 function buildNavigateOptions(v: JsonValue | undefined, p: string): NavigateOptions {

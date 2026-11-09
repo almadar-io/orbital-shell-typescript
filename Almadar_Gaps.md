@@ -16,7 +16,9 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 
 
 
-Next code: `G-ORBITAL-SHELL-TYPESCRIPT-156`
+Next code: `G-ORBITAL-SHELL-TYPESCRIPT-157`
+
+- **G-ORBITAL-SHELL-TYPESCRIPT-156** [mechanical] — `renderers/web/test/ui/slot-flush-host-ask.test.ts` fails: an `audio/play-sound` host-ask handed to `useSlotFlush.applyClientEffects` beside `auth/sign-out` never reaches the installed audio (`registerHostAudio`), heard `['sign-out']` not `['sign-out', 'audio/play-sound']`. Found 2026-11-08 while unsticking the suite's stale slot stubs (17 files lacked `setDeclaredTraitOrder`, fixed the same day); unrelated to the guest portal-paint fix. Likely the in-flight audio rework (uncommitted `packages/almadar-std/modules/audio.ts` turns `audio/play-sound` into one resolved `AudioPlay` arg); check with that work before changing the test. Reproduce: `npx vitest run test/ui/slot-flush-host-ask.test.ts`. Prevention rung: none (the test is the verifier and caught it; nobody ran the file). Root cause: one-off.
 
 - **G-ORBITAL-SHELL-TYPESCRIPT-154** [mechanical] — Node-host twin of G-STD-249 (closed 2026-11-07 on the Rust host): a CLI/hook request whose answer comes from a `[background]` tick that names its states (`every … in <state>`) must stay open while that tick is pending (EXEC-INBOUND awaited answer, EXEC-TICK-1). The Rust host now runs tick passes during `deliver_inbound_awaiting` (orbital-shell-rust runtime.rs) and holds on `pending_background_ticks()`; the node host is unchecked. Twin goes beside `hosts/node/test/kernel-program-late-answer.test.ts` with a `test/fixtures/tick-answer/` fixture; check whether its tick driver runs during an awaited delivery. Rung: (3) twin host test. Root cause: K3.
 

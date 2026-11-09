@@ -14,7 +14,7 @@ import type { RowSetResolver } from '../../src/lib/row-set-resolver';
 const slots: UISlotManager = {
   slots: {}, render: vi.fn(() => 'id'), clear: vi.fn(), clearBySource: vi.fn(), clearById: vi.fn(), clearAll: vi.fn(),
   subscribe: vi.fn(() => () => undefined), hasContent: vi.fn(() => false), getContent: vi.fn(() => null),
-  getTraitContent: vi.fn(() => null), subscribeTrait: vi.fn(() => () => undefined), updateTraitContent: vi.fn(() => 'id'),
+  getTraitContent: vi.fn(() => null), subscribeTrait: vi.fn(() => () => undefined), setDeclaredTraitOrder: vi.fn(), updateTraitContent: vi.fn(() => 'id'),
 };
 const table: JsonObject = { type: 'data-list', entity: { [ROW_SET_MARKER]: true, ref: { entityType: 'Task', ids: ['t1'], total: 1, query: {} } } };
 const effect = (repaint?: 'rows-changed'): ClientEffectByTrait => ({ traitName: 'Board', effect: ['render-ui', 'main', table], ...(repaint !== undefined ? { repaint } : {}) });

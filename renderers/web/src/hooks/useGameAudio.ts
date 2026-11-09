@@ -5,14 +5,14 @@
  * Manages HTMLAudioElement pools for low-latency, concurrent sound playback,
  * plus a dedicated music player with crossfade transitions.
  *
- * Two separate systems:
- *   SFX pool:    play(key)  — instant, concurrent, pooled instances
- *   Music player: playMusic(key) — crossfades between looping background tracks
+ * Two separate systems, both playing what std-audio-cue resolved (`AudioPlay`):
+ *   SFX pool:    playPlan(plan)  — instant, concurrent, pooled instances
+ *   Music player: playMusicPlan(plan) — crossfades between looping background tracks
  *
  * Autoplay policy:
  *   Browsers block audio until a user gesture. This hook registers a one-time
  *   listener (click/keydown/touchstart) that:
- *   - Starts all `autostart: true` SFX entries
+ *   - Starts the resolved `autostart` sounds
  *   - Plays any pending music that was requested before unlock
  *
  * @packageDocumentation
@@ -28,11 +28,9 @@ import { useRef, useState, useCallback, useEffect } from 'react';
  *  pattern extractor and the generated `.lolo` factories resolve the same
  *  declaration; re-exported here for the hook's existing consumers. */
 export type { SoundEntry, AudioManifest, AudioPlay } from '@almadar/core';
-import type { SoundEntry, AudioManifest, AudioPlay } from '@almadar/core';
+import type { AudioPlay } from '@almadar/core';
 
 export interface GameAudioControls {
-    /** Play a sound effect (instant, pooled) */
-    play: (key: string) => void;
     /** Play a sound std-audio-cue already resolved */
     playPlan: (plan: AudioPlay) => void;
     /** Crossfade to a resolved track; an empty key fades out over `fadeMs` */
@@ -41,10 +39,8 @@ export interface GameAudioControls {
     stop: (key: string) => void;
     /** Stop all sounds including music */
     stopAll: () => void;
-    /** Crossfade to a new music track */
-    playMusic: (key: string) => void;
-    /** Fade out and stop the current music */
-    stopMusic: (fadeDurationMs?: number) => void;
+    /** Fade out over `fadeDurationMs` and stop the current music */
+    stopMusic: (fadeDurationMs: number) => void;
     muted: boolean;
     setMuted: (muted: boolean) => void;
     masterVolume: number;
@@ -52,15 +48,11 @@ export interface GameAudioControls {
 }
 
 export interface UseGameAudioOptions {
-    /** Sound definitions keyed by logical name */
-    manifest: AudioManifest;
-    /** Prefix prepended to all `path` values (default '') */
-    baseUrl?: string;
     /** Start muted (default false) */
     initialMuted?: boolean;
     /** Master volume 0–1 (default 1) */
     initialVolume?: number;
-    /** Resolved sounds to start on the first user gesture; derived from the manifest when absent */
+    /** Resolved sounds to start on the first user gesture */
     autostart?: AudioPlay[];
 }
 
@@ -70,32 +62,11 @@ export interface UseGameAudioOptions {
 
 type AudioPool = HTMLAudioElement[];
 
-function pickPath(entry: SoundEntry): string {
-    if (Array.isArray(entry.path)) {
-        return entry.path[Math.floor(Math.random() * entry.path.length)];
-    }
-    return entry.path;
-}
-
-/** Key-addressed playback (the audio/* host port) resolves a manifest entry here. */
-function resolveEntry(key: string, entry: SoundEntry, baseUrl: string, music: boolean): AudioPlay {
-    return {
-        key,
-        source: baseUrl + (music && Array.isArray(entry.path) ? entry.path[0] : pickPath(entry)),
-        volume: entry.volume ?? 1,
-        loop: music ? true : entry.loop ?? false,
-        poolSize: Math.max(1, entry.poolSize ?? 1),
-        fadeMs: music ? (entry.crossfade === false ? 0 : entry.crossfadeDurationMs ?? 1500) : 0,
-    };
-}
-
 // =============================================================================
 // Hook
 // =============================================================================
 
 export function useGameAudio({
-    manifest,
-    baseUrl = '',
     initialMuted = false,
     initialVolume = 1,
     autostart,
@@ -106,10 +77,8 @@ export function useGameAudio({
     // Refs avoid stale closures in RAF / setTimeout / interval callbacks
     const mutedRef = useRef(muted);
     const volumeRef = useRef(masterVolume);
-    const manifestRef = useRef(manifest);
     mutedRef.current = muted;
     volumeRef.current = masterVolume;
-    manifestRef.current = manifest;
 
     // -------------------------------------------------------------------------
     // SFX pool
@@ -181,12 +150,6 @@ export function useGameAudio({
             });
         }
     }, [getOrCreateElement]);
-
-    const play = useCallback((key: string) => {
-        const entry = manifestRef.current[key];
-        if (!entry) return;
-        playPlan(resolveEntry(key, entry, baseUrl, false));
-    }, [baseUrl, playPlan]);
 
     const stop = useCallback((key: string) => {
         const pool = poolsRef.current.get(key);
@@ -270,7 +233,7 @@ export function useGameAudio({
         }, stepMs);
     }, [clearMusicFade]);
 
-    const stopMusic = useCallback((fadeDurationMs = 1000) => {
+    const stopMusic = useCallback((fadeDurationMs: number) => {
         pendingMusicRef.current = null;
         const outgoing = currentMusicElRef.current;
         if (!outgoing) return;
@@ -301,12 +264,6 @@ export function useGameAudio({
         if (plan.key) startMusicPlan(plan);
         else stopMusic(plan.fadeMs);
     }, [startMusicPlan, stopMusic]);
-
-    const playMusic = useCallback((key: string) => {
-        const entry = manifestRef.current[key];
-        if (!entry) return;
-        startMusicPlan(resolveEntry(key, entry, baseUrl, true));
-    }, [baseUrl, startMusicPlan]);
 
     // -------------------------------------------------------------------------
     // Mute / volume controls
@@ -374,9 +331,7 @@ export function useGameAudio({
     // -------------------------------------------------------------------------
 
     const unlockedRef = useRef(false);
-    const autostartPlans = autostart ?? Object.keys(manifest)
-        .filter(k => manifest[k].autostart)
-        .map(k => resolveEntry(k, manifest[k], baseUrl, false));
+    const autostartPlans = autostart ?? [];
     const autostartKeysRef = useRef(new Set<string>());
     autostartKeysRef.current = new Set(autostartPlans.map(p => p.key));
     const autostartRef = useRef(autostartPlans);
@@ -439,9 +394,9 @@ export function useGameAudio({
     }, [clearMusicFade]);
 
     return {
-        play, stop, stopAll,
+        stop, stopAll,
         playPlan, playMusicPlan,
-        playMusic, stopMusic,
+        stopMusic,
         muted, setMuted,
         masterVolume, setMasterVolume,
     };

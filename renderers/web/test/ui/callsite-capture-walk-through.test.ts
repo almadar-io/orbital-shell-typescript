@@ -44,7 +44,7 @@ function stubSlots(): UISlotManager & { render: ReturnType<typeof vi.fn> } {
   return {
     slots: {}, render, clear: vi.fn(), clearBySource: vi.fn(), clearById: vi.fn(), clearAll: vi.fn(),
     subscribe: vi.fn(() => () => undefined), hasContent: vi.fn(() => false), getContent: vi.fn(() => null),
-    getTraitContent: vi.fn(() => null), subscribeTrait: vi.fn(() => () => undefined), updateTraitContent: vi.fn((traitName: string, content: object) => render({ ...content, sourceTrait: traitName })),
+    getTraitContent: vi.fn(() => null), subscribeTrait: vi.fn(() => () => undefined), setDeclaredTraitOrder: vi.fn(), updateTraitContent: vi.fn((traitName: string, content: object) => render({ ...content, sourceTrait: traitName })),
   };
 }
 

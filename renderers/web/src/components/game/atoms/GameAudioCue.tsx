@@ -4,12 +4,11 @@
  *
  * Renders null. `cuePlay` fires on every `cueSeq` bump (never on mount),
  * `musicPlay` crossfades over its `fadeMs` (an empty key fades out),
- * `autostart` starts on the first user gesture while unmuted. `manifest` and
- * `baseUrl` serve only the key-addressed audio/* host port.
+ * `autostart` starts on the first user gesture while unmuted.
  */
 import { useEffect, useRef } from 'react';
 import { useGameAudio } from '../../../hooks/useGameAudio';
-import type { AudioPlay, SoundEntry } from '@almadar/core';
+import type { AudioPlay } from '@almadar/core';
 
 export interface GameAudioCueProps {
     /** Monotonically increasing counter — bumping it plays `cuePlay` once. */
@@ -24,10 +23,6 @@ export interface GameAudioCueProps {
     muted?: boolean;
     /** Master volume 0-1, owned externally and mirrored into the hook. */
     volume?: number;
-    /** Sound manifest — answers the audio/* host port by key. */
-    manifest: Record<string, SoundEntry>;
-    /** Base URL prepended to every manifest path. */
-    baseUrl?: string;
 }
 
 export function GameAudioCue({
@@ -37,12 +32,8 @@ export function GameAudioCue({
     autostart,
     muted,
     volume,
-    manifest,
-    baseUrl,
 }: GameAudioCueProps): null {
     const { playPlan, playMusicPlan, setMuted, setMasterVolume } = useGameAudio({
-        manifest,
-        baseUrl,
         initialMuted: muted,
         initialVolume: volume,
         autostart: autostart ?? [],

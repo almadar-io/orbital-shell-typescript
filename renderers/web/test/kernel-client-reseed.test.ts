@@ -13,6 +13,7 @@ const traitIndex = NO_CIRCUIT;
 const leg = (event: string): EventRequest => ({ event, targetTrait: 'Viewer', clientId: 'tab-a' });
 
 const mountWire: MountWire = {
+  announced: null,
   seeds: [{
     orbital: 'Main', seed: { trait: 'Viewer', event: 'INIT' }, response: response(), serverLegs: [], mode: 'persistedAwaited', snapshot: null,
     alreadyDelivered: [], awaiting: [], statefulLeg: null, foldSeeded: [],
@@ -33,7 +34,7 @@ const homeCircuit: PageCircuit = {
   route: '/', page: 'Home', notFound: false, mounts: [{ trait: 'Viewer', event: 'INIT' }],
   embedded: [], embeddedBy: [],
   orbitalByTrait: { Viewer: 'Main' }, linkedEntityByTrait: { Viewer: 'Note' },
-  traits: ['Viewer'], entities: ['Note'],
+  traits: ['Viewer'], entities: ['Note'], ancestors: [],
 };
 const pageCircuitStub = (page?: string, route?: string): string => {
   if (page === 'Home' || route === '/') return JSON.stringify(homeCircuit);
@@ -134,7 +135,8 @@ describe('kernel client — a mount group with a client-only seed', () => {
     orbital: 'Main', seed: { trait, event: 'INIT' }, response: response(), serverLegs: [], mode, snapshot: null,
     alreadyDelivered: [], awaiting: [], statefulLeg: null, foldSeeded: [], flight,
   });
-  const mountOf = (seeds: DispatchWire[]): MountWire => ({
+  const mountOf = (seeds: DispatchWire[], announced: DispatchWire | null = null): MountWire => ({
+    announced,
     seeds,
     legs: [],
     statefulLegs: [{
@@ -159,6 +161,31 @@ describe('kernel client — a mount group with a client-only seed', () => {
     const client = mountOver(mountOf([seedWire('Picker', 'hybridClientOnly', null), seedWire('Asker', 'persistedAwaited', 3)]), sent);
     await client.dispatchMount([{ trait: 'Picker', event: 'INIT' }, { trait: 'Asker', event: 'INIT' }]);
     expect(sent.map((r) => r.mount?.map((s) => s.trait))).toEqual([['Picker', 'Asker']]);
+  });
+
+  // G-ORBITAL-CORE-146 + EXEC-SEED-7: the browser's own $MOUNT ran before the seeds, so it paints first and its server work leaves first.
+  const announcedWire: DispatchWire = {
+    ...seedWire('Nav', 'hybridClientOnly', 2),
+    seed: { trait: 'Nav', event: '$MOUNT' },
+    serverLegs: [{ orbital: 'Main', leg: { event: 'LOAD', targetTrait: 'Data', sourceTrait: 'Nav', clientId: 'tab-a' } }],
+  };
+
+  it('paints the announce first and posts its server work before the mount leg', async () => {
+    const sent: EventRequest[] = [];
+    const painted: string[] = [];
+    const client = mountOver(mountOf([seedWire('Data', 'persistedAwaited', 3)], announcedWire), sent);
+    await client.dispatchMount([{ trait: 'Data', event: 'INIT' }], { onLocal: (trait) => painted.push(trait) });
+    expect(painted).toEqual(['Nav', 'Data']);
+    expect(sent.map((r) => r.mount?.map((s) => s.trait).join(',') ?? `${r.targetTrait}:${r.event}`)).toEqual(['Data:LOAD', 'Data']);
+  });
+
+  it('control: a mount with no announce posts only the mount leg', async () => {
+    const sent: EventRequest[] = [];
+    const painted: string[] = [];
+    const client = mountOver(mountOf([seedWire('Data', 'persistedAwaited', 3)]), sent);
+    await client.dispatchMount([{ trait: 'Data', event: 'INIT' }], { onLocal: (trait) => painted.push(trait) });
+    expect(painted).toEqual(['Data']);
+    expect(sent.map((r) => r.mount?.map((s) => s.trait).join(','))).toEqual(['Data']);
   });
 
   it('control: a group no seed opened a flight for is refused', async () => {
@@ -210,7 +237,7 @@ describe('kernel client — a mount seed its topology posts in no group', () => 
   // `Match` holds a stateful leg only (flight 0); `Sources` delegated (flight 1): a carried-state host is posted Sources alone.
   const match = seedWire('Match', 0);
   const sources = seedWire('Sources', 1);
-  const mount: MountWire = { seeds: [match, sources], legs: [group([sources])], statefulLegs: [group([match, sources])], hops: [], failed: null };
+  const mount: MountWire = { announced: null, seeds: [match, sources], legs: [group([sources])], statefulLegs: [group([match, sources])], hops: [], failed: null };
   const run = async (carriesCircuitState: boolean) => {
     const log: string[] = [];
     const kernel: KernelInstance = {

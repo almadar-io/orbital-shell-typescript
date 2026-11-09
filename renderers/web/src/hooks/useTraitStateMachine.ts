@@ -85,6 +85,8 @@ export interface UseTraitStateMachineOptions {
   mountKey?: string;
   /** The route the page is opened at; the kernel's mounts for it are what the hook runs (EXEC-ENDPOINT-3). */
   routePath?: string;
+  /** The crumb of the `(navigate path payload { crumb })` that opened `routePath`, passed to the kernel as declared data (`$MOUNT.crumb`, EXEC-SEED-7). */
+  crumb?: string;
   /** The program's orbitals: the kernel is built from them. */
   orbitals: readonly OrbitalDefinition[];
   /** The program's `_metadata` (a compiled client program's operator sites and dispatch facts), handed to the kernel. */
@@ -373,7 +375,10 @@ export function useTraitStateMachine(
   // paints at once, then one mount leg is posted and folded.
   // Resolves with the first seed whose lifecycle arm failed (a contained `effect-failed`), so the
   // mount site can name it on the card the same way as a thrown mount error.
+  const crumbRef = useRef(options.crumb);
+  crumbRef.current = options.crumb;
   const mountAndSettle = useCallback(async (seeds: MountSeed[], payload: EventPayload, route: string | undefined): Promise<TransitionRejection | undefined> => {
+    const crumb = crumbRef.current;
     let beforeLocalPaint: SlotCheckpoint | undefined;
     let outcome: Awaited<ReturnType<typeof kernel.dispatchMount>>;
     try {
@@ -382,7 +387,7 @@ export function useTraitStateMachine(
           if (beforeLocalPaint === undefined) beforeLocalPaint = slotFlush.checkpoint();
           slotFlush.applyClientEffects(local.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
         },
-      }, { payload, ...(route !== undefined ? { route } : {}) });
+      }, { payload, ...(route !== undefined ? { route } : {}), ...(crumb !== undefined ? { crumb } : {}) });
     } catch (err: unknown) {
       if (beforeLocalPaint !== undefined) slotFlush.rollback(beforeLocalPaint);
       for (const seed of seeds) {

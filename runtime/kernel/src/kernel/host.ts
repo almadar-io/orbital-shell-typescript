@@ -5,7 +5,9 @@
  * the program host. Nothing here decides an execution step.
  */
 import {
+  AudioPlaySchema,
   credentialStatusConnected,
+  type AudioPlay,
   type BrowserPageFacts,
   type PageFactField,
   isJsonObject,
@@ -76,12 +78,12 @@ export interface SubstrateStreamSource {
   subscribe(message: (value: JsonValue) => void, ended: () => void): () => void;
 }
 
-/** The `audio/*` asks: a sound or music key, absent where the op names none (stop every sound, stop the music). */
+/** The `audio/*` asks: the sound or track std-audio-cue resolved, the key of a playing sound (absent stops every sound), or the music fade-out length. */
 export type HostAudioAsk =
-  | { op: 'audio/play-sound'; key: string }
+  | { op: 'audio/play-sound'; play: AudioPlay }
   | { op: 'audio/stop-sound'; key: string | undefined }
-  | { op: 'audio/change-music'; key: string | undefined }
-  | { op: 'audio/stop-music' };
+  | { op: 'audio/change-music'; play: AudioPlay }
+  | { op: 'audio/stop-music'; fadeMs: number };
 
 /** The one object `auth/sign-in` takes: the method and the credentials it needs. */
 export type HostSignInRequest =
@@ -390,19 +392,19 @@ export async function performHostAsk(
   if (audio === undefined) return fail(`no host audio is configured for ${op}`);
   let ask: HostAudioAsk;
   if (op === 'audio/stop-music') {
-    if (args.length !== 0) return fail('audio/stop-music takes no arguments');
-    ask = { op };
-  } else {
+    const [fadeMs] = args;
+    if (args.length !== 1 || typeof fadeMs !== 'number' || !Number.isFinite(fadeMs) || fadeMs < 0) return fail('audio/stop-music takes one fade length in milliseconds');
+    ask = { op, fadeMs };
+  } else if (op === 'audio/play-sound' || op === 'audio/change-music') {
+    const play = args.length === 1 ? AudioPlaySchema.safeParse(args[0]) : undefined;
+    if (play === undefined || !play.success) return fail(`${op} takes one resolved AudioPlay { key, source, volume, loop, poolSize, fadeMs }`);
+    ask = { op, play: play.data };
+  } else if (op === 'audio/stop-sound') {
     const parsed = optionalKey(op, args);
     if ('error' in parsed) return fail(parsed.error);
-    if (op === 'audio/play-sound') {
-      if (parsed.key === undefined) return fail('audio/play-sound: the key must be one non-empty text');
-      ask = { op, key: parsed.key };
-    } else if (op === 'audio/stop-sound' || op === 'audio/change-music') {
-      ask = { op, key: parsed.key };
-    } else {
-      return fail(`no host action is configured for ${op}`);
-    }
+    ask = { op, key: parsed.key };
+  } else {
+    return fail(`no host action is configured for ${op}`);
   }
   try {
     audio(ask);

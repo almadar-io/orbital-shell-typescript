@@ -35,7 +35,7 @@ export interface KernelInstance {
   /** The mount a reconnecting client posts to rebuild its session: the seeds with the state and frame this client holds for each. */
   reseedLeg(seedsJson: string, entityId?: string): string;
   foldBase(carriedJson: string | undefined, seededJson: string, entityId?: string): string | undefined;
-  dispatchMount(seedsJson: string, entityId?: string, payloadJson?: string, route?: string): string;
+  dispatchMount(seedsJson: string, entityId?: string, payloadJson?: string, route?: string, crumb?: string): string;
   /** The frame delta a painter at version `since` of this kernel's frames needs (`FrameDelta` JSON): empty when current, else a snapshot. */
   framesSince(since: number): string;
   restore(traitName: string, entityId: string | undefined, snapshotJson: string): string;

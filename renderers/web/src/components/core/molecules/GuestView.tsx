@@ -22,6 +22,7 @@ import { CurrentPagePathProvider } from '../../../providers/CurrentPagePathConte
 import type { SlotProps } from '../../../providers/UISlotContext';
 import { convertFnFormLambdasInProps } from '../../../lib/fn-form-lambda';
 import { unwrapPattern } from '../../../hooks/circuit/useSlotFlush';
+import { paintsInTraitFrame } from '../../../lib/slot-definitions';
 
 const log = createLogger('almadar:ui:guest-view');
 
@@ -76,8 +77,8 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
       const propsValue: SlotProps | string = bareTraitRef !== undefined ? bareTraitRef : { ...(props ?? {}) };
       const pattern = patternType as string;
       const converted = convertFnFormLambdasInProps(propsValue, typeof patternType === 'string' ? patternType : undefined);
-      // An embedded trait shows only where an `@trait.X` names it; a page-root paint owns its slot.
-      if (paint.embedded) {
+      // An embedded trait's inline paint shows only where an `@trait.X` names it; a portal or page-root paint owns its slot.
+      if (paintsInTraitFrame(paint.embedded, paint.slot)) {
         slotsRef.current.updateTraitContent(paint.trait, { pattern, props: converted, slot: paint.slot, priority: 0 });
       } else {
         slotsRef.current.render({ target: paint.slot, pattern, props: converted, sourceTrait: paint.trait });

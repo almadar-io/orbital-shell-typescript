@@ -22,7 +22,7 @@ import { notifyRowsChanged } from '../../lib/rows-changed';
 import { answerHostAsk, type HostAskDispatch, type HostTraceSource } from '../../lib/host-actions';
 import { useCallback, useMemo, useRef } from 'react';
 import type { ClientEffectByTrait, EventPayload, PatternNode } from '@almadar/core';
-import { isNotificationSlot } from '../../lib/slot-definitions';
+import { paintsInTraitFrame } from '../../lib/slot-definitions';
 import { createLogger } from '@almadar/logger';
 import { convertFnFormLambdasInProps } from '../../lib/fn-form-lambda';
 import type { SlotPatternEntry, SlotSource } from '../../types/slot-types';
@@ -111,9 +111,7 @@ export function useSlotFlush(
       ? bareTraitRef
       : { ...(unwrapped ?? {}), ...(last.props as SlotProps) };
     const props = convertFnFormLambdasInProps(rawProps, typeof patternType === "string" ? patternType : undefined);
-    // An embedded trait's frame holds its inline renders; a portal slot
-    // (toast, modal, drawer, …) renders in that slot like any trait's.
-    const isEmbedded = (embedded?.has(traitName) ?? false) && !isNotificationSlot(slot);
+    const isEmbedded = paintsInTraitFrame(embedded?.has(traitName) ?? false, slot);
     if (isEmbedded) {
       const content = {
         pattern: patternType as string,
@@ -170,7 +168,7 @@ export function useSlotFlush(
         const [, slot, pattern] = effect;
         const sourceTrait = traitName ?? 'kernel';
         const { bareTraitRef, patternType, props: unwrapped } = unwrapPattern(pattern as PatternNode | null);
-        const isEmbedded = (embedded?.has(sourceTrait) ?? false) && !isNotificationSlot(slot);
+        const isEmbedded = paintsInTraitFrame(embedded?.has(sourceTrait) ?? false, slot);
         flushLog.debug('apply:render', { trait: sourceTrait, slot, pattern: patternType ?? bareTraitRef ?? null, embedded: isEmbedded, event, fromState });
         const propsValue: SlotProps | string = bareTraitRef !== undefined
           ? bareTraitRef

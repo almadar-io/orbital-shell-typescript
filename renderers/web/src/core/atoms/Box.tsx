@@ -5,7 +5,7 @@
  * A versatile layout primitive that provides spacing, background, border, and shadow controls.
  * Think of it as a styled div with consistent design tokens.
  */
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { A11yProps, EventKey, EventPayload, EventEmit } from "@almadar/core";
 import { cn } from "../lib/cn";
 import { bandPadding } from "../lib/bandShapes";
@@ -15,6 +15,7 @@ import { useTapReveal } from "../hooks/useTapReveal";
 import { keyInViewerMode, useTheme, useThemeScope } from "../providers/ThemeContext";
 import { pressableProps } from "../lib/pressable";
 import { useAnimateChanges } from "../lib/animate-changes";
+import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 
 export type BoxPadding = "none" | "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
 export type BoxMargin =
@@ -38,6 +39,17 @@ export type BoxBg =
   | "inverse";
 export type BoxRounded = "none" | "sm" | "md" | "lg" | "xl" | "2xl" | "full";
 export type BoxShadow = "none" | "sm" | "md" | "lg" | "xl";
+/** An endless strip: the content moves toward `direction` at `speed` px/s. */
+export interface BoxMarquee {
+  /** "start" moves toward the reading start (left in LTR), "end" toward the reading end */
+  direction: "start" | "end";
+  /** Speed in pixels per second */
+  speed: number;
+  /** Clip the strip to the box and fade its two edges */
+  clip: boolean;
+  /** Repeat the content right after itself so the strip never runs out; without it the content leaves and starts over */
+  loop: boolean;
+}
 
 export interface BoxProps extends Omit<React.HTMLAttributes<HTMLDivElement>, keyof A11yProps>, A11yProps {
   /** Additional CSS classes applied to the root element. */
@@ -117,6 +129,8 @@ export interface BoxProps extends Omit<React.HTMLAttributes<HTMLDivElement>, key
   texture?: boolean;
   /** Content that appears or changes inside the box eases in instead of switching in one frame (new rows, swapped views, changed text), played in presentation motion (the theme's dramatic duration, standard easing) so it can be watched. Off under reduced motion. */
   animateChanges?: boolean;
+  /** Scroll the content as a moving strip (pauses on hover; stands still and wraps under reduced motion) */
+  marquee?: BoxMarquee;
   /** Scene behind the band's content (photo, illustration, pattern); never takes clicks */
   backdrop?: React.ReactNode;
   /** Children elements */
@@ -287,6 +301,7 @@ export const Box = React.forwardRef<HTMLDivElement, BoxProps>(
       texture = false,
       animateChanges = false,
       backdrop,
+      marquee,
       onClick,
       onMouseEnter,
       onMouseLeave,
@@ -403,6 +418,7 @@ export const Box = React.forwardRef<HTMLDivElement, BoxProps>(
           position && positionStyles[position],
           isClickable && "cursor-pointer",
           isBand && "band",
+          marquee?.clip && "proof-marquee motion-reduce:[mask-image:none]",
           className,
         ),
         onClick: isClickable ? handleClick : undefined,
@@ -415,10 +431,43 @@ export const Box = React.forwardRef<HTMLDivElement, BoxProps>(
         'data-theme': dataTheme,
         'data-motion': animateChanges ? 'presentation' : undefined,
       },
-      isBand ? <>{bandLayers}{children}</> : children,
+      isBand
+        ? <>{bandLayers}{marquee ? <MarqueeTrack marquee={marquee}>{children}</MarqueeTrack> : children}</>
+        : marquee ? <MarqueeTrack marquee={marquee}>{children}</MarqueeTrack> : children,
     );
   },
 );
+
+type MarqueeStyle = React.CSSProperties & { "--marquee-distance"?: string };
+
+function MarqueeTrack({ marquee, children }: { marquee: BoxMarquee; children: React.ReactNode }): React.JSX.Element {
+  const reduced = usePrefersReducedMotion();
+  const copyRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const node = copyRef.current;
+    if (!node) return;
+    const measure = () => setWidth(node.getBoundingClientRect().width);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const moving = !reduced && width > 0 && marquee.speed > 0;
+  const style: MarqueeStyle = moving
+    ? {
+        animation: `almadar-marquee ${width / marquee.speed}s linear infinite`,
+        animationDirection: marquee.direction === "end" ? "reverse" : "normal",
+        "--marquee-distance": marquee.loop ? "50%" : "100%",
+      }
+    : {};
+  return (
+    <div data-marquee-track="" className={cn("proof-marquee-track hover:[animation-play-state:paused]", reduced && "w-full flex-wrap justify-center")} style={style}>
+      <div ref={copyRef} className="flex shrink-0 items-center">{children}</div>
+      {marquee.loop && !reduced && <div aria-hidden className="flex shrink-0 items-center">{children}</div>}
+    </div>
+  );
+}
 
 Box.displayName = "Box";
 

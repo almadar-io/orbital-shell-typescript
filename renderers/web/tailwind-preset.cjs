@@ -634,7 +634,7 @@ module.exports = {
       keyframes: {
         'almadar-marquee': {
           from: { transform: 'translateX(0)' },
-          to: { transform: 'translateX(var(--marquee-shift, -50%))' },
+          to: { transform: 'translateX(calc(var(--marquee-sign, -1) * var(--marquee-distance, 50%)))' },
         },
         'modal-in': {
           '0%': {
@@ -925,15 +925,15 @@ module.exports = {
           'border-radius': 'var(--surface-content-radius, var(--radius-container, var(--radius-md)))',
           'box-shadow': 'var(--surface-content-shadow, var(--elevation-card, var(--shadow-sm)))',
         },
-        // Logo / wordmark marquee (std-proof `proofLook: marquee`): two copies of the strip scroll as one loop.
+        // Box `marquee`: a clipped strip fades at both edges; its track moves one copy's width per loop.
         '.proof-marquee': {
           overflow: 'hidden',
           'mask-image': 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
           '-webkit-mask-image': 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)',
         },
         '.proof-marquee-track': { display: 'flex', width: 'max-content' },
-        // An RTL strip starts at the right edge, so the loop slides right.
-        '[dir="rtl"] .proof-marquee-track': { '--marquee-shift': '50%' },
+        // An RTL strip starts at the right edge, so moving toward the start slides right.
+        '[dir="rtl"] .proof-marquee-track': { '--marquee-sign': '1' },
         // Full-width band layers (Box edgeTop/edgeBottom/texture/backdrop, std-hero scrim).
         '.band': { position: 'relative', overflow: 'hidden', isolation: 'isolate' },
         // Zero specificity: a child's own position utility (std-hero's absolute backdrop) must win.
