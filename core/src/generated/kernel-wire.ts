@@ -383,7 +383,7 @@ export type JsonTokenSpec = { clientIdField: string, clientSecretField: string, 
 
 export type KernelGrant = { target: string, kinds: Array<KernelKind>, };
 
-export type KernelKind = "call" | "reorder" | "read" | "spawn" | "declared";
+export type KernelKind = "call" | "reorder" | "read" | "spawn" | "declared" | "program";
 
 export type KvMode = "read" | "write";
 
@@ -1326,7 +1326,7 @@ function checkKernelGrant(v: JsonValue | undefined): boolean {
 }
 
 function checkKernelKind(v: JsonValue | undefined): boolean {
-  return (v === "call" || v === "reorder" || v === "read" || v === "spawn" || v === "declared");
+  return (v === "call" || v === "reorder" || v === "read" || v === "spawn" || v === "declared" || v === "program");
 }
 
 function checkKvMode(v: JsonValue | undefined): boolean {
@@ -2046,7 +2046,7 @@ function buildKernelGrant(v: JsonValue | undefined, p: string): KernelGrant {
 }
 
 function buildKernelKind(v: JsonValue | undefined, p: string): KernelKind {
-  return oneOf(v, p, ["call", "reorder", "read", "spawn", "declared"]);
+  return oneOf(v, p, ["call", "reorder", "read", "spawn", "declared", "program"]);
 }
 
 function buildKvMode(v: JsonValue | undefined, p: string): KvMode {
