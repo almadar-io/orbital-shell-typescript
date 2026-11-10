@@ -222,3 +222,55 @@ describe('a host-run dispatch (a follow-on call\'s outcome)', () => {
   });
 });
 
+
+// A host-run dispatch of a trait this view does not run (a server worker's step) can emit what a trait on this page
+// listens for: the emit reaches the listener and repaints it, as a peer push does.
+const worker: Trait = {
+  name: 'Worker',
+  linkedEntity: 'Turn',
+  emits: [{ event: 'STEP', scope: 'external' }],
+  stateMachine: {
+    states: [{ name: 'idle', isInitial: true }],
+    events: [{ key: 'TICKED', name: 'Ticked' }],
+    transitions: [{ from: 'idle', to: 'idle', event: 'TICKED', effects: [['emit', 'STEP', { text: 'reading Task' }]] }],
+  },
+};
+
+const listener: Trait = {
+  ...chat,
+  listens: [{ event: 'STEP', source: { kind: 'orbital', orbital: 'WorkerOrbital', trait: 'Worker' }, triggers: 'STEP' }],
+};
+
+const workerOrbitals: OrbitalSchema['orbitals'] = [
+  { ...orbitals[0], traits: [listener] },
+  {
+    name: 'WorkerOrbital',
+    id: 'orb_worker' as OrbitalId,
+    pages: [{ name: 'Boot', path: '/worker', traits: [{ ref: 'Worker' }] }],
+    entity: { name: 'Turn', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+    traits: [worker],
+  },
+];
+
+async function hostRan(request: EventRequest, emitted: EmittedEvent[]) {
+  const slots = stubSlots();
+  const server = new DispatchingServer();
+  const { result } = renderHook(() => useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals: workerOrbitals, transport: server, routePath: '/' }));
+  await machineReady(result);
+  slots.render.mockClear();
+  server.dispatch?.('WorkerOrbital', request, { success: true, transitioned: true, states: { Worker: 'idle' }, emittedEvents: emitted });
+  for (let i = 0; i < 10; i += 1) await settle();
+  return slots.render.mock.calls.map(([arg]) => (arg as { props?: { content?: string } }).props?.content);
+}
+
+describe('a host-run dispatch of a trait this view does not run', () => {
+  it('repaints the page trait that listens to its emit', async () => {
+    const emitted: EmittedEvent = { event: 'STEP', payload: { text: 'reading Task' }, source: { orbital: 'WorkerOrbital', trait: 'Worker' } };
+    expect(await hostRan({ event: 'TICKED', targetTrait: 'Worker' }, [emitted])).toEqual(['reading Task']);
+  });
+
+  it('control: an emit no page trait listens to paints nothing', async () => {
+    const emitted: EmittedEvent = { event: 'UNHEARD', payload: {}, source: { orbital: 'WorkerOrbital', trait: 'Worker' } };
+    expect(await hostRan({ event: 'TICKED', targetTrait: 'Worker' }, [emitted])).toEqual([]);
+  });
+});

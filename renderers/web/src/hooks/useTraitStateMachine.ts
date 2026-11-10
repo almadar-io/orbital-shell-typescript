@@ -362,13 +362,13 @@ export function useTraitStateMachine(
   useEffect(() => {
     if (!transport?.subscribeHostDispatches) return;
     return transport.subscribeHostDispatches((_orbitalName, request, response) => {
-      const { traitIndex: shown, kernel: running, settleOutcome: settle } = pushRef.current;
+      const { traitIndex: shown, kernel: running, deliverAndSettle: deliver, settleOutcome: settle } = pushRef.current;
       const traitName = request.targetTrait;
       const ownsFrame = (frame: string): boolean => [...shown.byName.values()].some((entry) => entry.frameKey === frame);
       if (traitName === undefined || !hostDispatchInView(request, response, (t) => shown.byName.has(t), ownsFrame)) {
         // A dispatch of a trait this view does not run (a server-only orbital's) can still emit what this view's own
         // traits listen for: the kernel delivers each emit to the listeners it has, and to no one else (EXEC-DIST-2).
-        for (const emitted of response.success ? response.emittedEvents : []) void running.deliverToListeners(emitted);
+        for (const emitted of response.success ? response.emittedEvents : []) void deliver(emitted, 'listeners');
         return;
       }
       void running.foldHostDispatch(request, response).then((outcome) =>
