@@ -206,6 +206,10 @@ async function userAnswer(auth: BrowserAuth, user: SignedInUser): Promise<HostSi
 export function hostSignIn(auth: BrowserAuth): (request: HostSignInRequest) => Promise<HostSignInAnswer> {
   return async (request) => {
     try {
+      if (request.method === 'google' && request.viewer === false) {
+        const { user, idToken } = await auth.googleCredential();
+        return { uid: user.uid, ...(user.email !== undefined ? { email: user.email } : {}), ...(user.name !== undefined ? { displayName: user.name } : {}), idToken };
+      }
       if (request.method === 'google') return userAnswer(auth, await auth.signInWithGoogle());
       if (request.method === 'email') return userAnswer(auth, await auth.signInWithEmail(request.email, request.password));
       if (request.method === 'customToken') return userAnswer(auth, await auth.signInWithCustomToken(request.token));

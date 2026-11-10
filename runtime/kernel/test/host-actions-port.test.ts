@@ -92,6 +92,28 @@ describe('a client host answers a `host-ask` client effect with the same actions
 describe('auth/sign-in: the host ask whose answer returns to the asking trait (EXEC-DIST-13)', () => {
   const completion = { trait: 'SignIn', key: 'k1', success: 'SIGNED_IN', failure: 'SIGN_IN_FAILED' };
 
+  it('the sign-in answer carries the ID token the host answered', async () => {
+    expect(await performHostAnswer({ signIn: async () => ({ uid: 'u1', idToken: 'h.p.s' }) }, 'auth/sign-in', [{ method: 'google', viewer: false }])).toEqual({ ok: { uid: 'u1', idToken: 'h.p.s' } });
+  });
+
+  it('control: an answer without an ID token carries none', async () => {
+    expect(await performHostAnswer({ signIn: async () => ({ uid: 'u1', email: 'a@b.c' }) }, 'auth/sign-in', [{ method: 'google' }])).toEqual({ ok: { uid: 'u1', email: 'a@b.c' } });
+  });
+
+  it('a google request with viewer false asks for a credential that does not become the viewer', () => {
+    expect(parseSignInRequest([{ method: 'google', viewer: false }])).toEqual({ request: { method: 'google', viewer: false } });
+  });
+
+  it('control: a google request without viewer, or with viewer true, signs the viewer in as before', () => {
+    expect(parseSignInRequest([{ method: 'google' }])).toEqual({ request: { method: 'google' } });
+    expect(parseSignInRequest([{ method: 'google', viewer: true }])).toEqual({ request: { method: 'google' } });
+  });
+
+  it('edge: viewer must be a boolean and belongs to the google method only', () => {
+    expect(parseSignInRequest([{ method: 'google', viewer: 'no' }])).toEqual({ error: 'auth/sign-in: viewer is true or false' });
+    expect(parseSignInRequest([{ method: 'email', email: 'a@b.c', password: 'pw', viewer: false }])).toEqual({ error: 'auth/sign-in: viewer is not a field of the email method' });
+  });
+
   it('parses each method to its one request and refuses every other shape by name', () => {
     expect(parseSignInRequest([{ method: 'google' }])).toEqual({ request: { method: 'google' } });
     expect(parseSignInRequest([{ method: 'email', email: 'a@b.c', password: 'pw' }])).toEqual({ request: { method: 'email', email: 'a@b.c', password: 'pw' } });

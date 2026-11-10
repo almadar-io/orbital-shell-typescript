@@ -87,7 +87,7 @@ export type HostAudioAsk =
 
 /** The one object `auth/sign-in` takes: the method and the credentials it needs. */
 export type HostSignInRequest =
-  | { method: 'google' }
+  | { method: 'google'; viewer?: false }
   | { method: 'email'; email: string; password: string }
   | { method: 'emailLink'; email: string; continueUrl: string }
   | { method: 'emailLink'; email: string; link: string }
@@ -415,7 +415,7 @@ export async function performHostAsk(
 }
 
 const SIGN_IN_FIELDS: Readonly<Record<string, readonly string[]>> = {
-  google: ['method'],
+  google: ['method', 'viewer'],
   email: ['method', 'email', 'password'],
   emailLink: ['method', 'email', 'continueUrl', 'link'],
   customToken: ['method', 'token'],
@@ -435,7 +435,10 @@ export function parseSignInRequest(args: readonly JsonValue[]): { request: HostS
   for (const field of Object.keys(request)) {
     if (!allowed.includes(field)) return { error: `auth/sign-in: ${field} is not a field of the ${method} method` };
   }
-  if (method === 'google') return { request: { method } };
+  if (method === 'google') {
+    if (request.viewer === undefined || request.viewer === true) return { request: { method } };
+    return request.viewer === false ? { request: { method, viewer: false } } : { error: 'auth/sign-in: viewer is true or false' };
+  }
   if (method === 'email') {
     const email = text('email');
     const password = text('password');
@@ -510,6 +513,7 @@ export async function performHostAnswer(actions: KernelHostActions | undefined, 
       fields.uid = answer.uid;
       if (answer.email !== undefined) fields.email = answer.email;
       if (answer.displayName !== undefined) fields.displayName = answer.displayName;
+      if (answer.idToken !== undefined) fields.idToken = answer.idToken;
     }
     return { ok: fields };
   } catch (error) {

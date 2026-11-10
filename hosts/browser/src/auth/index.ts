@@ -53,6 +53,8 @@ export interface BrowserAuth {
   signInWithEmail(email: string, password: string): Promise<SignedInUser>;
   signUpWithEmail(email: string, password: string, displayName?: string): Promise<SignedInUser>;
   signInWithGoogle(): Promise<SignedInUser>;
+  /** A Google sign-in on a separate in-memory session, signed out once its ID token is read: the page's own viewer never changes. */
+  googleCredential(): Promise<{ user: SignedInUser; idToken: string }>;
   sendSignInLinkToEmail(email: string, returnUrl: string): Promise<void>;
   isSignInWithEmailLink(link: string): boolean;
   signInWithEmailLink(email: string, link: string): Promise<SignedInUser>;
@@ -110,6 +112,18 @@ export async function connectAuth(config: BrowserAuthConfig): Promise<BrowserAut
     },
     async signInWithGoogle() {
       return signedIn((await signInWithPopup(auth, new GoogleAuthProvider())).user);
+    },
+    async googleCredential() {
+      const side = getAuth(appFor({ ...config, appName: `${config.appName}/credential` }));
+      if (config.tenantId !== undefined) side.tenantId = config.tenantId;
+      if (config.emulatorHost !== undefined && side.emulatorConfig === null) {
+        connectAuthEmulator(side, `http://${config.emulatorHost}`, { disableWarnings: true });
+      }
+      await setPersistence(side, inMemoryPersistence);
+      const { user } = await signInWithPopup(side, new GoogleAuthProvider());
+      const answer = { user: await signedIn(user), idToken: await user.getIdToken() };
+      await signOut(side);
+      return answer;
     },
     async sendSignInLinkToEmail(email, returnUrl) {
       await sendSignInLinkToEmail(auth, email, { url: returnUrl, handleCodeInApp: true });
