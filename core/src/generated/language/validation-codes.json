@@ -885,6 +885,11 @@
     "description": "An entity declares owner columns but has no access policy scoping rows to the owner"
   },
   {
+    "code": "ORB_ENTITY_READ_UNDECLARED",
+    "category": "entity",
+    "description": "A persistent entity declares neither an @read policy nor an @read none waiver, so who reads its rows is unstated"
+  },
+  {
     "code": "ORB_ENTITY_SPLIT_MUTATION",
     "category": "entity_mutation",
     "description": "A runtime entity is mutated by several traits on isolated per-trait copies while another trait reads a field it never writes"
