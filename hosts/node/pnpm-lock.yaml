@@ -18,11 +18,11 @@ importers:
         specifier: ^2.4.0
         version: 2.4.0
       '@almadar/shell-runtime':
-        specifier: ^1.2.0
-        version: 1.2.0
+        specifier: ^1.2.1
+        version: 1.2.1
       '@almadar/std':
-        specifier: ^17.2.0
-        version: 17.2.0
+        specifier: ^17.2.1
+        version: 17.2.1
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -54,11 +54,11 @@ packages:
     resolution: {integrity: sha512-sW1uYeDCXKPn9l1ZcWSQwDiEbcjrE11gDIMlnXKJqZWyAgWIgAuSXSW665YcR1mrf09fKtKh0AsX4zmRCaYcaQ==}
     engines: {node: '>=22'}
 
-  '@almadar/shell-runtime@1.2.0':
-    resolution: {integrity: sha512-E/5uZqhx+17zFMQCLmbEZcBRMFkuVHU+vTdnkhZMl+WCsaWMoGPJ08lfm8r4P5r+1dRJmoYQqnM+OgvtSYL0SQ==}
+  '@almadar/shell-runtime@1.2.1':
+    resolution: {integrity: sha512-1X8Ogd2iU4U4C4PH122u8XUhJBRArZ3gpOWG2uF71ZzRsTavqyK0CtJeFzSjIn+9aetUeBQGY1tfjRgz4syHMA==}
 
-  '@almadar/std@17.2.0':
-    resolution: {integrity: sha512-2L5ysANXE/p5GnjoPWvpOhktwokpQCneHru/Iqz0L/939bOjQV37te7HkfkoceCJ2tYy6miJQy6rsTDFY8A0nQ==}
+  '@almadar/std@17.2.1':
+    resolution: {integrity: sha512-OlXgCV7FyoqaxT2b81sZLkYiByH5bWr/FJY0R6l8AG/7YN3GArtF3Ec9/R/fXlN6eW7BNRrk9S5WkPf5xAXDrw==}
     engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -968,14 +968,14 @@ snapshots:
     dependencies:
       '@almadar/core': 11.4.0
 
-  '@almadar/shell-runtime@1.2.0':
+  '@almadar/shell-runtime@1.2.1':
     dependencies:
       '@almadar/core': 11.4.0
       '@almadar/kernel': 19.2.0
       '@almadar/logger': 2.4.0
-      '@almadar/std': 17.2.0
+      '@almadar/std': 17.2.1
 
-  '@almadar/std@17.2.0':
+  '@almadar/std@17.2.1':
     dependencies:
       '@almadar/core': 11.4.0
 
