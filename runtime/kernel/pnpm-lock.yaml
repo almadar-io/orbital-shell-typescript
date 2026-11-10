@@ -18,8 +18,8 @@ importers:
         specifier: ^2.4.0
         version: 2.4.0
       '@almadar/std':
-        specifier: ^17.2.0
-        version: 17.2.0
+        specifier: ^17.2.1
+        version: 17.2.1
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -48,8 +48,8 @@ packages:
     resolution: {integrity: sha512-sW1uYeDCXKPn9l1ZcWSQwDiEbcjrE11gDIMlnXKJqZWyAgWIgAuSXSW665YcR1mrf09fKtKh0AsX4zmRCaYcaQ==}
     engines: {node: '>=22'}
 
-  '@almadar/std@17.2.0':
-    resolution: {integrity: sha512-2L5ysANXE/p5GnjoPWvpOhktwokpQCneHru/Iqz0L/939bOjQV37te7HkfkoceCJ2tYy6miJQy6rsTDFY8A0nQ==}
+  '@almadar/std@17.2.1':
+    resolution: {integrity: sha512-OlXgCV7FyoqaxT2b81sZLkYiByH5bWr/FJY0R6l8AG/7YN3GArtF3Ec9/R/fXlN6eW7BNRrk9S5WkPf5xAXDrw==}
     engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -959,7 +959,7 @@ snapshots:
     dependencies:
       '@almadar/core': 11.4.0
 
-  '@almadar/std@17.2.0':
+  '@almadar/std@17.2.1':
     dependencies:
       '@almadar/core': 11.4.0
 
