@@ -21,14 +21,14 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0
       '@almadar/shell-runtime':
-        specifier: ^1.2.0
-        version: 1.2.0
+        specifier: ^1.2.1
+        version: 1.2.1
       '@almadar/std':
-        specifier: ^17.2.0
-        version: 17.2.0
+        specifier: ^17.2.1
+        version: 17.2.1
       '@almadar/syntax':
-        specifier: ^2.2.0
-        version: 2.2.0
+        specifier: ^2.2.1
+        version: 2.2.1
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -250,15 +250,15 @@ packages:
   '@almadar/shell-browser@1.2.0':
     resolution: {integrity: sha512-Mjvq4HbYCshLtcxdS+HeIAWbyG0Gi7GP1MqTYH4FrXEG3voXSnWF2k8MDy8qKf+1poePSdhuvqCGoELzcnSnvw==}
 
-  '@almadar/shell-runtime@1.2.0':
-    resolution: {integrity: sha512-E/5uZqhx+17zFMQCLmbEZcBRMFkuVHU+vTdnkhZMl+WCsaWMoGPJ08lfm8r4P5r+1dRJmoYQqnM+OgvtSYL0SQ==}
+  '@almadar/shell-runtime@1.2.1':
+    resolution: {integrity: sha512-1X8Ogd2iU4U4C4PH122u8XUhJBRArZ3gpOWG2uF71ZzRsTavqyK0CtJeFzSjIn+9aetUeBQGY1tfjRgz4syHMA==}
 
-  '@almadar/std@17.2.0':
-    resolution: {integrity: sha512-2L5ysANXE/p5GnjoPWvpOhktwokpQCneHru/Iqz0L/939bOjQV37te7HkfkoceCJ2tYy6miJQy6rsTDFY8A0nQ==}
+  '@almadar/std@17.2.1':
+    resolution: {integrity: sha512-OlXgCV7FyoqaxT2b81sZLkYiByH5bWr/FJY0R6l8AG/7YN3GArtF3Ec9/R/fXlN6eW7BNRrk9S5WkPf5xAXDrw==}
     engines: {node: '>=22'}
 
-  '@almadar/syntax@2.2.0':
-    resolution: {integrity: sha512-NDpKrLt4t748Wnjcs5UEiI94ZjSwr6RAjBrQXoIm9vt1RefplRpRHkU9+h9b0im1/nsFan6UC/myK69zEXLtiw==}
+  '@almadar/syntax@2.2.1':
+    resolution: {integrity: sha512-BisfWxCQAkPOR7aNYoXLxxCRXCk9xnk7G1F6VuYTiQjTTo7DPD33YQJVoWdChNCSCEIq40TfKDq9GpTHK1Ho5A==}
     engines: {node: '>=22'}
 
   '@antfu/install-pkg@2.1.0':
@@ -3593,21 +3593,21 @@ snapshots:
     transitivePeerDependencies:
       - '@react-native-async-storage/async-storage'
 
-  '@almadar/shell-runtime@1.2.0':
+  '@almadar/shell-runtime@1.2.1':
     dependencies:
       '@almadar/core': 11.4.0
       '@almadar/kernel': 19.2.0
       '@almadar/logger': 2.4.0
-      '@almadar/std': 17.2.0
+      '@almadar/std': 17.2.1
 
-  '@almadar/std@17.2.0':
+  '@almadar/std@17.2.1':
     dependencies:
       '@almadar/core': 11.4.0
 
-  '@almadar/syntax@2.2.0':
+  '@almadar/syntax@2.2.1':
     dependencies:
       '@almadar/core': 11.4.0
-      '@almadar/std': 17.2.0
+      '@almadar/std': 17.2.1
 
   '@antfu/install-pkg@2.1.0':
     dependencies:
