@@ -1,6 +1,6 @@
 {
   "name": "@almadar/syntax",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "orbRelease": { "severity": "normal" },
   "description": "Registry-driven syntax highlighting for Orb programs. Colors align with AVL visual language.",
   "type": "module",
@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@almadar/core": "^11.4.0",
-    "@almadar/std": "^17.2.0"
+    "@almadar/std": "^17.2.1"
   },
   "devDependencies": {
     "@almadar/kernel": "^19.2.0",

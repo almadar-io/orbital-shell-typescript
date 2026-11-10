@@ -12,8 +12,8 @@ importers:
         specifier: ^11.4.0
         version: 11.4.0
       '@almadar/std':
-        specifier: ^17.2.0
-        version: 17.2.0
+        specifier: ^17.2.1
+        version: 17.2.1
     devDependencies:
       '@almadar/eslint-plugin':
         specifier: ^3.1.0
@@ -79,8 +79,8 @@ packages:
     resolution: {integrity: sha512-yNvO7d42nPeGmy2BocpwcgfF/6exY8okRocW2Gja5HagYMm1+tRKw85NH0Jv00w+68ZXZoKMzzN6zIWakvtb6w==}
     engines: {node: '>=22'}
 
-  '@almadar/std@17.2.0':
-    resolution: {integrity: sha512-2L5ysANXE/p5GnjoPWvpOhktwokpQCneHru/Iqz0L/939bOjQV37te7HkfkoceCJ2tYy6miJQy6rsTDFY8A0nQ==}
+  '@almadar/std@17.2.1':
+    resolution: {integrity: sha512-OlXgCV7FyoqaxT2b81sZLkYiByH5bWr/FJY0R6l8AG/7YN3GArtF3Ec9/R/fXlN6eW7BNRrk9S5WkPf5xAXDrw==}
     engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -1473,7 +1473,7 @@ snapshots:
 
   '@almadar/lolo-sl@2.3.0': {}
 
-  '@almadar/std@17.2.0':
+  '@almadar/std@17.2.1':
     dependencies:
       '@almadar/core': 11.4.0
 
