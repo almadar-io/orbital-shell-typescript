@@ -1170,6 +1170,7 @@ export { type ContextExtensions } from "./context.js";
 // Bus event envelope (unified across @almadar/ui and @almadar/runtime)
 export {
   type EventKey,
+  type EntityFieldName,
   type EventEmit,
   type EventListen,
   type BusEvent,

@@ -66,6 +66,7 @@ export const PROP_KINDS = [
   'entry',
   'skeleton',
   'class-string',
+  'field-ref',
 ] as const;
 export type PropKind = (typeof PROP_KINDS)[number];
 
@@ -77,6 +78,8 @@ export type PropKind = (typeof PROP_KINDS)[number];
  */
 export interface PatternPropTypeSchema {
   types: string[];
+  /** Semantic kind of this nested member (e.g. `field-ref` for an entity field name). */
+  kind?: PropKind;
   enumValues?: string[];
   items?: PatternPropTypeSchema;
   /** For a dynamic-key typed map (`Record<string, V>` with a CONCRETE value
@@ -178,6 +181,13 @@ export interface PatternPropDef {
    * the prop has no additional semantic meaning beyond its JSON shape.
    */
   kind?: PropKind;
+  /** For an array prop: the semantic kind of each element (e.g. `field-ref` for a list of field names). */
+  itemKind?: PropKind;
+  /**
+   * The names of the SIBLING event props through which the component reports a
+   * new value for this prop. Set from `@changedBy <prop>` JSDoc tags.
+   */
+  changedBy?: string[];
   /**
    * For `kind: "event-list"`: the name of the field inside each array
    * item that holds the event key. Defaults to `"event"` when

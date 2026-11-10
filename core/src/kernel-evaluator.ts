@@ -265,6 +265,7 @@ export function lazyKernelExports(load: () => KernelEvaluatorExports): KernelEva
     resolveValues: (context, values) => kernel().resolveValues(context, values),
     evaluateGuards: (context, guards) => kernel().evaluateGuards(context, guards),
     evaluateTraced: (context, expression) => kernel().evaluateTraced(context, expression),
+    traceEffects: (context, effects) => kernel().traceEffects(context, effects),
     mapListenPayload: (mapping, payload) => kernel().mapListenPayload(mapping, payload),
     scopeRows: (bindings, rows, policy, filter, entityType) => kernel().scopeRows(bindings, rows, policy, filter, entityType),
     checkMutationAccess: (operation, bindings, row, policy, entityType) =>

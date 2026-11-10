@@ -648,6 +648,15 @@
     "pattern",
     "node",
     "event",
-    "union"
+    "union",
+    "tuple"
+  ],
+  "reservedCliWords": [
+    "run",
+    "help",
+    "--help",
+    "-h",
+    "--version",
+    "-V"
   ]
 }

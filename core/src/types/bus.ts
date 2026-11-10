@@ -46,6 +46,18 @@ export type { ClientEffectByTrait, HopEffect, HopEffectStatus, TransitionHop, Tr
 export type EventKey = string;
 
 /**
+ * Name of a field of the entity a component is bound to. A marker for a prop
+ * or item property whose value is a field name (not arbitrary text), such as
+ * the field a grid groups by or a filter applies to.
+ *
+ * Plain alias over `string`, not branded, for the same reason as `EventKey`:
+ * field names come from user data at runtime, so cast friction would buy
+ * nothing. The pattern-sync tool finds it by type identity and writes
+ * `kind: "field-ref"` into the patterns registry.
+ */
+export type EntityFieldName = string;
+
+/**
  * Phantom-typed brand for declarative bus-emit props on UI components.
  *
  * Used by component authors to BOTH mark a prop as a bus-event reference

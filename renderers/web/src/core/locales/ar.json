@@ -1281,5 +1281,7 @@
   "themeToggle.light": "فاتح",
   "themeToggle.dark": "داكن",
   "agentActivity.toolDone": "{{tool}} — تم",
-  "agentActivity.toolFailed": "{{tool}} — تعذّر"
+  "agentActivity.toolFailed": "{{tool}} — تعذّر",
+  "aria.annotatedMedia": "وسائط للمراجعة",
+  "aria.annotatedTimeline": "الخط الزمني للتعليقات"
 }

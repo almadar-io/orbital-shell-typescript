@@ -1281,5 +1281,7 @@
   "themeToggle.light": "Svetla",
   "themeToggle.dark": "Temna",
   "agentActivity.toolDone": "{{tool}} — končano",
-  "agentActivity.toolFailed": "{{tool}} — ni uspelo"
+  "agentActivity.toolFailed": "{{tool}} — ni uspelo",
+  "aria.annotatedMedia": "Gradivo za pregled",
+  "aria.annotatedTimeline": "Časovnica komentarjev"
 }

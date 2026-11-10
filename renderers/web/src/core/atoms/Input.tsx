@@ -27,7 +27,10 @@ export interface InputProps extends Omit<
   className?: string;
   /** Placeholder text */
   placeholder?: string;
-  /** Current value */
+  /** Current value
+   *  @changedBy onChange
+   *  @changedBy action
+   */
   value?: string | number;
   /** Whether input is disabled */
   disabled?: boolean;

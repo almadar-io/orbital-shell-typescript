@@ -14,7 +14,7 @@
  */
 
 import React, { useState, useCallback, useEffect } from "react";
-import type { A11yProps, EventEmit } from "@almadar/core";
+import type { A11yProps, EventEmit, EntityFieldName } from "@almadar/core";
 import { domPassthrough } from '../../../core';
 import { cn } from '../../../core';
 import { Button } from '../../../core';
@@ -42,7 +42,7 @@ export type FilterGroupLook =
 
 /** Filter definition from schema */
 export interface FilterDefinition {
-  field: string;
+  field: EntityFieldName;
   label: string;
   /** Filter type - 'text' free-text input, 'date' renders a date picker, 'date-range'/'daterange' renders two date pickers, 'number-range'/'numberrange' renders two range sliders */
   filterType?:

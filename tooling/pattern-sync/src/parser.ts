@@ -132,7 +132,9 @@ function mappedToPropTypeSchema(m: MappedType): PropTypeSchema {
   // which has no parent to surface on (the struct is an array knob's
   // ELEMENT type). Narrow to exactly that pair, not the whole `kind` enum.
   if (m.kind === 'event' || m.kind === 'event-ref') out.kind = 'event';
+  if (m.kind === 'field-ref') out.kind = 'field-ref';
   if (m.payloadFor) out.payloadFor = m.payloadFor;
+  if (m.changedBy) out.changedBy = m.changedBy;
   if (m.items) out.items = mappedToPropTypeSchema(m.items);
   if (m.mapValue) out.mapValue = mappedToPropTypeSchema(m.mapValue);
   if (m.mapKeyEnum) out.mapKeyEnum = m.mapKeyEnum;
@@ -299,6 +301,10 @@ interface MappedType {
    *  sibling key in the SAME `properties` map that carries the dependent
    *  event. */
   payloadFor?: string;
+  /** Struct-member twin of `ExtractedProp.changedBy`, read off THIS member's `@changedBy` tag. */
+  changedBy?: string[];
+  /** For an array: the `kind` its element resolved to when that is `field-ref`. */
+  itemKind?: ExtractedPropKind;
 }
 
 function emptyMapped(types: string[]): MappedType {
@@ -940,6 +946,7 @@ function resolveInterfaceShapeDeep(
     // `mappedToPropTypeSchema` has something to narrow-copy through.
     const memberTags = getPropJSDocTags(member, entry.sourceFile);
     if (memberTags.payloadFor) propType.payloadFor = memberTags.payloadFor;
+    if (memberTags.changedBy) propType.changedBy = memberTags.changedBy;
     const nullableRequired = !member.questionToken && isNullableMember(member.type);
     properties[propName] = nullableRequired ? { ...propType, nullable: true } : propType;
     if (member.questionToken || isNullableMember(member.type)) required.delete(propName);
@@ -1039,6 +1046,7 @@ function mapTypeNode(
     const eventField = findEventFieldInInterfaceRef(node.elementType, sourceFile, interfaces, coreImports);
     const items = mapTypeNode(node.elementType, sourceFile, aliases, coreImports, interfaces, seen, genericDefaults);
     const result: MappedType = { types: ["array"], items };
+    if (items.kind === "field-ref") result.itemKind = "field-ref";
     if (eventField) {
       result.kind = "event-list";
       result.eventField = eventField;
@@ -1203,6 +1211,7 @@ function mapTypeNode(
     // downstream codegen sees a real `[Type]` / `{ … }` instead of a fallback.
     if (shapedArm) {
       if (shapedArm.items) result.items = shapedArm.items;
+      if (shapedArm.itemKind) result.itemKind = shapedArm.itemKind;
       if (shapedArm.mapValue) {
         result.mapValue = shapedArm.mapValue;
         Object.assign(result, eventMapKind(shapedArm.mapValue));
@@ -1290,6 +1299,10 @@ function mapTypeNode(
     // payload schema for L1/L2 detection (see plan F1).
     if (typeName === "EventKey" && coreImports.has("EventKey")) {
       return { types: ["string"], kind: "event" };
+    }
+
+    if (typeName === "EntityFieldName" && coreImports.has("EntityFieldName")) {
+      return { types: ["string"], kind: "field-ref" };
     }
 
     // Phantom-typed brand from `@almadar/core` for declarative bus-emit
@@ -1513,6 +1526,7 @@ function mapTypeNode(
         const eventField = findEventFieldInInterfaceRef(typeArg, sourceFile, interfaces, coreImports);
         const items = mapTypeNode(typeArg, sourceFile, aliases, coreImports, interfaces, seen, genericDefaults);
         const result: MappedType = { types: ["array"], items };
+        if (items.kind === "field-ref") result.itemKind = "field-ref";
         if (eventField) {
           result.kind = "event-list";
           result.eventField = eventField;
@@ -2553,6 +2567,7 @@ function getPropJSDocTags(
   example?: ExtractedDefaultValue;
   default?: ExtractedDefaultValue;
   payloadFor?: string;
+  changedBy?: string[];
   entityRowField?: string;
   typeWhen?: Array<{ field: string } & PayloadTypeWhen>;
 } {
@@ -2567,6 +2582,7 @@ function getPropJSDocTags(
     example?: ExtractedDefaultValue;
     default?: ExtractedDefaultValue;
     payloadFor?: string;
+    changedBy?: string[];
     entityRowField?: string;
     typeWhen?: Array<{ field: string } & PayloadTypeWhen>;
   } = {};
@@ -2602,6 +2618,10 @@ function getPropJSDocTags(
       // house rules ban.
       const pf = line.match(/^@payloadFor\s+([A-Za-z_$][\w$]*)$/);
       if (pf?.[1]) out.payloadFor = pf[1];
+      // `@changedBy <prop>` — names a sibling event prop through which the
+      // component reports a new value for this prop; repeatable.
+      const cb = line.match(/^@changedBy\s+([A-Za-z_$][\w$]*)$/);
+      if (cb?.[1] && !out.changedBy?.includes(cb[1])) out.changedBy = [...(out.changedBy ?? []), cb[1]];
       // `@entityRow <field>` — names the payload field carrying the bound
       // entity's row. The TS type cannot say this: the field is an
       // unconstrained generic, so without the tag it degrades to `object`.
@@ -2961,6 +2981,7 @@ function mapPropertySignatureToProp(
   if (tags.synonyms) extracted.synonyms = tags.synonyms;
   if (tags.tier) extracted.tier = tags.tier;
   if (tags.payloadFor) extracted.payloadFor = tags.payloadFor;
+  if (tags.changedBy) extracted.changedBy = tags.changedBy;
   if (tags.entityRowField) extracted.entityRowField = tags.entityRowField;
   // `""` is the registry's outlet-OFF encoding (cf. TableView's destructured
   // `itemClickEvent = ''`); a real destructure default lifted later wins.
@@ -2976,6 +2997,7 @@ function mapPropertySignatureToProp(
   if (mapped.tupleItems) extracted.tupleItems = mapped.tupleItems.map(mappedToPropTypeSchema);
   if (mapped.kind) extracted.kind = mapped.kind;
   if (mapped.eventField) extracted.eventField = mapped.eventField;
+  if (mapped.itemKind) extracted.itemKind = mapped.itemKind;
   if (mapped.cardinality) extracted.cardinality = mapped.cardinality;
   if (mapped.requiredFields && mapped.requiredFields.length > 0) {
     extracted.requiredFields = mapped.requiredFields;

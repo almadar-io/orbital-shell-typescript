@@ -37,6 +37,8 @@ export type ExtractedPropKind =
   | 'event-map'
   | 'callback'
   | 'entity'
+  /** The value is the NAME of a field of the entity the component is bound to (`EntityFieldName`). */
+  | 'field-ref'
   /** Universal element-entry prop (`enter`/`enterDelay`): folded into the element's class, never passed to the component. */
   | 'entry'
   /** Injected universal `skeleton` prop on a component that declares none: feeds the awaiting-skeleton prediction, never passed to the component. */
@@ -245,6 +247,8 @@ export interface PropTypeSchema {
    * the actionable gap.
    */
   payloadFor?: string;
+  /** `@changedBy <sibling>` read off the member: the sibling event keys through which a new value for it is reported. */
+  changedBy?: string[];
 }
 
 /** A single prop extracted from a TypeScript interface */
@@ -343,6 +347,10 @@ export interface ExtractedProp {
   eventField?: string;
   /** Sibling event prop this prop carries the payload for (`@payloadFor`). */
   payloadFor?: string;
+  /** Sibling event props through which this prop's new value is reported (`@changedBy`). */
+  changedBy?: string[];
+  /** For an array prop: the semantic kind of its elements (`field-ref` for `EntityFieldName[]`). */
+  itemKind?: ExtractedPropKind;
   /**
    * The callback ARG (or emit-payload field) that carries the bound entity's
    * ROW, declared by an `@entityRow <field>` JSDoc tag on the prop. The named
@@ -582,6 +590,10 @@ export interface PatternEntry {
       eventField?: string;
       /** Sibling event prop this prop carries the payload for (`@payloadFor`). */
       payloadFor?: string;
+      /** Sibling event props through which this prop's new value is reported (`@changedBy`). */
+      changedBy?: string[];
+      /** For an array prop: the semantic kind of its elements. */
+      itemKind?: ExtractedPropKind;
       /** Callback arg carrying the bound entity's row (`@entityRow <field>`). */
       entityRowField?: string;
       cardinality?: 'record' | 'collection';

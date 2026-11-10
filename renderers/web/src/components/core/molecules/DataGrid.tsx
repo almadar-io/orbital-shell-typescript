@@ -13,7 +13,7 @@
  */
 import { actionTestId, ACTION_OVERFLOW_TESTID } from '@almadar/core';
 import React, { useCallback, useEffect, useState } from 'react';
-import type { A11yProps, SkeletonSpec, EntityRow, EventKey, EventEmit, FieldValue } from '@almadar/core';
+import type { A11yProps, SkeletonSpec, EntityRow, EventKey, EventEmit, FieldValue, EntityFieldName } from '@almadar/core';
 import { Skeleton } from "./Skeleton";
 import type { ItemActionPayload, SelectionChangePayload } from '@almadar/core/patterns';
 import { cn } from '../../../core';
@@ -125,7 +125,7 @@ export interface DataGridProps extends DataDndProps, EmptyStateSlotProps, A11yPr
   /** Error state */
   error?: UiError | null;
   /** Entity field name containing an image URL for card thumbnails */
-  imageField?: string;
+  imageField?: EntityFieldName;
   /** Enable multi-select with checkboxes */
   selectable?: boolean;
   /** Selection change event name (emits UI:{selectionEvent} with { selectedIds: string[] }) */

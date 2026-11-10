@@ -124,6 +124,7 @@ import { LineChart } from '../molecules/LineChart';
 import { LoadingState } from '../molecules/LoadingState';
 import { MachinePanel } from './debug/MachinePanel';
 import { MapView } from '../molecules/MapView';
+import { AnnotatedMedia } from '../molecules/AnnotatedMedia';
 import { MarkdownContent } from '../molecules/markdown/MarkdownContent';
 import { MasterDetailLayout } from './layout/MasterDetailLayout';
 import { MathCanvas } from '../../learning/molecules/MathCanvas';
@@ -398,6 +399,7 @@ export const COMPONENT_REGISTRY: Record<string, React.ComponentType<any>> = {
   get 'LoadingState'() { return LoadingState; },
   get 'MachinePanel'() { return MachinePanel; },
   get 'MapView'() { return MapView; },
+  get 'AnnotatedMedia'() { return AnnotatedMedia; },
   get 'MarkdownContent'() { return MarkdownContent; },
   get 'MasterDetailLayout'() { return MasterDetailLayout; },
   get 'MathCanvas'() { return MathCanvas; },

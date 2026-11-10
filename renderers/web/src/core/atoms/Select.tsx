@@ -43,7 +43,11 @@ export interface SelectProps extends Omit<
   groups?: SelectOptionGroup[];
   /** Placeholder text */
   placeholder?: string;
-  /** Current value (string for single, string[] for multiple) */
+  /** Current value (string for single, string[] for multiple)
+   *  @changedBy onChange
+   *  @changedBy onValueChange
+   *  @changedBy action
+   */
   value?: string | string[];
   /** Declarative event name for trait dispatch — emits `{ value }` on selection commit (same gestures as `onChange`). */
   action?: EventEmit<{ value: string | string[] }>;

@@ -16,7 +16,9 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 
 
 
-Next code: `G-ORBITAL-SHELL-TYPESCRIPT-160`
+Next code: `G-ORBITAL-SHELL-TYPESCRIPT-162`
+
+- **G-ORBITAL-SHELL-TYPESCRIPT-161** [mechanical] — `@almadar/shell-web` does not typecheck at HEAD: `pnpm exec tsc --noEmit` in `renderers/web` reports 10 errors, none from the 2026-11-10 registry work: `src/components/core/molecules/__tests__/GuestView.test.tsx(62,72) TS2322`; `src/components/core/molecules/__tests__/GuestView.test.tsx(81,79) TS2322`; `src/lib/__tests__/mermaidTheme.test.ts(87,7) TS2322`; `src/lib/__tests__/mermaidTheme.test.ts(91,26) TS2769`; `src/lib/avl-theme.ts(210,3) TS2353`; `test/kernel-client-reseed.test.ts(33,7) TS2741`; `test/kernel-engine-resolve-rows.test.ts(39,9) TS2420`; `test/kernel-engine-resolve-rows.test.ts(130,27) TS2345`; `test/runtime/ui/contract.test.ts(50,7) TS2353`; `test/ui/server-bridge-auth.test.tsx(52,7) TS2741`. Found 2026-11-10 by the A3 registry work after the core rebuild. Prevention rung: none of the language rungs; the TypeScript typecheck is the gate and nothing runs it on the renderer before a checkpoint (T4). Root cause: one-off.
 
 
 

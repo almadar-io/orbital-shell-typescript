@@ -14,7 +14,7 @@
  */
 import { ACTION_OVERFLOW_TESTID } from '@almadar/core';
 import React from 'react';
-import type { A11yProps, SkeletonSpec, EntityRow, EntityWith, FieldValue, EventKey, EventEmit } from '@almadar/core';
+import type { A11yProps, SkeletonSpec, EntityRow, EntityWith, FieldValue, EventKey, EventEmit, EntityFieldName } from '@almadar/core';
 import { Skeleton } from "./Skeleton";
 import type { ItemActionPayload, SelectionChangePayload } from '@almadar/core/patterns';
 import { cn } from '../../../core';
@@ -54,9 +54,9 @@ import { domPassthrough } from '../../../core';
 
 export interface TableViewColumn {
   /** Stable column key (React key + default value lookup). */
-  key: string;
+  key: EntityFieldName;
   /** Entity field to read (dot-notation ok). Defaults to `key`. */
-  field?: string;
+  field?: EntityFieldName;
   /** Header cell text. Falls back to `label`, then the `key` as written. */
   header?: string;
   /** Accessibility / fallback label. */

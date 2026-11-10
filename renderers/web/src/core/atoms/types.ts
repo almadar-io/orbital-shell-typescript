@@ -2,7 +2,7 @@
  * Cross-cutting atom-level prop shapes shared across the design system.
  */
 
-import type { AssetUrl } from "@almadar/core";
+import type { AssetUrl, EntityFieldName } from "@almadar/core";
 import type { IconInput } from "./Icon";
 import type { BadgeVariant } from "./Badge";
 
@@ -96,7 +96,7 @@ export type DisplayFieldFormat = 'date' | 'time' | 'datetime' | 'currency' | 'nu
  */
 export interface DisplayField {
   /** Entity field name (dot-notation supported) */
-  name: string;
+  name: EntityFieldName;
   /** Display label (the `name` as written if omitted) */
   label?: string;
   /** Icon shown beside the field */

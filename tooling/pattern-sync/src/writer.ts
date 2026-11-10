@@ -136,6 +136,8 @@ function toPatternEntry(
       ...(prop.kind ? { kind: prop.kind } : {}),
       ...(prop.eventField ? { eventField: prop.eventField } : {}),
       ...(prop.payloadFor ? { payloadFor: prop.payloadFor } : {}),
+      ...(prop.changedBy ? { changedBy: prop.changedBy } : {}),
+      ...(prop.itemKind ? { itemKind: prop.itemKind } : {}),
       ...(prop.entityRowField ? { entityRowField: prop.entityRowField } : {}),
       ...(prop.cardinality ? { cardinality: prop.cardinality } : {}),
       ...(prop.decoder ? { decoder: prop.decoder } : {}),

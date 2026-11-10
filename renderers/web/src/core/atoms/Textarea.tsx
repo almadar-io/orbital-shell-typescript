@@ -22,7 +22,10 @@ export interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTex
   placeholder?: string;
   /** Number of visible rows */
   rows?: number;
-  /** Controlled value, for a field the program fills or clears. */
+  /** Controlled value, for a field the program fills or clears.
+   *  @changedBy onChange
+   *  @changedBy action
+   */
   value?: string;
   /** Declarative event: fires on ⌘/Ctrl+Enter with `{ value }`. */
   action?: EventEmit<{ value: string }>;

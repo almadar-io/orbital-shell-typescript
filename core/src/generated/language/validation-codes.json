@@ -1465,6 +1465,11 @@
     "description": "A persist effect names its row id with an expression instead of a binding path or literal id, so no row key resolves"
   },
   {
+    "code": "ORB_PERSIST_UPDATE_WITHOUT_CREATE",
+    "category": "cross",
+    "description": "A persistent entity the program updates but never creates, upserts or batch-creates, and that declares no instances: the update can never find a row"
+  },
+  {
     "code": "ORB_PERSIST_WHERE_NOT_A_PREDICATE",
     "category": "persist",
     "description": "A persist where clause is not a valid row predicate"
@@ -1588,6 +1593,11 @@
     "code": "ORB_RUI_CHILD_NOT_DRAWABLE",
     "category": "render_ui",
     "description": "A non-drawable child is composed under a canvas draw-host, which paints only neutral drawable descriptors"
+  },
+  {
+    "code": "ORB_RUI_CONTROLLED_WITHOUT_CHANGE",
+    "category": "render_ui",
+    "description": "A control whose value is bound to a non-literal and that wires none of the events that report its change: the field cannot be edited"
   },
   {
     "code": "ORB_RUI_ELEMENT_SHAPE_MISMATCH",
@@ -2068,6 +2078,11 @@
     "code": "ORB_X_CIRCULAR_DEPENDENCY",
     "category": "cross",
     "description": "Traits form a circular event dependency"
+  },
+  {
+    "code": "ORB_X_COLLECTION_ENUM_MISMATCH",
+    "category": "cross",
+    "description": "Two persistent entities on one collection declare the same field as an enum with different value sets, so one entity's rows fail the other's type"
   },
   {
     "code": "ORB_X_CROSS_EMITTER_DECLARED_PAYLOAD_MISMATCH",

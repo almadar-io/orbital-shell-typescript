@@ -1281,5 +1281,7 @@
   "themeToggle.light": "Light",
   "themeToggle.dark": "Dark",
   "agentActivity.toolDone": "{{tool}} — done",
-  "agentActivity.toolFailed": "{{tool}} — failed"
+  "agentActivity.toolFailed": "{{tool}} — failed",
+  "aria.annotatedMedia": "Media to review",
+  "aria.annotatedTimeline": "Comment timeline"
 }

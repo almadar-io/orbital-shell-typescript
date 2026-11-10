@@ -172,6 +172,7 @@ export { GraphView, type GraphViewProps, type GraphViewNode, type GraphViewEdge 
 
 // Map visualization
 export { MapView, type MapViewProps, type MapMarkerData, type MapRouteData, type MapRouteWaypoint } from './MapView';
+export { AnnotatedMedia, type AnnotatedMediaProps, type AnnotatedPin, type AnnotatedMediaType, type AnnotatedPlacePayload, type AnnotatedPinPayload } from './AnnotatedMedia';
 
 // UX Phase 1 molecules
 export { NumberStepper, type NumberStepperProps, type NumberStepperSize } from './NumberStepper';
