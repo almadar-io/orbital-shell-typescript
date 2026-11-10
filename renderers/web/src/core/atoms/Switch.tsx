@@ -8,7 +8,7 @@ import { useEventBus } from "../hooks/useEventBus";
 /**
  * @accessibleName label
  * @role switch
- * @tokens --color-primary --color-muted --color-background
+ * @tokens --color-primary --color-muted-foreground --color-background
  * @motion css
  */
 export interface SwitchProps extends A11yProps {
@@ -87,7 +87,8 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
             // proportional regardless of a theme's density scale.
             "relative inline-flex h-[1.5rem] w-[2.75rem] shrink-0 cursor-pointer items-center rounded-full border-heavy border-transparent transition-colors duration-fast",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            isChecked ? "bg-primary" : "bg-muted",
+            // The off track must clear 3:1 against the page (WCAG 1.4.11); the muted surface colour does not.
+            isChecked ? "bg-primary" : "bg-muted-foreground",
             disabled && "cursor-not-allowed opacity-50",
           )}
         >

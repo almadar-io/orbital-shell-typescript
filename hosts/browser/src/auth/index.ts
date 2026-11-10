@@ -86,6 +86,13 @@ function appFor(config: BrowserAuthConfig): FirebaseApp {
   );
 }
 
+/** A credential sign-in picks whose identity a guest gets, so Google always asks which account. */
+export function googleProvider(purpose: 'viewer' | 'credential'): GoogleAuthProvider {
+  const provider = new GoogleAuthProvider();
+  if (purpose === 'credential') provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+}
+
 export async function connectAuth(config: BrowserAuthConfig): Promise<BrowserAuth> {
   const auth = getAuth(appFor(config));
   if (config.tenantId !== undefined) auth.tenantId = config.tenantId;
@@ -111,7 +118,7 @@ export async function connectAuth(config: BrowserAuthConfig): Promise<BrowserAut
       return signedIn(user);
     },
     async signInWithGoogle() {
-      return signedIn((await signInWithPopup(auth, new GoogleAuthProvider())).user);
+      return signedIn((await signInWithPopup(auth, googleProvider('viewer'))).user);
     },
     async googleCredential() {
       const side = getAuth(appFor({ ...config, appName: `${config.appName}/credential` }));
@@ -120,7 +127,7 @@ export async function connectAuth(config: BrowserAuthConfig): Promise<BrowserAut
         connectAuthEmulator(side, `http://${config.emulatorHost}`, { disableWarnings: true });
       }
       await setPersistence(side, inMemoryPersistence);
-      const { user } = await signInWithPopup(side, new GoogleAuthProvider());
+      const { user } = await signInWithPopup(side, googleProvider('credential'));
       const answer = { user: await signedIn(user), idToken: await user.getIdToken() };
       await signOut(side);
       return answer;
