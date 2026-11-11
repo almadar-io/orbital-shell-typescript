@@ -835,6 +835,11 @@
     "description": "An effect is written in a retired object form instead of the array form"
   },
   {
+    "code": "ORB_EFF_SERVER_EFFECT_NO_FAILURE_ROUTE",
+    "category": "effect",
+    "description": "A fetch, persist or call-service effect on a server entity declares no `emit: { failure }` route, so its error reaches no one"
+  },
+  {
     "code": "ORB_EFF_SET_INVALID_BINDING",
     "category": "effect",
     "description": "A set effect is missing its binding or its value"
@@ -1008,6 +1013,11 @@
     "code": "ORB_FETCH_TOTAL_NONE_READ",
     "category": "effect",
     "description": "A fetch with total none skips the count, so the success event's totalCount is never set and may not be read"
+  },
+  {
+    "code": "ORB_FETCH_UNBOUNDED",
+    "category": "query",
+    "description": "A fetch of a persistent entity has no limit, id or nearest, so it reads every row"
   },
   {
     "code": "ORB_FETCH_UNINDEXED",
@@ -1218,6 +1228,11 @@
     "code": "ORB_LISTEN_REDUNDANT_EMBED_ROUTE",
     "category": "listen",
     "description": "A listens route is redundant because the embedded trait already receives that event"
+  },
+  {
+    "code": "ORB_LISTEN_ROUTE_PROJECTION_MISMATCH",
+    "category": "trait_event",
+    "description": "A listens route copies a payload field projected from one entity field into a payload field projected from a different field of the same entity"
   },
   {
     "code": "ORB_LISTEN_ROUTE_STARVES_REQUIRED_FIELD",
@@ -1715,6 +1730,11 @@
     "description": "No trait on a page renders anything into the main slot"
   },
   {
+    "code": "ORB_SLOT_MAIN_ONLY_CONTAINERS",
+    "category": "slot",
+    "description": "Every trait render into the main slot of a page paints only empty layout-only containers, so nothing is shown"
+  },
+  {
     "code": "ORB_STORE_DRIVER_CONTRACT",
     "category": "store",
     "description": "A store driver has no trait handling one or more verbs required by the row-store driver contract"
@@ -1833,6 +1853,11 @@
     "code": "ORB_S_UNKNOWN_IDENTITY_FIELD",
     "category": "schema",
     "description": "A read of a field of the signed-in user names a field the declared identity entity does not have"
+  },
+  {
+    "code": "ORB_S_USER_ID_EMPTY_COMPARISON",
+    "category": "schema",
+    "description": "A comparison of @user.id with the empty string, which is never true of a viewer: the anonymous viewer's id is \"anonymous\", so the comparison is constant"
   },
   {
     "code": "ORB_TAB_EFFECT_ON_SERVER",

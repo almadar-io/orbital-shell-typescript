@@ -274,3 +274,88 @@ describe('a host-run dispatch of a trait this view does not run', () => {
     expect(await hostRan({ event: 'TICKED', targetTrait: 'Worker' }, [emitted])).toEqual([]);
   });
 });
+
+// The host stamps an emit it already delivered to its listeners (`dispatched`). A listener the host runs, on a page
+// this view does not show, already ran there with its whole cascade: the browser never runs it again, so the server
+// work its cascade reaches is not posted a second time.
+const relay: Trait = {
+  name: 'Relay',
+  linkedEntity: 'Turn',
+  dispatch: 'optimistic',
+  emits: [{ event: 'RELAYED' }],
+  listens: [{ event: 'STEP', source: { kind: 'orbital', orbital: 'WorkerOrbital', trait: 'Worker' }, triggers: 'STEP' }],
+  stateMachine: {
+    states: [{ name: 'idle', isInitial: true }],
+    events: [{ key: 'STEP', name: 'Step' }],
+    transitions: [{ from: 'idle', to: 'idle', event: 'STEP', effects: [['emit', 'RELAYED', {}]] }],
+  },
+};
+
+const sink: Trait = {
+  name: 'Sink',
+  linkedEntity: 'Turn',
+  dispatch: 'optimistic',
+  listens: [{ event: 'RELAYED', source: { kind: 'trait', trait: 'Relay' }, triggers: 'RELAYED' }],
+  stateMachine: {
+    states: [{ name: 'idle', isInitial: true }],
+    events: [{ key: 'RELAYED', name: 'Relayed' }, { key: 'SUNK', name: 'Sunk' }],
+    transitions: [
+      { from: 'idle', to: 'idle', event: 'RELAYED', effects: [['call-service', 'knowledge', 'expand', { graphId: 'g' }, { emit: { success: 'SUNK' } }]] },
+      { from: 'idle', to: 'idle', event: 'SUNK', effects: [] },
+    ],
+  },
+};
+
+const clientChat: Trait = { ...listener, dispatch: 'client' };
+
+const relayOrbitals = (page: Trait): OrbitalSchema['orbitals'] => [
+  { ...orbitals[0], traits: [page] },
+  workerOrbitals[1],
+  {
+    name: 'RelayOrbital',
+    id: 'orb_relay' as OrbitalId,
+    pages: [{ name: 'RelayPage', path: '/relay', traits: [{ ref: 'Relay' }, { ref: 'Sink' }] }],
+    entity: { name: 'Turn', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+    traits: [relay, sink],
+  },
+];
+
+class RecordingServer extends DispatchingServer {
+  sent: EventRequest[] = [];
+  send(orbital: string, request: EventRequest): Promise<EventResponse> {
+    this.sent.push(request);
+    return super.send(orbital, request);
+  }
+}
+
+async function hostRanStamped(page: Trait, dispatched: boolean) {
+  const slots = stubSlots();
+  const server = new RecordingServer();
+  const { result } = renderHook(() => useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals: relayOrbitals(page), transport: server, routePath: '/' }));
+  await machineReady(result);
+  slots.render.mockClear();
+  server.sent = [];
+  const emitted: EmittedEvent = { event: 'STEP', payload: { text: 'reading Task' }, source: { orbital: 'WorkerOrbital', trait: 'Worker', ...(dispatched ? { dispatched: true } : {}) } };
+  server.dispatch?.('WorkerOrbital', { event: 'TICKED', targetTrait: 'Worker' }, { success: true, transitioned: true, states: { Worker: 'idle' }, emittedEvents: [emitted] });
+  for (let i = 0; i < 10; i += 1) await settle();
+  return {
+    posted: server.sent.map((request) => `${request.targetTrait}.${request.event}`),
+    painted: slots.render.mock.calls.map(([arg]) => (arg as { props?: { content?: string } }).props?.content),
+  };
+}
+
+describe('a host-run dispatch whose emit the host already delivered', () => {
+  it('posts no second delivery for a listener the host ran', async () => {
+    expect((await hostRanStamped(listener, true)).posted).toEqual([]);
+  });
+
+  it('control: a client-only page trait still hears it and repaints', async () => {
+    expect(await hostRanStamped(clientChat, true)).toEqual({ posted: [], painted: ['reading Task'] });
+  });
+
+  it('control: an emit the host did not deliver reaches its listeners, server work posted', async () => {
+    const ran = await hostRanStamped(listener, false);
+    expect(ran.painted).toEqual(['reading Task']);
+    expect(ran.posted).toEqual(['Sink.RELAYED']);
+  });
+});

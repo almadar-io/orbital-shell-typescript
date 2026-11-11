@@ -367,8 +367,9 @@ export function useTraitStateMachine(
       const ownsFrame = (frame: string): boolean => [...shown.byName.values()].some((entry) => entry.frameKey === frame);
       if (traitName === undefined || !hostDispatchInView(request, response, (t) => shown.byName.has(t), ownsFrame)) {
         // A dispatch of a trait this view does not run (a server-only orbital's) can still emit what this view's own
-        // traits listen for: the kernel delivers each emit to the listeners it has, and to no one else (EXEC-DIST-2).
-        for (const emitted of response.success ? response.emittedEvents : []) void deliver(emitted, 'listeners');
+        // traits listen for. Each emit is folded as the host's answer, so the kernel skips the listeners the host
+        // already ran (an emit stamped `dispatched`, EXEC-DIST-10) and their server work is never posted twice.
+        for (const emitted of response.success ? response.emittedEvents : []) void deliver(emitted, 'emit');
         return;
       }
       void running.foldHostDispatch(request, response).then((outcome) =>

@@ -77,7 +77,7 @@ export interface InputProps extends Omit<
   /** onChange handler or declarative event key for trait dispatch */
   onChange?: React.ChangeEventHandler<
     HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-  > | EventEmit<{ value: string } | { checked: boolean }>;
+  > | EventEmit<{ value?: string; checked?: boolean }>;
 }
 
 export const Input = React.forwardRef<

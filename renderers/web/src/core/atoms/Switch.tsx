@@ -1,6 +1,6 @@
 'use client';
 import * as React from "react";
-import type { A11yProps, EventKey, EventPayload } from "@almadar/core";
+import type { A11yProps, EventEmit, EventPayload } from "@almadar/core";
 import { cn } from "../lib/cn";
 import { domPassthrough } from "../lib/domPassthrough";
 import { useEventBus } from "../hooks/useEventBus";
@@ -16,7 +16,7 @@ export interface SwitchProps extends A11yProps {
   defaultChecked?: boolean;
   onChange?: (checked: boolean) => void;
   /** Declarative event name — emits UI:{action} with `actionPayload` and the new `checked` value on toggle */
-  action?: EventKey;
+  action?: EventEmit<{ checked: boolean }>;
   /** Payload to include with the action event (the new `checked` is added to it)
    *  @payloadFor action
    */

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-11T02:38:06.971Z",
+  "exportedAt": "2026-11-11T07:19:45.451Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -17257,8 +17257,13 @@
           "kind": "event-ref",
           "emitPayloadSchema": [
             {
-              "name": "_payload",
-              "type": "object",
+              "name": "value",
+              "type": "string",
+              "required": false
+            },
+            {
+              "name": "checked",
+              "type": "boolean",
               "required": false
             }
           ]
@@ -19006,7 +19011,14 @@
             "string"
           ],
           "description": "Declarative event name — emits UI:{action} with `actionPayload` and the new `checked` value on toggle",
-          "kind": "event"
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "checked",
+              "type": "boolean",
+              "required": true
+            }
+          ]
         },
         "actionPayload": {
           "types": [
@@ -27777,8 +27789,13 @@
           "kind": "event-ref",
           "emitPayloadSchema": [
             {
-              "name": "_payload",
-              "type": "object",
+              "name": "value",
+              "type": "string",
+              "required": false
+            },
+            {
+              "name": "checked",
+              "type": "boolean",
               "required": false
             }
           ]

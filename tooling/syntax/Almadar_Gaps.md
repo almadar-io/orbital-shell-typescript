@@ -12,6 +12,6 @@ Next code: `G-SYNTAX-004`
 
 ## Open gaps
 
-- **G-EXTENSIONS-002** — `editors/zed/tree-sitter-lolo` corpus tests "Trait with state and effect" and "Guard transition with operator symbol" fail at HEAD (`tree-sitter test`: 2/9 failed before the 2026-10-08 modifier-bracket change too): the expected trees name a `sexpr_op` node the generated parser no longer produces. Regenerate expectations or restore the node. The grammar also lags the language (no `uses`, `theme`, `locales` rules). `editors/zed/tree-sitter-lolo/` [mechanical] — found 2026-10-08. Prevention rung: tooling regression gate (`tree-sitter test` in CI). Update 2026-11-07 (re-verified against source): parser fix uncommitted; add CI gate. Root cause: T4.
+- **G-EXTENSIONS-002** — `editors/zed/tree-sitter-lolo` corpus tests "Trait with state and effect" and "Guard transition with operator symbol" fail at HEAD (`tree-sitter test`: 2/9 failed before the 2026-10-08 modifier-bracket change too): the expected trees name a `sexpr_op` node the generated parser no longer produces. Regenerate expectations or restore the node. The grammar also lags the language (no `uses`, `theme`, `locales` rules). `editors/zed/tree-sitter-lolo/` [mechanical] — found 2026-10-08. Prevention rung: tooling regression gate (`tree-sitter test` in CI). Update 2026-11-07 (re-verified against source): parser fix uncommitted; add CI gate. Severity: medium. Root cause: T4.
 
 
