@@ -962,6 +962,7 @@
   "selection.note": "Note",
   "selection.toolbar": "Selection actions",
   "qrScanner.apiUnavailable": "Camera API not available in this environment",
+  "qrScanner.decoderUnavailable": "No barcode reader is available in this browser",
   "aria.videoEmbed": "Video player",
   "videoEmbed.apiUnavailable": "The video player could not be loaded",
   "videoEmbed.invalidVideo": "The video address is not valid",

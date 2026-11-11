@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-11T09:17:19.055Z",
+  "exportedAt": "2026-11-11T11:07:02.354Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -94091,6 +94091,19 @@
             "kind": "event"
           }
         },
+        "gestureMap": {
+          "types": [
+            "object"
+          ],
+          "description": "Maps a pointing gesture on the canvas (`WheelUp`, `WheelDown`, `SwipeUp`, `SwipeDown`, `SwipeLeft`, `SwipeRight`) to the board's SEMANTIC event, emitted as `UI:{event}`: one event per wheel gesture (a mouse notch, or a trackpad fling with its inertia) and one per touch swipe, named by the way the wheel turned or the finger moved. A `pan-zoom` camera keeps the wheel and the drag.",
+          "kind": "event-map",
+          "mapValue": {
+            "types": [
+              "string"
+            ],
+            "kind": "event"
+          }
+        },
         "editable": {
           "types": [
             "boolean"
@@ -110664,6 +110677,19 @@
             "object"
           ],
           "description": "Maps a keyup `e.code` — optionally prefixed `Mod+` (⌘/Ctrl), `Shift+`, `Alt+` in that order — to the board's SEMANTIC event, emitted as `UI:{event}`; keystrokes inside inputs/textareas never route.",
+          "kind": "event-map",
+          "mapValue": {
+            "types": [
+              "string"
+            ],
+            "kind": "event"
+          }
+        },
+        "gestureMap": {
+          "types": [
+            "object"
+          ],
+          "description": "Maps a pointing gesture on the canvas (`WheelUp`, `WheelDown`, `SwipeUp`, `SwipeDown`, `SwipeLeft`, `SwipeRight`) to the board's SEMANTIC event, emitted as `UI:{event}`: one event per wheel gesture (a mouse notch, or a trackpad fling with its inertia) and one per touch swipe, named by the way the wheel turned or the finger moved. A camera whose own controls take the wheel or the drag keeps them.",
           "kind": "event-map",
           "mapValue": {
             "types": [

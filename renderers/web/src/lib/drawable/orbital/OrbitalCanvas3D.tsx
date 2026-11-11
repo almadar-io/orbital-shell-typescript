@@ -19,6 +19,7 @@ import type { CanvasTheme } from '@almadar/core';
 import { resolveDrawableColors } from '../themeDrawables';
 import type { DrawableNode } from '../paintDispatch';
 import { keyMapCode, resolveKeyMapEvent } from '../../keyMapEvent';
+import { createWheelGesture, mapsSwipe, mapsWheel, swipeGesture, wheelPixels } from '../../gestureMapEvent';
 import './OrbitalCanvas3D.css';
 
 /** The patterns orbital-canvas draws in 3D. */
@@ -38,6 +39,8 @@ export interface OrbitalCanvas3DProps<P extends Pattern3D> {
     unitClickEvent?: string;
     keyMap?: Record<string, EventKey>;
     keyUpMap?: Record<string, EventKey>;
+    /** The canvas's `gestureMap`: a wheel gesture or a touch swipe the camera's own controls do not take. */
+    gestureMap?: Record<string, EventKey>;
     /** Edit mode (`editable`): a click that changes the selection, before `selectEvent`. */
     onSelect?: (id: string | null) => void;
     /** Edit mode: a drag dropped on a new scene cell, before `moveEvent`. */
@@ -68,6 +71,7 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
     unitClickEvent,
     keyMap,
     keyUpMap,
+    gestureMap,
     onSelect,
     onMove,
     selectEvent,
@@ -218,6 +222,12 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
         };
     }, [keyMap, keyUpMap, eventBus]);
 
+    // Keyed by content: a fresh literal each render must not restart a wheel stream halfway through.
+    const gestureKey = gestureMap ? JSON.stringify(gestureMap) : null;
+    const gestures = useMemo(() => gestureMap, [gestureKey]);
+    const wheelGesture = useRef(createWheelGesture());
+    const touch = useRef<{ id: number; x: number; y: number; at: number; taken: boolean } | null>(null);
+
     useEffect(() => {
         const surface = canvasRef.current;
         if (!ready || !surface) return;
@@ -225,11 +235,17 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
             if (viewRef.current?.wheel(e.deltaY)) {
                 e.preventDefault();
                 drawRef.current();
+                return;
             }
+            if (!mapsWheel(gestures)) return;
+            e.preventDefault();
+            const made = wheelGesture.current.feed(wheelPixels(e, surface.clientHeight), e.timeStamp);
+            const ev = made && gestures?.[made];
+            if (ev) eventBus.emit(`UI:${ev}`, {});
         };
         surface.addEventListener('wheel', wheel, { passive: false });
         return () => surface.removeEventListener('wheel', wheel);
-    }, [ready]);
+    }, [ready, gestures, eventBus]);
 
     const point = (e: React.PointerEvent<HTMLCanvasElement>): { x: number; y: number } => {
         const box = e.currentTarget.getBoundingClientRect();
@@ -247,12 +263,20 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
                 onPointerDown={(e) => {
                     e.currentTarget.setPointerCapture(e.pointerId);
                     const { x, y } = point(e);
+                    if (e.pointerType !== 'mouse' && mapsSwipe(gestures)) touch.current = { id: e.pointerId, x, y, at: e.timeStamp, taken: false };
                     viewRef.current?.pointerDown(e.pointerId, x, y, e.button, e.pointerType === 'touch');
+                }}
+                onPointerCancel={(e) => {
+                    if (touch.current?.id === e.pointerId) touch.current = null;
                 }}
                 onPointerMove={(e) => {
                     const { x, y } = point(e);
                     try {
-                        if (viewRef.current?.pointerMove(e.pointerId, x, y)) drawRef.current();
+                        if (viewRef.current?.pointerMove(e.pointerId, x, y)) {
+                            // The camera moved with this pointer, so the drag is the camera's and no swipe.
+                            if (touch.current?.id === e.pointerId) touch.current.taken = true;
+                            drawRef.current();
+                        }
                     } catch (cause) {
                         setError(String(cause));
                     }
@@ -262,7 +286,12 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
                     const view = viewRef.current;
                     if (!view) return;
                     const pick = JSON.parse(view.pointerUp(e.pointerId, x, y, unitClickEvent !== undefined || onShapeClick !== undefined, tileClickEvent !== undefined)) as PickJson | null;
-                    if (pick?.select) {
+                    const start = touch.current?.id === e.pointerId ? touch.current : null;
+                    if (start) touch.current = null;
+                    const swipe = start && !start.taken ? swipeGesture(x - start.x, y - start.y, e.timeStamp - start.at) : undefined;
+                    const swipeEvent = swipe && gestures?.[swipe];
+                    if (swipeEvent) eventBus.emit(`UI:${swipeEvent}`, {});
+                    else if (pick?.select) {
                         onSelect?.(pick.select.id);
                         if (selectEvent) eventBus.emit(`UI:${selectEvent}`, { id: pick.select.id });
                     } else if (pick?.move) {

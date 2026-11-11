@@ -527,7 +527,7 @@
   {
     "code": "ORB_BINDING_FROM_ENTITY_OUTSIDE_ENSURES",
     "category": "binding",
-    "description": "@fromEntity is the row before a transition and may only be used inside an @ensures"
+    "description": "The @fromEntity binding is the row before a transition and may only be used inside an @ensures"
   },
   {
     "code": "ORB_BINDING_INVALID_FORMAT",
@@ -2058,6 +2058,11 @@
     "code": "ORB_T_SECRET_DEFAULT_NOT_STRING",
     "category": "trait",
     "description": "A config field typed secret does not default to a string credential reference"
+  },
+  {
+    "code": "ORB_T_SERVER_TRAIT_CLIENT_EFFECT",
+    "category": "trait",
+    "description": "A trait that runs every step on the server performs an effect only a client can do and the kernel does not forward to one"
   },
   {
     "code": "ORB_T_STATE_UNREACHABLE",

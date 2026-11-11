@@ -962,6 +962,7 @@
   "selection.note": "Opomba",
   "selection.toolbar": "Dejanja izbora",
   "qrScanner.apiUnavailable": "API kamere v tem okolju ni na voljo",
+  "qrScanner.decoderUnavailable": "Bralnik kod v tem brskalniku ni na voljo",
   "aria.videoEmbed": "Video predvajalnik",
   "videoEmbed.apiUnavailable": "Video predvajalnika ni bilo mogoče naložiti",
   "videoEmbed.invalidVideo": "Naslov videa ni veljaven",

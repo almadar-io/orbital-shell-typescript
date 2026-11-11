@@ -106,6 +106,8 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     keyMap?: Record<string, EventKey>;
     /** Maps a keyup `e.code` — optionally prefixed `Mod+` (⌘/Ctrl), `Shift+`, `Alt+` in that order — to the board's SEMANTIC event, emitted as `UI:{event}`; keystrokes inside inputs/textareas never route. */
     keyUpMap?: Record<string, EventKey>;
+    /** Maps a pointing gesture on the canvas (`WheelUp`, `WheelDown`, `SwipeUp`, `SwipeDown`, `SwipeLeft`, `SwipeRight`) to the board's SEMANTIC event, emitted as `UI:{event}`: one event per wheel gesture (a mouse notch, or a trackpad fling with its inertia) and one per touch swipe, named by the way the wheel turned or the finger moved. A camera whose own controls take the wheel or the drag keeps them. */
+    gestureMap?: Record<string, EventKey>;
 
     // --- Scene-edit mode (a game studio selecting/dragging drawables). Purely
     //     additive; suppresses `tileClickEvent`/`unitClickEvent` while active.
@@ -171,6 +173,7 @@ export function Canvas({
     featureClickEvent,
     keyMap,
     keyUpMap,
+    gestureMap,
     editable,
     selectedId,
     onSelect,
@@ -264,6 +267,7 @@ export function Canvas({
                         unitClickEvent={unitClickEvent}
                         keyMap={keyMap}
                         keyUpMap={keyUpMap}
+                        {...(gestureMap !== undefined ? { gestureMap } : {})}
                         {...(onSelect !== undefined ? { onSelect } : {})}
                         {...(onMove !== undefined ? { onMove } : {})}
                         {...(selectEvent !== undefined ? { selectEvent } : {})}
@@ -304,6 +308,7 @@ export function Canvas({
             tileLeaveEvent={tileLeaveEvent}
             keyMap={keyMap}
             keyUpMap={keyUpMap}
+            {...(gestureMap !== undefined ? { gestureMap } : {})}
             editable={editable}
             selectedId={selectedId}
             onSelect={onSelect}

@@ -962,6 +962,7 @@
   "selection.note": "ملاحظة",
   "selection.toolbar": "إجراءات التحديد",
   "qrScanner.apiUnavailable": "واجهة الكاميرا غير متاحة في هذه البيئة",
+  "qrScanner.decoderUnavailable": "قارئ الرموز غير متاح في هذا المتصفح",
   "aria.videoEmbed": "مشغل الفيديو",
   "videoEmbed.apiUnavailable": "تعذر تحميل مشغل الفيديو",
   "videoEmbed.invalidVideo": "عنوان الفيديو غير صالح",

@@ -20,6 +20,21 @@ export type QrScanResult = EventPayload & {
   timestamp: number;
 };
 
+interface DetectedCode {
+  rawValue: string;
+  format: string;
+}
+
+interface CodeDetector {
+  detect(source: HTMLVideoElement): Promise<DetectedCode[]>;
+}
+
+/** The browser's own barcode detector (the Shape Detection API), when it has one. */
+function browserCodeDetector(): CodeDetector | null {
+  const ctor = (globalThis as { BarcodeDetector?: new () => CodeDetector }).BarcodeDetector;
+  return ctor ? new ctor() : null;
+}
+
 export interface QrScannerProps extends A11yProps {
   onScan?: (result: QrScanResult) => void;
   scanEvent?: EventEmit<QrScanResult>;
@@ -115,18 +130,58 @@ export const QrScanner: React.FC<QrScannerProps> = ({
     setCurrentFacing(facingMode);
   }, [facingMode]);
 
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
+
   useEffect(() => {
     if (!isReady || isPaused) return;
+    const detector = browserCodeDetector();
+    if (!detector) {
+      const err = new Error(tRef.current('qrScanner.decoderUnavailable'));
+      setCameraError(err);
+      onErrorRef.current?.(err);
+      return;
+    }
+    // The code in the frame at the last check: it fires once, then again only after it has left the frame.
+    let held: string | null = null;
+    let busy = false;
+    let live = true;
     scanIntervalRef.current = setInterval(() => {
-      // TODO(qr-decode): wire jsQR or zxing-wasm — outside Phase 10 scope
+      const video = videoRef.current;
+      if (busy || !video) return;
+      busy = true;
+      detector
+        .detect(video)
+        .then((codes) => {
+          if (!live) return;
+          const code = codes[0];
+          if (!code) {
+            held = null;
+            return;
+          }
+          if (code.rawValue === held) return;
+          held = code.rawValue;
+          const result: QrScanResult = { text: code.rawValue, format: code.format.toUpperCase(), timestamp: Date.now() };
+          onScanRef.current?.(result);
+          if (scanEvent) eventBus.emit(`UI:${scanEvent}`, result);
+        })
+        .catch((e: Error | DOMException | string) => {
+          if (live) onErrorRef.current?.(e instanceof Error ? e : new Error(String(e)));
+        })
+        .finally(() => {
+          busy = false;
+        });
     }, 200);
     return () => {
+      live = false;
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current);
         scanIntervalRef.current = null;
       }
     };
-  }, [isReady, isPaused]);
+  }, [isReady, isPaused, scanEvent, eventBus]);
 
   const toggleFacing = useCallback(() => {
     setCurrentFacing((f) => (f === 'environment' ? 'user' : 'environment'));

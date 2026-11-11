@@ -48,6 +48,7 @@ import { useCamera } from '../../../hooks/useCamera';
 import { useCanvasGestures } from '../../../hooks/useCanvasGestures';
 import { bindCanvasCapture, bindLastDrawables } from '../../../lib/verificationRegistry';
 import { useKeyMapEvents } from '../../../hooks/useKeyMapEvents';
+import { createWheelGesture, mapsSwipe, mapsWheel, swipeGesture, wheelPixels } from '../../../lib/gestureMapEvent';
 import { createWebPainter } from '../../../lib/webPainter2d';
 import { create2DProjector, type Projection2D } from '../../../lib/drawable/projector';
 import { paintDrawable, type DrawableNode } from '../../../lib/drawable/paintDispatch';
@@ -176,6 +177,8 @@ export interface Canvas2DProps extends A11yProps {
     keyMap?: Record<string, EventKey>;
     /** Maps a keyup `e.code` — optionally prefixed `Mod+` (⌘/Ctrl), `Shift+`, `Alt+` in that order — to the board's SEMANTIC event, emitted as `UI:{event}`; keystrokes inside inputs/textareas never route. */
     keyUpMap?: Record<string, EventKey>;
+    /** Maps a pointing gesture on the canvas (`WheelUp`, `WheelDown`, `SwipeUp`, `SwipeDown`, `SwipeLeft`, `SwipeRight`) to the board's SEMANTIC event, emitted as `UI:{event}`: one event per wheel gesture (a mouse notch, or a trackpad fling with its inertia) and one per touch swipe, named by the way the wheel turned or the finger moved. A `pan-zoom` camera keeps the wheel and the drag. */
+    gestureMap?: Record<string, EventKey>;
 
     // --- Scene-edit mode (a game studio selecting/dragging drawables). Purely
     //     additive: undefined/false behaves exactly like today. Suppresses
@@ -303,6 +306,7 @@ export function Canvas2D({
     tileLeaveEvent,
     keyMap,
     keyUpMap,
+    gestureMap,
     editable = false,
     selectedId = null,
     onSelect,
@@ -772,8 +776,17 @@ export function Canvas2D({
         return unproject(adjustedX, adjustedY);
     }, [screenToWorld, viewportSize, scaledTileWidth, squareGrid, scaledDiamondTopY, scaledFloorHeight, unproject]);
 
+    // Keyed by content: a fresh literal each render must not restart a wheel stream halfway through.
+    const gestureKey = gestureMap ? JSON.stringify(gestureMap) : null;
+    const gestures = useMemo(() => gestureMap, [gestureKey]);
+    const wheelGestureRef = useRef(createWheelGesture());
+    const touchRef = useRef<{ id: number; x: number; y: number; at: number } | null>(null);
+
     const handleCanvasPointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
         singlePointerActiveRef.current = true;
+        touchRef.current = !editable && !enableCamera && e.pointerType !== 'mouse' && mapsSwipe(gestures)
+            ? { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp }
+            : null;
         if (editable) {
             if (!canvasRef.current) return;
             const world = screenToWorld(e.clientX, e.clientY, canvasRef.current, viewportSize);
@@ -795,7 +808,7 @@ export function Canvas2D({
             return;
         }
         if (enableCamera) handlePointerDown(e);
-    }, [editable, screenToWorld, viewportSize, drawnItems, projector, enableCamera, handlePointerDown]);
+    }, [editable, screenToWorld, viewportSize, drawnItems, projector, enableCamera, handlePointerDown, gestures]);
 
     const handleCanvasPointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
         if (editable) {
@@ -850,6 +863,14 @@ export function Canvas2D({
         }
         singlePointerActiveRef.current = false;
         if (enableCamera) handlePointerUp();
+        const start = touchRef.current?.id === e.pointerId ? touchRef.current : null;
+        touchRef.current = null;
+        const swipe = start ? swipeGesture(e.clientX - start.x, e.clientY - start.y, e.timeStamp - start.at) : undefined;
+        const swipeEvent = swipe && gestures?.[swipe];
+        if (swipeEvent) {
+            eventBus.emit(`UI:${swipeEvent}`, {});
+            return;
+        }
         if (dragDistance() > 5) return;
         if (!canvasRef.current || (!tileClickEvent && !unitClickEvent)) return;
         const world = screenToWorld(e.clientX, e.clientY, canvasRef.current, viewportSize);
@@ -868,7 +889,7 @@ export function Canvas2D({
         } else if (tileClickEvent) {
             eventBus.emit(`UI:${tileClickEvent}`, { x: isoPos.x, y: isoPos.y });
         }
-    }, [editable, selectedId, onMove, moveEvent, onSelect, selectEvent, eventBus, draw, enableCamera, handlePointerUp, dragDistance, screenToWorld, viewportSize, drawnItems, projector, tileClickEvent, unitClickEvent, hitIndex, pointerToScene]);
+    }, [gestures, editable, selectedId, onMove, moveEvent, onSelect, selectEvent, eventBus, draw, enableCamera, handlePointerUp, dragDistance, screenToWorld, viewportSize, drawnItems, projector, tileClickEvent, unitClickEvent, hitIndex, pointerToScene]);
 
     const handleCanvasPointerLeave = useCallback(() => {
         handleMouseLeave();
@@ -892,7 +913,7 @@ export function Canvas2D({
 
     const gestureHandlers = useCanvasGestures({
         canvasRef,
-        enabled: enableCamera || !!tileHoverEvent || !!tileClickEvent || !!unitClickEvent || editable,
+        enabled: enableCamera || !!tileHoverEvent || !!tileClickEvent || !!unitClickEvent || editable || mapsSwipe(gestures),
         onPointerDown: handleCanvasPointerDown,
         onPointerMove: handleCanvasPointerMove,
         onPointerUp: handleCanvasPointerUp,
@@ -903,7 +924,17 @@ export function Canvas2D({
 
     // Native non-passive wheel listener so preventDefault() in the gesture
     // handler fires (React onWheel is passive → page would scroll while zooming).
-    const canvasWheelHandler = gestureHandlers.onWheel;
+    const cameraWheelHandler = gestureHandlers.onWheel;
+    const canvasWheelHandler = useCallback((e: WheelEvent) => {
+        if (enableCamera || !mapsWheel(gestures)) {
+            cameraWheelHandler(e);
+            return;
+        }
+        e.preventDefault();
+        const made = wheelGestureRef.current.feed(wheelPixels(e, canvasRef.current?.clientHeight ?? 0), e.timeStamp);
+        const ev = made && gestures?.[made];
+        if (ev) eventBus.emit(`UI:${ev}`, {});
+    }, [enableCamera, gestures, cameraWheelHandler, eventBus]);
     useEffect(() => {
         const el = canvasRef.current;
         if (!el) return;
