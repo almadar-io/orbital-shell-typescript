@@ -85,6 +85,8 @@ value: JsonValue, };
 
 export type ClientAuth = "body" | "basic" | "none";
 
+export type ClientCredentialsSpec = { grantType: string, params: Array<TokenParam>, paramsIn: ParamsIn, };
+
 export type ClientEffect = ["render-ui", string, JsonObject | null] | ["navigate", string] | ["navigate", string, { [key in string]: string } | null] | ["navigate", string, { [key in string]: string } | null, NavigateOptions] | ["navigate-back"] | ["host-ask", string, Array<JsonValue>] | ["host-ask", string, Array<JsonValue>, HostAskCompletion]
 
 export type ClientEffectByTrait = { traitName: string, effect: ClientEffect, 
@@ -110,7 +112,7 @@ export type ConnectFailure = { kind: ConnectFailureKind, message: string, };
 
 export type ConnectFailureKind = "unavailable" | "unsigned" | "denied" | "invalid_grant" | "invalid_client" | "transport" | "malformed" | "refused";
 
-export type CredentialGrantWire = { name: string, principal?: string, tokenEndpoint: string, grant: string, code: string, redirectUri: string, verifier?: string, clientId: string, clientSecret?: string, clientAuth: ClientAuth, scopes: Array<string>, refreshCredential?: string, assertion?: AssertionSpec, jsonToken?: JsonTokenSpec, };
+export type CredentialGrantWire = { name: string, principal?: string, tokenEndpoint: string, grant: string, code: string, redirectUri: string, verifier?: string, clientId: string, clientSecret?: string, clientAuth: ClientAuth, scopes: Array<string>, refreshCredential?: string, assertion?: AssertionSpec, jsonToken?: JsonTokenSpec, clientCredentials?: ClientCredentialsSpec, };
 
 export type CredentialKind = "admin";
 
@@ -521,6 +523,8 @@ export type PageFactFieldWire = "hostname" | "referrer" | "screenWidth" | "href"
 
 export type PageFactsWire = { available: boolean, hostname: string, referrer: string, screenWidth: number | null, href: string, };
 
+export type ParamsIn = "body" | "query";
+
 export type PayloadSlot = { name: string, type: string, required: boolean, 
 /**
  * The closed value set, when the field declares one.
@@ -830,6 +834,8 @@ export type TabImageFormat = "png" | "jpeg";
 
 export type TabStyle = { property: string, value: string, };
 
+export type TokenParam = { name: string, value: string, };
+
 export type TraceEffectsWire = { effects: Array<EffectTraceWire>, emitted: Array<EmittedEffectWire>, writes: Array<EntityWriteWire>, entity: JsonValue, };
 
 export type TraitFrom = { trait: string, from: string, event?: string, };
@@ -1101,6 +1107,10 @@ function checkClientAuth(v: JsonValue | undefined): boolean {
   return (v === "body" || v === "basic" || v === "none");
 }
 
+function checkClientCredentialsSpec(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["grantType"] === 'string' && (Array.isArray(v["params"]) && v["params"].every((e) => checkTokenParam(e))) && checkParamsIn(v["paramsIn"]));
+}
+
 function checkClientEffect(v: JsonValue | undefined): boolean {
   return ((Array.isArray(v) && v.length === 3 && v[0] === "render-ui" && typeof v[1] === 'string' && (accepts((x, q) => rec(x, q), v[2]) || v[2] === null)) || (Array.isArray(v) && v.length === 2 && v[0] === "navigate" && typeof v[1] === 'string') || (Array.isArray(v) && v.length === 3 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null)) || (Array.isArray(v) && v.length === 4 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null) && checkNavigateOptions(v[3])) || (Array.isArray(v) && v.length === 1 && v[0] === "navigate-back") || (Array.isArray(v) && v.length === 3 && v[0] === "host-ask" && typeof v[1] === 'string' && (Array.isArray(v[2]) && v[2].every((e) => accepts((x, q) => any(x, q), e)))) || (Array.isArray(v) && v.length === 4 && v[0] === "host-ask" && typeof v[1] === 'string' && (Array.isArray(v[2]) && v[2].every((e) => accepts((x, q) => any(x, q), e))) && checkHostAskCompletion(v[3])));
 }
@@ -1118,7 +1128,7 @@ function checkConnectFailureKind(v: JsonValue | undefined): boolean {
 }
 
 function checkCredentialGrantWire(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string') && typeof v["tokenEndpoint"] === 'string' && typeof v["grant"] === 'string' && typeof v["code"] === 'string' && typeof v["redirectUri"] === 'string' && (v["verifier"] === undefined || typeof v["verifier"] === 'string') && typeof v["clientId"] === 'string' && (v["clientSecret"] === undefined || typeof v["clientSecret"] === 'string') && checkClientAuth(v["clientAuth"]) && (Array.isArray(v["scopes"]) && v["scopes"].every((e) => typeof e === 'string')) && (v["refreshCredential"] === undefined || typeof v["refreshCredential"] === 'string') && (v["assertion"] === undefined || checkAssertionSpec(v["assertion"])) && (v["jsonToken"] === undefined || checkJsonTokenSpec(v["jsonToken"])));
+  return (isRecord(v) && typeof v["name"] === 'string' && (v["principal"] === undefined || typeof v["principal"] === 'string') && typeof v["tokenEndpoint"] === 'string' && typeof v["grant"] === 'string' && typeof v["code"] === 'string' && typeof v["redirectUri"] === 'string' && (v["verifier"] === undefined || typeof v["verifier"] === 'string') && typeof v["clientId"] === 'string' && (v["clientSecret"] === undefined || typeof v["clientSecret"] === 'string') && checkClientAuth(v["clientAuth"]) && (Array.isArray(v["scopes"]) && v["scopes"].every((e) => typeof e === 'string')) && (v["refreshCredential"] === undefined || typeof v["refreshCredential"] === 'string') && (v["assertion"] === undefined || checkAssertionSpec(v["assertion"])) && (v["jsonToken"] === undefined || checkJsonTokenSpec(v["jsonToken"])) && (v["clientCredentials"] === undefined || checkClientCredentialsSpec(v["clientCredentials"])));
 }
 
 function checkCredentialKind(v: JsonValue | undefined): boolean {
@@ -1437,6 +1447,10 @@ function checkPageFactsWire(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["available"] === 'boolean' && typeof v["hostname"] === 'string' && typeof v["referrer"] === 'string' && (typeof v["screenWidth"] === 'number' || v["screenWidth"] === null) && typeof v["href"] === 'string');
 }
 
+function checkParamsIn(v: JsonValue | undefined): boolean {
+  return (v === "body" || v === "query");
+}
+
 function checkPendingAsk(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["operator"] === 'string' && (Array.isArray(v["args"]) && v["args"].every((e) => accepts((x, q) => any(x, q), e))) && typeof v["key"] === 'string');
 }
@@ -1721,6 +1735,10 @@ function checkTabStyle(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["property"] === 'string' && typeof v["value"] === 'string');
 }
 
+function checkTokenParam(v: JsonValue | undefined): boolean {
+  return (isRecord(v) && typeof v["name"] === 'string' && typeof v["value"] === 'string');
+}
+
 function checkTraitFrom(v: JsonValue | undefined): boolean {
   return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["from"] === 'string' && (v["event"] === undefined || typeof v["event"] === 'string'));
 }
@@ -1821,6 +1839,10 @@ function buildClientAuth(v: JsonValue | undefined, p: string): ClientAuth {
   return oneOf(v, p, ["body", "basic", "none"]);
 }
 
+function buildClientCredentialsSpec(v: JsonValue | undefined, p: string): ClientCredentialsSpec {
+  return obj(v, p, null, (r0) => ({ "grantType": str(r0["grantType"], p + '.grantType'), "params": r0["params"] === undefined ? [] : list(r0["params"], p + '.params', (e1, q1) => buildTokenParam(e1, q1)), "paramsIn": buildParamsIn(r0["paramsIn"], p + '.paramsIn') }));
+}
+
 function buildClientEffect(v: JsonValue | undefined, p: string): ClientEffect {
   return ((Array.isArray(v) && v.length === 3 && v[0] === "render-ui" && typeof v[1] === 'string' && (accepts((x, q) => rec(x, q), v[2]) || v[2] === null)) ? tuple(v, p, 3, (t0) => [lit(t0[0], p + '[0]', "render-ui"), str(t0[1], p + '[1]'), (t0[2] === null ? null : rec(t0[2], p + '[2]'))]) : (Array.isArray(v) && v.length === 2 && v[0] === "navigate" && typeof v[1] === 'string') ? tuple(v, p, 2, (t0) => [lit(t0[0], p + '[0]', "navigate"), str(t0[1], p + '[1]')]) : (Array.isArray(v) && v.length === 3 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null)) ? tuple(v, p, 3, (t0) => [lit(t0[0], p + '[0]', "navigate"), str(t0[1], p + '[1]'), (t0[2] === null ? null : dict(t0[2], p + '[2]', (e1, q1) => str(e1, q1)))]) : (Array.isArray(v) && v.length === 4 && v[0] === "navigate" && typeof v[1] === 'string' && ((isRecord(v[2]) && Object.values(v[2]).every((e) => typeof e === 'string')) || v[2] === null) && checkNavigateOptions(v[3])) ? tuple(v, p, 4, (t0) => [lit(t0[0], p + '[0]', "navigate"), str(t0[1], p + '[1]'), (t0[2] === null ? null : dict(t0[2], p + '[2]', (e1, q1) => str(e1, q1))), buildNavigateOptions(t0[3], p + '[3]')]) : (Array.isArray(v) && v.length === 1 && v[0] === "navigate-back") ? tuple(v, p, 1, (t0) => [lit(t0[0], p + '[0]', "navigate-back")]) : (Array.isArray(v) && v.length === 3 && v[0] === "host-ask" && typeof v[1] === 'string' && (Array.isArray(v[2]) && v[2].every((e) => accepts((x, q) => any(x, q), e)))) ? tuple(v, p, 3, (t0) => [lit(t0[0], p + '[0]', "host-ask"), str(t0[1], p + '[1]'), list(t0[2], p + '[2]', (e1, q1) => any(e1, q1))]) : (Array.isArray(v) && v.length === 4 && v[0] === "host-ask" && typeof v[1] === 'string' && (Array.isArray(v[2]) && v[2].every((e) => accepts((x, q) => any(x, q), e))) && checkHostAskCompletion(v[3])) ? tuple(v, p, 4, (t0) => [lit(t0[0], p + '[0]', "host-ask"), str(t0[1], p + '[1]'), list(t0[2], p + '[2]', (e1, q1) => any(e1, q1)), buildHostAskCompletion(t0[3], p + '[3]')]) : fail(miss(p, "a list of 3 | a list of 2 | a list of 3 | a list of 4 | a list of 1 | a list of 3 | a list of 4")));
 }
@@ -1838,7 +1860,7 @@ function buildConnectFailureKind(v: JsonValue | undefined, p: string): ConnectFa
 }
 
 function buildCredentialGrantWire(v: JsonValue | undefined, p: string): CredentialGrantWire {
-  return obj(v, p, null, (r0) => ({ "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }), "tokenEndpoint": str(r0["tokenEndpoint"], p + '.tokenEndpoint'), "grant": str(r0["grant"], p + '.grant'), "code": str(r0["code"], p + '.code'), "redirectUri": str(r0["redirectUri"], p + '.redirectUri'), ...(r0["verifier"] === undefined || r0["verifier"] === null ? {} : { "verifier": str(r0["verifier"], p + '.verifier') }), "clientId": str(r0["clientId"], p + '.clientId'), ...(r0["clientSecret"] === undefined || r0["clientSecret"] === null ? {} : { "clientSecret": str(r0["clientSecret"], p + '.clientSecret') }), "clientAuth": buildClientAuth(r0["clientAuth"], p + '.clientAuth'), "scopes": r0["scopes"] === undefined ? [] : list(r0["scopes"], p + '.scopes', (e1, q1) => str(e1, q1)), ...(r0["refreshCredential"] === undefined || r0["refreshCredential"] === null ? {} : { "refreshCredential": str(r0["refreshCredential"], p + '.refreshCredential') }), ...(r0["assertion"] === undefined || r0["assertion"] === null ? {} : { "assertion": buildAssertionSpec(r0["assertion"], p + '.assertion') }), ...(r0["jsonToken"] === undefined || r0["jsonToken"] === null ? {} : { "jsonToken": buildJsonTokenSpec(r0["jsonToken"], p + '.jsonToken') }) }));
+  return obj(v, p, null, (r0) => ({ "name": str(r0["name"], p + '.name'), ...(r0["principal"] === undefined || r0["principal"] === null ? {} : { "principal": str(r0["principal"], p + '.principal') }), "tokenEndpoint": str(r0["tokenEndpoint"], p + '.tokenEndpoint'), "grant": str(r0["grant"], p + '.grant'), "code": str(r0["code"], p + '.code'), "redirectUri": str(r0["redirectUri"], p + '.redirectUri'), ...(r0["verifier"] === undefined || r0["verifier"] === null ? {} : { "verifier": str(r0["verifier"], p + '.verifier') }), "clientId": str(r0["clientId"], p + '.clientId'), ...(r0["clientSecret"] === undefined || r0["clientSecret"] === null ? {} : { "clientSecret": str(r0["clientSecret"], p + '.clientSecret') }), "clientAuth": buildClientAuth(r0["clientAuth"], p + '.clientAuth'), "scopes": r0["scopes"] === undefined ? [] : list(r0["scopes"], p + '.scopes', (e1, q1) => str(e1, q1)), ...(r0["refreshCredential"] === undefined || r0["refreshCredential"] === null ? {} : { "refreshCredential": str(r0["refreshCredential"], p + '.refreshCredential') }), ...(r0["assertion"] === undefined || r0["assertion"] === null ? {} : { "assertion": buildAssertionSpec(r0["assertion"], p + '.assertion') }), ...(r0["jsonToken"] === undefined || r0["jsonToken"] === null ? {} : { "jsonToken": buildJsonTokenSpec(r0["jsonToken"], p + '.jsonToken') }), ...(r0["clientCredentials"] === undefined || r0["clientCredentials"] === null ? {} : { "clientCredentials": buildClientCredentialsSpec(r0["clientCredentials"], p + '.clientCredentials') }) }));
 }
 
 function buildCredentialKind(v: JsonValue | undefined, p: string): CredentialKind {
@@ -2157,6 +2179,10 @@ function buildPageFactsWire(v: JsonValue | undefined, p: string): PageFactsWire 
   return obj(v, p, null, (r0) => ({ "available": bool(r0["available"], p + '.available'), "hostname": str(r0["hostname"], p + '.hostname'), "referrer": str(r0["referrer"], p + '.referrer'), "screenWidth": r0["screenWidth"] === undefined ? null : (r0["screenWidth"] === null ? null : num(r0["screenWidth"], p + '.screenWidth')), "href": str(r0["href"], p + '.href') }));
 }
 
+function buildParamsIn(v: JsonValue | undefined, p: string): ParamsIn {
+  return oneOf(v, p, ["body", "query"]);
+}
+
 function buildPendingAsk(v: JsonValue | undefined, p: string): PendingAsk {
   return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "operator": str(r0["operator"], p + '.operator'), "args": list(r0["args"], p + '.args', (e1, q1) => any(e1, q1)), "key": str(r0["key"], p + '.key') }));
 }
@@ -2439,6 +2465,10 @@ function buildTabImageFormat(v: JsonValue | undefined, p: string): TabImageForma
 
 function buildTabStyle(v: JsonValue | undefined, p: string): TabStyle {
   return obj(v, p, null, (r0) => ({ "property": str(r0["property"], p + '.property'), "value": str(r0["value"], p + '.value') }));
+}
+
+function buildTokenParam(v: JsonValue | undefined, p: string): TokenParam {
+  return obj(v, p, null, (r0) => ({ "name": str(r0["name"], p + '.name'), "value": str(r0["value"], p + '.value') }));
 }
 
 function buildTraitFrom(v: JsonValue | undefined, p: string): TraitFrom {
