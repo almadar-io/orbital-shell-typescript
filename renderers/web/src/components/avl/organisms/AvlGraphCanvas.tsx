@@ -8,6 +8,7 @@
 import React from 'react';
 import { ReactFlow, Controls, Background, BackgroundVariant, type Edge, type Node, type NodeTypes, type ReactFlowProps } from '@xyflow/react';
 import { DependencyNode, DependencyColumnNode } from '../molecules/SystemNode';
+import { LEGIBLE_FIT_ZOOM } from '../../../lib/avl-legible-fit';
 
 /** Node types for a layered graph (`layeredGraph`): pills and their column headers. */
 export const AVL_GRAPH_NODE_TYPES: NodeTypes = {
@@ -29,7 +30,7 @@ export function AvlGraphCanvas<N extends Node = Node, E extends Edge = Edge>({ f
     minZoom={0.1}
     maxZoom={2.0}
     fitView
-    fitViewOptions={{ padding: fitPadding }}
+    fitViewOptions={{ padding: fitPadding, minZoom: LEGIBLE_FIT_ZOOM }}
     proOptions={{ hideAttribution: true }}
     style={{ background: 'var(--color-background)' }}
     {...flow}

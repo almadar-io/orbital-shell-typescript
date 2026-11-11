@@ -124,7 +124,7 @@ export function applySceneMaterials(nodes: readonly DrawableNode[], theme: Canva
         ...m,
         ...(pbr && m.roughness === undefined ? { roughness: theme.scene.roughness } : {}),
         ...(pbr && m.metalness === undefined ? { metalness: theme.scene.metalness } : {}),
-        ...(m.flatShading === undefined && theme.scene.flat ? { flatShading: true } : {}),
+        ...(m.kind !== 'shader' && m.flatShading === undefined && theme.scene.flat ? { flatShading: true } : {}),
       },
       ...(node.outline === undefined && theme.scene.outline > 0
         ? { outline: { color: theme.tones.ink, width: theme.scene.outline * 0.02 } }

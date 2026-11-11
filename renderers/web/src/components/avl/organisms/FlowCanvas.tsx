@@ -35,6 +35,7 @@ import { Select } from '../../../core';
 import { ButtonGroup } from '../../core/molecules/ButtonGroup';
 import { IconButton } from '../../core/molecules/IconButton';
 import { useCompactLayout } from '../../core/organisms/layout/DockLayout';
+import { legibleFitViewport } from '../../../lib/avl-legible-fit';
 import { ElementEditAccessContext, type ElementEditAccessResolver } from '../../../lib/element-edit-access';
 import { OrbPreviewNode, ScreenSizeContext, PatternSelectionContext, CanvasToolsContext, CanvasStatePickerContext, CanvasVerifyContext, CanvasCardWidthContext, type CanvasStatePicker, type CanvasVerify, type SelectedPattern } from '../molecules/OrbPreviewNode';
 import { CANVAS_TOOLS, type CanvasTool } from '../../../lib/canvas-tools';
@@ -646,28 +647,36 @@ function FlowCanvasInner({
   }, [activeNodes, activeEdges, setNodes, setEdges, scope, focusedOrbital, screenSize, systemLevel, wiresOnly, dependencyLens, traitLevel, flowLens, traitFilter]);
 
   const frameRef = React.useRef<HTMLDivElement>(null);
+  // Fits the whole graph while its chips stay readable; a larger graph opens at the readable floor, on its start.
+  const fitGraph = useCallback((padding: number, duration?: number) => {
+    const frame = frameRef.current?.getBoundingClientRect();
+    const legible = frame ? legibleFitViewport(reactFlow.getNodesBounds(reactFlow.getNodes()), frame, padding) : null;
+    if (legible) void reactFlow.setViewport(legible, { duration });
+    else void reactFlow.fitView({ padding, duration });
+  }, [reactFlow]);
   useEffect(() => {
     const frame = frameRef.current;
     if (!fitOnResize || !frame) return;
     let queued = 0;
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(queued);
-      queued = requestAnimationFrame(() => void reactFlow.fitView({ padding: fitPadding }));
+      queued = requestAnimationFrame(() => fitGraph(fitPadding));
     });
     observer.observe(frame);
     return () => {
       cancelAnimationFrame(queued);
       observer.disconnect();
     };
-  }, [fitOnResize, reactFlow, fitPadding]);
+  }, [fitOnResize, fitGraph, fitPadding]);
 
   const nodesInitialized = useNodesInitialized();
   useEffect(() => {
     const pending = pendingFitRef.current;
     if (!nodesInitialized || !pending) return;
     pendingFitRef.current = null;
-    void reactFlow.fitView({ duration: cameraMs, padding: fitPadding, ...(pending.centreOn ? { nodes: [{ id: pending.centreOn }] } : {}) });
-  }, [nodesInitialized, nodes, reactFlow, fitPadding, cameraMs]);
+    if (pending.centreOn) void reactFlow.fitView({ duration: cameraMs, padding: fitPadding, nodes: [{ id: pending.centreOn }] });
+    else fitGraph(fitPadding, cameraMs);
+  }, [nodesInitialized, nodes, reactFlow, fitGraph, fitPadding, cameraMs]);
 
 
   // Defense in depth: never render an edge whose source/target isn't in the
@@ -857,9 +866,7 @@ function FlowCanvasInner({
   const isScreenSize = (value: string): value is ScreenSize => screenSizeKeys.some((k) => k === value);
   const applyScreenSize = (size: ScreenSize) => {
     pickScreenSize(size);
-    requestAnimationFrame(() => {
-      reactFlow.fitView({ duration: cameraMs, padding: 0.25 });
-    });
+    requestAnimationFrame(() => fitGraph(0.25, cameraMs));
   };
 
   // COSMIC-1: TraitCardNode (used at `trait-expanded`) bubbles row clicks

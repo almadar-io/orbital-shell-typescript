@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-11T11:07:02.354Z",
+  "exportedAt": "2026-11-11T13:36:06.048Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -113883,7 +113883,8 @@
                 "standard",
                 "physical",
                 "toon",
-                "basic"
+                "basic",
+                "shader"
               ]
             },
             "color": {
@@ -113944,6 +113945,48 @@
             "map": {
               "types": [
                 "string"
+              ]
+            },
+            "wgsl": {
+              "types": [
+                "string"
+              ]
+            },
+            "uniforms": {
+              "types": [
+                "object"
+              ],
+              "properties": {
+                "a": {
+                  "types": [
+                    "array"
+                  ],
+                  "items": {
+                    "types": [
+                      "number"
+                    ]
+                  }
+                },
+                "b": {
+                  "types": [
+                    "array"
+                  ],
+                  "items": {
+                    "types": [
+                      "number"
+                    ]
+                  }
+                }
+              }
+            },
+            "blend": {
+              "types": [
+                "string"
+              ],
+              "enumValues": [
+                "opaque",
+                "alpha",
+                "additive"
               ]
             }
           }
@@ -134588,6 +134631,17 @@
           ],
           "description": "The guest's page-root trait whose paint is `children`: their controls are scoped to it. Never rendered.",
           "required": true
+        },
+        "roots": {
+          "types": [
+            "array"
+          ],
+          "description": "The guest's page-root traits that painted `children`, in the same order: child N is the paint of `roots[N]`, so its controls are scoped to that trait. Needed when the page has more than one root. Never rendered.",
+          "items": {
+            "types": [
+              "string"
+            ]
+          }
         },
         "deliver": {
           "types": [

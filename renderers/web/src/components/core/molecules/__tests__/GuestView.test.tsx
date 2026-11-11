@@ -253,6 +253,72 @@ describe('GuestView scopes each guest paint to its painter', () => {
   });
 });
 
+describe('GuestView scopes each page root to its own trait', () => {
+  const keys: string[] = [];
+  const Listen = () => {
+    const bus = useEventBus();
+    React.useEffect(() => bus.onAny?.((e) => { keys.push(e.type); }), [bus]);
+    return null;
+  };
+  const Click = ({ label }: { label: string }) => {
+    const bus = useEventBus();
+    return <button onClick={() => bus.emit('UI:CREATE', {})}>{label}</button>;
+  };
+  const paints = [
+    { slot: 'main' as const, trait: 'BudgetList', orbital: 'Budgets', embedded: false, content: null },
+    { slot: 'main' as const, trait: 'PledgeList', orbital: 'Pledges', embedded: false, content: null },
+  ];
+  const view = (roots?: string[]) => wrap(
+    <>
+      <Listen />
+      <GuestView guest="guest-1" source="BudgetList" roots={roots} deliver="GUEST_CLICK" paints={paints}>
+        <Click label="first" />
+        <Click label="second" />
+      </GuestView>
+    </>,
+  );
+
+  it('a control in the second root emits under the trait that drew it', () => {
+    keys.length = 0;
+    view(['BudgetList', 'PledgeList']);
+    screen.getByText('second').click();
+    expect(keys).toContain('UI:Pledges.PledgeList.CREATE');
+    expect(keys.some((key) => key.includes('BudgetList'))).toBe(false);
+  });
+
+  it('control: the first root still emits under its own trait', () => {
+    keys.length = 0;
+    view(['BudgetList', 'PledgeList']);
+    screen.getByText('first').click();
+    expect(keys).toContain('UI:Budgets.BudgetList.CREATE');
+    expect(keys.some((key) => key.includes('PledgeList'))).toBe(false);
+  });
+
+  it('edge: roots that do not name every child scope none of them', () => {
+    keys.length = 0;
+    view(['BudgetList']);
+    screen.getByText('second').click();
+    expect(keys.some((key) => key.includes('BudgetList') || key.includes('PledgeList'))).toBe(false);
+  });
+
+  it('edge: a root whose orbital the guest did not name is left unscoped while its sibling is scoped', () => {
+    keys.length = 0;
+    wrap(
+      <>
+        <Listen />
+        <GuestView guest="guest-1" source="BudgetList" roots={['BudgetList', 'PledgeList']} deliver="GUEST_CLICK" paints={[paints[0], { slot: 'main', trait: 'PledgeList', embedded: false, content: null }]}>
+          <Click label="first" />
+          <Click label="second" />
+        </GuestView>
+      </>,
+    );
+    screen.getByText('second').click();
+    screen.getByText('first').click();
+    expect(keys.some((key) => key.includes('PledgeList'))).toBe(false);
+    expect(keys).toContain('UI:Budgets.BudgetList.CREATE');
+  });
+});
+
 describe('GuestView clears what the guest stopped painting', () => {
   const dialog = { slot: 'modal' as const, trait: 'Create', embedded: false, content: { type: 'typography', content: 'the form' } };
   const page = { slot: 'main' as const, trait: 'Root', embedded: false, content: { type: 'typography', content: 'page' } };

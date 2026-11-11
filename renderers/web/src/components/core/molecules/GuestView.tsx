@@ -7,7 +7,8 @@
  * UISlotProvider seeded with every paint the guest made: `TraitFrame` resolves against the guest, not the host.
  * Every slot the guest paints renders inside the view (contained, never the host page's), and an in-app link
  * inside it is the guest's navigation, emitted as `navigate`, never the host router's. Each guest paint is scoped to
- * the trait that drew it (its `orbital`, as a page scopes its own), so a click names its painter for the kernel.
+ * the trait that drew it (its `orbital`, as a page scopes its own), so a click names its painter for the kernel; a page with
+ * several roots names them in `roots`, one per child.
  * The guest paints in the theme its program declares (`theme`), never the opener's, unless the opener passes its viewer's pick (`themeOverride`).
  */
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -46,6 +47,8 @@ export interface GuestViewProps {
   guest: string;
   /** The guest's page-root trait whose paint is `children`: their controls are scoped to it. Never rendered. */
   source: string;
+  /** The guest's page-root traits that painted `children`, in the same order: child N is the paint of `roots[N]`, so its controls are scoped to that trait. Needed when the page has more than one root. Never rendered. */
+  roots?: ReadonlyArray<string>;
   /** The opener trait's declared event a click inside this view is delivered as. The kernel emits it, never the renderer. */
   deliver: EventKey;
   /** The opener trait's declared event an in-app link inside this view is emitted as, with { guest, route }. Without it a link inside the guest does nothing. */
@@ -97,7 +100,7 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
 /**
  * GuestView - Paints a guest program's UI; guest, source and deliver are kernel routing data
  */
-export const GuestView: React.FC<GuestViewProps> = ({ guest, source, navigate, route, paints, theme, themeOverride, children }) => {
+export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, children }) => {
   const eventBus = useEventBus();
   const inHostRouter = useInRouterContext();
   const [hostHrefBase, setHostHrefBase] = useState('/');
@@ -110,11 +113,18 @@ export const GuestView: React.FC<GuestViewProps> = ({ guest, source, navigate, r
     () => new Map((paints ?? []).flatMap((paint) => (typeof paint.orbital === 'string' ? [[paint.trait, paint.orbital] as const] : []))),
     [paints],
   );
-  const sourceOrbital = orbitalsByTrait.get(source);
-  const roots = React.Children.count(children);
-  if (roots > 1) log.warn('roots:unscoped', { guest, source, roots });
-  const main = roots === 1 && sourceOrbital !== undefined
-    ? <TraitScopeProvider orbital={sourceOrbital} trait={source}>{children}</TraitScopeProvider>
+  const painted = React.Children.toArray(children);
+  const painters = roots ?? (painted.length === 1 ? [source] : []);
+  const paired = painters.length === painted.length;
+  if (!paired) log.warn('roots:unscoped', { guest, source, roots: painters, children: painted.length });
+  const main = paired
+    ? painted.map((child, index) => {
+        const trait = painters[index];
+        const orbital = orbitalsByTrait.get(trait);
+        return orbital === undefined
+          ? <React.Fragment key={`${index}:${trait}`}>{child}</React.Fragment>
+          : <TraitScopeProvider key={`${index}:${trait}`} orbital={orbital} trait={trait}>{child}</TraitScopeProvider>;
+      })
     : children;
   return (
     <EntitySchemaProvider orbitalsByTrait={orbitalsByTrait}>

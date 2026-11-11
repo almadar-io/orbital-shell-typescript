@@ -23,14 +23,17 @@ import { DrawableRegistryContext } from '../../../lib/drawable/registry';
 
 export type MeshShapeKind = 'box' | 'sphere' | 'capsule' | 'cylinder' | 'cone' | 'torus' | 'plane' | 'circle' | 'polyhedron';
 
-export type MeshMaterialKind = 'standard' | 'physical' | 'toon' | 'basic';
+export type MeshMaterialKind = 'standard' | 'physical' | 'toon' | 'basic' | 'shader';
+
+export type MeshMaterialBlend = 'opaque' | 'alpha' | 'additive';
 
 export type MeshMaterialSide = 'front' | 'back' | 'double';
 
 /**
  * Data-driven surface description — the 3D analog of the 2D fill/gradient knobs.
  * `standard`/`physical` are lit PBR (physical adds `transmission`/`ior` for glass
- * and crystal), `toon` is cel-banded, `basic` is unlit flat color.
+ * and crystal), `toon` is cel-banded, `basic` is unlit flat color, and `shader` is
+ * coloured by the program's own WGSL (`wgsl`).
  */
 export interface MeshMaterial {
     kind?: MeshMaterialKind;
@@ -56,6 +59,17 @@ export interface MeshMaterial {
     side?: MeshMaterialSide;
     /** Albedo texture: an image URL or `data:` URI, sampled through the polyhedron's `uvs`. Multiplied by `color` — keep `color` white (or unset) to show the texture unmodified. */
     map?: string;
+    /** `shader` only: WGSL that declares `fn shade(px: Pixel) -> vec4<f32>`, the pixel's linear colour (it may exceed 1 for bloom) and alpha. `px` carries `world`, `local` (the point in the mesh's own space), `normal`, `view` (unit vector to the camera), `uv`, `time` (seconds on the canvas clock), the material's `color` and `emissive`, and `a`/`b` from `uniforms`. The scene's `frame` uniform (camera, lights) is in scope. */
+    wgsl?: string;
+    /** `shader` only: two vectors of four numbers the WGSL reads as `px.a` and `px.b`. */
+    uniforms?: MeshShaderUniforms;
+    /** `shader` only: how the colour meets what is behind it (default `opaque`). */
+    blend?: MeshMaterialBlend;
+}
+
+export interface MeshShaderUniforms {
+    a?: number[];
+    b?: number[];
 }
 
 /** Inverted-hull toon outline: a back-face shell of the same geometry, scaled out by `width`. */
