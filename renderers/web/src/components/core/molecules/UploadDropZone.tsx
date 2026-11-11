@@ -86,36 +86,34 @@ export const UploadDropZone: React.FC<UploadDropZoneProps> = ({
 
   const validateFiles = useCallback(
     (files: File[]): { valid: File[]; error: string | null } => {
-      if (files.length > maxFiles) {
-        return { valid: [], error: t("upload.error.maxFiles", { count: maxFiles }) };
-      }
-
-      if (accept) {
-        const acceptedTypes = accept.split(",").map((s) => s.trim());
-        const invalid = files.filter((file) => {
-          return !acceptedTypes.some((type) => {
-            if (type.endsWith("/*")) {
-              return file.type.startsWith(type.replace("/*", "/"));
-            }
-            return file.type === type || file.name.endsWith(type);
-          });
+      const acceptedTypes = accept ? accept.split(",").map((s) => s.trim()) : null;
+      const matchesAccept = (file: File) =>
+        acceptedTypes === null ||
+        acceptedTypes.some((type) => {
+          if (type.endsWith("/*")) {
+            return file.type.startsWith(type.replace("/*", "/"));
+          }
+          return file.type === type || file.name.endsWith(type);
         });
-        if (invalid.length > 0) {
-          return { valid: [], error: t("upload.error.invalidType", { name: invalid[0].name }) };
+
+      const valid: File[] = [];
+      const rejected: string[] = [];
+      for (const file of files) {
+        if (!matchesAccept(file)) {
+          rejected.push(`${file.name} (${t("upload.reason.invalidType")})`);
+        } else if (maxSize && file.size > maxSize) {
+          rejected.push(`${file.name} (${t("upload.reason.tooLarge", { size: formatFileSize(maxSize) })})`);
+        } else if (valid.length >= maxFiles) {
+          rejected.push(`${file.name} (${t("upload.reason.overLimit", { count: maxFiles })})`);
+        } else {
+          valid.push(file);
         }
       }
 
-      if (maxSize) {
-        const tooLarge = files.filter((file) => file.size > maxSize);
-        if (tooLarge.length > 0) {
-          return {
-            valid: [],
-            error: t("upload.error.tooLarge", { name: tooLarge[0].name, size: formatFileSize(maxSize) }),
-          };
-        }
-      }
-
-      return { valid: files, error: null };
+      return {
+        valid,
+        error: rejected.length > 0 ? t("upload.error.partial", { details: rejected.join("; ") }) : null,
+      };
     },
     [accept, maxSize, maxFiles, t],
   );
