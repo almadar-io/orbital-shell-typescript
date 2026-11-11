@@ -1540,6 +1540,11 @@
     "description": "A page declares an empty traits array"
   },
   {
+    "code": "ORB_P_ENTRY_UNKNOWN_ROUTE",
+    "category": "page",
+    "description": "An entry route of the app names a path that is no page of the app"
+  },
+  {
     "code": "ORB_P_HOST_RESERVED_ROUTE",
     "category": "page",
     "description": "A page is declared on the host's reserved sign-in route"
