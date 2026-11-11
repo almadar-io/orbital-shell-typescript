@@ -12,6 +12,9 @@ import { domPassthrough } from '../../../core';
 export type ContainerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 export type ContainerPadding = 'none' | 'sm' | 'md' | 'lg' | 'xl';
 
+/**
+ * @layoutOnly
+ */
 export interface ContainerProps extends A11yProps {
   /** Maximum width */
   size?: ContainerSize;

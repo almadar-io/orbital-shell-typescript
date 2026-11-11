@@ -12,6 +12,9 @@ import { domPassthrough } from '../../../core';
 
 export type SimpleGridGap = 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
+/**
+ * @layoutOnly
+ */
 export interface SimpleGridProps extends A11yProps {
   /** Minimum width of each child (e.g., 200, "200px", "15rem") */
   minChildWidth?: number | string;

@@ -51,6 +51,9 @@ export interface BoxMarquee {
   loop: boolean;
 }
 
+/**
+ * @layoutOnly
+ */
 export interface BoxProps extends Omit<React.HTMLAttributes<HTMLDivElement>, keyof A11yProps>, A11yProps {
   /** Additional CSS classes applied to the root element. */
   className?: string;

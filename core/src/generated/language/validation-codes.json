@@ -1115,6 +1115,21 @@
     "description": "An inbound hook event answers with an event the trait does not declare in emits"
   },
   {
+    "code": "ORB_INBOUND_CLI_DASH_WORD",
+    "category": "inbound",
+    "description": "A cli- inbound hook has an empty command word, so a word would start with a dash"
+  },
+  {
+    "code": "ORB_INBOUND_CLI_RESERVED",
+    "category": "inbound",
+    "description": "A cli- inbound hook takes a command word the orb bootloader reserves"
+  },
+  {
+    "code": "ORB_INBOUND_CLI_SHADOWED",
+    "category": "inbound",
+    "description": "A cli- inbound hook is a prefix of a longer cli- hook, so the longer hook takes the arguments that begin with its next word"
+  },
+  {
     "code": "ORB_INBOUND_DUPLICATE",
     "category": "inbound",
     "description": "An inbound hook has more than one handler"
@@ -1467,7 +1482,7 @@
   {
     "code": "ORB_PERSIST_UPDATE_WITHOUT_CREATE",
     "category": "cross",
-    "description": "A persistent entity the program updates but never creates, upserts or batch-creates, and that declares no instances: the update can never find a row"
+    "description": "A persistent entity the program updates but never creates, upserts or batch-creates, and that declares no instances: the update can never find a row. An update made by a trait authored in this program that binds the entity as its `@rebindable` placeholder is not judged, since the program that composes the trait owns the rows; nor is an update by a trait authored in an orbital that declares `expects entity` for that entity (a composed copy of the trait is still judged), which states that another part of the program supplies the rows"
   },
   {
     "code": "ORB_PERSIST_WHERE_NOT_A_PREDICATE",

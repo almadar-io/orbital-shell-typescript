@@ -67,6 +67,7 @@ export const PROP_KINDS = [
   'skeleton',
   'class-string',
   'field-ref',
+  'text',
 ] as const;
 export type PropKind = (typeof PROP_KINDS)[number];
 

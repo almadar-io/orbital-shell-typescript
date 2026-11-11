@@ -133,6 +133,7 @@ function mappedToPropTypeSchema(m: MappedType): PropTypeSchema {
   // ELEMENT type). Narrow to exactly that pair, not the whole `kind` enum.
   if (m.kind === 'event' || m.kind === 'event-ref') out.kind = 'event';
   if (m.kind === 'field-ref') out.kind = 'field-ref';
+  if (m.kind === 'text') out.kind = 'text';
   if (m.payloadFor) out.payloadFor = m.payloadFor;
   if (m.changedBy) out.changedBy = m.changedBy;
   if (m.items) out.items = mappedToPropTypeSchema(m.items);
@@ -1046,7 +1047,7 @@ function mapTypeNode(
     const eventField = findEventFieldInInterfaceRef(node.elementType, sourceFile, interfaces, coreImports);
     const items = mapTypeNode(node.elementType, sourceFile, aliases, coreImports, interfaces, seen, genericDefaults);
     const result: MappedType = { types: ["array"], items };
-    if (items.kind === "field-ref") result.itemKind = "field-ref";
+    if (items.kind === "field-ref" || items.kind === "text") result.itemKind = items.kind;
     if (eventField) {
       result.kind = "event-list";
       result.eventField = eventField;
@@ -1305,6 +1306,10 @@ function mapTypeNode(
       return { types: ["string"], kind: "field-ref" };
     }
 
+    if (typeName === "VisibleText" && coreImports.has("VisibleText")) {
+      return { types: ["string"], kind: "text" };
+    }
+
     // Phantom-typed brand from `@almadar/core` for declarative bus-emit
     // props. The structural type is `string`; the type argument `P` carries
     // the bus payload schema for the validator to cross-check against the
@@ -1526,7 +1531,7 @@ function mapTypeNode(
         const eventField = findEventFieldInInterfaceRef(typeArg, sourceFile, interfaces, coreImports);
         const items = mapTypeNode(typeArg, sourceFile, aliases, coreImports, interfaces, seen, genericDefaults);
         const result: MappedType = { types: ["array"], items };
-        if (items.kind === "field-ref") result.itemKind = "field-ref";
+        if (items.kind === "field-ref" || items.kind === "text") result.itemKind = items.kind;
         if (eventField) {
           result.kind = "event-list";
           result.eventField = eventField;
@@ -2477,6 +2482,25 @@ function getJSDocSingleTag(node: ts.Node, sourceFile: ts.SourceFile, tag: string
   return "";
 }
 
+/** True when the node's leading JSDoc carries the bare flag tag `@<tag>`. */
+function hasJSDocFlagTag(node: ts.Node, sourceFile: ts.SourceFile, tag: string): boolean {
+  const fullText = sourceFile.getFullText();
+  const leadingComments = ts.getLeadingCommentRanges(fullText, node.getFullStart());
+  if (!leadingComments) return false;
+  const re = new RegExp(`^@${tag}$`);
+  for (const range of leadingComments) {
+    const commentText = fullText.slice(range.pos, range.end);
+    if (!commentText.startsWith("/**")) continue;
+    const lines = commentText
+      .replace(/^\/\*\*\s*/, "")
+      .replace(/\s*\*\/$/, "")
+      .split("\n")
+      .map((line) => line.replace(/^\s*\*\s?/, "").trim());
+    if (lines.some((line) => re.test(line))) return true;
+  }
+  return false;
+}
+
 /** A `@minWidth` tag value: a positive whole number of px, else ignored. */
 function parseMinWidth(raw: string): number | undefined {
   if (!/^\d+$/.test(raw)) {
@@ -3304,6 +3328,8 @@ export function parseComponent(
     if (bound) genericDefaults.set(tp.name.text, bound);
   }
 
+  const componentLayoutOnly = hasJSDocFlagTag(propsInterface, sourceFile, "layoutOnly");
+
   // Derive component name from interface name (e.g., "ButtonProps" → "Button")
   const propsInterfaceName = propsInterface.name.text;
   const componentName = propsInterfaceName.replace(/Props$/, "");
@@ -3508,6 +3534,7 @@ export function parseComponent(
     ...(parseMinWidth(componentMinWidth) !== undefined
       ? { minUsableWidth: parseMinWidth(componentMinWidth) }
       : {}),
+    ...(componentLayoutOnly ? { layoutOnly: true } : {}),
     ...(forwardsA11y ? { forwardsA11y: true } : {}),
     ...(componentAccessibleName ? { accessibleName } : {}),
     events,

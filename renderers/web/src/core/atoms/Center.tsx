@@ -8,6 +8,9 @@ import type { A11yProps } from '@almadar/core';
 import React from 'react';
 import { cn } from '../lib/cn';
 
+/**
+ * @layoutOnly
+ */
 export interface CenterProps extends A11yProps {
   /** Center inline (width fits content) vs block (full width) */
   inline?: boolean;

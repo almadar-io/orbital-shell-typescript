@@ -22,6 +22,9 @@ export type StackJustify =
   | "around"
   | "evenly";
 
+/**
+ * @layoutOnly
+ */
 export interface StackProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
   /** Stack direction */
   direction?: StackDirection;
@@ -138,6 +141,12 @@ export const Stack: React.FC<StackProps> = ({
         : reverse
           ? "flex-col-reverse"
           : "flex-col";
+  const fullWidthChildren =
+    align === "center"
+      ? isHorizontal
+        ? responsive && "max-md:[&>.w-full]:self-stretch"
+        : "[&>.w-full]:self-stretch"
+      : undefined;
   return React.createElement(
     Component,
     {
@@ -147,6 +156,7 @@ export const Stack: React.FC<StackProps> = ({
         directionClass,
         gapStyles[gap],
         alignStyles[align],
+        fullWidthChildren,
         justifyStyles[justify],
         wrap && "flex-wrap",
         flex && "flex-1",

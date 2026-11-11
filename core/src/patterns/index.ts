@@ -98,6 +98,9 @@ export type PatternEntry = {
   /** Narrowest rendered width (px) the component stays usable at, from its
    *  `@minWidth` JSDoc tag. The layout check reports narrower instances. */
   minUsableWidth?: number;
+  /** True when the pattern paints nothing of its own and only arranges its
+   *  children, from its `@layoutOnly` JSDoc tag. Absent otherwise. */
+  layoutOnly?: boolean;
 };
 
 export type PatternsRegistry = {

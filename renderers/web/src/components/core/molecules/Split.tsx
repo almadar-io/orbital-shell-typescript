@@ -14,6 +14,9 @@ import { domPassthrough } from '../../../core';
 export type SplitRatio = '1:1' | '1:2' | '2:1' | '1:3' | '3:1' | '1:4' | '4:1' | '2:3' | '3:2';
 export type SplitGap = 'none' | 'sm' | 'md' | 'lg' | 'xl';
 
+/**
+ * @layoutOnly
+ */
 export interface SplitProps extends A11yProps {
   /** Size ratio between left and right panels */
   ratio?: SplitRatio;

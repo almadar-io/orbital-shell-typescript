@@ -1,6 +1,6 @@
 'use client';
 import React from "react";
-import type { EventEmit, EventKey, A11yProps } from "@almadar/core";
+import type { EventEmit, EventKey, A11yProps, VisibleText } from "@almadar/core";
 import { EMPTY_STATE_MARKER } from "@almadar/core";
 import type { LucideIcon } from "lucide-react";
 import { cn } from '../../../core';
@@ -61,10 +61,10 @@ export interface EmptyStateProps extends A11yProps {
    */
   icon?: IconInput;
   /** Primary text to display - use title or message (message is alias for backwards compat) */
-  title?: string;
+  title?: VisibleText;
   /** Alias for title - used by schema patterns */
   message?: string;
-  description?: string;
+  description?: VisibleText;
   actionLabel?: string;
   onAction?: () => void;
   className?: string;

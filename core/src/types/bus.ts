@@ -58,6 +58,14 @@ export type EventKey = string;
 export type EntityFieldName = string;
 
 /**
+ * User-visible text a component paints (a label, title or message), as
+ * opposed to an identifier, key or class name. A marker alias over `string`,
+ * found by type identity; the pattern-sync tool writes `kind: "text"` into
+ * the patterns registry.
+ */
+export type VisibleText = string;
+
+/**
  * Phantom-typed brand for declarative bus-emit props on UI components.
  *
  * Used by component authors to BOTH mark a prop as a bus-event reference

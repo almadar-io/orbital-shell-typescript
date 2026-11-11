@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-10T17:48:19.236Z",
+  "exportedAt": "2026-11-11T02:38:06.971Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -8911,7 +8911,8 @@
           "types": [
             "string"
           ],
-          "description": "Primary text to display - use title or message (message is alias for backwards compat)"
+          "description": "Primary text to display - use title or message (message is alias for backwards compat)",
+          "kind": "text"
         },
         "message": {
           "types": [
@@ -8923,7 +8924,8 @@
           "types": [
             "string"
           ],
-          "description": "description prop"
+          "description": "description prop",
+          "kind": "text"
         },
         "actionLabel": {
           "types": [
@@ -11611,6 +11613,7 @@
       "tier": "atoms",
       "family": "core",
       "description": "Generic styled container with padding, borders, and backgrounds",
+      "layoutOnly": true,
       "suggestedFor": [
         "card containers",
         "sections",
@@ -12780,6 +12783,7 @@
       "tier": "atoms",
       "family": "core",
       "description": "Centers content horizontally and vertically",
+      "layoutOnly": true,
       "suggestedFor": [
         "centered modals",
         "loading states",
@@ -13152,6 +13156,7 @@
       "tier": "atoms",
       "family": "core",
       "description": "Flexible space that expands to fill available room",
+      "layoutOnly": true,
       "suggestedFor": [
         "pushing elements apart",
         "flexible spacing",
@@ -14395,6 +14400,7 @@
             "string"
           ],
           "description": "Button label text (alternative to children for schema-driven rendering)",
+          "kind": "text",
           "example": "Button"
         },
         "disabled": {
@@ -19673,7 +19679,8 @@
           "types": [
             "string"
           ],
-          "description": "Alert message (alias for children)"
+          "description": "Alert message (alias for children)",
+          "kind": "text"
         },
         "variant": {
           "types": [
@@ -19692,7 +19699,8 @@
           "types": [
             "string"
           ],
-          "description": "title prop"
+          "description": "title prop",
+          "kind": "text"
         },
         "dismissible": {
           "types": [
@@ -21644,6 +21652,7 @@
       "tier": "molecules",
       "family": "core",
       "description": "Centered max-width container",
+      "layoutOnly": true,
       "suggestedFor": [
         "page content",
         "centered layouts"
@@ -22011,6 +22020,7 @@
       "tier": "molecules",
       "family": "core",
       "description": "Simple responsive grid with auto columns",
+      "layoutOnly": true,
       "suggestedFor": [
         "card grids",
         "gallery",
@@ -23679,6 +23689,7 @@
       "tier": "atoms",
       "family": "core",
       "description": "Stack Component  A layout primitive for arranging children in a vertical or horizontal stack with consistent spacing. Includes convenience exports VStack and HStack for common use cases.",
+      "layoutOnly": true,
       "suggestedFor": [
         "stack"
       ],
@@ -31994,6 +32005,7 @@
       "tier": "molecules",
       "family": "core",
       "description": "Split Component  A two-column layout with configurable ratios. Perfect for sidebar/content layouts or side-by-side comparisons.",
+      "layoutOnly": true,
       "suggestedFor": [
         "split"
       ],

@@ -7,7 +7,7 @@
  */
 
 import React from "react";
-import type { EventKey, A11yProps } from "@almadar/core";
+import type { EventKey, A11yProps, VisibleText } from "@almadar/core";
 import { cn } from '../../../core';
 import { Box } from '../../../core';
 import { Icon } from '../../../core';
@@ -30,9 +30,9 @@ export interface AlertProps extends A11yProps {
   /** Alert content (children or message) */
   children?: React.ReactNode;
   /** Alert message (alias for children) */
-  message?: string;
+  message?: VisibleText;
   variant?: AlertVariant;
-  title?: string;
+  title?: VisibleText;
   dismissible?: boolean;
   onDismiss?: () => void;
   onClose?: () => void;

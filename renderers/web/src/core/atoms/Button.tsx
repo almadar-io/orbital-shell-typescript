@@ -1,7 +1,7 @@
 'use client';
 import { actionTestId } from '@almadar/core';
 import React from "react";
-import type { A11yProps, Asset, EventKey, EventPayload } from "@almadar/core";
+import type { A11yProps, Asset, EventKey, EventPayload, VisibleText } from "@almadar/core";
 import { cn } from "../lib/cn";
 import { Loader2, type LucideIcon } from "lucide-react";
 import { usePendingAction } from "../lib/pendingDispatch";
@@ -57,7 +57,7 @@ export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonE
    * Button label text (alternative to children for schema-driven rendering)
    * @example Button
    */
-  label?: string;
+  label?: VisibleText;
   /** Disable the button (greys out, blocks click events) */
   disabled?: boolean;
   /** Native button type. `type` is reserved for the pattern discriminator in schema render specs. */

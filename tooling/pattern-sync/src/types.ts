@@ -39,6 +39,8 @@ export type ExtractedPropKind =
   | 'entity'
   /** The value is the NAME of a field of the entity the component is bound to (`EntityFieldName`). */
   | 'field-ref'
+  /** The value is user-visible text (`VisibleText`). */
+  | 'text'
   /** Universal element-entry prop (`enter`/`enterDelay`): folded into the element's class, never passed to the component. */
   | 'entry'
   /** Injected universal `skeleton` prop on a component that declares none: feeds the awaiting-skeleton prediction, never passed to the component. */
@@ -511,6 +513,9 @@ export interface ParsedComponent {
    *  THE declared capability every enrichment consumer keys on — never a
    *  hardcoded pattern-name list. */
   fieldsContract?: 'form' | 'display';
+  /** Component-level `@layoutOnly` JSDoc flag: the component paints nothing of
+   *  its own and only arranges its children. */
+  layoutOnly?: boolean;
   /** Component-level `@minWidth <px>` JSDoc tag — the narrowest rendered
    *  width at which the component stays usable. */
   minUsableWidth?: number;
@@ -571,6 +576,8 @@ export interface PatternEntry {
   /** Narrowest usable rendered width in px, from `@minWidth`. The layout
    *  check reports a rendered instance narrower than this as squished. */
   minUsableWidth?: number;
+  /** The pattern only arranges children (`@layoutOnly`). */
+  layoutOnly?: boolean;
   /** Props that give the pattern its accessible name (`@accessibleName`). */
   accessibleName?: string[];
   suggestedFor: string[];

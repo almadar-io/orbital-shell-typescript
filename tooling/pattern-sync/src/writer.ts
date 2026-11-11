@@ -114,7 +114,7 @@ function generateSuggestedFor(component: ParsedComponent): string[] {
 /**
  * Convert a ParsedComponent to a PatternEntry.
  */
-function toPatternEntry(
+export function toPatternEntry(
   component: ParsedComponent,
   existingEntry?: PatternEntry,
 ): PatternEntry {
@@ -228,6 +228,7 @@ function toPatternEntry(
     ...(component.capabilities ? { capabilities: component.capabilities } : {}),
     ...(component.fieldsContract ? { fieldsContract: component.fieldsContract } : {}),
     ...(component.minUsableWidth !== undefined ? { minUsableWidth: component.minUsableWidth } : {}),
+    ...(component.layoutOnly ? { layoutOnly: true } : {}),
     ...(component.accessibleName ? { accessibleName: component.accessibleName } : {}),
     suggestedFor:
       existingEntry?.suggestedFor || generateSuggestedFor(component),

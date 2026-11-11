@@ -11,6 +11,9 @@ import { cn } from '../lib/cn';
 
 export type SpacerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'auto';
 
+/**
+ * @layoutOnly
+ */
 export interface SpacerProps extends A11yProps {
   /** Fixed size (auto = flex grow) */
   size?: SpacerSize;
