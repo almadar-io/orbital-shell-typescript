@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-11T07:19:45.451Z",
+  "exportedAt": "2026-11-11T09:17:19.055Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -134653,6 +134653,3580 @@
               "embedded"
             ]
           }
+        },
+        "theme": {
+          "types": [
+            "object",
+            "string"
+          ],
+          "description": "The theme the guest program declares (its app `theme`: a registry key or an inline definition). The guest paints inside it, whatever theme the opener's page runs.",
+          "properties": {
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "displayName": {
+              "types": [
+                "string"
+              ]
+            },
+            "tokens": {
+              "types": [
+                "object"
+              ],
+              "properties": {
+                "color": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "primary": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "primaryHover": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "primaryForeground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "secondary": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "secondaryHover": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "secondaryForeground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "accent": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "accentForeground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "muted": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "mutedForeground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "background": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "foreground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "card": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "cardForeground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "surface": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "border": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "input": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "ring": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "error": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "errorForeground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "success": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "successForeground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "warning": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "warningForeground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "info": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "infoForeground": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "tableHeader": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "tableBorder": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "tableRowHover": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "surfaceHover": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "borderHover": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "placeholder": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "scrim": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "density": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "spacing": {
+                      "types": [
+                        "object"
+                      ],
+                      "properties": {
+                        "space0": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space1": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space2": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space3": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space4": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space5": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space6": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space7": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space8": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space9": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space10": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space11": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "space12": {
+                          "types": [
+                            "string"
+                          ]
+                        }
+                      }
+                    },
+                    "buttonHeightSm": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "buttonHeightMd": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "buttonHeightLg": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "inputHeightSm": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "inputHeightMd": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "inputHeightLg": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "rowHeightCompact": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "rowHeightNormal": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "rowHeightSpacious": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "cardPaddingSm": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "cardPaddingMd": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "cardPaddingLg": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "dialogPadding": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "sectionGap": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "typeScale": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "displayFamily": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "bodyFamily": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "monoFamily": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "fontImport": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "headingWeight": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "headingTransform": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "headingTracking": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "headingStyle": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "headingShadow": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "scale": {
+                      "types": [
+                        "object"
+                      ],
+                      "properties": {
+                        "xs": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        },
+                        "sm": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        },
+                        "base": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        },
+                        "lg": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        },
+                        "xl": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        },
+                        "2xl": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        },
+                        "3xl": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        },
+                        "4xl": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        },
+                        "display-1": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        },
+                        "display-2": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "size": {
+                              "types": [
+                                "string"
+                              ]
+                            },
+                            "lineHeight": {
+                              "types": [
+                                "string"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "size",
+                            "lineHeight"
+                          ]
+                        }
+                      }
+                    },
+                    "intents": {
+                      "types": [
+                        "object"
+                      ],
+                      "properties": {
+                        "headingMajor": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "slot": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "display",
+                                "body",
+                                "mono"
+                              ]
+                            },
+                            "size": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "xs",
+                                "sm",
+                                "base",
+                                "lg",
+                                "xl",
+                                "2xl",
+                                "3xl",
+                                "4xl",
+                                "display-1",
+                                "display-2"
+                              ]
+                            },
+                            "weight": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "normal",
+                                "medium",
+                                "bold"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "slot",
+                            "size",
+                            "weight"
+                          ]
+                        },
+                        "headingMinor": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "slot": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "display",
+                                "body",
+                                "mono"
+                              ]
+                            },
+                            "size": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "xs",
+                                "sm",
+                                "base",
+                                "lg",
+                                "xl",
+                                "2xl",
+                                "3xl",
+                                "4xl",
+                                "display-1",
+                                "display-2"
+                              ]
+                            },
+                            "weight": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "normal",
+                                "medium",
+                                "bold"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "slot",
+                            "size",
+                            "weight"
+                          ]
+                        },
+                        "bodyEmphasis": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "slot": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "display",
+                                "body",
+                                "mono"
+                              ]
+                            },
+                            "size": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "xs",
+                                "sm",
+                                "base",
+                                "lg",
+                                "xl",
+                                "2xl",
+                                "3xl",
+                                "4xl",
+                                "display-1",
+                                "display-2"
+                              ]
+                            },
+                            "weight": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "normal",
+                                "medium",
+                                "bold"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "slot",
+                            "size",
+                            "weight"
+                          ]
+                        },
+                        "bodyDefault": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "slot": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "display",
+                                "body",
+                                "mono"
+                              ]
+                            },
+                            "size": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "xs",
+                                "sm",
+                                "base",
+                                "lg",
+                                "xl",
+                                "2xl",
+                                "3xl",
+                                "4xl",
+                                "display-1",
+                                "display-2"
+                              ]
+                            },
+                            "weight": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "normal",
+                                "medium",
+                                "bold"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "slot",
+                            "size",
+                            "weight"
+                          ]
+                        },
+                        "bodyQuiet": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "slot": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "display",
+                                "body",
+                                "mono"
+                              ]
+                            },
+                            "size": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "xs",
+                                "sm",
+                                "base",
+                                "lg",
+                                "xl",
+                                "2xl",
+                                "3xl",
+                                "4xl",
+                                "display-1",
+                                "display-2"
+                              ]
+                            },
+                            "weight": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "normal",
+                                "medium",
+                                "bold"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "slot",
+                            "size",
+                            "weight"
+                          ]
+                        },
+                        "caption": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "slot": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "display",
+                                "body",
+                                "mono"
+                              ]
+                            },
+                            "size": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "xs",
+                                "sm",
+                                "base",
+                                "lg",
+                                "xl",
+                                "2xl",
+                                "3xl",
+                                "4xl",
+                                "display-1",
+                                "display-2"
+                              ]
+                            },
+                            "weight": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "normal",
+                                "medium",
+                                "bold"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "slot",
+                            "size",
+                            "weight"
+                          ]
+                        },
+                        "numeric": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "slot": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "display",
+                                "body",
+                                "mono"
+                              ]
+                            },
+                            "size": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "xs",
+                                "sm",
+                                "base",
+                                "lg",
+                                "xl",
+                                "2xl",
+                                "3xl",
+                                "4xl",
+                                "display-1",
+                                "display-2"
+                              ]
+                            },
+                            "weight": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "normal",
+                                "medium",
+                                "bold"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "slot",
+                            "size",
+                            "weight"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                "motion": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "durations": {
+                      "types": [
+                        "object"
+                      ],
+                      "properties": {
+                        "instant": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "fast": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "normal": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "slow": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "dramatic": {
+                          "types": [
+                            "string"
+                          ]
+                        }
+                      }
+                    },
+                    "easings": {
+                      "types": [
+                        "object"
+                      ],
+                      "properties": {
+                        "linear": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "standard": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "emphasized": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "spring": {
+                          "types": [
+                            "string"
+                          ]
+                        }
+                      }
+                    },
+                    "intents": {
+                      "types": [
+                        "object"
+                      ],
+                      "properties": {
+                        "enter": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "duration": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "instant",
+                                "fast",
+                                "normal",
+                                "slow",
+                                "dramatic"
+                              ]
+                            },
+                            "easing": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "linear",
+                                "standard",
+                                "emphasized",
+                                "spring"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "duration",
+                            "easing"
+                          ]
+                        },
+                        "exit": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "duration": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "instant",
+                                "fast",
+                                "normal",
+                                "slow",
+                                "dramatic"
+                              ]
+                            },
+                            "easing": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "linear",
+                                "standard",
+                                "emphasized",
+                                "spring"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "duration",
+                            "easing"
+                          ]
+                        },
+                        "hover": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "duration": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "instant",
+                                "fast",
+                                "normal",
+                                "slow",
+                                "dramatic"
+                              ]
+                            },
+                            "easing": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "linear",
+                                "standard",
+                                "emphasized",
+                                "spring"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "duration",
+                            "easing"
+                          ]
+                        },
+                        "press": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "duration": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "instant",
+                                "fast",
+                                "normal",
+                                "slow",
+                                "dramatic"
+                              ]
+                            },
+                            "easing": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "linear",
+                                "standard",
+                                "emphasized",
+                                "spring"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "duration",
+                            "easing"
+                          ]
+                        },
+                        "expand": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "duration": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "instant",
+                                "fast",
+                                "normal",
+                                "slow",
+                                "dramatic"
+                              ]
+                            },
+                            "easing": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "linear",
+                                "standard",
+                                "emphasized",
+                                "spring"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "duration",
+                            "easing"
+                          ]
+                        },
+                        "transition": {
+                          "types": [
+                            "object"
+                          ],
+                          "properties": {
+                            "duration": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "instant",
+                                "fast",
+                                "normal",
+                                "slow",
+                                "dramatic"
+                              ]
+                            },
+                            "easing": {
+                              "types": [
+                                "string"
+                              ],
+                              "enumValues": [
+                                "linear",
+                                "standard",
+                                "emphasized",
+                                "spring"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "duration",
+                            "easing"
+                          ]
+                        }
+                      }
+                    },
+                    "shapes": {
+                      "types": [
+                        "object"
+                      ],
+                      "properties": {
+                        "modalEnter": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "modalExit": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "popoverEnter": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "popoverExit": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "toastEnter": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "toastExit": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "pageEnter": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "enterRise": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "enterScale": {
+                          "types": [
+                            "string"
+                          ]
+                        },
+                        "enterSlide": {
+                          "types": [
+                            "string"
+                          ]
+                        }
+                      }
+                    },
+                    "entry": {
+                      "types": [
+                        "object"
+                      ],
+                      "properties": {
+                        "default": {
+                          "types": [
+                            "string"
+                          ],
+                          "enumValues": [
+                            "none",
+                            "fade",
+                            "rise",
+                            "scale",
+                            "slide"
+                          ]
+                        },
+                        "stagger": {
+                          "types": [
+                            "string"
+                          ]
+                        }
+                      }
+                    },
+                    "busyDelay": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "awaitingSkeleton": {
+                      "types": [
+                        "boolean"
+                      ]
+                    }
+                  }
+                },
+                "iconography": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "family": {
+                      "types": [
+                        "string"
+                      ],
+                      "enumValues": [
+                        "lucide",
+                        "phosphor-outline",
+                        "phosphor-fill",
+                        "phosphor-duotone",
+                        "tabler",
+                        "fa-solid"
+                      ]
+                    },
+                    "strokeWidth": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "defaultSize": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "elevation": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "cardElevation": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "popoverElevation": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "dialogElevation": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "toastElevation": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "interactiveElevation": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "pressedElevation": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "geometry": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "radiusContainer": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "radiusInteractive": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "radiusPill": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "borderHairline": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "borderStandard": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "borderHeavy": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "cornerShape": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "cornerShapePill": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "cornerShapeInteractive": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "borderStyle": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "borderStyleInteractive": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "illustration": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "style": {
+                      "types": [
+                        "string"
+                      ],
+                      "enumValues": [
+                        "minimal",
+                        "illustrated",
+                        "photo",
+                        "text-only",
+                        "mascot"
+                      ]
+                    },
+                    "emptyAsset": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "loadingAsset": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "errorAsset": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "onboardingAsset": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "surface": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "backdrop": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "cardImage": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "pageImage": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "pageImageSize": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "diagram": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "edgeMask": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "edgeHeight": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "textureMask": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "textureSize": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "accentImage": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "scrim": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "diagram": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "strokeThin": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "strokeNormal": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "strokeBold": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "lineCap": {
+                      "types": [
+                        "string"
+                      ],
+                      "enumValues": [
+                        "butt",
+                        "round",
+                        "square"
+                      ]
+                    },
+                    "lineJoin": {
+                      "types": [
+                        "string"
+                      ],
+                      "enumValues": [
+                        "miter",
+                        "round",
+                        "bevel"
+                      ]
+                    },
+                    "dash": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "dot": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "fillStyle": {
+                      "types": [
+                        "string"
+                      ],
+                      "enumValues": [
+                        "solid",
+                        "tint",
+                        "outline",
+                        "hatch"
+                      ]
+                    },
+                    "fillOpacity": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "roughness": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "glow": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "shadow": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "marker": {
+                      "types": [
+                        "string"
+                      ],
+                      "enumValues": [
+                        "triangle",
+                        "open",
+                        "line",
+                        "dot"
+                      ]
+                    },
+                    "labelFont": {
+                      "types": [
+                        "string"
+                      ],
+                      "enumValues": [
+                        "body",
+                        "display",
+                        "mono"
+                      ]
+                    },
+                    "labelSize": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "labelWeight": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "labelCase": {
+                      "types": [
+                        "string"
+                      ],
+                      "enumValues": [
+                        "none",
+                        "uppercase"
+                      ]
+                    },
+                    "corner": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "scene": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "materialRoughness": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "materialMetalness": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "materialFlat": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "materialOutline": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "lightAmbient": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "lightKey": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "lightKeyColor": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "fog": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "colors": {
+                  "types": [
+                    "object"
+                  ],
+                  "mapValue": {
+                    "types": [
+                      "string"
+                    ]
+                  }
+                },
+                "radii": {
+                  "types": [
+                    "object"
+                  ],
+                  "mapValue": {
+                    "types": [
+                      "string"
+                    ]
+                  }
+                },
+                "spacing": {
+                  "types": [
+                    "object"
+                  ],
+                  "mapValue": {
+                    "types": [
+                      "string"
+                    ]
+                  }
+                },
+                "typography": {
+                  "types": [
+                    "object"
+                  ],
+                  "mapValue": {
+                    "types": [
+                      "string"
+                    ]
+                  }
+                },
+                "shadows": {
+                  "types": [
+                    "object"
+                  ],
+                  "mapValue": {
+                    "types": [
+                      "string"
+                    ]
+                  }
+                }
+              }
+            },
+            "variants": {
+              "types": [
+                "object"
+              ],
+              "mapValue": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "color": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "primary": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "primaryHover": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "primaryForeground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "secondary": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "secondaryHover": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "secondaryForeground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "accent": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "accentForeground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "muted": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "mutedForeground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "background": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "foreground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "card": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "cardForeground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "surface": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "border": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "input": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "ring": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "error": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "errorForeground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "success": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "successForeground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "warning": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "warningForeground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "info": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "infoForeground": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "tableHeader": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "tableBorder": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "tableRowHover": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "surfaceHover": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "borderHover": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "placeholder": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "scrim": {
+                        "types": [
+                          "string"
+                        ]
+                      }
+                    }
+                  },
+                  "density": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "spacing": {
+                        "types": [
+                          "object"
+                        ],
+                        "properties": {
+                          "space0": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space1": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space2": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space3": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space4": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space5": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space6": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space7": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space8": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space9": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space10": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space11": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "space12": {
+                            "types": [
+                              "string"
+                            ]
+                          }
+                        }
+                      },
+                      "buttonHeightSm": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "buttonHeightMd": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "buttonHeightLg": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "inputHeightSm": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "inputHeightMd": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "inputHeightLg": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "rowHeightCompact": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "rowHeightNormal": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "rowHeightSpacious": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "cardPaddingSm": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "cardPaddingMd": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "cardPaddingLg": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "dialogPadding": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "sectionGap": {
+                        "types": [
+                          "string"
+                        ]
+                      }
+                    }
+                  },
+                  "typeScale": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "displayFamily": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "bodyFamily": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "monoFamily": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "fontImport": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "headingWeight": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "headingTransform": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "headingTracking": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "headingStyle": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "headingShadow": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "scale": {
+                        "types": [
+                          "object"
+                        ],
+                        "properties": {
+                          "xs": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          },
+                          "sm": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          },
+                          "base": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          },
+                          "lg": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          },
+                          "xl": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          },
+                          "2xl": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          },
+                          "3xl": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          },
+                          "4xl": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          },
+                          "display-1": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          },
+                          "display-2": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "size": {
+                                "types": [
+                                  "string"
+                                ]
+                              },
+                              "lineHeight": {
+                                "types": [
+                                  "string"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "size",
+                              "lineHeight"
+                            ]
+                          }
+                        }
+                      },
+                      "intents": {
+                        "types": [
+                          "object"
+                        ],
+                        "properties": {
+                          "headingMajor": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "slot": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "display",
+                                  "body",
+                                  "mono"
+                                ]
+                              },
+                              "size": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "xs",
+                                  "sm",
+                                  "base",
+                                  "lg",
+                                  "xl",
+                                  "2xl",
+                                  "3xl",
+                                  "4xl",
+                                  "display-1",
+                                  "display-2"
+                                ]
+                              },
+                              "weight": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "normal",
+                                  "medium",
+                                  "bold"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "size",
+                              "weight"
+                            ]
+                          },
+                          "headingMinor": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "slot": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "display",
+                                  "body",
+                                  "mono"
+                                ]
+                              },
+                              "size": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "xs",
+                                  "sm",
+                                  "base",
+                                  "lg",
+                                  "xl",
+                                  "2xl",
+                                  "3xl",
+                                  "4xl",
+                                  "display-1",
+                                  "display-2"
+                                ]
+                              },
+                              "weight": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "normal",
+                                  "medium",
+                                  "bold"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "size",
+                              "weight"
+                            ]
+                          },
+                          "bodyEmphasis": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "slot": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "display",
+                                  "body",
+                                  "mono"
+                                ]
+                              },
+                              "size": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "xs",
+                                  "sm",
+                                  "base",
+                                  "lg",
+                                  "xl",
+                                  "2xl",
+                                  "3xl",
+                                  "4xl",
+                                  "display-1",
+                                  "display-2"
+                                ]
+                              },
+                              "weight": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "normal",
+                                  "medium",
+                                  "bold"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "size",
+                              "weight"
+                            ]
+                          },
+                          "bodyDefault": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "slot": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "display",
+                                  "body",
+                                  "mono"
+                                ]
+                              },
+                              "size": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "xs",
+                                  "sm",
+                                  "base",
+                                  "lg",
+                                  "xl",
+                                  "2xl",
+                                  "3xl",
+                                  "4xl",
+                                  "display-1",
+                                  "display-2"
+                                ]
+                              },
+                              "weight": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "normal",
+                                  "medium",
+                                  "bold"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "size",
+                              "weight"
+                            ]
+                          },
+                          "bodyQuiet": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "slot": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "display",
+                                  "body",
+                                  "mono"
+                                ]
+                              },
+                              "size": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "xs",
+                                  "sm",
+                                  "base",
+                                  "lg",
+                                  "xl",
+                                  "2xl",
+                                  "3xl",
+                                  "4xl",
+                                  "display-1",
+                                  "display-2"
+                                ]
+                              },
+                              "weight": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "normal",
+                                  "medium",
+                                  "bold"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "size",
+                              "weight"
+                            ]
+                          },
+                          "caption": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "slot": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "display",
+                                  "body",
+                                  "mono"
+                                ]
+                              },
+                              "size": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "xs",
+                                  "sm",
+                                  "base",
+                                  "lg",
+                                  "xl",
+                                  "2xl",
+                                  "3xl",
+                                  "4xl",
+                                  "display-1",
+                                  "display-2"
+                                ]
+                              },
+                              "weight": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "normal",
+                                  "medium",
+                                  "bold"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "size",
+                              "weight"
+                            ]
+                          },
+                          "numeric": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "slot": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "display",
+                                  "body",
+                                  "mono"
+                                ]
+                              },
+                              "size": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "xs",
+                                  "sm",
+                                  "base",
+                                  "lg",
+                                  "xl",
+                                  "2xl",
+                                  "3xl",
+                                  "4xl",
+                                  "display-1",
+                                  "display-2"
+                                ]
+                              },
+                              "weight": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "normal",
+                                  "medium",
+                                  "bold"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "slot",
+                              "size",
+                              "weight"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "motion": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "durations": {
+                        "types": [
+                          "object"
+                        ],
+                        "properties": {
+                          "instant": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "fast": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "normal": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "slow": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "dramatic": {
+                            "types": [
+                              "string"
+                            ]
+                          }
+                        }
+                      },
+                      "easings": {
+                        "types": [
+                          "object"
+                        ],
+                        "properties": {
+                          "linear": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "standard": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "emphasized": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "spring": {
+                            "types": [
+                              "string"
+                            ]
+                          }
+                        }
+                      },
+                      "intents": {
+                        "types": [
+                          "object"
+                        ],
+                        "properties": {
+                          "enter": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "duration": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "instant",
+                                  "fast",
+                                  "normal",
+                                  "slow",
+                                  "dramatic"
+                                ]
+                              },
+                              "easing": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "linear",
+                                  "standard",
+                                  "emphasized",
+                                  "spring"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "duration",
+                              "easing"
+                            ]
+                          },
+                          "exit": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "duration": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "instant",
+                                  "fast",
+                                  "normal",
+                                  "slow",
+                                  "dramatic"
+                                ]
+                              },
+                              "easing": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "linear",
+                                  "standard",
+                                  "emphasized",
+                                  "spring"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "duration",
+                              "easing"
+                            ]
+                          },
+                          "hover": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "duration": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "instant",
+                                  "fast",
+                                  "normal",
+                                  "slow",
+                                  "dramatic"
+                                ]
+                              },
+                              "easing": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "linear",
+                                  "standard",
+                                  "emphasized",
+                                  "spring"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "duration",
+                              "easing"
+                            ]
+                          },
+                          "press": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "duration": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "instant",
+                                  "fast",
+                                  "normal",
+                                  "slow",
+                                  "dramatic"
+                                ]
+                              },
+                              "easing": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "linear",
+                                  "standard",
+                                  "emphasized",
+                                  "spring"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "duration",
+                              "easing"
+                            ]
+                          },
+                          "expand": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "duration": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "instant",
+                                  "fast",
+                                  "normal",
+                                  "slow",
+                                  "dramatic"
+                                ]
+                              },
+                              "easing": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "linear",
+                                  "standard",
+                                  "emphasized",
+                                  "spring"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "duration",
+                              "easing"
+                            ]
+                          },
+                          "transition": {
+                            "types": [
+                              "object"
+                            ],
+                            "properties": {
+                              "duration": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "instant",
+                                  "fast",
+                                  "normal",
+                                  "slow",
+                                  "dramatic"
+                                ]
+                              },
+                              "easing": {
+                                "types": [
+                                  "string"
+                                ],
+                                "enumValues": [
+                                  "linear",
+                                  "standard",
+                                  "emphasized",
+                                  "spring"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "duration",
+                              "easing"
+                            ]
+                          }
+                        }
+                      },
+                      "shapes": {
+                        "types": [
+                          "object"
+                        ],
+                        "properties": {
+                          "modalEnter": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "modalExit": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "popoverEnter": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "popoverExit": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "toastEnter": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "toastExit": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "pageEnter": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "enterRise": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "enterScale": {
+                            "types": [
+                              "string"
+                            ]
+                          },
+                          "enterSlide": {
+                            "types": [
+                              "string"
+                            ]
+                          }
+                        }
+                      },
+                      "entry": {
+                        "types": [
+                          "object"
+                        ],
+                        "properties": {
+                          "default": {
+                            "types": [
+                              "string"
+                            ],
+                            "enumValues": [
+                              "none",
+                              "fade",
+                              "rise",
+                              "scale",
+                              "slide"
+                            ]
+                          },
+                          "stagger": {
+                            "types": [
+                              "string"
+                            ]
+                          }
+                        }
+                      },
+                      "busyDelay": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "awaitingSkeleton": {
+                        "types": [
+                          "boolean"
+                        ]
+                      }
+                    }
+                  },
+                  "iconography": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "family": {
+                        "types": [
+                          "string"
+                        ],
+                        "enumValues": [
+                          "lucide",
+                          "phosphor-outline",
+                          "phosphor-fill",
+                          "phosphor-duotone",
+                          "tabler",
+                          "fa-solid"
+                        ]
+                      },
+                      "strokeWidth": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "defaultSize": {
+                        "types": [
+                          "string"
+                        ]
+                      }
+                    }
+                  },
+                  "elevation": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "cardElevation": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "popoverElevation": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "dialogElevation": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "toastElevation": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "interactiveElevation": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "pressedElevation": {
+                        "types": [
+                          "string"
+                        ]
+                      }
+                    }
+                  },
+                  "geometry": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "radiusContainer": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "radiusInteractive": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "radiusPill": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "borderHairline": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "borderStandard": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "borderHeavy": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "cornerShape": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "cornerShapePill": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "cornerShapeInteractive": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "borderStyle": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "borderStyleInteractive": {
+                        "types": [
+                          "string"
+                        ]
+                      }
+                    }
+                  },
+                  "illustration": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "style": {
+                        "types": [
+                          "string"
+                        ],
+                        "enumValues": [
+                          "minimal",
+                          "illustrated",
+                          "photo",
+                          "text-only",
+                          "mascot"
+                        ]
+                      },
+                      "emptyAsset": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "loadingAsset": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "errorAsset": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "onboardingAsset": {
+                        "types": [
+                          "string"
+                        ]
+                      }
+                    }
+                  },
+                  "surface": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "backdrop": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "cardImage": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "pageImage": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "pageImageSize": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "diagram": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "edgeMask": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "edgeHeight": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "textureMask": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "textureSize": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "accentImage": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "scrim": {
+                        "types": [
+                          "string"
+                        ]
+                      }
+                    }
+                  },
+                  "diagram": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "strokeThin": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "strokeNormal": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "strokeBold": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "lineCap": {
+                        "types": [
+                          "string"
+                        ],
+                        "enumValues": [
+                          "butt",
+                          "round",
+                          "square"
+                        ]
+                      },
+                      "lineJoin": {
+                        "types": [
+                          "string"
+                        ],
+                        "enumValues": [
+                          "miter",
+                          "round",
+                          "bevel"
+                        ]
+                      },
+                      "dash": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "dot": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "fillStyle": {
+                        "types": [
+                          "string"
+                        ],
+                        "enumValues": [
+                          "solid",
+                          "tint",
+                          "outline",
+                          "hatch"
+                        ]
+                      },
+                      "fillOpacity": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "roughness": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "glow": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "shadow": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "marker": {
+                        "types": [
+                          "string"
+                        ],
+                        "enumValues": [
+                          "triangle",
+                          "open",
+                          "line",
+                          "dot"
+                        ]
+                      },
+                      "labelFont": {
+                        "types": [
+                          "string"
+                        ],
+                        "enumValues": [
+                          "body",
+                          "display",
+                          "mono"
+                        ]
+                      },
+                      "labelSize": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "labelWeight": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "labelCase": {
+                        "types": [
+                          "string"
+                        ],
+                        "enumValues": [
+                          "none",
+                          "uppercase"
+                        ]
+                      },
+                      "corner": {
+                        "types": [
+                          "string"
+                        ]
+                      }
+                    }
+                  },
+                  "scene": {
+                    "types": [
+                      "object"
+                    ],
+                    "properties": {
+                      "materialRoughness": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "materialMetalness": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "materialFlat": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "materialOutline": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "lightAmbient": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "lightKey": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "lightKeyColor": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "fog": {
+                        "types": [
+                          "string"
+                        ]
+                      }
+                    }
+                  },
+                  "colors": {
+                    "types": [
+                      "object"
+                    ],
+                    "mapValue": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  },
+                  "radii": {
+                    "types": [
+                      "object"
+                    ],
+                    "mapValue": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  },
+                  "spacing": {
+                    "types": [
+                      "object"
+                    ],
+                    "mapValue": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  },
+                  "typography": {
+                    "types": [
+                      "object"
+                    ],
+                    "mapValue": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  },
+                  "shadows": {
+                    "types": [
+                      "object"
+                    ],
+                    "mapValue": {
+                      "types": [
+                        "string"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "propertyRequired": [
+            "name",
+            "tokens"
+          ]
+        },
+        "themeOverride": {
+          "types": [
+            "string"
+          ],
+          "description": "A theme the opener's viewer picked (a registry key): it replaces the guest's own theme."
         },
         "children": {
           "types": [

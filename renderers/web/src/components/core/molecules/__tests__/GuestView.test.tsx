@@ -270,3 +270,32 @@ describe('GuestView clears what the guest stopped painting', () => {
     expect(container.textContent).toContain('the form');
   });
 });
+
+describe('GuestView theme', () => {
+  const taif = { name: 'taif', tokens: { colors: { primary: '#0e7c7b' } } };
+
+  it('paints the guest inside its own inline theme', () => {
+    const { container } = wrap(<GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" theme={taif}><span>painted</span></GuestView>);
+    const scope = container.querySelector('[data-orbital-theme="taif"]');
+    expect(scope).not.toBeNull();
+    expect(scope?.getAttribute('style')).toContain('--color-primary: #0e7c7b');
+    expect(scope?.contains(screen.getByText('painted'))).toBe(true);
+  });
+
+  it('paints the guest inside its own registry theme', () => {
+    const { container } = wrap(<GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" theme="arabesque-light"><span>painted</span></GuestView>);
+    expect(container.querySelector('[data-theme="arabesque-light"]')?.contains(screen.getByText('painted'))).toBe(true);
+  });
+
+  it("the host's pick replaces the guest's theme", () => {
+    const { container } = wrap(<GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" theme={taif} themeOverride="arabesque-dark"><span>painted</span></GuestView>);
+    expect(container.querySelector('[data-theme="arabesque-dark"]')?.contains(screen.getByText('painted'))).toBe(true);
+    expect(container.querySelector('[data-orbital-theme]')).toBeNull();
+  });
+
+  it('control: a guest that declares no theme gets no theme scope', () => {
+    const { container } = wrap(<GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK"><span>painted</span></GuestView>);
+    expect(container.querySelector('[data-orbital-theme]')).toBeNull();
+    expect(container.querySelector('[data-theme]')).toBeNull();
+  });
+});

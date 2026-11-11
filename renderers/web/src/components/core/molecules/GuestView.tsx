@@ -8,17 +8,19 @@
  * Every slot the guest paints renders inside the view (contained, never the host page's), and an in-app link
  * inside it is the guest's navigation, emitted as `navigate`, never the host router's. Each guest paint is scoped to
  * the trait that drew it (its `orbital`, as a page scopes its own), so a click names its painter for the kernel.
+ * The guest paints in the theme its program declares (`theme`), never the opener's, unless the opener passes its viewer's pick (`themeOverride`).
  */
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createLogger } from '@almadar/logger';
 import { useInRouterContext } from 'react-router-dom';
-import type { EventKey, PatternNode, UISlot } from '@almadar/core';
+import type { EventKey, PatternNode, ThemeRef, UISlot } from '@almadar/core';
 import { Box, TraitScopeProvider, useEventBus } from '../../../core';
 import { EntitySchemaProvider } from '../../../providers/EntitySchemaContext';
 import { UISlotProvider, useUISlots } from '../../../providers/UISlotContext';
 import { UISlotRenderer } from '../organisms/UISlotRenderer';
 import { HostHrefBaseProbe, useInAppLinkInterceptor } from '../../../lib/inAppLinks';
 import { CurrentPagePathProvider } from '../../../providers/CurrentPagePathContext';
+import { OrbitalThemeProvider } from '../../../providers/OrbitalThemeProvider';
 import type { SlotProps } from '../../../providers/UISlotContext';
 import { convertFnFormLambdasInProps } from '../../../lib/fn-form-lambda';
 import { unwrapPattern } from '../../../hooks/circuit/useSlotFlush';
@@ -52,6 +54,10 @@ export interface GuestViewProps {
   route?: string;
   /** Every paint the guest made (`rendered` entries, the latest per trait and slot). An `@trait.X` inside the content resolves to the guest's trait X from these. */
   paints?: ReadonlyArray<GuestPaintEntry>;
+  /** The theme the guest program declares (its app `theme`: a registry key or an inline definition). The guest paints inside it, whatever theme the opener's page runs. */
+  theme?: ThemeRef;
+  /** A theme the opener's viewer picked (a registry key): it replaces the guest's own theme. */
+  themeOverride?: string;
   /** The guest's painted content */
   children?: React.ReactNode;
 }
@@ -91,7 +97,7 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
 /**
  * GuestView - Paints a guest program's UI; guest, source and deliver are kernel routing data
  */
-export const GuestView: React.FC<GuestViewProps> = ({ guest, source, navigate, route, paints, children }) => {
+export const GuestView: React.FC<GuestViewProps> = ({ guest, source, navigate, route, paints, theme, themeOverride, children }) => {
   const eventBus = useEventBus();
   const inHostRouter = useInRouterContext();
   const [hostHrefBase, setHostHrefBase] = useState('/');
@@ -117,9 +123,11 @@ export const GuestView: React.FC<GuestViewProps> = ({ guest, source, navigate, r
       {inHostRouter ? <HostHrefBaseProbe onBase={setHostHrefBase} /> : null}
       <Box data-guest-frame="" fullWidth fullHeight className="relative" style={{ contain: 'layout' }}>
         <Box ref={frameRef} fullWidth fullHeight className="relative overflow-auto">
-          {route === undefined
-            ? <UISlotRenderer hudMode="inline" includeHud main={main} />
-            : <CurrentPagePathProvider value={route}><UISlotRenderer hudMode="inline" includeHud main={main} /></CurrentPagePathProvider>}
+          <OrbitalThemeProvider theme={theme} override={themeOverride}>
+            {route === undefined
+              ? <UISlotRenderer hudMode="inline" includeHud main={main} />
+              : <CurrentPagePathProvider value={route}><UISlotRenderer hudMode="inline" includeHud main={main} /></CurrentPagePathProvider>}
+          </OrbitalThemeProvider>
         </Box>
       </Box>
     </UISlotProvider>

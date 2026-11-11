@@ -812,7 +812,7 @@ export type SurfaceTick = { name: string, whileVisible: boolean, runsInBackgroun
 
 export type SurfaceTransition = { from: string, to: string, event: string, guard?: JsonValue, awaitRender?: JsonValue, };
 
-export type SysKind = "cpu" | "memory" | "disk" | "network" | "power-state" | "identity" | "processes" | "self-signal";
+export type SysKind = "cpu" | "memory" | "disk" | "network" | "power-state" | "identity" | "processes" | "self-signal" | "process-signal";
 
 export type TabAction = "click" | "focus" | "type";
 
@@ -1692,7 +1692,7 @@ function checkSubstrateFailureWire(v: JsonValue | undefined): boolean {
 }
 
 function checkSysKind(v: JsonValue | undefined): boolean {
-  return (v === "cpu" || v === "memory" || v === "disk" || v === "network" || v === "power-state" || v === "identity" || v === "processes" || v === "self-signal");
+  return (v === "cpu" || v === "memory" || v === "disk" || v === "network" || v === "power-state" || v === "identity" || v === "processes" || v === "self-signal" || v === "process-signal");
 }
 
 function checkTabAction(v: JsonValue | undefined): boolean {
@@ -2424,7 +2424,7 @@ function buildSubstrateFailureWire(v: JsonValue | undefined, p: string): Substra
 }
 
 function buildSysKind(v: JsonValue | undefined, p: string): SysKind {
-  return oneOf(v, p, ["cpu", "memory", "disk", "network", "power-state", "identity", "processes", "self-signal"]);
+  return oneOf(v, p, ["cpu", "memory", "disk", "network", "power-state", "identity", "processes", "self-signal", "process-signal"]);
 }
 
 function buildTabAction(v: JsonValue | undefined, p: string): TabAction {

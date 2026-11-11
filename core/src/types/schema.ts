@@ -91,7 +91,7 @@ export interface DispatchFacts {
   targetOptions: string[];
 }
 
-/** App-level site modifiers: `origin`, `icon`, `siteName` (→ `name`), `signIn`. */
+/** App-level site modifiers: `origin`, `icon`, `siteName` (→ `name`), `signIn`, `entries`. */
 export interface SiteMeta {
   /** Canonical production origin, e.g. `https://orb.almadar.io`. */
   origin?: string;
@@ -101,6 +101,8 @@ export interface SiteMeta {
   name?: string;
   /** Route an `access: authenticated` page sends a non-admitted viewer to. */
   signIn?: string;
+  /** Route paths a viewer reaches from outside the app (a URL the CLI, an email or another app opens). */
+  entries?: string[];
 }
 
 /**
@@ -120,6 +122,7 @@ export const SiteMetaSchema = z.object({
   icon: z.string().min(1).optional(),
   name: z.string().min(1).optional(),
   signIn: z.string().startsWith('/').optional(),
+  entries: z.array(z.string().startsWith('/')).optional(),
 }).strict();
 
 /** A program's messages: locale → qualified key (`<behavior>:<key>`) → message. Resolution stores them in the program's `messages`. */
@@ -224,7 +227,7 @@ export interface OrbitalSchema {
   /** `inbound: [...]` — the hook names (`/api/hooks/<name>`) the program accepts deliveries on. */
   inbound?: string[];
 
-  /** Site modifiers from the app bracket (`origin`, `icon`, `siteName`, `signIn`). */
+  /** Site modifiers from the app bracket (`origin`, `icon`, `siteName`, `signIn`, `entries`). */
   site?: SiteMeta;
 
   /** Pages served by `uses lazy` behaviors, each loaded from its own `.orb` when opened. */
