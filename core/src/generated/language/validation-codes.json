@@ -912,7 +912,7 @@
   {
     "code": "ORB_ENTITY_WRITE_UNDECLARED",
     "category": "entity",
-    "description": "A persistent entity declares some write directives but not all of @create, @update and @delete, so an undeclared write is allow-all"
+    "description": "A persistent entity declares no @create, or declares some write directives but not all of @create, @update and @delete, so an undeclared write is allow-all"
   },
   {
     "code": "ORB_E_DUPLICATE_FIELD",

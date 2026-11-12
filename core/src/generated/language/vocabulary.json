@@ -278,6 +278,7 @@
     "additionalProperties": "additionalProperties",
     "address": "address",
     "after": "after",
+    "afterEntryMs": "afterEntryMs",
     "alias": "alias",
     "animations": "animations",
     "answers": "answers",
