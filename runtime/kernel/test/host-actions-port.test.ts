@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { answerRequest, consentFromRedirect, HostAskError, hostAskReturn, parseConsentRequest, parseSignInRequest, performHostAnswer, performHostAsk, type HostAudioAsk, type KernelHostPorts } from '../src/kernel/host.js';
+import { answerRequest, consentFromRedirect, HostAskError, hostAskReturn, parseAudioScheduleCommands, parseConsentRequest, parseSignInRequest, performHostAnswer, performHostAsk, type HostAudioAsk, type KernelHostPorts } from '../src/kernel/host.js';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
 import type { JsonValue } from '@almadar/core';
 
@@ -187,5 +187,53 @@ describe('credential-connect on a host with no credential store (twin of the Rus
       kind: 'credentialConnect',
       result: { error: { kind: 'unavailable', message: 'this host holds no credential store that can connect' } },
     });
+  });
+});
+
+describe('audio/schedule and audio/clock: host asks answered through performHostAnswer', () => {
+  const startCommand = { start: { key: 'a', source: '/a.ogg', at: 2, offset: 1, rate: 1, gain: 0.5 } };
+
+  it('hands the parsed commands to the host scheduler and answers ok', async () => {
+    const seen: unknown[] = [];
+    const actions = { audioSchedule: async (commands: readonly unknown[]) => { seen.push(...commands); } };
+    expect(await performHostAnswer(actions, 'audio/schedule', [[startCommand, { stop: { key: 'a', at: 4 } }]])).toEqual({ ok: {} });
+    expect(seen).toEqual([startCommand, { stop: { key: 'a', at: 4 } }]);
+  });
+
+  it('refuses a bad command invalid before the host is asked', async () => {
+    let asked = 0;
+    const actions = { audioSchedule: async () => { asked += 1; } };
+    for (const args of [[], [[{ start: { key: 'a' } }]], [[{ stop: { key: 'a', at: 1 }, start: startCommand.start }]], [[{ ramp: { key: 'a', param: 'pan', value: 1, at: 1, endAt: 2, curve: 'linear' } }]]]) {
+      expect(await performHostAnswer(actions, 'audio/schedule', args)).toMatchObject({ kind: 'invalid' });
+    }
+    expect(asked).toBe(0);
+    expect('error' in parseAudioScheduleCommands([[{ stop: { key: 'a' } }]])).toBe(true);
+  });
+
+  it('a host with no scheduler or clock answers unsupported', async () => {
+    expect(await performHostAnswer({}, 'audio/schedule', [[startCommand]])).toMatchObject({ kind: 'unsupported' });
+    expect(await performHostAnswer(undefined, 'audio/clock', [])).toMatchObject({ kind: 'unsupported' });
+  });
+
+  it('answers the clock with the audio and wall readings, and refuses arguments', async () => {
+    const actions = { audioClock: async () => ({ audio: 3.5, wall: 99 }) };
+    expect(await performHostAnswer(actions, 'audio/clock', [])).toEqual({ ok: { audio: 3.5, wall: 99 } });
+    expect(await performHostAnswer(actions, 'audio/clock', [1])).toMatchObject({ kind: 'invalid' });
+  });
+
+  it('a HostAskError from the host keeps its kind, and a plain error is unavailable', async () => {
+    const typed = { audioSchedule: async () => { throw new HostAskError('invalid', 'no voice a'); } };
+    expect(await performHostAnswer(typed, 'audio/schedule', [[startCommand]])).toEqual({ error: 'no voice a', kind: 'invalid' });
+    const plain = { audioClock: async () => { throw new Error('boom'); } };
+    expect(await performHostAnswer(plain, 'audio/clock', [])).toEqual({ error: 'boom', kind: 'unavailable' });
+  });
+
+  it('control: performHostAsk refuses them by name, and play-sound still works', async () => {
+    const seen: HostAudioAsk[] = [];
+    const actions = { audio: (a: HostAudioAsk) => { seen.push(a); }, audioSchedule: async () => undefined };
+    expect('error' in (await performHostAsk(actions, 'audio/schedule', [[startCommand]]))).toBe(true);
+    expect('error' in (await performHostAsk(actions, 'audio/clock', []))).toBe(true);
+    expect(await performHostAnswer(actions, 'audio/play-sound', [step])).toEqual({ ok: {} });
+    expect(seen).toEqual([{ op: 'audio/play-sound', play: step }]);
   });
 });

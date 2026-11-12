@@ -102,8 +102,8 @@
       },
       {
         "name": "themes",
-        "type": "Vec<String>",
-        "doc": "`themes: [\"<key>\", …]` — the registry themes the program switches to inside a page."
+        "type": "Vec<ThemeDecl>",
+        "doc": "`themes: [\"<key>\" | { … }, …]` — the themes the program switches to, inside a page or for the whole app (`theme/set`): a registry key, or an inline theme the app defines."
       },
       {
         "name": "locales",

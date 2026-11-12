@@ -2,10 +2,12 @@
  * The Node host's POST to a token endpoint, for the kernel's credential store (`TokenEndpointPost`). It mirrors
  * `credential_transport.rs` of the native host: https only, the origin must be declared in the program's `egress` (the
  * kernel's rule), every address the name resolves to must be public (the kernel's rule), the connection goes to the checked
- * address, a redirect is a failure, and each socket idles out after 5 s. No error text carries a header, a body or a token.
+ * address, a redirect is a failure, and each socket idles out after 5 s. A `metadata` request is the kernel's bodiless GET of
+ * the metadata server's token address over plain http, sent as built. No error text carries a header, a body or a token.
  */
 import { lookup } from 'node:dns/promises';
 import { request as httpsRequest, type RequestOptions } from 'node:https';
+import { request as httpRequest } from 'node:http';
 import { isIP } from 'node:net';
 import type { ClientRequest, IncomingMessage } from 'node:http';
 import type { TokenEndpointPost } from '@almadar/shell-runtime';
@@ -23,6 +25,8 @@ export interface NodeTokenPostOptions {
   /** The kernel's public-address rule. */
   isPublicAddress(ip: string): boolean;
   request?: (options: RequestOptions, onResponse: (response: IncomingMessage) => void) => ClientRequest;
+  /** The plain-http request of a `metadata` exchange. */
+  metadataRequest?: (options: RequestOptions, onResponse: (response: IncomingMessage) => void) => ClientRequest;
   resolve?: (host: string) => Promise<ResolvedAddress[]>;
 }
 
@@ -45,10 +49,45 @@ function urlOf(endpoint: string): URL {
   }
 }
 
+function collect(req: ClientRequest, response: IncomingMessage, settle: (reply: { status: number; body: string }) => void, reject: (error: Error) => void): void {
+  const status = response.statusCode ?? 0;
+  if (status >= 300 && status < 400) {
+    response.resume();
+    reject(new TokenPostRefusal(`the token endpoint answered a redirect (${status}); redirects are not followed`));
+    req.destroy();
+    return;
+  }
+  const chunks: Buffer[] = [];
+  response.on('data', (chunk: Buffer) => chunks.push(chunk));
+  response.on('end', () => settle({ status, body: Buffer.concat(chunks).toString('utf8') }));
+  response.on('error', () => reject(new TokenPostRefusal('the token endpoint response failed')));
+}
+
+function metadataGet(send: NonNullable<NodeTokenPostOptions['metadataRequest']>, endpoint: string, headers: Array<[string, string]>): Promise<{ status: number; body: string }> {
+  const url = urlOf(endpoint);
+  const requestHeaders: Record<string, string> = {};
+  for (const [name, value] of headers) requestHeaders[name] = value;
+  requestHeaders['Connection'] = 'close';
+  return new Promise((settle, reject) => {
+    const req = send(
+      { method: 'GET', protocol: 'http:', host: url.hostname, port: url.port === '' ? 80 : Number(url.port), path: `${url.pathname}${url.search}`, headers: requestHeaders, timeout: IO_TIMEOUT_MS },
+      (response) => collect(req, response, settle, reject),
+    );
+    req.on('timeout', () => {
+      reject(new TokenPostRefusal('the metadata server timed out'));
+      req.destroy();
+    });
+    req.on('error', (error: NodeJS.ErrnoException) => reject(new TokenPostRefusal(`could not reach the metadata server${error.code !== undefined ? ` (${error.code})` : ''}`)));
+    req.end();
+  });
+}
+
 export function createNodeTokenPost(options: NodeTokenPostOptions): TokenEndpointPost {
   const send = options.request ?? httpsRequest;
+  const sendMetadata = options.metadataRequest ?? httpRequest;
   const resolve = options.resolve ?? systemResolve;
-  return async ({ endpoint, headers, body }) => {
+  return async ({ kind, endpoint, headers, body }) => {
+    if (kind === 'metadata') return metadataGet(sendMetadata, endpoint, headers);
     const url = urlOf(endpoint);
     if (url.protocol !== 'https:') throw new TokenPostRefusal('the token endpoint must be https');
     if (!options.egressAllows(endpoint)) throw new TokenPostRefusal(`${url.host} is not an origin the program declares in egress`);
@@ -79,19 +118,7 @@ export function createNodeTokenPost(options: NodeTokenPostOptions): TokenEndpoin
             else callback(null, checked.address, checked.family);
           },
         },
-        (response) => {
-          const status = response.statusCode ?? 0;
-          if (status >= 300 && status < 400) {
-            response.resume();
-            reject(new TokenPostRefusal(`the token endpoint answered a redirect (${status}); redirects are not followed`));
-            req.destroy();
-            return;
-          }
-          const chunks: Buffer[] = [];
-          response.on('data', (chunk: Buffer) => chunks.push(chunk));
-          response.on('end', () => settle({ status, body: Buffer.concat(chunks).toString('utf8') }));
-          response.on('error', () => reject(new TokenPostRefusal('the token endpoint response failed')));
-        },
+        (response) => collect(req, response, settle, reject),
       );
       req.on('timeout', () => {
         reject(new TokenPostRefusal('the token endpoint timed out'));

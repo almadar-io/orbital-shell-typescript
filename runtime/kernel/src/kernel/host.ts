@@ -85,6 +85,58 @@ export type HostAudioAsk =
   | { op: 'audio/change-music'; play: AudioPlay }
   | { op: 'audio/stop-music'; fadeMs: number };
 
+/** One declared `audio/schedule` command: exactly one of these keys per record, played as written on the audio-clock timeline. */
+export type AudioScheduleCommand =
+  | { start: { key: string; source: string; at: number; offset: number; duration?: number; rate: number; gain: number } }
+  | { stop: { key: string; at: number } }
+  | { ramp: { key: string; param: 'gain' | 'rate'; value: number; at: number; endAt: number; curve: 'linear' | 'exponential' } };
+
+/** What `audio/clock` answers: the audio clock and the wall clock (ms), read together. */
+export interface AudioClockAnswer {
+  audio: number;
+  wall: number;
+}
+
+const isFiniteNumber = (value: JsonValue | undefined): value is number => typeof value === 'number' && Number.isFinite(value);
+
+/** The commands an `audio/schedule` ask carries, or why it is refused before the host is asked. */
+export function parseAudioScheduleCommands(args: readonly JsonValue[]): { commands: AudioScheduleCommand[] } | { error: string } {
+  const [list] = args;
+  if (args.length !== 1 || !Array.isArray(list)) return { error: 'audio/schedule takes one list of commands' };
+  const commands: AudioScheduleCommand[] = [];
+  for (const [index, entry] of list.entries()) {
+    const where = `audio/schedule command ${index}`;
+    if (!isJsonObject(entry)) return { error: `${where} is not a record` };
+    const names = Object.keys(entry);
+    if (names.length !== 1) return { error: `${where} must have exactly one key: start, stop or ramp` };
+    const [name] = names;
+    const body = entry[name];
+    if (body === undefined || !isJsonObject(body)) return { error: `${where}: ${name} takes a record` };
+    const { key } = body;
+    if (typeof key !== 'string' || key === '') return { error: `${where}: ${name} needs a key` };
+    if (name === 'stop') {
+      if (!isFiniteNumber(body.at)) return { error: `${where}: stop needs a numeric at` };
+      commands.push({ stop: { key, at: body.at } });
+    } else if (name === 'ramp') {
+      const { param, value, at, endAt, curve } = body;
+      if ((param !== 'gain' && param !== 'rate') || !isFiniteNumber(value) || !isFiniteNumber(at) || !isFiniteNumber(endAt) || (curve !== 'linear' && curve !== 'exponential')) {
+        return { error: `${where}: ramp needs param (gain or rate), value, at, endAt and curve (linear or exponential)` };
+      }
+      commands.push({ ramp: { key, param, value, at, endAt, curve } });
+    } else if (name === 'start') {
+      const { source, at, offset, duration, rate, gain } = body;
+      if (typeof source !== 'string' || source === '' || !isFiniteNumber(at) || !isFiniteNumber(offset) || !isFiniteNumber(rate) || !isFiniteNumber(gain)) {
+        return { error: `${where}: start needs source, at, offset, rate and gain` };
+      }
+      if (duration !== undefined && duration !== null && !isFiniteNumber(duration)) return { error: `${where}: start duration must be a number` };
+      commands.push({ start: { key, source, at, offset, ...(typeof duration === 'number' ? { duration } : {}), rate, gain } });
+    } else {
+      return { error: `${where}: ${name} is not start, stop or ramp` };
+    }
+  }
+  return { commands };
+}
+
 /** The one object `auth/sign-in` takes: the method and the credentials it needs. */
 export type HostSignInRequest =
   | { method: 'google'; viewer?: false }
@@ -107,8 +159,8 @@ export interface HostConsentAnswer {
   state: string;
 }
 
-/** Why a host ask failed: the viewer closed it, the provider denied it, the request was malformed, or the host has no such action. */
-export type HostAskFailureKind = 'cancelled' | 'denied' | 'invalid' | 'unavailable';
+/** Why a host ask failed: the viewer closed it, the provider denied it, the request was malformed, or the host has no such action (`unavailable`), or the environment cannot do it at all (`unsupported`, such as no AudioContext). */
+export type HostAskFailureKind = 'cancelled' | 'denied' | 'invalid' | 'unavailable' | 'unsupported';
 
 /** A host action's own failure, carrying the kind the completion reports. */
 export class HostAskError extends Error {
@@ -120,6 +172,8 @@ export class HostAskError extends Error {
 /** What the client host does for the `audio/*`, `auth/sign-out`, `auth/sign-in` and `auth/consent` asks; a host that has none refuses them by name. */
 export interface KernelHostActions {
   audio?: (ask: HostAudioAsk) => void;
+  audioSchedule?: (commands: readonly AudioScheduleCommand[]) => Promise<void>;
+  audioClock?: () => Promise<AudioClockAnswer>;
   signOut?: () => void | Promise<void>;
   signIn?: (request: HostSignInRequest) => Promise<HostSignInAnswer>;
   consent?: (request: HostConsentRequest) => Promise<HostConsentAnswer>;
@@ -388,6 +442,7 @@ export async function performHostAsk(
       return fail(error instanceof Error ? error.message : String(error));
     }
   }
+  if (op === 'audio/schedule' || op === 'audio/clock') return fail(`${op} is answered by the client host's ask return, not run as an effect`);
   const audio = actions?.audio;
   if (audio === undefined) return fail(`no host audio is configured for ${op}`);
   let ask: HostAudioAsk;
@@ -495,9 +550,39 @@ async function performConsent(actions: KernelHostActions | undefined, args: read
   }
 }
 
+function hostFailure(error: Error | string): { error: string; kind: HostAskFailureKind } {
+  if (error instanceof HostAskError) return { error: error.message, kind: error.kind };
+  return { error: error instanceof Error ? error.message : error, kind: 'unavailable' };
+}
+
+async function performAudioSchedule(actions: KernelHostActions | undefined, args: readonly JsonValue[]): Promise<HostAskOutcome> {
+  const parsed = parseAudioScheduleCommands(args);
+  if ('error' in parsed) return { error: parsed.error, kind: 'invalid' };
+  if (actions?.audioSchedule === undefined) return { error: 'no host audio scheduler is configured for audio/schedule', kind: 'unsupported' };
+  try {
+    await actions.audioSchedule(parsed.commands);
+    return { ok: {} };
+  } catch (error) {
+    return hostFailure(error instanceof Error ? error : String(error));
+  }
+}
+
+async function performAudioClock(actions: KernelHostActions | undefined, args: readonly JsonValue[]): Promise<HostAskOutcome> {
+  if (args.length !== 0) return { error: 'audio/clock takes no arguments', kind: 'invalid' };
+  if (actions?.audioClock === undefined) return { error: 'no host audio clock is configured for audio/clock', kind: 'unsupported' };
+  try {
+    const { audio, wall } = await actions.audioClock();
+    return { ok: { audio, wall } };
+  } catch (error) {
+    return hostFailure(error instanceof Error ? error : String(error));
+  }
+}
+
 /** The answer of one host ask whose completion the host returns: `auth/sign-in` through the host's sign-in, `auth/consent` through its consent, any other op as it is performed (an empty success). */
 export async function performHostAnswer(actions: KernelHostActions | undefined, op: string, args: readonly JsonValue[]): Promise<HostAskOutcome> {
   if (op === 'auth/consent') return performConsent(actions, args);
+  if (op === 'audio/schedule') return performAudioSchedule(actions, args);
+  if (op === 'audio/clock') return performAudioClock(actions, args);
   if (op !== 'auth/sign-in') {
     const outcome = await performHostAsk(actions, op, args);
     return 'error' in outcome ? { error: outcome.error, kind: 'unavailable' } : { ok: {} };

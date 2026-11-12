@@ -2,6 +2,7 @@ import { isJsonObject, type EventPayload, type HostAskCompletion, type JsonObjec
 import { createLogger } from '@almadar/logger';
 import { hostAskReturn, performHostAnswer, type HostAudioAsk, type HostConsentAnswer, type HostConsentRequest, type HostSignInAnswer, type HostSignInRequest, type KernelHostActions } from '@almadar/shell-runtime/kernel/host';
 
+import { readAudioClock, scheduleAudio } from '../providers/audio-scheduler';
 import { browserConsentEnv, consentByPopup } from './consent-popup';
 
 const log = createLogger('almadar:ui:host-actions');
@@ -54,6 +55,8 @@ export const webHostActions: KernelHostActions = {
   get signIn() {
     return signInHost;
   },
+  audioSchedule: scheduleAudio,
+  audioClock: readAudioClock,
   get consent() {
     return consentHost ?? (typeof window === 'undefined' ? undefined : consentByPopup(browserConsentEnv(window)));
   },

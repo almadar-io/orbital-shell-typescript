@@ -6,6 +6,8 @@
  */
 import { z } from 'zod';
 
+import { ServerEffectCodeSchema } from './effect-result.js';
+
 import type {
   EntityBinding,
   EntityBindingKind,
@@ -91,6 +93,7 @@ const PlayedEffectSchema: z.ZodType<PlayedEffect> = z.object({
   args: z.array(JsonValueSchema),
   status: z.enum(['executed', 'failed', 'skipped']),
   error: z.string().optional(),
+  code: ServerEffectCodeSchema.optional(),
   routed: z.boolean(),
   nested: PlayedNestedSchema.optional(),
 });

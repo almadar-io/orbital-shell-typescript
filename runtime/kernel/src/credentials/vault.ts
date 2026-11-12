@@ -36,8 +36,9 @@ export interface CredentialVaultKernel {
   connectAbandon(ticket: number): boolean;
 }
 
-/** What the kernel asks a host to POST to a token endpoint. The host decides nothing about it. */
+/** What the kernel asks a host to send: a form POST to a token endpoint, or (`metadata`) a bodiless GET of the kernel's metadata token address. The host decides nothing about it. */
 export interface TokenRequest {
+  kind: 'form' | 'metadata';
   endpoint: string;
   headers: Array<[string, string]>;
   body: string;
@@ -48,7 +49,7 @@ export interface TokenReply {
   body: string;
 }
 
-/** The host's one network capability the credential exchange needs: a form POST to an https token endpoint, no redirects followed. */
+/** The host's network capability the credential exchange needs: the request the kernel built, sent as its `kind` says, no redirects followed. */
 export type TokenEndpointPost = (request: TokenRequest) => Promise<TokenReply>;
 
 /** A token exchange the kernel's store refused or the host could not carry; `kind` is the kernel's `ConnectFailureKind`. */
@@ -79,7 +80,9 @@ function requestOf(value: JsonValue | undefined): { request: TokenRequest; ticke
     if (!Array.isArray(pair) || pair.length !== 2) throw new Error('the kernel token request header is malformed');
     return [textOf(pair[0], 'header name'), textOf(pair[1], 'header value')];
   });
-  return { request: { endpoint: textOf(value.endpoint, 'token endpoint'), headers, body: textOf(value.body, 'token body') }, ticket: numberOf(value.ticket, 'exchange ticket') };
+  const kind = value.kind === 'form' || value.kind === 'metadata' ? value.kind : undefined;
+  if (kind === undefined) throw new Error('the kernel token request has an unknown kind');
+  return { request: { kind, endpoint: textOf(value.endpoint, 'token endpoint'), headers, body: textOf(value.body, 'token body') }, ticket: numberOf(value.ticket, 'exchange ticket') };
 }
 
 /** A kernel module that carries the vault class: `import * as kernel from '@almadar/kernel/client'`. */

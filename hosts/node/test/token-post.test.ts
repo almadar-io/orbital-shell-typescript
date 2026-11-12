@@ -17,8 +17,8 @@ function fakeHttps(status: number, reply: string, seen: Seen) {
   return (options: RequestOptions, onResponse: (response: IncomingMessage) => void): ClientRequest => {
     seen.options = options;
     const req = Object.assign(new EventEmitter(), {
-      end: (payload: Buffer) => {
-        seen.written = payload.toString('utf8');
+      end: (payload?: Buffer) => {
+        seen.written = payload === undefined ? undefined : payload.toString('utf8');
         const response = Object.assign(new EventEmitter(), { statusCode: status, resume: () => undefined });
         onResponse(response as unknown as IncomingMessage);
         response.emit('data', Buffer.from(reply));
@@ -30,16 +30,17 @@ function fakeHttps(status: number, reply: string, seen: Seen) {
   };
 }
 
-function post(origins: string[], seen: Seen, status = 200, reply = '{"ok":true}') {
+function post(origins: string[], seen: Seen, status = 200, reply = '{"ok":true}', metadataSeen: Seen = {}) {
   return createNodeTokenPost({
     egressAllows: (url) => origins.some((origin) => url.startsWith(`${origin}/`)),
     isPublicAddress: (ip) => PUBLIC.has(ip),
     request: fakeHttps(status, reply, seen),
+    metadataRequest: fakeHttps(status, reply, metadataSeen),
     resolve: async (host) => (host === 'auth.example.com' ? [{ address: '93.184.216.34', family: 4 }] : [{ address: '10.0.0.5', family: 4 }]),
   });
 }
 
-const form = { headers: [['Content-Type', 'application/x-www-form-urlencoded'] as [string, string]], body: 'grant_type=refresh_token' };
+const form = { kind: 'form' as const, headers: [['Content-Type', 'application/x-www-form-urlencoded'] as [string, string]], body: 'grant_type=refresh_token' };
 
 describe('createNodeTokenPost', () => {
   it('posts the form to the checked public address and answers the status and body', async () => {
@@ -64,7 +65,24 @@ describe('createNodeTokenPost', () => {
   });
 
   it('names no body, header or token in a refusal', async () => {
-    const error = await post(EGRESS, {}, 301, 'SECRET-BODY')({ endpoint: 'https://auth.example.com/token', headers: [['Authorization', 'Basic SECRET-AUTH']], body: 'refresh_token=SECRET-RT' }).catch((e: Error) => e);
+    const error = await post(EGRESS, {}, 301, 'SECRET-BODY')({ kind: 'form', endpoint: 'https://auth.example.com/token', headers: [['Authorization', 'Basic SECRET-AUTH']], body: 'refresh_token=SECRET-RT' }).catch((e: Error) => e);
     expect(String(error)).not.toMatch(/SECRET/);
+  });
+
+  it('sends a metadata request as a bodiless plain-http GET of the kernel address, and never a form request that way', async () => {
+    const endpoint = 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token?scopes=a';
+    const tls: Seen = {};
+    const plain: Seen = {};
+    const reply = await post(EGRESS, tls, 200, '{"access_token":"t","token_type":"Bearer"}', plain)({ kind: 'metadata', endpoint, headers: [['Metadata-Flavor', 'Google']], body: '' });
+    expect(reply).toEqual({ status: 200, body: '{"access_token":"t","token_type":"Bearer"}' });
+    expect(plain.options).toMatchObject({ method: 'GET', protocol: 'http:', host: 'metadata.google.internal', port: 80, path: '/computeMetadata/v1/instance/service-accounts/default/token?scopes=a', timeout: 5000 });
+    expect(plain.options?.headers).toEqual({ 'Metadata-Flavor': 'Google', Connection: 'close' });
+    expect(plain.written).toBeUndefined();
+    expect(tls.options).toBeUndefined();
+    const formPlain: Seen = {};
+    await post(EGRESS, {}, 200, '{"ok":true}', formPlain)({ endpoint: 'https://auth.example.com/token', ...form });
+    expect(formPlain.options).toBeUndefined();
+    const redirect = post(EGRESS, {}, 302, 'moved')({ kind: 'metadata', endpoint, headers: [], body: '' });
+    await expect(redirect).rejects.toThrow('redirect (302)');
   });
 });

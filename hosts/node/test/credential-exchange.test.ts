@@ -158,6 +158,21 @@ describe('the jwt-bearer, json-token and stored refresh-token grants on the node
     expect(store.resolve('BANK_ACCESS', undefined)).toBe('BANK-ACCESS');
   });
 
+  it('connects a metadata grant with the kernel-built GET and renews it when due', async () => {
+    const store = await vault();
+    const grant = { tokenEndpoint: '', code: '', redirectUri: '', clientId: '', clientAuth: 'none' as const, name: 'FIRESTORE_TOKEN', grant: 'metadata', scopes: ['https://www.googleapis.com/auth/datastore'] };
+    const url = 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token?scopes=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fdatastore';
+    const { post, seen } = scripted([{ status: 200, body: '{"access_token":"META-1","expires_in":0,"token_type":"Bearer"}' }]);
+    expect(await store.connect(grant, post)).toEqual({ ok: { connected: true } });
+    expect(seen[0]).toEqual({ kind: 'metadata', endpoint: url, headers: [['Metadata-Flavor', 'Google']], body: '' });
+    const renew = scripted([{ status: 200, body: '{"access_token":"META-2","expires_in":3599,"token_type":"Bearer"}' }]);
+    expect(await createSecretStore(Date.now, { store: async () => store, resolve: async (name: string, principal: string | undefined) => store.resolve(name, principal) }, renew.post).get('FIRESTORE_TOKEN')).toBe('META-2');
+    expect(renew.seen[0]?.kind).toBe('metadata');
+    const { post: formPost, seen: formSeen } = scripted([{ status: 200, body: FRESH }]);
+    await store.connect(GRANT, formPost);
+    expect(formSeen[0]?.kind).toBe('form');
+  });
+
   it('exchanges a stored refresh-token credential and refuses a missing one without a POST', async () => {
     const store = await vault();
     await store.set('google', 'CLIENT_SECRET', 'client-secret-2');

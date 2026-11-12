@@ -645,6 +645,11 @@
     "description": "A transition declares async result events but its target state has no arm handling them, so the requester cannot hear its own result"
   },
   {
+    "code": "ORB_CIRCUIT_ASYNC_RESULT_DEAF_WAITING",
+    "category": "circuit",
+    "description": "A state that only an async result can leave is reachable while a call-service is in flight and has no arm for that call's outcome, so the outcome is dropped there"
+  },
+  {
     "code": "ORB_CIRCUIT_DEAD_BODILESS_ACTION",
     "category": "circuit",
     "description": "A transition changes state but carries no effects, so the screen keeps its paint and affordances routed to it are dead"
@@ -658,6 +663,11 @@
     "code": "ORB_CIRCUIT_FAILURE_ARM_RENDERS_NOTHING",
     "category": "circuit",
     "description": "A state handles a failure event but its arm neither renders nor emits a declared event, so the failure reaches no one"
+  },
+  {
+    "code": "ORB_CIRCUIT_INIT_ARM_NEVER_FIRES",
+    "category": "circuit",
+    "description": "Every INIT arm of a trait's initial state is guarded by a condition that is false for the composition's config and no other arm of that state can fire, so the trait never starts"
   },
   {
     "code": "ORB_CIRCUIT_INIT_UNCOVERED_STATE",
@@ -898,6 +908,11 @@
     "code": "ORB_ENTITY_SPLIT_MUTATION",
     "category": "entity_mutation",
     "description": "A runtime entity is mutated by several traits on isolated per-trait copies while another trait reads a field it never writes"
+  },
+  {
+    "code": "ORB_ENTITY_WRITE_UNDECLARED",
+    "category": "entity",
+    "description": "A persistent entity declares some write directives but not all of @create, @update and @delete, so an undeclared write is allow-all"
   },
   {
     "code": "ORB_E_DUPLICATE_FIELD",
@@ -1738,6 +1753,11 @@
     "code": "ORB_SLOT_MAIN_ONLY_CONTAINERS",
     "category": "slot",
     "description": "Every trait render into the main slot of a page paints only empty layout-only containers, so nothing is shown"
+  },
+  {
+    "code": "ORB_STATE_TRAPPED",
+    "category": "composed",
+    "description": "A trait can reach a state that no event the program sends can take it out of"
   },
   {
     "code": "ORB_STORE_DRIVER_CONTRACT",

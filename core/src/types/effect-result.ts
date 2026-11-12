@@ -29,6 +29,8 @@ export type ServerBatchSummary = {
 };
 
 /** Zod twin of `ServerBatchSummary`. */
+export const ServerEffectCodeSchema = z.enum(["not-found", "no-row-key", "duplicate-id", "denied", "derived-failed"]);
+
 export const ServerBatchSummarySchema: z.ZodType<ServerBatchSummary> = z.object({
   operations: z.array(EntityRowSchema),
   completedCount: z.number(),
@@ -48,7 +50,7 @@ export const ServerEffectResultSchema: z.ZodType<ServerEffectResult> = z.object(
   success: z.boolean(),
   denied: z.literal(true).optional(),
   error: z.string().optional(),
-  code: z.enum(["not-found", "no-row-key", "duplicate-id", "denied", "derived-failed"]).optional(),
+  code: ServerEffectCodeSchema.optional(),
   target: z.string().optional(),
   routed: z.string().optional(),
 });
