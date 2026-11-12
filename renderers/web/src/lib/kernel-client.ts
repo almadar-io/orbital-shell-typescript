@@ -121,12 +121,37 @@ function payloadJson(payload: EventPayload | undefined): string | undefined {
   return payload === undefined ? undefined : JSON.stringify(payload);
 }
 
+/** One waiting answer: the fold the kernel queued under a ticket (EXEC-CONC-8). */
+interface FoldTurn {
+  ran(applied: AppliedWire): void;
+  failed(error: Error): void;
+}
+
+// The kernel owns the fold queue, so its waiters are kept per kernel: every client over one kernel settles the same tickets.
+const foldTurnsByKernel = new WeakMap<KernelInstance, Map<number, FoldTurn>>();
+
+function foldTurnsOf(k: KernelInstance): Map<number, FoldTurn> {
+  let turns = foldTurnsByKernel.get(k);
+  if (turns === undefined) {
+    turns = new Map();
+    foldTurnsByKernel.set(k, turns);
+  }
+  return turns;
+}
+
+// A route change gives the page a new store over the same kernel; an answer still in flight from the page before
+// paints the kernel's newest store, never the one its page left behind.
+const liveStoreByKernel = new WeakMap<KernelInstance, CircuitStore>();
+
 export function createKernelClient(opts: KernelClientOptions): KernelClient {
-  const { store, traitIndex, transport } = opts;
+  const { traitIndex, transport } = opts;
   let loaded: KernelInstance | undefined;
+  const liveStore = (): CircuitStore => (loaded === undefined ? opts.store : liveStoreByKernel.get(loaded) ?? opts.store);
+  const store: CircuitStore = new Proxy(opts.store, { get: (_own, key) => Reflect.get(liveStore(), key) });
   const configs = new Map<string, TraitConfig>();
   const ready = Promise.all([opts.instance, opts.gpu]).then(([k, gpu]) => {
     loaded = k;
+    liveStoreByKernel.set(k, opts.store);
     if (gpu !== undefined) k.installGpu(gpu, (json) => deliverGpuCompletion(k, json));
     return k;
   });
@@ -140,13 +165,8 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
 
   // The kernel orders the answers of the dispatches that owe the host a leg (EXEC-CONC-8): an answer that
   // arrives ahead of an older flight is queued by the kernel under a ticket and folded when that flight ends.
-  interface FoldTurn {
-    ran(applied: AppliedWire): void;
-    failed(error: Error): void;
-  }
-  const foldTurns = new Map<number, FoldTurn>();
-
   const runQueuedFolds = (k: KernelInstance): void => {
+    const foldTurns = foldTurnsOf(k);
     for (let json = k.nextFold(); json !== undefined; json = k.nextFold()) {
       const next = parse<FoldedNextWire>(json);
       const turn = foldTurns.get(next.ticket);
@@ -169,7 +189,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   const settleProgress = (k: KernelInstance, progress: FoldProgressWire): Promise<AppliedWire> => {
     if (progress.status === 'applied') return Promise.resolve(progress.fold);
     const turn = new Promise<AppliedWire>((ran, failed) => {
-      foldTurns.set(progress.ticket, { ran, failed });
+      foldTurnsOf(k).set(progress.ticket, { ran, failed });
     });
     // A waiter never relies on one flight's end alone: if the older flights have already ended, its turn runs now.
     queueMicrotask(() => runQueuedFolds(k));
@@ -641,7 +661,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   };
 
   const client: KernelClient = {
-    store,
+    store: opts.store,
     dispatch: (request, hooks) => dispatchOne(request, hooks !== undefined ? [hooks] : [], false),
     dispatchProgress: (request) => dispatchOne(request, [], true),
     foldHostDispatch: async (request, response) => {

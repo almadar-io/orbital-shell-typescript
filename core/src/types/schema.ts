@@ -155,12 +155,12 @@ export interface OrbitalSchema {
   theme?: ThemeRef;
 
   /**
-   * The registry themes the program switches to inside a page (a sub-frame's
-   * `data-theme`, a theme switcher's options), beyond its app and orbital
-   * themes. Authored as `themes: [<key>, …]` in the `.lolo` app header; each
-   * a full `<base>-<light|dark>` registry key.
+   * The themes the program switches to (a sub-frame's `data-theme`, a theme
+   * switcher's options), beyond its app and orbital themes. Authored as
+   * `themes: [<key> | { … }, …]` in the `.lolo` app header; each a full
+   * `<base>-<light|dark>` registry key, or a theme the program defines inline.
    */
-  themes?: string[];
+  themes?: ThemeRef[];
 
   /**
    * The theme presets this program references (app and orbital `theme`
@@ -285,7 +285,7 @@ export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, object> = z.object({
   name: z.string().min(1, "Schema name is required"),
   description: z.string().optional(),
   theme: ThemeRefSchema.optional(),
-  themes: z.array(z.string().min(1)).optional(),
+  themes: z.array(ThemeRefSchema).optional(),
   themeDefinitions: z.array(ThemeDefinitionSchema).optional(),
   summary: z.string().optional(),
   version: z.string().optional(),
