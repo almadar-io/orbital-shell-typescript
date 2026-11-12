@@ -602,7 +602,11 @@ entityAfter: EventPayload | null, pendingAsks: Array<PendingAsk>,
 /**
  * Every trait the request's event moved, the requested one among them.
  */
-outcomes: Array<PlayedOutcome>, };
+outcomes: Array<PlayedOutcome>, 
+/**
+ * Deliveries the request's dispatch skipped as exact repeats (EXEC-QUEUE-4), from every trait its event moved.
+ */
+collapsed?: Array<StepCollapsed>, };
 
 export type PlayedState = { before: string | null, after: string | null, };
 
@@ -801,7 +805,7 @@ export type StepEmit = { event: string, payload: EventPayload | null, };
 
 export type StepGuard = { arm: number, guard: JsonValue, passed: boolean, error?: string, };
 
-export type StepOutcome = { trait: string, executed: boolean, previousState: string, newState: string, emits: Array<StepEmit>, firedArm: number | null, guards: Array<StepGuard>, effects: Array<PlayedEffect>, failure: string | null, orbital: string, event: string, ensures: Array<PlayedEnsures>, collapsed: Array<StepCollapsed>, };
+export type StepOutcome = { trait: string, executed: boolean, previousState: string, newState: string, emits: Array<StepEmit>, firedArm: number | null, guards: Array<StepGuard>, effects: Array<PlayedEffect>, failure: string | null, orbital: string, event: string, ensures: Array<PlayedEnsures>, collapsed?: Array<StepCollapsed>, };
 
 export type StepRefusal = { success: false, error: string, trait: string | null, outcomes: Array<StepOutcome>, };
 
@@ -1501,7 +1505,7 @@ function checkPlayedOutcome(v: JsonValue | undefined): boolean {
 }
 
 function checkPlayedResult(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["event"] === 'string' && typeof v["transitionFired"] === 'boolean' && checkGuardVerdict(v["guard"]) && (v["firedArm"] === undefined || typeof v["firedArm"] === 'number') && checkPlayedState(v["state"]) && (Array.isArray(v["effects"]) && v["effects"].every((e) => checkPlayedEffect(e))) && (Array.isArray(v["emitted"]) && v["emitted"].every((e) => checkPlayedEmit(e))) && (Array.isArray(v["guards"]) && v["guards"].every((e) => checkPlayedGuard(e))) && (Array.isArray(v["ensures"]) && v["ensures"].every((e) => checkPlayedEnsures(e))) && (v["rendered"] === undefined || (Array.isArray(v["rendered"]) && v["rendered"].every((e) => checkRenderedSlot(e)))) && (v["failure"] === undefined || typeof v["failure"] === 'string') && (accepts((x, q) => rec(x, q), v["entityAfter"]) || v["entityAfter"] === null) && (Array.isArray(v["pendingAsks"]) && v["pendingAsks"].every((e) => checkPendingAsk(e))) && (Array.isArray(v["outcomes"]) && v["outcomes"].every((e) => checkPlayedOutcome(e))));
+  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["event"] === 'string' && typeof v["transitionFired"] === 'boolean' && checkGuardVerdict(v["guard"]) && (v["firedArm"] === undefined || typeof v["firedArm"] === 'number') && checkPlayedState(v["state"]) && (Array.isArray(v["effects"]) && v["effects"].every((e) => checkPlayedEffect(e))) && (Array.isArray(v["emitted"]) && v["emitted"].every((e) => checkPlayedEmit(e))) && (Array.isArray(v["guards"]) && v["guards"].every((e) => checkPlayedGuard(e))) && (Array.isArray(v["ensures"]) && v["ensures"].every((e) => checkPlayedEnsures(e))) && (v["rendered"] === undefined || (Array.isArray(v["rendered"]) && v["rendered"].every((e) => checkRenderedSlot(e)))) && (v["failure"] === undefined || typeof v["failure"] === 'string') && (accepts((x, q) => rec(x, q), v["entityAfter"]) || v["entityAfter"] === null) && (Array.isArray(v["pendingAsks"]) && v["pendingAsks"].every((e) => checkPendingAsk(e))) && (Array.isArray(v["outcomes"]) && v["outcomes"].every((e) => checkPlayedOutcome(e))) && (v["collapsed"] === undefined || (Array.isArray(v["collapsed"]) && v["collapsed"].every((e) => checkStepCollapsed(e)))));
 }
 
 function checkPlayedState(v: JsonValue | undefined): boolean {
@@ -1685,7 +1689,7 @@ function checkStepGuard(v: JsonValue | undefined): boolean {
 }
 
 function checkStepOutcome(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["executed"] === 'boolean' && typeof v["previousState"] === 'string' && typeof v["newState"] === 'string' && (Array.isArray(v["emits"]) && v["emits"].every((e) => checkStepEmit(e))) && (typeof v["firedArm"] === 'number' || v["firedArm"] === null) && (Array.isArray(v["guards"]) && v["guards"].every((e) => checkStepGuard(e))) && (Array.isArray(v["effects"]) && v["effects"].every((e) => checkPlayedEffect(e))) && (typeof v["failure"] === 'string' || v["failure"] === null) && typeof v["orbital"] === 'string' && typeof v["event"] === 'string' && (Array.isArray(v["ensures"]) && v["ensures"].every((e) => checkPlayedEnsures(e))) && (Array.isArray(v["collapsed"]) && v["collapsed"].every((e) => checkStepCollapsed(e))));
+  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["executed"] === 'boolean' && typeof v["previousState"] === 'string' && typeof v["newState"] === 'string' && (Array.isArray(v["emits"]) && v["emits"].every((e) => checkStepEmit(e))) && (typeof v["firedArm"] === 'number' || v["firedArm"] === null) && (Array.isArray(v["guards"]) && v["guards"].every((e) => checkStepGuard(e))) && (Array.isArray(v["effects"]) && v["effects"].every((e) => checkPlayedEffect(e))) && (typeof v["failure"] === 'string' || v["failure"] === null) && typeof v["orbital"] === 'string' && typeof v["event"] === 'string' && (Array.isArray(v["ensures"]) && v["ensures"].every((e) => checkPlayedEnsures(e))) && (v["collapsed"] === undefined || (Array.isArray(v["collapsed"]) && v["collapsed"].every((e) => checkStepCollapsed(e)))));
 }
 
 function checkStepRefusal(v: JsonValue | undefined): boolean {
@@ -2241,7 +2245,7 @@ function buildPlayedOutcome(v: JsonValue | undefined, p: string): PlayedOutcome 
 }
 
 function buildPlayedResult(v: JsonValue | undefined, p: string): PlayedResult {
-  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "event": str(r0["event"], p + '.event'), "transitionFired": bool(r0["transitionFired"], p + '.transitionFired'), "guard": buildGuardVerdict(r0["guard"], p + '.guard'), ...(r0["firedArm"] === undefined || r0["firedArm"] === null ? {} : { "firedArm": int(r0["firedArm"], p + '.firedArm', 0, 4294967295, "u32") }), "state": buildPlayedState(r0["state"], p + '.state'), "effects": list(r0["effects"], p + '.effects', (e1, q1) => buildPlayedEffect(e1, q1)), "emitted": list(r0["emitted"], p + '.emitted', (e1, q1) => buildPlayedEmit(e1, q1)), "guards": list(r0["guards"], p + '.guards', (e1, q1) => buildPlayedGuard(e1, q1)), "ensures": list(r0["ensures"], p + '.ensures', (e1, q1) => buildPlayedEnsures(e1, q1)), ...(r0["rendered"] === undefined || r0["rendered"] === null ? {} : { "rendered": list(r0["rendered"], p + '.rendered', (e1, q1) => buildRenderedSlot(e1, q1)) }), ...(r0["failure"] === undefined || r0["failure"] === null ? {} : { "failure": str(r0["failure"], p + '.failure') }), "entityAfter": (r0["entityAfter"] === null ? null : rec(r0["entityAfter"], p + '.entityAfter')), "pendingAsks": list(r0["pendingAsks"], p + '.pendingAsks', (e1, q1) => buildPendingAsk(e1, q1)), "outcomes": list(r0["outcomes"], p + '.outcomes', (e1, q1) => buildPlayedOutcome(e1, q1)) }));
+  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "event": str(r0["event"], p + '.event'), "transitionFired": bool(r0["transitionFired"], p + '.transitionFired'), "guard": buildGuardVerdict(r0["guard"], p + '.guard'), ...(r0["firedArm"] === undefined || r0["firedArm"] === null ? {} : { "firedArm": int(r0["firedArm"], p + '.firedArm', 0, 4294967295, "u32") }), "state": buildPlayedState(r0["state"], p + '.state'), "effects": list(r0["effects"], p + '.effects', (e1, q1) => buildPlayedEffect(e1, q1)), "emitted": list(r0["emitted"], p + '.emitted', (e1, q1) => buildPlayedEmit(e1, q1)), "guards": list(r0["guards"], p + '.guards', (e1, q1) => buildPlayedGuard(e1, q1)), "ensures": list(r0["ensures"], p + '.ensures', (e1, q1) => buildPlayedEnsures(e1, q1)), ...(r0["rendered"] === undefined || r0["rendered"] === null ? {} : { "rendered": list(r0["rendered"], p + '.rendered', (e1, q1) => buildRenderedSlot(e1, q1)) }), ...(r0["failure"] === undefined || r0["failure"] === null ? {} : { "failure": str(r0["failure"], p + '.failure') }), "entityAfter": (r0["entityAfter"] === null ? null : rec(r0["entityAfter"], p + '.entityAfter')), "pendingAsks": list(r0["pendingAsks"], p + '.pendingAsks', (e1, q1) => buildPendingAsk(e1, q1)), "outcomes": list(r0["outcomes"], p + '.outcomes', (e1, q1) => buildPlayedOutcome(e1, q1)), ...(r0["collapsed"] === undefined || r0["collapsed"] === null ? {} : { "collapsed": list(r0["collapsed"], p + '.collapsed', (e1, q1) => buildStepCollapsed(e1, q1)) }) }));
 }
 
 function buildPlayedState(v: JsonValue | undefined, p: string): PlayedState {
@@ -2425,7 +2429,7 @@ function buildStepGuard(v: JsonValue | undefined, p: string): StepGuard {
 }
 
 function buildStepOutcome(v: JsonValue | undefined, p: string): StepOutcome {
-  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "executed": bool(r0["executed"], p + '.executed'), "previousState": str(r0["previousState"], p + '.previousState'), "newState": str(r0["newState"], p + '.newState'), "emits": list(r0["emits"], p + '.emits', (e1, q1) => buildStepEmit(e1, q1)), "firedArm": r0["firedArm"] === undefined ? null : (r0["firedArm"] === null ? null : int(r0["firedArm"], p + '.firedArm', 0, Number.MAX_SAFE_INTEGER, "usize")), "guards": list(r0["guards"], p + '.guards', (e1, q1) => buildStepGuard(e1, q1)), "effects": list(r0["effects"], p + '.effects', (e1, q1) => buildPlayedEffect(e1, q1)), "failure": r0["failure"] === undefined ? null : (r0["failure"] === null ? null : str(r0["failure"], p + '.failure')), "orbital": str(r0["orbital"], p + '.orbital'), "event": str(r0["event"], p + '.event'), "ensures": list(r0["ensures"], p + '.ensures', (e1, q1) => buildPlayedEnsures(e1, q1)), "collapsed": r0["collapsed"] === undefined ? [] : list(r0["collapsed"], p + '.collapsed', (e1, q1) => buildStepCollapsed(e1, q1)) }));
+  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "executed": bool(r0["executed"], p + '.executed'), "previousState": str(r0["previousState"], p + '.previousState'), "newState": str(r0["newState"], p + '.newState'), "emits": list(r0["emits"], p + '.emits', (e1, q1) => buildStepEmit(e1, q1)), "firedArm": r0["firedArm"] === undefined ? null : (r0["firedArm"] === null ? null : int(r0["firedArm"], p + '.firedArm', 0, Number.MAX_SAFE_INTEGER, "usize")), "guards": list(r0["guards"], p + '.guards', (e1, q1) => buildStepGuard(e1, q1)), "effects": list(r0["effects"], p + '.effects', (e1, q1) => buildPlayedEffect(e1, q1)), "failure": r0["failure"] === undefined ? null : (r0["failure"] === null ? null : str(r0["failure"], p + '.failure')), "orbital": str(r0["orbital"], p + '.orbital'), "event": str(r0["event"], p + '.event'), "ensures": list(r0["ensures"], p + '.ensures', (e1, q1) => buildPlayedEnsures(e1, q1)), ...(r0["collapsed"] === undefined || r0["collapsed"] === null ? {} : { "collapsed": list(r0["collapsed"], p + '.collapsed', (e1, q1) => buildStepCollapsed(e1, q1)) }) }));
 }
 
 function buildStepRefusal(v: JsonValue | undefined, p: string): StepRefusal {

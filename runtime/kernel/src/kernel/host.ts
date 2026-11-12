@@ -579,7 +579,28 @@ async function performAudioClock(actions: KernelHostActions | undefined, args: r
 }
 
 /** The answer of one host ask whose completion the host returns: `auth/sign-in` through the host's sign-in, `auth/consent` through its consent, any other op as it is performed (an empty success). */
+/**
+ * `program/host-ask`: a guest's client ask this viewer relays (EXEC-ENDPOINT-3a). The host answers the inner ask as if this
+ * viewer had asked it and writes the outcome as text, which the guest's opener returns into the guest; the kernel checked
+ * the ask before handing it here.
+ */
+async function performRelayedAsk(actions: KernelHostActions | undefined, args: readonly JsonValue[]): Promise<HostAskOutcome> {
+  const [text] = args;
+  if (args.length !== 1 || typeof text !== 'string') return { error: 'program/host-ask takes the ask text a guest wrote', kind: 'invalid' };
+  let ask: JsonValue;
+  try {
+    ask = JSON.parse(text);
+  } catch {
+    return { error: 'program/host-ask: the ask is not one a guest wrote', kind: 'invalid' };
+  }
+  if (!isJsonObject(ask) || typeof ask.op !== 'string' || ask.op === 'program/host-ask') return { error: 'program/host-ask: the ask is not one a guest wrote', kind: 'invalid' };
+  const outcome = await performHostAnswer(actions, ask.op, Array.isArray(ask.args) ? ask.args : []);
+  const answer: JsonObject = 'ok' in outcome ? { ok: outcome.ok } : { error: outcome.error, kind: outcome.kind };
+  return { ok: { answer: JSON.stringify(answer) } };
+}
+
 export async function performHostAnswer(actions: KernelHostActions | undefined, op: string, args: readonly JsonValue[]): Promise<HostAskOutcome> {
+  if (op === 'program/host-ask') return performRelayedAsk(actions, args);
   if (op === 'auth/consent') return performConsent(actions, args);
   if (op === 'audio/schedule') return performAudioSchedule(actions, args);
   if (op === 'audio/clock') return performAudioClock(actions, args);

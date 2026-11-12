@@ -437,7 +437,9 @@ export function useDataDnd(
     [sortableData, enabled],
   );
 
-  const DropZoneShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Memoized like SortableItem: a component type made fresh each render remounts the zone, whose droppable then
+  // re-registers and re-renders the zone again, until React stops it (#185) mid-drag.
+  const DropZoneShell: React.FC<{ children: React.ReactNode }> = React.useCallback(({ children }) => {
     const droppableId = `dnd-zone-${zoneId}`;
     const { setNodeRef, isOver } = useDroppable({
       id: droppableId,
@@ -485,7 +487,7 @@ export function useDataDnd(
         {children}
       </Box>
     );
-  };
+  }, [zoneId, ownGroup, sortableData]);
 
   const rootContextValue: RootContext = React.useMemo(
     () => ({ registerZone, unregisterZone, activeDrag, overZoneGroup, optimisticOrders, clearOptimisticOrder }),

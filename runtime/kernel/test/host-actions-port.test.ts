@@ -236,4 +236,24 @@ describe('audio/schedule and audio/clock: host asks answered through performHost
     expect(await performHostAnswer(actions, 'audio/play-sound', [step])).toEqual({ ok: {} });
     expect(seen).toEqual([{ op: 'audio/play-sound', play: step }]);
   });
+
+  describe('program/host-ask relays a guest ask', () => {
+    const ask = (op: string, args: JsonValue[] = []): string => JSON.stringify({ op, args, completion: { trait: 'Clock', success: 'TICKED' } });
+
+    it('answers the inner ask through this host and writes the outcome as text', async () => {
+      const outcome = await performHostAnswer({ audioClock: async () => ({ audio: 1.5, wall: 99 }) }, 'program/host-ask', [ask('audio/clock')]);
+      expect(outcome).toEqual({ ok: { answer: JSON.stringify({ ok: { audio: 1.5, wall: 99 } }) } });
+    });
+
+    it('writes an inner refusal as text too, so the guest gets its failure route', async () => {
+      const outcome = await performHostAnswer({}, 'program/host-ask', [ask('audio/clock')]);
+      expect(outcome).toMatchObject({ ok: { answer: expect.stringContaining('"kind":"unavailable"') } });
+    });
+
+    it('refuses text no guest wrote and a nested relay as invalid', async () => {
+      expect(await performHostAnswer({}, 'program/host-ask', ['not json'])).toMatchObject({ kind: 'invalid' });
+      expect(await performHostAnswer({}, 'program/host-ask', [ask('program/host-ask')])).toMatchObject({ kind: 'invalid' });
+      expect(await performHostAnswer({}, 'program/host-ask', [])).toMatchObject({ kind: 'invalid' });
+    });
+  });
 });

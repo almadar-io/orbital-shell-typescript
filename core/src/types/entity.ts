@@ -111,8 +111,8 @@ export type OrbitalEntity = {
     /** `@invariant <expr>`: every stored row satisfies each, proved by `orb validate` over the program's writes. No runtime effect. */
     invariants?: SExpr[];
 
-    /** `@index { fields, orderBy? }`: declared access paths. A path changes a query's cost, never its result. */
-    indexes?: { fields: string[]; orderBy?: string }[];
+    /** `@index { fields, orderBy?, nearest? }`: declared access paths; a `nearest` path ranks over a vector field. A path changes a query's cost, never its result. */
+    indexes?: { fields: string[]; orderBy?: string; nearest?: { field: string; dimension: number } }[];
 
     /** Collection name (auto-derived if not provided for persistent entities) */
     collection?: string;
@@ -181,7 +181,7 @@ export const OrbitalEntitySchema = z.object({
         })
         .optional(),
     invariants: SExprListSchema.optional(),
-    indexes: z.array(z.object({ fields: z.array(z.string()), orderBy: z.string().optional() }).strict()).optional(),
+    indexes: z.array(z.object({ fields: z.array(z.string()), orderBy: z.string().optional(), nearest: z.object({ field: z.string(), dimension: z.number().int().positive() }).strict().optional() }).strict()).optional(),
     collection: z.string().optional(),
     fields: z.array(EntityFieldSchema),
     instances: z.array(z.record(z.string(), JsonValueSchema)).optional(),
