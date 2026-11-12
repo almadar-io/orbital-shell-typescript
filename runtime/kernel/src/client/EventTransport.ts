@@ -163,7 +163,32 @@ interface SharedPushChannel {
   source: EventSource | undefined;
   subscribers: Set<(envelope: ServerPushEnvelope) => void>;
   closed: boolean;
+  paused: boolean;
+  stopWatching?: () => void;
 }
+
+/** Whether the page is hidden, and a way to hear it change; a host with no page (no `document`) never pauses. */
+export interface PushVisibility {
+  hidden(): boolean;
+  onChange(listener: () => void): () => void;
+}
+
+function documentVisibility(): PushVisibility | undefined {
+  if (typeof document === 'undefined') return undefined;
+  return {
+    hidden: () => document.visibilityState === 'hidden',
+    onChange: (listener) => {
+      document.addEventListener('visibilitychange', listener);
+      return () => document.removeEventListener('visibilitychange', listener);
+    },
+  };
+}
+
+/**
+ * How long a page stays hidden before its push channel closes. An open stream keeps the server instance awake (and billed);
+ * the channel reopens on the next visible, resuming after the last applied frame like any reconnect.
+ */
+export const HIDDEN_CLOSE_DELAY_MS = 60_000;
 
 /** `EventSource.readyState` of a connection the browser gave up on (a refused stream is not retried by the browser). */
 const EVENT_SOURCE_CLOSED = 2;
@@ -204,19 +229,25 @@ function acquirePushChannel(
   resolveUrl: () => Promise<string>,
   resumeKey: string | undefined,
   subscriber: (envelope: ServerPushEnvelope) => void,
+  visibility: PushVisibility | undefined = documentVisibility(),
 ): () => void {
   let channel = pushChannels.get(key);
   if (channel === undefined) {
-    const created: SharedPushChannel = { source: undefined, subscribers: new Set(), closed: false };
+    const created: SharedPushChannel = { source: undefined, subscribers: new Set(), closed: false, paused: false };
+    let opening = false;
     const open = async (): Promise<void> => {
+      if (opening || created.source !== undefined) return;
+      opening = true;
       let url: string;
       try {
         url = await resolveUrl();
       } catch (err) {
         log.error('push:open-failed', { error: err instanceof Error ? err.message : String(err) });
+        opening = false;
         return;
       }
-      if (created.closed) return;
+      opening = false;
+      if (created.closed || created.paused) return;
       const source = new EventSource(url);
       created.source = source;
       source.onmessage = (ev: MessageEvent<string>) => {
@@ -237,16 +268,49 @@ function acquirePushChannel(
       };
       source.onerror = () => {
         log.warn('push:connection-error', { channel: key });
-        if (source.readyState === EVENT_SOURCE_CLOSED && !created.closed) {
+        if (source.readyState === EVENT_SOURCE_CLOSED && !created.closed && created.source === source) {
           created.source = undefined;
           setTimeout(() => {
-            if (!created.closed) void open();
+            if (!created.closed && !created.paused) void open();
           }, REOPEN_DELAY_MS);
         }
       };
     };
+    let hiddenTimer: ReturnType<typeof setTimeout> | undefined;
+    const onVisibility = (): void => {
+      if (visibility === undefined || created.closed) return;
+      if (visibility.hidden()) {
+        if (hiddenTimer === undefined) {
+          hiddenTimer = setTimeout(() => {
+            hiddenTimer = undefined;
+            if (created.closed || !visibility.hidden()) return;
+            created.paused = true;
+            const open = created.source;
+            created.source = undefined;
+            open?.close();
+            log.info('push:paused-hidden', { channel: key });
+          }, HIDDEN_CLOSE_DELAY_MS);
+        }
+        return;
+      }
+      if (hiddenTimer !== undefined) {
+        clearTimeout(hiddenTimer);
+        hiddenTimer = undefined;
+      }
+      if (created.paused) {
+        created.paused = false;
+        log.info('push:resumed-visible', { channel: key });
+        void open();
+      }
+    };
+    const stopWatching = visibility?.onChange(onVisibility);
+    created.stopWatching = (): void => {
+      stopWatching?.();
+      if (hiddenTimer !== undefined) clearTimeout(hiddenTimer);
+    };
     pushChannels.set(key, created);
     void open();
+    if (visibility?.hidden() === true) onVisibility();
     channel = created;
   }
   channel.subscribers.add(subscriber);
@@ -254,6 +318,7 @@ function acquirePushChannel(
     channel.subscribers.delete(subscriber);
     if (channel.subscribers.size === 0) {
       channel.closed = true;
+      channel.stopWatching?.();
       channel.source?.close();
       pushChannels.delete(key);
     }
@@ -309,6 +374,8 @@ export interface HttpTransportOptions {
    * for servers that inflate request bodies (Express's JSON parser does).
    */
   compressRequests?: boolean;
+  /** Page visibility for pausing the push channel while hidden; the document's by default, none without a document. */
+  pushVisibility?: PushVisibility;
 }
 
 /** Bodies below this stay plain: compressing them costs more than it saves. */
@@ -368,7 +435,7 @@ export function createHttpTransport(options: HttpTransportOptions): EventTranspo
       if (typeof body.ticket !== 'string' || body.ticket.length === 0) throw new Error('the server sent no stream ticket');
       return withResume(new URLSearchParams({ ...params, ticket: body.ticket }));
     };
-    return acquirePushChannel(key, resolveUrl, resumeKey, subscriber);
+    return acquirePushChannel(key, resolveUrl, resumeKey, subscriber, options.pushVisibility ?? documentVisibility());
   };
 
   return {

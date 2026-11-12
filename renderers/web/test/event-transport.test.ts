@@ -11,7 +11,9 @@ import {
   createHttpTransport,
   createInProcessTransport,
   deriveCarriesCircuitState,
+  HIDDEN_CLOSE_DELAY_MS,
   TransportStatusError,
+  type PushVisibility,
 } from '@almadar/shell-runtime/client/EventTransport';
 
 const schema: OrbitalSchema = { name: 'Probe', orbitals: [] };
@@ -203,6 +205,83 @@ describe('createHttpTransport push subscribe', () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  function pageVisibility(initiallyHidden = false) {
+    let hidden = initiallyHidden;
+    const listeners = new Set<() => void>();
+    const port: PushVisibility = { hidden: () => hidden, onChange: (listener) => { listeners.add(listener); return () => listeners.delete(listener); } };
+    const set = (next: boolean): void => {
+      hidden = next;
+      for (const listener of listeners) listener();
+    };
+    return { port, set, listening: () => listeners.size };
+  }
+
+  it('a page hidden for the delay closes its stream, and showing it reopens with a fresh ticket resuming after the last frame', async () => {
+    vi.useFakeTimers();
+    try {
+      const page = pageVisibility();
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushVisibility: page.port });
+      const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-hidden-pause' });
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      FakeEventSource.instances[0].emit({ type: 'bus', event: 'E', payload: {}, source: { trait: 'T' } }, 'boot1-7');
+      page.set(true);
+      await vi.advanceTimersByTimeAsync(HIDDEN_CLOSE_DELAY_MS - 1);
+      expect(FakeEventSource.instances[0].closed).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(FakeEventSource.instances[0].closed).toBe(true);
+      page.set(false);
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+      const reopened = new URL(FakeEventSource.instances[1].url);
+      expect(reopened.searchParams.get('ticket')).toBe('tkt-2');
+      expect(reopened.searchParams.get('since')).toBe('boot1-7');
+      unsubscribe();
+      expect(page.listening()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('control: a page hidden for less than the delay keeps its one stream', async () => {
+    vi.useFakeTimers();
+    try {
+      const page = pageVisibility();
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushVisibility: page.port });
+      const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-hidden-brief' });
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      page.set(true);
+      await vi.advanceTimersByTimeAsync(HIDDEN_CLOSE_DELAY_MS / 2);
+      page.set(false);
+      await vi.advanceTimersByTimeAsync(HIDDEN_CLOSE_DELAY_MS * 2);
+      expect(FakeEventSource.instances).toHaveLength(1);
+      expect(FakeEventSource.instances[0].closed).toBe(false);
+      unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a paused stream that errors is not reopened until the page is visible again', async () => {
+    vi.useFakeTimers();
+    try {
+      const page = pageVisibility();
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushVisibility: page.port });
+      const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-hidden-error' });
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      const first = FakeEventSource.instances[0];
+      page.set(true);
+      await vi.advanceTimersByTimeAsync(HIDDEN_CLOSE_DELAY_MS);
+      first.readyState = 2;
+      first.onerror?.();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(FakeEventSource.instances).toHaveLength(1);
+      page.set(false);
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+      unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('opens the sibling /events channel with the caller-supplied params and a ticket minted with the access token', async () => {
