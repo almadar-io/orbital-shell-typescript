@@ -130,6 +130,28 @@ export function spriteRect(projector: Projector, node: SpritePlacement, natural?
     };
 }
 
+/** Accessibility node a drawable carries; the orbital painter holds it for the accessibility export. */
+export interface DrawableSemantic {
+    /** Accessibility role (`button`, `switch`, `slider`, ...). */
+    role: string;
+    /** Accessible name. */
+    name: string;
+    /** Current value, as text. */
+    value?: string;
+    /** Checked state for toggles. */
+    checked?: boolean;
+    /** The control is disabled. */
+    disabled?: boolean;
+}
+
+/** Spring a drawable follows when a repaint changes its animatable fields (orbital painter). */
+export interface DrawableSpring {
+    /** Spring stiffness. */
+    stiffness: number;
+    /** Spring damping. */
+    damping: number;
+}
+
 /** Common shape of every drawable descriptor. `type` keys the host's paint dispatch. */
 export interface DrawableBase {
     type: string;
@@ -141,6 +163,12 @@ export interface DrawableBase {
      * NOT a heuristic: no id → the host emits only the coordinate (tile click).
      */
     id?: string;
+    /** With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it. */
+    hit?: boolean;
+    /** Accessibility node for this drawable. */
+    semantic?: DrawableSemantic;
+    /** With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring. */
+    spring?: DrawableSpring;
 }
 
 /** A paint function: draws one descriptor of type `T` to the painter. */

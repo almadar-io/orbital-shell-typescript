@@ -23,6 +23,30 @@ export type DrawTextAlign = 'center' | 'end' | 'left' | 'right' | 'start';
 /** Mirrors DOM `CanvasTextBaseline` by value — see {@link DrawTextAlign}. */
 export type DrawTextBaseline = 'alphabetic' | 'bottom' | 'hanging' | 'ideographic' | 'middle' | 'top';
 
+/** One keyframe of a {@link DrawTextAnimation}: the fields it names lerp; the others keep their base value. */
+export interface DrawTextKeyframe {
+    /** Position in the cycle, 0..1. */
+    at: number;
+    opacity?: number;
+    /** Offset in px, replacing `offsetX` while the animation plays. */
+    offsetX?: number;
+    /** Offset in px, replacing `offsetY` while the animation plays. */
+    offsetY?: number;
+}
+
+/**
+ * Keyframe animation over a text's `opacity`, `offsetX` and `offsetY`, the same contract as a shape's. Orbital
+ * painter only: the host runs a paint clock while one is present.
+ */
+export interface DrawTextAnimation {
+    /** One cycle length in ms. */
+    durationMs: number;
+    /** Loop the cycle (default true); false plays once and holds the final keyframe. */
+    loop?: boolean;
+    /** Keyframes ordered by `at` (0..1). */
+    keyframes: DrawTextKeyframe[];
+}
+
 export interface DrawTextProps extends DrawableBase {
     type: 'draw-text';
     text: string;
@@ -36,6 +60,20 @@ export interface DrawTextProps extends DrawableBase {
     align?: DrawTextAlign;
     baseline?: DrawTextBaseline;
     opacity?: number;
+    /** Line width in px; with it the text lays out as a paragraph from `position` (top-left anchor). Orbital painter. */
+    width?: number;
+    /** Break at line opportunities within `width` (default true when `width` is set). */
+    wrap?: boolean;
+    /** Maximum number of lines; the last kept line ends in an ellipsis when `truncate` is true. */
+    maxLines?: number;
+    /** Ellipsis instead of overflow. */
+    truncate?: boolean;
+    /** Line height as a multiple of the font size (default 1.3). */
+    lineHeight?: number;
+    /** Report this text's size in `measureEvent` (needs `id`). */
+    measure?: boolean;
+    /** Keyframe animation over `opacity`, `offsetX` and `offsetY` (orbital painter; the TS painter ignores it). */
+    animation?: DrawTextAnimation;
 }
 
 /** Paint a {@link DrawTextProps}. */

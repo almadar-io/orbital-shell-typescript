@@ -57,6 +57,9 @@ export type EventKey = string;
  */
 export type EntityFieldName = string;
 
+/** The name of a field of the rows held by the sibling prop `P` (`RowFieldName<'lineItems'>`). */
+export type RowFieldName<P extends string> = string;
+
 /**
  * User-visible text a component paints (a label, title or message), as
  * opposed to an identifier, key or class name. A marker alias over `string`,

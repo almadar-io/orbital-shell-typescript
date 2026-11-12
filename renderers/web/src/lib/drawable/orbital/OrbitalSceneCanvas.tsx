@@ -89,6 +89,10 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         }
     };
 
+    // A repaint queues events of its own (measured text): deliver them every frame, not on the next pointer move.
+    const flushRef = useRef(flush);
+    flushRef.current = flush;
+
     useEffect(() => {
         if (!ready) return;
         let pending = true;
@@ -105,6 +109,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
                     }
                     pending = false;
                 }
+                flushRef.current();
             }
             frame = requestAnimationFrame(tick);
         };
@@ -231,7 +236,9 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
                 }}
                 onPointerMove={(e) => {
                     if (e.buttons !== 0 || e.pointerType === 'touch') send('touch-move', e, e.button);
+                    else send('hover', e, 0);
                 }}
+                onPointerLeave={(e) => send('leave', e, 0)}
                 onPointerUp={(e) => send('touch-up', e, e.button)}
                 onPointerCancel={(e) => send('touch-cancel', e, e.button)}
                 onDoubleClick={(e) => send('double-tap', e, 0)}

@@ -240,6 +240,8 @@ export interface PropTypeSchema {
    * sibling.
    */
   kind?: ExtractedPropKind;
+  /** For `kind: "field-ref"`: the sibling prop whose rows own the field (`RowFieldName<P>`); absent means the bound entity. */
+  of?: string;
   /**
    * Set when this member is an `EventPayload`-brand field carrying a
    * `@payloadFor <sibling>` JSDoc pairing — the SIBLING member's name, a key
@@ -341,6 +343,8 @@ export interface ExtractedProp {
    * event key" (etc.) without inferring from the prop name.
    */
   kind?: ExtractedPropKind;
+  /** For `kind: "field-ref"`: the sibling prop whose rows own the field (`RowFieldName<P>`); absent means the bound entity. */
+  of?: string;
   /**
    * For `kind: "event-list"`: which field inside each array item holds the
    * event key. Default is `"event"` — set explicitly when the descriptor
@@ -594,6 +598,8 @@ export interface PatternEntry {
       tupleItems?: PropTypeSchema[];
       numericEnumValues?: number[];
       kind?: ExtractedPropKind;
+      /** For `kind: "field-ref"`: the sibling prop whose rows own the field (`RowFieldName<P>`); absent means the bound entity. */
+      of?: string;
       eventField?: string;
       /** Sibling event prop this prop carries the payload for (`@payloadFor`). */
       payloadFor?: string;

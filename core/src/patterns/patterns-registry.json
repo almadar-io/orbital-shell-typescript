@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-12T10:36:24.418Z",
+  "exportedAt": "2026-11-12T19:06:38.972Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -891,18 +891,6 @@
               "object"
             ],
             "properties": {
-              "key": {
-                "types": [
-                  "string"
-                ],
-                "kind": "field-ref"
-              },
-              "field": {
-                "types": [
-                  "string"
-                ],
-                "kind": "field-ref"
-              },
               "header": {
                 "types": [
                   "string"
@@ -1017,6 +1005,20 @@
                 "types": [
                   "boolean"
                 ]
+              },
+              "key": {
+                "types": [
+                  "string"
+                ],
+                "kind": "field-ref",
+                "of": "lineItems"
+              },
+              "field": {
+                "types": [
+                  "string"
+                ],
+                "kind": "field-ref",
+                "of": "lineItems"
               }
             },
             "required": [
@@ -107707,6 +107709,71 @@
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
         },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
+        },
         "type": {
           "types": [
             "string"
@@ -107728,7 +107795,10 @@
             "rect",
             "ellipse",
             "poly",
-            "path"
+            "path",
+            "capsule",
+            "arc",
+            "polygon"
           ]
         },
         "position": {
@@ -108375,6 +108445,101 @@
             "number"
           ],
           "description": "0..1 opacity."
+        },
+        "corners": {
+          "types": [
+            "object"
+          ],
+          "description": "Per-corner radii and corner kind (`rect` only; orbital painter).",
+          "properties": {
+            "radius": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "number"
+                ]
+              }
+            },
+            "kind": {
+              "types": [
+                "string"
+              ],
+              "enumValues": [
+                "round",
+                "bevel",
+                "notch",
+                "scoop"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "radius"
+          ]
+        },
+        "startAngle": {
+          "types": [
+            "number"
+          ],
+          "description": "Arc start angle in radians (`arc`: centred in the box, radius = min(width, height)/2)."
+        },
+        "sweep": {
+          "types": [
+            "number"
+          ],
+          "description": "Arc sweep in radians."
+        },
+        "thickness": {
+          "types": [
+            "number"
+          ],
+          "description": "Arc thickness in px."
+        },
+        "sides": {
+          "types": [
+            "number"
+          ],
+          "description": "Polygon side count, at least 3 (`polygon`: inscribed in the box)."
+        },
+        "starRatio": {
+          "types": [
+            "number"
+          ],
+          "description": "Polygon inner-vertex ratio, 0..1; 1 is a regular polygon, below 1 alternates inner vertices (a star)."
+        },
+        "material": {
+          "types": [
+            "object"
+          ],
+          "description": "Shader fill (orbital painter).",
+          "properties": {
+            "wgsl": {
+              "types": [
+                "string"
+              ]
+            },
+            "params": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "number"
+                ]
+              }
+            },
+            "live": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "wgsl",
+            "params",
+            "live"
+          ]
         }
       },
       "drawable": true
@@ -108398,6 +108563,71 @@
             "string"
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
+        },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
         },
         "type": {
           "types": [
@@ -108675,6 +108905,71 @@
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
         },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
+        },
         "type": {
           "types": [
             "string"
@@ -108789,6 +109084,99 @@
             "number"
           ],
           "description": "opacity prop"
+        },
+        "width": {
+          "types": [
+            "number"
+          ],
+          "description": "Line width in px; with it the text lays out as a paragraph from `position` (top-left anchor). Orbital painter."
+        },
+        "wrap": {
+          "types": [
+            "boolean"
+          ],
+          "description": "Break at line opportunities within `width` (default true when `width` is set)."
+        },
+        "maxLines": {
+          "types": [
+            "number"
+          ],
+          "description": "Maximum number of lines; the last kept line ends in an ellipsis when `truncate` is true."
+        },
+        "truncate": {
+          "types": [
+            "boolean"
+          ],
+          "description": "Ellipsis instead of overflow."
+        },
+        "lineHeight": {
+          "types": [
+            "number"
+          ],
+          "description": "Line height as a multiple of the font size (default 1.3)."
+        },
+        "measure": {
+          "types": [
+            "boolean"
+          ],
+          "description": "Report this text's size in `measureEvent` (needs `id`)."
+        },
+        "animation": {
+          "types": [
+            "object"
+          ],
+          "description": "Keyframe animation over `opacity`, `offsetX` and `offsetY` (orbital painter; the TS painter ignores it).",
+          "properties": {
+            "durationMs": {
+              "types": [
+                "number"
+              ]
+            },
+            "loop": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "keyframes": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "at": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "opacity": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "offsetX": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "offsetY": {
+                    "types": [
+                      "number"
+                    ]
+                  }
+                },
+                "required": [
+                  "at"
+                ]
+              }
+            }
+          },
+          "propertyRequired": [
+            "durationMs",
+            "keyframes"
+          ]
         }
       },
       "drawable": true
@@ -108813,6 +109201,71 @@
             "string"
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
+        },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
         },
         "type": {
           "types": [
@@ -108848,6 +109301,68 @@
                   "string"
                 ]
               },
+              "hit": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "semantic": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "role": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "name": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "value": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "checked": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "disabled": {
+                    "types": [
+                      "boolean"
+                    ]
+                  }
+                },
+                "required": [
+                  "role",
+                  "name"
+                ]
+              },
+              "spring": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "stiffness": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "damping": {
+                    "types": [
+                      "number"
+                    ]
+                  }
+                },
+                "required": [
+                  "stiffness",
+                  "damping"
+                ]
+              },
               "shape": {
                 "types": [
                   "string"
@@ -108857,7 +109372,10 @@
                   "rect",
                   "ellipse",
                   "poly",
-                  "path"
+                  "path",
+                  "capsule",
+                  "arc",
+                  "polygon"
                 ]
               },
               "position": {
@@ -109478,6 +109996,94 @@
                 "types": [
                   "number"
                 ]
+              },
+              "corners": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "radius": {
+                    "types": [
+                      "array"
+                    ],
+                    "items": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  },
+                  "kind": {
+                    "types": [
+                      "string"
+                    ],
+                    "enumValues": [
+                      "round",
+                      "bevel",
+                      "notch",
+                      "scoop"
+                    ]
+                  }
+                },
+                "required": [
+                  "radius"
+                ]
+              },
+              "startAngle": {
+                "types": [
+                  "number"
+                ]
+              },
+              "sweep": {
+                "types": [
+                  "number"
+                ]
+              },
+              "thickness": {
+                "types": [
+                  "number"
+                ]
+              },
+              "sides": {
+                "types": [
+                  "number"
+                ]
+              },
+              "starRatio": {
+                "types": [
+                  "number"
+                ]
+              },
+              "material": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "wgsl": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "params": {
+                    "types": [
+                      "array"
+                    ],
+                    "items": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  },
+                  "live": {
+                    "types": [
+                      "boolean"
+                    ]
+                  }
+                },
+                "required": [
+                  "wgsl",
+                  "params",
+                  "live"
+                ]
               }
             },
             "required": [
@@ -109511,6 +110117,71 @@
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
         },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
+        },
         "type": {
           "types": [
             "string"
@@ -109543,6 +110214,68 @@
               "id": {
                 "types": [
                   "string"
+                ]
+              },
+              "hit": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "semantic": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "role": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "name": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "value": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "checked": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "disabled": {
+                    "types": [
+                      "boolean"
+                    ]
+                  }
+                },
+                "required": [
+                  "role",
+                  "name"
+                ]
+              },
+              "spring": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "stiffness": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "damping": {
+                    "types": [
+                      "number"
+                    ]
+                  }
+                },
+                "required": [
+                  "stiffness",
+                  "damping"
                 ]
               },
               "position": {
@@ -109805,6 +110538,71 @@
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
         },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
+        },
         "type": {
           "types": [
             "string"
@@ -109837,6 +110635,68 @@
               "id": {
                 "types": [
                   "string"
+                ]
+              },
+              "hit": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "semantic": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "role": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "name": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "value": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "checked": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "disabled": {
+                    "types": [
+                      "boolean"
+                    ]
+                  }
+                },
+                "required": [
+                  "role",
+                  "name"
+                ]
+              },
+              "spring": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "stiffness": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "damping": {
+                    "types": [
+                      "number"
+                    ]
+                  }
+                },
+                "required": [
+                  "stiffness",
+                  "damping"
                 ]
               },
               "text": {
@@ -109930,6 +110790,92 @@
                 "types": [
                   "number"
                 ]
+              },
+              "width": {
+                "types": [
+                  "number"
+                ]
+              },
+              "wrap": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "maxLines": {
+                "types": [
+                  "number"
+                ]
+              },
+              "truncate": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "lineHeight": {
+                "types": [
+                  "number"
+                ]
+              },
+              "measure": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "animation": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "durationMs": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "loop": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "keyframes": {
+                    "types": [
+                      "array"
+                    ],
+                    "items": {
+                      "types": [
+                        "object"
+                      ],
+                      "properties": {
+                        "at": {
+                          "types": [
+                            "number"
+                          ]
+                        },
+                        "opacity": {
+                          "types": [
+                            "number"
+                          ]
+                        },
+                        "offsetX": {
+                          "types": [
+                            "number"
+                          ]
+                        },
+                        "offsetY": {
+                          "types": [
+                            "number"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "at"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "durationMs",
+                  "keyframes"
+                ]
               }
             },
             "required": [
@@ -109955,6 +110901,15 @@
       ],
       "typicalSize": "medium",
       "propsSchema": {
+        "painter": {
+          "types": [
+            "string"
+          ],
+          "description": "Draw this canvas with orbital-canvas (wasm on the web) instead of the TypeScript painter; 2D mode only. Absent: the default 2D painter.",
+          "enumValues": [
+            "orbital"
+          ]
+        },
         "mode": {
           "types": [
             "string"
@@ -110668,6 +111623,188 @@
               "name": "elevation",
               "type": "number",
               "required": false
+            }
+          ]
+        },
+        "pointerDownEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "A primary press began on a hit drawable (orbital painter).",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "x",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "y",
+              "type": "number",
+              "required": true
+            }
+          ]
+        },
+        "pointerUpEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "The press ended; sent to the drawable that took the down, wherever the pointer is (orbital painter).",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "x",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "y",
+              "type": "number",
+              "required": true
+            }
+          ]
+        },
+        "pointerEnterEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "The pointer entered a hit drawable, topmost only (orbital painter).",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "x",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "y",
+              "type": "number",
+              "required": true
+            }
+          ]
+        },
+        "pointerLeaveEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "The pointer left a hit drawable or the canvas (orbital painter).",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "x",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "y",
+              "type": "number",
+              "required": true
+            }
+          ]
+        },
+        "pointerMoveEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "The pointer moved over a hit drawable, or anywhere while that drawable holds capture (orbital painter).",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "x",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "y",
+              "type": "number",
+              "required": true
+            }
+          ]
+        },
+        "pointerMoves": {
+          "types": [
+            "string"
+          ],
+          "description": "Which moves `pointerMoveEvent` sends: `all` (hover and drag) or `captured` (only while a press holds capture). Orbital painter.",
+          "enumValues": [
+            "all",
+            "captured"
+          ]
+        },
+        "measureEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Sizes of every `draw-text` with `measure: true`, sent after a paint in which any of them changed (orbital painter).",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "items",
+              "type": "array",
+              "required": true,
+              "schema": {
+                "types": [
+                  "array"
+                ],
+                "items": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "id": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "width": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "height": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "lines": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "width",
+                    "height",
+                    "lines"
+                  ]
+                }
+              }
             }
           ]
         },
@@ -113040,6 +114177,71 @@
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
         },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
+        },
         "type": {
           "types": [
             "string"
@@ -113620,6 +114822,71 @@
             "string"
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
+        },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
         },
         "type": {
           "types": [
@@ -115587,6 +116854,71 @@
             "string"
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
+        },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
         },
         "type": {
           "types": [
@@ -119279,6 +120611,71 @@
             "string"
           ],
           "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
+        },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
         },
         "type": {
           "types": [

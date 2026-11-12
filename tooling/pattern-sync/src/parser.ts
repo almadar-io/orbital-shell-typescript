@@ -133,6 +133,7 @@ function mappedToPropTypeSchema(m: MappedType): PropTypeSchema {
   // ELEMENT type). Narrow to exactly that pair, not the whole `kind` enum.
   if (m.kind === 'event' || m.kind === 'event-ref') out.kind = 'event';
   if (m.kind === 'field-ref') out.kind = 'field-ref';
+  if (m.of) out.of = m.of;
   if (m.kind === 'text') out.kind = 'text';
   if (m.payloadFor) out.payloadFor = m.payloadFor;
   if (m.changedBy) out.changedBy = m.changedBy;
@@ -193,6 +194,8 @@ interface MappedType {
    */
   numericEnumValues?: number[];
   kind?: ExtractedPropKind;
+  /** For `kind: "field-ref"`: the sibling prop whose rows own the field (`RowFieldName<P>`); absent means the bound entity. */
+  of?: string;
   eventField?: string;
   /**
    * For `kind: "entity"` (the data inlet): single record vs collection. Set
@@ -1303,6 +1306,14 @@ function mapTypeNode(
     }
 
     if (typeName === "EntityFieldName" && coreImports.has("EntityFieldName")) {
+      return { types: ["string"], kind: "field-ref" };
+    }
+
+    if (typeName === "RowFieldName" && coreImports.has("RowFieldName")) {
+      const ofProp = node.typeArguments?.[0];
+      if (ofProp && ts.isLiteralTypeNode(ofProp) && ts.isStringLiteral(ofProp.literal)) {
+        return { types: ["string"], kind: "field-ref", of: ofProp.literal.text };
+      }
       return { types: ["string"], kind: "field-ref" };
     }
 
@@ -3020,6 +3031,7 @@ function mapPropertySignatureToProp(
   if (mapped.mapKeyEnum) extracted.mapKeyEnum = mapped.mapKeyEnum;
   if (mapped.tupleItems) extracted.tupleItems = mapped.tupleItems.map(mappedToPropTypeSchema);
   if (mapped.kind) extracted.kind = mapped.kind;
+  if (mapped.of) extracted.of = mapped.of;
   if (mapped.eventField) extracted.eventField = mapped.eventField;
   if (mapped.itemKind) extracted.itemKind = mapped.itemKind;
   if (mapped.cardinality) extracted.cardinality = mapped.cardinality;
@@ -3395,6 +3407,9 @@ export function parseComponent(
     // pointer/raycast at a cell into a unit/entity click; no id → tile click.
     DrawableBase: [
       { name: "id", types: ["string"], description: "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click).", required: false },
+      { name: "hit", types: ["boolean"], description: "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it.", required: false },
+      { name: "semantic", types: ["object"], properties: { role: { types: ["string"] }, name: { types: ["string"] }, value: { types: ["string"] }, checked: { types: ["boolean"] }, disabled: { types: ["boolean"] } }, propertyRequired: ["role", "name"], description: "Accessibility node for this drawable.", required: false },
+      { name: "spring", types: ["object"], properties: { stiffness: { types: ["number"] }, damping: { types: ["number"] } }, propertyRequired: ["stiffness", "damping"], description: "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.", required: false },
     ],
   };
 

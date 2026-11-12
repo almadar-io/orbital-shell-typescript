@@ -21,7 +21,7 @@ import { DrawableRegistryContext } from '../../../lib/drawable/registry';
 import { useContext } from 'react';
 import type { Point } from '../../../core';
 
-export type ShapeKind = 'cell' | 'rect' | 'ellipse' | 'poly' | 'path';
+export type ShapeKind = 'cell' | 'rect' | 'ellipse' | 'poly' | 'path' | 'capsule' | 'arc' | 'polygon';
 
 /** Composite modes a shape may blend with — the canvas `globalCompositeOperation` set, spelled out so the pattern schema carries a real enum. */
 export type DrawShapeBlendMode =
@@ -131,6 +131,27 @@ export interface DrawShapeAnimation {
     keyframes: DrawShapeKeyframe[];
 }
 
+/** Rounded-rect corner treatment: `round`, `bevel`, `notch` or `scoop`. */
+export type DrawShapeCornerKind = 'round' | 'bevel' | 'notch' | 'scoop';
+
+/** Per-corner radii for a `rect` (top-left, top-right, bottom-right, bottom-left) and how each corner is cut. */
+export interface DrawShapeCorners {
+    /** Radii in px: top-left, top-right, bottom-right, bottom-left. */
+    radius: number[];
+    /** Corner treatment. */
+    kind?: DrawShapeCornerKind;
+}
+
+/** A shader fill (orbital painter): the program's WGSL declares `fn shade(px: Pixel) -> vec4<f32>`. */
+export interface DrawShapeMaterial {
+    /** WGSL source defining `shade`. */
+    wgsl: string;
+    /** Up to 8 numeric parameters the shader reads as `a` and `b`. */
+    params: number[];
+    /** True asks for a frame every tick (the shader reads `time`); otherwise it redraws on change and pointer movement. */
+    live: boolean;
+}
+
 export interface DrawShapeProps extends DrawableBase {
     type: 'draw-shape';
     shape: ShapeKind;
@@ -180,6 +201,20 @@ export interface DrawShapeProps extends DrawableBase {
     animation?: DrawShapeAnimation;
     /** 0..1 opacity. */
     opacity?: number;
+    /** Per-corner radii and corner kind (`rect` only; orbital painter). */
+    corners?: DrawShapeCorners;
+    /** Arc start angle in radians (`arc`: centred in the box, radius = min(width, height)/2). */
+    startAngle?: number;
+    /** Arc sweep in radians. */
+    sweep?: number;
+    /** Arc thickness in px. */
+    thickness?: number;
+    /** Polygon side count, at least 3 (`polygon`: inscribed in the box). */
+    sides?: number;
+    /** Polygon inner-vertex ratio, 0..1; 1 is a regular polygon, below 1 alternates inner vertices (a star). */
+    starRatio?: number;
+    /** Shader fill (orbital painter). */
+    material?: DrawShapeMaterial;
 }
 
 /** The keyframe fields that lerp; everything else steps (holds the previous keyframe). */

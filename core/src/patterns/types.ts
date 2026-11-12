@@ -81,6 +81,8 @@ export interface PatternPropTypeSchema {
   types: string[];
   /** Semantic kind of this nested member (e.g. `field-ref` for an entity field name). */
   kind?: PropKind;
+  /** For `kind: "field-ref"`: the sibling prop whose rows own the field (`RowFieldName<P>`); absent means the bound entity. */
+  of?: string;
   enumValues?: string[];
   items?: PatternPropTypeSchema;
   /** For a dynamic-key typed map (`Record<string, V>` with a CONCRETE value
@@ -182,6 +184,8 @@ export interface PatternPropDef {
    * the prop has no additional semantic meaning beyond its JSON shape.
    */
   kind?: PropKind;
+  /** For `kind: "field-ref"`: the sibling prop whose rows own the field (`RowFieldName<P>`); absent means the bound entity. */
+  of?: string;
   /** For an array prop: the semantic kind of each element (e.g. `field-ref` for a list of field names). */
   itemKind?: PropKind;
   /**

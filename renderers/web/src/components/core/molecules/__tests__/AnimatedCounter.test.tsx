@@ -6,6 +6,7 @@ import { AnimatedCounter } from '../AnimatedCounter';
 type IOCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
 
 let observers: IOCallback[] = [];
+let observerOptions: Array<IntersectionObserverInit | undefined> = [];
 
 function mockMotion(reduced: boolean): void {
   vi.stubGlobal('matchMedia', (query: string) => ({
@@ -18,9 +19,11 @@ function mockMotion(reduced: boolean): void {
 
 function mockIntersectionObserver(): void {
   observers = [];
+  observerOptions = [];
   class FakeIO {
-    constructor(cb: IOCallback) {
+    constructor(cb: IOCallback, options?: IntersectionObserverInit) {
       observers.push(cb);
+      observerOptions.push(options);
     }
     observe(): void {}
     disconnect(): void {}
@@ -47,6 +50,12 @@ describe('AnimatedCounter', () => {
   it('shows the zero state with prefix/suffix before it scrolls into view', () => {
     render(<AnimatedCounter value={1234} prefix="$" suffix="+" format="number" />);
     expect(screen.getByText('$0+')).toBeInTheDocument();
+  });
+
+  // G-CROSS-438: a counter whose digits are on screen but less than 30% of its box is visible read 0 (std-wiki PAGES).
+  it('starts counting as soon as any part of it is on screen', () => {
+    render(<AnimatedCounter value={2} />);
+    expect(observerOptions[0]?.threshold).toBe(0);
   });
 
   it('applies number format with prefix and suffix once visible', () => {

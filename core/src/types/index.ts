@@ -1171,6 +1171,7 @@ export { type ContextExtensions } from "./context.js";
 export {
   type EventKey,
   type EntityFieldName,
+  type RowFieldName,
   type VisibleText,
   type EventEmit,
   type EventListen,

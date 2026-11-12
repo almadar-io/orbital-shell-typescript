@@ -10,7 +10,7 @@
 
 import { actionTestId, ACTION_OVERFLOW_TESTID } from '@almadar/core';
 import React, { useCallback, useContext, useEffect, Suspense, lazy } from "react";
-import type { A11yProps, SkeletonSpec, EventPayload, EntityRow, EntityWith, FieldValue, EventKey } from "@almadar/core";
+import type { A11yProps, SkeletonSpec, EventPayload, EntityRow, EntityWith, FieldValue, EventKey, RowFieldName } from "@almadar/core";
 import { Skeleton } from "../molecules/Skeleton";
 import type { RelationFieldCardinality } from "../molecules/RelationSelect";
 import type { ItemActionPayload } from "@almadar/core/patterns";
@@ -410,6 +410,12 @@ export interface DetailPanelStatus {
   variant?: "default" | "success" | "warning" | "danger" | "info";
 }
 
+/** A line-items column; `key`/`field` name fields of the `lineItems` rows, not of the record. */
+export interface LineItemColumn extends Omit<TableViewColumn, 'key' | 'field'> {
+  key: RowFieldName<'lineItems'>;
+  field?: RowFieldName<'lineItems'>;
+}
+
 /**
  * Props for DetailPanel — the generic read-only record detail view.
  *
@@ -499,7 +505,7 @@ export interface DetailPanelProps extends DisplayStateProps, A11yProps {
   /** Child rows shown as the document's line items (ledger). */
   lineItems?: readonly EntityRow[];
   /** Columns of the line-items table (ledger). */
-  lineItemColumns?: readonly TableViewColumn[];
+  lineItemColumns?: readonly LineItemColumn[];
   /** Line items composed in instead of `lineItems` — e.g. the child rows' own trait (ledger). */
   lineItemsContent?: React.ReactNode;
   /** Record fields shown as the document's totals, in order (ledger). */

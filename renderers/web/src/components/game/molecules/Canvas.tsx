@@ -34,13 +34,19 @@ import type { DrawableNode } from '../../../lib/drawable/paintDispatch';
 import { DrawableRegistryContext, type DrawableRegistrar } from '../../../lib/drawable/registry';
 import { Canvas2D, type CameraMode as Canvas2DCameraMode, type Projection } from './Canvas2D';
 import type { CanvasLighting, CanvasPost } from '../../../lib/drawable/scene3dTypes';
+import { OrbitalSceneCanvas } from '../../../lib/drawable/orbital/OrbitalSceneCanvas';
 import { OrbitalCanvas3D } from '../../../lib/drawable/orbital/OrbitalCanvas3D';
 import { cameraConfig } from '../../../lib/drawable/orbital/sceneConfig';
 
 /** Painter selection. Same `drawables` for both; differ only in projection + rasterizer. */
 export type CanvasMode = '2d' | '3d';
 
+/** Painter selection for 2D: `orbital` draws with orbital-canvas (wasm in the browser). */
+export type CanvasPainter = 'orbital';
+
 export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
+    /** Draw this canvas with orbital-canvas (wasm on the web) instead of the TypeScript painter; 2D mode only. Absent: the default 2D painter. */
+    painter?: CanvasPainter;
     /** Painter: 2D sprite/shape/text raster, or 3D mesh. Default '2d'. */
     mode?: CanvasMode;
     /** Neutral drawable descriptors — the `draw-*` children. Routed to the host's painter. */
@@ -104,6 +110,20 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     tileLeaveEvent?: EventEmit<Record<string, never>>;
     /** Feature-click event (3D only). */
     featureClickEvent?: EventEmit<{ featureId: string; x: number; z: number; type?: string; elevation?: number }>;
+    /** A primary press began on a hit drawable (orbital painter). */
+    pointerDownEvent?: EventEmit<{ target: string; x: number; y: number }>;
+    /** The press ended; sent to the drawable that took the down, wherever the pointer is (orbital painter). */
+    pointerUpEvent?: EventEmit<{ target: string; x: number; y: number }>;
+    /** The pointer entered a hit drawable, topmost only (orbital painter). */
+    pointerEnterEvent?: EventEmit<{ target: string; x: number; y: number }>;
+    /** The pointer left a hit drawable or the canvas (orbital painter). */
+    pointerLeaveEvent?: EventEmit<{ target: string; x: number; y: number }>;
+    /** The pointer moved over a hit drawable, or anywhere while that drawable holds capture (orbital painter). */
+    pointerMoveEvent?: EventEmit<{ target: string; x: number; y: number }>;
+    /** Which moves `pointerMoveEvent` sends: `all` (hover and drag) or `captured` (only while a press holds capture). Orbital painter. */
+    pointerMoves?: 'all' | 'captured';
+    /** Sizes of every `draw-text` with `measure: true`, sent after a paint in which any of them changed (orbital painter). */
+    measureEvent?: EventEmit<{ items: { id: string; width: number; height: number; lines: number }[] }>;
     /** Maps a keydown `e.code` — optionally prefixed `Mod+` (⌘/Ctrl), `Shift+`, `Alt+` in that order — to the board's SEMANTIC event (device-agnostic input), emitted as `UI:{event}`; keystrokes inside inputs/textareas never route. */
     keyMap?: Record<string, EventKey>;
     /** Maps a keyup `e.code` — optionally prefixed `Mod+` (⌘/Ctrl), `Shift+`, `Alt+` in that order — to the board's SEMANTIC event, emitted as `UI:{event}`; keystrokes inside inputs/textareas never route. */
@@ -147,6 +167,7 @@ export function to2DCamera(mode: Camera['mode'], controls?: boolean): Canvas2DCa
 
 export function Canvas({
     mode = '2d',
+    painter,
     drawables,
     camera,
     projection,
@@ -174,6 +195,13 @@ export function Canvas({
     tileHoverEvent,
     tileLeaveEvent,
     featureClickEvent,
+    pointerDownEvent,
+    pointerUpEvent,
+    pointerEnterEvent,
+    pointerLeaveEvent,
+    pointerMoveEvent,
+    pointerMoves,
+    measureEvent,
     keyMap,
     keyUpMap,
     gestureMap,
@@ -250,6 +278,42 @@ export function Canvas({
         }),
         [camera, projection, unitScale, showMinimap, fit, tileWidth, backgroundImage, backgroundColor, worldWidth, worldHeight, pixelsPerUnit, showGrid, shadows, showCoordinates, showTileInfo, fogOfWar, lighting, post, tileClickEvent, unitClickEvent, tileHoverEvent, tileLeaveEvent, featureClickEvent, keyMap, keyUpMap, editable, selectedId, selectEvent, moveEvent],
     );
+    const configOrbital2d = useMemo<PatternConfig<'canvas'>>(
+        () => ({
+            type: 'canvas',
+            mode: '2d',
+            painter: 'orbital',
+            drawables,
+            camera: cameraConfig(camera),
+            projection,
+            unitScale,
+            fit,
+            tileWidth,
+            backgroundImage,
+            backgroundColor,
+            worldWidth,
+            worldHeight,
+            tileClickEvent,
+            unitClickEvent,
+            tileHoverEvent,
+            tileLeaveEvent,
+            pointerDownEvent,
+            pointerUpEvent,
+            pointerEnterEvent,
+            pointerLeaveEvent,
+            pointerMoveEvent,
+            pointerMoves,
+            measureEvent,
+            keyMap,
+            keyUpMap,
+            gestureMap,
+            editable,
+            selectedId: selectedId ?? undefined,
+            selectEvent,
+            moveEvent,
+        }),
+        [drawables, camera, projection, unitScale, fit, tileWidth, backgroundImage, backgroundColor, worldWidth, worldHeight, tileClickEvent, unitClickEvent, tileHoverEvent, tileLeaveEvent, pointerDownEvent, pointerUpEvent, pointerEnterEvent, pointerLeaveEvent, pointerMoveEvent, pointerMoves, measureEvent, keyMap, keyUpMap, gestureMap, editable, selectedId, selectEvent, moveEvent],
+    );
     const allDrawables = useMemo(() => [...(drawables ?? []), ...childDrawables], [drawables, childDrawables]);
 
     if (mode === '3d') {
@@ -285,6 +349,23 @@ export function Canvas({
                         <div aria-hidden="true" style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>{children}</div>
                     </DrawableRegistryContext.Provider>
                 )}
+            </div>
+        );
+    }
+
+    if (painter === 'orbital') {
+        return (
+            <div role="img" aria-label={t('aria.canvasScene')} {...(description ? { 'aria-describedby': descId } : {})} {...domPassthrough(rest)} className="contents">
+                {description && <Box id={descId} className="sr-only">{description}</Box>}
+                <OrbitalSceneCanvas
+                    pattern="canvas"
+                    config={configOrbital2d}
+                    width={worldWidth ?? 800}
+                    height={worldHeight ?? 600}
+                    className={className}
+                    keyMap={keyMap}
+                    keyUpMap={keyUpMap}
+                />
             </div>
         );
     }

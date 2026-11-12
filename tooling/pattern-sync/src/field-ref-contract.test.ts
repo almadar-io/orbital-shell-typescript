@@ -64,6 +64,27 @@ describe('field-ref contract', () => {
     expect(JSON.stringify(parsed?.props)).not.toContain('field-ref');
   });
 
+  it('carries the sibling prop a RowFieldName names as `of`, and gives EntityFieldName none', () => {
+    const parsed = parseProbe(`import type { EntityFieldName, RowFieldName } from '@almadar/core';
+      export interface ProbeProps {
+        columns: { key: RowFieldName<'rows'>; field?: EntityFieldName; label: string }[];
+        rowField?: RowFieldName<'rows'>;
+      }
+      export function Probe(): null { return null; }`);
+    const columns = parsed?.props.find((p) => p.name === 'columns');
+    expect(columns?.items?.properties?.key).toMatchObject({ types: ['string'], kind: 'field-ref', of: 'rows' });
+    expect(columns?.items?.properties?.field?.kind).toBe('field-ref');
+    expect(columns?.items?.properties?.field?.of).toBeUndefined();
+    expect(parsed?.props.find((p) => p.name === 'rowField')).toMatchObject({ kind: 'field-ref', of: 'rows' });
+  });
+
+  it('ignores a RowFieldName declared locally instead of imported from core', () => {
+    const parsed = parseProbe(`type RowFieldName<P extends string> = string;
+      export interface ProbeProps { columns: { key: RowFieldName<'rows'> }[]; }
+      export function Probe(): null { return null; }`);
+    expect(JSON.stringify(parsed?.props)).not.toContain('field-ref');
+  });
+
   it('gives a plain string prop named field no kind', () => {
     const parsed = parseProbe(`export interface ProbeProps { field?: string; }
       export function Probe(): null { return null; }`);

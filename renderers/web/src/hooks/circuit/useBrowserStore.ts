@@ -9,7 +9,7 @@ import { orbitalInlineEntities, storesRowsInBrowser } from '@almadar/core';
 import { browserStoreName, openBrowserStore } from '../../runtime';
 import { persistedMemory } from '../../runtime/evaluation/persisted-memory';
 import { KernelLoaderMissingError, useKernelEngine } from '../../providers/KernelEngineContext';
-import type { IndexedDbPersistence } from '@almadar/shell-browser/storage';
+import type { BrowserStore } from '../../runtime/evaluation/browser-store-transport';
 import type { PersistenceAdapter } from '@almadar/core';
 
 export type BrowserStoreState =
@@ -29,7 +29,7 @@ export function useBrowserStore(appName: string, orbitals: readonly OrbitalDefin
       return;
     }
     let cancelled = false;
-    let opened: IndexedDbPersistence | undefined;
+    let opened: BrowserStore | undefined;
     setState({ status: 'opening' });
     const open = async (): Promise<void> => {
       try {

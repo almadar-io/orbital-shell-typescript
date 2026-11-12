@@ -134,6 +134,7 @@ export function toPatternEntry(
       ...(prop.mapKeyEnum ? { mapKeyEnum: prop.mapKeyEnum } : {}),
       ...(prop.tupleItems ? { tupleItems: prop.tupleItems } : {}),
       ...(prop.kind ? { kind: prop.kind } : {}),
+      ...(prop.of ? { of: prop.of } : {}),
       ...(prop.eventField ? { eventField: prop.eventField } : {}),
       ...(prop.payloadFor ? { payloadFor: prop.payloadFor } : {}),
       ...(prop.changedBy ? { changedBy: prop.changedBy } : {}),

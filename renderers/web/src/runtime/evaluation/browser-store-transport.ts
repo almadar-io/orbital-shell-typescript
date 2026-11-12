@@ -13,7 +13,7 @@ import { IndexedDbPersistence } from '@almadar/shell-browser/storage';
 import type { EffectHandlers } from '@almadar/shell-runtime/runtime/types';
 import type { DeferredCallOutcome } from '../../kernel/host.js';
 import { nativeMemoryPersistence } from './native-memory.js';
-import { persistedMemory } from './persisted-memory.js';
+import { persistedMemory, type BrowserDatabase } from './persisted-memory.js';
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import { createLocalStoreTransport, localStorePersistence, openLocalKernel } from './local-store-transport.js';
 import { tickEventKey } from '@almadar/core';
@@ -24,19 +24,92 @@ export function browserStoreName(appName: string, locale: string | undefined): s
   return locale !== undefined ? `almadar:${appName}:${locale}` : `almadar:${appName}`;
 }
 
-/** Open the store; `null` when no entity is browser-stored. */
+/** The rows of a browser-stored program, filed by collection: `persistedMemory`'s database over the app's IndexedDB. */
+export interface BrowserStore extends BrowserDatabase {
+  close(): void;
+}
+
+/** The table an entity's rows live in: its declared collection, else its name (`EntitySource::entity_types`, `bind_program_rows`). */
+function tableOf(entity: OrbitalEntity): string {
+  return entity.collection ?? entity.name;
+}
+
+/**
+ * Rows once filed under an entity's type name move into the entity's collection store. A type-named store that is also
+ * some entity's collection already holds collection rows and stays. A row already in the collection store wins over its
+ * old copy.
+ */
+async function moveTypeStores(factory: IDBFactory, databaseName: string, entities: readonly OrbitalEntity[]): Promise<void> {
+  const collections = new Set(entities.map(tableOf));
+  const current = await new Promise<IDBDatabase>((resolve, reject) => {
+    const req = factory.open(databaseName);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  const stale = entities.filter((e) => tableOf(e) !== e.name && !collections.has(e.name) && current.objectStoreNames.contains(e.name));
+  const next = current.version + 1;
+  current.close();
+  if (stale.length === 0) return;
+  await new Promise<void>((resolve, reject) => {
+    const req = factory.open(databaseName, next);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      const tx = req.transaction;
+      if (tx === null) return;
+      const moveOne = (index: number): void => {
+        const entity = stale[index];
+        if (entity === undefined) return;
+        const target = tableOf(entity);
+        if (!db.objectStoreNames.contains(target)) db.createObjectStore(target, { keyPath: 'id' });
+        const old = tx.objectStore(entity.name);
+        const destination = tx.objectStore(target);
+        const rows = old.getAll();
+        rows.onsuccess = () => {
+          const keys = destination.getAllKeys();
+          keys.onsuccess = () => {
+            const present = new Set(keys.result);
+            for (const row of rows.result) if (!present.has(row.id)) destination.put(row);
+            db.deleteObjectStore(entity.name);
+            moveOne(index + 1);
+          };
+        };
+      };
+      moveOne(0);
+    };
+    req.onsuccess = () => {
+      req.result.close();
+      resolve();
+    };
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => reject(new Error(`browser store "${databaseName}" is open in another context and cannot be upgraded`));
+  });
+}
+
+/** Open the store; `null` when no entity is browser-stored. Every entity bound to one collection shares its rows. */
 export async function openBrowserStore(
   databaseName: string,
   orbitals: readonly OrbitalDefinition[],
   factory?: IDBFactory,
-): Promise<IndexedDbPersistence | null> {
+): Promise<BrowserStore | null> {
   const entities = orbitals.flatMap(orbitalInlineEntities).filter(storesRowsInBrowser);
   if (entities.length === 0) return null;
-  return IndexedDbPersistence.open({
+  const idb = factory ?? globalThis.indexedDB;
+  if (!idb) throw new Error('IndexedDbPersistence: this environment has no IndexedDB');
+  await moveTypeStores(idb, databaseName, entities);
+  const tables = new Map(entities.map((e) => [e.name, tableOf(e)]));
+  const table = (entityType: string): string => tables.get(entityType) ?? entityType;
+  const database = await IndexedDbPersistence.open({
     databaseName,
-    entityTypes: entities.map((e) => e.name),
-    ...(factory !== undefined ? { factory } : {}),
+    entityTypes: [...new Set(tables.values())],
+    factory: idb,
   });
+  return {
+    create: (entityType, data) => database.create(table(entityType), data),
+    delete: (entityType, id) => database.delete(table(entityType), id),
+    list: (entityType) => database.list(table(entityType)),
+    changes: () => database.changes(),
+    close: () => database.close(),
+  };
 }
 
 function browserEntities(orbitals: readonly OrbitalDefinition[]): OrbitalEntity[] {
