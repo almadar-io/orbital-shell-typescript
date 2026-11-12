@@ -60,7 +60,7 @@ function begin(ctx: AudioContext, buffer: AudioBuffer, spec: { key: string; at: 
 /** `audio/schedule`: plays exactly the declared commands on the audio-clock timeline; any command it cannot honour fails the ask before anything plays. */
 export async function scheduleAudio(commands: readonly AudioScheduleCommand[]): Promise<void> {
   const ctx = audioContext();
-  if (ctx === undefined) throw new HostAskError('unsupported', 'audio/schedule: this environment has no AudioContext');
+  if (ctx === undefined) throw new HostAskError('unavailable', 'audio/schedule: this environment has no AudioContext');
   const known = new Set(voices.keys());
   for (const command of commands) {
     if ('start' in command) known.add(command.start.key);
@@ -106,6 +106,6 @@ export async function scheduleAudio(commands: readonly AudioScheduleCommand[]): 
 /** `audio/clock`: the audio clock and the wall clock, read together. */
 export async function readAudioClock(): Promise<AudioClockAnswer> {
   const ctx = audioContext();
-  if (ctx === undefined) throw new HostAskError('unsupported', 'audio/clock: this environment has no AudioContext');
+  if (ctx === undefined) throw new HostAskError('unavailable', 'audio/clock: this environment has no AudioContext');
   return { audio: ctx.currentTime, wall: Date.now() };
 }

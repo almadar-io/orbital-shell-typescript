@@ -210,9 +210,9 @@ describe('audio/schedule and audio/clock: host asks answered through performHost
     expect('error' in parseAudioScheduleCommands([[{ stop: { key: 'a' } }]])).toBe(true);
   });
 
-  it('a host with no scheduler or clock answers unsupported', async () => {
-    expect(await performHostAnswer({}, 'audio/schedule', [[startCommand]])).toMatchObject({ kind: 'unsupported' });
-    expect(await performHostAnswer(undefined, 'audio/clock', [])).toMatchObject({ kind: 'unsupported' });
+  it('a host with no scheduler or clock answers unavailable', async () => {
+    expect(await performHostAnswer({}, 'audio/schedule', [[startCommand]])).toMatchObject({ kind: 'unavailable' });
+    expect(await performHostAnswer(undefined, 'audio/clock', [])).toMatchObject({ kind: 'unavailable' });
   });
 
   it('answers the clock with the audio and wall readings, and refuses arguments', async () => {

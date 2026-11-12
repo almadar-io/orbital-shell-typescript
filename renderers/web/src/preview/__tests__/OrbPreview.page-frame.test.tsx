@@ -62,4 +62,22 @@ describe('OrbPreview — frame', () => {
     expect(dock.className).toMatch(/\babsolute\b/);
     expect(inset()).toBe('');
   });
+
+  it('page: the frame is the viewport, so it draws no border and no rounded corners', async () => {
+    stubDesktop();
+    const { container } = render(<OrbPreview schema={schema} isolated height="auto" frame="page" />);
+    await screen.findByRole('complementary');
+    const frame = container.firstElementChild;
+    expect(frame?.className).not.toContain('rounded-[var(--radius-md)]');
+    expect(frame?.className).not.toContain('border-[var(--color-border)]');
+  });
+
+  it('control: a contained preview draws its box with a border and rounded corners', async () => {
+    stubDesktop();
+    const { container } = render(<OrbPreview schema={schema} isolated />);
+    await screen.findByRole('complementary');
+    const frame = container.firstElementChild;
+    expect(frame?.className).toContain('rounded-[var(--radius-md)]');
+    expect(frame?.className).toContain('border-[var(--color-border)]');
+  });
 });

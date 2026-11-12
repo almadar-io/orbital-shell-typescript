@@ -55,6 +55,8 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     // --- Shared view config ---
     className?: string;
     isLoading?: boolean;
+    /** 3D: take the height of the box that holds the canvas, with no minimum (a small scene in a header or a rail). Default false: the surface is at least 400px tall. */
+    fillContainer?: boolean;
     /** Unit draw-size multiplier (both painters). */
     unitScale?: number;
     /** Minimap overlay (2D). */
@@ -150,6 +152,7 @@ export function Canvas({
     projection,
     className,
     isLoading,
+    fillContainer,
     unitScale,
     showMinimap,
     fit,
@@ -263,6 +266,7 @@ export function Canvas({
                         config={config3d}
                         drawables={allDrawables}
                         className={className}
+                        {...(fillContainer !== undefined ? { fillContainer } : {})}
                         tileClickEvent={tileClickEvent}
                         unitClickEvent={unitClickEvent}
                         keyMap={keyMap}

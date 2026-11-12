@@ -16,6 +16,7 @@ import { DeclaredTraitConfigSchema, TraitConfigValueSchema, TraitReferenceObject
 import { ExpectDeclarationSchema, OrbitalRefObjectSchema, type OrbitalRefObject } from './orbital.js';
 import { EntityFieldSchema, type EntityField } from './field.js';
 import { EntityPersistenceSchema } from './entity.js';
+import { ThemeRefSchema } from './domain.js';
 import { StateMachineSchema, type StateMachine } from './state-machine.js';
 import type { JsonValue, RuntimeValue } from './json.js';
 import type { OrbitalSchema } from './schema.js';
@@ -513,6 +514,12 @@ export const BehaviorDescriptionSchema = z.object({
   orbitals: z.array(OrbitalDescriptionSchema),
   /** The behaviors this one imports (`uses … from`): what it already contains. */
   uses: z.array(z.string()).optional(),
+  /** The look and languages the behavior's app header declares; absent when it declares none. Reach is not here: composition unions it. */
+  header: z.object({
+    theme: ThemeRefSchema.optional(),
+    themes: z.array(ThemeRefSchema).optional(),
+    locales: z.array(z.string().min(1)).optional(),
+  }).strict().optional(),
 }).strict();
 export type BehaviorDescription = z.infer<typeof BehaviorDescriptionSchema>;
 

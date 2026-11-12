@@ -989,7 +989,7 @@ export function OrbPreview({
   return withBridge(
     <Box
       ref={containerRef}
-      className={`${fit ? 'overflow-hidden' : 'overflow-auto'} border border-[var(--color-border)] rounded-[var(--radius-md)] ${className ?? ''}`}
+      className={`${fit ? 'overflow-hidden' : 'overflow-auto'} ${frame === 'page' ? '' : 'border border-[var(--color-border)] rounded-[var(--radius-md)]'} ${className ?? ''}`}
       style={{ height }}
     >
       {/* GAP-19: visible banner when the preview server bridge fell back to local execution.

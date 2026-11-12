@@ -66,7 +66,6 @@ function KernelApp(): React.ReactElement | null {
       schemaPath={PROGRAM_URL}
       height="100dvh"
       frame="page"
-      className="border-0 rounded-none"
       initialPagePath={firstPath.current}
       onPageChange={(path) => navigate(path)}
       authority={authority}

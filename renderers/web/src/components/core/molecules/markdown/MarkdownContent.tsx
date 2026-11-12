@@ -2,8 +2,8 @@
  * MarkdownContent Molecule Component
  *
  * Renders markdown content with support for GFM (GitHub Flavored Markdown)
- * and math equations (KaTeX). Handles inline code only — fenced code blocks
- * should be parsed out and rendered with CodeBlock component.
+ * and math equations (KaTeX). A fenced or indented code block renders with
+ * CodeBlock, with or without a language; inline code stays inline.
  *
  * Event Contract:
  * - No events emitted (display-only component)
@@ -59,71 +59,47 @@ function containsMath(node: MdNode): boolean {
   return node.children?.some(containsMath) ?? false;
 }
 
+// A `code` under a `pre` is a block (fenced or indented), with or without a language; any other `code` is inline.
+const InPre = React.createContext(false);
+
+function Code({ className: codeClassName, children, ...props }: React.ComponentPropsWithoutRef<'code'>) {
+  const block = React.useContext(InPre);
+  if (block) {
+    const match = /language-(\w+)/.exec(codeClassName ?? '');
+    const code = String(children).replace(/\n$/, '');
+    if (match?.[1] === 'mermaid') {
+      return <MermaidDiagram code={code} />;
+    }
+    return (
+      <CodeBlock
+        code={code}
+        language={toCodeLanguage(match?.[1])}
+        maxHeight="60vh"
+      />
+    );
+  }
+  return (
+    <code
+      {...props}
+      className={codeClassName}
+      style={{
+        backgroundColor: 'var(--color-muted)',
+        color: 'var(--color-foreground)',
+        border: '1px solid var(--color-border)',
+        padding: '0.125rem 0.375rem',
+        borderRadius: '0.25rem',
+        fontSize: '0.875em',
+        fontFamily: 'ui-monospace, monospace',
+      }}
+    >
+      {children}
+    </code>
+  );
+}
+
 // One identity per override: an inline map remounts every code block and link each time streamed content grows.
 const STATIC_COMPONENTS: Components = {
-  code({
-    className: codeClassName,
-    children,
-    inline,
-    ...props
-  }: React.ComponentPropsWithoutRef<'code'> & { inline?: boolean }) {
-    if (!inline) {
-      const match = /language-(\w+)/.exec(codeClassName ?? '');
-      const code = String(children).replace(/\n$/, '');
-      // Fenced ```mermaid block — render as a diagram
-      if (match?.[1] === 'mermaid') {
-        return <MermaidDiagram code={code} />;
-      }
-      // Fenced block with a language — render with CodeBlock for syntax highlighting
-      if (match) {
-        return (
-          <CodeBlock
-            code={code}
-            language={toCodeLanguage(match[1])}
-            maxHeight="60vh"
-          />
-        );
-      }
-      // Indented block without language — styled like inline code, flows inline
-      return (
-        <code
-          {...props}
-          className={codeClassName}
-          style={{
-            backgroundColor: 'var(--color-muted)',
-            color: 'var(--color-foreground)',
-            border: '1px solid var(--color-border)',
-            padding: '0.125rem 0.375rem',
-            borderRadius: '0.25rem',
-            fontSize: '0.875em',
-            fontFamily: 'ui-monospace, monospace',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {children}
-        </code>
-      );
-    }
-    // Inline code
-    return (
-      <code
-        {...props}
-        className={codeClassName}
-        style={{
-          backgroundColor: 'var(--color-muted)',
-          color: 'var(--color-foreground)',
-          border: '1px solid var(--color-border)',
-          padding: '0.125rem 0.375rem',
-          borderRadius: '0.25rem',
-          fontSize: '0.875em',
-          fontFamily: 'ui-monospace, monospace',
-        }}
-      >
-        {children}
-      </code>
-    );
-  },
+  code: Code,
   // Style links
   a({ href, children, ...props }: React.ComponentPropsWithoutRef<'a'>) {
     return (
@@ -171,9 +147,9 @@ const STATIC_COMPONENTS: Components = {
       </td>
     );
   },
-  // Strip <pre> wrapper so block code renders inline when needed
+  // The block itself draws the box, so the <pre> wrapper is dropped.
   pre({ children }: React.ComponentPropsWithoutRef<'pre'>) {
-    return <>{children}</>;
+    return <InPre.Provider value={true}>{children}</InPre.Provider>;
   },
   // Style blockquotes
   blockquote({ children, ...props }: React.ComponentPropsWithoutRef<'blockquote'>) {

@@ -356,3 +356,17 @@ describe('KnobFieldSchema forwardedFrom', () => {
     expect(KnobFieldSchema.safeParse({ name: 'navItems', type: '[object]', forwardedBy: '@config.navItems' }).success).toBe(false);
   });
 });
+
+describe('BehaviorDescriptionSchema header', () => {
+  const described = { behavior: 'almadar-behaviors/std-shop', config: {}, knobs: [], orbitals: [], uses: [] };
+
+  it('carries the theme and locales the behavior header declares', () => {
+    const parsed = BehaviorDescriptionSchema.parse({ ...described, header: { theme: 'linear-clean-light', locales: ['en', 'ar'] } });
+    expect(parsed.header).toEqual({ theme: 'linear-clean-light', locales: ['en', 'ar'] });
+  });
+
+  it('control: a description with no header parses, and an undeclared header key is refused', () => {
+    expect(BehaviorDescriptionSchema.safeParse(described).success).toBe(true);
+    expect(BehaviorDescriptionSchema.safeParse({ ...described, header: { egress: ['https://x'] } }).success).toBe(false);
+  });
+});

@@ -34,6 +34,8 @@ export interface OrbitalCanvas3DProps<P extends Pattern3D> {
     /** A learning canvas's click on one of its items: orbital-canvas resolves the pattern's `{ id, index }` payload. */
     onShapeClick?: (payload: { id: string; index: number }) => void;
     className?: string;
+    /** Take the container's height with no minimum; without it the surface is at least 400px tall. */
+    fillContainer?: boolean;
     series?: readonly string[];
     tileClickEvent?: string;
     unitClickEvent?: string;
@@ -66,6 +68,7 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
     drawables,
     onShapeClick,
     className,
+    fillContainer,
     series,
     tileClickEvent,
     unitClickEvent,
@@ -254,7 +257,7 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
 
     // The canvas stays mounted through an error: the view is bound to this element, and a remounted canvas would never be drawn.
     return (
-        <div ref={containerRef} className={cn('game-canvas-3d relative w-full overflow-hidden', error && 'game-canvas-3d--error', className)} style={{ flex: '1 1 0', minHeight: '400px' }}>
+        <div ref={containerRef} className={cn('game-canvas-3d relative w-full overflow-hidden', error && 'game-canvas-3d--error', className)} style={fillContainer ? { flex: '1 1 0', height: '100%', minHeight: 0 } : { flex: '1 1 0', minHeight: '400px' }}>
             {error && <div className="game-canvas-3d__error">{t('canvas3d.errorWithMessage', { message: error })}</div>}
             <canvas
                 ref={canvasRef}

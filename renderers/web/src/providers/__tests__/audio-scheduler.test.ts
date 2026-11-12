@@ -125,9 +125,9 @@ describe('audio/schedule and audio/clock host asks', () => {
     vi.restoreAllMocks();
   });
 
-  it('clock without an AudioContext fails unsupported', async () => {
+  it('clock without an AudioContext fails unavailable', async () => {
     vi.stubGlobal('AudioContext', undefined);
-    expect(await failure(readAudioClock())).toMatchObject({ kind: 'unsupported' });
-    expect(await failure(scheduleAudio([start('a')]))).toMatchObject({ kind: 'unsupported' });
+    expect(await failure(readAudioClock())).toMatchObject({ kind: 'unavailable' });
+    expect(await failure(scheduleAudio([start('a')]))).toMatchObject({ kind: 'unavailable' });
   });
 });

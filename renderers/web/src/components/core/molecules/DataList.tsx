@@ -117,6 +117,8 @@ export interface DataListProps extends DataDndProps, EmptyStateSlotProps, A11yPr
    *  { id, row } (action-button clicks stopPropagation so they still win). */
   /** @entityRow row */
   itemClickEvent?: EventEmit<ItemActionPayload>;
+  /** Id of the row shown as the current one (the record open beside the list); no row is marked when absent or unmatched. */
+  selectedId?: string;
   /** Gap between rows */
   gap?: 'none' | 'sm' | 'md' | 'lg';
   /** Visual variant */
@@ -257,6 +259,7 @@ export function DataList({
   itemEnter,
   maxInlineActions,
   itemClickEvent,
+  selectedId,
   gap = 'none',
   variant = 'default',
   groupBy,
@@ -654,6 +657,8 @@ export function DataList({
     const rowId = String(itemData.id ?? '');
     const pending = isRowPending(rowId) || undefined;
     const onOpen = itemClickEvent ? handleRowClick(itemData) : undefined;
+    const isSelected = selectedId !== undefined && selectedId !== '' && rowId === selectedId;
+    const selectedProps = isSelected ? { 'aria-current': 'true' as const, 'data-selected': true } : {};
     const divider = (isCard || isCompact) && !isLast
       ? <Box className={cn('border-b border-border/40', isCompact ? 'mx-4' : 'mx-6')} />
       : null;
@@ -670,8 +675,8 @@ export function DataList({
       const primary = primaryActions.length > 0 ? renderItemActions(itemData, false, primaryActions) : null;
       const actions = otherActions.length > 0 ? renderItemActions(itemData, false, otherActions) : null;
       return wrapDnd(
-        <Box key={id} data-entity-row data-entity-id={id} data-item-key={id} data-item-move={moves.row} data-row-pending={pending} aria-busy={pending}
-          onClick={onOpen} className={cn('relative group/rowactions', onOpen && 'cursor-pointer', enterClassName(itemEnter))}>
+        <Box key={id} data-entity-row data-entity-id={id} data-item-key={id} data-item-move={moves.row} data-row-pending={pending} aria-busy={pending} {...selectedProps}
+          onClick={onOpen} className={cn('relative group/rowactions', onOpen && 'cursor-pointer', isSelected && 'bg-primary/10 rounded-interactive', enterClassName(itemEnter))}>
           {onOpen && (
             <Box
               {...rowOpenControlProps(true)}
@@ -746,8 +751,8 @@ export function DataList({
     );
 
     return wrapDnd(
-      <Box key={id} data-entity-row data-entity-id={id} data-item-key={id} data-item-move={moves.row} data-row-pending={pending} aria-busy={pending}
-        onClick={onOpen} className={cn('relative', onOpen && 'cursor-pointer', enterClassName(itemEnter))}>
+      <Box key={id} data-entity-row data-entity-id={id} data-item-key={id} data-item-move={moves.row} data-row-pending={pending} aria-busy={pending} {...selectedProps}
+        onClick={onOpen} className={cn('relative', onOpen && 'cursor-pointer', isSelected && 'bg-primary/10 rounded-interactive', enterClassName(itemEnter))}>
         <Box
           className={cn(
             // items-start, not items-center: a multi-line row (title + meta +

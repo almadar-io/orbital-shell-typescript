@@ -583,6 +583,8 @@ export type TraitTick = {
     runsInBackground?: boolean;
     /** `[visible]`: a browser tick that pauses while its trait's rendered output is off screen. */
     whileVisible?: boolean;
+    /** Runs only once its row has been in its current state this many milliseconds (a state's `for Ns`). */
+    afterEntryMs?: number;
     pages?: string[];
     /** V4 dual-carry id sibling of `pages` — optional until the Phase-7 flip. */
     pageIds?: PageId[];
@@ -633,6 +635,7 @@ export const TraitTickSchema = z.object({
     appliesTo: z.array(z.string()).optional(),
     runsInBackground: z.boolean().optional(),
     whileVisible: z.boolean().optional(),
+    afterEntryMs: z.number().int().nonnegative().optional(),
     pages: z.array(z.string()).optional(),
     pageIds: z.array(PageIdSchema).optional(),
     guard: ExpressionSchema.optional(),

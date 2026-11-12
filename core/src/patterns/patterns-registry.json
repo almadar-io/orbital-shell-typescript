@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-11T13:36:06.048Z",
+  "exportedAt": "2026-11-12T10:36:24.418Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -49573,6 +49573,12 @@
               "required": true
             }
           ]
+        },
+        "selectedId": {
+          "types": [
+            "string"
+          ],
+          "description": "Id of the row shown as the current one (the record open beside the list); no row is marked when absent or unmatched."
         },
         "gap": {
           "types": [
@@ -110100,6 +110106,12 @@
             "boolean"
           ],
           "description": "isLoading prop"
+        },
+        "fillContainer": {
+          "types": [
+            "boolean"
+          ],
+          "description": "3D: take the height of the box that holds the canvas, with no minimum (a small scene in a header or a rail). Default false: the surface is at least 400px tall."
         },
         "unitScale": {
           "types": [

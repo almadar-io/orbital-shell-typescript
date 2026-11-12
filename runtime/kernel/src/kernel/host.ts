@@ -159,8 +159,8 @@ export interface HostConsentAnswer {
   state: string;
 }
 
-/** Why a host ask failed: the viewer closed it, the provider denied it, the request was malformed, or the host has no such action (`unavailable`), or the environment cannot do it at all (`unsupported`, such as no AudioContext). */
-export type HostAskFailureKind = 'cancelled' | 'denied' | 'invalid' | 'unavailable' | 'unsupported';
+/** Why a host ask failed: the viewer closed it, the provider denied it, the request was malformed, or the host has no such action. */
+export type HostAskFailureKind = 'cancelled' | 'denied' | 'invalid' | 'unavailable';
 
 /** A host action's own failure, carrying the kind the completion reports. */
 export class HostAskError extends Error {
@@ -558,7 +558,7 @@ function hostFailure(error: Error | string): { error: string; kind: HostAskFailu
 async function performAudioSchedule(actions: KernelHostActions | undefined, args: readonly JsonValue[]): Promise<HostAskOutcome> {
   const parsed = parseAudioScheduleCommands(args);
   if ('error' in parsed) return { error: parsed.error, kind: 'invalid' };
-  if (actions?.audioSchedule === undefined) return { error: 'no host audio scheduler is configured for audio/schedule', kind: 'unsupported' };
+  if (actions?.audioSchedule === undefined) return { error: 'no host audio scheduler is configured for audio/schedule', kind: 'unavailable' };
   try {
     await actions.audioSchedule(parsed.commands);
     return { ok: {} };
@@ -569,7 +569,7 @@ async function performAudioSchedule(actions: KernelHostActions | undefined, args
 
 async function performAudioClock(actions: KernelHostActions | undefined, args: readonly JsonValue[]): Promise<HostAskOutcome> {
   if (args.length !== 0) return { error: 'audio/clock takes no arguments', kind: 'invalid' };
-  if (actions?.audioClock === undefined) return { error: 'no host audio clock is configured for audio/clock', kind: 'unsupported' };
+  if (actions?.audioClock === undefined) return { error: 'no host audio clock is configured for audio/clock', kind: 'unavailable' };
   try {
     const { audio, wall } = await actions.audioClock();
     return { ok: { audio, wall } };
