@@ -85,6 +85,8 @@ export interface TableViewColumn {
   icon?: IconInput;
   /** Allow click-to-sort on this column's header (emits `sortEvent`). */
   sortable?: boolean;
+  /** Show the whole value on as many lines as it needs instead of one truncated line (long text: a reason, a message). */
+  wrap?: boolean;
 }
 
 // ── Item Action Definition ───────────────────────────────────────────
@@ -606,7 +608,7 @@ export function TableView({
             return (
               <Box key={col.key} role="cell" className={cellBase}>
                 {stackedLabel}
-                {asControl(<span className="truncate text-foreground">{formatCell(raw, col.format, relationsData?.[col.field ?? col.key], fmt)}</span>)}
+                {asControl(<span className={cn(col.wrap ? 'whitespace-normal break-words' : 'truncate', 'text-foreground')}>{formatCell(raw, col.format, relationsData?.[col.field ?? col.key], fmt)}</span>)}
               </Box>
             );
           })

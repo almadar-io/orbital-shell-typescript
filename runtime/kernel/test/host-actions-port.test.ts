@@ -53,9 +53,14 @@ describe('renderer-neutral audio and sign-out asks (twin of the Rust substrate-a
 
   it('control: a host with no audio or sign-out refuses each ask by name instead of doing nothing', async () => {
     const refused = await answerRequest(ports(), ask('audio/play-sound', [step]), scope);
-    expect(refused).toEqual({ kind: 'substrate', result: { error: { message: 'no host audio is configured for audio/play-sound', errors: [] } } });
+    expect(refused).toEqual({ kind: 'substrate', result: { error: { message: 'no host audio is configured for audio/play-sound', errors: [{ kind: 'unavailable', message: 'no host audio is configured for audio/play-sound' }] } } });
     const noSignOut = await answerRequest(ports({ audio: () => undefined }), ask('auth/sign-out'), scope);
-    expect(noSignOut).toEqual({ kind: 'substrate', result: { error: { message: 'no host sign-out is configured for auth/sign-out', errors: [] } } });
+    expect(noSignOut).toEqual({ kind: 'substrate', result: { error: { message: 'no host sign-out is configured for auth/sign-out', errors: [{ kind: 'unavailable', message: 'no host sign-out is configured for auth/sign-out' }] } } });
+  });
+
+  it('no_host_failure: a kernel-found no-host failure carries kind unavailable (G-CROSS-600)', async () => {
+    const noProgramHost = await answerRequest(ports(), ask('program/eval', []), scope);
+    expect(noProgramHost).toEqual({ kind: 'substrate', result: { error: { message: 'no program host configured for program/eval', errors: [{ kind: 'unavailable', message: 'no program host configured for program/eval' }] } } });
   });
 
   it('control: a bare key, a play missing a field, or a stop with no fade length is refused before the host hears it', async () => {
@@ -235,6 +240,28 @@ describe('audio/schedule and audio/clock: host asks answered through performHost
     expect('error' in (await performHostAsk(actions, 'audio/clock', []))).toBe(true);
     expect(await performHostAnswer(actions, 'audio/play-sound', [step])).toEqual({ ok: {} });
     expect(seen).toEqual([{ op: 'audio/play-sound', play: step }]);
+  });
+
+  describe('browser/read-file reads a picked file into bytes', () => {
+    const picked = { name: 'kick.wav', size: 4, type: 'audio/wav', content: 'data:audio/wav;base64,AQIDBA==' };
+
+    it('answers the file content as standard base64 bytes with its name, size and type', async () => {
+      expect(await performHostAnswer(undefined, 'browser/read-file', [picked])).toEqual({ ok: { data: 'AQIDBA==', name: 'kick.wav', size: 4, type: 'audio/wav' } });
+    });
+
+    it('refuses a value that is not a picked file invalid', async () => {
+      for (const args of [[], [picked, picked], ['kick.wav'], [{ name: 'kick.wav', size: 4, type: 'audio/wav' }], [{ ...picked, size: 'big' }]]) {
+        expect(await performHostAnswer(undefined, 'browser/read-file', args)).toMatchObject({ kind: 'invalid' });
+      }
+    });
+
+    it('answers unavailable when the content was read as text and holds no bytes', async () => {
+      expect(await performHostAnswer(undefined, 'browser/read-file', [{ ...picked, content: 'plain text' }])).toMatchObject({ kind: 'unavailable' });
+    });
+
+    it('control: performHostAsk refuses it by name', async () => {
+      expect('error' in (await performHostAsk({}, 'browser/read-file', [picked]))).toBe(true);
+    });
   });
 
   describe('program/host-ask relays a guest ask', () => {

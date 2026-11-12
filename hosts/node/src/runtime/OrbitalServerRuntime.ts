@@ -848,7 +848,10 @@ export class OrbitalServerRuntime {
   /** Run a follow-on step's call outcome as its own dispatch, and hand its result to the host-dispatch sink. */
   private runDeferredOutcome(orbitalName: string, request: EventRequest): void {
     void this.processOrbitalEvent(orbitalName, request).then(
-      (response) => this.hostDispatchSink?.(this.browserDispatchItem(orbitalName, request, response)),
+      (response) => {
+        if (request.targetTrait !== undefined && !this.requireKernelEngine().browserRuns(request.targetTrait)) return;
+        this.hostDispatchSink?.(this.browserDispatchItem(orbitalName, request, response));
+      },
       (error: Error) => effectLog.error('deferred-outcome:failed', { orbitalName, event: request.event, trait: request.targetTrait, error: error.message }),
     );
   }

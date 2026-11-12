@@ -6,7 +6,7 @@
  *
  * @packageDocumentation
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createLogger } from '@almadar/logger';
 import type { EventKey, EventPayload, PatternConfig, PatternType } from '@almadar/core';
 import type { KernelSceneCanvas } from '@almadar/shell-runtime/kernel/wire';
@@ -37,6 +37,229 @@ interface QueuedEvent {
     payload: EventPayload;
 }
 
+/** One node of the semantic tree the canvas exports; `rect` is in CSS pixels, `caret` and the selection in characters. */
+interface SemanticView {
+    id: string;
+    role: string;
+    name: string;
+    value?: string;
+    checked?: boolean;
+    disabled: boolean;
+    focused: boolean;
+    caret?: number;
+    selectionStart?: number;
+    selectionEnd?: number;
+    multiline: boolean;
+    order: number;
+    rect: { x: number; y: number; w: number; h: number };
+}
+
+type AccessActionName = 'focus' | 'activate' | 'increment' | 'decrement';
+
+interface KeyModifiers {
+    shift: boolean;
+    alt: boolean;
+    ctrl: boolean;
+    meta: boolean;
+}
+
+/** The keys a focused text field hands to the program; everything else reaches it as committed text. */
+const EDITING_KEYS: ReadonlySet<string> = new Set(['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter', 'Tab', 'Escape']);
+
+const CHECKED_ROLES: ReadonlySet<string> = new Set(['checkbox', 'switch', 'radio', 'menuitemcheckbox', 'menuitemradio']);
+
+/** Present to assistive technology and focusable, yet unseen and never the target of the pointer (the canvas is). */
+const hiddenStyle = (node: SemanticView): React.CSSProperties => ({
+    position: 'absolute',
+    left: node.rect.x,
+    top: node.rect.y,
+    width: Math.max(1, node.rect.w),
+    height: Math.max(1, node.rect.h),
+    margin: 0,
+    padding: 0,
+    border: 0,
+    opacity: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+    background: 'transparent',
+    color: 'transparent',
+});
+
+/** UTF-16 offset of the `chars`th Unicode scalar value of `text`. */
+const utf16Offset = (text: string, chars: number): number => {
+    let offset = 0;
+    let seen = 0;
+    for (const ch of text) {
+        if (seen >= chars) break;
+        offset += ch.length;
+        seen += 1;
+    }
+    return offset;
+};
+
+const modifiersOf = (e: { shiftKey: boolean; altKey: boolean; ctrlKey: boolean; metaKey: boolean }): KeyModifiers => ({
+    shift: e.shiftKey,
+    alt: e.altKey,
+    ctrl: e.ctrlKey,
+    meta: e.metaKey,
+});
+
+interface MirrorHandlers {
+    onAccess: (id: string, action: AccessActionName) => void;
+    onText: (id: string, text: string, composing: boolean) => void;
+    onKey: (id: string, key: string, mods: KeyModifiers) => void;
+    /** The latest tree, read when an event arrives. */
+    latest: (id: string) => SemanticView | undefined;
+}
+
+/** Sets the field's value and selection from the node: the program's buffer is the truth. */
+const syncField = (field: HTMLInputElement | HTMLTextAreaElement, node: SemanticView): void => {
+    const value = node.value ?? '';
+    if (field.value !== value) field.value = value;
+    const start = utf16Offset(value, node.selectionStart ?? node.caret ?? value.length);
+    const end = utf16Offset(value, node.selectionEnd ?? node.caret ?? value.length);
+    if (field.selectionStart !== start || field.selectionEnd !== end) field.setSelectionRange(start, end);
+};
+
+function TextMirror({ node, handlers }: { node: SemanticView; handlers: MirrorHandlers }): React.ReactElement {
+    const fieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+    const composing = useRef(false);
+    const { id } = node;
+    const { onText, onKey, latest } = handlers;
+
+    useLayoutEffect(() => {
+        const field = fieldRef.current;
+        if (field && !composing.current) syncField(field, node);
+    }, [node]);
+
+    const resync = useCallback((): void => {
+        requestAnimationFrame(() => {
+            const field = fieldRef.current;
+            const current = latest(id);
+            if (field && current && !composing.current) syncField(field, current);
+        });
+    }, [id, latest]);
+
+    useEffect(() => {
+        const field = fieldRef.current;
+        if (!field) return;
+        const beforeInput = (e: InputEvent): void => {
+            if (e.isComposing || e.inputType === 'insertCompositionText') return;
+            if (e.inputType === 'deleteContentBackward') onKey(id, 'Backspace', { shift: false, alt: false, ctrl: false, meta: false });
+            else if (e.inputType === 'deleteContentForward') onKey(id, 'Delete', { shift: false, alt: false, ctrl: false, meta: false });
+            else if (e.inputType.startsWith('insert')) {
+                const text = e.data ?? e.dataTransfer?.getData('text/plain') ?? '';
+                if (text !== '') onText(id, text, false);
+            } else return;
+            e.preventDefault();
+            resync();
+        };
+        field.addEventListener('beforeinput', beforeInput);
+        return () => field.removeEventListener('beforeinput', beforeInput);
+    }, [id, onText, onKey, resync]);
+
+    const shared = {
+        ref: fieldRef as React.Ref<never>,
+        'aria-label': node.name,
+        'aria-disabled': node.disabled || undefined,
+        disabled: node.disabled,
+        style: hiddenStyle(node),
+        autoComplete: 'off',
+        autoCorrect: 'off',
+        spellCheck: false,
+        onCompositionStart: () => {
+            composing.current = true;
+        },
+        onCompositionUpdate: (e: React.CompositionEvent) => handlers.onText(id, e.data, true),
+        onCompositionEnd: (e: React.CompositionEvent) => {
+            composing.current = false;
+            handlers.onText(id, e.data, false);
+            handlers.onText(id, '', true);
+            resync();
+        },
+        onKeyDown: (e: React.KeyboardEvent) => {
+            if (e.nativeEvent.isComposing || composing.current || !EDITING_KEYS.has(e.key)) return;
+            e.preventDefault();
+            handlers.onKey(id, e.key, modifiersOf(e));
+            resync();
+        },
+    };
+    return node.multiline ? <textarea {...shared} /> : <input type="text" {...shared} />;
+}
+
+function SemanticMirror({ nodes, handlers }: { nodes: SemanticView[]; handlers: MirrorHandlers }): React.ReactElement {
+    const elements = useRef(new Map<string, HTMLElement>());
+
+    useEffect(() => {
+        const focused = nodes.find((n) => n.focused);
+        if (!focused) return;
+        const slot = elements.current.get(focused.id);
+        const el = slot?.querySelector<HTMLElement>('input, textarea') ?? slot;
+        if (el && document.activeElement !== el) el.focus({ preventScroll: true });
+    }, [nodes]);
+
+    const bind = (id: string) => (el: HTMLElement | null): void => {
+        if (el) elements.current.set(id, el);
+        else elements.current.delete(id);
+    };
+
+    return (
+        <div className="orbital-scene-canvas__semantics" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {nodes.map((node) => {
+                if (node.role === 'textbox' && node.focused) {
+                    return (
+                        <div key={node.id} ref={bind(node.id)} style={{ display: 'contents' }}>
+                            <TextMirror node={node} handlers={handlers} />
+                        </div>
+                    );
+                }
+                const numeric = node.value !== undefined && node.value.trim() !== '' && Number.isFinite(Number(node.value)) ? Number(node.value) : undefined;
+                const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
+                    if (e.target !== e.currentTarget) return;
+                    if (node.role === 'combobox' && node.focused && e.key !== 'Tab' && (EDITING_KEYS.has(e.key) || (e.key.length === 1 && !e.ctrlKey && !e.metaKey))) {
+                        e.preventDefault();
+                        handlers.onKey(node.id, e.key, modifiersOf(e));
+                    } else if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handlers.onAccess(node.id, 'activate');
+                    } else if (node.role === 'slider') {
+                        if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
+                            e.preventDefault();
+                            handlers.onAccess(node.id, 'increment');
+                        } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
+                            e.preventDefault();
+                            handlers.onAccess(node.id, 'decrement');
+                        }
+                    }
+                };
+                return (
+                    <div
+                        key={node.id}
+                        ref={bind(node.id)}
+                        role={node.role}
+                        tabIndex={0}
+                        aria-label={node.name}
+                        aria-valuenow={numeric}
+                        aria-valuetext={node.role === 'textbox' ? undefined : node.value}
+                        aria-checked={CHECKED_ROLES.has(node.role) ? node.checked : undefined}
+                        aria-selected={node.role === 'option' ? node.checked : undefined}
+                        aria-disabled={node.disabled || undefined}
+                        aria-multiline={node.role === 'textbox' ? node.multiline : undefined}
+                        style={hiddenStyle(node)}
+                        onFocus={() => {
+                            if (!handlers.latest(node.id)?.focused) handlers.onAccess(node.id, 'focus');
+                        }}
+                        onClick={() => handlers.onAccess(node.id, 'activate')}
+                        onKeyDown={onKeyDown}
+                    >
+                        {node.role === 'textbox' ? node.value : undefined}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 /** One wheel notch (100px of deltaY) zooms by 10%, toward the pointer. */
 const wheelFactor = (deltaY: number): number => Math.pow(1.1, -deltaY / 100);
 
@@ -54,6 +277,9 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
     const drawRef = useRef<() => void>(() => undefined);
     const { theme } = useCanvasTheme(containerRef);
     const [ready, setReady] = useState(false);
+    const [semantics, setSemantics] = useState<SemanticView[]>([]);
+    const treeJson = useRef('[]');
+    const semanticsRef = useRef<SemanticView[]>([]);
     const [error, setError] = useState<string | null>(factory ? null : 'no scene renderer: the host supplies no sceneCanvas factory to KernelEngineProvider');
 
     useEffect(() => {
@@ -75,6 +301,9 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
             disposed = true;
             viewRef.current?.free();
             viewRef.current = null;
+            treeJson.current = '[]';
+            semanticsRef.current = [];
+            setSemantics([]);
             setReady(false);
         };
     }, [factory]);
@@ -89,6 +318,19 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         }
     };
 
+    const refreshTree = (): void => {
+        const view = viewRef.current;
+        if (!view) return;
+        const json = view.semanticTree();
+        if (json === treeJson.current) return;
+        treeJson.current = json;
+        const next = JSON.parse(json) as SemanticView[];
+        semanticsRef.current = next;
+        setSemantics(next);
+    };
+    const refreshTreeRef = useRef(refreshTree);
+    refreshTreeRef.current = refreshTree;
+
     // A repaint queues events of its own (measured text): deliver them every frame, not on the next pointer move.
     const flushRef = useRef(flush);
     flushRef.current = flush;
@@ -100,7 +342,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         const tick = (now: number): void => {
             const view = viewRef.current;
             if (view) {
-                const moving = view.frame(now);
+                const moving = view.frame(now, performance.timeOrigin + now);
                 if (pending || moving) {
                     try {
                         view.render();
@@ -108,6 +350,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
                         setError(String(cause));
                     }
                     pending = false;
+                    refreshTreeRef.current();
                 }
                 flushRef.current();
             }
@@ -175,6 +418,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         if (!keyMap && !keyUpMap) return;
         const held = new Set<string>();
         const down = (e: KeyboardEvent): void => {
+            if (e.defaultPrevented) return;
             const code = keyMapCode(e);
             if (held.has(code)) return;
             held.add(code);
@@ -220,6 +464,30 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         drawRef.current();
     };
 
+    const mirror = useMemo<MirrorHandlers>(() => {
+        const after = (): void => {
+            flushRef.current();
+            refreshTreeRef.current();
+            drawRef.current();
+        };
+        const guarded = (call: (view: KernelSceneCanvas) => void): void => {
+            const view = viewRef.current;
+            if (!view) return;
+            try {
+                call(view);
+            } catch (cause) {
+                setError(String(cause));
+            }
+            after();
+        };
+        return {
+            onAccess: (id, action) => guarded((view) => view.accessAction(id, action)),
+            onText: (id, text, composing) => guarded((view) => view.textInput(id, text, composing)),
+            onKey: (id, key, mods) => guarded((view) => view.keyInput(id, key, mods.shift, mods.alt, mods.ctrl, mods.meta)),
+            latest: (id) => semanticsRef.current.find((n) => n.id === id),
+        };
+    }, []);
+
     // The canvas stays mounted through an error: the view is bound to this element, and a remounted canvas would never be drawn.
     return (
         <div
@@ -243,6 +511,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
                 onPointerCancel={(e) => send('touch-cancel', e, e.button)}
                 onDoubleClick={(e) => send('double-tap', e, 0)}
             />
+            {semantics.length > 0 && <SemanticMirror nodes={semantics} handlers={mirror} />}
             {error && (
                 <div className="orbital-scene-canvas__error absolute inset-0 z-[1] flex items-center justify-center p-4 text-center text-sm text-[var(--color-error)]">
                     {t('canvas3d.errorWithMessage', { message: error })}

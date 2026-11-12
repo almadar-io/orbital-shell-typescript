@@ -74,6 +74,18 @@ export interface DrawTextProps extends DrawableBase {
     measure?: boolean;
     /** Keyframe animation over `opacity`, `offsetX` and `offsetY` (orbital painter; the TS painter ignores it). */
     animation?: DrawTextAnimation;
+    /** Draw a caret before this character index (-1 or absent: none), blinking on the renderer clock. */
+    caret?: number;
+    /** Caret colour (theme tone or colour). */
+    caretColor?: string;
+    /** Start of the selection band, in characters. */
+    selectionStart?: number;
+    /** End of the selection band, in characters. */
+    selectionEnd?: number;
+    /** Selection band colour. */
+    selectionColor?: string;
+    /** Input-method text shown at the caret, underlined, not part of `text`. */
+    preedit?: string;
 }
 
 /** Paint a {@link DrawTextProps}. */

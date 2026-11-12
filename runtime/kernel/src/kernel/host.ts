@@ -442,7 +442,7 @@ export async function performHostAsk(
       return fail(error instanceof Error ? error.message : String(error));
     }
   }
-  if (op === 'audio/schedule' || op === 'audio/clock') return fail(`${op} is answered by the client host's ask return, not run as an effect`);
+  if (op === 'audio/schedule' || op === 'audio/clock' || op === 'browser/read-file') return fail(`${op} is answered by the client host's ask return, not run as an effect`);
   const audio = actions?.audio;
   if (audio === undefined) return fail(`no host audio is configured for ${op}`);
   let ask: HostAudioAsk;
@@ -567,6 +567,19 @@ async function performAudioSchedule(actions: KernelHostActions | undefined, args
   }
 }
 
+const BASE64_DATA_URL = /^data:[^,;]*(?:;[^,;]*)*;base64,([A-Za-z0-9+/]*={0,2})$/;
+
+/** `browser/read-file`: the bytes of a picked file value, as the standard base64 of its data-URL content; the host reads nothing else. */
+function performReadFile(args: readonly JsonValue[]): HostAskOutcome {
+  const [file] = args;
+  if (args.length !== 1 || !isJsonObject(file)) return { error: 'browser/read-file takes one picked file value', kind: 'invalid' };
+  const { name, size, type, content } = file;
+  if (typeof name !== 'string' || !isFiniteNumber(size) || typeof type !== 'string' || typeof content !== 'string') return { error: 'browser/read-file: the value is not a picked file (name, size, type and content)', kind: 'invalid' };
+  const data = BASE64_DATA_URL.exec(content)?.[1];
+  if (data === undefined) return { error: 'browser/read-file: the file content is not a base64 data URL, so it holds no bytes', kind: 'unavailable' };
+  return { ok: { data, name, size, type } };
+}
+
 async function performAudioClock(actions: KernelHostActions | undefined, args: readonly JsonValue[]): Promise<HostAskOutcome> {
   if (args.length !== 0) return { error: 'audio/clock takes no arguments', kind: 'invalid' };
   if (actions?.audioClock === undefined) return { error: 'no host audio clock is configured for audio/clock', kind: 'unavailable' };
@@ -604,6 +617,7 @@ export async function performHostAnswer(actions: KernelHostActions | undefined, 
   if (op === 'auth/consent') return performConsent(actions, args);
   if (op === 'audio/schedule') return performAudioSchedule(actions, args);
   if (op === 'audio/clock') return performAudioClock(actions, args);
+  if (op === 'browser/read-file') return performReadFile(args);
   if (op !== 'auth/sign-in') {
     const outcome = await performHostAsk(actions, op, args);
     return 'error' in outcome ? { error: outcome.error, kind: 'unavailable' } : { ok: {} };
@@ -643,8 +657,13 @@ async function hostAction(
 ): Promise<IoAnswerWire> {
   const outcome = await performHostAsk(ports.hostActions, request.op, request.args);
   return 'error' in outcome
-    ? { kind: 'substrate', result: { error: { message: outcome.error, errors: [] } } }
+    ? unavailableAnswer(outcome.error)
     : { kind: 'substrate', result: { ok: null } };
+}
+
+/** A failure the kernel found no host to ask for: typed `unavailable`, as a host's own refusal of an ask is (EXEC-STEP-7, EXEC-DIST-13). */
+function unavailableAnswer(message: string): IoAnswerWire {
+  return { kind: 'substrate', result: { error: { message, errors: [{ kind: 'unavailable', message }] } } };
 }
 
 async function substrateInPlace(
@@ -652,7 +671,7 @@ async function substrateInPlace(
   request: Extract<IoRequestWire, { kind: 'substrate' }>,
   scope: KernelAnswerScope,
 ): Promise<IoAnswerWire> {
-  if (request.op === 'auth/sign-in' || request.op === 'auth/consent') return { kind: 'substrate', result: { error: { message: `${request.op} runs on the client host: a server-role kernel cannot ask it`, errors: [] } } };
+  if (request.op === 'auth/sign-in' || request.op === 'auth/consent') return unavailableAnswer(`${request.op} runs on the client host: a server-role kernel cannot ask it`);
   if (request.op.startsWith('audio/') || request.op === 'auth/sign-out') return hostAction(ports, request);
   if (request.op === 'program/live') return { kind: 'substrate', result: { error: { message: 'program/live streams to its onMessage route: give it a key and an onMessage route', errors: [] } } };
   const handler = ports.programEffect();
@@ -670,8 +689,7 @@ async function substrateInPlace(
       return failure(error instanceof Error ? error.message : String(error));
     }
   }
-  if (handler === undefined) return failure(`no program host configured for ${request.op}`);
-  if (!isProgramEffect(request.op)) return failure(`no program host configured for ${request.op}`);
+  if (handler === undefined || !isProgramEffect(request.op)) return unavailableAnswer(`no program host configured for ${request.op}`);
   try {
     const outcome = await handler(request.op, request.args, undefined);
     if (outcome.ok) return { kind: 'substrate', result: { ok: programDocumentJson(outcome.result) } };

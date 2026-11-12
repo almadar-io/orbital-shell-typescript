@@ -5,6 +5,7 @@ interface Voice {
   gain: GainNode;
   gainValue: number;
   rateValue: number;
+  ended: boolean;
 }
 
 let context: AudioContext | undefined;
@@ -48,10 +49,10 @@ function begin(ctx: AudioContext, buffer: AudioBuffer, spec: { key: string; at: 
   gain.gain.value = spec.gain;
   source.connect(gain);
   gain.connect(ctx.destination);
-  const voice: Voice = { source, gain, gainValue: spec.gain, rateValue: spec.rate };
+  const voice: Voice = { source, gain, gainValue: spec.gain, rateValue: spec.rate, ended: false };
   voices.set(spec.key, voice);
   source.onended = () => {
-    if (voices.get(spec.key) === voice) voices.delete(spec.key);
+    voice.ended = true;
   };
   if (spec.duration !== undefined) source.start(spec.at, spec.offset, spec.duration);
   else source.start(spec.at, spec.offset);
@@ -64,10 +65,10 @@ export async function scheduleAudio(commands: readonly AudioScheduleCommand[]): 
   const known = new Set(voices.keys());
   for (const command of commands) {
     if ('start' in command) known.add(command.start.key);
-    else {
-      const key = 'stop' in command ? command.stop.key : command.ramp.key;
-      if (!known.has(key)) throw new HostAskError('invalid', `audio/schedule: no voice named ${key} is playing`);
-    }
+    else if ('stop' in command) {
+      if (!known.has(command.stop.key)) throw new HostAskError('invalid', `audio/schedule: no voice named ${command.stop.key} was started`);
+      known.delete(command.stop.key);
+    } else if (!known.has(command.ramp.key)) throw new HostAskError('invalid', `audio/schedule: no voice named ${command.ramp.key} was started`);
   }
   try {
     await ctx.resume();
@@ -84,11 +85,13 @@ export async function scheduleAudio(commands: readonly AudioScheduleCommand[]): 
       }
       const key = 'stop' in command ? command.stop.key : command.ramp.key;
       const voice = voices.get(key);
-      if (voice === undefined) throw new HostAskError('invalid', `audio/schedule: no voice named ${key} is playing`);
+      if (voice === undefined) throw new HostAskError('invalid', `audio/schedule: no voice named ${key} was started`);
       if ('stop' in command) {
-        voice.source.stop(command.stop.at);
+        if (!voice.ended) voice.source.stop(command.stop.at);
+        voices.delete(key);
         continue;
       }
+      if (voice.ended) continue;
       const { param, value, at, endAt, curve } = command.ramp;
       const target = param === 'gain' ? voice.gain.gain : voice.source.playbackRate;
       target.setValueAtTime(param === 'gain' ? voice.gainValue : voice.rateValue, at);
@@ -103,9 +106,13 @@ export async function scheduleAudio(commands: readonly AudioScheduleCommand[]): 
   }
 }
 
-/** `audio/clock`: the audio clock and the wall clock, read together. */
+/** `audio/clock`: the audio clock and the wall clock (epoch ms on `performance.timeOrigin + performance.now()`, the canvas clock), read at one instant. */
 export async function readAudioClock(): Promise<AudioClockAnswer> {
   const ctx = audioContext();
   if (ctx === undefined) throw new HostAskError('unavailable', 'audio/clock: this environment has no AudioContext');
-  return { audio: ctx.currentTime, wall: Date.now() };
+  if (typeof ctx.getOutputTimestamp === 'function') {
+    const { contextTime, performanceTime } = ctx.getOutputTimestamp();
+    if (contextTime !== undefined && performanceTime !== undefined) return { audio: contextTime, wall: performance.timeOrigin + performanceTime };
+  }
+  return { audio: ctx.currentTime, wall: performance.timeOrigin + performance.now() };
 }

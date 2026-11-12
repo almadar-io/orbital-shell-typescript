@@ -37,6 +37,21 @@ const helper: Trait = {
   },
 };
 
+const storeDriverSchema = (): OrbitalSchema => ({
+  name: 'driven',
+  typeContractVersion: 1,
+  version: '1.0.0',
+  orbitals: [
+    { name: 'App', pages: [], entity: { name: 'Job', persistence: 'persistent', store: 'Rows', fields: [{ name: 'id', type: 'string' }] }, traits: [] },
+    {
+      name: 'Rows',
+      pages: [],
+      entity: { name: 'RowsRun', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
+      traits: [{ ...starter, linkedEntity: 'RowsRun' }, { ...helper, linkedEntity: 'RowsRun' }],
+    },
+  ],
+});
+
 const keyedCall: TypedEffect = ['call-service', 'svc', 'work', {}, { key: 'job', emit: { success: 'ANSWERED', failure: 'ANSWER_FAILED', cancelled: 'STOPPED' } }];
 
 const keyed: Trait = {
@@ -173,5 +188,19 @@ describe('a call in a follow-on step', () => {
     release();
     expect((await pending).states).toMatchObject({ Helper: 'done' });
   });
-});
 
+  it('a store driver\'s completion is never handed to the host-dispatch sink (EXEC-STORE-4)', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => { release = r; });
+    let called = 0;
+    const runtime = new OrbitalServerRuntime({ debug: false, effectHandlers: { callService: async () => { called += 1; await gate; return { answer: 1 }; } } });
+    const dispatched: HostDispatchItem[] = [];
+    runtime.setHostDispatchSink((item) => { dispatched.push(item); });
+    await runtime.register(storeDriverSchema());
+    await runtime.processOrbitalEvent('Rows', { event: 'SUBMIT', targetTrait: 'Starter', clientId: 'tab-1' });
+    release();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(called).toBe(1);
+    expect(dispatched).toEqual([]);
+  });
+});

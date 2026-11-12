@@ -2237,13 +2237,13 @@ export function UISlotRenderer({
 
   const content = (
     <Box className={cn(
-      "ui-slot-renderer relative min-h-full",
+      "ui-slot-renderer relative flex h-full min-h-full flex-col",
       className,
     )}>
       {/* Layout slots: sidebar | main. A row only on large screens — on
           phones the columns stack. An empty sidebar renders nothing, so
           pages without one keep the plain full-width main. */}
-      <Box className="flex min-h-full flex-col lg:flex-row">
+      <Box className="flex min-h-full flex-1 flex-col lg:flex-row">
         <UISlotComponent slot="sidebar" className="ui-slot-sidebar min-w-0 lg:shrink-0" />
         {pageKey !== undefined ? (
           <PageTransition locationKey={pageKey} className="flex flex-1 min-w-0 flex-col">

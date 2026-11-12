@@ -39,6 +39,22 @@ describe('UISlotRenderer', () => {
       expect(document.querySelector('.ui-slot-renderer')).toBeInTheDocument();
     });
 
+    it('gives main a definite height so a filling canvas can take the page (G-ORBITAL-SHELL-TYPESCRIPT-178)', () => {
+      render(
+        <TestWrapper>
+          <UISlotRenderer />
+        </TestWrapper>
+      );
+
+      const renderer = document.querySelector('.ui-slot-renderer');
+      expect(renderer?.className).toMatch(/\bflex\b/);
+      expect(renderer?.className).toMatch(/\bflex-col\b/);
+      expect(renderer?.className).toMatch(/\bh-full\b/);
+      const row = document.getElementById('slot-main')?.parentElement;
+      expect(row?.className).toMatch(/\bflex-1\b/);
+      expect(document.getElementById('slot-main')?.className).not.toMatch(/\bflex-col\b/);
+    });
+
     it('should render layout slot placeholders', () => {
       render(
         <TestWrapper>

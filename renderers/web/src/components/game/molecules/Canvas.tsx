@@ -124,6 +124,14 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     pointerMoves?: 'all' | 'captured';
     /** Sizes of every `draw-text` with `measure: true`, sent after a paint in which any of them changed (orbital painter). */
     measureEvent?: EventEmit<{ items: { id: string; width: number; height: number; lines: number }[] }>;
+    /** The canvas's size in CSS pixels, sent once it is known and again whenever it changes. */
+    resizeEvent?: EventEmit<{ width: number; height: number }>;
+    /** Text for the focused text field: `composing: false` is committed text to insert; `composing: true` is the input method's current preedit. */
+    textInputEvent?: EventEmit<{ target: string; text: string; composing: boolean }>;
+    /** An editing key for the focused text field (`key` is the DOM `KeyboardEvent.key` value). */
+    keyEvent?: EventEmit<{ target: string; key: string; shift: boolean; alt: boolean; ctrl: boolean; meta: boolean }>;
+    /** An assistive technology acted on a node of the semantic tree. */
+    accessEvent?: EventEmit<{ target: string; action: 'focus' | 'activate' | 'increment' | 'decrement' }>;
     /** Maps a keydown `e.code` — optionally prefixed `Mod+` (⌘/Ctrl), `Shift+`, `Alt+` in that order — to the board's SEMANTIC event (device-agnostic input), emitted as `UI:{event}`; keystrokes inside inputs/textareas never route. */
     keyMap?: Record<string, EventKey>;
     /** Maps a keyup `e.code` — optionally prefixed `Mod+` (⌘/Ctrl), `Shift+`, `Alt+` in that order — to the board's SEMANTIC event, emitted as `UI:{event}`; keystrokes inside inputs/textareas never route. */
@@ -202,6 +210,10 @@ export function Canvas({
     pointerMoveEvent,
     pointerMoves,
     measureEvent,
+    resizeEvent,
+    textInputEvent,
+    keyEvent,
+    accessEvent,
     keyMap,
     keyUpMap,
     gestureMap,
@@ -304,6 +316,10 @@ export function Canvas({
             pointerMoveEvent,
             pointerMoves,
             measureEvent,
+            resizeEvent,
+            textInputEvent,
+            keyEvent,
+            accessEvent,
             keyMap,
             keyUpMap,
             gestureMap,
@@ -312,7 +328,7 @@ export function Canvas({
             selectEvent,
             moveEvent,
         }),
-        [drawables, camera, projection, unitScale, fit, tileWidth, backgroundImage, backgroundColor, worldWidth, worldHeight, tileClickEvent, unitClickEvent, tileHoverEvent, tileLeaveEvent, pointerDownEvent, pointerUpEvent, pointerEnterEvent, pointerLeaveEvent, pointerMoveEvent, pointerMoves, measureEvent, keyMap, keyUpMap, gestureMap, editable, selectedId, selectEvent, moveEvent],
+        [drawables, camera, projection, unitScale, fit, tileWidth, backgroundImage, backgroundColor, worldWidth, worldHeight, tileClickEvent, unitClickEvent, tileHoverEvent, tileLeaveEvent, pointerDownEvent, pointerUpEvent, pointerEnterEvent, pointerLeaveEvent, pointerMoveEvent, pointerMoves, measureEvent, resizeEvent, textInputEvent, keyEvent, accessEvent, keyMap, keyUpMap, gestureMap, editable, selectedId, selectEvent, moveEvent],
     );
     const allDrawables = useMemo(() => [...(drawables ?? []), ...childDrawables], [drawables, childDrawables]);
 

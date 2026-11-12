@@ -142,6 +142,18 @@ export interface DrawableSemantic {
     checked?: boolean;
     /** The control is disabled. */
     disabled?: boolean;
+    /** Reading and tab order in the semantic tree; ties keep paint order. */
+    order?: number;
+    /** This node holds the program's focus; the host mirrors it to the platform (accessibility focus, input-method session for a `textbox`). */
+    focused?: boolean;
+    /** `textbox` only: caret index in characters (Unicode scalar values) into `value`. */
+    caret?: number;
+    /** `textbox` only: start of the selected range, in characters. */
+    selectionStart?: number;
+    /** `textbox` only: end of the selected range, in characters. */
+    selectionEnd?: number;
+    /** `textbox` only: multi-line input. */
+    multiline?: boolean;
 }
 
 /** Spring a drawable follows when a repaint changes its animatable fields (orbital painter). */

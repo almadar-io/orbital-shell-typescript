@@ -228,6 +228,11 @@ export class KernelEngine {
     return decodeResponse(this.handle.clientView(JSON.stringify(response)));
   }
 
+  /** Whether a browser runs `traitName`; a host pushes no dispatch of a trait it does not (EXEC-STORE-4, EXEC-DIST-9). */
+  browserRuns(traitName: string): boolean {
+    return this.handle.browserRuns(traitName);
+  }
+
   /** The payload a deferred completion's push carries to the browser (EXEC-QUEUE-10): none when the completing trait runs on the server. */
   browserCompletionPayload(traitName: string, payload: EventPayload | undefined): EventPayload | undefined {
     const shaped: EventPayload | null = JSON.parse(this.handle.browserCompletionPayload(traitName, JSON.stringify(payload ?? null)));

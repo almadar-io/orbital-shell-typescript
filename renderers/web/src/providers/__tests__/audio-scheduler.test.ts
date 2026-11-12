@@ -32,6 +32,8 @@ class FakeContext {
   static made: FakeContext[] = [];
   static failDecode = false;
   currentTime = 12.5;
+  timestamp: { contextTime?: number; performanceTime?: number } | undefined;
+  getOutputTimestamp?(): { contextTime?: number; performanceTime?: number } { return this.timestamp ?? {}; }
   destination = {};
   sources: FakeSource[] = [];
   gains: FakeGain[] = [];
@@ -119,9 +121,42 @@ describe('audio/schedule and audio/clock host asks', () => {
     expect(await failure(scheduleAudio([start('a')]))).toEqual({ kind: 'unavailable', message: 'bad audio' });
   });
 
-  it('clock answers the audio and wall clocks together', async () => {
-    vi.spyOn(Date, 'now').mockReturnValue(1234);
-    expect(await readAudioClock()).toEqual({ audio: 12.5, wall: 1234 });
+  it('stop of a voice that ended on its own answers ok, then the key is forgotten', async () => {
+    await scheduleAudio([start('a')]);
+    const source = FakeContext.made[0].sources[0];
+    source.onended?.();
+    await scheduleAudio([{ stop: { key: 'a', at: 30 } }]);
+    expect(source.stops).toEqual([]);
+    expect(await failure(scheduleAudio([{ stop: { key: 'a', at: 31 } }]))).toMatchObject({ kind: 'invalid' });
+  });
+
+  it('ramp of an ended voice is a no-op ok', async () => {
+    await scheduleAudio([start('a')]);
+    FakeContext.made[0].sources[0].onended?.();
+    await scheduleAudio([{ ramp: { key: 'a', param: 'gain', value: 0, at: 3, endAt: 4, curve: 'linear' } }]);
+    expect(FakeContext.made[0].gains[0].gain.calls).toEqual([]);
+  });
+
+  it('stop of a never-started key fails, and stopping twice fails the second', async () => {
+    expect(await failure(scheduleAudio([{ stop: { key: 'never', at: 1 } }]))).toMatchObject({ kind: 'invalid' });
+    await scheduleAudio([start('a')]);
+    await scheduleAudio([{ stop: { key: 'a', at: 5 } }]);
+    expect(await failure(scheduleAudio([{ stop: { key: 'a', at: 6 } }]))).toMatchObject({ kind: 'invalid' });
+  });
+
+  it('clock reads both clocks at one instant from getOutputTimestamp on the canvas clock', async () => {
+    vi.spyOn(performance, 'timeOrigin', 'get').mockReturnValue(1000);
+    const made = vi.fn();
+    vi.stubGlobal('AudioContext', class extends FakeContext { constructor() { super(); this.timestamp = { contextTime: 7, performanceTime: 250 }; made(); } });
+    expect(await readAudioClock()).toEqual({ audio: 7, wall: 1250 });
+    vi.restoreAllMocks();
+  });
+
+  it('clock without getOutputTimestamp uses currentTime and timeOrigin + now', async () => {
+    vi.spyOn(performance, 'timeOrigin', 'get').mockReturnValue(1000);
+    vi.spyOn(performance, 'now').mockReturnValue(40);
+    vi.stubGlobal('AudioContext', class extends FakeContext { constructor() { super(); this.getOutputTimestamp = undefined; } });
+    expect(await readAudioClock()).toEqual({ audio: 12.5, wall: 1040 });
     vi.restoreAllMocks();
   });
 

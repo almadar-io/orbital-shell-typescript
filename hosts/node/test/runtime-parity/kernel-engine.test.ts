@@ -570,7 +570,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
 
     it('a substrate operator is refused without a program host, and carries issues when it fails', async () => {
       const none = await answerRequest(ports(), { kind: 'substrate', op: 'program/eval', args: [] }, scope());
-      expect(none).toEqual({ kind: 'substrate', result: { error: { message: 'no program host configured for program/eval', errors: [] } } });
+      expect(none).toEqual({ kind: 'substrate', result: { error: { message: 'no program host configured for program/eval', errors: [{ kind: 'unavailable', message: 'no program host configured for program/eval' }] } } });
       const p = ports({
         programEffect: () => async (op, args, context) => ({ ok: false, error: `${op} refused`, errors: [{ code: 'ORB_X', message: 'bad', path: 'a.b' }], ...(context ? {} : {}), ...(args.length > 0 ? {} : {}) }),
       });

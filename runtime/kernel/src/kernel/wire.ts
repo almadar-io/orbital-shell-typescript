@@ -65,8 +65,8 @@ export interface KernelSceneCanvas {
   setScene(nodeJson: string): void;
   resize(cssWidth: number, cssHeight: number, pixelRatio: number): void;
   setMotion(enabled: boolean): void;
-  /** Advances the scene clock to `nowMs`; true while the page should keep drawing. */
-  frame(nowMs: number): boolean;
+  /** Advances the scene clock to `nowMs` (`performance.now()`) with the page clock `epochMs` (`performance.timeOrigin + now`); true while the page should keep drawing. */
+  frame(nowMs: number, epochMs: number): boolean;
   render(): void;
   /** `touch-down`, `touch-move`, `touch-up` or `touch-cancel`, in CSS pixels. */
   input(kind: string, x: number, y: number, button: number): void;
@@ -75,6 +75,12 @@ export interface KernelSceneCanvas {
   doubleTap(x: number, y: number): void;
   /** `[{ "event", "payload" }]` queued by input. */
   takeEvents(): string;
+  /** The semantic tree as JSON: `[{ id, role, name, value?, checked?, disabled, focused, caret?, selectionStart?, selectionEnd?, multiline, order, rect }]`, rects in CSS pixels. */
+  semanticTree(): string;
+  textInput(target: string, text: string, composing: boolean): void;
+  keyInput(target: string, key: string, shift: boolean, alt: boolean, ctrl: boolean, meta: boolean): void;
+  /** `focus`, `activate`, `increment` or `decrement`; any other string throws. */
+  accessAction(target: string, action: string): void;
   webgpu(): boolean;
   free(): void;
 }
@@ -128,6 +134,8 @@ export interface KernelServerHandle {
   routeMounts(routePath: string): string;
   /** What a browser is told of an `EventResponse` (JSON): the kernel's client view (EXEC-DIST-8), as JSON. */
   clientView(responseJson: string): string;
+  /** Whether a browser runs `traitName`: no browser runs a store driver's trait (EXEC-STORE-4) or a boot-only one (EXEC-DIST-9). */
+  browserRuns(traitName: string): boolean;
   /** The payload a deferred completion's push carries to the browser (EXEC-QUEUE-10): JSON. */
   browserCompletionPayload(traitName: string, payloadJson: string): string;
   /** One question about the registered program (a `ContractQuery`: the declared inputs, inbound hooks, entity owner, scoped rows): its answer as JSON. */
