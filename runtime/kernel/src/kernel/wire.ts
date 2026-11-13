@@ -70,6 +70,10 @@ export interface KernelSceneCanvas {
   render(): void;
   /** `touch-down`, `touch-move`, `touch-up` or `touch-cancel`, in CSS pixels. */
   input(kind: string, x: number, y: number, button: number): void;
+  /** `input` from one of several pointers (`PointerEvent.pointerId`): a further finger reaches the region holding capture, and a multi-touch gesture's events carry `touches`. */
+  inputPointer(kind: string, x: number, y: number, button: number, pointerId: number): void;
+  /** The wheel at a point in CSS pixels with its pixel deltas; true when the canvas declares `wheelEvent` (the page must not take the wheel). */
+  wheel(x: number, y: number, dx: number, dy: number): boolean;
   /** Whether the scene took the zoom (a pannable scene); the page scrolls when it did not. */
   zoom(factor: number, x: number, y: number): boolean;
   doubleTap(x: number, y: number): void;

@@ -264,6 +264,9 @@ function SemanticMirror({ nodes, handlers }: { nodes: SemanticView[]; handlers: 
     );
 }
 
+/** A wheel reported in lines turns this many CSS pixels per line (contract 14.2). */
+const WHEEL_LINE_PX = 16;
+
 /** One wheel notch (100px of deltaY) zooms by 10%, toward the pointer. */
 const wheelFactor = (deltaY: number): number => Math.pow(1.1, -deltaY / 100);
 
@@ -451,7 +454,17 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         const wheel = (e: WheelEvent): void => {
             const box = surface.getBoundingClientRect();
             const view = viewRef.current;
-            if (!view || !guardRef.current.call(() => view.zoom(wheelFactor(e.deltaY), e.clientX - box.left, e.clientY - box.top), setError)) return;
+            if (!view) return;
+            const unit = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? WHEEL_LINE_PX : 1;
+            const dx = e.deltaMode === WheelEvent.DOM_DELTA_PAGE ? e.deltaX * box.width : e.deltaX * unit;
+            const dy = e.deltaMode === WheelEvent.DOM_DELTA_PAGE ? e.deltaY * box.height : e.deltaY * unit;
+            if (guardRef.current.call(() => view.wheel(e.clientX - box.left, e.clientY - box.top, dx, dy), setError)) {
+                e.preventDefault();
+                flushRef.current();
+                drawRef.current();
+                return;
+            }
+            if (!guardRef.current.call(() => view.zoom(wheelFactor(e.deltaY), e.clientX - box.left, e.clientY - box.top), setError)) return;
             e.preventDefault();
             drawRef.current();
         };
@@ -464,7 +477,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         if (!view) return;
         const box = e.currentTarget.getBoundingClientRect();
         if (kind === 'double-tap') guardRef.current.call(() => view.doubleTap(e.clientX - box.left, e.clientY - box.top), setError);
-        else guardRef.current.call(() => view.input(kind, e.clientX - box.left, e.clientY - box.top, button), setError);
+        else guardRef.current.call(() => view.inputPointer(kind, e.clientX - box.left, e.clientY - box.top, button, 'pointerId' in e ? e.pointerId : 0), setError);
         flush();
         drawRef.current();
     };

@@ -21,7 +21,7 @@
  */
 
 import type { CallRecord, JsonObject, JsonValue, LogContext, LogMeta, LogMetaValue, LogSeverity, StructuredLogEntry } from '@almadar/core';
-import { envGet } from './env.js';
+import { envGet, nodeEnv } from './env.js';
 import { getRuntimeNamespaceFilter } from './runtime-override.js';
 import { notifyLogConfigChange } from './observers.js';
 
@@ -56,7 +56,7 @@ export interface LogOutput {
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
 
-const NODE_ENV = envGet('NODE_ENV') ?? 'development';
+const NODE_ENV = nodeEnv();
 const INITIAL_LEVEL = (
   envGet('LOG_LEVEL') ?? (NODE_ENV === 'production' ? 'warn' : 'debug')
 ).toUpperCase() as LogLevel;

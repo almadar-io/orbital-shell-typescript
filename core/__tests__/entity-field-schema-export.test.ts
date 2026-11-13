@@ -114,7 +114,7 @@ describe('shared entity field tool contract', () => {
     expect(ENTITY_FIELD_SCHEMA.oneOf?.some(branch => branch.properties?.type?.enum?.includes('int'))).toBe(true);
   });
 
-  it.each(['file', 'trait', 'slot', 'pattern', 'node', 'event', 'EventAddress', 'CallKey', 'SExpr'])('carries an existing scalar tag: %s', type => {
+  it.each(['file', 'trait', 'slot', 'pattern', 'node', 'event', 'EventAddress', 'CallKey', 'MessageKey', 'SExpr'])('carries an existing scalar tag: %s', type => {
     const field = EntityFieldSchema.parse({ name: 'value', type });
     expect(ENTITY_FIELD_SCHEMA.oneOf?.some(branch => branch.properties?.type?.enum?.includes(field.type))).toBe(true);
   });

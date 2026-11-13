@@ -18,7 +18,9 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 
 
 
-Next code: `G-ORBITAL-SHELL-TYPESCRIPT-190`
+Next code: `G-ORBITAL-SHELL-TYPESCRIPT-191`
+
+- **G-ORBITAL-SHELL-TYPESCRIPT-190** [mechanical] — `renderers/web/test/kernel-client-reseed.test.ts:33` builds a `PageCircuit` fixture without the `access` field core now requires (TS2741), so `tsc --noEmit` in renderers/web fails; found 2026-11-13, already present in another session's 09:44 capture. Reproduce: `pnpm exec tsc --noEmit -p .` in renderers/web. Prevention rung: (2) as G-ORBITAL-SHELL-TYPESCRIPT-187. Severity: low. Root cause: one-off.
 
 - **G-ORBITAL-SHELL-TYPESCRIPT-187** [mechanical] — `renderers/web/src/lib/avl-theme.ts:210` keys an operator-category color by `'std-trace'`, a category the core category type no longer lists, so `tsc --noEmit` in renderers/web fails (TS2353). The file was last committed 2026-11-07; the category list in `@almadar/core` moved under it. Reproduce: `pnpm exec tsc --noEmit -p .` in renderers/web. Prevention rung: (2) a type check in the package's check run (renderers/web `typecheck` is not run by any gate). Severity: low. Root cause: one-off.
 - **G-ORBITAL-SHELL-TYPESCRIPT-188** [mechanical] — `renderers/web/src/lib/__tests__/mermaidTheme.test.ts:87,91` builds a theme record that no longer fits `Record<string, string>` (TS2322, TS2769), an old test against a changed type. Reproduce: `pnpm exec tsc --noEmit -p .` in renderers/web. Prevention rung: (2) as G-ORBITAL-SHELL-TYPESCRIPT-187. Severity: low. Root cause: one-off.

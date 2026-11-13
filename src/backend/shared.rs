@@ -1186,7 +1186,7 @@ export type { UserContext } from '@almadar/core';
             }
             OirType::Money => "z.number()".to_string(),
             OirType::Bytes => "z.string()".to_string(),
-            OirType::CallKey | OirType::FieldRef { .. } => "z.string()".to_string(),
+            OirType::CallKey | OirType::MessageKey | OirType::FieldRef { .. } => "z.string()".to_string(),
             OirType::File => "z.object({ name: z.string(), url: z.string(), mimeType: z.string(), sizeBytes: z.number() })".to_string(),
             // The closed union, enforced at runtime too — this is exactly what
             // `json` never gave us: a value that nests is REJECTED.

@@ -88,6 +88,9 @@ export type FieldTag =
     // A call key — a string at rest, but nominal: a bare string never converts to it
     // implicitly, only `(as v CallKey)` does. Names the keyed call a `cancel-call` aborts.
     | 'CallKey'
+    // A catalog key — a string at rest, qualified with its behavior where it is written; only a literal or a
+    // MessageKey value is one, so `i18n/t` of it is checked against the catalogs.
+    | 'MessageKey'
     // An S-expression as data — atom, list or options object (a transition's
     // guard / effect args); config-only (G-ORB-093).
     | 'SExpr'
@@ -134,6 +137,7 @@ export const FIELD_TYPES = [
     'event',
     'EventAddress',
     'CallKey',
+    'MessageKey',
     'SExpr',
     'union',
     'tuple',
@@ -397,6 +401,7 @@ type ScalarFieldType =
     | 'event'
     | 'EventAddress'
     | 'CallKey'
+    | 'MessageKey'
     | 'SExpr';
 
 /** Fields shared across every variant. */
@@ -677,6 +682,7 @@ export const EntityFieldSchema: z.ZodType<EntityField, unknown> = z.lazy(() => {
                 scalarVariant('event'),
                 scalarVariant('EventAddress'),
                 scalarVariant('CallKey'),
+                scalarVariant('MessageKey'),
                 scalarVariant('money'),
                 scalarVariant('file'),
                 scalarVariant('bytes'),

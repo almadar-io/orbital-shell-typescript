@@ -20,7 +20,7 @@ export const FIELD_TYPE_SHAPES: Record<FieldTag, FieldTypeShape> = {
   boolean: 'square',
   date: 'diamond', timestamp: 'diamond', datetime: 'diamond', instant: 'diamond',
   enum: 'ring', union: 'ring',
-  object: 'hexagon', image: 'hexagon', file: 'hexagon', bytes: 'hexagon', trait: 'hexagon', orbital: 'hexagon', behavior: 'hexagon', slot: 'hexagon', pattern: 'hexagon', node: 'hexagon', event: 'hexagon', EventAddress: 'hexagon', CallKey: 'hexagon', SExpr: 'hexagon',
+  object: 'hexagon', image: 'hexagon', file: 'hexagon', bytes: 'hexagon', trait: 'hexagon', orbital: 'hexagon', behavior: 'hexagon', slot: 'hexagon', pattern: 'hexagon', node: 'hexagon', event: 'hexagon', EventAddress: 'hexagon', CallKey: 'hexagon', MessageKey: 'hexagon', SExpr: 'hexagon',
   array: 'bars', tuple: 'bars',
   relation: 'link',
 };

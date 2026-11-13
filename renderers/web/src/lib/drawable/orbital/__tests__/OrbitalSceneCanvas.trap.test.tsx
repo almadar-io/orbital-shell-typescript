@@ -23,6 +23,8 @@ interface FakeView extends KernelSceneCanvas {
     frame: ReturnType<typeof vi.fn<(nowMs: number, epochMs: number) => boolean>>;
     render: ReturnType<typeof vi.fn<() => void>>;
     input: ReturnType<typeof vi.fn<(kind: string, x: number, y: number, button: number) => void>>;
+    inputPointer: ReturnType<typeof vi.fn<(kind: string, x: number, y: number, button: number, pointerId: number) => void>>;
+    wheel: ReturnType<typeof vi.fn<(x: number, y: number, dx: number, dy: number) => boolean>>;
     zoom: ReturnType<typeof vi.fn<(factor: number, x: number, y: number) => boolean>>;
     doubleTap: ReturnType<typeof vi.fn<(x: number, y: number) => void>>;
     takeEvents: ReturnType<typeof vi.fn<() => string>>;
@@ -42,6 +44,8 @@ function fakeView(): FakeView {
         frame: vi.fn<(nowMs: number, epochMs: number) => boolean>(() => false),
         render: vi.fn<() => void>(),
         input: vi.fn<(kind: string, x: number, y: number, button: number) => void>(),
+        inputPointer: vi.fn<(kind: string, x: number, y: number, button: number, pointerId: number) => void>(),
+        wheel: vi.fn<(x: number, y: number, dx: number, dy: number) => boolean>(() => false),
         zoom: vi.fn<(factor: number, x: number, y: number) => boolean>(() => false),
         doubleTap: vi.fn<(x: number, y: number) => void>(),
         takeEvents: vi.fn<() => string>(() => '[]'),
@@ -89,7 +93,7 @@ async function runFrames(count: number): Promise<void> {
 
 function counts(view: FakeView): number[] {
     return [
-        view.setScene, view.resize, view.setMotion, view.frame, view.render, view.input, view.zoom, view.doubleTap,
+        view.setScene, view.resize, view.setMotion, view.frame, view.render, view.input, view.inputPointer, view.wheel, view.zoom, view.doubleTap,
         view.takeEvents, view.semanticTree, view.textInput, view.keyInput, view.accessAction, view.webgpu, view.free,
     ].map((fn) => fn.mock.calls.length);
 }

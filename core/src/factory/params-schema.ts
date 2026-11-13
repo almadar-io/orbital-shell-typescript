@@ -539,6 +539,7 @@ function mapKnobType(knobType: string): JsonSchemaType | null {
     case 'event':
     case 'EventAddress':
     case 'CallKey':
+    case 'MessageKey':
     case 'field':
     case 'date':
       return 'string';
@@ -608,6 +609,7 @@ export function mapEntityFieldType(fieldType: string): JsonSchemaType | null {
     case 'event':
     case 'EventAddress':
     case 'CallKey':
+    case 'MessageKey':
     case 'field':
       return 'string';
     // Polymorphic renderable content: a node accepts a string leaf OR a
@@ -696,7 +698,7 @@ const ENTITY_FIELD_BASE_PROPS = {
 const SCALAR_FIELD_TYPES: ReadonlyArray<string> = [
   'string', 'number', 'int', ...NUM_WIDTH_TAGS, 'boolean', 'date', 'timestamp', 'datetime', 'instant',
   'email', 'url', 'phone', 'uuid', 'image', 'money',
-  'file', 'bytes', 'trait', 'slot', 'pattern', 'node', 'event', 'EventAddress', 'CallKey', 'SExpr',
+  'file', 'bytes', 'trait', 'slot', 'pattern', 'node', 'event', 'EventAddress', 'CallKey', 'MessageKey', 'SExpr',
 ];
 const SCALAR_FIELD_BRANCH: JsonSchema = {
   type: 'object',

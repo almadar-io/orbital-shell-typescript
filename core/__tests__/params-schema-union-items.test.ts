@@ -70,6 +70,12 @@ describe('signatureToParamsSchema — union list elements', () => {
     expect(toolsItems(item)?.oneOf?.[1]?.properties?.['key']?.type).toBe('string');
   });
 
+  it('a MessageKey member is a string at rest', () => {
+    const input: EntityField = { name: 'AgentToolInput', type: 'object', properties: { key: { name: 'key', type: 'MessageKey', required: true } } };
+    const item: EntityField = { ...toolItems, properties: { ...toolItems.properties, AgentToolInput: input } };
+    expect(toolsItems(item)?.oneOf?.[1]?.properties?.['key']?.type).toBe('string');
+  });
+
   it('an EventAddress member is a string', () => {
     const input = toolsItems(toolItems)?.oneOf?.[1];
     expect(input?.properties?.['event']?.type).toBe('string');

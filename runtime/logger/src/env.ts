@@ -11,3 +11,17 @@ const ENV: Record<string, string | undefined> =
 export function envGet(key: string): string | undefined {
   return ENV[key] ?? ENV[`VITE_${key}`];
 }
+
+/**
+ * The build's declared mode. Spelled as the literal `process.env.NODE_ENV` member so every bundler's
+ * define replaces it; a browser bundle has no `process`, where the dynamic `envGet` reads nothing.
+ */
+export function nodeEnv(): string {
+  let declared: string | undefined;
+  try {
+    declared = process.env.NODE_ENV;
+  } catch {
+    declared = undefined;
+  }
+  return declared ?? envGet('NODE_ENV') ?? 'development';
+}

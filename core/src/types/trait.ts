@@ -466,7 +466,7 @@ export const DeclaredTraitConfigSchema: z.ZodType<DeclaredTraitConfig, Record<st
 // embed slot, a UI slot name, a pattern type name.
 // `union` is the closed variant type — a real .lolo/.orb type, so the
 // trait-side mirror must carry it or generated factories fail DTS.
-export type TraitFieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object' | 'timestamp' | 'datetime' | 'instant' | 'enum' | 'email' | 'url' | 'phone' | 'uuid' | 'image' | 'bytes' | 'trait' | 'slot' | 'pattern' | 'node' | 'event' | 'EventAddress' | 'CallKey' | 'SExpr' | 'union' | 'tuple' | 'field' | TypeVariable;
+export type TraitFieldType = 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object' | 'timestamp' | 'datetime' | 'instant' | 'enum' | 'email' | 'url' | 'phone' | 'uuid' | 'image' | 'bytes' | 'trait' | 'slot' | 'pattern' | 'node' | 'event' | 'EventAddress' | 'CallKey' | 'MessageKey' | 'SExpr' | 'union' | 'tuple' | 'field' | TypeVariable;
 
 /** Every `TraitFieldType`, as a runtime array — the ONE list `TraitEntityFieldSchema`
  *  and `RequiredFieldSchema` both read. Two separate inline copies of this enum had
@@ -496,6 +496,7 @@ export const TRAIT_FIELD_TYPES = [
     'event',
     'EventAddress',
     'CallKey',
+    'MessageKey',
     'SExpr',
     'union',
     'tuple',

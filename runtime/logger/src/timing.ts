@@ -13,7 +13,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Logger, LogData } from './logger.js';
-import { envGet } from './env.js';
+import { nodeEnv } from './env.js';
 
 /** name → accumulated milliseconds for the current request. */
 export type TimingStore = Map<string, number>;
@@ -33,7 +33,7 @@ function getTimingStore(): AsyncLocalStorage<TimingStore> {
 export const timingStore = getTimingStore();
 
 /** Profiling is DEV-only — zero overhead (pure passthrough) in production. */
-const PROFILING_ENABLED = envGet('NODE_ENV') !== 'production';
+const PROFILING_ENABLED = nodeEnv() !== 'production';
 
 /** Add `ms` under `name` into the active request store. No-op off the request path. */
 export function record(name: string, ms: number): void {
