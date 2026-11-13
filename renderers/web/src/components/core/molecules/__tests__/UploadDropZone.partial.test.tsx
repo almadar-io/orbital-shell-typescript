@@ -22,6 +22,19 @@ const docx = (name: string) =>
   new File(['x'], name, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 
 describe('UploadDropZone partial acceptance', () => {
+  it('an extension in accept matches whatever case the file name uses', () => {
+    const mp3 = (name: string) => new File(['x'], name, { type: '' });
+    const onFiles = pick([mp3('Track.MP3'), mp3('mix.Mp3')], { accept: '.mp3,.wav' });
+    expect(onFiles.mock.calls[0][0].map((f: File) => f.name)).toEqual(['Track.MP3', 'mix.Mp3']);
+    expect(document.body.textContent ?? '').not.toMatch(/invalid/i);
+  });
+
+  it('control: an extension that is not in accept is still refused in any case', () => {
+    const onFiles = pick([new File(['x'], 'Track.AIFF', { type: '' })], { accept: '.mp3,.wav' });
+    expect(onFiles).not.toHaveBeenCalled();
+    expect(document.body.textContent ?? '').toContain('Track.AIFF');
+  });
+
   it('keeps valid files and names the rejected one', () => {
     const onFiles = pick([pdf('a.pdf'), docx('b.docx'), pdf('c.pdf')], { accept: 'application/pdf' });
     expect(onFiles).toHaveBeenCalledTimes(1);

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-13T04:44:05.500Z",
+  "exportedAt": "2026-11-13T05:41:43.809Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -140356,6 +140356,19 @@
               "leg"
             ]
           }
+        },
+        "moved": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event a split guest's view reports the transitions its kernel took as, with { guest, moves: [{ trait, event, from, to, fired }] }, one per settled batch.",
+          "kind": "event"
+        },
+        "epoch": {
+          "types": [
+            "number"
+          ],
+          "description": "How many times the opener told a split guest's view to mount its page afresh (its viewer was signed in as another persona): a new value starts the view again."
         },
         "children": {
           "types": [

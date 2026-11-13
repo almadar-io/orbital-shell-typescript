@@ -19,6 +19,9 @@ import { createLogger } from '@almadar/logger';
 import { useInRouterContext } from 'react-router-dom';
 import type { EventKey, OrbitalSchema, PatternNode, ThemeRef, UISlot } from '@almadar/core';
 import { createChannelTransport, type ChannelMessage } from '@almadar/shell-runtime/client/channel-transport';
+import type { TransitionTap } from '../../../hooks/circuit/transitionTap';
+
+type TransitionTrace = Parameters<TransitionTap>[0];
 import { Box, TraitScopeProvider, useEventBus } from '../../../core';
 import { EntitySchemaProvider } from '../../../providers/EntitySchemaContext';
 import { UISlotProvider, useUISlots } from '../../../providers/UISlotContext';
@@ -83,6 +86,10 @@ export interface GuestViewProps {
   legTaken?: EventKey;
   /** The answered legs the opener holds for this view. */
   legAnswers?: ReadonlyArray<GuestLegAnswer>;
+  /** The opener trait's declared event a split guest's view reports the transitions its kernel took as, with { guest, moves: [{ trait, event, from, to, fired }] }, one per settled batch. */
+  moved?: EventKey;
+  /** How many times the opener told a split guest's view to mount its page afresh (its viewer was signed in as another persona): a new value starts the view again. */
+  epoch?: number;
   /** The guest's painted content */
   children?: React.ReactNode;
 }
@@ -124,8 +131,12 @@ const OrbPreview = React.lazy(() => import('../../../preview/OrbPreview').then((
 const NO_ANSWERS: ReadonlyArray<GuestLegAnswer> = [];
 
 /** A split guest: its client program runs here, its server legs travel to the opener as `leg` events. */
-function SplitGuest({ guest, program, leg, legTaken, legAnswers, route, themeOverride }: {
+interface GuestMove { trait: string; event: string; from: string; to: string; fired: boolean }
+
+function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, moved, route, themeOverride }: {
   guest: string;
+  epoch: number;
+  moved?: EventKey;
   program: OrbitalSchema;
   leg: EventKey;
   legTaken?: EventKey;
@@ -136,10 +147,9 @@ function SplitGuest({ guest, program, leg, legTaken, legAnswers, route, themeOve
   const eventBus = useEventBus();
   const bus = useRef(eventBus);
   bus.current = eventBus;
-  // One guest handle is one opened program: a repaint of the stage hands an equal program anew, which must not restart it.
-  const opened = useRef({ guest, program });
-  if (opened.current.guest !== guest) opened.current = { guest, program };
-  const guestProgram = opened.current.program;
+  // The view is keyed by guest, so this is one opened program: a repaint of the stage hands an equal program anew, which must not restart it.
+  const opened = useRef(program);
+  const guestProgram = opened.current;
   const listeners = useRef(new Set<(message: ChannelMessage) => void>());
   const transport = useMemo(() => {
     const hear = (message: ChannelMessage) => listeners.current.forEach((listener) => listener(message));
@@ -150,28 +160,40 @@ function SplitGuest({ guest, program, leg, legTaken, legAnswers, route, themeOve
           return;
         }
         if (message.almadarChannel !== 'send') return;
-        bus.current.emit(`UI:${leg}`, { guest, leg: `${guest}:${message.id}`, orbital: message.orbitalName, body: JSON.stringify(message.request) });
+        bus.current.emit(`UI:${leg}`, { guest, leg: `${guest}:${epoch}:${message.id}`, orbital: message.orbitalName, body: JSON.stringify(message.request) });
       },
       onMessage(listener) {
         listeners.current.add(listener);
         return () => listeners.current.delete(listener);
       },
     });
-  }, [guest, leg]);
+  }, [guest, epoch, leg]);
   useEffect(() => {
     for (const answer of legAnswers) {
-      const id = Number(answer.leg.slice(guest.length + 1));
-      if (!answer.leg.startsWith(`${guest}:`) || !Number.isInteger(id)) continue;
+      const prefix = `${guest}:${epoch}:`;
+      const id = Number(answer.leg.slice(prefix.length));
+      if (!answer.leg.startsWith(prefix) || !Number.isInteger(id)) continue;
       const response = answer.response !== undefined
         ? JSON.parse(answer.response)
         : { success: false, transitioned: false, states: {}, emittedEvents: [], error: answer.error ?? 'The guest did not answer the leg' };
       listeners.current.forEach((listener) => listener({ almadarChannel: 'reply', id, response }));
       if (legTaken !== undefined) bus.current.emit(`UI:${legTaken}`, { guest, leg: answer.leg });
     }
-  }, [legAnswers, legTaken, guest]);
+  }, [legAnswers, legTaken, guest, epoch]);
+  const pendingMoves = useRef<GuestMove[]>([]);
+  const onTransition = useCallback((trace: TransitionTrace) => {
+    if (moved === undefined) return;
+    pendingMoves.current.push({ trait: trace.traitName, event: trace.event, from: trace.from, to: trace.to, fired: trace.firedArm !== undefined });
+    if (pendingMoves.current.length > 1) return;
+    queueMicrotask(() => {
+      const moves = pendingMoves.current;
+      pendingMoves.current = [];
+      bus.current.emit(`UI:${moved}`, { guest, moves });
+    });
+  }, [moved, guest]);
   return (
     <Suspense fallback={null}>
-      <OrbPreview schema={guestProgram} transport={transport} isolated frame="contained" height="100%" initialPagePath={route} themeOverride={themeOverride} />
+      <OrbPreview schema={guestProgram} transport={transport} onTransition={onTransition} isolated frame="contained" height="100%" initialPagePath={route} themeOverride={themeOverride} />
     </Suspense>
   );
 }
@@ -179,7 +201,7 @@ function SplitGuest({ guest, program, leg, legTaken, legAnswers, route, themeOve
 /**
  * GuestView - Paints a guest program's UI; guest, source and deliver are kernel routing data
  */
-export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, program, leg, legTaken, legAnswers, children }) => {
+export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, program, leg, legTaken, legAnswers, epoch, moved, children }) => {
   const eventBus = useEventBus();
   const inHostRouter = useInRouterContext();
   const [hostHrefBase, setHostHrefBase] = useState('/');
@@ -195,7 +217,7 @@ export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navi
   if (program !== undefined && leg !== undefined) {
     return (
       <Box data-guest-frame="" fullWidth fullHeight className="relative" style={{ contain: 'layout' }}>
-        <SplitGuest guest={guest} program={program} leg={leg} legTaken={legTaken} legAnswers={legAnswers ?? NO_ANSWERS} route={route} themeOverride={themeOverride} />
+        <SplitGuest key={`${guest}:${epoch ?? 0}`} guest={guest} epoch={epoch ?? 0} program={program} leg={leg} legTaken={legTaken} legAnswers={legAnswers ?? NO_ANSWERS} moved={moved} route={route} themeOverride={themeOverride} />
       </Box>
     );
   }

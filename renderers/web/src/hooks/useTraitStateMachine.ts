@@ -20,7 +20,8 @@
  *
  * @packageDocumentation
  */
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { TransitionTapContext } from './circuit/transitionTap';
 import type {
   EmittedEvent,
   EntityRow,
@@ -116,7 +117,18 @@ export function useTraitStateMachine(
   const eventBus = useEventBus();
   const { t } = useTranslate();
 
-  const observer = useMemo(() => createCircuitVerificationObserver(), []);
+  const tap = useContext(TransitionTapContext);
+  const tapRef = useRef(tap);
+  tapRef.current = tap;
+  const observer = useMemo(() => {
+    const verification = createCircuitVerificationObserver();
+    return {
+      onTransition(trace: Parameters<typeof verification.onTransition>[0]): void {
+        verification.onTransition(trace);
+        tapRef.current?.(trace);
+      },
+    };
+  }, []);
 
   const engine = useKernelEngine();
   const { kernel, store, traitIndex, appTraitNames, transport, engine: kernelClient, circuit } = useCircuitKernel({

@@ -50,6 +50,7 @@ import { useBrowserStore } from '../hooks/circuit/useBrowserStore';
 import { programStamp, type ProgramStamp } from '../hooks/circuit/useCircuitKernel';
 import { KernelEngineProvider, useKernelEngine } from '../providers/KernelEngineContext';
 import { ClientTicksPausedContext } from '../hooks/circuit/useClientTicks';
+import { TransitionTapContext, type TransitionTap } from '../hooks/circuit/transitionTap';
 import type { KernelLoader } from '../lib/kernel-wire';
 import type { KernelCanvas3DFactory, KernelSceneCanvasFactory } from '@almadar/shell-runtime/kernel/wire';
 import { RowSetResolverProvider } from '../providers/RowSetResolverContext';
@@ -502,6 +503,8 @@ export interface OrbPreviewProps {
    * own router. When set, it replaces the built-in `?page=` URL sync.
    */
   onPageChange?: (path: string) => void;
+  /** Hears every transition the preview's kernel takes (a split guest's view reports them to its opener). */
+  onTransition?: TransitionTap;
   /**
    * A registry theme key (`"<base>-<light|dark>"`) that replaces every
    * orbital's declared theme — a host's explicit theme pick (the playground
@@ -622,6 +625,7 @@ export function OrbPreview({
   isolated = false,
   fit = false,
   onPageChange,
+  onTransition,
   authority = 'unavailable',
   localFallbackTimeoutMs,
   themeOverride,
@@ -952,7 +956,8 @@ export function OrbPreview({
     const engined = kernelLoader !== undefined ? (
       <KernelEngineProvider loader={kernelLoader} canvas3d={canvas3d} sceneCanvas={sceneCanvas}>{bridged}</KernelEngineProvider>
     ) : bridged;
-    return <ClientTicksPausedContext.Provider value={paused}>{engined}</ClientTicksPausedContext.Provider>;
+    const ticked = <ClientTicksPausedContext.Provider value={paused}>{engined}</ClientTicksPausedContext.Provider>;
+    return onTransition === undefined ? ticked : <TransitionTapContext.Provider value={onTransition}>{ticked}</TransitionTapContext.Provider>;
   };
 
   if (lazyRoute) {

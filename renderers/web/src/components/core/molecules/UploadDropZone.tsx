@@ -93,7 +93,7 @@ export const UploadDropZone: React.FC<UploadDropZoneProps> = ({
           if (type.endsWith("/*")) {
             return file.type.startsWith(type.replace("/*", "/"));
           }
-          return file.type === type || file.name.endsWith(type);
+          return file.type === type || file.name.toLowerCase().endsWith(type.toLowerCase());
         });
 
       const valid: File[] = [];

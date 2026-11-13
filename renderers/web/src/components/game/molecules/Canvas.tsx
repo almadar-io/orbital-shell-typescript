@@ -379,6 +379,7 @@ export function Canvas({
                     width={worldWidth ?? 800}
                     height={worldHeight ?? 600}
                     className={className}
+                    {...(fillContainer !== undefined ? { fillContainer } : {})}
                     keyMap={keyMap}
                     keyUpMap={keyUpMap}
                 />

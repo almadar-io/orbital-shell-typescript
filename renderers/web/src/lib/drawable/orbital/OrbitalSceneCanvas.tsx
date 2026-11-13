@@ -23,6 +23,8 @@ export interface OrbitalSceneCanvasProps<P extends PatternType> {
     /** The scene's authored size: the surface fills its container's width at this aspect ratio, at most 70vh tall, centered. */
     width: number;
     height: number;
+    /** Take the container's full size instead of the authored aspect ratio; the container must have a definite height. */
+    fillContainer?: boolean;
     /**
      * The pattern's callback props the molecule received as functions (`onShapeClick`), by prop name: the scene
      * queues each under its prop name and the host hands that callback the delivered payload.
@@ -265,7 +267,7 @@ const wheelFactor = (deltaY: number): number => Math.pow(1.1, -deltaY / 100);
 
 const log = createLogger('almadar:ui:orbital-scene-canvas');
 
-export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, className, width, height, callbacks, keyMap, keyUpMap }: OrbitalSceneCanvasProps<P>): React.ReactElement {
+export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, className, width, height, fillContainer, callbacks, keyMap, keyUpMap }: OrbitalSceneCanvasProps<P>): React.ReactElement {
     const engine = useKernelEngine();
     const factory = engine?.sceneCanvas;
     const eventBus = useEventBus();
@@ -493,7 +495,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         <div
             ref={containerRef}
             className={cn('orbital-scene-canvas relative mx-auto w-full overflow-hidden rounded-container', className)}
-            style={{ maxWidth: `min(100%, calc(70vh * ${width} / ${height}))`, aspectRatio: `${width} / ${height}` }}
+            style={fillContainer ? { flex: '1 1 0', height: '100%', minHeight: 0 } : { maxWidth: `min(100%, calc(70vh * ${width} / ${height}))`, aspectRatio: `${width} / ${height}` }}
         >
             <canvas
                 ref={canvasRef}
