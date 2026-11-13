@@ -84,6 +84,14 @@ export interface FileTreeProps extends Omit<React.AriaAttributes, keyof A11yProp
    *  the click-to-select affordance, mirroring Badge's `onRemove`.
    *  @offByDefault */
   onNodeSelect?: (id: string) => void;
+  /** Called when a node with children is folded open or closed, in flat
+   *  `items` mode, by its row, its chevron or the keyboard; carries its id and
+   *  whether it asks to be expanded. Presence-gated: binding it hands the
+   *  folds to the caller, so only `expandedPaths` decides what is open
+   *  (no roots or selection ancestors open by default) and a row with
+   *  children folds instead of being selected.
+   *  @offByDefault */
+  onNodeToggle?: (id: string, expanded: boolean) => void;
   /** Called from the row's hover action button, in flat `items` mode;
    *  carries that node's id. Presence-gated: binding it renders the action.
    *  @offByDefault */
@@ -391,6 +399,7 @@ interface FlatTreeNodeItemProps {
   onNodeReorder?: (id: string, newParentId: string | null, index: number) => void;
   selectedId?: string;
   look: 'files' | 'nav';
+  foldsOnClick: boolean;
   isExpanded: (id: string, depth: number) => boolean;
   onToggle: (id: string, effective: boolean) => void;
 }
@@ -421,6 +430,7 @@ const FlatTreeNodeItem: React.FC<FlatTreeNodeItemProps> = ({
   onNodeReorder,
   selectedId,
   look,
+  foldsOnClick,
   isExpanded,
   onToggle,
 }) => {
@@ -438,9 +448,13 @@ const FlatTreeNodeItem: React.FC<FlatTreeNodeItemProps> = ({
   }, [isSelected]);
 
   const handleClick = useCallback(() => {
+    if (hasChildren && foldsOnClick) {
+      onToggle(item.id, expanded);
+      return;
+    }
     if (hasChildren && !onNodeSelect) onToggle(item.id, expanded);
     onNodeSelect?.(item.id);
-  }, [hasChildren, expanded, item.id, onNodeSelect, onToggle]);
+  }, [hasChildren, foldsOnClick, expanded, item.id, onNodeSelect, onToggle]);
 
   const handleChevron = useCallback((e: React.MouseEvent) => {
     // The chevron only folds; navigation stays on the row itself.
@@ -572,6 +586,7 @@ const FlatTreeNodeItem: React.FC<FlatTreeNodeItemProps> = ({
               onNodeReorder={onNodeReorder}
               selectedId={selectedId}
               look={look}
+              foldsOnClick={foldsOnClick}
               isExpanded={isExpanded}
               onToggle={onToggle}
             />
@@ -604,6 +619,7 @@ const FlatFileTree: React.FC<Omit<FileTreeProps, 'tree' | 'selectedPath' | 'onFi
   expandedPaths,
   look = 'files',
   onNodeSelect,
+  onNodeToggle,
   onNodeAction,
   nodeActionIcon,
   nodeActionLabel,
@@ -636,16 +652,21 @@ const FlatFileTree: React.FC<Omit<FileTreeProps, 'tree' | 'selectedPath' | 'onFi
   }, [selectedId, selectedAncestors, listedKey, listed]);
 
   const isExpanded = useCallback(
-    (id: string, depth: number) => overrides.get(id) ?? (depth < 1 || selectedAncestors.has(id) || listed.has(id)),
-    [overrides, selectedAncestors, listed],
+    (id: string, depth: number) =>
+      onNodeToggle ? listed.has(id) : overrides.get(id) ?? (depth < 1 || selectedAncestors.has(id) || listed.has(id)),
+    [onNodeToggle, overrides, selectedAncestors, listed],
   );
   const onToggle = useCallback((id: string, effective: boolean) => {
+    if (onNodeToggle) {
+      onNodeToggle(id, !effective);
+      return;
+    }
     setOverrides(prev => {
       const next = new Map(prev);
       next.set(id, !effective);
       return next;
     });
-  }, []);
+  }, [onNodeToggle]);
 
   if (items.length === 0) return null;
 
@@ -681,6 +702,7 @@ const FlatFileTree: React.FC<Omit<FileTreeProps, 'tree' | 'selectedPath' | 'onFi
           onNodeReorder={onNodeReorder}
           selectedId={selectedId}
           look={look}
+          foldsOnClick={onNodeToggle !== undefined}
           isExpanded={isExpanded}
           onToggle={onToggle}
         />
@@ -699,6 +721,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
   onNodeExpand,
   expandedPaths,
   onNodeSelect,
+  onNodeToggle,
   onNodeAction,
   nodeActionIcon,
   nodeActionLabel,
@@ -716,6 +739,7 @@ export const FileTree: React.FC<FileTreeProps> = ({
         expandedPaths={expandedPaths}
         look={look}
         onNodeSelect={onNodeSelect}
+        onNodeToggle={onNodeToggle}
         onNodeAction={onNodeAction}
         nodeActionIcon={nodeActionIcon}
         nodeActionLabel={nodeActionLabel}

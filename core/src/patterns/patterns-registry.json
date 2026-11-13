@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-13T08:14:08.793Z",
+  "exportedAt": "2026-11-13T13:22:39.273Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -61427,6 +61427,24 @@
           ],
           "default": ""
         },
+        "onNodeToggle": {
+          "types": [
+            "function"
+          ],
+          "description": "Called when a node with children is folded open or closed, in flat `items` mode, by its row, its chevron or the keyboard; carries its id and whether it asks to be expanded. Presence-gated: binding it hands the folds to the caller, so only `expandedPaths` decides what is open (no roots or selection ancestors open by default) and a row with children folds instead of being selected.",
+          "kind": "callback",
+          "callbackArgs": [
+            {
+              "name": "id",
+              "type": "string"
+            },
+            {
+              "name": "expanded",
+              "type": "boolean"
+            }
+          ],
+          "default": ""
+        },
         "onNodeAction": {
           "types": [
             "function"
@@ -109499,6 +109517,11 @@
                       "string"
                     ]
                   },
+                  "labelledBy": {
+                    "types": [
+                      "string"
+                    ]
+                  },
                   "value": {
                     "types": [
                       "string"
@@ -109546,8 +109569,7 @@
                   }
                 },
                 "required": [
-                  "role",
-                  "name"
+                  "role"
                 ]
               },
               "spring": {
@@ -110474,6 +110496,11 @@
                       "string"
                     ]
                   },
+                  "labelledBy": {
+                    "types": [
+                      "string"
+                    ]
+                  },
                   "value": {
                     "types": [
                       "string"
@@ -110521,8 +110548,7 @@
                   }
                 },
                 "required": [
-                  "role",
-                  "name"
+                  "role"
                 ]
               },
               "spring": {
@@ -110955,6 +110981,11 @@
                       "string"
                     ]
                   },
+                  "labelledBy": {
+                    "types": [
+                      "string"
+                    ]
+                  },
                   "value": {
                     "types": [
                       "string"
@@ -111002,8 +111033,7 @@
                   }
                 },
                 "required": [
-                  "role",
-                  "name"
+                  "role"
                 ]
               },
               "spring": {
@@ -125415,6 +125445,7 @@
             "event",
             "EventAddress",
             "CallKey",
+            "MessageKey",
             "SExpr",
             "union",
             "tuple",

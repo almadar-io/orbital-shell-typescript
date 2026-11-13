@@ -239,3 +239,74 @@ describe('FileTree — expandedPaths in items mode', () => {
     expect(screen.queryByText('std-x')).toBeNull();
   });
 });
+
+describe('FileTree — folds owned by the caller (onNodeToggle)', () => {
+  const pkg: FileTreeItem = { id: 'pkg', label: 'Package' };
+  const topic: FileTreeItem = { id: 'pkg dev', label: 'dev', parentId: 'pkg' };
+  const leaf: FileTreeItem = { id: 'pkg/std-x', label: 'std-x', parentId: 'pkg dev' };
+  const rowOf = (text: string) => {
+    const row = screen.getByText(text).closest('[role="treeitem"]');
+    if (!row) throw new Error(`no row for ${text}`);
+    return row;
+  };
+
+  it('a folder row click asks to fold it open and selects nothing', () => {
+    const onNodeToggle = vi.fn();
+    const onNodeSelect = vi.fn();
+    render(<FileTree items={[pkg, topic, leaf]} onNodeSelect={onNodeSelect} onNodeToggle={onNodeToggle} expandedPaths={['pkg']} />);
+    fireEvent.click(rowOf('dev'));
+    expect(onNodeToggle).toHaveBeenCalledWith('pkg dev', true);
+    expect(onNodeSelect).not.toHaveBeenCalled();
+    expect(screen.queryByText('std-x')).toBeNull();
+  });
+
+  it('an open folder row click asks to close it', () => {
+    const onNodeToggle = vi.fn();
+    render(<FileTree items={[pkg, topic, leaf]} onNodeSelect={() => {}} onNodeToggle={onNodeToggle} expandedPaths={['pkg', 'pkg dev']} />);
+    fireEvent.click(rowOf('dev'));
+    expect(onNodeToggle).toHaveBeenCalledWith('pkg dev', false);
+    expect(screen.getByText('std-x')).toBeTruthy();
+  });
+
+  it('the chevron asks the same way', () => {
+    const onNodeToggle = vi.fn();
+    render(<FileTree items={[pkg, topic, leaf]} onNodeSelect={() => {}} onNodeToggle={onNodeToggle} expandedPaths={['pkg']} />);
+    const chevron = rowOf('Package').querySelector('[aria-label]');
+    if (!chevron) throw new Error('no chevron on the package row');
+    fireEvent.click(chevron);
+    expect(onNodeToggle).toHaveBeenCalledWith('pkg', false);
+  });
+
+  it('control: a leaf row click selects and folds nothing', () => {
+    const onNodeToggle = vi.fn();
+    const onNodeSelect = vi.fn();
+    render(<FileTree items={[pkg, topic, leaf]} onNodeSelect={onNodeSelect} onNodeToggle={onNodeToggle} expandedPaths={['pkg', 'pkg dev']} />);
+    fireEvent.click(rowOf('std-x'));
+    expect(onNodeSelect).toHaveBeenCalledWith('pkg/std-x');
+    expect(onNodeToggle).not.toHaveBeenCalled();
+  });
+
+  it('control: without onNodeToggle a folder row click still selects it', () => {
+    const onNodeSelect = vi.fn();
+    render(<FileTree items={[pkg, topic, leaf]} onNodeSelect={onNodeSelect} />);
+    fireEvent.click(rowOf('dev'));
+    expect(onNodeSelect).toHaveBeenCalledWith('pkg dev');
+  });
+
+  it('edge: an unlisted root and the selection\'s unlisted ancestor stay closed', () => {
+    render(<FileTree items={[pkg, topic, leaf]} selectedId="pkg/std-x" onNodeSelect={() => {}} onNodeToggle={() => {}} expandedPaths={[]} />);
+    expect(screen.queryByText('dev')).toBeNull();
+    expect(screen.queryByText('std-x')).toBeNull();
+  });
+
+  it('edge: a remount with the same expandedPaths shows the same folds', () => {
+    const props = { items: [pkg, topic, leaf], onNodeSelect: () => {}, onNodeToggle: () => {}, expandedPaths: ['pkg'] };
+    const first = render(<FileTree {...props} />);
+    expect(screen.getByText('dev')).toBeTruthy();
+    expect(screen.queryByText('std-x')).toBeNull();
+    first.unmount();
+    render(<FileTree {...props} />);
+    expect(screen.getByText('dev')).toBeTruthy();
+    expect(screen.queryByText('std-x')).toBeNull();
+  });
+});

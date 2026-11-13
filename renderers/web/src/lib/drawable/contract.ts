@@ -134,8 +134,10 @@ export function spriteRect(projector: Projector, node: SpritePlacement, natural?
 export interface DrawableSemantic {
     /** Accessibility role (`button`, `switch`, `slider`, ...). */
     role: string;
-    /** Accessible name. */
-    name: string;
+    /** Accessible name, as text. A node takes its name from `name` or from `labelledBy`, never both. */
+    name?: string;
+    /** The id of a `draw-text` whose painted text is this node's accessible name (as ARIA `aria-labelledby`), so a name translated where it is painted reads the same to assistive technology. */
+    labelledBy?: string;
     /** Current value, as text. */
     value?: string;
     /** Checked state for toggles. */
