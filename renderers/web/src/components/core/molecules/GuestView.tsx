@@ -10,11 +10,15 @@
  * the trait that drew it (its `orbital`, as a page scopes its own), so a click names its painter for the kernel; a page with
  * several roots names them in `roots`, one per child.
  * The guest paints in the theme its program declares (`theme`), never the opener's, unless the opener passes its viewer's pick (`themeOverride`).
+ * A guest opened split (`program/open { split: true }`) is handed to the view as its client `program`: the view runs its
+ * `[client]` traits in a kernel of its own, as a served app's page does, and posts each server leg to the opener as its
+ * declared `leg` event; the opener hands each answer back in `legAnswers`, and the view takes it with `legTaken`.
  */
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createLogger } from '@almadar/logger';
 import { useInRouterContext } from 'react-router-dom';
-import type { EventKey, PatternNode, ThemeRef, UISlot } from '@almadar/core';
+import type { EventKey, OrbitalSchema, PatternNode, ThemeRef, UISlot } from '@almadar/core';
+import { createChannelTransport, type ChannelMessage } from '@almadar/shell-runtime/client/channel-transport';
 import { Box, TraitScopeProvider, useEventBus } from '../../../core';
 import { EntitySchemaProvider } from '../../../providers/EntitySchemaContext';
 import { UISlotProvider, useUISlots } from '../../../providers/UISlotContext';
@@ -42,6 +46,16 @@ export interface GuestPaintEntry {
   content: PatternNode | string | null;
 }
 
+/** One answered server leg of a split guest: the events request's answer as the guest's host wrote it, or why it failed. */
+export interface GuestLegAnswer {
+  /** The leg the view posted, as named in its `leg` event. */
+  leg: string;
+  /** The `EventResponse` the guest's host answered, as JSON text. */
+  response?: string;
+  /** Why the leg could not be answered. */
+  error?: string;
+}
+
 export interface GuestViewProps {
   /** Guest session handle (`program/open` answers it, e.g. "guest-1"). Data for the kernel; never rendered. */
   guest: string;
@@ -61,6 +75,14 @@ export interface GuestViewProps {
   theme?: ThemeRef;
   /** A theme the opener's viewer picked (a registry key): it replaces the guest's own theme. */
   themeOverride?: string;
+  /** The guest's client program, when it was opened split: the view runs its `[client]` traits itself and paints them. */
+  program?: OrbitalSchema;
+  /** The opener trait's declared event a split guest's server leg is emitted as, with { guest, leg, orbital, body }: `body` is the events request as JSON text. */
+  leg?: EventKey;
+  /** The opener trait's declared event emitted with { guest, leg } once the view has taken that leg's answer. */
+  legTaken?: EventKey;
+  /** The answered legs the opener holds for this view. */
+  legAnswers?: ReadonlyArray<GuestLegAnswer>;
   /** The guest's painted content */
   children?: React.ReactNode;
 }
@@ -97,10 +119,67 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
   return null;
 }
 
+const OrbPreview = React.lazy(() => import('../../../preview/OrbPreview').then((m) => ({ default: m.OrbPreview })));
+
+const NO_ANSWERS: ReadonlyArray<GuestLegAnswer> = [];
+
+/** A split guest: its client program runs here, its server legs travel to the opener as `leg` events. */
+function SplitGuest({ guest, program, leg, legTaken, legAnswers, route, themeOverride }: {
+  guest: string;
+  program: OrbitalSchema;
+  leg: EventKey;
+  legTaken?: EventKey;
+  legAnswers: ReadonlyArray<GuestLegAnswer>;
+  route?: string;
+  themeOverride?: string;
+}): React.ReactElement {
+  const eventBus = useEventBus();
+  const bus = useRef(eventBus);
+  bus.current = eventBus;
+  // One guest handle is one opened program: a repaint of the stage hands an equal program anew, which must not restart it.
+  const opened = useRef({ guest, program });
+  if (opened.current.guest !== guest) opened.current = { guest, program };
+  const guestProgram = opened.current.program;
+  const listeners = useRef(new Set<(message: ChannelMessage) => void>());
+  const transport = useMemo(() => {
+    const hear = (message: ChannelMessage) => listeners.current.forEach((listener) => listener(message));
+    return createChannelTransport({
+      post(message) {
+        if (message.almadarChannel === 'register') {
+          queueMicrotask(() => hear({ almadarChannel: 'registered', id: message.id, held: true }));
+          return;
+        }
+        if (message.almadarChannel !== 'send') return;
+        bus.current.emit(`UI:${leg}`, { guest, leg: `${guest}:${message.id}`, orbital: message.orbitalName, body: JSON.stringify(message.request) });
+      },
+      onMessage(listener) {
+        listeners.current.add(listener);
+        return () => listeners.current.delete(listener);
+      },
+    });
+  }, [guest, leg]);
+  useEffect(() => {
+    for (const answer of legAnswers) {
+      const id = Number(answer.leg.slice(guest.length + 1));
+      if (!answer.leg.startsWith(`${guest}:`) || !Number.isInteger(id)) continue;
+      const response = answer.response !== undefined
+        ? JSON.parse(answer.response)
+        : { success: false, transitioned: false, states: {}, emittedEvents: [], error: answer.error ?? 'The guest did not answer the leg' };
+      listeners.current.forEach((listener) => listener({ almadarChannel: 'reply', id, response }));
+      if (legTaken !== undefined) bus.current.emit(`UI:${legTaken}`, { guest, leg: answer.leg });
+    }
+  }, [legAnswers, legTaken, guest]);
+  return (
+    <Suspense fallback={null}>
+      <OrbPreview schema={guestProgram} transport={transport} isolated frame="contained" height="100%" initialPagePath={route} themeOverride={themeOverride} />
+    </Suspense>
+  );
+}
+
 /**
  * GuestView - Paints a guest program's UI; guest, source and deliver are kernel routing data
  */
-export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, children }) => {
+export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, program, leg, legTaken, legAnswers, children }) => {
   const eventBus = useEventBus();
   const inHostRouter = useInRouterContext();
   const [hostHrefBase, setHostHrefBase] = useState('/');
@@ -113,6 +192,13 @@ export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navi
     () => new Map((paints ?? []).flatMap((paint) => (typeof paint.orbital === 'string' ? [[paint.trait, paint.orbital] as const] : []))),
     [paints],
   );
+  if (program !== undefined && leg !== undefined) {
+    return (
+      <Box data-guest-frame="" fullWidth fullHeight className="relative" style={{ contain: 'layout' }}>
+        <SplitGuest guest={guest} program={program} leg={leg} legTaken={legTaken} legAnswers={legAnswers ?? NO_ANSWERS} route={route} themeOverride={themeOverride} />
+      </Box>
+    );
+  }
   const painted = React.Children.toArray(children);
   const painters = roots ?? (painted.length === 1 ? [source] : []);
   const paired = painters.length === painted.length;

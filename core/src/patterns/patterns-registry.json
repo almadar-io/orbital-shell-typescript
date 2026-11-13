@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-12T23:14:02.383Z",
+  "exportedAt": "2026-11-13T04:44:05.500Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -140301,6 +140301,61 @@
             "string"
           ],
           "description": "A theme the opener's viewer picked (a registry key): it replaces the guest's own theme."
+        },
+        "program": {
+          "types": [
+            "sexpr"
+          ],
+          "description": "The guest's client program, when it was opened split: the view runs its `[client]` traits itself and paints them.",
+          "decoder": {
+            "name": "parseOrbitalSchema",
+            "from": "@almadar/core"
+          }
+        },
+        "leg": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event a split guest's server leg is emitted as, with { guest, leg, orbital, body }: `body` is the events request as JSON text.",
+          "kind": "event"
+        },
+        "legTaken": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event emitted with { guest, leg } once the view has taken that leg's answer.",
+          "kind": "event"
+        },
+        "legAnswers": {
+          "types": [
+            "array"
+          ],
+          "description": "The answered legs the opener holds for this view.",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "leg": {
+                "types": [
+                  "string"
+                ]
+              },
+              "response": {
+                "types": [
+                  "string"
+                ]
+              },
+              "error": {
+                "types": [
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "leg"
+            ]
+          }
         },
         "children": {
           "types": [
