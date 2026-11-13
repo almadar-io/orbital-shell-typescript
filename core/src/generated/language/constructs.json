@@ -1933,6 +1933,11 @@
         "doc": ""
       },
       {
+        "name": "description",
+        "type": "Option<String>",
+        "doc": ""
+      },
+      {
         "name": "span",
         "type": "Span",
         "doc": ""

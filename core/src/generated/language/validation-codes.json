@@ -1605,6 +1605,11 @@
     "description": "A page has no traits array for trait-driven UI"
   },
   {
+    "code": "ORB_P_ROUTE_PARAM_MISSING_FOR_INIT",
+    "category": "page",
+    "description": "A route page whose path lacks a :param for a field a mounted trait declares required on its INIT event, so navigating to it is refused"
+  },
+  {
     "code": "ORB_P_SIGN_IN_UNKNOWN_ROUTE",
     "category": "page",
     "description": "The app's signIn route names a path that is no page of the app"

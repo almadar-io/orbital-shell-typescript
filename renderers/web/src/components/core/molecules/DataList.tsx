@@ -119,6 +119,8 @@ export interface DataListProps extends DataDndProps, EmptyStateSlotProps, A11yPr
   itemClickEvent?: EventEmit<ItemActionPayload>;
   /** Id of the row shown as the current one (the record open beside the list); no row is marked when absent or unmatched. */
   selectedId?: string;
+  /** When true and `selectedId` names a rendered row, that row scrolls into view (nearest block) once per `selectedId`; default false leaves scrolling alone. */
+  scrollToSelected?: boolean;
   /** Gap between rows */
   gap?: 'none' | 'sm' | 'md' | 'lg';
   /** Visual variant */
@@ -260,6 +262,7 @@ export function DataList({
   maxInlineActions,
   itemClickEvent,
   selectedId,
+  scrollToSelected = false,
   gap = 'none',
   variant = 'default',
   groupBy,
@@ -319,6 +322,8 @@ export function DataList({
   // card-rows makes every row its own surface, so the list itself stays flat.
   const contentSurface = useContentSurface(look === 'card-rows' ? 'none' : surface);
   const [visibleCount, setVisibleCount] = React.useState(pageSize || Infinity);
+  const selectedRowRef = React.useRef<HTMLDivElement>(null);
+  const scrolledToId = React.useRef<string | undefined>(undefined);
 
   // Honor the pattern-types alias: compiler emits `columns`, the React API
   // accepts `fields`. Either resolves to the same shape; missing both yields
@@ -385,6 +390,14 @@ export function DataList({
       });
     }
   }, [data, hasRenderProp, schemaRenderItem, children, fieldDefs]);
+
+  React.useEffect(() => {
+    if (!scrollToSelected || selectedId === undefined || selectedId === '') return;
+    const row = selectedRowRef.current;
+    if (!row || scrolledToId.current === selectedId) return;
+    scrolledToId.current = selectedId;
+    row.scrollIntoView({ block: 'nearest' });
+  }, [scrollToSelected, selectedId, data]);
 
   // Separate fields by role
   const titleField = titleFieldOf(fieldDefs);
@@ -554,9 +567,12 @@ export function DataList({
                 (f) => f.name !== contentField && f.name !== timestampField?.name,
               );
 
+              const isSelectedMessage = selectedId !== undefined && selectedId !== '' && String(itemData.id ?? '') === selectedId;
               return (
                 <Box
                   key={id}
+                  ref={isSelectedMessage ? selectedRowRef : undefined}
+                  {...(isSelectedMessage ? { 'aria-current': 'true' as const, 'data-selected': true } : {})}
                   data-entity-row
                   data-entity-id={id}
                   data-item-key={id}
@@ -568,6 +584,7 @@ export function DataList({
                     enterClassName(itemEnter),
                     'relative flex px-4 group/rowactions',
                     itemClickEvent && 'cursor-pointer',
+                    isSelectedMessage && 'bg-primary/10 rounded-interactive',
                     isSent ? 'justify-end' : 'justify-start',
                   )}
                 >
@@ -675,7 +692,7 @@ export function DataList({
       const primary = primaryActions.length > 0 ? renderItemActions(itemData, false, primaryActions) : null;
       const actions = otherActions.length > 0 ? renderItemActions(itemData, false, otherActions) : null;
       return wrapDnd(
-        <Box key={id} data-entity-row data-entity-id={id} data-item-key={id} data-item-move={moves.row} data-row-pending={pending} aria-busy={pending} {...selectedProps}
+        <Box key={id} ref={isSelected ? selectedRowRef : undefined} data-entity-row data-entity-id={id} data-item-key={id} data-item-move={moves.row} data-row-pending={pending} aria-busy={pending} {...selectedProps}
           onClick={onOpen} className={cn('relative group/rowactions', onOpen && 'cursor-pointer', isSelected && 'bg-primary/10 rounded-interactive', enterClassName(itemEnter))}>
           {onOpen && (
             <Box
@@ -751,7 +768,7 @@ export function DataList({
     );
 
     return wrapDnd(
-      <Box key={id} data-entity-row data-entity-id={id} data-item-key={id} data-item-move={moves.row} data-row-pending={pending} aria-busy={pending} {...selectedProps}
+      <Box key={id} ref={isSelected ? selectedRowRef : undefined} data-entity-row data-entity-id={id} data-item-key={id} data-item-move={moves.row} data-row-pending={pending} aria-busy={pending} {...selectedProps}
         onClick={onOpen} className={cn('relative', onOpen && 'cursor-pointer', isSelected && 'bg-primary/10 rounded-interactive', enterClassName(itemEnter))}>
         <Box
           className={cn(

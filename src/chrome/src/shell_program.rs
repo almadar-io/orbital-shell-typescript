@@ -34,7 +34,7 @@ impl ShellProgram for ChromeProgram {
         let backend = crate::ChromeBackend::new(resolved, program);
         let generated = write_project(&request.module, output, &crate::ChromeShell::new(), &backend, &request.write)?;
         Ok(GenerateResponse {
-            files: written_files(&generated),
+            files: written_files(&generated, orbital_core_base::shell::Shell::generated_dir(&crate::ChromeShell::new())),
             warnings: generated.warnings,
             next_steps: vec![
                 format!("cd {}", output.display()),

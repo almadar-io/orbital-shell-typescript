@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-12T19:06:38.972Z",
+  "exportedAt": "2026-11-12T23:14:02.383Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -1002,6 +1002,11 @@
                 ]
               },
               "sortable": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "wrap": {
                 "types": [
                   "boolean"
                 ]
@@ -49582,6 +49587,13 @@
           ],
           "description": "Id of the row shown as the current one (the record open beside the list); no row is marked when absent or unmatched."
         },
+        "scrollToSelected": {
+          "types": [
+            "boolean"
+          ],
+          "description": "When true and `selectedId` names a rendered row, that row scrolls into view (nearest block) once per `selectedId`; default false leaves scrolling alone.",
+          "default": false
+        },
         "gap": {
           "types": [
             "string"
@@ -87214,7 +87226,11 @@
                   "boolean"
                 ]
               },
-              "wrap": {"types": ["boolean"], "description": "Show the whole value on as many lines as it needs instead of one truncated line."}
+              "wrap": {
+                "types": [
+                  "boolean"
+                ]
+              }
             },
             "required": [
               "key"
@@ -87354,6 +87370,11 @@
                 ]
               },
               "sortable": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "wrap": {
                 "types": [
                   "boolean"
                 ]
@@ -107746,6 +107767,36 @@
               "types": [
                 "boolean"
               ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
+              "types": [
+                "boolean"
+              ]
             }
           },
           "propertyRequired": [
@@ -108601,6 +108652,36 @@
               "types": [
                 "boolean"
               ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
+              "types": [
+                "boolean"
+              ]
             }
           },
           "propertyRequired": [
@@ -108942,6 +109023,36 @@
               "types": [
                 "boolean"
               ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
+              "types": [
+                "boolean"
+              ]
             }
           },
           "propertyRequired": [
@@ -109178,6 +109289,42 @@
             "durationMs",
             "keyframes"
           ]
+        },
+        "caret": {
+          "types": [
+            "number"
+          ],
+          "description": "Draw a caret before this character index (-1 or absent: none), blinking on the renderer clock."
+        },
+        "caretColor": {
+          "types": [
+            "string"
+          ],
+          "description": "Caret colour (theme tone or colour)."
+        },
+        "selectionStart": {
+          "types": [
+            "number"
+          ],
+          "description": "Start of the selection band, in characters."
+        },
+        "selectionEnd": {
+          "types": [
+            "number"
+          ],
+          "description": "End of the selection band, in characters."
+        },
+        "selectionColor": {
+          "types": [
+            "string"
+          ],
+          "description": "Selection band colour."
+        },
+        "preedit": {
+          "types": [
+            "string"
+          ],
+          "description": "Input-method text shown at the caret, underlined, not part of `text`."
         }
       },
       "drawable": true
@@ -109236,6 +109383,36 @@
               ]
             },
             "disabled": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
               "types": [
                 "boolean"
               ]
@@ -109333,6 +109510,36 @@
                     ]
                   },
                   "disabled": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "order": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "focused": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "caret": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "selectionStart": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "selectionEnd": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "multiline": {
                     "types": [
                       "boolean"
                     ]
@@ -110154,6 +110361,36 @@
               "types": [
                 "boolean"
               ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
+              "types": [
+                "boolean"
+              ]
             }
           },
           "propertyRequired": [
@@ -110248,6 +110485,36 @@
                     ]
                   },
                   "disabled": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "order": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "focused": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "caret": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "selectionStart": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "selectionEnd": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "multiline": {
                     "types": [
                       "boolean"
                     ]
@@ -110575,6 +110842,36 @@
               "types": [
                 "boolean"
               ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
+              "types": [
+                "boolean"
+              ]
             }
           },
           "propertyRequired": [
@@ -110669,6 +110966,36 @@
                     ]
                   },
                   "disabled": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "order": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "focused": {
+                    "types": [
+                      "boolean"
+                    ]
+                  },
+                  "caret": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "selectionStart": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "selectionEnd": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "multiline": {
                     "types": [
                       "boolean"
                     ]
@@ -110876,6 +111203,36 @@
                 "required": [
                   "durationMs",
                   "keyframes"
+                ]
+              },
+              "caret": {
+                "types": [
+                  "number"
+                ]
+              },
+              "caretColor": {
+                "types": [
+                  "string"
+                ]
+              },
+              "selectionStart": {
+                "types": [
+                  "number"
+                ]
+              },
+              "selectionEnd": {
+                "types": [
+                  "number"
+                ]
+              },
+              "selectionColor": {
+                "types": [
+                  "string"
+                ]
+              },
+              "preedit": {
+                "types": [
+                  "string"
                 ]
               }
             },
@@ -111806,6 +112163,113 @@
                   ]
                 }
               }
+            }
+          ]
+        },
+        "resizeEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "The canvas's size in CSS pixels, sent once it is known and again whenever it changes.",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "width",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "height",
+              "type": "number",
+              "required": true
+            }
+          ]
+        },
+        "textInputEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Text for the focused text field: `composing: false` is committed text to insert; `composing: true` is the input method's current preedit.",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "composing",
+              "type": "boolean",
+              "required": true
+            }
+          ]
+        },
+        "keyEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "An editing key for the focused text field (`key` is the DOM `KeyboardEvent.key` value).",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "key",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "shift",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "alt",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "ctrl",
+              "type": "boolean",
+              "required": true
+            },
+            {
+              "name": "meta",
+              "type": "boolean",
+              "required": true
+            }
+          ]
+        },
+        "accessEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "An assistive technology acted on a node of the semantic tree.",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "action",
+              "type": "string",
+              "required": true,
+              "enumValues": [
+                "focus",
+                "activate",
+                "increment",
+                "decrement"
+              ]
             }
           ]
         },
@@ -114214,6 +114678,36 @@
               "types": [
                 "boolean"
               ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
+              "types": [
+                "boolean"
+              ]
             }
           },
           "propertyRequired": [
@@ -114857,6 +115351,36 @@
               ]
             },
             "disabled": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
               "types": [
                 "boolean"
               ]
@@ -116889,6 +117413,36 @@
               ]
             },
             "disabled": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
               "types": [
                 "boolean"
               ]
@@ -120646,6 +121200,36 @@
               ]
             },
             "disabled": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
               "types": [
                 "boolean"
               ]
