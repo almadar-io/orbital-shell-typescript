@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-13T13:22:39.273Z",
+  "exportedAt": "2026-11-13T15:00:03.962Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -112142,6 +112142,141 @@
           "enumValues": [
             "all",
             "captured"
+          ]
+        },
+        "wheelEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "The wheel turned over the canvas: the topmost hit drawable under the pointer (empty for none), the point, and the scroll in CSS pixels. Declaring it keeps the wheel from scrolling the page (orbital painter).",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "x",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "y",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "dx",
+              "type": "number",
+              "required": true
+            },
+            {
+              "name": "dy",
+              "type": "number",
+              "required": true
+            }
+          ]
+        },
+        "embeds": {
+          "types": [
+            "array"
+          ],
+          "description": "Views the program asks the host to place in a rect of the canvas: another program, a web page, a video or a map (orbital painter).",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "id": {
+                "types": [
+                  "string"
+                ]
+              },
+              "kind": {
+                "types": [
+                  "string"
+                ],
+                "enumValues": [
+                  "program",
+                  "web",
+                  "video",
+                  "map"
+                ]
+              },
+              "source": {
+                "types": [
+                  "string"
+                ]
+              },
+              "rect": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "x": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "y": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "w": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "h": {
+                    "types": [
+                      "number"
+                    ]
+                  }
+                },
+                "required": [
+                  "x",
+                  "y",
+                  "w",
+                  "h"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "source",
+              "rect"
+            ]
+          }
+        },
+        "embedEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "The host's answer for each embed: `ready` once its view shows, `unavailable` with a reason when the host cannot provide it (orbital painter).",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "target",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "status",
+              "type": "string",
+              "required": true,
+              "enumValues": [
+                "ready",
+                "unavailable"
+              ]
+            },
+            {
+              "name": "reason",
+              "type": "string",
+              "required": true
+            }
           ]
         },
         "measureEvent": {
