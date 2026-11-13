@@ -12,12 +12,14 @@
  * The guest paints in the theme its program declares (`theme`), never the opener's, unless the opener passes its viewer's pick (`themeOverride`).
  * A guest opened split (`program/open { split: true }`) is handed to the view as its client `program`: the view runs its
  * `[client]` traits in a kernel of its own, as a served app's page does, and posts each server leg to the opener as its
- * declared `leg` event; the opener hands each answer back in `legAnswers`, and the view takes it with `legTaken`.
+ * declared `leg` event; the opener hands each answer back in `legAnswers`, and the view takes it with `legTaken`. A dispatch the
+ * guest's host ran on its own in this viewer's session arrives in `hostDispatches`; the view hands it to its kernel and reports it with `dispatchesTaken`.
  */
 import React, { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createLogger } from '@almadar/logger';
 import { useInRouterContext } from 'react-router-dom';
-import type { EventKey, OrbitalSchema, PatternNode, ThemeRef, UISlot } from '@almadar/core';
+import type { EmittedEvent, EventKey, EventPayload, OrbitalSchema, PatternNode, ThemeRef, UISlot } from '@almadar/core';
+import { isEventRequest, isEventResponse } from '@almadar/core/kernel-wire';
 import { createChannelTransport, type ChannelMessage } from '@almadar/shell-runtime/client/channel-transport';
 import type { TransitionTap } from '../../../hooks/circuit/transitionTap';
 
@@ -59,6 +61,26 @@ export interface GuestLegAnswer {
   error?: string;
 }
 
+/** One thing a split guest's host did on its own for this viewer's session, such as a completion that arrived later: a dispatch it ran or an emit it pushed on its live stream. */
+export interface GuestHostDispatch {
+  /** `dispatch` is a host-run dispatch (orbitalName, request, response); `push` is a pushed emit (emitted). */
+  kind: 'dispatch' | 'push';
+  /** The viewer session the dispatch ran in, or the request origin of the push (empty when none). */
+  clientId: string;
+  /** Who a push is for: the origin viewer or every peer of it. */
+  target: 'origin' | 'peers';
+  /** The orbital the request named (a dispatch). */
+  orbitalName?: string | null;
+  /** The `EventRequest` the host ran (a dispatch). */
+  request?: EventPayload | null;
+  /** The `EventResponse` the host answered (a dispatch). */
+  response?: EventPayload | null;
+  /** The `EmittedEvent` the host pushed (a push). */
+  emitted?: EventPayload | null;
+  /** The opener's running number for this dispatch: the view folds each seq once. */
+  seq: number;
+}
+
 export interface GuestViewProps {
   /** Guest session handle (`program/open` answers it, e.g. "guest-1"). Data for the kernel; never rendered. */
   guest: string;
@@ -86,6 +108,10 @@ export interface GuestViewProps {
   legTaken?: EventKey;
   /** The answered legs the opener holds for this view. */
   legAnswers?: ReadonlyArray<GuestLegAnswer>;
+  /** The dispatches the split guest's host ran on its own in this viewer's session that the opener holds for this view. */
+  hostDispatches?: ReadonlyArray<GuestHostDispatch>;
+  /** The opener trait's declared event emitted with { guest, seq } once the view has handed the dispatches up to that seq to its kernel. */
+  dispatchesTaken?: EventKey;
   /** The opener trait's declared event a split guest's view reports the transitions its kernel took as, with { guest, moves: [{ trait, event, from, to, fired }] }, one per settled batch. */
   moved?: EventKey;
   /** The opener trait's declared event a split guest's view emits with { guest, returnTo } when its page sends the viewer to the host's sign-in (an `access: authenticated` page and no signed-in viewer). */
@@ -133,11 +159,19 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
 const OrbPreview = React.lazy(() => import('../../../preview/OrbPreview').then((m) => ({ default: m.OrbPreview })));
 
 const NO_ANSWERS: ReadonlyArray<GuestLegAnswer> = [];
+const NO_DISPATCHES: ReadonlyArray<GuestHostDispatch> = [];
+
+/** The kernel's own check of an emitted event, by way of the response that carries it; undefined when it is not one. */
+function emittedEventOf(value: EventPayload | null | undefined): EmittedEvent | undefined {
+  if (value == null) return undefined;
+  const wrapped = { success: true, transitioned: false, states: {}, emittedEvents: [value] };
+  return isEventResponse(wrapped) ? wrapped.emittedEvents[0] : undefined;
+}
 
 /** A split guest: its client program runs here, its server legs travel to the opener as `leg` events. */
 type GuestMove = { trait: string; event: string; from: string; to: string; fired: boolean };
 
-function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, moved, signIn, signedIn, route, themeOverride }: {
+function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, hostDispatches, dispatchesTaken, moved, signIn, signedIn, route, themeOverride }: {
   guest: string;
   epoch: number;
   moved?: EventKey;
@@ -147,6 +181,8 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, moved, s
   leg: EventKey;
   legTaken?: EventKey;
   legAnswers: ReadonlyArray<GuestLegAnswer>;
+  hostDispatches: ReadonlyArray<GuestHostDispatch>;
+  dispatchesTaken?: EventKey;
   route?: string;
   themeOverride?: string;
 }): React.ReactElement {
@@ -186,6 +222,32 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, moved, s
       if (legTaken !== undefined) bus.current.emit(`UI:${legTaken}`, { guest, leg: answer.leg });
     }
   }, [legAnswers, legTaken, guest, epoch]);
+  const foldedSeq = useRef(0);
+  useEffect(() => {
+    let highest = foldedSeq.current;
+    for (const dispatched of hostDispatches) {
+      if (dispatched.seq <= foldedSeq.current) continue;
+      highest = Math.max(highest, dispatched.seq);
+      if (dispatched.kind === 'push') {
+        const emitted = emittedEventOf(dispatched.emitted);
+        if (emitted === undefined) {
+          log.error('push:malformed', { guest, seq: dispatched.seq });
+          continue;
+        }
+        listeners.current.forEach((listener) => listener({ almadarChannel: 'push', emitted, target: dispatched.target }));
+        continue;
+      }
+      const { orbitalName, request, response } = dispatched;
+      if (typeof orbitalName !== 'string' || request == null || response == null || !isEventRequest(request) || !isEventResponse(response)) {
+        log.error('dispatch:malformed', { guest, orbital: orbitalName, seq: dispatched.seq });
+        continue;
+      }
+      listeners.current.forEach((listener) => listener({ almadarChannel: 'dispatched', orbitalName, request, response }));
+    }
+    if (highest === foldedSeq.current) return;
+    foldedSeq.current = highest;
+    if (dispatchesTaken !== undefined) bus.current.emit(`UI:${dispatchesTaken}`, { guest, seq: highest });
+  }, [hostDispatches, dispatchesTaken, guest]);
   const pendingMoves = useRef<GuestMove[]>([]);
   // The view loads until the viewer first presses or types in it; from then on its moves are the viewer's own.
   const acted = useRef(false);
@@ -215,7 +277,7 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, moved, s
 /**
  * GuestView - Paints a guest program's UI; guest, source and deliver are kernel routing data
  */
-export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, program, leg, legTaken, legAnswers, epoch, moved, signIn, signedIn, children }) => {
+export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, program, leg, legTaken, legAnswers, hostDispatches, dispatchesTaken, epoch, moved, signIn, signedIn, children }) => {
   const eventBus = useEventBus();
   const inHostRouter = useInRouterContext();
   const [hostHrefBase, setHostHrefBase] = useState('/');
@@ -231,7 +293,7 @@ export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navi
   if (program !== undefined && leg !== undefined) {
     return (
       <Box data-guest-frame="" fullWidth fullHeight className="relative" style={{ contain: 'layout' }}>
-        <SplitGuest key={`${guest}:${epoch ?? 0}`} guest={guest} epoch={epoch ?? 0} program={program} leg={leg} legTaken={legTaken} legAnswers={legAnswers ?? NO_ANSWERS} moved={moved} signIn={signIn} signedIn={signedIn === true} route={route} themeOverride={themeOverride} />
+        <SplitGuest key={`${guest}:${epoch ?? 0}`} guest={guest} epoch={epoch ?? 0} program={program} leg={leg} legTaken={legTaken} legAnswers={legAnswers ?? NO_ANSWERS} hostDispatches={hostDispatches ?? NO_DISPATCHES} dispatchesTaken={dispatchesTaken} moved={moved} signIn={signIn} signedIn={signedIn === true} route={route} themeOverride={themeOverride} />
       </Box>
     );
   }

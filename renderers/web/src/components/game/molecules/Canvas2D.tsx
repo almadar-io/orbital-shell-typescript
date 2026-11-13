@@ -406,8 +406,8 @@ export function Canvas2D({
     const detectedTileWidth = useMemo(() => {
         for (const n of drawables ?? []) {
             const refs: Asset[] = [];
-            if (n.type === 'draw-sprite') refs.push(n.asset);
-            else if (n.type === 'draw-sprite-layer') for (const it of n.items) refs.push(it.asset);
+            if (n.type === 'draw-sprite') { if (n.asset) refs.push(n.asset); }
+            else if (n.type === 'draw-sprite-layer') for (const it of n.items) { if (it.asset) refs.push(it.asset); }
             for (const a of refs) {
                 if (a && isAtlasAsset(a) && a.atlas) {
                     const atlas = getAtlas(a.atlas, bumpAtlas);

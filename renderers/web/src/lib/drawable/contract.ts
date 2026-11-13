@@ -138,8 +138,10 @@ export interface DrawableSemantic {
     name?: string;
     /** The id of a `draw-text` whose painted text is this node's accessible name (as ARIA `aria-labelledby`), so a name translated where it is painted reads the same to assistive technology. */
     labelledBy?: string;
-    /** Current value, as text. */
+    /** Current value, as text. A node takes its value from `value` or from `valueFrom`, never both. */
     value?: string;
+    /** The id of a `draw-text` whose painted text is this node's value (a combobox's shown choice), so a value translated where it is painted reads the same to assistive technology. */
+    valueFrom?: string;
     /** Checked state for toggles. */
     checked?: boolean;
     /** The control is disabled. */
@@ -165,6 +167,8 @@ export interface DrawableSpring {
     /** Spring damping. */
     damping: number;
 }
+
+/** The orbital painter's layering props live on `draw-shape` (`backdrop`, `material.targets`), `draw-group` (`target`) and `draw-sprite` (`texture: "target:<id>"`); the TypeScript painter paints none of them. */
 
 /** Common shape of every drawable descriptor. `type` keys the host's paint dispatch. */
 export interface DrawableBase {

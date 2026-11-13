@@ -60,8 +60,10 @@ export interface DrawSpriteProps extends DrawableBase {
     type: 'draw-sprite';
     /** Logical scene position; the projector maps it to pixels / world. */
     position: ScenePos;
-    /** The image / atlas reference to blit. */
-    asset: Asset;
+    /** The image / atlas reference to blit. Exactly one of `asset` or `texture` declares the sprite's source. */
+    asset?: Asset;
+    /** Exactly one of `asset` or `texture`. Orbital painter: `"target:<id>"` paints the render target of that id (a `draw-group` with `target`) instead of an asset; `width` and `height` are then required and `frame` selects a sub-rect in target px. The TS Canvas2D painter paints asset sprites only and skips a texture sprite. */
+    texture?: string;
     /** How the sprite aligns to its projected position. Default `'top-left'`. */
     anchor?: DrawableAnchor;
     /** Draw width in world units (fractions of `projector.tileWidth`). Omitted → one cell on tile grids (`flat`/`iso`/`hex`); native source px on `free`/`side`. */
@@ -93,13 +95,15 @@ export interface DrawSpriteProps extends DrawableBase {
 export const paintSprite: PaintFn<DrawSpriteProps> = (painter, node, dctx) => {
     const state = spriteAssetState(node);
     if (state === 'invalid-position') return;
-    if (state === 'asset-unset') {
+    if (node.texture !== undefined) return;
+    const asset = node.asset;
+    if (state === 'asset-unset' || asset === undefined) {
         paintFallbackSquare(painter, node, dctx, 'asset-unset');
         return;
     }
-    const tex = painter.resolveTexture(node.asset.url);
+    const tex = painter.resolveTexture(asset.url);
     if (!tex) {
-        if (getImageStatus(node.asset.url) === 'failed') paintFallbackSquare(painter, node, dctx, 'texture-failed');
+        if (getImageStatus(asset.url) === 'failed') paintFallbackSquare(painter, node, dctx, 'texture-failed');
         return; // image in-flight
     }
 
@@ -110,7 +114,7 @@ export const paintSprite: PaintFn<DrawSpriteProps> = (painter, node, dctx) => {
     // Sheet playback: `animation` + a SpriteSheetAtlas manifest → the current
     // row frame at the host clock. Non-sheet atlases fall through to the
     // named-sprite path (the `animation` prop there is 3D-clip semantics).
-    const sheetAtlasUrl = atlasUrlOf(node.asset);
+    const sheetAtlasUrl = atlasUrlOf(asset);
     if (!src && node.animation !== undefined && sheetAtlasUrl !== undefined) {
         const atlas = getAtlas(sheetAtlasUrl, dctx.invalidate);
         if (!atlas) {
@@ -136,13 +140,13 @@ export const paintSprite: PaintFn<DrawSpriteProps> = (painter, node, dctx) => {
             src = { x: r.sx, y: r.sy, w: r.sw, h: r.sh };
         }
     }
-    if (!src && isAtlasAsset(node.asset)) {
-        const atlas = getAtlas(node.asset.atlas as string, dctx.invalidate);
+    if (!src && isAtlasAsset(asset)) {
+        const atlas = getAtlas(asset.atlas as string, dctx.invalidate);
         if (!atlas) {
-            if (atlasFailed(node.asset.atlas as string)) paintFallbackSquare(painter, node, dctx, 'atlas-failed');
+            if (atlasFailed(asset.atlas as string)) paintFallbackSquare(painter, node, dctx, 'atlas-failed');
             return; // atlas JSON in-flight
         }
-        const r = subRectFor(atlas, node.asset.sprite as string);
+        const r = subRectFor(atlas, asset.sprite as string);
         if (!r) {
             paintFallbackSquare(painter, node, dctx, 'sprite-missing');
             return;

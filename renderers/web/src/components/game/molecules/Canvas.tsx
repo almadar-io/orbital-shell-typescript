@@ -124,10 +124,10 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     pointerMoves?: 'all' | 'captured';
     /** The wheel turned over the canvas: the topmost hit drawable under the pointer (empty for none), the point, and the scroll in CSS pixels. Declaring it keeps the wheel from scrolling the page (orbital painter). */
     wheelEvent?: EventEmit<{ target: string; x: number; y: number; dx: number; dy: number }>;
-    /** Views the program asks the host to place in a rect of the canvas: another program, a web page, a video or a map (orbital painter). */
-    embeds?: { id: string; kind: 'program' | 'web' | 'video' | 'map'; source: string; rect: { x: number; y: number; w: number; h: number } }[];
-    /** The host's answer for each embed: `ready` once its view shows, `unavailable` with a reason when the host cannot provide it (orbital painter). */
-    embedEvent?: EventEmit<{ target: string; status: 'ready' | 'unavailable'; reason: string }>;
+    /** The program's reading direction, rendered from the page locale (`(i18n/direction)`); the painter reports it through `directionEvent` (orbital painter). */
+    direction?: 'ltr' | 'rtl';
+    /** The declared `direction`, sent once and again whenever it changes, so the program's layout can follow the locale (orbital painter). */
+    directionEvent?: EventEmit<{ direction: 'ltr' | 'rtl' }>;
     /** Sizes of every `draw-text` with `measure: true`, sent after a paint in which any of them changed (orbital painter). */
     measureEvent?: EventEmit<{ items: { id: string; width: number; height: number; lines: number }[] }>;
     /** The canvas's size in CSS pixels, sent once it is known and again whenever it changes. */
@@ -216,8 +216,8 @@ export function Canvas({
     pointerMoveEvent,
     pointerMoves,
     wheelEvent,
-    embeds,
-    embedEvent,
+    direction,
+    directionEvent,
     measureEvent,
     resizeEvent,
     textInputEvent,
@@ -325,8 +325,8 @@ export function Canvas({
             pointerMoveEvent,
             pointerMoves,
             wheelEvent,
-            embeds,
-            embedEvent,
+            direction,
+            directionEvent,
             measureEvent,
             resizeEvent,
             textInputEvent,
@@ -340,7 +340,7 @@ export function Canvas({
             selectEvent,
             moveEvent,
         }),
-        [drawables, camera, projection, unitScale, fit, tileWidth, backgroundImage, backgroundColor, worldWidth, worldHeight, tileClickEvent, unitClickEvent, tileHoverEvent, tileLeaveEvent, pointerDownEvent, pointerUpEvent, pointerEnterEvent, pointerLeaveEvent, pointerMoveEvent, pointerMoves, wheelEvent, embeds, embedEvent, measureEvent, resizeEvent, textInputEvent, keyEvent, accessEvent, keyMap, keyUpMap, gestureMap, editable, selectedId, selectEvent, moveEvent],
+        [drawables, camera, projection, unitScale, fit, tileWidth, backgroundImage, backgroundColor, worldWidth, worldHeight, tileClickEvent, unitClickEvent, tileHoverEvent, tileLeaveEvent, pointerDownEvent, pointerUpEvent, pointerEnterEvent, pointerLeaveEvent, pointerMoveEvent, pointerMoves, wheelEvent, direction, directionEvent, measureEvent, resizeEvent, textInputEvent, keyEvent, accessEvent, keyMap, keyUpMap, gestureMap, editable, selectedId, selectEvent, moveEvent],
     );
     const allDrawables = useMemo(() => [...(drawables ?? []), ...childDrawables], [drawables, childDrawables]);
 

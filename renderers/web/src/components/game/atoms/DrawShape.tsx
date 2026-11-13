@@ -150,6 +150,18 @@ export interface DrawShapeMaterial {
     params: number[];
     /** True asks for a frame every tick (the shader reads `time`); otherwise it redraws on change and pointer movement. */
     live: boolean;
+    /** Ids of render targets (a `draw-group` with `target`) the material samples; the first is `target_a` at `@group(1)` (premultiplied alpha). */
+    targets?: string[];
+}
+
+/** What a shape shows behind itself (orbital painter): the frame painted so far under the shape's rect, blurred by a separable Gaussian of sigma `blur / 2`, saturated and tinted, masked by the shape's coverage; the fill and stroke then paint over it. A material reads it as `Pixel.behind` (straight alpha, zero without a backdrop). SDF shape kinds only; a backdrop shape ends its SDF batch. */
+export interface DrawShapeBackdrop {
+    /** Blur radius in px (>= 0); the Gaussian's sigma is half of it. */
+    blur: number;
+    /** CSS colour composited over the blurred frame. */
+    tint?: string;
+    /** Colour saturation of the blurred frame (default 1, 0 is gray). */
+    saturate?: number;
 }
 
 export interface DrawShapeProps extends DrawableBase {
@@ -215,6 +227,8 @@ export interface DrawShapeProps extends DrawableBase {
     starRatio?: number;
     /** Shader fill (orbital painter). */
     material?: DrawShapeMaterial;
+    /** Frame-so-far blur behind the shape (orbital painter). */
+    backdrop?: DrawShapeBackdrop;
 }
 
 /** The keyframe fields that lerp; everything else steps (holds the previous keyframe). */

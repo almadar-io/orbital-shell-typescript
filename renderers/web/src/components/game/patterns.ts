@@ -16,6 +16,7 @@ export { DrawSprite } from './atoms/DrawSprite';
 export { DrawShape } from './atoms/DrawShape';
 export { DrawText } from './atoms/DrawText';
 export { DrawGroup } from './atoms/DrawGroup';
+export { DrawEmitter } from './atoms/DrawEmitter';
 export { DrawMesh } from './atoms/DrawMesh';
 export { DrawSkinnedMesh } from './atoms/DrawSkinnedMesh';
 export { DrawSpriteLayer } from './molecules/DrawSpriteLayer';

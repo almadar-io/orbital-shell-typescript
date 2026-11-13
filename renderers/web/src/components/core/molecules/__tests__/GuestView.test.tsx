@@ -2,8 +2,29 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
-import { GuestView, type GuestPaintEntry } from '../GuestView';
+import type { EmittedEvent, EventRequest, EventResponse, OrbitalSchema } from '@almadar/core';
+import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
+import { GuestView, type GuestHostDispatch, type GuestPaintEntry } from '../GuestView';
 import { EventBusProvider, useEventBus } from '../../../../core';
+
+const previewHeard: Array<{ orbitalName: string; request: EventRequest; response: EventResponse }> = [];
+const previewPushed: Array<{ emitted: EmittedEvent; target: string }> = [];
+let previewSubscribed = 0;
+
+vi.mock('../../../../preview/OrbPreview', async () => {
+  const react = await import('react');
+  return {
+    OrbPreview: ({ transport }: { transport?: EventTransport }) => {
+      react.useEffect(() => {
+        const stop = transport?.subscribeHostDispatches?.((orbitalName, request, response) => { previewHeard.push({ orbitalName, request, response }); });
+        const stopPush = transport?.subscribe?.((emitted, target) => { previewPushed.push({ emitted, target }); });
+        previewSubscribed += 1;
+        return () => { stop?.(); stopPush?.(); };
+      }, [transport]);
+      return null;
+    },
+  };
+});
 
 const wrap = (ui: React.ReactElement) => render(<EventBusProvider debug={false}>{ui}</EventBusProvider>);
 
@@ -363,5 +384,128 @@ describe('GuestView theme', () => {
     const { container } = wrap(<GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK"><span>painted</span></GuestView>);
     expect(container.querySelector('[data-orbital-theme]')).toBeNull();
     expect(container.querySelector('[data-theme]')).toBeNull();
+  });
+});
+
+describe('GuestView folds the host-run dispatches of a split guest', () => {
+  const program: OrbitalSchema = { name: 'Guest', orbitals: [] };
+  const dispatch = (seq: number): GuestHostDispatch => ({
+    kind: 'dispatch',
+    target: 'origin',
+    clientId: 'tab-1',
+    orbitalName: 'Orb',
+    request: { event: 'DONE', payload: { n: seq } },
+    response: { success: true, transitioned: true, states: {}, emittedEvents: [] },
+    seq,
+  });
+  const taken: Array<{ guest: string; seq: number }> = [];
+  const Listen = () => {
+    const bus = useEventBus();
+    React.useEffect(() => bus.onAny?.((e) => {
+      if (e.type === 'UI:GUEST_DISPATCHES_TAKEN') taken.push({ guest: e.payload?.guest as string, seq: e.payload?.seq as number });
+    }), [bus]);
+    return null;
+  };
+  const view = (hostDispatches?: ReadonlyArray<GuestHostDispatch>) => (
+    <EventBusProvider debug={false}>
+      <Listen />
+      <GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" program={program} leg="GUEST_LEG_SENT" hostDispatches={hostDispatches} dispatchesTaken="GUEST_DISPATCHES_TAKEN">
+        <span>x</span>
+      </GuestView>
+    </EventBusProvider>
+  );
+  const mounted = async (hostDispatches?: ReadonlyArray<GuestHostDispatch>) => {
+    previewHeard.length = 0;
+    previewPushed.length = 0;
+    previewSubscribed = 0;
+    taken.length = 0;
+    const out = render(view(hostDispatches));
+    await waitFor(() => expect(previewSubscribed).toBeGreaterThan(0));
+    return out;
+  };
+
+  it('posts a dispatch to the guest kernel once and reports the seq it folded', async () => {
+    const { rerender } = await mounted([]);
+    rerender(view([dispatch(1)]));
+    await waitFor(() => expect(previewHeard).toHaveLength(1));
+    expect(previewHeard[0].orbitalName).toBe('Orb');
+    expect(previewHeard[0].request).toEqual(dispatch(1).request);
+    rerender(view([dispatch(1)]));
+    expect(previewHeard).toHaveLength(1);
+    expect(taken).toEqual([{ guest: 'guest-1', seq: 1 }]);
+  });
+
+  it('a later dispatch folds on its own, the earlier one is not posted again', async () => {
+    const { rerender } = await mounted([]);
+    rerender(view([dispatch(1)]));
+    await waitFor(() => expect(previewHeard).toHaveLength(1));
+    rerender(view([dispatch(1), dispatch(2)]));
+    await waitFor(() => expect(previewHeard).toHaveLength(2));
+    expect(previewHeard[1].request).toEqual(dispatch(2).request);
+    expect(taken.map((t) => t.seq)).toEqual([1, 2]);
+  });
+
+  it('control: a dispatch that is not a request and a response is not posted, and is still taken', async () => {
+    const { rerender } = await mounted([]);
+    rerender(view([{ ...dispatch(1), request: { event: 5 } }]));
+    await waitFor(() => expect(taken).toEqual([{ guest: 'guest-1', seq: 1 }]));
+    expect(previewHeard).toHaveLength(0);
+  });
+
+  const push = (seq: number, target: 'origin' | 'peers'): GuestHostDispatch => ({
+    kind: 'push',
+    clientId: 'tab-1',
+    target,
+    emitted: { event: 'BUILD_COMPLETE', payload: { n: seq }, source: { orbital: 'Orb' } },
+    seq,
+  });
+
+  it('posts a pushed emit as a push with its target once and reports its seq', async () => {
+    const { rerender } = await mounted([]);
+    rerender(view([push(1, 'peers')]));
+    await waitFor(() => expect(previewPushed).toHaveLength(1));
+    expect(previewPushed[0]).toEqual({ emitted: push(1, 'peers').emitted, target: 'peers' });
+    rerender(view([push(1, 'peers')]));
+    expect(previewPushed).toHaveLength(1);
+    expect(previewHeard).toHaveLength(0);
+    expect(taken).toEqual([{ guest: 'guest-1', seq: 1 }]);
+  });
+
+  it('a push to the origin keeps its target', async () => {
+    const { rerender } = await mounted([]);
+    rerender(view([push(1, 'origin')]));
+    await waitFor(() => expect(previewPushed).toHaveLength(1));
+    expect(previewPushed[0].target).toBe('origin');
+  });
+
+  it('a dispatch and a push in one batch each reach their own listener', async () => {
+    const { rerender } = await mounted([]);
+    rerender(view([dispatch(1), push(2, 'origin')]));
+    await waitFor(() => expect(previewPushed).toHaveLength(1));
+    expect(previewHeard).toHaveLength(1);
+    expect(taken.map((t) => t.seq)).toEqual([2]);
+  });
+
+  it('control: a push whose emitted event is malformed is not posted, and is still taken', async () => {
+    const { rerender } = await mounted([]);
+    rerender(view([{ ...push(1, 'peers'), emitted: { event: 5 } }]));
+    await waitFor(() => expect(taken).toEqual([{ guest: 'guest-1', seq: 1 }]));
+    expect(previewPushed).toHaveLength(0);
+    expect(previewHeard).toHaveLength(0);
+  });
+
+  it('control: a dispatch posts no push', async () => {
+    const { rerender } = await mounted([]);
+    rerender(view([dispatch(1)]));
+    await waitFor(() => expect(previewHeard).toHaveLength(1));
+    expect(previewPushed).toHaveLength(0);
+  });
+
+  it('control: with no dispatches nothing is posted and nothing is reported', async () => {
+    const { rerender } = await mounted([]);
+    rerender(view([]));
+    rerender(view(undefined));
+    expect(previewHeard).toHaveLength(0);
+    expect(taken).toHaveLength(0);
   });
 });

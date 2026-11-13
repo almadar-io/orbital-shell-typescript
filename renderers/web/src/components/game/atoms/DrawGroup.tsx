@@ -47,8 +47,22 @@ export interface DrawGroupProps extends DrawableBase {
     opacity?: number;
     /** Clip the group's items to an SVG path (`d` syntax) in world units relative to the group origin — masked reveals, meters, portraits. */
     clip?: string;
+    /** Paint the items into an offscreen texture of this pixel size (group-local origin at its top-left) and nothing in the frame (orbital painter). A `draw-sprite` with `texture: "target:<id>"` paints it and an SDF `material.targets` samples it. A target paints where it stands in the draw order: a reader before it reads last frame's texture; targets that read each other in a cycle are a scene error. It repaints when its items change or `live` is set. */
+    target?: DrawGroupTarget;
     /** The grouped drawables, painted through the normal dispatch. */
     items: DrawableNode[];
+}
+
+/** An offscreen render target a `draw-group` paints into (orbital painter). */
+export interface DrawGroupTarget {
+    /** Id a sprite's `texture: "target:<id>"` and a material's `targets` name. */
+    id: string;
+    /** Texture width in px (a whole number above zero). */
+    width: number;
+    /** Texture height in px (a whole number above zero). */
+    height: number;
+    /** Repaint every frame (the items read the clock) instead of only when they change. */
+    live?: boolean;
 }
 
 /** True when this group declares a playable keyframe animation of its own. */

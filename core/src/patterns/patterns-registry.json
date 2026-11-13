@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-13T15:00:03.962Z",
+  "exportedAt": "2026-11-13T17:54:44.008Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -108603,12 +108603,48 @@
               "types": [
                 "boolean"
               ]
+            },
+            "targets": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "string"
+                ]
+              }
             }
           },
           "propertyRequired": [
             "wgsl",
             "params",
             "live"
+          ]
+        },
+        "backdrop": {
+          "types": [
+            "object"
+          ],
+          "description": "Frame-so-far blur behind the shape (orbital painter).",
+          "properties": {
+            "blur": {
+              "types": [
+                "number"
+              ]
+            },
+            "tint": {
+              "types": [
+                "string"
+              ]
+            },
+            "saturate": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "blur"
           ]
         }
       },
@@ -108772,8 +108808,7 @@
           "types": [
             "object"
           ],
-          "description": "The image / atlas reference to blit.",
-          "required": true,
+          "description": "The image / atlas reference to blit. Exactly one of `asset` or `texture` declares the sprite's source.",
           "properties": {
             "url": {
               "types": [
@@ -108866,6 +108901,12 @@
             "role",
             "category"
           ]
+        },
+        "texture": {
+          "types": [
+            "string"
+          ],
+          "description": "Exactly one of `asset` or `texture`. Orbital painter: `\"target:<id>\"` paints the render target of that id (a `draw-group` with `target`) instead of an asset; `width` and `height` are then required and `frame` selects a sub-rect in target px. The TS Canvas2D painter paints asset sprites only and skips a texture sprite."
         },
         "anchor": {
           "types": [
@@ -109523,6 +109564,11 @@
                     ]
                   },
                   "value": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "valueFrom": {
                     "types": [
                       "string"
                     ]
@@ -110307,12 +110353,47 @@
                     "types": [
                       "boolean"
                     ]
+                  },
+                  "targets": {
+                    "types": [
+                      "array"
+                    ],
+                    "items": {
+                      "types": [
+                        "string"
+                      ]
+                    }
                   }
                 },
                 "required": [
                   "wgsl",
                   "params",
                   "live"
+                ]
+              },
+              "backdrop": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "blur": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "tint": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "saturate": {
+                    "types": [
+                      "number"
+                    ]
+                  }
+                },
+                "required": [
+                  "blur"
                 ]
               }
             },
@@ -110502,6 +110583,11 @@
                     ]
                   },
                   "value": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "valueFrom": {
                     "types": [
                       "string"
                     ]
@@ -110696,6 +110782,11 @@
                   "category"
                 ]
               },
+              "texture": {
+                "types": [
+                  "string"
+                ]
+              },
               "anchor": {
                 "types": [
                   "string"
@@ -110803,8 +110894,7 @@
             },
             "required": [
               "type",
-              "position",
-              "asset"
+              "position"
             ]
           }
         }
@@ -110987,6 +111077,11 @@
                     ]
                   },
                   "value": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "valueFrom": {
                     "types": [
                       "string"
                     ]
@@ -112178,104 +112273,31 @@
             }
           ]
         },
-        "embeds": {
-          "types": [
-            "array"
-          ],
-          "description": "Views the program asks the host to place in a rect of the canvas: another program, a web page, a video or a map (orbital painter).",
-          "items": {
-            "types": [
-              "object"
-            ],
-            "properties": {
-              "id": {
-                "types": [
-                  "string"
-                ]
-              },
-              "kind": {
-                "types": [
-                  "string"
-                ],
-                "enumValues": [
-                  "program",
-                  "web",
-                  "video",
-                  "map"
-                ]
-              },
-              "source": {
-                "types": [
-                  "string"
-                ]
-              },
-              "rect": {
-                "types": [
-                  "object"
-                ],
-                "properties": {
-                  "x": {
-                    "types": [
-                      "number"
-                    ]
-                  },
-                  "y": {
-                    "types": [
-                      "number"
-                    ]
-                  },
-                  "w": {
-                    "types": [
-                      "number"
-                    ]
-                  },
-                  "h": {
-                    "types": [
-                      "number"
-                    ]
-                  }
-                },
-                "required": [
-                  "x",
-                  "y",
-                  "w",
-                  "h"
-                ]
-              }
-            },
-            "required": [
-              "id",
-              "kind",
-              "source",
-              "rect"
-            ]
-          }
-        },
-        "embedEvent": {
+        "direction": {
           "types": [
             "string"
           ],
-          "description": "The host's answer for each embed: `ready` once its view shows, `unavailable` with a reason when the host cannot provide it (orbital painter).",
+          "description": "The program's reading direction, rendered from the page locale (`(i18n/direction)`); the painter reports it through `directionEvent` (orbital painter).",
+          "enumValues": [
+            "ltr",
+            "rtl"
+          ]
+        },
+        "directionEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "The declared `direction`, sent once and again whenever it changes, so the program's layout can follow the locale (orbital painter).",
           "kind": "event-ref",
           "emitPayloadSchema": [
             {
-              "name": "target",
-              "type": "string",
-              "required": true
-            },
-            {
-              "name": "status",
+              "name": "direction",
               "type": "string",
               "required": true,
               "enumValues": [
-                "ready",
-                "unavailable"
+                "ltr",
+                "rtl"
               ]
-            },
-            {
-              "name": "reason",
-              "type": "string",
-              "required": true
             }
           ]
         },
@@ -115101,6 +115123,39 @@
             "string"
           ],
           "description": "Clip the group's items to an SVG path (`d` syntax) in world units relative to the group origin — masked reveals, meters, portraits."
+        },
+        "target": {
+          "types": [
+            "object"
+          ],
+          "description": "Paint the items into an offscreen texture of this pixel size (group-local origin at its top-left) and nothing in the frame (orbital painter). A `draw-sprite` with `texture: \"target:<id>\"` paints it and an SDF `material.targets` samples it. A target paints where it stands in the draw order: a reader before it reads last frame's texture; targets that read each other in a cycle are a scene error. It repaints when its items change or `live` is set.",
+          "properties": {
+            "id": {
+              "types": [
+                "string"
+              ]
+            },
+            "width": {
+              "types": [
+                "number"
+              ]
+            },
+            "height": {
+              "types": [
+                "number"
+              ]
+            },
+            "live": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "id",
+            "width",
+            "height"
+          ]
         },
         "items": {
           "types": [
@@ -140523,6 +140578,83 @@
             ]
           }
         },
+        "hostDispatches": {
+          "types": [
+            "array"
+          ],
+          "description": "The dispatches the split guest's host ran on its own in this viewer's session that the opener holds for this view.",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "kind": {
+                "types": [
+                  "string"
+                ],
+                "enumValues": [
+                  "dispatch",
+                  "push"
+                ]
+              },
+              "clientId": {
+                "types": [
+                  "string"
+                ]
+              },
+              "target": {
+                "types": [
+                  "string"
+                ],
+                "enumValues": [
+                  "origin",
+                  "peers"
+                ]
+              },
+              "orbitalName": {
+                "types": [
+                  "string"
+                ]
+              },
+              "request": {
+                "types": [
+                  "object"
+                ],
+                "eventPayloadBrand": true
+              },
+              "response": {
+                "types": [
+                  "object"
+                ],
+                "eventPayloadBrand": true
+              },
+              "emitted": {
+                "types": [
+                  "object"
+                ],
+                "eventPayloadBrand": true
+              },
+              "seq": {
+                "types": [
+                  "number"
+                ]
+              }
+            },
+            "required": [
+              "kind",
+              "clientId",
+              "target",
+              "seq"
+            ]
+          }
+        },
+        "dispatchesTaken": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event emitted with { guest, seq } once the view has handed the dispatches up to that seq to its kernel.",
+          "kind": "event"
+        },
         "moved": {
           "types": [
             "string"
@@ -140987,6 +141119,302 @@
           ]
         }
       }
+    },
+    "draw-emitter": {
+      "type": "draw-emitter",
+      "category": "game",
+      "sourceFile": "components/game/atoms/DrawEmitter.tsx",
+      "tier": "atoms",
+      "family": "game",
+      "description": "DrawEmitter component",
+      "suggestedFor": [
+        "draw",
+        "emitter",
+        "draw emitter"
+      ],
+      "typicalSize": "small",
+      "propsSchema": {
+        "id": {
+          "types": [
+            "string"
+          ],
+          "description": "Optional source-tagged hit-test handle — the host indexes the drawable's ScenePos→id so a pointer/raycast at that cell resolves to this id (unit/entity click). No id → the host emits only the coordinate (tile click)."
+        },
+        "hit": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "semantic": {
+          "types": [
+            "object"
+          ],
+          "description": "Accessibility node for this drawable.",
+          "properties": {
+            "role": {
+              "types": [
+                "string"
+              ]
+            },
+            "name": {
+              "types": [
+                "string"
+              ]
+            },
+            "value": {
+              "types": [
+                "string"
+              ]
+            },
+            "checked": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "disabled": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "order": {
+              "types": [
+                "number"
+              ]
+            },
+            "focused": {
+              "types": [
+                "boolean"
+              ]
+            },
+            "caret": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionStart": {
+              "types": [
+                "number"
+              ]
+            },
+            "selectionEnd": {
+              "types": [
+                "number"
+              ]
+            },
+            "multiline": {
+              "types": [
+                "boolean"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "role",
+            "name"
+          ]
+        },
+        "spring": {
+          "types": [
+            "object"
+          ],
+          "description": "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.",
+          "properties": {
+            "stiffness": {
+              "types": [
+                "number"
+              ]
+            },
+            "damping": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "stiffness",
+            "damping"
+          ]
+        },
+        "type": {
+          "types": [
+            "string"
+          ],
+          "description": "type prop",
+          "required": true,
+          "enumValues": [
+            "draw-emitter"
+          ]
+        },
+        "position": {
+          "types": [
+            "object"
+          ],
+          "description": "Where particles are born.",
+          "required": true,
+          "properties": {
+            "x": {
+              "types": [
+                "number"
+              ]
+            },
+            "y": {
+              "types": [
+                "number"
+              ]
+            },
+            "z": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "x",
+            "y"
+          ],
+          "scenePos": true
+        },
+        "template": {
+          "types": [
+            "array"
+          ],
+          "description": "The drawables each particle paints, positions local to the particle.",
+          "required": true,
+          "items": {
+            "types": [
+              "object"
+            ],
+            "drawableSlot": true
+          }
+        },
+        "rate": {
+          "types": [
+            "number"
+          ],
+          "description": "Particles born per second.",
+          "required": true
+        },
+        "burst": {
+          "types": [
+            "number"
+          ],
+          "description": "Particles born together at the emitter's start."
+        },
+        "lifetime": {
+          "types": [
+            "number"
+          ],
+          "description": "Seconds a particle lives.",
+          "required": true
+        },
+        "spread": {
+          "types": [
+            "array"
+          ],
+          "description": "Launch angle range in radians (default a full turn).",
+          "tupleItems": [
+            {
+              "types": [
+                "number"
+              ]
+            },
+            {
+              "types": [
+                "number"
+              ]
+            }
+          ],
+          "items": {
+            "types": [
+              "number"
+            ]
+          }
+        },
+        "speed": {
+          "types": [
+            "array"
+          ],
+          "description": "Launch speed range in px per second.",
+          "required": true,
+          "tupleItems": [
+            {
+              "types": [
+                "number"
+              ]
+            },
+            {
+              "types": [
+                "number"
+              ]
+            }
+          ],
+          "items": {
+            "types": [
+              "number"
+            ]
+          }
+        },
+        "gravity": {
+          "types": [
+            "number"
+          ],
+          "description": "Downward acceleration in px per second squared."
+        },
+        "seed": {
+          "types": [
+            "number"
+          ],
+          "description": "Randomness seed; with the particle index it fixes every particle.",
+          "required": true
+        },
+        "startMs": {
+          "types": [
+            "number"
+          ],
+          "description": "Paint-clock milliseconds the emitter starts at; the burst fires there (default 0)."
+        },
+        "over": {
+          "types": [
+            "object"
+          ],
+          "description": "Tracks sampled by particle age.",
+          "required": true,
+          "properties": {
+            "opacity": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "number"
+                ]
+              }
+            },
+            "scale": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "number"
+                ]
+              }
+            },
+            "rotate": {
+              "types": [
+                "array"
+              ],
+              "items": {
+                "types": [
+                  "number"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "drawable": true,
+      "drawHost": true
     }
   },
   "categories": [

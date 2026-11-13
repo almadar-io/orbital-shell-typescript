@@ -83,4 +83,12 @@ describe('paintSprite — unresolvable asset', () => {
     paintSprite(painter, { ...sprite({ url: '', role: 'tile', category: 'terrain' }), position: { x: Number.NaN, y: 0 } }, dctx);
     expect(calls.some((c) => c.op === 'fillRect')).toBe(false);
   });
+
+  it('paints nothing for a render-target texture sprite in the TS painter', () => {
+    const tex = { width: 64, height: 64 } as TextureHandle;
+    const { painter, calls } = recordingPainter(tex);
+    const node: DrawSpriteProps = { type: 'draw-sprite', position: { x: 10, y: 20 }, width: 32, height: 48, texture: 'target:minimap' };
+    paintSprite(painter, node, dctx);
+    expect(calls.some((c) => c.op === 'fillRect' || c.op === 'blit' || c.op === 'resolveTexture')).toBe(false);
+  });
 });

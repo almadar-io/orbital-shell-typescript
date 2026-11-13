@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-13T15:00:03.962Z",
+  "exportedAt": "2026-11-13T17:54:44.008Z",
   "mappings": {
     "page-header": {
       "component": "PageHeader",
@@ -1348,6 +1348,11 @@
       "component": "AnnotatedMedia",
       "importPath": "@almadar/shell-web/components/core/molecules/AnnotatedMedia",
       "category": "component"
+    },
+    "draw-emitter": {
+      "component": "DrawEmitter",
+      "importPath": "@almadar/shell-web/components/game/atoms/DrawEmitter",
+      "category": "game"
     }
   }
 }
