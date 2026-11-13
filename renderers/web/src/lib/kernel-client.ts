@@ -416,7 +416,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       };
       out.success = out.success && posted.success;
       if (posted.error !== undefined) out.error = posted.error;
-      out.rejections.push(...(fold.rejections ?? []).filter((r) => r.code === 'effect-failed' || r.code === 'repaint-failed'));
+      out.rejections.push(...(fold.rejections ?? []).filter((r) => r.code === 'effect-failed' || r.code === 'repaint-failed' || r.code === 'cascade-capped'));
     }
     return out;
   };

@@ -1002,6 +1002,11 @@
         "doc": "`derived` field flag with the derivation expression."
       },
       {
+        "name": "update",
+        "type": "Option<orbital_core_base::schema::FieldUpdate>",
+        "doc": "Trailing `@update <expr>` or `@update server \"<reason>\"` annotation: the field's own write rule."
+      },
+      {
         "name": "display",
         "type": "Option<String>",
         "doc": "Trailing `@display <field>` annotation on a relation field: the target field a related record is shown by."

@@ -901,7 +901,7 @@ error?: string,
  */
 slot?: string, };
 
-export type TransitionRejectionCode = "no-matching-transition" | "guard-rejected" | "no-dispatchable-traits" | "not-an-external-input" | "inbound-only-event" | "effect-failed" | "locale-not-declared" | "client-circuit-state-refused" | "repaint-failed";
+export type TransitionRejectionCode = "no-matching-transition" | "guard-rejected" | "no-dispatchable-traits" | "not-an-external-input" | "inbound-only-event" | "effect-failed" | "locale-not-declared" | "client-circuit-state-refused" | "repaint-failed" | "cascade-capped";
 
 export type ValidationJsonError = { code: string, path: string, message: string, suggestion?: string, fixGuidance?: string, expectedShape?: string, validValues?: Array<string>, line?: number, column?: number, endLine?: number, endColumn?: number, approximate: boolean, needsInstall?: boolean, entity?: string, field?: string, };
 
@@ -1785,7 +1785,7 @@ function checkTransitionRejection(v: JsonValue | undefined): boolean {
 }
 
 function checkTransitionRejectionCode(v: JsonValue | undefined): boolean {
-  return (v === "no-matching-transition" || v === "guard-rejected" || v === "no-dispatchable-traits" || v === "not-an-external-input" || v === "inbound-only-event" || v === "effect-failed" || v === "locale-not-declared" || v === "client-circuit-state-refused" || v === "repaint-failed");
+  return (v === "no-matching-transition" || v === "guard-rejected" || v === "no-dispatchable-traits" || v === "not-an-external-input" || v === "inbound-only-event" || v === "effect-failed" || v === "locale-not-declared" || v === "client-circuit-state-refused" || v === "repaint-failed" || v === "cascade-capped");
 }
 
 function checkValidationJsonError(v: JsonValue | undefined): boolean {
@@ -2525,7 +2525,7 @@ function buildTransitionRejection(v: JsonValue | undefined, p: string): Transiti
 }
 
 function buildTransitionRejectionCode(v: JsonValue | undefined, p: string): TransitionRejectionCode {
-  return oneOf(v, p, ["no-matching-transition", "guard-rejected", "no-dispatchable-traits", "not-an-external-input", "inbound-only-event", "effect-failed", "locale-not-declared", "client-circuit-state-refused", "repaint-failed"]);
+  return oneOf(v, p, ["no-matching-transition", "guard-rejected", "no-dispatchable-traits", "not-an-external-input", "inbound-only-event", "effect-failed", "locale-not-declared", "client-circuit-state-refused", "repaint-failed", "cascade-capped"]);
 }
 
 function buildValidationJsonError(v: JsonValue | undefined, p: string): ValidationJsonError {

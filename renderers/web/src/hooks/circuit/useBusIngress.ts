@@ -49,6 +49,7 @@ export function useBusIngress(
     const unsubscribes: Array<() => void> = [];
     const subscribedQualified = new Set<string>();
     const subscribedBare = new Set<string>();
+    const painters = new WeakMap<BusEventSource, string>();
 
     // A republished echo from any trait of THIS app — on this page or off it — was already delivered by the kernel
     // that ran it; only a foreign host's echo may still arrive by name.
@@ -56,6 +57,8 @@ export function useBusIngress(
       source?.dispatched === true &&
       source.trait !== undefined &&
       (traitIndex.byName.has(source.trait) || appTraitNames.has(source.trait));
+
+    const raisedByGuest = (source: BusEventSource | undefined): boolean => source !== undefined && painters.has(source);
 
     const withPending = (source: BusEventSource | undefined, run: () => Promise<void>, failed: Record<string, string>): void => {
       // The firing control's busy state spans this dispatch (lib/pendingDispatch).
@@ -85,7 +88,7 @@ export function useBusIngress(
       if (subscribedQualified.has(qualifiedKey)) return;
       subscribedQualified.add(qualifiedKey);
       unsubscribes.push(eventBus.on(qualifiedKey, (event) => {
-        if (deliveredHere(event.source)) return;
+        if (deliveredHere(event.source) || raisedByGuest(event.source)) return;
         log.debug('qualified:fire', { key: qualifiedKey });
         dispatch(traitName, eventKey, event.payload, event.source);
       }));
@@ -96,7 +99,7 @@ export function useBusIngress(
       if (subscribedBare.has(bareKey)) return;
       subscribedBare.add(bareKey);
       unsubscribes.push(eventBus.on(bareKey, (event) => {
-        if (deliveredHere(event.source)) return;
+        if (deliveredHere(event.source) || raisedByGuest(event.source)) return;
         const source = event.source;
         const emitted: EmittedEvent = {
           event: eventKey,
@@ -122,15 +125,14 @@ export function useBusIngress(
 
     // A trait that paints a guest-view hears every event raised in its scope. A guest paint is scoped to the guest trait
     // that drew it, so one click fans out innermost-first: the painter's key, then the opener's. The opener is
-    // dispatched `<Painter>.<EVENT>` and the kernel delivers it to the guest that painted it (G-CROSS-400).
+    // dispatched `<Painter>.<EVENT>` and the kernel delivers it to the guest that painted it (G-CROSS-400). An emit a guest raised reaches no host trait by its own event name.
     const guestScopes = new Map<string, string>();
     for (const [traitName, surface] of surfaces) {
       if (surface.paintsGuestViews) guestScopes.set(`UI:${surface.orbital}.${traitName}.`, traitName);
     }
     if (guestScopes.size > 0 && eventBus.onAny !== undefined) {
-      const painters = new WeakMap<BusEventSource, string>();
       unsubscribes.push(eventBus.onAny((event) => {
-        if (subscribedQualified.has(event.type) || deliveredHere(event.source)) return;
+        if (deliveredHere(event.source)) return;
         for (const [scope, traitName] of guestScopes) {
           if (!event.type.startsWith(scope)) continue;
           const painter = event.source === undefined ? undefined : painters.get(event.source);
@@ -139,6 +141,7 @@ export function useBusIngress(
           dispatch(traitName, `${painter}.${event.type.slice(scope.length)}`, event.payload, event.source);
           return;
         }
+        if (subscribedQualified.has(event.type)) return;
         const [orbital, trait, key] = event.type.startsWith('UI:') ? event.type.slice(3).split('.') : [];
         if (event.source !== undefined && orbital !== undefined && trait !== undefined && key !== undefined && !appTraitNames.has(trait) && !painters.has(event.source)) {
           painters.set(event.source, trait);

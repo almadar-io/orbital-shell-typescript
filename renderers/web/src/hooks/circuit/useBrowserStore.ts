@@ -18,7 +18,10 @@ export type BrowserStoreState =
   | { status: 'ready'; store: PersistenceAdapter }
   | { status: 'failed'; error: Error };
 
-export function useBrowserStore(appName: string, orbitals: readonly OrbitalDefinition[], locale?: string): BrowserStoreState {
+export function useBrowserStore(appName: string, orbitals: readonly OrbitalDefinition[], locale?: string,
+  /** The name this program's rows were filed under before it shared its app's database; they are moved once. */
+  formerAppName?: string,
+): BrowserStoreState {
   const entities = useMemo(() => orbitals.flatMap(orbitalInlineEntities).filter(storesRowsInBrowser), [orbitals]);
   const engine = useKernelEngine();
   const [state, setState] = useState<BrowserStoreState>(() => (entities.length === 0 ? { status: 'none' } : { status: 'opening' }));
@@ -34,7 +37,7 @@ export function useBrowserStore(appName: string, orbitals: readonly OrbitalDefin
     const open = async (): Promise<void> => {
       try {
         if (engine === null) throw new KernelLoaderMissingError();
-        const database = await openBrowserStore(browserStoreName(appName, locale), orbitals);
+        const database = await openBrowserStore(browserStoreName(appName, locale), orbitals, undefined, formerAppName !== undefined ? browserStoreName(formerAppName, locale) : undefined);
         if (database === null) return;
         opened = database;
         const store = await persistedMemory(await engine.loadModule(), database, entities, locale);
@@ -48,7 +51,7 @@ export function useBrowserStore(appName: string, orbitals: readonly OrbitalDefin
       cancelled = true;
       opened?.close();
     };
-  }, [appName, locale, entities, orbitals, engine]);
+  }, [appName, formerAppName, locale, entities, orbitals, engine]);
 
   return state;
 }

@@ -77,6 +77,7 @@ export function recordDispatchVerdict(orbitalName: string, event: string, verdic
   const effectFailures = (response.rejections ?? []).flatMap((r) => {
     if (r.code === 'effect-failed') return [`${r.trait ?? orbitalName}.${r.event ?? event}: ${r.error ?? 'effect failed'}`];
     if (r.code === 'repaint-failed') return [`${r.trait ?? orbitalName} repaint of ${r.slot ?? 'a slot'}: ${r.error ?? 'repaint failed'}`];
+    if (r.code === 'cascade-capped') return [`${r.trait ?? orbitalName}.${r.event ?? event}: ${r.error ?? 'cascade capped'}`];
     return [];
   });
   const error = [...(response.error !== undefined ? [response.error] : []), ...effectFailures].join('; ');

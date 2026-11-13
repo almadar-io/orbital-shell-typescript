@@ -14,6 +14,7 @@ import { useEventBus, cn, useTranslate } from '../../../core';
 import { usePrefersReducedMotion } from '../../../core/hooks/usePrefersReducedMotion';
 import { useCanvasTheme } from '../../../hooks/useCanvasTheme';
 import { useKernelEngine } from '../../../providers/KernelEngineContext';
+import { createViewGuard, type ViewGuard } from './viewGuard';
 import { keyMapCode, resolveKeyMapEvent } from '../../keyMapEvent';
 
 export interface OrbitalSceneCanvasProps<P extends PatternType> {
@@ -145,7 +146,8 @@ function TextMirror({ node, handlers }: { node: SemanticView; handlers: MirrorHa
     useEffect(() => {
         const field = fieldRef.current;
         if (!field) return;
-        const beforeInput = (e: InputEvent): void => {
+        const beforeInput = (e: Event): void => {
+            if (!(e instanceof InputEvent)) return;
             if (e.isComposing || e.inputType === 'insertCompositionText') return;
             if (e.inputType === 'deleteContentBackward') onKey(id, 'Backspace', { shift: false, alt: false, ctrl: false, meta: false });
             else if (e.inputType === 'deleteContentForward') onKey(id, 'Delete', { shift: false, alt: false, ctrl: false, meta: false });
@@ -276,6 +278,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
     const containerRef = useRef<HTMLDivElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const viewRef = useRef<KernelSceneCanvas | null>(null);
+    const guardRef = useRef<ViewGuard>(createViewGuard());
     const drawRef = useRef<() => void>(() => undefined);
     const { theme } = useCanvasTheme(containerRef);
     const [ready, setReady] = useState(false);
@@ -291,9 +294,10 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         factory(element).then(
             (view) => {
                 if (disposed) {
-                    view.free();
+                    createViewGuard().call(() => view.free(), setError);
                     return;
                 }
+                guardRef.current = createViewGuard();
                 viewRef.current = view;
                 setReady(true);
             },
@@ -301,7 +305,8 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         );
         return () => {
             disposed = true;
-            viewRef.current?.free();
+            const held = viewRef.current;
+            if (held) guardRef.current.call(() => held.free(), setError);
             viewRef.current = null;
             treeJson.current = '[]';
             semanticsRef.current = [];
@@ -313,7 +318,9 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
     const flush = (): void => {
         const view = viewRef.current;
         if (!view) return;
-        for (const queued of JSON.parse(view.takeEvents()) as QueuedEvent[]) {
+        const raw = guardRef.current.call(() => view.takeEvents(), setError);
+        if (raw === undefined) return;
+        for (const queued of JSON.parse(raw) as QueuedEvent[]) {
             const callback = callbacks?.[queued.event];
             if (callback) callback(queued.payload);
             else eventBus.emit(`UI:${queued.event}`, queued.payload);
@@ -323,8 +330,8 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
     const refreshTree = (): void => {
         const view = viewRef.current;
         if (!view) return;
-        const json = view.semanticTree();
-        if (json === treeJson.current) return;
+        const json = guardRef.current.call(() => view.semanticTree(), setError);
+        if (json === undefined || json === treeJson.current) return;
         treeJson.current = json;
         const next = JSON.parse(json) as SemanticView[];
         semanticsRef.current = next;
@@ -343,19 +350,17 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         let frame = 0;
         const tick = (now: number): void => {
             const view = viewRef.current;
+            const guard = guardRef.current;
             if (view) {
-                const moving = view.frame(now, performance.timeOrigin + now);
+                const moving = guard.call(() => view.frame(now, performance.timeOrigin + now), setError) ?? false;
                 if (pending || moving) {
-                    try {
-                        view.render();
-                    } catch (cause) {
-                        setError(String(cause));
-                    }
+                    guard.call(() => view.render(), setError);
                     pending = false;
                     refreshTreeRef.current();
                 }
                 flushRef.current();
             }
+            if (guard.dead) return;
             frame = requestAnimationFrame(tick);
         };
         drawRef.current = () => {
@@ -378,17 +383,17 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
     useEffect(() => {
         const view = viewRef.current;
         if (!ready || !view) return;
-        try {
+        const guard = guardRef.current;
+        if (guard.call(() => {
             view.setScene(nodeJson);
-            setError(null);
-        } catch (cause) {
-            setError(String(cause));
-        }
+            return true;
+        }, setError) === true) setError(null);
         drawRef.current();
     }, [ready, nodeJson]);
 
     useEffect(() => {
-        viewRef.current?.setMotion(!reducedMotion);
+        const view = viewRef.current;
+        if (view) guardRef.current.call(() => view.setMotion(!reducedMotion), setError);
         drawRef.current();
     }, [ready, reducedMotion]);
 
@@ -403,11 +408,8 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
                 surface.width = Math.max(1, Math.round(box.width * ratio));
                 surface.height = Math.max(1, Math.round(box.height * ratio));
             }
-            try {
-                viewRef.current?.resize(box.width, box.height, ratio);
-            } catch (cause) {
-                setError(String(cause));
-            }
+            const view = viewRef.current;
+            if (view) guardRef.current.call(() => view.resize(box.width, box.height, ratio), setError);
             drawRef.current();
         };
         fit();
@@ -448,7 +450,8 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         if (!ready || !surface) return;
         const wheel = (e: WheelEvent): void => {
             const box = surface.getBoundingClientRect();
-            if (!viewRef.current?.zoom(wheelFactor(e.deltaY), e.clientX - box.left, e.clientY - box.top)) return;
+            const view = viewRef.current;
+            if (!view || !guardRef.current.call(() => view.zoom(wheelFactor(e.deltaY), e.clientX - box.left, e.clientY - box.top), setError)) return;
             e.preventDefault();
             drawRef.current();
         };
@@ -460,8 +463,8 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         const view = viewRef.current;
         if (!view) return;
         const box = e.currentTarget.getBoundingClientRect();
-        if (kind === 'double-tap') view.doubleTap(e.clientX - box.left, e.clientY - box.top);
-        else view.input(kind, e.clientX - box.left, e.clientY - box.top, button);
+        if (kind === 'double-tap') guardRef.current.call(() => view.doubleTap(e.clientX - box.left, e.clientY - box.top), setError);
+        else guardRef.current.call(() => view.input(kind, e.clientX - box.left, e.clientY - box.top, button), setError);
         flush();
         drawRef.current();
     };
@@ -475,11 +478,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         const guarded = (call: (view: KernelSceneCanvas) => void): void => {
             const view = viewRef.current;
             if (!view) return;
-            try {
-                call(view);
-            } catch (cause) {
-                setError(String(cause));
-            }
+            guardRef.current.call(() => call(view), setError);
             after();
         };
         return {

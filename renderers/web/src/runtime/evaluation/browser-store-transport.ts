@@ -2,7 +2,7 @@
  * The browser store of a program's `[persistent: x, browser]` entities, opened once, and the in-process transport its legs run through. The runtime
  * host (`useBrowserStore`) and compiled static clients both open it here.
  */
-import type { BrowserTabPort, MountSeed, OnDeviceModelPorts, OrbitalEntity, OrbitalDefinition, EventRequest, EventResponse, OrbitalSchema } from '@almadar/core';
+import type { BrowserTabPort, EntityRow, MountSeed, OnDeviceModelPorts, OrbitalEntity, OrbitalDefinition, EventRequest, EventResponse, OrbitalSchema } from '@almadar/core';
 import { orbitalInlineEntities, storesRowsInBrowser } from '@almadar/core';
 import type { KernelHostPorts } from '../../kernel/host.js';
 import type { OsHostPort } from '@almadar/shell-runtime/kernel/os-port';
@@ -85,11 +85,52 @@ async function moveTypeStores(factory: IDBFactory, databaseName: string, entitie
   });
 }
 
-/** Open the store; `null` when no entity is browser-stored. Every entity bound to one collection shares its rows. */
+/** Rows a lazily loaded page once kept in a database of its own move into its app's database; a row the app's database already holds wins. */
+async function adoptDatabase(
+  factory: IDBFactory,
+  formerName: string,
+  entities: readonly OrbitalEntity[],
+  target: { list(table: string): Promise<EntityRow[]>; create(table: string, row: EntityRow): Promise<{ id: string }> },
+): Promise<void> {
+  await moveTypeStores(factory, formerName, entities);
+  const tables = [...new Set(entities.map(tableOf))];
+  const former = await new Promise<IDBDatabase>((resolve, reject) => {
+    const req = factory.open(formerName);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  const held = new Map<string, EntityRow[]>();
+  try {
+    for (const table of tables) {
+      if (!former.objectStoreNames.contains(table)) continue;
+      const rows = await new Promise<EntityRow[]>((resolve, reject) => {
+        const req = former.transaction(table, 'readonly').objectStore(table).getAll();
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      held.set(table, rows);
+    }
+  } finally {
+    former.close();
+  }
+  for (const [table, rows] of held) {
+    const present = new Set((await target.list(table)).map((row) => row.id));
+    for (const row of rows) if (!present.has(row.id)) await target.create(table, row);
+  }
+  await new Promise<void>((resolve, reject) => {
+    const req = factory.deleteDatabase(formerName);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => reject(new Error(`browser store "${formerName}" is open in another context and cannot be removed`));
+  });
+}
+
+/** Open the store; `null` when no entity is browser-stored. Every entity bound to one collection shares its rows. A program once filed under `formerDatabaseName` has its rows moved in. */
 export async function openBrowserStore(
   databaseName: string,
   orbitals: readonly OrbitalDefinition[],
   factory?: IDBFactory,
+  formerDatabaseName?: string,
 ): Promise<BrowserStore | null> {
   const entities = orbitals.flatMap(orbitalInlineEntities).filter(storesRowsInBrowser);
   if (entities.length === 0) return null;
@@ -103,6 +144,9 @@ export async function openBrowserStore(
     entityTypes: [...new Set(tables.values())],
     factory: idb,
   });
+  if (formerDatabaseName !== undefined && formerDatabaseName !== databaseName) {
+    await adoptDatabase(idb, formerDatabaseName, entities, database);
+  }
   return {
     create: (entityType, data) => database.create(table(entityType), data),
     delete: (entityType, id) => database.delete(table(entityType), id),

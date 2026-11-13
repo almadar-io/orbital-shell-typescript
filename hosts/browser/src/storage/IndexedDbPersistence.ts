@@ -67,10 +67,34 @@ function openDatabase(factory: IDBFactory, name: string, version: number | undef
 
 export class IndexedDbPersistence implements PersistenceAdapter {
   private constructor(
-    private readonly db: IDBDatabase,
+    private db: IDBDatabase,
+    private readonly factory: IDBFactory,
+    private readonly databaseName: string,
     private readonly entityTypes: ReadonlySet<string>,
     private readonly now: () => string,
-  ) {}
+  ) {
+    this.attach(db);
+  }
+
+  private yielded = false;
+
+  /** Another connection upgrading the database (a page that adds a collection) must not wait on this one: it closes and reopens on its next use. */
+  private attach(db: IDBDatabase): void {
+    db.onversionchange = () => {
+      db.close();
+      this.yielded = true;
+    };
+  }
+
+  private async live(): Promise<IDBDatabase> {
+    if (this.yielded) {
+      const db = await openDatabase(this.factory, this.databaseName, undefined, []);
+      this.attach(db);
+      this.db = db;
+      this.yielded = false;
+    }
+    return this.db;
+  }
 
   /** Open (creating or upgrading) the database so it holds every listed entity type. */
   static async open(options: IndexedDbPersistenceOptions): Promise<IndexedDbPersistence> {
@@ -83,7 +107,7 @@ export class IndexedDbPersistence implements PersistenceAdapter {
       db.close();
       db = await openDatabase(factory, options.databaseName, next, stores);
     }
-    return new IndexedDbPersistence(db, new Set(options.entityTypes), options.now ?? (() => new Date().toISOString()));
+    return new IndexedDbPersistence(db, factory, options.databaseName, new Set(options.entityTypes), options.now ?? (() => new Date().toISOString()));
   }
 
   close(): void {
@@ -98,7 +122,8 @@ export class IndexedDbPersistence implements PersistenceAdapter {
   }
 
   private async write(entityType: string, op: ChangeRecord["op"], id: string, row: EntityRow | null): Promise<void> {
-    const tx = this.db.transaction([this.store(entityType), CHANGE_LOG], "readwrite");
+    const db = await this.live();
+    const tx = db.transaction([this.store(entityType), CHANGE_LOG], "readwrite");
     if (row) tx.objectStore(entityType).put(row);
     else tx.objectStore(entityType).delete(id);
     const change: ChangeRecord = { op, entityType, id, row, at: this.now() };
@@ -123,13 +148,15 @@ export class IndexedDbPersistence implements PersistenceAdapter {
   }
 
   async getById(entityType: string, id: string): Promise<EntityRow | null> {
-    const tx = this.db.transaction(this.store(entityType), "readonly");
+    const db = await this.live();
+    const tx = db.transaction(this.store(entityType), "readonly");
     const row = await request<EntityRow | undefined>(tx.objectStore(entityType).get(id));
     return row ?? null;
   }
 
   async list(entityType: string): Promise<EntityRow[]> {
-    const tx = this.db.transaction(this.store(entityType), "readonly");
+    const db = await this.live();
+    const tx = db.transaction(this.store(entityType), "readonly");
     return request<EntityRow[]>(tx.objectStore(entityType).getAll());
   }
 
@@ -141,7 +168,8 @@ export class IndexedDbPersistence implements PersistenceAdapter {
   async commitRows(rows: readonly RowCommit[]): Promise<boolean> {
     if (rows.length === 0) return true;
     const stores = [...new Set(rows.map((row) => this.store(row.entityType)))];
-    const tx = this.db.transaction([...stores, CHANGE_LOG], "readwrite");
+    const db = await this.live();
+    const tx = db.transaction([...stores, CHANGE_LOG], "readwrite");
     const log = tx.objectStore(CHANGE_LOG);
     for (const row of rows) {
       const current = await request<EntityRow | undefined>(tx.objectStore(row.entityType).get(row.id));
@@ -167,13 +195,15 @@ export class IndexedDbPersistence implements PersistenceAdapter {
   }
 
   async countRows(entityType: string): Promise<number> {
-    const tx = this.db.transaction(this.store(entityType), "readonly");
+    const db = await this.live();
+    const tx = db.transaction(this.store(entityType), "readonly");
     return request<number>(tx.objectStore(entityType).count());
   }
 
   /** The write log, oldest first — the seam a later `sync` replays. */
   async changes(): Promise<ChangeRecord[]> {
-    const tx = this.db.transaction(CHANGE_LOG, "readonly");
+    const db = await this.live();
+    const tx = db.transaction(CHANGE_LOG, "readonly");
     return request<ChangeRecord[]>(tx.objectStore(CHANGE_LOG).getAll());
   }
 }

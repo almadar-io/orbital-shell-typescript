@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-13T05:41:43.809Z",
+  "exportedAt": "2026-11-13T08:14:08.793Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -140363,6 +140363,19 @@
           ],
           "description": "The opener trait's declared event a split guest's view reports the transitions its kernel took as, with { guest, moves: [{ trait, event, from, to, fired }] }, one per settled batch.",
           "kind": "event"
+        },
+        "signIn": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event a split guest's view emits with { guest, returnTo } when its page sends the viewer to the host's sign-in (an `access: authenticated` page and no signed-in viewer).",
+          "kind": "event"
+        },
+        "signedIn": {
+          "types": [
+            "boolean"
+          ],
+          "description": "Whether the split guest's viewer session is signed in: its `access: authenticated` pages mount only when it is."
         },
         "epoch": {
           "types": [

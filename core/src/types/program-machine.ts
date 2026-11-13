@@ -153,7 +153,7 @@ const RenderedSlotSchema: z.ZodType<RenderedSlot> = z.object({
   ownerEntity: z.string(),
   nodes: z.array(RenderedNodeSchema),
   props: JsonValueSchema.optional(),
-  fault: z.object({ code: z.enum(['no-matching-transition', 'guard-rejected', 'no-dispatchable-traits', 'not-an-external-input', 'inbound-only-event', 'effect-failed', 'locale-not-declared', 'client-circuit-state-refused', 'repaint-failed']), error: z.string() }).optional(),
+  fault: z.object({ code: z.enum(['no-matching-transition', 'guard-rejected', 'no-dispatchable-traits', 'not-an-external-input', 'inbound-only-event', 'effect-failed', 'locale-not-declared', 'client-circuit-state-refused', 'repaint-failed', 'cascade-capped']), error: z.string() }).optional(),
 });
 
 const PlayedStateSchema: z.ZodType<PlayedState> = z.object({ before: z.string().nullable(), after: z.string().nullable() });

@@ -18,6 +18,7 @@ import { markColor, withSeries } from '../../canvasTheme';
 import type { CanvasTheme } from '@almadar/core';
 import { resolveDrawableColors } from '../themeDrawables';
 import type { DrawableNode } from '../paintDispatch';
+import { createViewGuard, type ViewGuard } from './viewGuard';
 import { keyMapCode, resolveKeyMapEvent } from '../../keyMapEvent';
 import { createWheelGesture, mapsSwipe, mapsWheel, swipeGesture, wheelPixels } from '../../gestureMapEvent';
 import './OrbitalCanvas3D.css';
@@ -88,6 +89,7 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const viewRef = useRef<KernelCanvas3D | null>(null);
+    const guardRef = useRef<ViewGuard>(createViewGuard());
     const drawRef = useRef<() => void>(() => undefined);
     const [ready, setReady] = useState(false);
     const [error, setError] = useState<string | null>(factory ? null : 'no 3D renderer: the host supplies no canvas3d factory to KernelEngineProvider');
@@ -103,9 +105,10 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
         factory(element).then(
             (view) => {
                 if (disposed) {
-                    view.free();
+                    createViewGuard().call(() => view.free(), setError);
                     return;
                 }
+                guardRef.current = createViewGuard();
                 viewRef.current = view;
                 setReady(true);
             },
@@ -113,7 +116,8 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
         );
         return () => {
             disposed = true;
-            viewRef.current?.free();
+            const held = viewRef.current;
+            if (held) guardRef.current.call(() => held.free(), setError);
             viewRef.current = null;
             setReady(false);
         };
@@ -126,22 +130,15 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
         let frame = 0;
         const tick = (now: number): void => {
             const view = viewRef.current;
+            const guard = guardRef.current;
             if (view) {
-                let moving = false;
-                try {
-                    moving = view.frame(now, performance.timeOrigin + now);
-                } catch (cause) {
-                    setError(String(cause));
-                }
+                const moving = guard.call(() => view.frame(now, performance.timeOrigin + now), setError) ?? false;
                 if (pending || moving) {
-                    try {
-                        view.render();
-                    } catch (cause) {
-                        setError(String(cause));
-                    }
+                    guard.call(() => view.render(), setError);
                     pending = false;
                 }
             }
+            if (guard.dead) return;
             frame = requestAnimationFrame(tick);
         };
         drawRef.current = () => {
@@ -166,17 +163,17 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
     useEffect(() => {
         const view = viewRef.current;
         if (!ready || !view) return;
-        try {
+        const guard = guardRef.current;
+        if (guard.call(() => {
             view.setScene(nodeJson, themeJson);
-            setError(null);
-        } catch (cause) {
-            setError(String(cause));
-        }
+            return true;
+        }, setError) === true) setError(null);
         drawRef.current();
     }, [ready, nodeJson, themeJson]);
 
     useEffect(() => {
-        viewRef.current?.setReducedMotion(reducedMotion);
+        const view = viewRef.current;
+        if (view) guardRef.current.call(() => view.setReducedMotion(reducedMotion), setError);
     }, [ready, reducedMotion]);
 
     useEffect(() => {
@@ -190,7 +187,8 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
                 surface.width = Math.max(1, Math.round(box.width * ratio));
                 surface.height = Math.max(1, Math.round(box.height * ratio));
             }
-            viewRef.current?.resize(box.width, box.height, ratio);
+            const view = viewRef.current;
+            if (view) guardRef.current.call(() => view.resize(box.width, box.height, ratio), setError);
             drawRef.current();
         };
         fit();
@@ -235,7 +233,8 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
         const surface = canvasRef.current;
         if (!ready || !surface) return;
         const wheel = (e: WheelEvent): void => {
-            if (viewRef.current?.wheel(e.deltaY)) {
+            const view = viewRef.current;
+            if (view && guardRef.current.call(() => view.wheel(e.deltaY), setError)) {
                 e.preventDefault();
                 drawRef.current();
                 return;
@@ -267,28 +266,28 @@ export function OrbitalCanvas3D<P extends Pattern3D>({
                     e.currentTarget.setPointerCapture(e.pointerId);
                     const { x, y } = point(e);
                     if (e.pointerType !== 'mouse' && mapsSwipe(gestures)) touch.current = { id: e.pointerId, x, y, at: e.timeStamp, taken: false };
-                    viewRef.current?.pointerDown(e.pointerId, x, y, e.button, e.pointerType === 'touch');
+                    const view = viewRef.current;
+                    if (view) guardRef.current.call(() => view.pointerDown(e.pointerId, x, y, e.button, e.pointerType === 'touch'), setError);
                 }}
                 onPointerCancel={(e) => {
                     if (touch.current?.id === e.pointerId) touch.current = null;
                 }}
                 onPointerMove={(e) => {
                     const { x, y } = point(e);
-                    try {
-                        if (viewRef.current?.pointerMove(e.pointerId, x, y)) {
-                            // The camera moved with this pointer, so the drag is the camera's and no swipe.
-                            if (touch.current?.id === e.pointerId) touch.current.taken = true;
-                            drawRef.current();
-                        }
-                    } catch (cause) {
-                        setError(String(cause));
+                    const view = viewRef.current;
+                    if (view && guardRef.current.call(() => view.pointerMove(e.pointerId, x, y), setError)) {
+                        // The camera moved with this pointer, so the drag is the camera's and no swipe.
+                        if (touch.current?.id === e.pointerId) touch.current.taken = true;
+                        drawRef.current();
                     }
                 }}
                 onPointerUp={(e) => {
                     const { x, y } = point(e);
                     const view = viewRef.current;
                     if (!view) return;
-                    const pick = JSON.parse(view.pointerUp(e.pointerId, x, y, unitClickEvent !== undefined || onShapeClick !== undefined, tileClickEvent !== undefined)) as PickJson | null;
+                    const raw = guardRef.current.call(() => view.pointerUp(e.pointerId, x, y, unitClickEvent !== undefined || onShapeClick !== undefined, tileClickEvent !== undefined), setError);
+                    if (raw === undefined) return;
+                    const pick = JSON.parse(raw) as PickJson | null;
                     const start = touch.current?.id === e.pointerId ? touch.current : null;
                     if (start) touch.current = null;
                     const swipe = start && !start.taken ? swipeGesture(x - start.x, y - start.y, e.timeStamp - start.at) : undefined;

@@ -88,6 +88,10 @@ export interface GuestViewProps {
   legAnswers?: ReadonlyArray<GuestLegAnswer>;
   /** The opener trait's declared event a split guest's view reports the transitions its kernel took as, with { guest, moves: [{ trait, event, from, to, fired }] }, one per settled batch. */
   moved?: EventKey;
+  /** The opener trait's declared event a split guest's view emits with { guest, returnTo } when its page sends the viewer to the host's sign-in (an `access: authenticated` page and no signed-in viewer). */
+  signIn?: EventKey;
+  /** Whether the split guest's viewer session is signed in: its `access: authenticated` pages mount only when it is. */
+  signedIn?: boolean;
   /** How many times the opener told a split guest's view to mount its page afresh (its viewer was signed in as another persona): a new value starts the view again. */
   epoch?: number;
   /** The guest's painted content */
@@ -131,12 +135,14 @@ const OrbPreview = React.lazy(() => import('../../../preview/OrbPreview').then((
 const NO_ANSWERS: ReadonlyArray<GuestLegAnswer> = [];
 
 /** A split guest: its client program runs here, its server legs travel to the opener as `leg` events. */
-interface GuestMove { trait: string; event: string; from: string; to: string; fired: boolean }
+type GuestMove = { trait: string; event: string; from: string; to: string; fired: boolean };
 
-function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, moved, route, themeOverride }: {
+function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, moved, signIn, signedIn, route, themeOverride }: {
   guest: string;
   epoch: number;
   moved?: EventKey;
+  signIn?: EventKey;
+  signedIn: boolean;
   program: OrbitalSchema;
   leg: EventKey;
   legTaken?: EventKey;
@@ -181,6 +187,9 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, moved, r
     }
   }, [legAnswers, legTaken, guest, epoch]);
   const pendingMoves = useRef<GuestMove[]>([]);
+  // The view loads until the viewer first presses or types in it; from then on its moves are the viewer's own.
+  const acted = useRef(false);
+  const onViewerInput = useCallback(() => { acted.current = true; }, []);
   const onTransition = useCallback((trace: TransitionTrace) => {
     if (moved === undefined) return;
     pendingMoves.current.push({ trait: trace.traitName, event: trace.event, from: trace.from, to: trace.to, fired: trace.firedArm !== undefined });
@@ -188,20 +197,25 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, moved, r
     queueMicrotask(() => {
       const moves = pendingMoves.current;
       pendingMoves.current = [];
-      bus.current.emit(`UI:${moved}`, { guest, moves });
+      bus.current.emit(`UI:${moved}`, { guest, moves, input: acted.current });
     });
   }, [moved, guest]);
+  const onSignIn = useCallback((returnTo?: string) => {
+    if (signIn !== undefined) bus.current.emit(`UI:${signIn}`, { guest, returnTo: returnTo ?? '' });
+  }, [signIn, guest]);
   return (
+    <Box fullWidth fullHeight onPointerDownCapture={onViewerInput} onKeyDownCapture={onViewerInput}>
     <Suspense fallback={null}>
-      <OrbPreview schema={guestProgram} transport={transport} onTransition={onTransition} isolated frame="contained" height="100%" initialPagePath={route} themeOverride={themeOverride} />
+      <OrbPreview schema={guestProgram} transport={transport} onTransition={onTransition} onSignIn={onSignIn} authority={signedIn ? 'authenticated' : 'anonymous'} isolated frame="contained" height="100%" initialPagePath={route} themeOverride={themeOverride} />
     </Suspense>
+    </Box>
   );
 }
 
 /**
  * GuestView - Paints a guest program's UI; guest, source and deliver are kernel routing data
  */
-export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, program, leg, legTaken, legAnswers, epoch, moved, children }) => {
+export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, program, leg, legTaken, legAnswers, epoch, moved, signIn, signedIn, children }) => {
   const eventBus = useEventBus();
   const inHostRouter = useInRouterContext();
   const [hostHrefBase, setHostHrefBase] = useState('/');
@@ -217,7 +231,7 @@ export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navi
   if (program !== undefined && leg !== undefined) {
     return (
       <Box data-guest-frame="" fullWidth fullHeight className="relative" style={{ contain: 'layout' }}>
-        <SplitGuest key={`${guest}:${epoch ?? 0}`} guest={guest} epoch={epoch ?? 0} program={program} leg={leg} legTaken={legTaken} legAnswers={legAnswers ?? NO_ANSWERS} moved={moved} route={route} themeOverride={themeOverride} />
+        <SplitGuest key={`${guest}:${epoch ?? 0}`} guest={guest} epoch={epoch ?? 0} program={program} leg={leg} legTaken={legTaken} legAnswers={legAnswers ?? NO_ANSWERS} moved={moved} signIn={signIn} signedIn={signedIn === true} route={route} themeOverride={themeOverride} />
       </Box>
     );
   }

@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
-import { GuestView } from '../GuestView';
+import { GuestView, type GuestPaintEntry } from '../GuestView';
 import { EventBusProvider, useEventBus } from '../../../../core';
 
 const wrap = (ui: React.ReactElement) => render(<EventBusProvider debug={false}>{ui}</EventBusProvider>);
@@ -44,7 +44,7 @@ describe('GuestView embedded paints', () => {
 });
 
 describe('GuestView routes an embedded trait\'s portal paint to its slot', () => {
-  const mapPaints = () => [
+  const mapPaints = (): GuestPaintEntry[] => [
     { slot: 'main', trait: 'Map', embedded: true, content: { type: 'typography', content: 'map failed' } },
     { slot: 'toast', trait: 'Map', embedded: true, content: { type: 'alert', variant: 'error', message: 'map toast' } },
   ];

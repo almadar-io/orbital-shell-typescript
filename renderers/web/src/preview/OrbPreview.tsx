@@ -216,6 +216,8 @@ const NO_ORBITALS: readonly OrbitalDefinition[] = [];
 
 /** True only around the lazy page a preview renders: that page is part of the program its parent already registered. */
 const LazyPageOfRegisteredProgram = createContext(false);
+/** The app whose browser database a lazily loaded page files its rows in. */
+const BrowserStoreApp = createContext<string | undefined>(undefined);
 
 function FitToBox({ children, mode = 'box' }: { children: React.ReactNode; mode?: 'box' | 'content' }) {
   const outerRef = useRef<HTMLDivElement>(null);
@@ -332,7 +334,8 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
   const { locale } = useTranslate();
   // A host that runs the whole program keeps its browser-stored entities; this view opens none and resolves none.
   const hostKeepsBrowserRows = transport?.hostsBrowserStore === true;
-  const browserStore = useBrowserStore(schema.name ?? 'app', hostKeepsBrowserRows ? NO_ORBITALS : schema.orbitals, locale);
+  const storeApp = useContext(BrowserStoreApp);
+  const browserStore = useBrowserStore(storeApp ?? schema.name ?? 'app', hostKeepsBrowserRows ? NO_ORBITALS : schema.orbitals, locale, storeApp !== undefined && schema.name !== undefined && schema.name !== storeApp ? schema.name : undefined);
 
   const bridge = useServerBridge();
   const kernelEngine = useKernelEngine();
@@ -661,6 +664,7 @@ export function OrbPreview({
     | { ok: false; error: string };
 
   const isLazyPageOfRegisteredProgram = useContext(LazyPageOfRegisteredProgram);
+  const inheritedStoreApp = useContext(BrowserStoreApp);
   const parseResult = useMemo<ParsedResult>(() => {
     let parsed: OrbitalSchema;
     if (typeof schema === 'string') {
@@ -966,6 +970,7 @@ export function OrbPreview({
         {lazyLoad.status === 'loading' && <LoadingState />}
         {lazyLoad.status === 'error' && <ErrorState data-testid="lazy-page-error" message={lazyLoad.error} />}
         {lazyLoad.status === 'ready' && (
+          <BrowserStoreApp.Provider value={inheritedStoreApp ?? parsedSchema?.name ?? 'app'}>
           <LazyPageOfRegisteredProgram.Provider value={true}>
           <OrbPreview
             key={lazyRoute.page.orbRef}
@@ -986,6 +991,7 @@ export function OrbPreview({
             onUnmatchedNavigate={handleNavigate}
           />
           </LazyPageOfRegisteredProgram.Provider>
+          </BrowserStoreApp.Provider>
         )}
       </Box>
     );
