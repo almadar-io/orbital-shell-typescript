@@ -66,7 +66,7 @@ export const webHostActions: KernelHostActions = {
 export type HostAskDispatch = (trait: string, event: string, payload: EventPayload) => Promise<void>;
 
 /** A trace stream over the asking kernel's own steps (EXEC-DIST-14); the returned function ends it. */
-export type HostTraceSource = (traits: readonly string[], onItem: (item: JsonObject) => void) => () => void;
+export type HostTraceSource = (traits: readonly string[], onItem: (item: JsonObject) => void, cost: boolean) => () => void;
 
 /** The trace streams this host opened, by the key the asking trait gave them; `cancel-call` of a key ends its stream. */
 const traceStreams = new Map<string, () => void>();
@@ -82,11 +82,13 @@ function streamTrace(args: readonly JsonValue[], completion: HostAskCompletion, 
   const named = options !== undefined && options !== null && isJsonObject(options) ? options['traits'] : undefined;
   const traits = Array.isArray(named) ? named.flatMap((t) => (typeof t === 'string' ? [t] : [])) : [];
   if (traits.length === 0) return refuse('program/live trace: name the traits it observes in `traits`');
+  const cost = options !== undefined && options !== null && isJsonObject(options) ? options['cost'] : undefined;
+  if (cost !== undefined && cost !== null && typeof cost !== 'boolean') return refuse('program/live trace: cost must be a boolean when supplied');
   if (source === undefined || dispatch === undefined) return refuse('program/live trace: this host has no kernel trace to stream');
   if (traceStreams.has(key)) return refuse(`key ${key} already has a stream open`);
   traceStreams.set(key, source(traits, (item) => {
     void dispatch(trait, onMessage, { ...item, key, ...(completion.entityId !== undefined ? { entityId: completion.entityId } : {}) }).catch((error: Error) => log.error('trace item return failed', { trait, key, error: error.message }));
-  }));
+  }, cost === true));
 }
 
 function cancelStreams(args: readonly JsonValue[]): void {

@@ -80,7 +80,7 @@ export interface KernelClient extends ClientKernel {
    * A trace stream over this kernel's own steps (EXEC-DIST-14): each dispatch that moved one of `traits` reaches
    * `onItem` as its trace item, after the dispatch settles, until the returned function ends it.
    */
-  traceStream(traits: readonly string[], onItem: (item: JsonObject) => void): () => void;
+  traceStream(traits: readonly string[], onItem: (item: JsonObject) => void, cost?: boolean): () => void;
 }
 
 /** What entering a page's traits answered: the seeds to mount, and the names of the traits that left. */
@@ -215,7 +215,8 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   };
   /** A response the in-process kernel produced: its states, payloads and frame delta are painted. */
   const mirror = (response: EventResponse): void => paintResponse(store, framesSince, response);
-  const traceStreams = new Set<{ traits: ReadonlySet<string>; onItem: (item: JsonObject) => void }>();
+  const traceStreams = new Set<{ traits: ReadonlySet<string>; onItem: (item: JsonObject) => void; cost: boolean }>();
+  const costed = (): boolean => [...traceStreams].some((stream) => stream.cost);
   const movedTraits = (item: JsonObject): string[] => {
     const dispatch = item['dispatch'];
     const outcomes: JsonValue = dispatch !== undefined && dispatch !== null && isJsonObject(dispatch) ? (dispatch['outcomes'] ?? null) : null;
@@ -224,12 +225,17 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   };
   const publishTrace = (k: KernelInstance): void => {
     if (traceStreams.size === 0) return;
-    const items = parse<JsonValue>(k.takeTrace());
-    if (!Array.isArray(items)) return;
-    for (const item of items) {
-      if (item === null || !isJsonObject(item)) continue;
-      const moved = movedTraits(item);
+    const views = parse<JsonValue>(k.takeTraceViews());
+    if (!Array.isArray(views)) return;
+    for (const view of views) {
+      if (view === null || !isJsonObject(view)) continue;
+      const plain = view['plain'];
+      if (plain === undefined || plain === null || !isJsonObject(plain)) continue;
+      const measured = view['costed'];
+      const costedItem = measured !== undefined && measured !== null && isJsonObject(measured) ? measured : plain;
+      const moved = movedTraits(plain);
       for (const stream of traceStreams) {
+        const item = stream.cost ? costedItem : plain;
         if (moved.some((t) => stream.traits.has(t))) queueMicrotask(() => stream.onItem(item));
       }
     }
@@ -782,12 +788,13 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         releases.forEach((release) => release());
       };
     },
-    traceStream: (traits, onItem) => {
-      const stream = { traits: new Set(traits), onItem };
+    traceStream: (traits, onItem, cost = false) => {
+      const stream = { traits: new Set(traits), onItem, cost };
       traceStreams.add(stream);
-      void ready.then((k) => k.setTraceOn(true)).catch((error: Error) => log.error('trace-stream-failed', { error: error.message }));
+      void ready.then((k) => { k.setTraceOn(true); k.setTraceCost(costed()); }).catch((error: Error) => log.error('trace-stream-failed', { error: error.message }));
       return () => {
         traceStreams.delete(stream);
+        loaded?.setTraceCost(costed());
         if (traceStreams.size === 0) loaded?.setTraceOn(false);
       };
     },

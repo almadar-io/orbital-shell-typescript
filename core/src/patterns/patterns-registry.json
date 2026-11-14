@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-13T17:54:44.008Z",
+  "exportedAt": "2026-11-14T04:35:31.831Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -107755,6 +107755,12 @@
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
         },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
+        },
         "semantic": {
           "types": [
             "object"
@@ -108676,6 +108682,12 @@
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
         },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
+        },
         "semantic": {
           "types": [
             "object"
@@ -109052,6 +109064,12 @@
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
         },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
+        },
         "semantic": {
           "types": [
             "object"
@@ -109415,6 +109433,12 @@
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
         },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
+        },
         "semantic": {
           "types": [
             "object"
@@ -109539,6 +109563,11 @@
                 ]
               },
               "hit": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "wheel": {
                 "types": [
                   "boolean"
                 ]
@@ -110434,6 +110463,12 @@
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
         },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
+        },
         "semantic": {
           "types": [
             "object"
@@ -110558,6 +110593,11 @@
                 ]
               },
               "hit": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "wheel": {
                 "types": [
                   "boolean"
                 ]
@@ -110928,6 +110968,12 @@
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
         },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
+        },
         "semantic": {
           "types": [
             "object"
@@ -111052,6 +111098,11 @@
                 ]
               },
               "hit": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "wheel": {
                 "types": [
                   "boolean"
                 ]
@@ -111547,9 +111598,13 @@
         },
         "fillContainer": {
           "types": [
-            "boolean"
+            "boolean",
+            "string"
           ],
-          "description": "3D: take the height of the box that holds the canvas, with no minimum (a small scene in a header or a rail). Default false: the surface is at least 400px tall."
+          "description": "3D: take the height of the box that holds the canvas, with no minimum (a small scene in a header or a rail). Default false: the surface is at least 400px tall. Orbital 2D: `true` takes the container's whole box; `'width'` takes the container's width and `worldHeight` CSS px, so the page scrolls past a long scene (a 3D scene treats `'width'` as false).",
+          "enumValues": [
+            "width"
+          ]
         },
         "unitScale": {
           "types": [
@@ -112243,7 +112298,7 @@
           "types": [
             "string"
           ],
-          "description": "The wheel turned over the canvas: the topmost hit drawable under the pointer (empty for none), the point, and the scroll in CSS pixels. Declaring it keeps the wheel from scrolling the page (orbital painter).",
+          "description": "The wheel turned over a hit drawable that declares `wheel: true` (orbital painter): its id, the point, and the scroll in CSS pixels. That wheel is kept from the page; over anything else the page scrolls and nothing is sent.",
           "kind": "event-ref",
           "emitPayloadSchema": [
             {
@@ -114835,6 +114890,12 @@
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
         },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
+        },
         "semantic": {
           "types": [
             "object"
@@ -115543,6 +115604,12 @@
             "boolean"
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
         "semantic": {
           "types": [
@@ -117605,6 +117672,12 @@
             "boolean"
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
         "semantic": {
           "types": [
@@ -121392,6 +121465,12 @@
             "boolean"
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
         "semantic": {
           "types": [
@@ -141145,6 +141224,12 @@
             "boolean"
           ],
           "description": "With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it."
+        },
+        "wheel": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
         "semantic": {
           "types": [

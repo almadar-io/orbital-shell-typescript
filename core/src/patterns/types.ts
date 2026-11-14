@@ -108,6 +108,8 @@ export interface PatternPropTypeSchema {
   /** Self-referential tree-node child — the shape is captured at the parent
    *  level, so recursing here would not terminate. */
   cyclic?: boolean;
+  /** Source type was `EventPayload`: bus data, never a render tree. */
+  eventPayloadBrand?: boolean;
   /** Set when the value's source type is core `ScenePos` — the type-identity
    *  signal that grounds a pattern's `drawable` capability. */
   scenePos?: boolean;

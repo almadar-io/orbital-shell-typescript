@@ -1670,8 +1670,8 @@ export function renderPatternProps(
   for (const [key, value] of Object.entries(props)) {
     if (key === "children") {
       rendered[key] = value;
-    } else if (propsSchema?.[key]?.types?.includes("sexpr") === true) {
-      // A program held as data: a `@trait.X` inside it belongs to the program, never an embed.
+    } else if (propsSchema?.[key]?.types?.includes("sexpr") === true || propsSchema?.[key]?.eventPayloadBrand === true) {
+      // A program or an event payload held as data: a `@trait.X` inside it is data, never an embed.
       rendered[key] = value;
     } else if (isPatternConfig(value)) {
       const nestedProps: SlotProps = {};
@@ -1700,9 +1700,13 @@ export function renderPatternProps(
       const nodeFields = Object.entries(propsSchema?.[key]?.items?.properties ?? {})
         .filter(([, def]) => def?.types.includes("node") === true)
         .map(([name]) => name);
+      const payloadFields = Object.entries(propsSchema?.[key]?.items?.properties ?? {})
+        .filter(([, def]) => def?.eventPayloadBrand === true)
+        .map(([name]) => name);
+      const isItemRecord = (el: SlotPropValue): boolean =>
+        typeof el === "object" && el !== null && !Array.isArray(el) && isPlainConfigObject(el);
       const hasNodeField = (el: SlotPropValue): boolean =>
-        typeof el === "object" && el !== null && !Array.isArray(el) && isPlainConfigObject(el)
-        && nodeFields.some((f) => isPatternConfig((el as Record<string, SlotPropValue>)[f]));
+        isItemRecord(el) && nodeFields.some((f) => isPatternConfig((el as Record<string, SlotPropValue>)[f]));
       const holdsNodes = nodeFields.length > 0 && !isEvaluatorResolvedData(value) && value.some((el) => hasNodeField(el as SlotPropValue));
       if (holdsNodes || (!isEvaluatorResolvedData(value) && value.some((el) => isPatternConfig(el as SlotPropValue)))) {
         // falls through to the map below — pattern configs need conversion
@@ -1730,10 +1734,12 @@ export function renderPatternProps(
           };
           return <SlotContentRenderer key={i} content={childContent} onDismiss={onDismiss} />;
         }
-        if (hasNodeField(el)) {
+        if (hasNodeField(el) || (payloadFields.length > 0 && isItemRecord(el))) {
           const item: Record<string, SlotPropValue> = {};
           for (const [k, v] of Object.entries(el as Record<string, SlotPropValue>)) {
-            if (nodeFields.includes(k) && isPatternConfig(v)) {
+            if (payloadFields.includes(k)) {
+              item[k] = v;
+            } else if (nodeFields.includes(k) && isPatternConfig(v)) {
               const nestedProps: SlotProps = {};
               for (const [pk, pv] of Object.entries(v)) {
                 if (pk !== "type") nestedProps[pk] = pv;

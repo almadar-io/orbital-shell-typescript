@@ -61,6 +61,10 @@ export interface KernelInstance {
   setTraceOn(on: boolean): void;
   /** The trace items recorded since the last take, in dispatch order: a JSON array. */
   takeTrace(): string;
+  /** Measure each recorded dispatch while on (EXEC-COST-1). */
+  setTraceCost(on: boolean): void;
+  /** The items recorded since the last take, each `{ plain, costed? }` (EXEC-COST-1): a JSON array. */
+  takeTraceViews(): string;
   /** Carry each frame response's `effectResults` (omitted otherwise), for a verifier. */
   setFrameEffectResults(carry: boolean): void;
   /** The kernel's mounts for a host start on `side` (`client|server|process|start`): `MountSeed[]` as JSON. */

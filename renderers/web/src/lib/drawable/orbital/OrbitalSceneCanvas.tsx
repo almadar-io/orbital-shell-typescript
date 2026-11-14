@@ -24,8 +24,8 @@ export interface OrbitalSceneCanvasProps<P extends PatternType> {
     /** The scene's authored size: the surface fills its container's width at this aspect ratio, at most 70vh tall, centered. */
     width: number;
     height: number;
-    /** Take the container's full size instead of the authored aspect ratio; the container must have a definite height. */
-    fillContainer?: boolean;
+    /** `true` takes the container's full size instead of the authored aspect ratio (the container must have a definite height); `'width'` takes the container's width and the authored height in CSS px, so the page scrolls past a long scene. */
+    fillContainer?: boolean | 'width';
     /**
      * The pattern's callback props the molecule received as functions (`onShapeClick`), by prop name: the scene
      * queues each under its prop name and the host hands that callback the delivered payload.
@@ -507,7 +507,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         <div
             ref={containerRef}
             className={cn('orbital-scene-canvas relative mx-auto w-full overflow-hidden rounded-container', className)}
-            style={fillContainer ? { flex: '1 1 0', height: '100%', minHeight: 0 } : { maxWidth: `min(100%, calc(70vh * ${width} / ${height}))`, aspectRatio: `${width} / ${height}` }}
+            style={fillContainer === 'width' ? { height: `${height}px` } : fillContainer ? { flex: '1 1 0', height: '100%', minHeight: 0 } : { maxWidth: `min(100%, calc(70vh * ${width} / ${height}))`, aspectRatio: `${width} / ${height}` }}
         >
             <canvas
                 ref={canvasRef}

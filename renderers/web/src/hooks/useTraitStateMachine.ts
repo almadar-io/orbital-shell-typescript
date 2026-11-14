@@ -156,7 +156,7 @@ export function useTraitStateMachine(
     uiSlots,
     embeddedTraits,
     (trait, event, payload) => hostAskDispatchRef.current?.(trait, event, payload) ?? Promise.resolve(),
-    (traits, onItem) => kernelClient.traceStream(traits, onItem),
+    (traits, onItem, cost) => kernelClient.traceStream(traits, onItem, cost),
   );
 
 

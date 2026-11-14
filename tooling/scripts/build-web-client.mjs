@@ -7,6 +7,8 @@
  *
  *   node tooling/scripts/build-web-client.mjs                       released @almadar/* from the template's lockfile
  *   node tooling/scripts/build-web-client.mjs --workspace <root>    the monorepo's @almadar/* sources, linked
+ *   ... --profiling --out <dir>                                       a production build left unminified, so a browser
+ *                                                                      profile names its functions; never shipped
  *
  * With --workspace, `orb tailwind-content` first rewrites the template's tailwind-content.txt from the behaviors resolved
  * from <root>, so the bundled CSS carries their classes. A release build uses the committed list: the private behaviors
@@ -26,6 +28,8 @@ const flag = (name) => {
 };
 const out = path.resolve(flag('--out') ?? path.join(repo, 'templates', 'almadar-web-client'));
 const workspace = flag('--workspace');
+const profiling = args.includes('--profiling');
+if (profiling && flag('--out') === undefined) throw new Error('--profiling builds a client that is never shipped: name its --out');
 
 /** The monorepo folder of each @almadar package the client depends on. */
 const WORKSPACE_PACKAGES = {
@@ -78,7 +82,7 @@ try {
   // Readers (the launchpad service) serve `out` while this runs: build beside it, then swap by rename so they
   // only ever see a complete directory. rename(2) cannot replace a non-empty directory, so the old one moves aside first.
   fs.mkdirSync(path.dirname(out), { recursive: true });
-  run('pnpm', ['exec', 'vite', 'build', '--outDir', staging, '--emptyOutDir'], client, { ALMADAR_GENERIC_CLIENT: '1', NODE_OPTIONS: '--max-old-space-size=6144' });
+  run('pnpm', ['exec', 'vite', 'build', '--outDir', staging, '--emptyOutDir', ...(profiling ? ['--minify', 'false'] : [])], client, { ALMADAR_GENERIC_CLIENT: '1', NODE_OPTIONS: '--max-old-space-size=6144' });
   if (fs.existsSync(out)) fs.renameSync(out, retired);
   fs.renameSync(staging, out);
 } finally {

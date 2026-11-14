@@ -11,9 +11,12 @@ import {
   createHttpTransport,
   createInProcessTransport,
   deriveCarriesCircuitState,
-  HIDDEN_CLOSE_DELAY_MS,
+  AWAY_CLOSE_DELAY_MS,
+  IDLE_AWAY_MS,
+  pagePresence,
   TransportStatusError,
-  type PushVisibility,
+  type PresenceTarget,
+  type PushPresence,
 } from '@almadar/shell-runtime/client/EventTransport';
 
 const schema: OrbitalSchema = { name: 'Probe', orbitals: [] };
@@ -207,27 +210,105 @@ describe('createHttpTransport push subscribe', () => {
     vi.unstubAllGlobals();
   });
 
-  function pageVisibility(initiallyHidden = false) {
-    let hidden = initiallyHidden;
+  function pageVisibility(initiallyAway = false) {
+    let away = initiallyAway;
     const listeners = new Set<() => void>();
-    const port: PushVisibility = { hidden: () => hidden, onChange: (listener) => { listeners.add(listener); return () => listeners.delete(listener); } };
+    const port: PushPresence = { away: () => away, onChange: (listener) => { listeners.add(listener); return () => listeners.delete(listener); } };
     const set = (next: boolean): void => {
-      hidden = next;
+      away = next;
       for (const listener of listeners) listener();
     };
     return { port, set, listening: () => listeners.size };
   }
 
+  /** A document stand-in: a real EventTarget whose visibility the test sets. */
+  class FakeDocument extends EventTarget implements PresenceTarget {
+    visibilityState: DocumentVisibilityState = 'visible';
+    show(state: DocumentVisibilityState): void {
+      this.visibilityState = state;
+      this.dispatchEvent(new Event('visibilitychange'));
+    }
+    input(type = 'pointerdown'): void {
+      this.dispatchEvent(new Event(type));
+    }
+  }
+
+  it('a visible page with no input for the idle time and the close delay closes its stream, and input reopens it resuming after the last frame', async () => {
+    vi.useFakeTimers();
+    try {
+      const doc = new FakeDocument();
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushPresence: pagePresence(doc) });
+      const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-idle-pause' });
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      FakeEventSource.instances[0].emit({ type: 'bus', event: 'E', payload: {}, source: { trait: 'T' } }, 'boot1-3');
+      // waitFor above moved the fake clock a few ms, so the boundary is checked to the second.
+      await vi.advanceTimersByTimeAsync(IDLE_AWAY_MS + AWAY_CLOSE_DELAY_MS - 1000);
+      expect(FakeEventSource.instances[0].closed).toBe(false);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(FakeEventSource.instances[0].closed).toBe(true);
+      doc.input('keydown');
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(2));
+      expect(new URL(FakeEventSource.instances[1].url).searchParams.get('since')).toBe('boot1-3');
+      unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('control: input before the idle time runs out keeps the one stream open', async () => {
+    vi.useFakeTimers();
+    try {
+      const doc = new FakeDocument();
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushPresence: pagePresence(doc) });
+      const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-idle-active' });
+      await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+      for (let i = 0; i < 4; i++) {
+        await vi.advanceTimersByTimeAsync(IDLE_AWAY_MS - 1000);
+        doc.input('pointermove');
+      }
+      await vi.advanceTimersByTimeAsync(AWAY_CLOSE_DELAY_MS);
+      expect(FakeEventSource.instances).toHaveLength(1);
+      expect(FakeEventSource.instances[0].closed).toBe(false);
+      unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('presence: hidden is away at once, showing the page counts as input, and only a change is announced', () => {
+    vi.useFakeTimers();
+    try {
+      const doc = new FakeDocument();
+      const presence = pagePresence(doc);
+      const heard = vi.fn();
+      const stop = presence.onChange(heard);
+      expect(presence.away()).toBe(false);
+      doc.show('hidden');
+      expect(presence.away()).toBe(true);
+      expect(heard).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(IDLE_AWAY_MS * 2);
+      doc.show('visible');
+      expect(presence.away()).toBe(false);
+      doc.input();
+      expect(heard).toHaveBeenCalledTimes(2);
+      stop();
+      vi.advanceTimersByTime(IDLE_AWAY_MS);
+      expect(heard).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('a page hidden for the delay closes its stream, and showing it reopens with a fresh ticket resuming after the last frame', async () => {
     vi.useFakeTimers();
     try {
       const page = pageVisibility();
-      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushVisibility: page.port });
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushPresence: page.port });
       const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-hidden-pause' });
       await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
       FakeEventSource.instances[0].emit({ type: 'bus', event: 'E', payload: {}, source: { trait: 'T' } }, 'boot1-7');
       page.set(true);
-      await vi.advanceTimersByTimeAsync(HIDDEN_CLOSE_DELAY_MS - 1);
+      await vi.advanceTimersByTimeAsync(AWAY_CLOSE_DELAY_MS - 1);
       expect(FakeEventSource.instances[0].closed).toBe(false);
       await vi.advanceTimersByTimeAsync(1);
       expect(FakeEventSource.instances[0].closed).toBe(true);
@@ -247,13 +328,13 @@ describe('createHttpTransport push subscribe', () => {
     vi.useFakeTimers();
     try {
       const page = pageVisibility();
-      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushVisibility: page.port });
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushPresence: page.port });
       const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-hidden-brief' });
       await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
       page.set(true);
-      await vi.advanceTimersByTimeAsync(HIDDEN_CLOSE_DELAY_MS / 2);
+      await vi.advanceTimersByTimeAsync(AWAY_CLOSE_DELAY_MS / 2);
       page.set(false);
-      await vi.advanceTimersByTimeAsync(HIDDEN_CLOSE_DELAY_MS * 2);
+      await vi.advanceTimersByTimeAsync(AWAY_CLOSE_DELAY_MS * 2);
       expect(FakeEventSource.instances).toHaveLength(1);
       expect(FakeEventSource.instances[0].closed).toBe(false);
       unsubscribe();
@@ -266,12 +347,12 @@ describe('createHttpTransport push subscribe', () => {
     vi.useFakeTimers();
     try {
       const page = pageVisibility();
-      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushVisibility: page.port });
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: ticketFetch(), pushPresence: page.port });
       const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-hidden-error' });
       await vi.waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
       const first = FakeEventSource.instances[0];
       page.set(true);
-      await vi.advanceTimersByTimeAsync(HIDDEN_CLOSE_DELAY_MS);
+      await vi.advanceTimersByTimeAsync(AWAY_CLOSE_DELAY_MS);
       first.readyState = 2;
       first.onerror?.();
       await vi.advanceTimersByTimeAsync(10_000);

@@ -14,7 +14,7 @@ vi.mock('../../../../providers/KernelEngineContext', async (importOriginal) => {
 
 import { OrbitalSceneCanvas } from '../OrbitalSceneCanvas';
 
-function box(fillContainer: boolean | undefined): HTMLElement {
+function box(fillContainer: boolean | 'width' | undefined): HTMLElement {
     const { container } = render(
         <OrbitalSceneCanvas pattern="canvas" config={{ type: 'canvas', mode: '2d' }} width={1280} height={800} {...(fillContainer !== undefined ? { fillContainer } : {})} />,
     );
@@ -29,6 +29,13 @@ describe('OrbitalSceneCanvas size', () => {
         expect(el.style.aspectRatio).toBe('');
         expect(el.style.maxWidth).toBe('');
         expect(el.style.height).toBe('100%');
+    });
+
+    it("with fillContainer 'width' takes the container's width and its authored height in CSS px, so the page scrolls past it", () => {
+        const el = box('width');
+        expect(el.style.aspectRatio).toBe('');
+        expect(el.style.maxWidth).toBe('');
+        expect(el.style.height).toBe('800px');
     });
 
     it('control: without fillContainer it keeps the authored aspect ratio', () => {

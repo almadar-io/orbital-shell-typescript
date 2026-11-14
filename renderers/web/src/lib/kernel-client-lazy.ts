@@ -36,10 +36,10 @@ export function createLazyKernelClient(opts: KernelClientOptions): KernelClient 
     traitState: (traitName) => loaded?.traitState(traitName),
     sessionTheme: () => loaded?.sessionTheme(),
     traitConfig: (traitName) => loaded?.traitConfig(traitName),
-    traceStream: (traits, onItem) => {
+    traceStream: (traits, onItem, cost) => {
       let stop: (() => void) | undefined;
       let stopped = false;
-      void client.then((c) => { if (!stopped) stop = c.traceStream(traits, onItem); });
+      void client.then((c) => { if (!stopped) stop = c.traceStream(traits, onItem, cost); });
       return () => { stopped = true; stop?.(); };
     },
   };

@@ -108,6 +108,8 @@ export interface DrawMeshKeyframe {
 export interface DrawMeshAnimation {
     /** One cycle length in ms. */
     durationMs: number;
+    /** Epoch-ms instant on the paint clock the animation starts at (the clock of `draw-emitter`'s `startMs`); before it the first keyframe shows, and with no clock the end state. Absent: it runs from the scene clock. 2D painter only: a 3D mesh rejects it. */
+    startMs?: number;
     /** Loop the cycle (default true); false plays once and holds the final keyframes. */
     loop?: boolean;
     /** Keyframes ordered by `at` (0..1). */

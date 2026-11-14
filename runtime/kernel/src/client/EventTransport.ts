@@ -167,28 +167,98 @@ interface SharedPushChannel {
   stopWatching?: () => void;
 }
 
-/** Whether the page is hidden, and a way to hear it change; a host with no page (no `document`) never pauses. */
-export interface PushVisibility {
-  hidden(): boolean;
+/** Whether the page is away (hidden, or no input for a while), and a way to hear it change; a host with no page (no `document`) is never away. */
+export interface PushPresence {
+  away(): boolean;
   onChange(listener: () => void): () => void;
 }
 
-function documentVisibility(): PushVisibility | undefined {
-  if (typeof document === 'undefined') return undefined;
+/** The part of a document presence reads: its visibility and the events that change it. */
+export interface PresenceTarget {
+  readonly visibilityState: DocumentVisibilityState;
+  addEventListener(type: string, listener: () => void, options?: AddEventListenerOptions): void;
+  removeEventListener(type: string, listener: () => void, options?: EventListenerOptions): void;
+}
+
+/** How long a visible page goes without input before it counts as away. */
+export const IDLE_AWAY_MS = 4 * 60_000;
+
+/** The inputs that mark a person at the page; captured, so a handler that stops propagation still counts. */
+const PRESENCE_INPUTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;
+
+/** A page is away while hidden, or while visible with no input for `IDLE_AWAY_MS`; showing it counts as input. */
+export function pagePresence(target: PresenceTarget): PushPresence {
+  const listeners = new Set<() => void>();
+  let idle = false;
+  let lastInput = Date.now();
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const away = (): boolean => target.visibilityState === 'hidden' || idle;
+  const announce = (): void => {
+    for (const listener of listeners) listener();
+  };
+  const arm = (): void => {
+    if (idleTimer !== undefined || listeners.size === 0) return;
+    idleTimer = setTimeout(() => {
+      idleTimer = undefined;
+      if (Date.now() - lastInput < IDLE_AWAY_MS) {
+        arm();
+        return;
+      }
+      if (!idle) {
+        const before = away();
+        idle = true;
+        if (away() !== before) announce();
+      }
+    }, Math.max(0, lastInput + IDLE_AWAY_MS - Date.now()));
+  };
+  const onInput = (): void => {
+    lastInput = Date.now();
+    if (idle) {
+      const before = away();
+      idle = false;
+      if (away() !== before) announce();
+    }
+    arm();
+  };
+  const onVisibility = (): void => {
+    if (target.visibilityState !== 'hidden') {
+      lastInput = Date.now();
+      idle = false;
+      arm();
+    }
+    announce();
+  };
   return {
-    hidden: () => document.visibilityState === 'hidden',
+    away,
     onChange: (listener) => {
-      document.addEventListener('visibilitychange', listener);
-      return () => document.removeEventListener('visibilitychange', listener);
+      listeners.add(listener);
+      if (listeners.size === 1) {
+        target.addEventListener('visibilitychange', onVisibility);
+        for (const type of PRESENCE_INPUTS) target.addEventListener(type, onInput, { capture: true, passive: true });
+        lastInput = Date.now();
+        arm();
+      }
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size > 0) return;
+        target.removeEventListener('visibilitychange', onVisibility);
+        for (const type of PRESENCE_INPUTS) target.removeEventListener(type, onInput, { capture: true });
+        if (idleTimer !== undefined) clearTimeout(idleTimer);
+        idleTimer = undefined;
+      };
     },
   };
 }
 
+function documentPresence(): PushPresence | undefined {
+  return typeof document === 'undefined' ? undefined : pagePresence(document);
+}
+
 /**
- * How long a page stays hidden before its push channel closes. An open stream keeps the server instance awake (and billed);
- * the channel reopens on the next visible, resuming after the last applied frame like any reconnect.
+ * How long a page stays away before its push channel closes. An open stream keeps the server instance awake (and billed);
+ * the channel reopens when the page is back, resuming after the last applied frame like any reconnect.
  */
-export const HIDDEN_CLOSE_DELAY_MS = 60_000;
+export const AWAY_CLOSE_DELAY_MS = 60_000;
 
 /** `EventSource.readyState` of a connection the browser gave up on (a refused stream is not retried by the browser). */
 const EVENT_SOURCE_CLOSED = 2;
@@ -229,7 +299,7 @@ function acquirePushChannel(
   resolveUrl: () => Promise<string>,
   resumeKey: string | undefined,
   subscriber: (envelope: ServerPushEnvelope) => void,
-  visibility: PushVisibility | undefined = documentVisibility(),
+  presence: PushPresence | undefined = documentPresence(),
 ): () => void {
   let channel = pushChannels.get(key);
   if (channel === undefined) {
@@ -276,41 +346,41 @@ function acquirePushChannel(
         }
       };
     };
-    let hiddenTimer: ReturnType<typeof setTimeout> | undefined;
-    const onVisibility = (): void => {
-      if (visibility === undefined || created.closed) return;
-      if (visibility.hidden()) {
-        if (hiddenTimer === undefined) {
-          hiddenTimer = setTimeout(() => {
-            hiddenTimer = undefined;
-            if (created.closed || !visibility.hidden()) return;
+    let awayTimer: ReturnType<typeof setTimeout> | undefined;
+    const onPresence = (): void => {
+      if (presence === undefined || created.closed) return;
+      if (presence.away()) {
+        if (awayTimer === undefined) {
+          awayTimer = setTimeout(() => {
+            awayTimer = undefined;
+            if (created.closed || !presence.away()) return;
             created.paused = true;
             const open = created.source;
             created.source = undefined;
             open?.close();
-            log.info('push:paused-hidden', { channel: key });
-          }, HIDDEN_CLOSE_DELAY_MS);
+            log.info('push:paused-away', { channel: key });
+          }, AWAY_CLOSE_DELAY_MS);
         }
         return;
       }
-      if (hiddenTimer !== undefined) {
-        clearTimeout(hiddenTimer);
-        hiddenTimer = undefined;
+      if (awayTimer !== undefined) {
+        clearTimeout(awayTimer);
+        awayTimer = undefined;
       }
       if (created.paused) {
         created.paused = false;
-        log.info('push:resumed-visible', { channel: key });
+        log.info('push:resumed-present', { channel: key });
         void open();
       }
     };
-    const stopWatching = visibility?.onChange(onVisibility);
+    const stopWatching = presence?.onChange(onPresence);
     created.stopWatching = (): void => {
       stopWatching?.();
-      if (hiddenTimer !== undefined) clearTimeout(hiddenTimer);
+      if (awayTimer !== undefined) clearTimeout(awayTimer);
     };
     pushChannels.set(key, created);
     void open();
-    if (visibility?.hidden() === true) onVisibility();
+    if (presence?.away() === true) onPresence();
     channel = created;
   }
   channel.subscribers.add(subscriber);
@@ -374,8 +444,8 @@ export interface HttpTransportOptions {
    * for servers that inflate request bodies (Express's JSON parser does).
    */
   compressRequests?: boolean;
-  /** Page visibility for pausing the push channel while hidden; the document's by default, none without a document. */
-  pushVisibility?: PushVisibility;
+  /** Page presence for pausing the push channel while the page is away (hidden or idle); the document's by default, none without a document. */
+  pushPresence?: PushPresence;
 }
 
 /** Bodies below this stay plain: compressing them costs more than it saves. */
@@ -435,7 +505,7 @@ export function createHttpTransport(options: HttpTransportOptions): EventTranspo
       if (typeof body.ticket !== 'string' || body.ticket.length === 0) throw new Error('the server sent no stream ticket');
       return withResume(new URLSearchParams({ ...params, ticket: body.ticket }));
     };
-    return acquirePushChannel(key, resolveUrl, resumeKey, subscriber, options.pushVisibility ?? documentVisibility());
+    return acquirePushChannel(key, resolveUrl, resumeKey, subscriber, options.pushPresence ?? documentPresence());
   };
 
   return {

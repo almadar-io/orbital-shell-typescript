@@ -183,6 +183,8 @@ export interface DrawableBase {
     id?: string;
     /** With an `id`, the drawable is a pointer region (its painted bounds, rotation applied); the orbital canvas emits the pointer events for it. */
     hit?: boolean;
+    /** With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls. */
+    wheel?: boolean;
     /** Accessibility node for this drawable. */
     semantic?: DrawableSemantic;
     /** With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring. */

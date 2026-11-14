@@ -61,8 +61,8 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     // --- Shared view config ---
     className?: string;
     isLoading?: boolean;
-    /** 3D: take the height of the box that holds the canvas, with no minimum (a small scene in a header or a rail). Default false: the surface is at least 400px tall. */
-    fillContainer?: boolean;
+    /** 3D: take the height of the box that holds the canvas, with no minimum (a small scene in a header or a rail). Default false: the surface is at least 400px tall. Orbital 2D: `true` takes the container's whole box; `'width'` takes the container's width and `worldHeight` CSS px, so the page scrolls past a long scene (a 3D scene treats `'width'` as false). */
+    fillContainer?: boolean | 'width';
     /** Unit draw-size multiplier (both painters). */
     unitScale?: number;
     /** Minimap overlay (2D). */
@@ -122,7 +122,7 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     pointerMoveEvent?: EventEmit<{ target: string; x: number; y: number }>;
     /** Which moves `pointerMoveEvent` sends: `all` (hover and drag) or `captured` (only while a press holds capture). Orbital painter. */
     pointerMoves?: 'all' | 'captured';
-    /** The wheel turned over the canvas: the topmost hit drawable under the pointer (empty for none), the point, and the scroll in CSS pixels. Declaring it keeps the wheel from scrolling the page (orbital painter). */
+    /** The wheel turned over a hit drawable that declares `wheel: true` (orbital painter): its id, the point, and the scroll in CSS pixels. That wheel is kept from the page; over anything else the page scrolls and nothing is sent. */
     wheelEvent?: EventEmit<{ target: string; x: number; y: number; dx: number; dy: number }>;
     /** The program's reading direction, rendered from the page locale (`(i18n/direction)`); the painter reports it through `directionEvent` (orbital painter). */
     direction?: 'ltr' | 'rtl';
@@ -358,7 +358,7 @@ export function Canvas({
                         config={config3d}
                         drawables={allDrawables}
                         className={className}
-                        {...(fillContainer !== undefined ? { fillContainer } : {})}
+                        {...(fillContainer !== undefined ? { fillContainer: fillContainer === true } : {})}
                         tileClickEvent={tileClickEvent}
                         unitClickEvent={unitClickEvent}
                         keyMap={keyMap}

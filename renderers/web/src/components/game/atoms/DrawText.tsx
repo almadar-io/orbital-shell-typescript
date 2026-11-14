@@ -41,10 +41,27 @@ export interface DrawTextKeyframe {
 export interface DrawTextAnimation {
     /** One cycle length in ms. */
     durationMs: number;
+    /** Epoch-ms instant on the paint clock the animation starts at (the clock of `draw-emitter`'s `startMs`); before it the first keyframe shows, and with no clock the end state. Absent: it runs from the scene clock. */
+    startMs?: number;
     /** Loop the cycle (default true); false plays once and holds the final keyframe. */
     loop?: boolean;
     /** Keyframes ordered by `at` (0..1). */
     keyframes: DrawTextKeyframe[];
+}
+
+/**
+ * Letter-by-letter reveal on the paint clock (orbital painter only): glyph i, in visual order across lines, starts at
+ * `startMs + i * perGlyphMs` and over `durationMs` rises from `offsetY` px lower and from opacity 0, eased out.
+ */
+export interface DrawTextReveal {
+    /** Epoch-ms instant on the paint clock the first glyph starts at (the clock of `draw-emitter`'s `startMs`). */
+    startMs: number;
+    /** Delay between one glyph's start and the next. */
+    perGlyphMs: number;
+    /** How long each glyph takes to arrive. */
+    durationMs: number;
+    /** Px a glyph starts below its place (default 6). */
+    offsetY?: number;
 }
 
 export interface DrawTextProps extends DrawableBase {
@@ -74,6 +91,8 @@ export interface DrawTextProps extends DrawableBase {
     measure?: boolean;
     /** Keyframe animation over `opacity`, `offsetX` and `offsetY` (orbital painter; the TS painter ignores it). */
     animation?: DrawTextAnimation;
+    /** Reveal the text glyph by glyph on the paint clock (orbital painter; the TS painter ignores it). */
+    reveal?: DrawTextReveal;
     /** Draw a caret before this character index (-1 or absent: none), blinking on the renderer clock. */
     caret?: number;
     /** Caret colour (theme tone or colour). */
