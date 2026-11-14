@@ -39,6 +39,7 @@ import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, Entered, F
 import type { KernelInstance } from './kernel-wire';
 import type { KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
 import { decodeHeldCompletion } from '@almadar/shell-runtime/kernel/decode';
+import { HeldValues } from '@almadar/shell-runtime/kernel/held-values';
 
 const log = createLogger('almadar:ui:kernel-client');
 
@@ -117,6 +118,24 @@ function parse<T>(text: string): T {
   return JSON.parse(text);
 }
 
+const heldByKernel = new WeakMap<KernelInstance, HeldValues>();
+
+function heldOf(k: KernelInstance): HeldValues {
+  let held = heldByKernel.get(k);
+  if (held === undefined) {
+    held = new HeldValues();
+    heldByKernel.set(k, held);
+  }
+  return held;
+}
+
+/** A kernel answer, its held render values (EXEC-DIST-16) read from this kernel's table; released ids go first. */
+function readAnswer<T>(k: KernelInstance, text: string): T {
+  const held = heldOf(k);
+  held.release(k.heldReleased());
+  return held.read<T>(text);
+}
+
 function payloadJson(payload: EventPayload | undefined): string | undefined {
   return payload === undefined ? undefined : JSON.stringify(payload);
 }
@@ -168,7 +187,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   const runQueuedFolds = (k: KernelInstance): void => {
     const foldTurns = foldTurnsOf(k);
     for (let json = k.nextFold(); json !== undefined; json = k.nextFold()) {
-      const next = parse<FoldedNextWire>(json);
+      const next = readAnswer<FoldedNextWire>(k, json);
       const turn = foldTurns.get(next.ticket);
       if (turn === undefined) throw new Error(`kernel wire: the kernel folded ticket ${next.ticket}, which nothing waits on`);
       foldTurns.delete(next.ticket);
@@ -178,13 +197,13 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   };
 
   const foldInOrder = (k: KernelInstance, flight: number, answer: EventResponse, alreadyDeliveredJson: string, baseJson: string | undefined): Promise<AppliedWire> =>
-    settleProgress(k, parse<FoldProgressWire>(k.foldInOrder(flight, JSON.stringify(answer), alreadyDeliveredJson, baseJson)));
+    settleProgress(k, readAnswer<FoldProgressWire>(k, k.foldInOrder(flight, JSON.stringify(answer), alreadyDeliveredJson, baseJson)));
 
   const deliverInOrder = (k: KernelInstance, flight: number, emitted: EmittedEvent): Promise<AppliedWire> =>
-    settleProgress(k, parse<FoldProgressWire>(k.deliverEmitToListeners(flight, JSON.stringify(emitted))));
+    settleProgress(k, readAnswer<FoldProgressWire>(k, k.deliverEmitToListeners(flight, JSON.stringify(emitted))));
 
   const deliverOriginInOrder = (k: KernelInstance, flight: number, emitted: EmittedEvent): Promise<AppliedWire> =>
-    settleProgress(k, parse<FoldProgressWire>(k.deliverOriginEmit(flight, JSON.stringify(emitted))));
+    settleProgress(k, readAnswer<FoldProgressWire>(k, k.deliverOriginEmit(flight, JSON.stringify(emitted))));
 
   const settleProgress = (k: KernelInstance, progress: FoldProgressWire): Promise<AppliedWire> => {
     if (progress.status === 'applied') return Promise.resolve(progress.fold);
@@ -211,7 +230,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
 
   const framesSince = (since: number): FrameDelta => {
     if (loaded === undefined) throw new Error('the kernel is not loaded');
-    return parse<FrameDelta>(loaded.framesSince(since));
+    return readAnswer<FrameDelta>(loaded, loaded.framesSince(since));
   };
   /** A response the in-process kernel produced: its states, payloads and frame delta are painted. */
   const mirror = (response: EventResponse): void => paintResponse(store, framesSince, response);
@@ -257,7 +276,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     const snapshot: TraitSnapshot | null = wire.snapshot;
     if (snapshot === null) return { clientEffectsByTrait: [] };
     const trait = wire.seed.trait;
-    const repaint = parse<EventResponse>(k.restore(trait, entityId, JSON.stringify(snapshot)));
+    const repaint = readAnswer<EventResponse>(k, k.restore(trait, entityId, JSON.stringify(snapshot)));
     if (snapshot.state !== '') store.states.rollbackState(trait, snapshot.state, entityId, 'server-rejected');
     mirror(repaint);
     store.notify();
@@ -352,7 +371,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     } catch (err) {
       const seeds = mountedSeeds.get(orbital);
       if (!(err instanceof SessionEndedError) || seeds === undefined || seeds.length === 0) throw err;
-      const reseed: EventRequest = JSON.parse(k.reseedLeg(JSON.stringify(seeds), request.entityId));
+      const reseed = readAnswer<EventRequest>(k, k.reseedLeg(JSON.stringify(seeds), request.entityId));
       const mounted = await transport.send(orbital, request.locale !== undefined ? { ...reseed, locale: request.locale } : reseed);
       await foldAnswer(k, flight, mounted);
       store.notify();
@@ -379,7 +398,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     // A fold can owe the host more (a refetch after a browser-stored write): those legs follow, in order.
     const queue = [...legs];
     for (let planned = queue.shift(); planned !== undefined; planned = queue.shift()) {
-      const shaped: EventRequest = planned.keepsState ? planned.leg : JSON.parse(k.statefulLeg(JSON.stringify(planned.leg)));
+      const shaped: EventRequest = planned.keepsState ? planned.leg : readAnswer<EventRequest>(k, k.statefulLeg(JSON.stringify(planned.leg)));
       const sent: EventRequest = request.locale !== undefined ? { ...shaped, locale: request.locale } : shaped;
       const base = k.foldBase(sent.entityByTrait !== undefined ? JSON.stringify(sent.entityByTrait) : undefined, JSON.stringify(planned.foldSeeded), sent.entityId);
       let posted: EventResponse;
@@ -473,7 +492,9 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       frame: (nowMs) => {
         const presence = getTraitPresence();
         for (const [traitName, group] of visibleGroups) k.setTraitOnScreen(traitName, presence.state(group) !== 'off-screen');
-        return k.frame(nowMs);
+        const frame = k.frame(nowMs);
+        heldOf(k).release(k.heldReleased());
+        return frame;
       },
       framePause: () => k.framePause(),
       frameResume: () => k.frameResume(),
@@ -481,6 +502,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     },
     client: localFold,
     post: framePost(k),
+    held: heldOf(k),
   });
 
   const dispatchOne = async (request: EventRequest, hooks: ClientDispatchHooks[], progress: boolean): Promise<ClientKernelOutcome> => {
@@ -489,13 +511,13 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     const k = await ready;
     await scopeTail;
     if (request.runTick !== undefined) {
-      const response = parse<EventResponse>(k.tick(request.runTick.trait, request.runTick.tick, request.entityId));
+      const response = readAnswer<EventResponse>(k, k.tick(request.runTick.trait, request.runTick.tick, request.entityId));
       publishTrace(k);
       mirror(response);
       store.notify();
       return { response, mode: parse<DispatchMode>(k.dispatchMode(request.runTick.trait)) };
     }
-    const wire = parse<DispatchWire>(request.heldPayload !== undefined
+    const wire = readAnswer<DispatchWire>(k, request.heldPayload !== undefined
       ? k.dispatchHeld(traitName, request.entityId, request.event, request.heldPayload)
       : k.dispatch(traitName, request.entityId, request.event, payloadJson(request.payload)));
     try {
@@ -661,8 +683,8 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   const release = async (left: readonly Left[]): Promise<void> => {
     if (transport === undefined || left.length === 0) return;
     await opts.topology;
-    for (const { trait, orbital, leg } of left) {
-      transport.send(orbital, leg).catch((err: Error) => log.warn('unmount-post-failed', { trait, orbital, error: String(err) }));
+    for (const { traits, orbital, leg } of left) {
+      transport.send(orbital, leg).catch((err: Error) => log.warn('unmount-post-failed', { traits, orbital, error: String(err) }));
     }
   };
 
@@ -704,7 +726,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       await scopeTail;
       const baseRequest = base ?? {};
       k.mount(JSON.stringify(seeds.map((s) => s.trait)));
-      const mount = parse<MountWire>(k.dispatchMount(JSON.stringify(seeds), baseRequest.entityId, payloadJson(baseRequest.payload), baseRequest.route, baseRequest.crumb));
+      const mount = readAnswer<MountWire>(k, k.dispatchMount(JSON.stringify(seeds), baseRequest.entityId, payloadJson(baseRequest.payload), baseRequest.route, baseRequest.crumb));
       try {
         return await settleMount(k, mount, seeds, hooks, baseRequest);
       } finally {
@@ -715,15 +737,15 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     routeMounts: async (routePath) => parse<MountSeed[]>((await ready).routeMounts(routePath)),
     pageCircuit: async (page, route) => parse<PageCircuit>((await ready).pageCircuit(page, route)),
     enter: (routePath, mountKey, traits) => {
-      const entered = scopeTail.then(() => ready).then((k) => parse<Entered>(k.enter(routePath, `${clientSerial}\u0000${mountKey}`, JSON.stringify(traits))));
+      const entered = scopeTail.then(() => ready).then((k) => readAnswer<Entered>(k, k.enter(routePath, `${clientSerial}\u0000${mountKey}`, JSON.stringify(traits))));
       scopeTail = entered.then(() => undefined, () => undefined);
       return entered.then((answer) => {
         void release(answer.left);
-        return { seeds: answer.seeds, left: answer.left.map((l) => l.trait) };
+        return { seeds: answer.seeds, left: answer.left.flatMap((l) => l.traits) };
       });
     },
     leave: async () => {
-      const left = scopeTail.then(() => ready).then((k) => parse<Left[]>(k.leave()));
+      const left = scopeTail.then(() => ready).then((k) => readAnswer<Left[]>(k, k.leave()));
       scopeTail = left.then(() => undefined, () => undefined);
       await release(await left);
     },

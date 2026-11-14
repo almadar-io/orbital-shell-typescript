@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FrameWire, RoutedLeg } from '@almadar/core/kernel-wire';
 import type { EventResponse } from '@almadar/core';
 import { applyFrame, decodeFrame, type FramePostPort } from '@almadar/shell-runtime/kernel/frame-applier';
+import { HeldValues } from '@almadar/shell-runtime/kernel/held-values';
 
 const response = (states: Record<string, string>): FrameWire['response'] => ({
   success: true,
@@ -62,7 +63,7 @@ describe('frame applier', () => {
   it('folds the frame response then each dispatch and sends the browser leg through the post port', async () => {
     const { kernel, folded } = fakeKernel();
     const { post, sent, posted } = fakePost();
-    const result = await applyFrame(JSON.stringify(withLeg), kernel, post);
+    const result = await applyFrame(JSON.stringify(withLeg), kernel, post, new HeldValues());
     expect(folded.map((f) => f.traceHops)).toEqual([false, true]);
     expect(folded[0]?.response).toEqual(withLeg.response);
     expect(sent).toEqual([leg]);
@@ -84,17 +85,17 @@ describe('frame applier', () => {
     if (first === undefined) throw new Error('fixture has a dispatch');
     const three: FrameWire = { ...withLeg, dispatches: [first, first] };
     const { kernel, folded } = fakeKernel();
-    await applyFrame(JSON.stringify(three), kernel, undefined);
+    await applyFrame(JSON.stringify(three), kernel, undefined, new HeldValues());
     expect(folded.map((f) => f.notify)).toEqual([false, false, true]);
     const { kernel: aggregateOnly, folded: one } = fakeKernel();
-    await applyFrame(JSON.stringify({ ...withLeg, dispatches: [] }), aggregateOnly, undefined);
+    await applyFrame(JSON.stringify({ ...withLeg, dispatches: [] }), aggregateOnly, undefined, new HeldValues());
     expect(one.map((f) => f.notify)).toEqual([true]);
   });
 
   it('control: no due tick is a no-op', async () => {
     const { kernel, folded } = fakeKernel();
     const { post, sent } = fakePost();
-    const result = await applyFrame(undefined, kernel, post);
+    const result = await applyFrame(undefined, kernel, post, new HeldValues());
     expect(folded).toEqual([]);
     expect(sent).toEqual([]);
     expect(result).toEqual({ fired: {}, firedCount: 0, folded: 0, browserLegs: 0, droppedServerEffects: 0, outcomes: [], errors: [] });
@@ -104,7 +105,7 @@ describe('frame applier', () => {
     const frame: FrameWire = { ...withLeg, dispatches: [], browserLegs: [], droppedServerEffects: 0, errors: [] };
     const { kernel, folded } = fakeKernel();
     const { post, sent } = fakePost();
-    const result = await applyFrame(JSON.stringify(frame), kernel, post);
+    const result = await applyFrame(JSON.stringify(frame), kernel, post, new HeldValues());
     expect(folded).toHaveLength(1);
     expect(sent).toEqual([]);
     expect(result.browserLegs).toBe(0);
@@ -117,7 +118,7 @@ describe('frame applier', () => {
     const owing: FrameWire = { ...withLeg, browserLegs: [], dispatches: [{ ...first, serverLegs: [leg] }] };
     const { kernel } = fakeKernel();
     const { post, posted } = fakePost();
-    const result = await applyFrame(JSON.stringify(owing), kernel, post);
+    const result = await applyFrame(JSON.stringify(owing), kernel, post, new HeldValues());
     expect(posted).toEqual(['Editor']);
     await expect(result.outcomes[1]?.tickSettled).resolves.toEqual({ clientEffectsByTrait: [] });
   });
@@ -128,7 +129,7 @@ describe('frame applier', () => {
     const owing: FrameWire = { ...withLeg, browserLegs: [], dispatches: [{ ...first, statefulLeg: { orbital: 'Main', leg: leg.leg, awaiting: [] } }] };
     const { kernel } = fakeKernel();
     const post: FramePostPort = { postDispatch: async () => { throw new Error('down'); }, sendBrowserLeg: async () => ({}) };
-    const result = await applyFrame(JSON.stringify(owing), kernel, post);
+    const result = await applyFrame(JSON.stringify(owing), kernel, post, new HeldValues());
     await expect(result.outcomes[1]?.tickSettled).resolves.toBeUndefined();
   });
 
@@ -137,12 +138,12 @@ describe('frame applier', () => {
     if (first === undefined) throw new Error('fixture has a dispatch');
     const owing: FrameWire = { ...withLeg, dispatches: [{ ...first, serverLegs: [leg] }] };
     const { kernel } = fakeKernel();
-    const result = await applyFrame(JSON.stringify(owing), kernel, undefined);
+    const result = await applyFrame(JSON.stringify(owing), kernel, undefined, new HeldValues());
     expect(result.outcomes).toHaveLength(2);
     expect(result.outcomes.every((o) => o.tickSettled === undefined)).toBe(true);
   });
 
   it('refuses a payload that is not a FrameWire', () => {
-    expect(() => decodeFrame(JSON.stringify({ fired: [] }))).toThrow('not a FrameWire');
+    expect(() => decodeFrame(JSON.stringify({ fired: [] }), new HeldValues())).toThrow('not a FrameWire');
   });
 });

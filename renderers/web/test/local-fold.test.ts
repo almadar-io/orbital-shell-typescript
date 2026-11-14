@@ -4,6 +4,7 @@ import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-
 import type { FrameDelta, FrameWire } from '@almadar/core/kernel-wire';
 import { applyFrame } from '@almadar/shell-runtime/kernel/frame-applier';
 import { createLocalFold } from '@almadar/shell-runtime/client/local-fold';
+import { HeldValues } from '@almadar/shell-runtime/kernel/held-values';
 
 const response: EventResponse = {
   success: true,
@@ -48,7 +49,7 @@ describe('local fold', () => {
         mode: 'hybridClientOnly' as const, snapshot: null, alreadyDelivered: [], awaiting: [], statefulLeg: null, foldSeeded: [],
       })),
     };
-    await applyFrame(JSON.stringify(frame), fold, undefined);
+    await applyFrame(JSON.stringify(frame), fold, undefined, new HeldValues());
     expect(notified).toBe(1);
   });
 

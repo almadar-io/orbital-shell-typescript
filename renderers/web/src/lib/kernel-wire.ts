@@ -27,6 +27,8 @@ export interface KernelInstance {
   deliverOriginEmit(flight: number, emittedJson: string): string;
   /** The oldest queued answer that can fold now, folded: a `FoldedNextWire` as JSON, or `undefined` when none waits. */
   nextFold(): string | undefined;
+  /** The held render values (EXEC-DIST-16) the kernel let go of since the last call: a JSON array of ids. */
+  heldReleased(): string;
   /** The flight is done: its answers are folded, or the host gave up on them. */
   endFlight(flight: number): boolean;
   /** The rows a posted leg's answer is folded against; `undefined` when the leg carried none. */

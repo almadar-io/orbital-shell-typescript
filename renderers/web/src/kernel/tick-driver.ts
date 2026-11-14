@@ -5,6 +5,7 @@
  */
 import type { LocalFoldKernel } from '@almadar/shell-runtime/client/client-kernel';
 import { applyFrame, type FrameApplied, type FramePostPort } from '@almadar/shell-runtime/kernel/frame-applier';
+import type { HeldValues } from '@almadar/shell-runtime/kernel/held-values';
 
 export interface TickKernelPort {
   frame(nowMs: number): string | undefined;
@@ -23,11 +24,13 @@ export interface TickFramePorts {
   client: LocalFoldKernel;
   /** Posts what fired ticks owe; `undefined` for a host with no transport (the frame then only folds locally). */
   post: FramePostPort | undefined;
+  /** The kernel's held render values (EXEC-DIST-16), which its frames name by reference. */
+  held: HeldValues;
 }
 
 /** One host frame: `Kernel.frame(now())`, then the applier. Shared by the poll driver and by hosts that step on demand. */
 export function runTickFrame(ports: TickFramePorts, now: () => number): Promise<FrameApplied> {
-  return applyFrame(ports.kernel.frame(now()), ports.client, ports.post);
+  return applyFrame(ports.kernel.frame(now()), ports.client, ports.post, ports.held);
 }
 
 export interface TickDriverPorts extends TickFramePorts {

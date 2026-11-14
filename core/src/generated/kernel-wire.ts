@@ -244,6 +244,11 @@ dispatchLog?: DispatchLog,
  */
 mount?: Array<MountSeed>, 
 /**
+ * The traits an `$UNMOUNT` releases for its client, every trait of this orbital a page left, in one request
+ * (EXEC-TICK-6). The only place an `$UNMOUNT` names its traits.
+ */
+unmount?: Array<string>, 
+/**
  * The route a `mount` batch opens: the kernel delivers `$MOUNT { page, route, traits, entities, ancestors, label?, crumb? }` to the traits that
  * listen for it before the batch's seeds run (EXEC-SEED-7). Absent: a mount that opens no route delivers none.
  */
@@ -396,7 +401,7 @@ export type KernelKind = "call" | "reorder" | "read" | "spawn" | "declared" | "p
 
 export type KvMode = "read" | "write";
 
-export type Left = { trait: string, orbital: string, leg: EventRequest, };
+export type Left = { orbital: string, traits: Array<string>, leg: EventRequest, };
 
 export type LegResidence = "browser" | "server";
 
@@ -606,7 +611,11 @@ failure?: string,
 /**
  * The step's row after its effects.
  */
-entityAfter: EventPayload | null, pendingAsks: Array<PendingAsk>, 
+entityAfter: EventPayload | null, 
+/**
+ * The keyed asks this step recorded that are still open after it; an earlier step's open ask is that step's.
+ */
+pendingAsks: Array<PendingAsk>, 
 /**
  * Every trait the request's event moved, the requested one among them.
  */
@@ -829,7 +838,11 @@ export type StepRefusal = { success: false, error: string, trait: string | null,
 
 export type StepReport = { success: true, steps: Array<StepResult>, dispatchModes: { [key in string]: DispatchMode }, };
 
-export type StepResult = { outcomes: Array<StepOutcome>, states: { [key in string]: string }, entities: { [key in string]: JsonValue }, entityAfter: EventPayload | null, pendingAsks: Array<PendingAsk>, };
+export type StepResult = { outcomes: Array<StepOutcome>, states: { [key in string]: string }, entities: { [key in string]: JsonValue }, entityAfter: EventPayload | null, 
+/**
+ * The keyed asks this step recorded that are still open after it; an earlier step's open ask is that step's.
+ */
+pendingAsks: Array<PendingAsk>, };
 
 export type StoreListing = { enabled: boolean, entries: Array<StoredName>, };
 
@@ -1255,7 +1268,7 @@ function checkEvalStepWire(v: JsonValue | undefined): boolean {
 }
 
 function checkEventRequest(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["event"] === 'string' && (v["eventId"] === undefined || accepts((x, q) => asEventId(str(x, q)), v["eventId"])) && (v["payload"] === undefined || accepts((x, q) => rec(x, q), v["payload"])) && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["targetTrait"] === undefined || typeof v["targetTrait"] === 'string') && (v["clientId"] === undefined || typeof v["clientId"] === 'string') && (v["locale"] === undefined || typeof v["locale"] === 'string') && (v["tick"] === undefined || typeof v["tick"] === 'string') && (v["sourceTrait"] === undefined || typeof v["sourceTrait"] === 'string') && (v["runTick"] === undefined || checkRunTick(v["runTick"])) && (v["traits"] === undefined || (Array.isArray(v["traits"]) && v["traits"].every((e) => checkTraitFrom(e)))) && (v["entityByTrait"] === undefined || (isRecord(v["entityByTrait"]) && Object.values(v["entityByTrait"]).every((e) => accepts((x, q) => entityRow(x, q), e)))) && (v["behavior"] === undefined || typeof v["behavior"] === 'string') && (v["delivery"] === undefined || checkDeliveryRecord(v["delivery"])) && (v["dispatchLog"] === undefined || checkDispatchLog(v["dispatchLog"])) && (v["mount"] === undefined || (Array.isArray(v["mount"]) && v["mount"].every((e) => checkMountSeed(e)))) && (v["route"] === undefined || typeof v["route"] === 'string') && (v["crumb"] === undefined || typeof v["crumb"] === 'string') && (v["residence"] === undefined || checkLegResidence(v["residence"])) && (v["framesSince"] === undefined || typeof v["framesSince"] === 'number') && (v["heldPayload"] === undefined || typeof v["heldPayload"] === 'number'));
+  return (isRecord(v) && typeof v["event"] === 'string' && (v["eventId"] === undefined || accepts((x, q) => asEventId(str(x, q)), v["eventId"])) && (v["payload"] === undefined || accepts((x, q) => rec(x, q), v["payload"])) && (v["entityId"] === undefined || typeof v["entityId"] === 'string') && (v["targetTrait"] === undefined || typeof v["targetTrait"] === 'string') && (v["clientId"] === undefined || typeof v["clientId"] === 'string') && (v["locale"] === undefined || typeof v["locale"] === 'string') && (v["tick"] === undefined || typeof v["tick"] === 'string') && (v["sourceTrait"] === undefined || typeof v["sourceTrait"] === 'string') && (v["runTick"] === undefined || checkRunTick(v["runTick"])) && (v["traits"] === undefined || (Array.isArray(v["traits"]) && v["traits"].every((e) => checkTraitFrom(e)))) && (v["entityByTrait"] === undefined || (isRecord(v["entityByTrait"]) && Object.values(v["entityByTrait"]).every((e) => accepts((x, q) => entityRow(x, q), e)))) && (v["behavior"] === undefined || typeof v["behavior"] === 'string') && (v["delivery"] === undefined || checkDeliveryRecord(v["delivery"])) && (v["dispatchLog"] === undefined || checkDispatchLog(v["dispatchLog"])) && (v["mount"] === undefined || (Array.isArray(v["mount"]) && v["mount"].every((e) => checkMountSeed(e)))) && (v["unmount"] === undefined || (Array.isArray(v["unmount"]) && v["unmount"].every((e) => typeof e === 'string'))) && (v["route"] === undefined || typeof v["route"] === 'string') && (v["crumb"] === undefined || typeof v["crumb"] === 'string') && (v["residence"] === undefined || checkLegResidence(v["residence"])) && (v["framesSince"] === undefined || typeof v["framesSince"] === 'number') && (v["heldPayload"] === undefined || typeof v["heldPayload"] === 'number'));
 }
 
 function checkEventResponse(v: JsonValue | undefined): boolean {
@@ -1383,7 +1396,7 @@ function checkKvMode(v: JsonValue | undefined): boolean {
 }
 
 function checkLeft(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["trait"] === 'string' && typeof v["orbital"] === 'string' && checkEventRequest(v["leg"]));
+  return (isRecord(v) && typeof v["orbital"] === 'string' && (Array.isArray(v["traits"]) && v["traits"].every((e) => typeof e === 'string')) && checkEventRequest(v["leg"]));
 }
 
 function checkLegResidence(v: JsonValue | undefined): boolean {
@@ -1999,7 +2012,7 @@ function buildEvalStepWire(v: JsonValue | undefined, p: string): EvalStepWire {
 }
 
 function buildEventRequest(v: JsonValue | undefined, p: string): EventRequest {
-  return obj(v, p, null, (r0) => ({ "event": str(r0["event"], p + '.event'), ...(r0["eventId"] === undefined || r0["eventId"] === null ? {} : { "eventId": asEventId(str(r0["eventId"], p + '.eventId')) }), ...(r0["payload"] === undefined || r0["payload"] === null ? {} : { "payload": rec(r0["payload"], p + '.payload') }), ...(r0["entityId"] === undefined || r0["entityId"] === null ? {} : { "entityId": str(r0["entityId"], p + '.entityId') }), ...(r0["targetTrait"] === undefined || r0["targetTrait"] === null ? {} : { "targetTrait": str(r0["targetTrait"], p + '.targetTrait') }), ...(r0["clientId"] === undefined || r0["clientId"] === null ? {} : { "clientId": str(r0["clientId"], p + '.clientId') }), ...(r0["locale"] === undefined || r0["locale"] === null ? {} : { "locale": str(r0["locale"], p + '.locale') }), ...(r0["tick"] === undefined || r0["tick"] === null ? {} : { "tick": str(r0["tick"], p + '.tick') }), ...(r0["sourceTrait"] === undefined || r0["sourceTrait"] === null ? {} : { "sourceTrait": str(r0["sourceTrait"], p + '.sourceTrait') }), ...(r0["runTick"] === undefined || r0["runTick"] === null ? {} : { "runTick": buildRunTick(r0["runTick"], p + '.runTick') }), ...(r0["traits"] === undefined || r0["traits"] === null ? {} : { "traits": list(r0["traits"], p + '.traits', (e1, q1) => buildTraitFrom(e1, q1)) }), ...(r0["entityByTrait"] === undefined || r0["entityByTrait"] === null ? {} : { "entityByTrait": dict(r0["entityByTrait"], p + '.entityByTrait', (e1, q1) => entityRow(e1, q1)) }), ...(r0["behavior"] === undefined || r0["behavior"] === null ? {} : { "behavior": str(r0["behavior"], p + '.behavior') }), ...(r0["delivery"] === undefined || r0["delivery"] === null ? {} : { "delivery": buildDeliveryRecord(r0["delivery"], p + '.delivery') }), ...(r0["dispatchLog"] === undefined || r0["dispatchLog"] === null ? {} : { "dispatchLog": buildDispatchLog(r0["dispatchLog"], p + '.dispatchLog') }), ...(r0["mount"] === undefined || r0["mount"] === null ? {} : { "mount": list(r0["mount"], p + '.mount', (e1, q1) => buildMountSeed(e1, q1)) }), ...(r0["route"] === undefined || r0["route"] === null ? {} : { "route": str(r0["route"], p + '.route') }), ...(r0["crumb"] === undefined || r0["crumb"] === null ? {} : { "crumb": str(r0["crumb"], p + '.crumb') }), ...(r0["residence"] === undefined || r0["residence"] === null ? {} : { "residence": buildLegResidence(r0["residence"], p + '.residence') }), ...(r0["framesSince"] === undefined || r0["framesSince"] === null ? {} : { "framesSince": int(r0["framesSince"], p + '.framesSince', 0, Number.MAX_SAFE_INTEGER, "u64") }), ...(r0["heldPayload"] === undefined || r0["heldPayload"] === null ? {} : { "heldPayload": int(r0["heldPayload"], p + '.heldPayload', 0, Number.MAX_SAFE_INTEGER, "u64") }) }));
+  return obj(v, p, null, (r0) => ({ "event": str(r0["event"], p + '.event'), ...(r0["eventId"] === undefined || r0["eventId"] === null ? {} : { "eventId": asEventId(str(r0["eventId"], p + '.eventId')) }), ...(r0["payload"] === undefined || r0["payload"] === null ? {} : { "payload": rec(r0["payload"], p + '.payload') }), ...(r0["entityId"] === undefined || r0["entityId"] === null ? {} : { "entityId": str(r0["entityId"], p + '.entityId') }), ...(r0["targetTrait"] === undefined || r0["targetTrait"] === null ? {} : { "targetTrait": str(r0["targetTrait"], p + '.targetTrait') }), ...(r0["clientId"] === undefined || r0["clientId"] === null ? {} : { "clientId": str(r0["clientId"], p + '.clientId') }), ...(r0["locale"] === undefined || r0["locale"] === null ? {} : { "locale": str(r0["locale"], p + '.locale') }), ...(r0["tick"] === undefined || r0["tick"] === null ? {} : { "tick": str(r0["tick"], p + '.tick') }), ...(r0["sourceTrait"] === undefined || r0["sourceTrait"] === null ? {} : { "sourceTrait": str(r0["sourceTrait"], p + '.sourceTrait') }), ...(r0["runTick"] === undefined || r0["runTick"] === null ? {} : { "runTick": buildRunTick(r0["runTick"], p + '.runTick') }), ...(r0["traits"] === undefined || r0["traits"] === null ? {} : { "traits": list(r0["traits"], p + '.traits', (e1, q1) => buildTraitFrom(e1, q1)) }), ...(r0["entityByTrait"] === undefined || r0["entityByTrait"] === null ? {} : { "entityByTrait": dict(r0["entityByTrait"], p + '.entityByTrait', (e1, q1) => entityRow(e1, q1)) }), ...(r0["behavior"] === undefined || r0["behavior"] === null ? {} : { "behavior": str(r0["behavior"], p + '.behavior') }), ...(r0["delivery"] === undefined || r0["delivery"] === null ? {} : { "delivery": buildDeliveryRecord(r0["delivery"], p + '.delivery') }), ...(r0["dispatchLog"] === undefined || r0["dispatchLog"] === null ? {} : { "dispatchLog": buildDispatchLog(r0["dispatchLog"], p + '.dispatchLog') }), ...(r0["mount"] === undefined || r0["mount"] === null ? {} : { "mount": list(r0["mount"], p + '.mount', (e1, q1) => buildMountSeed(e1, q1)) }), ...(r0["unmount"] === undefined || r0["unmount"] === null ? {} : { "unmount": list(r0["unmount"], p + '.unmount', (e1, q1) => str(e1, q1)) }), ...(r0["route"] === undefined || r0["route"] === null ? {} : { "route": str(r0["route"], p + '.route') }), ...(r0["crumb"] === undefined || r0["crumb"] === null ? {} : { "crumb": str(r0["crumb"], p + '.crumb') }), ...(r0["residence"] === undefined || r0["residence"] === null ? {} : { "residence": buildLegResidence(r0["residence"], p + '.residence') }), ...(r0["framesSince"] === undefined || r0["framesSince"] === null ? {} : { "framesSince": int(r0["framesSince"], p + '.framesSince', 0, Number.MAX_SAFE_INTEGER, "u64") }), ...(r0["heldPayload"] === undefined || r0["heldPayload"] === null ? {} : { "heldPayload": int(r0["heldPayload"], p + '.heldPayload', 0, Number.MAX_SAFE_INTEGER, "u64") }) }));
 }
 
 function buildEventResponse(v: JsonValue | undefined, p: string): EventResponse {
@@ -2127,7 +2140,7 @@ function buildKvMode(v: JsonValue | undefined, p: string): KvMode {
 }
 
 function buildLeft(v: JsonValue | undefined, p: string): Left {
-  return obj(v, p, null, (r0) => ({ "trait": str(r0["trait"], p + '.trait'), "orbital": str(r0["orbital"], p + '.orbital'), "leg": buildEventRequest(r0["leg"], p + '.leg') }));
+  return obj(v, p, null, (r0) => ({ "orbital": str(r0["orbital"], p + '.orbital'), "traits": list(r0["traits"], p + '.traits', (e1, q1) => str(e1, q1)), "leg": buildEventRequest(r0["leg"], p + '.leg') }));
 }
 
 function buildLegResidence(v: JsonValue | undefined, p: string): LegResidence {

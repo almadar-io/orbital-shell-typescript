@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { FrameWire } from '@almadar/core/kernel-wire';
 import type { EventResponse } from '@almadar/core';
 import { createTickDriver, type TickKernelPort } from '../src/kernel/tick-driver.js';
+import { HeldValues } from '@almadar/shell-runtime/kernel/held-values';
 
 const flush = async (): Promise<void> => { for (let i = 0; i < 10; i += 1) await Promise.resolve(); };
 
@@ -42,6 +43,7 @@ function rig(ticks: number) {
       },
     },
     post: undefined,
+    held: new HeldValues(),
     now: () => clock,
     requestFrame: (cb) => { const h = nextHandle; nextHandle += 1; rafs.set(h, cb); return h; },
     cancelFrame: (h) => { rafs.delete(h); },

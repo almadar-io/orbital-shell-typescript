@@ -11,14 +11,15 @@ import type { FrameWire, RoutedLeg } from '@almadar/core/kernel-wire';
 import { isFrameWire } from '@almadar/core/kernel-wire';
 import type { JsonValue, EventResponse } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
+import type { HeldValues } from './held-values.js';
 import type { ClientKernelOutcome, LocalFoldKernel } from '../client/client-kernel.js';
 
 const log = createLogger('almadar:shell-web:frame');
 
 /** `frame()`'s JSON; `undefined` (no tick due) decodes to `undefined`. */
-export function decodeFrame(json: string | undefined): FrameWire | undefined {
+export function decodeFrame(json: string | undefined, held: HeldValues): FrameWire | undefined {
   if (json === undefined) return undefined;
-  const value: JsonValue = JSON.parse(json);
+  const value: JsonValue = held.read(json);
   if (!isFrameWire(value)) throw new Error('kernel wire: frame is not a FrameWire');
   return value;
 }
@@ -62,8 +63,9 @@ export async function applyFrame(
   json: string | undefined,
   kernel: LocalFoldKernel,
   post: FramePostPort | undefined,
+  held: HeldValues,
 ): Promise<FrameApplied> {
-  const frame = decodeFrame(json);
+  const frame = decodeFrame(json, held);
   if (frame === undefined) return NOTHING;
   for (const message of frame.errors) log.warn('frame-tick-failed', { error: message });
   const last = frame.dispatches.length - 1;

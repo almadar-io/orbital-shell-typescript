@@ -56,6 +56,7 @@ function fakeKernel(reseeded: string[]): KernelInstance {
     foldInOrder: () => applied(),
     nextFold: () => undefined,
     endFlight: () => true,
+    heldReleased: () => '[]',
     foldBase: () => undefined,
     statefulLeg: (legJson: string) => legJson,
     reseedLeg: (seedsJson: string) => {

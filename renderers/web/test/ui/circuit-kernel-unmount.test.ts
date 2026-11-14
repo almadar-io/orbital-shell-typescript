@@ -40,8 +40,11 @@ class RecordingTransport implements EventTransport {
     if (this.fail) return Promise.reject(new Error('offline'));
     return Promise.resolve({ success: true, transitioned: false, states: {}, emittedEvents: [] });
   }
+  unmountRequests(): string[] {
+    return this.sent.filter((s) => s.request.event === UNMOUNT_EVENT).map((s) => s.orbital).sort();
+  }
   unmounts(): string[] {
-    return this.sent.filter((s) => s.request.event === UNMOUNT_EVENT).map((s) => `${s.orbital}.${s.request.targetTrait ?? ''}`).sort();
+    return this.sent.filter((s) => s.request.event === UNMOUNT_EVENT).flatMap((s) => (s.request.unmount ?? []).map((t) => `${s.orbital}.${t}`)).sort();
   }
 }
 
@@ -114,6 +117,7 @@ describe.each(ENGINES)('the kernel client posts $UNMOUNT for traits leaving the 
     await act(async () => { await hook.result.current.engine!.leave(); });
     await flush();
     expect(transport.unmounts()).toEqual(['Feed.Clock', 'Feed.Ticker', 'Side.Notes']);
+    expect(transport.unmountRequests(), 'one release per orbital').toEqual(['Feed', 'Side']);
   });
 
   it('nothing is posted while the topology is pending, and the held releases go out once it is known', async () => {

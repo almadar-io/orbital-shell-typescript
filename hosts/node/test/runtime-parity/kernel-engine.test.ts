@@ -333,7 +333,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
       expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual([]);
       await runtime.processOrbitalEvent('Board', { event: 'INIT', clientId: 'tab-1', mount: [{ trait: 'Scoped', event: 'INIT' }] });
       expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual(['PULSE']);
-      const left = await runtime.processOrbitalEvent('Board', { event: '$UNMOUNT', clientId: 'tab-1', targetTrait: 'Scoped' });
+      const left = await runtime.processOrbitalEvent('Board', { event: '$UNMOUNT', clientId: 'tab-1', unmount: ['Scoped'] });
       expect(left).toMatchObject({ success: true, transitioned: false });
       expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual([]);
     });
@@ -344,7 +344,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
       expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual([]);
       await runtime.processOrbitalEvent('Board', { event: 'INIT', clientId: 'tab-1', mount: [{ trait: 'Scoped', event: 'INIT' }] });
       await runtime.processOrbitalEvent('Board', { event: 'INIT', clientId: 'tab-2', mount: [{ trait: 'Scoped', event: 'INIT' }] });
-      await runtime.processOrbitalEvent('Board', { event: '$UNMOUNT', clientId: 'tab-1', targetTrait: 'Scoped' });
+      await runtime.processOrbitalEvent('Board', { event: '$UNMOUNT', clientId: 'tab-1', unmount: ['Scoped'] });
       expect(pulses(await runtime.processOrbitalEvent('Board', tick))).toEqual(['PULSE']);
     });
 
