@@ -1,6 +1,6 @@
 {
   "name": "@almadar/syntax",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "orbRelease": { "severity": "normal" },
   "description": "Registry-driven syntax highlighting for Orb programs. Colors align with AVL visual language.",
   "type": "module",
@@ -45,14 +45,14 @@
     "build:zed": "mkdir -p editors/zed/syntaxes && cp dist/sexpr.injection.json editors/zed/syntaxes/sexpr.injection.json"
   },
   "dependencies": {
-    "@almadar/core": "^11.4.0",
-    "@almadar/std": "^17.2.1"
+    "@almadar/core": "^11.5.0",
+    "@almadar/std": "^17.3.0"
   },
   "devDependencies": {
-    "@almadar/kernel": "^19.2.0",
-    "@almadar/eslint-plugin": "^3.1.0",
-    "@almadar/lolo-ar": "^2.3.0",
-    "@almadar/lolo-sl": "^2.3.0",
+    "@almadar/kernel": "^19.3.0",
+    "@almadar/eslint-plugin": "^3.2.0",
+    "@almadar/lolo-ar": "^2.4.0",
+    "@almadar/lolo-sl": "^2.4.0",
     "@types/node": "^22.0.0",
     "@typescript-eslint/parser": "8.65.0",
     "eslint": "10.0.0",
