@@ -162,16 +162,27 @@ function foldTurnsOf(k: KernelInstance): Map<number, FoldTurn> {
 // paints the kernel's newest store, never the one its page left behind.
 const liveStoreByKernel = new WeakMap<KernelInstance, CircuitStore>();
 
+/** The completion route a kernel keeps on its Rust side: it reaches `deliver` weakly, since a strong route would be a
+ *  cycle through the wasm boundary that holds the kernel, its program and its rows past the collector for good. */
+function weakRoute(deliver: (json: string) => void): (json: string) => void {
+  const route = new WeakRef(deliver);
+  return (json) => route.deref()?.(json);
+}
+
 export function createKernelClient(opts: KernelClientOptions): KernelClient {
   const { traitIndex, transport } = opts;
   let loaded: KernelInstance | undefined;
   const liveStore = (): CircuitStore => (loaded === undefined ? opts.store : liveStoreByKernel.get(loaded) ?? opts.store);
   const store: CircuitStore = new Proxy(opts.store, { get: (_own, key) => Reflect.get(liveStore(), key) });
   const configs = new Map<string, TraitConfig>();
+  let gpuCompletion: ((json: string) => void) | undefined;
   const ready = Promise.all([opts.instance, opts.gpu]).then(([k, gpu]) => {
     loaded = k;
     liveStoreByKernel.set(k, opts.store);
-    if (gpu !== undefined) k.installGpu(gpu, (json) => deliverGpuCompletion(k, json));
+    if (gpu !== undefined) {
+      gpuCompletion = (json) => deliverGpuCompletion(k, json);
+      k.installGpu(gpu, weakRoute(gpuCompletion));
+    }
     return k;
   });
   // The load failure reaches every call that awaits `ready`; a client nothing dispatches through stays quiet.

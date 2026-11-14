@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { setFlagsFromString } from 'node:v8';
+import { runInNewContext } from 'node:vm';
 import type { EventResponse } from '@almadar/core';
 import type { DispatchWire } from '@almadar/core/kernel-wire';
 import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
@@ -45,6 +47,12 @@ function fakeKernel(seen: Seen, heldFails = false): KernelInstance {
 const seenNow = (): Seen => ({ installed: [], completed: [], dispatched: [], held: [], dropped: [] });
 const gpuHost: KernelGpuHost = { closeAll: () => undefined };
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
+setFlagsFromString('--expose_gc');
+const collect: () => void = runInNewContext('gc');
+const collected = async (ref: WeakRef<object>): Promise<boolean> => {
+  for (let i = 0; i < 5 && ref.deref() !== undefined; i++) { await settle(); collect(); }
+  return ref.deref() === undefined;
+};
 
 describe('kernel client — a host GPU answerer', () => {
   it('is installed before the first dispatch, and a completion runs its route event with the payload the kernel holds', async () => {
@@ -97,5 +105,43 @@ describe('kernel client — a host GPU answerer', () => {
     const client = createKernelClient({ instance: Promise.resolve(fakeKernel(seen)), store: createMemoryCircuitStore(), traitIndex: NO_CIRCUIT, topology: Promise.resolve({ carriesCircuitState: false }) });
     await client.dispatch({ event: 'START', targetTrait: 'Sim' });
     expect(seen.installed).toEqual([]);
+  });
+});
+
+describe('kernel client — what the kernel keeps across the wasm boundary', () => {
+  // `seen.completed` stands for wasm-bindgen's externref table: a GC root that keeps the route the kernel was handed.
+  const opened = async (seen: Seen): Promise<{ kernel: WeakRef<KernelInstance>; client: WeakRef<object> }> => {
+    const k = fakeKernel(seen);
+    const client = createKernelClient({ instance: Promise.resolve(k), store: createMemoryCircuitStore(), traitIndex: NO_CIRCUIT, topology: Promise.resolve({ carriesCircuitState: false }), gpu: Promise.resolve(gpuHost) });
+    await client.dispatch({ event: 'START', targetTrait: 'Sim' });
+    return { kernel: new WeakRef(k), client: new WeakRef(client) };
+  };
+
+  it('the completion route it hands the kernel never keeps the kernel alive once nothing else holds it', async () => {
+    const seen = seenNow();
+    const refs = await opened(seen);
+    expect(seen.completed).toHaveLength(1);
+    expect(await collected(refs.client), 'the client is let go').toBe(true);
+    expect(await collected(refs.kernel), 'the kernel is collectable, so its finalizer frees the wasm side').toBe(true);
+  });
+
+  it('edge: a completion that arrives after the kernel was let go does nothing', async () => {
+    const seen = seenNow();
+    const refs = await opened(seen);
+    expect(await collected(refs.kernel)).toBe(true);
+    expect(() => seen.completed[0]?.(JSON.stringify({ traitName: 'Sim', event: 'GPU_RESULT', heldPayload: 9 }))).not.toThrow();
+    await settle();
+    expect(seen.held).toEqual([]);
+  });
+
+  it('control: while the client is held, the route still reaches it after a collection', async () => {
+    const seen = seenNow();
+    const client = createKernelClient({ instance: Promise.resolve(fakeKernel(seen)), store: createMemoryCircuitStore(), traitIndex: NO_CIRCUIT, topology: Promise.resolve({ carriesCircuitState: false }), gpu: Promise.resolve(gpuHost) });
+    await client.dispatch({ event: 'START', targetTrait: 'Sim' });
+    for (let i = 0; i < 3; i++) { await settle(); collect(); }
+    seen.completed[0]?.(JSON.stringify({ traitName: 'Sim', event: 'GPU_RESULT', heldPayload: 3 }));
+    await settle();
+    expect(seen.held).toEqual([{ trait: 'Sim', entity: undefined, event: 'GPU_RESULT', ticket: 3 }]);
+    expect(client).toBeDefined();
   });
 });

@@ -1,12 +1,31 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { BusEvent } from '@almadar/core';
 import { bindEventBus, verifierAttached } from '../verificationRegistry';
 import { createCircuitVerificationObserver } from '../circuitVerificationObserver';
 
+type VerifyFlag = Window & { __ALMADAR_VERIFY__?: boolean };
 afterEach(() => { delete window.__orbitalVerification; });
 
+describe('the bus event log', () => {
+  afterEach(() => { delete (window as VerifyFlag).__ALMADAR_VERIFY__; });
+  it('is not kept without a verifier: no listener records payloads, so a page holds none of them', () => {
+    const subscribed: Array<(event: BusEvent) => void> = [];
+    bindEventBus({ emit: () => {}, onAny(listener) { subscribed.push(listener); return () => {}; } });
+    expect(subscribed).toEqual([]);
+    expect(window.__orbitalVerification?.eventLog).toBeUndefined();
+  });
+  it('control: without a verifier, sendEvent still reaches the bus', () => {
+    const emitted: string[] = [];
+    bindEventBus({ emit: (type) => { emitted.push(type); }, onAny: () => () => {} });
+    window.__orbitalVerification?.sendEvent?.('SEND', {}, 'Chat.Composer');
+    expect(emitted).toEqual(['UI:Chat.Composer.SEND']);
+  });
+});
+
 describe('verification event provenance', () => {
+  beforeEach(() => { (window as VerifyFlag).__ALMADAR_VERIFY__ = true; });
+  afterEach(() => { delete (window as VerifyFlag).__ALMADAR_VERIFY__; });
   it('preserves distinct machine sources when fetch events share a bare key', () => {
     let receive: ((event: BusEvent) => void) | undefined;
     bindEventBus({ emit: () => {}, onAny(listener) { receive = listener; return () => {}; } });

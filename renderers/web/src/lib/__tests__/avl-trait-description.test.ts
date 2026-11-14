@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import type { OrbitalSchema, StateMachine, Trait, TraitDescription } from '@almadar/core';
 import { programTraits, traitLevelFromDescription, traitLevelFromTrait } from '../avl-schema-parser';
+import { getStdOperatorMeta } from '@almadar/std/registry';
 import { describedTransitionLines } from '../avl-play';
 
 const stateMachine: StateMachine = {
@@ -32,8 +33,8 @@ describe('traitLevelFromDescription', () => {
     expect(level?.states.map((s) => s.name)).toEqual(['closed', 'opened']);
     expect(level?.transitions[0]).toMatchObject({ from: 'closed', to: 'opened', event: 'OPEN', guard: ['not', '@entity.open'], index: 0 });
     expect(level?.transitions[1]?.effects).toEqual([
-      { type: 'set', args: ['@entity.open', false] },
-      { type: 'emit', args: ['DOOR_CLOSED'] },
+      { type: 'set', args: ['@entity.open', false], glyph: getStdOperatorMeta('set')?.visual?.glyph },
+      { type: 'emit', args: ['DOOR_CLOSED'], glyph: getStdOperatorMeta('emit')?.visual?.glyph },
     ]);
     expect(level?.emittedEvents).toEqual(['DOOR_CLOSED']);
     expect(level?.listenedEvents).toEqual(['KNOCK']);
@@ -47,6 +48,31 @@ describe('traitLevelFromDescription', () => {
       listens: [{ event: 'KNOCK', triggers: 'KNOCK' }],
     };
     expect(traitLevelFromDescription(described)).toEqual(traitLevelFromTrait(trait, 'Door'));
+  });
+
+  it('attaches the registry glyph to a set effect and leaves it off an operator without one', () => {
+    const glyph = getStdOperatorMeta('set')?.visual?.glyph;
+    expect(glyph).toBeTruthy();
+    const custom: StateMachine = {
+      ...stateMachine,
+      transitions: [{ from: 'closed', to: 'opened', event: 'OPEN', effects: [['set', '@entity.open', true], ['navigate-back']] }],
+    };
+    const effects = traitLevelFromDescription({ ...described, machine: { linkedEntity: 'Door', stateMachine: custom } })?.transitions[0]?.effects;
+    expect(effects?.[0]?.glyph).toBe(glyph);
+    expect(effects?.[1]?.glyph).toBeUndefined();
+    expect(effects?.[1] && 'glyph' in effects[1]).toBe(false);
+  });
+
+  it('uses machine.glyphs for an operator the local registry does not draw', () => {
+    const custom: StateMachine = {
+      ...stateMachine,
+      transitions: [{ from: 'closed', to: 'opened', event: 'OPEN', effects: [['navigate-back']] }],
+    };
+    const level = traitLevelFromDescription({
+      ...described,
+      machine: { linkedEntity: 'Door', stateMachine: custom, glyphs: { 'navigate-back': 'M-1 0 L1 0' } },
+    });
+    expect(level?.transitions[0]?.effects[0]?.glyph).toBe('M-1 0 L1 0');
   });
 
   it('control: a description without a machine (an older orb) draws nothing', () => {

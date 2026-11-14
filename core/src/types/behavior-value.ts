@@ -356,10 +356,13 @@ export const TraitEventsSchema: z.ZodType<TraitEvents> = z.object({
 export type TraitMachine = {
   linkedEntity?: string;
   stateMachine: StateMachine;
+  /** Effect operator to its registry glyph (one SVG path in a unit box), for the operators the machine uses. */
+  glyphs?: Record<string, string>;
 };
 const TraitMachineObject = z.object({
   linkedEntity: z.string().optional(),
   stateMachine: StateMachineSchema,
+  glyphs: z.record(z.string(), z.string()).optional(),
 }).strict();
 export const TraitMachineSchema: z.ZodType<TraitMachine, z.input<typeof TraitMachineObject>> = TraitMachineObject;
 

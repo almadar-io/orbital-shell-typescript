@@ -3,6 +3,7 @@
 import React from 'react';
 import { createLogger } from '@almadar/logger';
 import type { EffectOperator } from '@almadar/core';
+import { getStdOperatorMeta } from '@almadar/std/registry';
 import { EFFECT_CATEGORY_COLORS, asEffectOperator, effectCategoryOf, type AvlBaseProps, type EffectCategory } from '../../../lib/avl-theme';
 
 const log = createLogger('almadar:ui:avl:effect');
@@ -19,6 +20,7 @@ export interface AvlEffectProps extends AvlBaseProps {
 type Glyph = (x: number, y: number, s: number, color: string) => React.ReactNode;
 
 function headIcon(type: EffectOperator, x: number, y: number, s: number, color: string): React.ReactNode | null {
+  // render-ui, set, emit and if are the category marks for operators the registry gives no glyph.
   switch (type) {
     case 'render-ui':
       // Grid: ⊞
@@ -40,24 +42,6 @@ function headIcon(type: EffectOperator, x: number, y: number, s: number, color: 
           strokeLinejoin="round"
         />
       );
-    case 'persist':
-      // Cylinder: ⛁
-      return (
-        <g>
-          <ellipse cx={x} cy={y - s * 0.6} rx={s} ry={s * 0.4} fill="none" stroke={color} strokeWidth={1.5} />
-          <line x1={x - s} y1={y - s * 0.6} x2={x - s} y2={y + s * 0.4} stroke={color} strokeWidth={1.5} />
-          <line x1={x + s} y1={y - s * 0.6} x2={x + s} y2={y + s * 0.4} stroke={color} strokeWidth={1.5} />
-          <ellipse cx={x} cy={y + s * 0.4} rx={s} ry={s * 0.4} fill="none" stroke={color} strokeWidth={1.5} />
-        </g>
-      );
-    case 'fetch':
-      // Down arrow: ⇣
-      return (
-        <g>
-          <line x1={x} y1={y - s} x2={x} y2={y + s * 0.6} stroke={color} strokeWidth={1.5} />
-          <polyline points={`${x - s * 0.5},${y + s * 0.1} ${x},${y + s} ${x + s * 0.5},${y + s * 0.1}`} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
-        </g>
-      );
     case 'emit':
       // Antenna: 📡
       return (
@@ -65,24 +49,6 @@ function headIcon(type: EffectOperator, x: number, y: number, s: number, color: 
           <circle cx={x} cy={y} r={s * 0.3} fill={color} />
           <path d={`M${x - s * 0.7},${y - s * 0.7} A${s},${s} 0 0,1 ${x + s * 0.7},${y - s * 0.7}`} fill="none" stroke={color} strokeWidth={1.5} />
           <path d={`M${x - s},${y - s} A${s * 1.4},${s * 1.4} 0 0,1 ${x + s},${y - s}`} fill="none" stroke={color} strokeWidth={1} opacity={0.6} />
-        </g>
-      );
-    case 'navigate':
-      // Right arrow: ⇢
-      return (
-        <g>
-          <line x1={x - s} y1={y} x2={x + s * 0.6} y2={y} stroke={color} strokeWidth={1.5} />
-          <polyline points={`${x + s * 0.1},${y - s * 0.5} ${x + s},${y} ${x + s * 0.1},${y + s * 0.5}`} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
-        </g>
-      );
-    case 'call-service':
-      // Bidirectional: ⇄
-      return (
-        <g>
-          <line x1={x - s} y1={y - s * 0.3} x2={x + s} y2={y - s * 0.3} stroke={color} strokeWidth={1.5} />
-          <polyline points={`${x + s * 0.5},${y - s * 0.7} ${x + s},${y - s * 0.3} ${x + s * 0.5},${y + s * 0.1}`} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
-          <line x1={x + s} y1={y + s * 0.3} x2={x - s} y2={y + s * 0.3} stroke={color} strokeWidth={1.5} />
-          <polyline points={`${x - s * 0.5},${y - s * 0.1} ${x - s},${y + s * 0.3} ${x - s * 0.5},${y + s * 0.7}`} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
         </g>
       );
     case 'spawn':
@@ -184,6 +150,21 @@ const CATEGORY_GLYPH: Record<EffectCategory, Glyph> = {
 };
 
 function effectIcon(type: string, x: number, y: number, s: number, color: string): React.ReactNode {
+  const glyph = getStdOperatorMeta(type)?.visual?.glyph;
+  if (glyph) {
+    return (
+      <path
+        d={glyph}
+        transform={`translate(${x} ${y}) scale(${s})`}
+        vectorEffect="non-scaling-stroke"
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    );
+  }
   const op = asEffectOperator(type);
   const own = op ? headIcon(op, x, y, s, color) : null;
   if (own) return own;

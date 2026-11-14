@@ -562,6 +562,9 @@ export function bindEventBus(eventBus: {
       eventBus.emit(prefixed, payload);
     };
 
+    // The log keeps every bus payload (whole programs among them), so only a verifier's page keeps it.
+    if (!verifierAttached()) return;
+
     // Initialize event log. Ring-buffered to the last MAX_EVENT_LOG
     // entries: on overflow the OLDEST entry is evicted (tracked in
     // eventLogDropped) so the recent — driven — tail is never silently

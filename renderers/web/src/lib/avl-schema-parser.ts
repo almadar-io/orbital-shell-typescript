@@ -28,13 +28,16 @@ import type {
   SExpr,
   SExprObject, EntityPersistence, TraitDescription, MountedTrait } from '@almadar/core';
 import { renderUiEntriesOf } from '@almadar/core/patterns';
+import { getStdOperatorMeta } from '@almadar/std/registry';
 import { traitEventWires } from './avl-event-wires';
 
 // Internal serialized effect record — all fields are JsonValue-compatible.
-export interface SerializedEffect extends JsonObject {
+export type SerializedEffect = JsonObject & {
   type: string;
   args: SExpr[];
-}
+  /** The operator's registry glyph (one SVG path in a unit box); absent when neither the registry nor the description gives it one. */
+  glyph?: string;
+};
 
 // ---------------------------------------------------------------------------
 // Output types (view-model for each zoom level)
@@ -224,10 +227,12 @@ function jsonEffects(t: Transition): JsonValue[] {
   return (t.effects ?? []) as JsonValue[];
 }
 
-function parseEffectType(effect: JsonValue): SerializedEffect {
+function parseEffectType(effect: JsonValue, described?: Record<string, string>): SerializedEffect {
   if (Array.isArray(effect)) {
     const [type, ...args] = effect;
-    return { type: String(type), args };
+    const name = String(type);
+    const glyph = getStdOperatorMeta(name)?.visual?.glyph ?? described?.[name];
+    return glyph === undefined ? { type: name, args } : { type: name, args, glyph };
   }
   return { type: 'unknown', args: [] };
 }
@@ -441,6 +446,7 @@ export function traitLevelFromDescription(description: TraitDescription): TraitL
     machine.stateMachine,
     description.events.emits,
     description.events.listens,
+    machine.glyphs,
   );
 }
 
@@ -464,6 +470,7 @@ function traitLevelOf(
   sm: StateMachine,
   emittedEvents: string[],
   listenedEvents: string[],
+  glyphs?: Record<string, string>,
 ): TraitLevelData {
   const states: TraitStateInfo[] = getStates(sm).map(s => ({
     name: s.name ?? '',
@@ -476,7 +483,7 @@ function traitLevelOf(
     to: t.to ?? '',
     event: t.event ?? '',
     guard: t.guard ?? null,
-    effects: jsonEffects(t).map(parseEffectType),
+    effects: jsonEffects(t).map((e) => parseEffectType(e, glyphs)),
     index: i,
   }));
 
