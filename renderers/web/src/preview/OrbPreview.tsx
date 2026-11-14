@@ -28,6 +28,8 @@ import { VerificationProvider } from '../providers/VerificationProvider';
 import { UISlotProvider, useUISlots } from '../providers/UISlotContext';
 import { UISlotRenderer } from '../components/core/organisms/UISlotRenderer';
 import { useTranslate } from '../core';
+import { I18nProvider } from '../core/hooks/useTranslate';
+import { routeLocaleValue } from './routeLocale';
 import type { OrbitalSchema, EntityData, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
 import { orbitalInlineEntities, storesRowsInBrowser, isHostSignInRoute, localeAlternates, notFoundPage } from '@almadar/core';
 import { matchPathAmong } from '../core';
@@ -644,7 +646,7 @@ export function OrbPreview({
   if (serverUrl && transport) {
     throw new Error('OrbPreview accepts serverUrl OR transport, not both');
   }
-  const { t } = useTranslate();
+  const { t, locale } = useTranslate();
   // GAP-19: track when the server bridge falls back to local execution.
   // The 5s timeout in TraitInitializer fires onLocalFallback if the bridge
   // never connected. We surface a persistent banner below — the retired
@@ -951,6 +953,10 @@ export function OrbPreview({
   useInAppLinkInterceptor(containerRef, { enabled: pages.length > 1 || isolated, isolated, hostHrefBase, onPath: handleNavigate });
 
   // One registration per program, above the lazy switch: the server runs the lazy behaviors as part of it.
+  const routeLocale = useMemo(
+    () => routeLocaleValue(lazyRoute?.path ?? concreteCurrentPath, parsedSchema ?? undefined, locale),
+    [lazyRoute?.path, concreteCurrentPath, parsedSchema, locale],
+  );
   const withBridge = (node: React.ReactElement): React.ReactElement => {
     const bridged = (serverUrl || transport) && !isLazyPageOfRegisteredProgram ? (
       <ServerBridgeProvider schema={parseResult.schema} serverUrl={serverUrl} transport={transport} getAccessToken={getAccessToken}>
@@ -961,7 +967,8 @@ export function OrbPreview({
       <KernelEngineProvider loader={kernelLoader} canvas3d={canvas3d} sceneCanvas={sceneCanvas}>{bridged}</KernelEngineProvider>
     ) : bridged;
     const ticked = <ClientTicksPausedContext.Provider value={paused}>{engined}</ClientTicksPausedContext.Provider>;
-    return onTransition === undefined ? ticked : <TransitionTapContext.Provider value={onTransition}>{ticked}</TransitionTapContext.Provider>;
+    const tapped = onTransition === undefined ? ticked : <TransitionTapContext.Provider value={onTransition}>{ticked}</TransitionTapContext.Provider>;
+    return routeLocale === undefined ? tapped : <I18nProvider value={routeLocale}>{tapped}</I18nProvider>;
   };
 
   if (lazyRoute) {

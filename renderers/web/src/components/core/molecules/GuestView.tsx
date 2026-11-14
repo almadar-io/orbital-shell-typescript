@@ -21,6 +21,7 @@ import { useInRouterContext } from 'react-router-dom';
 import type { EmittedEvent, EventKey, EventPayload, OrbitalSchema, PatternNode, ThemeRef, UISlot } from '@almadar/core';
 import { isEventRequest, isEventResponse } from '@almadar/core/kernel-wire';
 import { createChannelTransport, type ChannelMessage } from '@almadar/shell-runtime/client/channel-transport';
+import { CarriedLoader } from '@almadar/shell-runtime';
 import type { TransitionTap } from '../../../hooks/circuit/transitionTap';
 
 type TransitionTrace = Parameters<TransitionTap>[0];
@@ -192,6 +193,7 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, hostDisp
   // The view is keyed by guest, so this is one opened program: a repaint of the stage hands an equal program anew, which must not restart it.
   const opened = useRef(program);
   const guestProgram = opened.current;
+  const lazyLoader = useMemo(() => (guestProgram.lazyPrograms === undefined ? undefined : new CarriedLoader(guestProgram.lazyPrograms)), [guestProgram]);
   const listeners = useRef(new Set<(message: ChannelMessage) => void>());
   const transport = useMemo(() => {
     const hear = (message: ChannelMessage) => listeners.current.forEach((listener) => listener(message));
@@ -268,7 +270,7 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, hostDisp
   return (
     <Box fullWidth fullHeight onPointerDownCapture={onViewerInput} onKeyDownCapture={onViewerInput}>
     <Suspense fallback={null}>
-      <OrbPreview schema={guestProgram} transport={transport} onTransition={onTransition} onSignIn={onSignIn} authority={signedIn ? 'authenticated' : 'anonymous'} isolated frame="contained" height="100%" initialPagePath={route} themeOverride={themeOverride} />
+      <OrbPreview schema={guestProgram} transport={transport} {...(lazyLoader === undefined ? {} : { lazyLoader })} onTransition={onTransition} onSignIn={onSignIn} authority={signedIn ? 'authenticated' : 'anonymous'} isolated frame="contained" height="100%" initialPagePath={route} themeOverride={themeOverride} />
     </Suspense>
     </Box>
   );

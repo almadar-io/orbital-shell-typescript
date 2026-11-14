@@ -37,6 +37,11 @@ export interface SplitPaneProps extends Omit<React.AriaAttributes, keyof A11yPro
    * @notification
    *  (self-tracked) behavior. */
   onRatioChange?: (ratio: number) => void;
+  /**
+   * A collapsed side: `left` hides the left pane, `right` shrinks the right pane to its content and gives the left
+   * the rest. The panes stay the same elements in the same order either way, so what they hold is never remounted.
+   */
+  collapsed?: "left" | "right";
 }
 
 /**
@@ -53,6 +58,7 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
   leftClassName,
   rightClassName,
   onRatioChange,
+  collapsed,
   ...rest
 }) => {
   const [uncontrolledRatio, setUncontrolledRatio] = useState(ratioProp);
@@ -129,30 +135,32 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
           h-full-styled or a flex item (flex-1) — a block wrapper gives
           flex-item children height:auto and they collapse to content. */}
       <div
-        className={cn("flex flex-col overflow-auto", leftClassName)}
-        style={{
-          [isHorizontal ? "width" : "height"]: `${ratio}%`,
-          flexShrink: 0,
-        }}
+        className={cn("flex flex-col overflow-auto", collapsed === "right" && "flex-1 min-h-0 min-w-0", leftClassName)}
+        style={
+          collapsed === "left"
+            ? { display: "none" }
+            : collapsed === "right"
+              ? undefined
+              : { [isHorizontal ? "width" : "height"]: `${ratio}%`, flexShrink: 0 }
+        }
       >
         {left}
       </div>
 
-      {/* Resize handle */}
-      {resizable && (
-        <div
-          onPointerDown={handlePointerDown}
-          className={cn(
-            "flex-shrink-0 bg-border transition-colors touch-none",
-            isHorizontal
-              ? "w-1 cursor-col-resize hover:w-1.5 hover:bg-muted-foreground"
-              : "h-1 cursor-row-resize hover:h-1.5 hover:bg-muted-foreground",
-          )}
-        />
-      )}
+      {/* Resize handle: always rendered, hidden while a side is collapsed, so the right pane keeps its position. */}
+      <div
+        onPointerDown={handlePointerDown}
+        style={resizable && collapsed === undefined ? undefined : { display: "none" }}
+        className={cn(
+          "flex-shrink-0 bg-border transition-colors touch-none",
+          isHorizontal
+            ? "w-1 cursor-col-resize hover:w-1.5 hover:bg-muted-foreground"
+            : "h-1 cursor-row-resize hover:h-1.5 hover:bg-muted-foreground",
+        )}
+      />
 
       {/* Right/Bottom pane */}
-      <div className={cn("flex flex-col flex-1 min-h-0 min-w-0 overflow-auto", rightClassName)}>{right}</div>
+      <div className={cn("flex flex-col min-h-0 min-w-0 overflow-auto", collapsed === "right" ? "flex-none" : "flex-1", rightClassName)}>{right}</div>
     </div>
   );
 };

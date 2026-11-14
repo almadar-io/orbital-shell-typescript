@@ -28,6 +28,7 @@ export * from './kernel/os-fetch-port.js';
 export * from './kernel/program-effects.js';
 export * from './kernel/wire.js';
 export * from './loader/lazy-page.js';
+export * from './loader/carried-loader.js';
 export * from './loader/fetch-loader.js';
 export * from './loader/schema-loader.js';
 export * from './runtime/entities/declaredCollections.js';

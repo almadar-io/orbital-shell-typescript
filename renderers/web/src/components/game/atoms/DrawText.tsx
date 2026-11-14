@@ -93,6 +93,8 @@ export interface DrawTextProps extends DrawableBase {
     animation?: DrawTextAnimation;
     /** Reveal the text glyph by glyph on the paint clock (orbital painter; the TS painter ignores it). */
     reveal?: DrawTextReveal;
+    /** One line at most this wide: wider text is drawn at a smaller size so it fits, like Canvas2D fillText's maxWidth (orbital painter; not with `width`). */
+    maxWidth?: number;
     /** Draw a caret before this character index (-1 or absent: none), blinking on the renderer clock. */
     caret?: number;
     /** Caret colour (theme tone or colour). */

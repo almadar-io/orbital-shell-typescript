@@ -14,9 +14,9 @@ vi.mock('../../../../providers/KernelEngineContext', async (importOriginal) => {
 
 import { OrbitalSceneCanvas } from '../OrbitalSceneCanvas';
 
-function box(fillContainer: boolean | 'width' | undefined): HTMLElement {
+function box(fillContainer: boolean | 'width' | undefined, minHeight?: number): HTMLElement {
     const { container } = render(
-        <OrbitalSceneCanvas pattern="canvas" config={{ type: 'canvas', mode: '2d' }} width={1280} height={800} {...(fillContainer !== undefined ? { fillContainer } : {})} />,
+        <OrbitalSceneCanvas pattern="canvas" config={{ type: 'canvas', mode: '2d' }} width={1280} height={800} {...(fillContainer !== undefined ? { fillContainer } : {})} {...(minHeight !== undefined ? { minHeight } : {})} />,
     );
     const el = container.querySelector<HTMLElement>('.orbital-scene-canvas');
     if (el === null) throw new Error('no scene canvas box');
@@ -36,6 +36,16 @@ describe('OrbitalSceneCanvas size', () => {
         expect(el.style.aspectRatio).toBe('');
         expect(el.style.maxWidth).toBe('');
         expect(el.style.height).toBe('800px');
+    });
+
+    it('a filled canvas with a minHeight stays at least that tall, so a short container scrolls', () => {
+        const el = box(true, 600);
+        expect(el.style.height).toBe('100%');
+        expect(el.style.minHeight).toBe('600px');
+    });
+
+    it('control: a filled canvas without a minHeight may shrink to its container', () => {
+        expect(box(true).style.minHeight).toBe('0px');
     });
 
     it('control: without fillContainer it keeps the authored aspect ratio', () => {

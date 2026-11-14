@@ -188,6 +188,8 @@ export interface DrawShapeProps extends DrawableBase {
     points?: Point[];
     /** SVG path data in world units relative to the cell's projected top-left — same coordinate convention as `points`. */
     d?: string;
+    /** `path` only: multiplier on the path's coordinates before projection (default 1), so a 24-unit icon draws at any size. Orbital painter. */
+    scale?: number;
     fill?: string;
     /** Gradient fill in world units; overrides `fill` when present. */
     gradient?: DrawShapeGradient;

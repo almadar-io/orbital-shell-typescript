@@ -22,6 +22,7 @@ import type {
 import type { EventPayload, EntityRow } from '@almadar/core';
 import { setGlobalEventBus } from '../hooks/useEventBus';
 import { createLogger } from '@almadar/logger';
+import { subscriberTag } from './subscriber-tag';
 
 const busLog = createLogger('almadar:eventbus');
 const subLog = createLogger('almadar:eventbus:subscribe');
@@ -110,36 +111,9 @@ interface EventBusProviderProps {
  * }
  * ```
  */
-// Per-listener identity tags. Captured at subscribe-time from the call
-// stack so we can answer "who reacted to this emit?" without renaming
-// every subscriber. Used by the per-listener emit log below.
+// Per-listener identity tags for the per-listener emit log, captured at subscribe time (subscriber-tag.ts)
+// only while a bus namespace logs at debug.
 const listenerTags = new WeakMap<BusEventListener, string>();
-function captureSubscriberTag(listener: BusEventListener): string {
-    // Prefer the listener's function.name (preserved through bundling
-    // when the source declares a named function or assigns a name via
-    // `Object.defineProperty(fn, 'name', ...)` — much more durable
-    // than stack frames against minified code).
-    const fnName = (listener as { name?: string }).name;
-    if (typeof fnName === 'string' && fnName.length > 0 && fnName !== 'listener') {
-        return fnName;
-    }
-    // Fallback: pull out the first stack frame that lives in user code
-    // (skip the hook/provider frames). Browser stacks vary, so we keep
-    // the shortest identifying suffix and trim node_modules noise.
-    const stack = new Error().stack ?? '';
-    const lines = stack.split('\n');
-    for (const raw of lines.slice(2)) {
-        const line = raw.trim();
-        if (!line) continue;
-        if (line.includes('EventBusProvider') || line.includes('useEventBus')) continue;
-        if (line.includes('captureSubscriberTag')) continue;
-        // Drop verbose path prefixes; keep filename:line if available.
-        const match = line.match(/([^/\\)]+\.(?:tsx?|jsx?))(?::(\d+))?/);
-        if (match) return match[2] ? `${match[1]}:${match[2]}` : match[1];
-        return line.slice(0, 120);
-    }
-    return 'unknown';
-}
 
 export function EventBusProvider({ children, isolated = false }: EventBusProviderProps) {
   // Store listeners by event type
@@ -204,7 +178,7 @@ export function EventBusProvider({ children, isolated = false }: EventBusProvide
     // needs to know WHICH listeners reacted to a specific event (e.g.
     // UI:FIELD_CHANGED) to identify whether any of them indirectly
     // re-render the slot tree mid-edit. Tagged at subscribe-time via
-    // captureSubscriberTag so anonymous arrow-function listeners are
+    // subscriberTag so anonymous arrow-function listeners are
     // still distinguishable.
     if (listeners) {
       // Create a copy to avoid issues if listener modifies the set
@@ -254,7 +228,10 @@ export function EventBusProvider({ children, isolated = false }: EventBusProvide
 
     const listeners = listenersRef.current.get(type)!;
     listeners.add(listener);
-    if (!listenerTags.has(listener)) listenerTags.set(listener, captureSubscriberTag(listener));
+    if (!listenerTags.has(listener)) {
+      const tag = subscriberTag(listener);
+      if (tag !== undefined) listenerTags.set(listener, tag);
+    }
     subLog.debug('subscribe', { type, totalListeners: listeners.size, tag: listenerTags.get(listener) });
 
     return () => {
@@ -292,7 +269,10 @@ export function EventBusProvider({ children, isolated = false }: EventBusProvide
    */
   const onAny = useCallback((listener: BusEventListener): Unsubscribe => {
     anyListenersRef.current.add(listener);
-    if (!listenerTags.has(listener)) listenerTags.set(listener, captureSubscriberTag(listener));
+    if (!listenerTags.has(listener)) {
+      const tag = subscriberTag(listener);
+      if (tag !== undefined) listenerTags.set(listener, tag);
+    }
     subLog.debug('subscribe:any', { totalAnyListeners: anyListenersRef.current.size, tag: listenerTags.get(listener) });
 
     return () => {

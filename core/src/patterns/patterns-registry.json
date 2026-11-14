@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-14T04:35:31.831Z",
+  "exportedAt": "2026-11-14T09:17:31.667Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -107986,6 +107986,12 @@
           ],
           "description": "SVG path data in world units relative to the cell's projected top-left — same coordinate convention as `points`."
         },
+        "scale": {
+          "types": [
+            "number"
+          ],
+          "description": "`path` only: multiplier on the path's coordinates before projection (default 1), so a 24-unit icon draws at any size. Orbital painter."
+        },
         "fill": {
           "types": [
             "string"
@@ -108395,6 +108401,11 @@
           "description": "Keyframe animation over this shape's props; the host runs a paint clock while present.",
           "properties": {
             "durationMs": {
+              "types": [
+                "number"
+              ]
+            },
+            "startMs": {
               "types": [
                 "number"
               ]
@@ -109321,6 +109332,11 @@
                 "number"
               ]
             },
+            "startMs": {
+              "types": [
+                "number"
+              ]
+            },
             "loop": {
               "types": [
                 "boolean"
@@ -109366,6 +109382,45 @@
             "durationMs",
             "keyframes"
           ]
+        },
+        "reveal": {
+          "types": [
+            "object"
+          ],
+          "description": "Reveal the text glyph by glyph on the paint clock (orbital painter; the TS painter ignores it).",
+          "properties": {
+            "startMs": {
+              "types": [
+                "number"
+              ]
+            },
+            "perGlyphMs": {
+              "types": [
+                "number"
+              ]
+            },
+            "durationMs": {
+              "types": [
+                "number"
+              ]
+            },
+            "offsetY": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "startMs",
+            "perGlyphMs",
+            "durationMs"
+          ]
+        },
+        "maxWidth": {
+          "types": [
+            "number"
+          ],
+          "description": "One line at most this wide: wider text is drawn at a smaller size so it fits, like Canvas2D fillText's maxWidth (orbital painter; not with `width`)."
         },
         "caret": {
           "types": [
@@ -109781,6 +109836,11 @@
                   "string"
                 ]
               },
+              "scale": {
+                "types": [
+                  "number"
+                ]
+              },
               "fill": {
                 "types": [
                   "string"
@@ -110176,6 +110236,11 @@
                 ],
                 "properties": {
                   "durationMs": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "startMs": {
                     "types": [
                       "number"
                     ]
@@ -111335,6 +111400,11 @@
                       "number"
                     ]
                   },
+                  "startMs": {
+                    "types": [
+                      "number"
+                    ]
+                  },
                   "loop": {
                     "types": [
                       "boolean"
@@ -111379,6 +111449,43 @@
                 "required": [
                   "durationMs",
                   "keyframes"
+                ]
+              },
+              "reveal": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "startMs": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "perGlyphMs": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "durationMs": {
+                    "types": [
+                      "number"
+                    ]
+                  },
+                  "offsetY": {
+                    "types": [
+                      "number"
+                    ]
+                  }
+                },
+                "required": [
+                  "startMs",
+                  "perGlyphMs",
+                  "durationMs"
+                ]
+              },
+              "maxWidth": {
+                "types": [
+                  "number"
                 ]
               },
               "caret": {
@@ -111605,6 +111712,12 @@
           "enumValues": [
             "width"
           ]
+        },
+        "minHeight": {
+          "types": [
+            "number"
+          ],
+          "description": "Orbital 2D with `fillContainer: true`: the least height in CSS px; a shorter container scrolls instead of squeezing the scene."
         },
         "unitScale": {
           "types": [
@@ -115087,6 +115200,11 @@
                 "number"
               ]
             },
+            "startMs": {
+              "types": [
+                "number"
+              ]
+            },
             "loop": {
               "types": [
                 "boolean"
@@ -116119,6 +116237,11 @@
           "description": "Keyframe animation over transform/material tracks; the 3D host runs it per frame.",
           "properties": {
             "durationMs": {
+              "types": [
+                "number"
+              ]
+            },
+            "startMs": {
               "types": [
                 "number"
               ]

@@ -26,6 +26,8 @@ export interface OrbitalSceneCanvasProps<P extends PatternType> {
     height: number;
     /** `true` takes the container's full size instead of the authored aspect ratio (the container must have a definite height); `'width'` takes the container's width and the authored height in CSS px, so the page scrolls past a long scene. */
     fillContainer?: boolean | 'width';
+    /** With `fillContainer: true`: the least height in CSS px; a shorter container scrolls instead of squeezing the scene. */
+    minHeight?: number;
     /**
      * The pattern's callback props the molecule received as functions (`onShapeClick`), by prop name: the scene
      * queues each under its prop name and the host hands that callback the delivered payload.
@@ -272,7 +274,7 @@ const wheelFactor = (deltaY: number): number => Math.pow(1.1, -deltaY / 100);
 
 const log = createLogger('almadar:ui:orbital-scene-canvas');
 
-export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, className, width, height, fillContainer, callbacks, keyMap, keyUpMap }: OrbitalSceneCanvasProps<P>): React.ReactElement {
+export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, className, width, height, fillContainer, minHeight, callbacks, keyMap, keyUpMap }: OrbitalSceneCanvasProps<P>): React.ReactElement {
     const engine = useKernelEngine();
     const factory = engine?.sceneCanvas;
     const eventBus = useEventBus();
@@ -507,7 +509,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         <div
             ref={containerRef}
             className={cn('orbital-scene-canvas relative mx-auto w-full overflow-hidden rounded-container', className)}
-            style={fillContainer === 'width' ? { height: `${height}px` } : fillContainer ? { flex: '1 1 0', height: '100%', minHeight: 0 } : { maxWidth: `min(100%, calc(70vh * ${width} / ${height}))`, aspectRatio: `${width} / ${height}` }}
+            style={fillContainer === 'width' ? { height: `${height}px` } : fillContainer ? { flex: '1 1 0', height: '100%', minHeight: `${minHeight ?? 0}px` } : { maxWidth: `min(100%, calc(70vh * ${width} / ${height}))`, aspectRatio: `${width} / ${height}` }}
         >
             <canvas
                 ref={canvasRef}

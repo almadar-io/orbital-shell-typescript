@@ -233,6 +233,9 @@ export interface OrbitalSchema {
   /** Pages served by `uses lazy` behaviors, each loaded from its own `.orb` when opened. */
   lazyPages?: LazyPage[];
 
+  /** The programs of those pages carried in the program value itself, by the file each page names (`program/open`). */
+  lazyPrograms?: Record<string, OrbitalSchema>;
+
   /** External services */
   services?: ServiceDefinition[];
 
@@ -306,6 +309,7 @@ export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, object> = z.object({
   inbound: z.array(z.string().min(1)).optional(),
   site: SiteMetaSchema.optional(),
   lazyPages: z.array(LazyPageSchema).optional(),
+  lazyPrograms: z.record(z.string(), z.lazy(() => OrbitalSchemaSchema)).optional(),
   services: z.array(ServiceDefinitionSchema).optional(),
   config: DeclaredTraitConfigSchema.optional(),
   _metadata: SchemaMetadataSchema.optional(),

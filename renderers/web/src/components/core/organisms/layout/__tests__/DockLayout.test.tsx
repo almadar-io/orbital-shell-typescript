@@ -17,10 +17,12 @@ vi.mock('../SplitPane', () => ({
     left: React.ReactNode;
     right: React.ReactNode;
     className?: string;
+    collapsed?: 'left' | 'right';
   }) => (
     <div
       data-testid={`split-pane-${props.direction}`}
       data-ratio={props.ratio}
+      data-collapsed={props.collapsed ?? ''}
       data-has-on-ratio-change={String(typeof props.onRatioChange === 'function')}
     >
       <div data-testid={`split-pane-${props.direction}-left`}>{props.left}</div>
@@ -87,7 +89,8 @@ describe('DockLayout', () => {
     );
 
     expect(screen.queryByTestId('sidebar')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('split-pane-horizontal')).not.toBeInTheDocument();
+    // The pane stays (collapsed) so `main` is never remounted by a collapse.
+    expect(screen.getByTestId('split-pane-horizontal')).toHaveAttribute('data-collapsed', 'left');
   });
 
   it('hides the bottom panel when bottomPanelCollapsed is true', () => {
@@ -100,7 +103,7 @@ describe('DockLayout', () => {
     );
 
     expect(screen.queryByTestId('bottom-panel')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('split-pane-vertical')).not.toBeInTheDocument();
+    expect(screen.getByTestId('split-pane-vertical')).toHaveAttribute('data-collapsed', 'right');
   });
 
   it('hides the secondary sidebar when secondarySidebarCollapsed is true', () => {

@@ -384,20 +384,26 @@ const DesktopDock: React.FC<DesktopDockProps> = ({
       {main}
     </Box>
   );
-  const centerRow = showSecondarySidebar ? (
+  // A region that exists keeps one SplitPane whether it is shown or collapsed: swapping the container around
+  // `main` would remount it, and whatever runs there would start over (a guest program re-runs INIT).
+  // A collapsed region renders nothing inside its pane.
+  const centerRow = secondarySidebar ? (
     <SplitPane
       direction="horizontal"
       ratio={100 - secondaryRatio}
       onRatioChange={(mainRatio) => setSecondaryRatio(100 - mainRatio)}
       minSize={secondarySidebarMinSize}
       resizable
+      collapsed={showSecondarySidebar ? undefined : "right"}
       left={mainRegion}
       right={
         <HStack gap="none" className="h-full min-w-0">
-          {sideGutter("secondary-sidebar", false, () => setSecondarySidebarCollapsed(true), "l")}
-          <Box className={cn("flex-1 min-w-0 h-full overflow-auto", secondarySidebarClassName)}>
-            {secondarySidebar}
-          </Box>
+          {sideGutter("secondary-sidebar", !showSecondarySidebar, () => setSecondarySidebarCollapsed(showSecondarySidebar), "l")}
+          {showSecondarySidebar && (
+            <Box className={cn("flex-1 min-w-0 h-full overflow-auto", secondarySidebarClassName)}>
+              {secondarySidebar}
+            </Box>
+          )}
         </HStack>
       }
       className="flex-1 min-h-0 min-w-0"
@@ -405,26 +411,21 @@ const DesktopDock: React.FC<DesktopDockProps> = ({
   ) : (
     <HStack gap="none" className="flex-1 min-h-0 min-w-0">
       {mainRegion}
-      {secondarySidebar && sideGutter("secondary-sidebar", true, () => setSecondarySidebarCollapsed(false), "l")}
     </HStack>
   );
 
-  const sidebarAndCenter = showSidebar ? (
+  const sidebarAndCenter = sidebar ? (
     <SplitPane
       direction="horizontal"
       ratio={sidebarRatio}
       onRatioChange={setSidebarRatio}
       minSize={sidebarMinSize}
       resizable
-      left={<Box className={cn("h-full overflow-auto", sidebarClassName)}>{sidebar}</Box>}
-      right={<HStack gap="none" className="h-full min-w-0">{sideGutter("sidebar", false, () => setSidebarCollapsed(true), "r")}{centerRow}</HStack>}
+      collapsed={showSidebar ? undefined : "left"}
+      left={<Box className={cn("h-full overflow-auto", sidebarClassName)}>{showSidebar ? sidebar : null}</Box>}
+      right={<HStack gap="none" className="h-full min-w-0">{sideGutter("sidebar", !showSidebar, () => setSidebarCollapsed(showSidebar), "r")}{centerRow}</HStack>}
       className="flex-1 min-h-0 min-w-0"
     />
-  ) : sidebar ? (
-    <HStack gap="none" className="flex-1 min-h-0 min-w-0">
-      {sideGutter("sidebar", true, () => setSidebarCollapsed(false), "r")}
-      {centerRow}
-    </HStack>
   ) : (
     centerRow
   );
@@ -452,34 +453,32 @@ const DesktopDock: React.FC<DesktopDockProps> = ({
     </HStack>
   );
 
-  const bodyPlusBottom = showBottomPanel ? (
+  const bodyPlusBottom = bottomPanel ? (
     <SplitPane
       direction="vertical"
       ratio={100 - bottomRatio}
       onRatioChange={(topRatio) => setBottomRatio(100 - topRatio)}
       minSize={bottomPanelMinSize}
       resizable
+      collapsed={showBottomPanel ? undefined : "right"}
       left={body}
       right={
-        <VStack gap="none" className="h-full">
+        <VStack gap="none" className={showBottomPanel ? "h-full" : undefined}>
           {bottomGutter}
-          <Box
-            className={cn(
-              "flex-1 min-h-0 overflow-auto",
-              bottomPanelClassName,
-            )}
-          >
-            {bottomPanel}
-          </Box>
+          {showBottomPanel && (
+            <Box
+              className={cn(
+                "flex-1 min-h-0 overflow-auto",
+                bottomPanelClassName,
+              )}
+            >
+              {bottomPanel}
+            </Box>
+          )}
         </VStack>
       }
       className="flex-1 min-h-0"
     />
-  ) : bottomPanel ? (
-    <VStack gap="none" className="flex-1 min-h-0">
-      {body}
-      {bottomGutter}
-    </VStack>
   ) : (
     body
   );

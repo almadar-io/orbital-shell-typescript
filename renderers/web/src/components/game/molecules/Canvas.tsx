@@ -63,6 +63,8 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     isLoading?: boolean;
     /** 3D: take the height of the box that holds the canvas, with no minimum (a small scene in a header or a rail). Default false: the surface is at least 400px tall. Orbital 2D: `true` takes the container's whole box; `'width'` takes the container's width and `worldHeight` CSS px, so the page scrolls past a long scene (a 3D scene treats `'width'` as false). */
     fillContainer?: boolean | 'width';
+    /** Orbital 2D with `fillContainer: true`: the least height in CSS px; a shorter container scrolls instead of squeezing the scene. */
+    minHeight?: number;
     /** Unit draw-size multiplier (both painters). */
     unitScale?: number;
     /** Minimap overlay (2D). */
@@ -188,6 +190,7 @@ export function Canvas({
     className,
     isLoading,
     fillContainer,
+    minHeight,
     unitScale,
     showMinimap,
     fit,
@@ -392,6 +395,7 @@ export function Canvas({
                     height={worldHeight ?? 600}
                     className={className}
                     {...(fillContainer !== undefined ? { fillContainer } : {})}
+                    {...(minHeight !== undefined ? { minHeight } : {})}
                     keyMap={keyMap}
                     keyUpMap={keyUpMap}
                 />
