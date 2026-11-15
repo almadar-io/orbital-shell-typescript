@@ -9,26 +9,26 @@ importers:
   .:
     dependencies:
       '@almadar/core':
-        specifier: ^11.5.0
-        version: 11.5.0
+        specifier: ^11.5.1
+        version: 11.5.1
       '@almadar/kernel':
         specifier: ^19.3.0
         version: 19.3.0
       '@almadar/logger':
-        specifier: ^2.5.0
-        version: 2.5.0
+        specifier: ^2.5.1
+        version: 2.5.1
       '@almadar/shell-browser':
-        specifier: ^1.3.0
-        version: 1.3.0
+        specifier: ^1.3.1
+        version: 1.3.1
       '@almadar/shell-runtime':
-        specifier: ^1.3.0
-        version: 1.3.0
+        specifier: ^1.3.1
+        version: 1.3.1
       '@almadar/std':
-        specifier: ^17.3.0
-        version: 17.3.0
+        specifier: ^17.3.1
+        version: 17.3.1
       '@almadar/syntax':
-        specifier: ^2.3.0
-        version: 2.3.0
+        specifier: ^2.3.1
+        version: 2.3.1
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -229,8 +229,8 @@ packages:
     resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==}
     engines: {node: '>=10'}
 
-  '@almadar/core@11.5.0':
-    resolution: {integrity: sha512-X6X0IPhsu+7iw0Da7YyIKG9Ypbjuy6QYQpN4KOW7qyYqJU6Z0gPht8ea9gA8b37MNKL6CVpbmobIssTVSZ4w+Q==}
+  '@almadar/core@11.5.1':
+    resolution: {integrity: sha512-7Wzkd/KUnlxcTSVMzjupcWfJGYYfjbxlyjDiiWiya5HgGu0UEVP/j53E6Ze/v3rqExZkuksxz8PeutqsJfH88g==}
     engines: {node: '>=22'}
 
   '@almadar/eslint-plugin@3.2.0':
@@ -243,22 +243,22 @@ packages:
     resolution: {integrity: sha512-cVPKwE2f5eLdjOPMLwLS+LAmgfq35ybiyeH4bHVBd4zwcFNXszNVf5fRVt2mS5pCZAN48KuuQQzLQ6qowOYeQA==}
     engines: {node: '>=22'}
 
-  '@almadar/logger@2.5.0':
-    resolution: {integrity: sha512-5pRjlzawL0GRi5nNvlUV0S8V2ONPYeKMcMa1sxPWqvdQl0KLhvKwo4wZj1dJ2nZnqhPCJYhi7B08XdiaoiqaLA==}
+  '@almadar/logger@2.5.1':
+    resolution: {integrity: sha512-frXHHhb8ilopXuKPFQRG7jZ7wfIAMsCJlptTgYYTHgFPWAaxIUBb/rrf7jt1u6TS5061gmbzOL1x7G9tIC80aw==}
     engines: {node: '>=22'}
 
-  '@almadar/shell-browser@1.3.0':
-    resolution: {integrity: sha512-gkU9nq8h2UqW5ynTNDUL7HiwoDTXxoYXmd40B9mGm0VPQ7FAiyA1PH18kA5IZ62CEsemMjUHf1xH43OTo8u9Fw==}
+  '@almadar/shell-browser@1.3.1':
+    resolution: {integrity: sha512-isoimSwhDKPAskGMAb9b8jlhQ2MzTYRv8sDS7CMFsrwly8Qe25CWSz5c0x+DaMOW7LIXG97dNKWBVmGmx6QQJA==}
 
-  '@almadar/shell-runtime@1.3.0':
-    resolution: {integrity: sha512-MCAcSo9IZz40IdLvucZ6Gj2F9WevzeSf/NdPYZ0Pjt8ilNrdUSBfbi1RyhBSLteyW6uFjgUOhNrMp/vyQNO3lw==}
+  '@almadar/shell-runtime@1.3.1':
+    resolution: {integrity: sha512-mvxrGlMGSRljM6BkqCH82JGXmTx+G2Dq8nF/5EyBu6kfZ+c++F1V3AwanVQfVfSnlDEaYMLj6jqqFXXOe7KGWg==}
 
-  '@almadar/std@17.3.0':
-    resolution: {integrity: sha512-QFu9XVvy50mw0rEzAcpJG8NKiXFDi8YTt4A/g3cXsAAIBXUuGxvl4T4XogwlF8TLrbvPld9RXTS5Eu4ok+Z2PQ==}
+  '@almadar/std@17.3.1':
+    resolution: {integrity: sha512-ZOoM1APMsExeJ86nINeMh2XXda/fdS1EtA74a7cuhJJThNtYfk8ceoZJ/0VicLqc6rSiDpH5B9++bjGFAp6eEQ==}
     engines: {node: '>=22'}
 
-  '@almadar/syntax@2.3.0':
-    resolution: {integrity: sha512-sXJaZp1J+WbgZLgJYrYBlJlu6lZRnLBckB6MDCLgCnNRBwnGLkAKaJU0byqTsmdYMzuaS4yB3NJPWQAGwkO4vQ==}
+  '@almadar/syntax@2.3.1':
+    resolution: {integrity: sha512-SKfj0qKwQA/B8WOsp+jJEfQKQTTc/n7f0EAaTnM8wfjg4JJmKW43tgde3Ghh2xeirtzzjcPUGSRWtrLrYw5PMg==}
     engines: {node: '>=22'}
 
   '@antfu/install-pkg@2.1.0':
@@ -3568,7 +3568,7 @@ snapshots:
 
   '@alloc/quick-lru@5.3.0': {}
 
-  '@almadar/core@11.5.0':
+  '@almadar/core@11.5.1':
     dependencies:
       '@noble/hashes': 1.8.0
       zod: 4.6.7
@@ -3580,34 +3580,34 @@ snapshots:
 
   '@almadar/kernel@19.3.0': {}
 
-  '@almadar/logger@2.5.0':
+  '@almadar/logger@2.5.1':
     dependencies:
-      '@almadar/core': 11.5.0
+      '@almadar/core': 11.5.1
 
-  '@almadar/shell-browser@1.3.0':
+  '@almadar/shell-browser@1.3.1':
     dependencies:
-      '@almadar/core': 11.5.0
+      '@almadar/core': 11.5.1
       '@firebase/app': 0.13.2
       '@firebase/auth': 1.10.8(@firebase/app@0.13.2)
       zod: 4.6.7
     transitivePeerDependencies:
       - '@react-native-async-storage/async-storage'
 
-  '@almadar/shell-runtime@1.3.0':
+  '@almadar/shell-runtime@1.3.1':
     dependencies:
-      '@almadar/core': 11.5.0
+      '@almadar/core': 11.5.1
       '@almadar/kernel': 19.3.0
-      '@almadar/logger': 2.5.0
-      '@almadar/std': 17.3.0
+      '@almadar/logger': 2.5.1
+      '@almadar/std': 17.3.1
 
-  '@almadar/std@17.3.0':
+  '@almadar/std@17.3.1':
     dependencies:
-      '@almadar/core': 11.5.0
+      '@almadar/core': 11.5.1
 
-  '@almadar/syntax@2.3.0':
+  '@almadar/syntax@2.3.1':
     dependencies:
-      '@almadar/core': 11.5.0
-      '@almadar/std': 17.3.0
+      '@almadar/core': 11.5.1
+      '@almadar/std': 17.3.1
 
   '@antfu/install-pkg@2.1.0':
     dependencies:
