@@ -1700,8 +1700,9 @@ export function renderPatternProps(
       const nodeFields = Object.entries(propsSchema?.[key]?.items?.properties ?? {})
         .filter(([, def]) => def?.types.includes("node") === true)
         .map(([name]) => name);
+      // Item fields held as data (an event payload, or a program typed `sexpr`) keep their `@trait.X` as data.
       const payloadFields = Object.entries(propsSchema?.[key]?.items?.properties ?? {})
-        .filter(([, def]) => def?.eventPayloadBrand === true)
+        .filter(([, def]) => def?.eventPayloadBrand === true || def?.types.includes("sexpr") === true)
         .map(([name]) => name);
       const isItemRecord = (el: SlotPropValue): boolean =>
         typeof el === "object" && el !== null && !Array.isArray(el) && isPlainConfigObject(el);

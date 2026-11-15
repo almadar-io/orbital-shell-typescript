@@ -21,7 +21,7 @@ import { useInRouterContext } from 'react-router-dom';
 import type { EmittedEvent, EventKey, EventPayload, OrbitalSchema, PatternNode, ThemeRef, UISlot } from '@almadar/core';
 import { isEventRequest, isEventResponse } from '@almadar/core/kernel-wire';
 import { createChannelTransport, type ChannelMessage } from '@almadar/shell-runtime/client/channel-transport';
-import { CarriedLoader } from '@almadar/shell-runtime';
+import { AskedLoader } from '@almadar/shell-runtime';
 import type { TransitionTap } from '../../../hooks/circuit/transitionTap';
 
 type TransitionTrace = Parameters<TransitionTap>[0];
@@ -59,6 +59,16 @@ export interface GuestLegAnswer {
   /** The `EventResponse` the guest's host answered, as JSON text. */
   response?: string;
   /** Why the leg could not be answered. */
+  error?: string;
+}
+
+/** One answered lazy page ask of a split guest's view: the page's client program by its file, or why the guest refused it. */
+export interface GuestLazyAnswer {
+  /** The lazy page's file (its `orbRef`), as named in the view's `lazy` event. */
+  file: string;
+  /** The page's client program `program/lazy` answered. */
+  program?: OrbitalSchema;
+  /** Why the guest did not answer it. */
   error?: string;
 }
 
@@ -109,6 +119,12 @@ export interface GuestViewProps {
   legTaken?: EventKey;
   /** The answered legs the opener holds for this view. */
   legAnswers?: ReadonlyArray<GuestLegAnswer>;
+  /** The opener trait's declared event a split guest's view asks for one lazy page as, with { guest, file }, when its route first needs it. Without it the view opens no lazy page. */
+  lazy?: EventKey;
+  /** The opener trait's declared event emitted with { guest, file } once the view has taken that lazy page's answer. */
+  lazyTaken?: EventKey;
+  /** The answered lazy page asks the opener holds for this view. */
+  lazyAnswers?: ReadonlyArray<GuestLazyAnswer>;
   /** The dispatches the split guest's host ran on its own in this viewer's session that the opener holds for this view. */
   hostDispatches?: ReadonlyArray<GuestHostDispatch>;
   /** The opener trait's declared event emitted with { guest, seq } once the view has handed the dispatches up to that seq to its kernel. */
@@ -160,6 +176,7 @@ function SeedGuestPaints({ paints }: { paints: ReadonlyArray<GuestPaintEntry> })
 const OrbPreview = React.lazy(() => import('../../../preview/OrbPreview').then((m) => ({ default: m.OrbPreview })));
 
 const NO_ANSWERS: ReadonlyArray<GuestLegAnswer> = [];
+const NO_LAZY_ANSWERS: ReadonlyArray<GuestLazyAnswer> = [];
 const NO_DISPATCHES: ReadonlyArray<GuestHostDispatch> = [];
 
 /** The kernel's own check of an emitted event, by way of the response that carries it; undefined when it is not one. */
@@ -172,9 +189,12 @@ function emittedEventOf(value: EventPayload | null | undefined): EmittedEvent | 
 /** A split guest: its client program runs here, its server legs travel to the opener as `leg` events. */
 type GuestMove = { trait: string; event: string; from: string; to: string; fired: boolean };
 
-function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, hostDispatches, dispatchesTaken, moved, signIn, signedIn, route, themeOverride }: {
+function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, lazy, lazyTaken, lazyAnswers, hostDispatches, dispatchesTaken, moved, signIn, signedIn, route, themeOverride }: {
   guest: string;
   epoch: number;
+  lazy?: EventKey;
+  lazyTaken?: EventKey;
+  lazyAnswers: ReadonlyArray<GuestLazyAnswer>;
   moved?: EventKey;
   signIn?: EventKey;
   signedIn: boolean;
@@ -193,7 +213,17 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, hostDisp
   // The view is keyed by guest, so this is one opened program: a repaint of the stage hands an equal program anew, which must not restart it.
   const opened = useRef(program);
   const guestProgram = opened.current;
-  const lazyLoader = useMemo(() => (guestProgram.lazyPrograms === undefined ? undefined : new CarriedLoader(guestProgram.lazyPrograms)), [guestProgram]);
+  const lazyLoader = useMemo(
+    () => (lazy === undefined ? undefined : new AskedLoader((file) => bus.current.emit(`UI:${lazy}`, { guest, file }))),
+    [lazy, guest],
+  );
+  useEffect(() => {
+    if (lazyLoader === undefined) return;
+    for (const answer of lazyAnswers) {
+      lazyLoader.answer(answer);
+      if (lazyTaken !== undefined) bus.current.emit(`UI:${lazyTaken}`, { guest, file: answer.file });
+    }
+  }, [lazyAnswers, lazyLoader, lazyTaken, guest]);
   const listeners = useRef(new Set<(message: ChannelMessage) => void>());
   const transport = useMemo(() => {
     const hear = (message: ChannelMessage) => listeners.current.forEach((listener) => listener(message));
@@ -279,7 +309,7 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, hostDisp
 /**
  * GuestView - Paints a guest program's UI; guest, source and deliver are kernel routing data
  */
-export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, program, leg, legTaken, legAnswers, hostDispatches, dispatchesTaken, epoch, moved, signIn, signedIn, children }) => {
+export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navigate, route, paints, theme, themeOverride, program, leg, legTaken, legAnswers, lazy, lazyTaken, lazyAnswers, hostDispatches, dispatchesTaken, epoch, moved, signIn, signedIn, children }) => {
   const eventBus = useEventBus();
   const inHostRouter = useInRouterContext();
   const [hostHrefBase, setHostHrefBase] = useState('/');
@@ -295,7 +325,7 @@ export const GuestView: React.FC<GuestViewProps> = ({ guest, source, roots, navi
   if (program !== undefined && leg !== undefined) {
     return (
       <Box data-guest-frame="" fullWidth fullHeight className="relative" style={{ contain: 'layout' }}>
-        <SplitGuest key={`${guest}:${epoch ?? 0}`} guest={guest} epoch={epoch ?? 0} program={program} leg={leg} legTaken={legTaken} legAnswers={legAnswers ?? NO_ANSWERS} hostDispatches={hostDispatches ?? NO_DISPATCHES} dispatchesTaken={dispatchesTaken} moved={moved} signIn={signIn} signedIn={signedIn === true} route={route} themeOverride={themeOverride} />
+        <SplitGuest key={`${guest}:${epoch ?? 0}`} guest={guest} epoch={epoch ?? 0} program={program} leg={leg} legTaken={legTaken} legAnswers={legAnswers ?? NO_ANSWERS} lazy={lazy} lazyTaken={lazyTaken} lazyAnswers={lazyAnswers ?? NO_LAZY_ANSWERS} hostDispatches={hostDispatches ?? NO_DISPATCHES} dispatchesTaken={dispatchesTaken} moved={moved} signIn={signIn} signedIn={signedIn === true} route={route} themeOverride={themeOverride} />
       </Box>
     );
   }

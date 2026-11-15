@@ -4,17 +4,20 @@ import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import type { EmittedEvent, EventRequest, EventResponse, OrbitalSchema } from '@almadar/core';
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
-import { GuestView, type GuestHostDispatch, type GuestPaintEntry } from '../GuestView';
+import type { SchemaLoader } from '@almadar/shell-runtime';
+import { GuestView, type GuestHostDispatch, type GuestLazyAnswer, type GuestPaintEntry } from '../GuestView';
 import { EventBusProvider, useEventBus } from '../../../../core';
 
 const previewHeard: Array<{ orbitalName: string; request: EventRequest; response: EventResponse }> = [];
 const previewPushed: Array<{ emitted: EmittedEvent; target: string }> = [];
 let previewSubscribed = 0;
+let previewLoader: SchemaLoader | undefined;
 
 vi.mock('../../../../preview/OrbPreview', async () => {
   const react = await import('react');
   return {
-    OrbPreview: ({ transport }: { transport?: EventTransport }) => {
+    OrbPreview: ({ transport, lazyLoader }: { transport?: EventTransport; lazyLoader?: SchemaLoader }) => {
+      previewLoader = lazyLoader;
       react.useEffect(() => {
         const stop = transport?.subscribeHostDispatches?.((orbitalName, request, response) => { previewHeard.push({ orbitalName, request, response }); });
         const stopPush = transport?.subscribe?.((emitted, target) => { previewPushed.push({ emitted, target }); });
@@ -507,5 +510,58 @@ describe('GuestView folds the host-run dispatches of a split guest', () => {
     rerender(view(undefined));
     expect(previewHeard).toHaveLength(0);
     expect(taken).toHaveLength(0);
+  });
+});
+
+describe('GuestView asks for a split guest\'s lazy page when its route needs it', () => {
+  const program: OrbitalSchema = { name: 'Guest', orbitals: [] };
+  const late: OrbitalSchema = { name: 'Late', orbitals: [{ name: 'Late', entity: { name: 'LateRow', fields: [] }, traits: [], pages: [] }] };
+  const heard: Array<{ type: string; payload: Record<string, unknown> | undefined }> = [];
+  const Listen = () => {
+    const bus = useEventBus();
+    React.useEffect(() => bus.onAny?.((e) => {
+      if (e.type === 'UI:GUEST_LAZY' || e.type === 'UI:GUEST_LAZY_TAKEN') heard.push({ type: e.type, payload: e.payload });
+    }), [bus]);
+    return null;
+  };
+  const view = (lazyAnswers?: ReadonlyArray<GuestLazyAnswer>, lazy: string | null = 'GUEST_LAZY') => (
+    <EventBusProvider debug={false}>
+      <Listen />
+      <GuestView guest="guest-1" source="Root" deliver="GUEST_CLICK" program={program} leg="GUEST_LEG_SENT" lazy={lazy ?? undefined} lazyTaken="GUEST_LAZY_TAKEN" lazyAnswers={lazyAnswers}>
+        <span>x</span>
+      </GuestView>
+    </EventBusProvider>
+  );
+  const mounted = async (lazy: string | null = 'GUEST_LAZY') => {
+    heard.length = 0;
+    previewSubscribed = 0;
+    previewLoader = undefined;
+    const out = render(view([], lazy));
+    await waitFor(() => expect(previewSubscribed).toBeGreaterThan(0));
+    return out;
+  };
+
+  it('asks the opener for the page by its file and loads it from the answer the opener hands back', async () => {
+    const { rerender } = await mounted();
+    const loading = previewLoader?.load('lazy/Late.orb');
+    expect(heard).toEqual([{ type: 'UI:GUEST_LAZY', payload: { guest: 'guest-1', file: 'lazy/Late.orb' } }]);
+    rerender(view([{ file: 'lazy/Late.orb', program: late }]));
+    const loaded = await loading;
+    expect(loaded?.success && loaded.data.schema.name).toBe('Late');
+    await waitFor(() => expect(heard).toContainEqual({ type: 'UI:GUEST_LAZY_TAKEN', payload: { guest: 'guest-1', file: 'lazy/Late.orb' } }));
+  });
+
+  it('control: a refused page fails its load with the guest\'s reason', async () => {
+    const { rerender } = await mounted();
+    const loading = previewLoader?.load('lazy/Gone.orb');
+    rerender(view([{ file: 'lazy/Gone.orb', error: 'program/lazy: the guest carries no lazy program `lazy/Gone.orb`' }]));
+    const loaded = await loading;
+    expect(loaded?.success).toBe(false);
+    expect(loaded !== undefined && !loaded.success && loaded.error).toContain('lazy/Gone.orb');
+  });
+
+  it('edge: without a lazy event the view has no lazy loader, so it asks for nothing', async () => {
+    await mounted(null);
+    expect(previewLoader).toBeUndefined();
   });
 });

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-14T09:17:31.667Z",
+  "exportedAt": "2026-11-15T06:05:38.435Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -43387,6 +43387,11 @@
                               "sexpr"
                             ]
                           }
+                        },
+                        "glyph": {
+                          "types": [
+                            "string"
+                          ]
                         }
                       },
                       "required": [
@@ -76153,6 +76158,11 @@
                                     "sexpr"
                                   ]
                                 }
+                              },
+                              "glyph": {
+                                "types": [
+                                  "string"
+                                ]
                               }
                             },
                             "required": [
@@ -76904,6 +76914,11 @@
                                     "sexpr"
                                   ]
                                 }
+                              },
+                              "glyph": {
+                                "types": [
+                                  "string"
+                                ]
                               }
                             },
                             "required": [
@@ -84105,6 +84120,16 @@
               "name": "ratio",
               "type": "number"
             }
+          ]
+        },
+        "collapsed": {
+          "types": [
+            "string"
+          ],
+          "description": "A collapsed side: `left` hides the left pane, `right` shrinks the right pane to its content and gives the left the rest. The panes stay the same elements in the same order either way, so what they hold is never remounted.",
+          "enumValues": [
+            "left",
+            "right"
           ]
         },
         "enter": {
@@ -124996,6 +125021,11 @@
                               "sexpr"
                             ]
                           }
+                        },
+                        "glyph": {
+                          "types": [
+                            "string"
+                          ]
                         }
                       },
                       "required": [
@@ -129584,6 +129614,11 @@
                         "sexpr"
                       ]
                     }
+                  },
+                  "glyph": {
+                    "types": [
+                      "string"
+                    ]
                   }
                 },
                 "required": [
@@ -134969,6 +135004,11 @@
                         "sexpr"
                       ]
                     }
+                  },
+                  "glyph": {
+                    "types": [
+                      "string"
+                    ]
                   }
                 },
                 "required": [
@@ -140777,6 +140817,51 @@
             },
             "required": [
               "leg"
+            ]
+          }
+        },
+        "lazy": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event a split guest's view asks for one lazy page as, with { guest, file }, when its route first needs it. Without it the view opens no lazy page.",
+          "kind": "event"
+        },
+        "lazyTaken": {
+          "types": [
+            "string"
+          ],
+          "description": "The opener trait's declared event emitted with { guest, file } once the view has taken that lazy page's answer.",
+          "kind": "event"
+        },
+        "lazyAnswers": {
+          "types": [
+            "array"
+          ],
+          "description": "The answered lazy page asks the opener holds for this view.",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "file": {
+                "types": [
+                  "string"
+                ]
+              },
+              "program": {
+                "types": [
+                  "sexpr"
+                ]
+              },
+              "error": {
+                "types": [
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "file"
             ]
           }
         },

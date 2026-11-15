@@ -22,6 +22,10 @@ const dispatches: PatternPropDef = {
   types: ['array'],
   items: { types: ['object'], properties: { kind: { types: ['string'] }, label: { types: ['string'] }, response: { types: ['object'], eventPayloadBrand: true } } },
 };
+const lazyAnswers: PatternPropDef = {
+  types: ['array'],
+  items: { types: ['object'], properties: { file: { types: ['string'] }, program: { types: ['sexpr'] }, error: { types: ['string'] } } },
+};
 const paintedResponse = { success: true, emittedEvents: [{ event: 'GUEST_PAINTS', payload: { paints: [{ slot: 'main', trait: 'Shell', content: { type: 'stack', children: ['@trait.Search'] } }] } }] };
 
 describe('renderPatternProps and program-as-data props', () => {
@@ -50,5 +54,17 @@ describe('renderPatternProps and program-as-data props', () => {
     const out = renderPatternProps({ hostDispatches: [{ kind: 'dispatch', label: '@trait.Search', response: paintedResponse }] }, () => undefined, { hostDispatches: dispatches });
     const [item] = out.hostDispatches as Array<{ label: React.ReactNode }>;
     expect(React.isValidElement(item.label)).toBe(true);
+  });
+
+  it('passes a sexpr member of a data array item through unchanged (a lazy page program held as data)', () => {
+    const out = renderPatternProps({ lazyAnswers: [{ file: 'lazy/Blog.orb', program }] }, () => undefined, { lazyAnswers });
+    const [item] = out.lazyAnswers as Array<{ program: typeof program }>;
+    expect(item.program).toBe(program);
+  });
+
+  it('control: a member of the same item that is not a sexpr still embeds its @trait.X', () => {
+    const out = renderPatternProps({ lazyAnswers: [{ file: '@trait.Search', program }] }, () => undefined, { lazyAnswers });
+    const [item] = out.lazyAnswers as Array<{ file: React.ReactNode }>;
+    expect(React.isValidElement(item.file)).toBe(true);
   });
 });
