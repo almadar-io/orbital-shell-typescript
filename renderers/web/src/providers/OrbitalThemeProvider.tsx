@@ -34,7 +34,7 @@
 
 import React, { useEffect, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import { isThemeRegistryKey, type ThemeRef } from '@almadar/core';
-import { useTheme, useThemeScope, ThemeScopeContext, keyInViewerMode } from '../core';
+import { useTheme, useThemeScope, ThemeScopeContext, keyInViewerMode, registryKeyTheme } from '../core';
 import { themeTokensToCssVars, resolveThemeForRuntime } from '../lib/themeTokens';
 import { Box } from '../core';
 import { cn } from '../core';
@@ -85,7 +85,9 @@ export function OrbitalThemeProvider({ theme: declared, override, children }: Or
   if (isThemeRegistryKey(theme)) {
     // An override inherited from an outer scope is already the key to paint, in that scope's mode.
     const inherited = !override && parent.override ? { key: parent.override, mode: parent.mode } : undefined;
-    const { key, mode: keyMode } = inherited ?? keyInViewerMode(theme, availableThemes, resolvedMode);
+    // A host's own pick names an exact theme and mode (owner 2026-11-16); only a declared theme follows the viewer's mode.
+    const picked = override ? { key: override, mode: registryKeyTheme(override, availableThemes)?.mode } : undefined;
+    const { key, mode: keyMode } = inherited ?? picked ?? keyInViewerMode(theme, availableThemes, resolvedMode);
     const mode = keyMode ?? parent.mode;
     return (
       <ThemeScopeContext.Provider

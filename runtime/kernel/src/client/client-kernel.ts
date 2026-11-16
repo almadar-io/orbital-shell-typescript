@@ -2,7 +2,7 @@
  * The contract of a client kernel: what a view dispatches into and what it gets back. `@almadar/ui`'s kernel client
  * (over `@almadar/kernel/client`) implements it.
  */
-import type { DispatchMode, EmittedEvent, MountSeed, EventRequest, EventResponse, TransitionRejection } from '@almadar/core';
+import type { ClientEffectByTrait, DispatchMode, EmittedEvent, MountSeed, EventRequest, EventResponse, TransitionRejection } from '@almadar/core';
 import type { CircuitStore } from './circuit-store.js';
 
 /** One `ClientKernel.dispatch()` call's settled outcome. */
@@ -32,6 +32,8 @@ export interface ClientDispatchHooks {
 /** Mount hooks: `onLocal` sees each seed's local response before the mount leg is sent. */
 export interface ClientMountHooks {
   onLocal?: (trait: string, local: EventResponse) => void;
+  /** One host answer of the mount settled: its paint, as it lands, ahead of the posts still behind it. */
+  onServer?: (effects: ClientEffectByTrait[]) => void;
 }
 
 /** What the kernel answered to an emit that entered from outside it: the cascade it ran, with its paint and its emits. */

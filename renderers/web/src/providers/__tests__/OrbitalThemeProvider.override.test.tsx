@@ -78,10 +78,11 @@ describe('OrbitalThemeProvider override', () => {
     expect(getByTestId('nested-leaf').closest('[data-theme]')?.getAttribute('data-theme')).toBe('gazette-light');
   });
 
-  it("control: a host's own override prop still renders in the viewer mode", () => {
+  // Owner 2026-11-16 (G-ORBITAL-SHELL-TYPESCRIPT-167): a host's pick names an exact mode; only a declared theme follows the viewer.
+  it("a host's own override prop paints in the mode it names, not the viewer mode", () => {
     const { getByTestId } = renderTree('gazette-light');
-    expect(getByTestId('layout').getAttribute('data-theme')).toBe('gazette-dark');
-    expect(getByTestId('nested-leaf').closest('[data-theme]')?.getAttribute('data-theme')).toBe('gazette-dark');
+    expect(getByTestId('layout').getAttribute('data-theme')).toBe('gazette-light');
+    expect(getByTestId('nested-leaf').closest('[data-theme]')?.getAttribute('data-theme')).toBe('gazette-light');
   });
 
   it('a GameShell data-theme yields to the override too', () => {

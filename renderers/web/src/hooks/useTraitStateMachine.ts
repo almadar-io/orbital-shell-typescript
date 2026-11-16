@@ -404,6 +404,9 @@ export function useTraitStateMachine(
           if (beforeLocalPaint === undefined) beforeLocalPaint = slotFlush.checkpoint();
           slotFlush.applyClientEffects(local.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
         },
+        onServer: (effects) => {
+          slotFlush.applyClientEffects(effects, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+        },
       }, { payload, ...(route !== undefined ? { route } : {}), ...(crumb !== undefined ? { crumb } : {}) });
     } catch (err: unknown) {
       if (beforeLocalPaint !== undefined) slotFlush.rollback(beforeLocalPaint);
@@ -412,8 +415,11 @@ export function useTraitStateMachine(
       }
       throw err;
     }
-    if (!outcome.success && beforeLocalPaint !== undefined) slotFlush.rollback(beforeLocalPaint);
-    slotFlush.applyClientEffects(outcome.serverEffects.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+    // A failed mount rolls back to before its local paint; the server paints it already showed are painted again over that.
+    if (!outcome.success && beforeLocalPaint !== undefined) {
+      slotFlush.rollback(beforeLocalPaint);
+      slotFlush.applyClientEffects(outcome.serverEffects.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+    }
     const emitted = [...outcome.seeds.flatMap((seed) => seed.local.emittedEvents), ...outcome.emittedEvents];
     for (const e of emitted) {
       eventBus.emit(`UI:${e.event}`, e.payload, { ...(e.source ?? {}), dispatched: true });
