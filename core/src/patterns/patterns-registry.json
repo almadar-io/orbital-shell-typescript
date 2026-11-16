@@ -109379,6 +109379,30 @@
           ],
           "description": "Ellipsis instead of overflow."
         },
+        "height": {
+          "types": [
+            "number"
+          ],
+          "description": "Box height in scene units, like `width`; the box a `fit: \"shrink\"` text must fit."
+        },
+        "fit": {
+          "types": [
+            "string"
+          ],
+          "description": "`none` (default) wraps at `width` and grows downward; `shrink` steps the font size down (to `minSize`) until the wrapped text fits `width` x `height`, and the measured size is the fitted block's. Needs `width` and `height`.",
+          "enumValues": [
+            "none",
+            "shrink"
+          ],
+          "default": "none"
+        },
+        "minSize": {
+          "types": [
+            "number"
+          ],
+          "description": "Smallest font size in px that `fit: \"shrink\"` steps down to (default 10); at the floor the text paints at that size and may overflow.",
+          "default": 10
+        },
         "lineHeight": {
           "types": [
             "number"
@@ -111520,6 +111544,21 @@
               "truncate": {
                 "types": [
                   "boolean"
+                ]
+              },
+              "height": {
+                "types": [
+                  "number"
+                ]
+              },
+              "fit": {
+                "types": [
+                  "string"
+                ]
+              },
+              "minSize": {
+                "types": [
+                  "number"
                 ]
               },
               "lineHeight": {

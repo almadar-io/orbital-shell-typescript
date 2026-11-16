@@ -1946,6 +1946,11 @@
         "name": "span",
         "type": "Span",
         "doc": ""
+      },
+      {
+        "name": "spread",
+        "type": "bool",
+        "doc": "`...T` (P-040): `name` is the struct alias or type parameter whose fields join the payload flat."
       }
     ]
   },
