@@ -62,11 +62,14 @@ pub fn client_runtime_files(module: &OirModule, language: &str) -> Vec<(String, 
 /// `program.client.orb`: the resolved program as the web client fetches it (keys sorted, without what no
 /// client code path reads).
 pub fn client_program_orb(schema: &orbital_core_base::schema::types::OrbitalSchema) -> serde_json::Result<String> {
-    serde_json::to_string(&client_program(&orbital_core_eval::util::canonical_json(&serde_json::to_value(schema)?)))
+    let program = orbital_core_base::value_serialize::to_canonical_value(schema).map_err(serde::ser::Error::custom)?;
+    serde_json::to_string(&orbital_core_base::runs_on::client_program(program))
 }
 
-pub(crate) fn client_program(program: &serde_json::Value) -> serde_json::Value {
-    orbital_core_base::runs_on::client_program(program)
+#[cfg(test)]
+fn client_program(program: &serde_json::Value) -> serde_json::Value {
+    let program = serde_json::from_value(program.clone()).expect("a core value");
+    orbital_core_base::json_value::value_to_json(&orbital_core_base::runs_on::client_program(program))
 }
 
 impl TypeScriptBackend {

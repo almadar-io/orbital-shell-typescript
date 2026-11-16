@@ -736,6 +736,24 @@ export function OrbPreview({
     initialRoute?.kind === 'lazy' && initialPagePath ? { page: initialRoute.page, path: initialPagePath } : null,
   );
   const [lazyLoad, setLazyLoad] = useState<LazyLoad>({ status: 'loading' });
+  // The page on screen stays until the next lazy page's program has loaded: the lazy page last shown, or (null) the
+  // schema's own pages once they have rendered.
+  const [shownLazy, setShownLazy] = useState<{ page: LazyPage; path: string; schema: OrbitalSchema } | null>(null);
+  const eagerShownRef = useRef(false);
+  useEffect(() => {
+    if (lazyRoute === null) setShownLazy(null);
+  }, [lazyRoute]);
+  // The pointer reaching or pressing a link to a lazy page asks for that page's program ahead of the click (owner 2026-11-16).
+  const prefetchedRef = useRef(new Set<string>());
+  const prefetchLinkedLazy = useCallback((event: React.PointerEvent) => {
+    if (!lazyLoader || !(event.target instanceof Element)) return;
+    const href = event.target.closest('a[href]')?.getAttribute('href');
+    if (!href?.startsWith('/')) return;
+    const hit = matchRoute(href.split(/[?#]/)[0] ?? href);
+    if (hit?.kind !== 'lazy' || prefetchedRef.current.has(hit.page.orbRef)) return;
+    prefetchedRef.current.add(hit.page.orbRef);
+    void loadLazyPage(lazyLoader, hit.page, schemaPath);
+  }, [lazyLoader, matchRoute, schemaPath]);
   useEffect(() => {
     if (!lazyRoute) return;
     if (!lazyLoader) {
@@ -744,9 +762,11 @@ export function OrbPreview({
     }
     let cancelled = false;
     setLazyLoad({ status: 'loading' });
-    void loadLazyPage(lazyLoader, lazyRoute.page, schemaPath).then((result) => {
+    const route = lazyRoute;
+    void loadLazyPage(lazyLoader, route.page, schemaPath).then((result) => {
       if (cancelled) return;
       setLazyLoad(result.success ? { status: 'ready', schema: result.data } : { status: 'error', error: result.error });
+      if (result.success) setShownLazy({ page: route.page, path: route.path, schema: result.data });
     });
     return () => {
       cancelled = true;
@@ -971,24 +991,24 @@ export function OrbPreview({
     return routeLocale === undefined ? tapped : <I18nProvider value={routeLocale}>{tapped}</I18nProvider>;
   };
 
-  if (lazyRoute) {
+  if (lazyRoute && (lazyLoad.status === 'error' || shownLazy !== null || !eagerShownRef.current)) {
     return withBridge(
-      <Box ref={containerRef} className={`overflow-auto ${className ?? ''}`} style={{ height }}>
-        {lazyLoad.status === 'loading' && <LoadingState />}
+      <Box ref={containerRef} className={`overflow-auto ${className ?? ''}`} style={{ height }} onPointerOver={prefetchLinkedLazy} onPointerDown={prefetchLinkedLazy}>
         {lazyLoad.status === 'error' && <ErrorState data-testid="lazy-page-error" message={lazyLoad.error} />}
-        {lazyLoad.status === 'ready' && (
+        {lazyLoad.status !== 'error' && shownLazy === null && <LoadingState />}
+        {lazyLoad.status !== 'error' && shownLazy !== null && (
           <BrowserStoreApp.Provider value={inheritedStoreApp ?? parsedSchema?.name ?? 'app'}>
           <LazyPageOfRegisteredProgram.Provider value={true}>
           <OrbPreview
-            key={lazyRoute.page.orbRef}
-            schema={lazyLoad.schema}
+            key={shownLazy.page.orbRef}
+            schema={shownLazy.schema}
             height="100%"
             frame={frame}
             className="border-0"
             serverUrl={serverUrl}
             transport={transport}
             getAccessToken={getAccessToken}
-            initialPagePath={lazyRoute.path}
+            initialPagePath={shownLazy.path}
             authority={authority}
             isolated={isolated}
             fit={fit}
@@ -1004,11 +1024,14 @@ export function OrbPreview({
     );
   }
 
+  eagerShownRef.current = true;
   return withBridge(
     <Box
       ref={containerRef}
       className={`${fit ? 'overflow-hidden' : 'overflow-auto'} ${frame === 'page' ? '' : 'border border-[var(--color-border)] rounded-[var(--radius-md)]'} ${className ?? ''}`}
       style={{ height }}
+      onPointerOver={prefetchLinkedLazy}
+      onPointerDown={prefetchLinkedLazy}
     >
       {/* GAP-19: visible banner when the preview server bridge fell back to local execution.
           The 5s timeout in TraitInitializer fires this when serverUrl was set but the
