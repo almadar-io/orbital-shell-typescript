@@ -38,6 +38,8 @@
       "bodyFamily": "\"Work Sans\", \"Helvetica Neue\", sans-serif",
       "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Work+Sans:wght@400;500;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/dmserifdisplay/DMSerifDisplay-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/worksans/WorkSans%5Bwght%5D.ttf",
       "headingWeight": "400",
       "headingTransform": "none",
       "headingTracking": "0em",

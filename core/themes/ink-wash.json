@@ -43,6 +43,7 @@
       "headingStyle": "normal",
       "headingShadow": "none",
       "fontImport": "https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;500;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/mashanzheng/MaShanZheng-Regular.ttf",
       "scale": {
         "xs": {
           "size": "12px",
@@ -421,7 +422,8 @@
             "size": "sm",
             "weight": "medium"
           }
-        }
+        },
+        "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/mashanzheng/MaShanZheng-Regular.ttf"
       },
       "motion": {
         "durations": {

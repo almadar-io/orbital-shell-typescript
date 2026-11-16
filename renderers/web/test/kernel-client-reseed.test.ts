@@ -41,7 +41,7 @@ const pageCircuitStub = (page?: string, route?: string): string => {
   throw new Error(`unknown page: ${page ?? route ?? ''}`);
 };
 
-const appliedWire = { applied: [], response: response(), serverLegs: [] };
+const appliedWire = { applied: [], response: response(), hostPaints: [], serverLegs: [] };
 const applied = (fold: object = appliedWire): string => JSON.stringify({ status: 'applied', fold });
 
 function fakeKernel(reseeded: string[]): KernelInstance {
@@ -57,6 +57,7 @@ function fakeKernel(reseeded: string[]): KernelInstance {
     nextFold: () => undefined,
     endFlight: () => true,
     heldReleased: () => '[]',
+    blobsReleased: () => '[]',
     foldBase: () => undefined,
     statefulLeg: (legJson: string) => legJson,
     reseedLeg: (seedsJson: string) => {

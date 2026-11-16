@@ -35,6 +35,9 @@
     },
     "typeScale": {
       "fontImport": "https://fonts.googleapis.com/css2?family=Anton&family=Special+Elite&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/anton/Anton-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/apache/specialelite/SpecialElite-Regular.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/apache/specialelite/SpecialElite-Regular.ttf",
       "displayFamily": "\"Anton\", Impact, \"Arial Narrow\", sans-serif",
       "bodyFamily": "var(--font-family)",
       "monoFamily": "\"Special Elite\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

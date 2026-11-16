@@ -38,6 +38,8 @@
       "bodyFamily": "\"Lora\", Georgia, serif",
       "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500;1,700&family=Cinzel+Decorative:wght@400;700&family=Lora:wght@400;500;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/cormorantgaramond/CormorantGaramond%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/lora/Lora%5Bwght%5D.ttf",
       "headingWeight": "600",
       "headingTransform": "none",
       "headingTracking": "0.01em",

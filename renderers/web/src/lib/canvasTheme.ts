@@ -7,6 +7,7 @@
  */
 
 import type {
+  CanvasFont,
   CanvasShadow,
   CanvasTheme,
   DiagramFillStyle,
@@ -20,8 +21,9 @@ import type {
   DiagramTextCase,
   DiagramTextSize,
   DiagramTone,
+  ThemePaletteKey,
 } from '@almadar/core';
-import { DIAGRAM_TONES, DIAGRAM_TEXT_SIZES, DIAGRAM_TONE_COLOR_KEYS } from '@almadar/core';
+import { DIAGRAM_TONES, DIAGRAM_TEXT_SIZES, DIAGRAM_TONE_COLOR_KEYS, THEME_PALETTE_KEYS } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
 import { parseComputedColor, resolveThemeColor, type ResolvedColor } from './theme-color';
 
@@ -136,6 +138,32 @@ class ScopeReader {
   }
 }
 
+function paletteOf(r: ScopeReader): Partial<Record<ThemePaletteKey, string>> {
+  const palette: Partial<Record<ThemePaletteKey, string>> = {};
+  for (const key of THEME_PALETTE_KEYS) {
+    if (r.raw(`--color-${key}`) === '') continue;
+    const c = r.color(`--color-${key}`);
+    if (c) palette[key] = colorCss(c);
+  }
+  return palette;
+}
+
+const GENERIC_FAMILIES: ReadonlySet<string> = new Set(['serif', 'sans-serif', 'monospace']);
+
+/** Each family the theme names: its first face, its `--font-file-<role>` file and the last generic in its stack. */
+function fontsOf(r: ScopeReader): Partial<Record<DiagramLabelFont, CanvasFont>> {
+  const roles: readonly [DiagramLabelFont, string][] = [['display', 'sans-serif'], ['body', 'sans-serif'], ['mono', 'monospace']];
+  const fonts: Partial<Record<DiagramLabelFont, CanvasFont>> = {};
+  for (const [role, defaultGeneric] of roles) {
+    const names = r.raw(`--font-family-${role}`).replace('var(--font-family)', r.raw('--font-family')).split(',').map((n) => n.trim().replace(/^["']|["']$/g, '')).filter((n) => n !== '');
+    const first = names[0];
+    if (first === undefined) continue;
+    const generic = [...names].reverse().find((n) => GENERIC_FAMILIES.has(n)) ?? defaultGeneric;
+    fonts[role] = { family: first, file: r.raw(`--font-file-${role}`), generic };
+  }
+  return fonts;
+}
+
 function dashList(raw: string, fallback: readonly number[]): readonly number[] {
   if (raw === '') return fallback;
   const parts = raw.split(/[\s,]+/).map(Number);
@@ -228,6 +256,8 @@ export function resolveCanvasTheme(scope: Element): CanvasTheme {
         })(),
         fog: r.number('--scene-fog', 0),
       },
+      palette: paletteOf(r),
+      fonts: fontsOf(r),
     };
   } finally {
     r.dispose();

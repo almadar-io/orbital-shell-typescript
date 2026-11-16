@@ -117,6 +117,9 @@
         }
       },
       "fontImport": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
       "headingWeight": "600",
       "headingTransform": "none",
       "headingTracking": "-0.01em",
@@ -444,7 +447,10 @@
         "headingTransform": "none",
         "headingTracking": "-0.01em",
         "headingStyle": "normal",
-        "headingShadow": "none"
+        "headingShadow": "none",
+        "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
+        "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf",
+        "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf"
       },
       "surface": {
         "pageImage": "none",

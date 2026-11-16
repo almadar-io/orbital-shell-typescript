@@ -117,6 +117,8 @@
         }
       },
       "fontImport": "https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Nunito:wght@400;500;600;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/poppins/Poppins-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/nunito/Nunito%5Bwght%5D.ttf",
       "headingWeight": "600",
       "headingTransform": "none",
       "headingTracking": "0",

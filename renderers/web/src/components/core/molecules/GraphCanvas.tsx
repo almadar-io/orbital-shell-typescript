@@ -60,8 +60,8 @@ export interface GraphEdge {
 }
 
 /**
- * All-pairs similarity (cosine 0–1) used ONLY for layout, never drawn — `edges`
- * remain the only rendered links. It is the SECONDARY macro-layout: pairs that are
+ * Similarity pairs (cosine 0–1) used ONLY for layout, never drawn — `edges`
+ * remain the only rendered links. The program chooses which pairs to send. It is the SECONDARY macro-layout: pairs that are
  * NOT directly connected get a weak spring (higher cosine ⇒ closer) so clusters
  * arrange relative to each other, while drawn `edges` stay the primary tight
  * structure. When omitted, edges alone drive the layout.
@@ -92,7 +92,7 @@ export interface GraphCanvasProps extends A11yProps {
     /** Uncommitted proposal links — rendered dashed/faint in a separate pass, never folded into the layout springs. */
     proposedEdges?: readonly GraphEdge[];
     /**
-     * All-pairs similarity (cosine 0–1) used ONLY for layout, never drawn. It is the
+     * Similarity pairs (cosine 0–1) used ONLY for layout, never drawn; every pair given is used. It is the
      * secondary macro-layout: non-connected pairs get a weak spring (higher cosine ⇒
      * closer) so clusters arrange relative to each other; drawn `edges` stay the
      * primary tight structure. When omitted, edges alone drive the layout.
@@ -210,11 +210,6 @@ export function edgeStroke(
     if (weight === undefined) return { alpha: linkOpacity, width: strokes.thin };
     const w = Math.min(1, Math.max(0, weight));
     return { alpha: linkOpacity, width: strokes.thin + (strokes.normal - strokes.thin) * w };
-}
-
-/** Order-independent key for a node pair — used to tell drawn edges from similarity-only pairs. */
-function edgeKeyOf(a: string, b: string): string {
-    return a < b ? `${a}\0${b}` : `${b}\0${a}`;
 }
 
 /**
@@ -461,33 +456,6 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                 // rectangle cleanup keep rendered text from overlapping.
                 for (const n of simNodes) n.labelW = showLabels && n.label ? measureLabelWidth(truncateLabel(n.label), labelFont) : 0;
 
-                // Sparse similarity: each node keeps only its top-K strongest non-edge neighbors.
-                // A dense full-matrix (45 paths → 990 pairs) makes every node attract every other,
-                // collapsing clusters into a single hairball.
-                const SIMILARITY_NEIGHBORS = 5;
-                const SIMILARITY_MIN_WEIGHT = 0.25;
-                const drawnPairs = new Set<string>();
-                for (const edge of propEdges) drawnPairs.add(edgeKeyOf(edge.source, edge.target));
-                const similarityNeighbors = new Map<string, Set<string>>();
-                const bySource = new Map<string, GraphSimilarity[]>();
-                for (const pair of propSimilarity) {
-                    if (pair.weight < SIMILARITY_MIN_WEIGHT) continue;
-                    if (drawnPairs.has(edgeKeyOf(pair.source, pair.target))) continue;
-                    const arr = bySource.get(pair.source) ?? [];
-                    arr.push(pair);
-                    bySource.set(pair.source, arr);
-                }
-                for (const [id, arr] of bySource) {
-                    arr.sort((a, b) => b.weight - a.weight);
-                    similarityNeighbors.set(id, new Set(arr.slice(0, SIMILARITY_NEIGHBORS).map((p) => p.target)));
-                }
-                const activeSimilarity = propSimilarity.filter((pair) => {
-                    if (drawnPairs.has(edgeKeyOf(pair.source, pair.target))) return false;
-                    const a = similarityNeighbors.get(pair.source);
-                    const b = similarityNeighbors.get(pair.target);
-                    return (a?.has(pair.target) ?? false) || (b?.has(pair.source) ?? false);
-                });
-
                 // Per-group sector targets so same-group nodes form visible islands (deterministic,
                 // arranged on a ring). A single-cluster graph falls back to gentle global centering.
                 const groupTarget = new Map<string, { x: number; y: number }>();
@@ -505,7 +473,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                 const edgeLinks: D3Link[] = propEdges
                     .filter((e) => present.has(e.source) && present.has(e.target))
                     .map((e) => ({ source: e.source, target: e.target, weight: clamp01(e.weight ?? 1) }));
-                const simLinks: D3Link[] = activeSimilarity
+                const simLinks: D3Link[] = propSimilarity
                     .filter((p) => present.has(p.source) && present.has(p.target))
                     .map((p) => ({ source: p.source, target: p.target, weight: clamp01(p.weight) }));
 
@@ -514,7 +482,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                 const simulation = forceSimulation<SimNode>(simNodes)
                     // Drawn edges are the PRIMARY structure: a strong, tight link (higher weight ⇒ shorter).
                     .force("edge", forceLink<SimNode, D3Link>(edgeLinks).id((d) => d.id).distance((l) => linkDistance * (0.35 + (1 - l.weight) * 0.3)).strength(0.9))
-                    // Top-K similarity is the SECONDARY macro-layout: weak links so clusters arrange
+                    // Similarity is the SECONDARY macro-layout: weak links so clusters arrange
                     // relative to each other without collapsing the whole graph.
                     .force("similarity", forceLink<SimNode, D3Link>(simLinks).id((d) => d.id).distance((l) => linkDistance * (1.35 - 0.55 * l.weight)).strength(0.03))
                     // Charge keeps unconnected nodes apart.

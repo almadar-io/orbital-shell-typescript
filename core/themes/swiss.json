@@ -38,6 +38,8 @@
       "bodyFamily": "\"Archivo\", \"Helvetica Neue\", Helvetica, Arial, sans-serif",
       "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;700;800&family=Archivo:wght@400;500;700;800&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/intertight/InterTight%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/archivo/Archivo%5Bwdth%2Cwght%5D.ttf",
       "headingWeight": "800",
       "headingTransform": "none",
       "headingTracking": "-0.04em",

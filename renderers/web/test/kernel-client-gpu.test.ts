@@ -34,7 +34,7 @@ function fakeKernel(seen: Seen, heldFails = false): KernelInstance {
       return JSON.stringify(wire(event));
     },
     dropHeldPayload: (ticket: number) => { seen.dropped.push(ticket); return true; },
-    dispatchMount: refuse, openFlight: refuse, foldInOrder: refuse, nextFold: () => undefined, endFlight: () => true, heldReleased: () => '[]', foldBase: refuse,
+    dispatchMount: refuse, openFlight: refuse, foldInOrder: refuse, nextFold: () => undefined, endFlight: () => true, heldReleased: () => '[]', blobsReleased: () => '[]', foldBase: refuse,
     statefulLeg: refuse, reseedLeg: refuse, mount: refuse, enter: refuse, leave: refuse, leaveMount: refuse, registerLazy: refuse, deliverEmitToListeners: refuse, deliverOriginEmit: refuse,
     getState: () => 'idle', dispatchMode: () => JSON.stringify('hybridClientOnly'),
     restore: refuse, framesSince: () => JSON.stringify({ from: 0, to: 0, ops: [] }), tick: refuse, frame: refuse, framePause: refuse, frameResume: refuse, tickCount: refuse,

@@ -38,6 +38,8 @@
       "bodyFamily": "\"Josefin Sans\", \"Futura\", sans-serif",
       "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=Limelight&family=Poiret+One&family=Josefin+Sans:wght@400;500;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/limelight/Limelight-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/josefinsans/JosefinSans%5Bwght%5D.ttf",
       "headingWeight": "400",
       "headingTransform": "uppercase",
       "headingTracking": "0.16em",

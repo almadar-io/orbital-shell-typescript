@@ -38,6 +38,9 @@
       "bodyFamily": "var(--font-family)",
       "monoFamily": "\"Noto Sans Mono\", Monaco, ui-monospace, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;700;800&family=Noto+Sans+Mono:wght@400;500&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansmono/NotoSansMono%5Bwdth%2Cwght%5D.ttf",
       "headingWeight": "800",
       "headingTransform": "none",
       "headingTracking": "-0.01em",
@@ -387,7 +390,10 @@
             "size": "sm",
             "weight": "medium"
           }
-        }
+        },
+        "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf",
+        "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans%5Bwdth%2Cwght%5D.ttf",
+        "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansmono/NotoSansMono%5Bwdth%2Cwght%5D.ttf"
       },
       "surface": {
         "cardImage": "linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0) 50%)",

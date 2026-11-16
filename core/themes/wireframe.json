@@ -117,6 +117,9 @@
         }
       },
       "fontImport": "https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&family=Space+Mono:wght@400;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/kalam/Kalam-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/SpaceMono-Regular.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/SpaceMono-Regular.ttf",
       "headingWeight": "700",
       "headingTransform": "none",
       "headingTracking": "0",

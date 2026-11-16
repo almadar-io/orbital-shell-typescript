@@ -16,6 +16,7 @@
  */
 
 import { createLogger } from '@almadar/logger';
+import { blobs, FRAMED_MEDIA_TYPE, markHanded } from '../kernel/blobs.js';
 import {
   OrbitalRegisterResponseSchema,
   RowQueryPageSchema,
@@ -467,8 +468,10 @@ async function jsonPost(
   value: object,
   getAccessToken: AccessTokenProvider | undefined,
   compress: boolean,
+  accept?: string,
 ): Promise<Response> {
   const headers = await authHeaders(getAccessToken);
+  if (accept !== undefined) headers.Accept = accept;
   const { body, encoding } = await encodeJsonBody(value, compress);
   if (encoding) headers['Content-Encoding'] = encoding;
   return fetchFn(url, { method: 'POST', headers, body });
@@ -550,7 +553,13 @@ export function createHttpTransport(options: HttpTransportOptions): EventTranspo
         request.behavior === undefined && behavior !== undefined ? { ...request, behavior } : request,
         getAccessToken,
         compress,
+        `${FRAMED_MEDIA_TYPE}, application/json`,
       );
+      if (res.ok && (res.headers.get('content-type') ?? '').startsWith(FRAMED_MEDIA_TYPE)) {
+        const { answer, handed } = blobs.readFramed<EventResponse>(new Uint8Array(await res.arrayBuffer()));
+        markHanded(answer, handed);
+        return answer;
+      }
       const text = await res.text();
       if (res.status === 409) {
         const refusal = parseRefusal(text);

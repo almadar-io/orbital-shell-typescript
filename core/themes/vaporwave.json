@@ -38,6 +38,9 @@
       "bodyFamily": "\"DotGothic16\", \"Space Mono\", monospace",
       "monoFamily": "\"Space Mono\", ui-monospace, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=VT323&family=DotGothic16&family=Space+Mono:wght@400;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/vt323/VT323-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/dotgothic16/DotGothic16-Regular.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/SpaceMono-Regular.ttf",
       "headingWeight": "400",
       "headingTransform": "uppercase",
       "headingTracking": "0.12em",
@@ -388,7 +391,10 @@
             "size": "sm",
             "weight": "medium"
           }
-        }
+        },
+        "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/vt323/VT323-Regular.ttf",
+        "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/dotgothic16/DotGothic16-Regular.ttf",
+        "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/SpaceMono-Regular.ttf"
       },
       "surface": {
         "pageImage": "linear-gradient(180deg, rgba(255, 61, 203, 0.28) 0%, transparent 60%), repeating-linear-gradient(0deg, rgba(0, 240, 255, 0.18) 0px, rgba(0, 240, 255, 0.18) 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, rgba(0, 240, 255, 0.18) 0px, rgba(0, 240, 255, 0.18) 1px, transparent 1px, transparent 40px)",

@@ -35,6 +35,9 @@
     },
     "typeScale": {
       "fontImport": "https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rubik+Mono+One&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/rubikmonoone/RubikMonoOne-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/SpaceMono-Regular.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacemono/SpaceMono-Regular.ttf",
       "displayFamily": "\"Rubik Mono One\", \"Space Mono\", monospace",
       "bodyFamily": "var(--font-family)",
       "monoFamily": "\"Space Mono\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

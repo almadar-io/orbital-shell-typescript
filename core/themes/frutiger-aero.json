@@ -38,6 +38,8 @@
       "bodyFamily": "var(--font-family)",
       "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/quicksand/Quicksand%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/nunito/Nunito%5Bwght%5D.ttf",
       "headingWeight": "700",
       "headingTransform": "none",
       "headingTracking": "0em",
@@ -389,7 +391,9 @@
             "size": "sm",
             "weight": "medium"
           }
-        }
+        },
+        "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/quicksand/Quicksand%5Bwght%5D.ttf",
+        "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/nunito/Nunito%5Bwght%5D.ttf"
       },
       "surface": {
         "backdrop": "blur(14px) saturate(1.4)",

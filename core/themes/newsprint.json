@@ -35,6 +35,9 @@
     },
     "typeScale": {
       "fontImport": "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Source+Serif+4:wght@400;600;700&family=Old+Standard+TT&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/sourceserif4/SourceSerif4%5Bopsz%2Cwght%5D.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/oldstandardtt/OldStandard-Regular.ttf",
       "displayFamily": "\"Playfair Display\", \"Old Standard TT\", Georgia, serif",
       "bodyFamily": "var(--font-family)",
       "monoFamily": "\"Old Standard TT\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

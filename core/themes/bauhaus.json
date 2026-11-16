@@ -38,6 +38,8 @@
       "bodyFamily": "\"Jost\", \"Futura\", \"Century Gothic\", sans-serif",
       "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=Jost:wght@400;500;700;800&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jost/Jost%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jost/Jost%5Bwght%5D.ttf",
       "headingWeight": "800",
       "headingTransform": "lowercase",
       "headingTracking": "-0.01em",

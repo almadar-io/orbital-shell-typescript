@@ -38,6 +38,8 @@
       "bodyFamily": "\"Libre Baskerville\", Georgia, serif",
       "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500;1,700&family=Libre+Baskerville:wght@400;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/playfairdisplay/PlayfairDisplay%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/librebaskerville/LibreBaskerville%5Bwght%5D.ttf",
       "headingWeight": "700",
       "headingTransform": "none",
       "headingTracking": "0.005em",

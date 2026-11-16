@@ -126,6 +126,9 @@ export const TYPE_FAMILY_VARS: ReadonlyArray<FlatVarEntry<TypeScaleTokens>> = [
   { cssVar: '--font-family-display', key: 'displayFamily' },
   { cssVar: '--font-family-body', key: 'bodyFamily' },
   { cssVar: '--font-family-mono', key: 'monoFamily' },
+  { cssVar: '--font-file-display', key: 'displayFile' },
+  { cssVar: '--font-file-body', key: 'bodyFile' },
+  { cssVar: '--font-file-mono', key: 'monoFile' },
 ];
 
 /** Type axis — heading voice (weight/case/tracking/style/shadow of every heading). */

@@ -35,6 +35,9 @@
     },
     "typeScale": {
       "fontImport": "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/cinzel/Cinzel%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/imfellenglish/IMFeENrm28P.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/apache/specialelite/SpecialElite-Regular.ttf",
       "displayFamily": "\"Cinzel\", \"IM Fell English\", Georgia, serif",
       "bodyFamily": "var(--font-family)",
       "monoFamily": "\"Special Elite\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

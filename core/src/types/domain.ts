@@ -594,6 +594,10 @@ export type TypeScaleTokens = {
   monoFamily?: string;
   /** Stylesheet URL that loads the theme's web fonts (e.g. a Google Fonts css2 URL). */
   fontImport?: string;
+  /** Font files a canvas draws the display, body and mono families from (`--font-file-*`). */
+  displayFile?: string;
+  bodyFile?: string;
+  monoFile?: string;
   /** Heading voice — CSS `font-weight` for headings (`--heading-weight`). */
   headingWeight?: string;
   /** Heading voice — CSS `text-transform` (`uppercase`, `lowercase`, `none`). */
@@ -664,6 +668,9 @@ export const TypeScaleTokensSchema = z.object({
   bodyFamily: FontStackSchema.optional(),
   monoFamily: FontStackSchema.optional(),
   fontImport: z.string().optional(),
+  displayFile: z.string().optional(),
+  bodyFile: z.string().optional(),
+  monoFile: z.string().optional(),
   headingWeight: z.string().optional(),
   headingTransform: z.string().optional(),
   headingTracking: z.string().optional(),

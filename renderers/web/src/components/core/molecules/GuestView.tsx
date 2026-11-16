@@ -22,6 +22,7 @@ import type { EmittedEvent, EventKey, EventPayload, OrbitalSchema, PatternNode, 
 import { isEventRequest, isEventResponse } from '@almadar/core/kernel-wire';
 import { createChannelTransport, type ChannelMessage } from '@almadar/shell-runtime/client/channel-transport';
 import { AskedLoader } from '@almadar/shell-runtime';
+import { blobs, isBlobMarker, type BlobMarker } from '@almadar/shell-runtime/kernel/blobs';
 import type { TransitionTap } from '../../../hooks/circuit/transitionTap';
 
 type TransitionTrace = Parameters<TransitionTap>[0];
@@ -67,8 +68,8 @@ export interface GuestLegAnswer {
 export interface GuestLazyAnswer {
   /** The lazy page's file (its `orbRef`), as named in the view's `lazy` event. */
   file: string;
-  /** The page's client program `program/lazy` answered. */
-  program?: OrbitalSchema;
+  /** The page's client program `program/lazy` answered, or the blob the host holds its bytes in (EXEC-DIST-16b). */
+  program?: OrbitalSchema | BlobMarker;
   /** Why the guest did not answer it. */
   error?: string;
 }
@@ -112,8 +113,8 @@ export interface GuestViewProps {
   theme?: ThemeRef;
   /** A theme the opener's viewer picked (a registry key): it replaces the guest's own theme. */
   themeOverride?: string;
-  /** The guest's client program, when it was opened split: the view runs its `[client]` traits itself and paints them. */
-  program?: OrbitalSchema;
+  /** The guest's client program, when it was opened split: the view runs its `[client]` traits itself and paints them. A blob (EXEC-DIST-16b) is read from the host's table. */
+  program?: OrbitalSchema | BlobMarker;
   /** The opener trait's declared event a split guest's server leg is emitted as, with { guest, leg, orbital, body }: `body` is the events request as JSON text. */
   leg?: EventKey;
   /** The opener trait's declared event emitted with { guest, leg } once the view has taken that leg's answer. */
@@ -187,6 +188,13 @@ function emittedEventOf(value: EventPayload | null | undefined): EmittedEvent | 
   return isEventResponse(wrapped) ? wrapped.emittedEvents[0] : undefined;
 }
 
+/** A program the opener handed: as it is, or read from the bytes of the blob the host holds it in (EXEC-DIST-16b). */
+function programOf(program: OrbitalSchema | BlobMarker): OrbitalSchema {
+  if (!isBlobMarker(program)) return program;
+  const read: OrbitalSchema = JSON.parse(new TextDecoder().decode(blobs.bytes(program.$blob)));
+  return read;
+}
+
 /** A split guest: its client program runs here, its server legs travel to the opener as `leg` events. */
 type GuestMove = { trait: string; event: string; from: string; to: string; fired: boolean };
 
@@ -199,7 +207,7 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, lazy, la
   moved?: EventKey;
   signIn?: EventKey;
   signedIn: boolean;
-  program: OrbitalSchema;
+  program: OrbitalSchema | BlobMarker;
   leg: EventKey;
   legTaken?: EventKey;
   legAnswers: ReadonlyArray<GuestLegAnswer>;
@@ -212,7 +220,8 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, lazy, la
   const bus = useRef(eventBus);
   bus.current = eventBus;
   // The view is keyed by guest, so this is one opened program: a repaint of the stage hands an equal program anew, which must not restart it.
-  const opened = useRef(program);
+  const opened = useRef<OrbitalSchema | undefined>(undefined);
+  opened.current ??= programOf(program);
   const guestProgram = opened.current;
   const lazyLoader = useMemo(
     () => (lazy === undefined ? undefined : new AskedLoader((file) => bus.current.emit(`UI:${lazy}`, { guest, file }))),
@@ -221,7 +230,7 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, lazy, la
   useEffect(() => {
     if (lazyLoader === undefined) return;
     for (const answer of lazyAnswers) {
-      lazyLoader.answer(answer);
+      lazyLoader.answer(answer.program === undefined ? { file: answer.file, ...(answer.error === undefined ? {} : { error: answer.error }) } : { ...answer, program: programOf(answer.program) });
       if (lazyTaken !== undefined) bus.current.emit(`UI:${lazyTaken}`, { guest, file: answer.file });
     }
   }, [lazyAnswers, lazyLoader, lazyTaken, guest]);

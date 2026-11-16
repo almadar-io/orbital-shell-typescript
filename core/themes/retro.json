@@ -117,6 +117,9 @@
         }
       },
       "fontImport": "https://fonts.googleapis.com/css2?family=Shrikhand&family=Karla:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/shrikhand/Shrikhand-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/karla/Karla%5Bwght%5D.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexmono/IBMPlexMono-Regular.ttf",
       "headingWeight": "400",
       "headingTransform": "none",
       "headingTracking": "0.01em",
@@ -463,7 +466,10 @@
         "headingWeight": "400",
         "headingTransform": "none",
         "headingTracking": "0.01em",
-        "headingStyle": "normal"
+        "headingStyle": "normal",
+        "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/shrikhand/Shrikhand-Regular.ttf",
+        "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/karla/Karla%5Bwght%5D.ttf",
+        "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexmono/IBMPlexMono-Regular.ttf"
       },
       "surface": {
         "pageImage": "repeating-conic-gradient(from 0deg at 50% 100%, rgba(224,76,138,0.12) 0deg 9deg, transparent 9deg 18deg)",

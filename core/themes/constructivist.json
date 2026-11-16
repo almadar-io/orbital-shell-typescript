@@ -38,6 +38,8 @@
       "bodyFamily": "\"Roboto Condensed\", \"Arial Narrow\", sans-serif",
       "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Russo+One&family=Roboto+Condensed:wght@400;500;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/russoone/RussoOne-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/robotocondensed/RobotoCondensed%5Bwght%5D.ttf",
       "headingWeight": "700",
       "headingTransform": "uppercase",
       "headingTracking": "-0.01em",

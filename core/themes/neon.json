@@ -117,6 +117,8 @@
         }
       },
       "fontImport": "https://fonts.googleapis.com/css2?family=Tilt+Neon&family=Exo+2:wght@300;400;500;600;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/tiltneon/TiltNeon%5BXROT%2CYROT%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/exo2/Exo2%5Bwght%5D.ttf",
       "headingWeight": "400",
       "headingTransform": "uppercase",
       "headingTracking": "0.08em",

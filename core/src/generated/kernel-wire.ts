@@ -36,6 +36,11 @@ export type AnchoredNetGrant = { host: NetPart, port: NetPart, kinds: Array<NetK
 
 export type AppliedWire = { applied: Array<[string, string]>, response: EventResponse, 
 /**
+ * The host's own renders in the folded answer that still apply: none of a trait this client stepped past the
+ * host's report of (EXEC-DIST-4). The host paints them, never the answer's raw `clientEffectsByTrait`.
+ */
+hostPaints: Array<ClientEffectByTrait>, 
+/**
  * The legs the fold's own arms owe the host (a refetch after a browser-stored write), to post and fold in turn.
  */
 serverLegs: Array<RoutedLeg>, 
@@ -1120,7 +1125,7 @@ function checkAnchoredNetGrant(v: JsonValue | undefined): boolean {
 }
 
 function checkAppliedWire(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && (Array.isArray(v["applied"]) && v["applied"].every((e) => (Array.isArray(e) && e.length === 2 && typeof e[0] === 'string' && typeof e[1] === 'string'))) && checkEventResponse(v["response"]) && (Array.isArray(v["serverLegs"]) && v["serverLegs"].every((e) => checkRoutedLeg(e))) && (v["resync"] === undefined || (checkFramesResync(v["resync"]) || v["resync"] === null)));
+  return (isRecord(v) && (Array.isArray(v["applied"]) && v["applied"].every((e) => (Array.isArray(e) && e.length === 2 && typeof e[0] === 'string' && typeof e[1] === 'string'))) && checkEventResponse(v["response"]) && (Array.isArray(v["hostPaints"]) && v["hostPaints"].every((e) => checkClientEffectByTrait(e))) && (Array.isArray(v["serverLegs"]) && v["serverLegs"].every((e) => checkRoutedLeg(e))) && (v["resync"] === undefined || (checkFramesResync(v["resync"]) || v["resync"] === null)));
 }
 
 function checkAssertionSpec(v: JsonValue | undefined): boolean {
@@ -1864,7 +1869,7 @@ function buildAnchoredNetGrant(v: JsonValue | undefined, p: string): AnchoredNet
 }
 
 function buildAppliedWire(v: JsonValue | undefined, p: string): AppliedWire {
-  return obj(v, p, null, (r0) => ({ "applied": list(r0["applied"], p + '.applied', (e1, q1) => tuple(e1, q1, 2, (t2) => [str(t2[0], q1 + '[0]'), str(t2[1], q1 + '[1]')])), "response": buildEventResponse(r0["response"], p + '.response'), "serverLegs": list(r0["serverLegs"], p + '.serverLegs', (e1, q1) => buildRoutedLeg(e1, q1)), ...(r0["resync"] === undefined || r0["resync"] === null ? {} : { "resync": (r0["resync"] === null ? null : buildFramesResync(r0["resync"], p + '.resync')) }) }));
+  return obj(v, p, null, (r0) => ({ "applied": list(r0["applied"], p + '.applied', (e1, q1) => tuple(e1, q1, 2, (t2) => [str(t2[0], q1 + '[0]'), str(t2[1], q1 + '[1]')])), "response": buildEventResponse(r0["response"], p + '.response'), "hostPaints": list(r0["hostPaints"], p + '.hostPaints', (e1, q1) => buildClientEffectByTrait(e1, q1)), "serverLegs": list(r0["serverLegs"], p + '.serverLegs', (e1, q1) => buildRoutedLeg(e1, q1)), ...(r0["resync"] === undefined || r0["resync"] === null ? {} : { "resync": (r0["resync"] === null ? null : buildFramesResync(r0["resync"], p + '.resync')) }) }));
 }
 
 function buildAssertionSpec(v: JsonValue | undefined, p: string): AssertionSpec {

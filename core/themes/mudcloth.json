@@ -43,6 +43,8 @@
       "headingStyle": "normal",
       "headingShadow": "none",
       "fontImport": "https://fonts.googleapis.com/css2?family=Archivo+Black&family=Rubik:wght@400;500;700&family=Work+Sans:wght@400;500;600;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/archivoblack/ArchivoBlack-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/worksans/WorkSans%5Bwght%5D.ttf",
       "scale": {
         "xs": {
           "size": "12px",
@@ -421,7 +423,9 @@
             "size": "sm",
             "weight": "medium"
           }
-        }
+        },
+        "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/archivoblack/ArchivoBlack-Regular.ttf",
+        "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/worksans/WorkSans%5Bwght%5D.ttf"
       },
       "motion": {
         "durations": {

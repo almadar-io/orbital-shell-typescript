@@ -38,6 +38,8 @@
       "bodyFamily": "\"Rubik\", \"Helvetica Neue\", sans-serif",
       "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
       "fontImport": "https://fonts.googleapis.com/css2?family=Bungee&family=Lilita+One&family=Rubik:wght@400;500;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/bungee/Bungee-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/rubik/Rubik%5Bwght%5D.ttf",
       "headingWeight": "400",
       "headingTransform": "uppercase",
       "headingTracking": "0.03em",

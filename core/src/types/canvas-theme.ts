@@ -40,6 +40,23 @@ export const DIAGRAM_TONES = [
 ] as const satisfies readonly DiagramTone[];
 export const DiagramToneSchema = z.enum(DIAGRAM_TONES);
 
+/** The theme colour keys a canvas theme's `palette` carries, each read from `--color-<key>`. */
+export const THEME_PALETTE_KEYS = [
+  'accent', 'accent-foreground', 'background', 'border', 'border-hover', 'card', 'card-foreground', 'error',
+  'error-foreground', 'foreground', 'info', 'info-foreground', 'input', 'muted', 'muted-foreground', 'placeholder',
+  'primary', 'primary-foreground', 'primary-hover', 'ring', 'scrim', 'secondary', 'secondary-foreground',
+  'secondary-hover', 'success', 'success-foreground', 'surface', 'surface-hover', 'tertiary', 'tertiary-foreground',
+  'tertiary-hover', 'tertiary-muted', 'warning', 'warning-foreground',
+] as const;
+export type ThemePaletteKey = (typeof THEME_PALETTE_KEYS)[number];
+
+/** One theme family a canvas draws: its first named face, its font file (empty when none) and its generic. */
+export interface CanvasFont {
+  family: string;
+  file: string;
+  generic: string;
+}
+
 /** The theme color key (`--color-<key>`) each tone draws with. */
 export const DIAGRAM_TONE_COLOR_KEYS: Readonly<Record<DiagramTone, string>> = {
   ink: 'diagram-ink',
@@ -169,4 +186,8 @@ export interface CanvasTheme {
     keyColor: string;
     fog: number;
   };
+  /** Every theme colour key that resolved, as CSS. */
+  palette: Readonly<Partial<Record<ThemePaletteKey, string>>>;
+  /** The theme's display, body and mono families that it names. */
+  fonts: Readonly<Partial<Record<DiagramLabelFont, CanvasFont>>>;
 }

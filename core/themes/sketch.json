@@ -35,6 +35,9 @@
     },
     "typeScale": {
       "fontImport": "https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Patrick+Hand&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/kalam/Kalam-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/patrickhand/PatrickHand-Regular.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/patrickhand/PatrickHand-Regular.ttf",
       "displayFamily": "\"Kalam\", \"Caveat\", cursive",
       "bodyFamily": "var(--font-family)",
       "monoFamily": "\"Patrick Hand\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

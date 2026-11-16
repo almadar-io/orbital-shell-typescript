@@ -117,6 +117,8 @@
         }
       },
       "fontImport": "https://fonts.googleapis.com/css2?family=Bangers&family=Fredoka:wght@400;500;600;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/bangers/Bangers-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/Fredoka%5Bwdth%2Cwght%5D.ttf",
       "headingWeight": "400",
       "headingTransform": "uppercase",
       "headingTracking": "0.05em",
@@ -469,7 +471,9 @@
         "headingWeight": "400",
         "headingTransform": "uppercase",
         "headingTracking": "0.05em",
-        "headingStyle": "normal"
+        "headingStyle": "normal",
+        "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/bangers/Bangers-Regular.ttf",
+        "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/Fredoka%5Bwdth%2Cwght%5D.ttf"
       },
       "surface": {
         "pageImage": "radial-gradient(rgba(240, 233, 216, 0.09) 1.4px, transparent 1.8px)",

@@ -109061,6 +109061,15 @@
           ],
           "description": "Mirror horizontally (facing)."
         },
+        "fit": {
+          "types": [
+            "string"
+          ],
+          "description": "How a whole image fills its width and height: cover crops it centred to that aspect; absent stretches the whole image.",
+          "enumValues": [
+            "cover"
+          ]
+        },
         "rotation": {
           "types": [
             "number"

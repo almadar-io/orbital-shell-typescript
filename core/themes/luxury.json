@@ -35,6 +35,9 @@
     },
     "typeScale": {
       "fontImport": "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/cormorantgaramond/CormorantGaramond%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jost/Jost%5Bwght%5D.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jost/Jost%5Bwght%5D.ttf",
       "displayFamily": "\"Cormorant Garamond\", \"Bodoni Moda\", Georgia, serif",
       "bodyFamily": "var(--font-family)",
       "monoFamily": "\"Jost\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

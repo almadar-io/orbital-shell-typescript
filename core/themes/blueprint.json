@@ -35,6 +35,9 @@
     },
     "typeScale": {
       "fontImport": "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Share+Tech+Mono&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexmono/IBMPlexMono-Regular.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/sharetechmono/ShareTechMono-Regular.ttf",
+      "monoFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/sharetechmono/ShareTechMono-Regular.ttf",
       "displayFamily": "\"IBM Plex Mono\", \"Share Tech Mono\", monospace",
       "bodyFamily": "var(--font-family)",
       "monoFamily": "\"Share Tech Mono\", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

@@ -35,10 +35,11 @@ import { SessionEndedError } from '@almadar/shell-runtime/client/EventTransport'
 import { createLogger } from '@almadar/logger';
 import type { FrameScheduler } from './kernel-frames';
 import { getTraitPresence, presenceGroup } from '../core';
-import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, Entered, FoldedNextWire, FoldProgressWire, FrameDelta, Left, MountWire, PageCircuit, TraitSnapshot, TraitSurface } from '@almadar/core/kernel-wire';
+import type { AppliedWire, AwaitingTrait, ClientEffectByTrait, DispatchMode, DispatchWire, Entered, FoldedNextWire, FoldProgressWire, FrameDelta, Left, MountWire, PageCircuit, TraitSnapshot, TraitSurface } from '@almadar/core/kernel-wire';
 import type { KernelInstance } from './kernel-wire';
 import type { KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
 import { decodeHeldCompletion } from '@almadar/shell-runtime/kernel/decode';
+import { blobs, handedJson } from '@almadar/shell-runtime/kernel/blobs';
 import { HeldValues } from '@almadar/shell-runtime/kernel/held-values';
 
 const log = createLogger('almadar:ui:kernel-client');
@@ -135,6 +136,7 @@ function heldOf(k: KernelInstance): HeldValues {
 function readAnswer<T>(k: KernelInstance, text: string): T {
   const held = heldOf(k);
   held.release(k.heldReleased());
+  blobs.release(k.blobsReleased());
   return held.read<T>(text);
 }
 
@@ -211,7 +213,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
 
   const utf8 = new TextEncoder();
   const foldInOrder = (k: KernelInstance, flight: number, answer: EventResponse, alreadyDeliveredJson: string, baseJson: string | undefined): Promise<AppliedWire> =>
-    settleProgress(k, readAnswer<FoldProgressWire>(k, k.foldInOrder(flight, utf8.encode(JSON.stringify(answer)), alreadyDeliveredJson, baseJson)));
+    settleProgress(k, readAnswer<FoldProgressWire>(k, k.foldInOrder(flight, utf8.encode(JSON.stringify(answer)), alreadyDeliveredJson, baseJson, handedJson(answer))));
 
   const deliverInOrder = (k: KernelInstance, flight: number, emitted: EmittedEvent): Promise<AppliedWire> =>
     settleProgress(k, readAnswer<FoldProgressWire>(k, k.deliverEmitToListeners(flight, JSON.stringify(emitted))));
@@ -365,11 +367,12 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     leg: EventRequest,
     since: number,
     request: Pick<EventRequest, 'locale' | 'entityId'>,
-  ): Promise<{ answer: EventResponse; fold: EventResponse } | undefined> => {
+  ): Promise<{ hostPaints: ClientEffectByTrait[]; fold: EventResponse } | undefined> => {
     if (leg.clientId === undefined) throw new Error('a frame resync needs the client id the leg was posted under');
     const answer = await sendReseeding(k, flight, orbital, { event: '$FRAMES', clientId: leg.clientId, framesSince: since }, request);
     if (!answer.success) return undefined;
-    return { answer, fold: (await foldAnswer(k, flight, answer)).response };
+    const applied = await foldAnswer(k, flight, answer);
+    return { hostPaints: applied.hostPaints, fold: applied.response };
   };
 
   /** Send `sent`; when the host freed this client's session, mount again with the frames the client holds, then send it once more. */
@@ -446,9 +449,9 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       const delivered = new Set(planned.alreadyDelivered.map(([trait, event]) => `${trait}\u0000${event}`));
       const serverEmits = posted.emittedEvents.filter((e) => !delivered.has(`${e.source?.trait ?? ''}\u0000${e.event}`));
       const byTrait = [
-        ...(posted.clientEffectsByTrait ?? []),
+        ...applied.hostPaints,
         ...(fold.clientEffectsByTrait ?? []),
-        ...(resynced?.answer.clientEffectsByTrait ?? []),
+        ...(resynced?.hostPaints ?? []),
         ...(resynced?.fold.clientEffectsByTrait ?? []),
       ];
       out.serverEffects.clientEffectsByTrait?.push(...byTrait);
@@ -731,7 +734,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         return {
           response: {
             ...response,
-            clientEffectsByTrait: [...(response.clientEffectsByTrait ?? []), ...(posted.response.clientEffectsByTrait ?? [])],
+            clientEffectsByTrait: [...applied.hostPaints, ...(posted.response.clientEffectsByTrait ?? [])],
           },
           mode,
         };

@@ -13,6 +13,8 @@ const RANGE_FIXTURE: ThemeTokens = {
   typeScale: {
     displayFamily: '"Limelight", serif',
     fontImport: 'https://fonts.googleapis.com/css2?family=Limelight&display=swap',
+    displayFile: 'https://fonts.test/Limelight-Regular.ttf',
+    bodyFile: 'https://fonts.test/JosefinSans.ttf',
     headingWeight: '400',
     headingTransform: 'uppercase',
     headingTracking: '0.2em',
@@ -43,6 +45,8 @@ describe('themeTokensToCssVars — range axes', () => {
     const vars = themeTokensToCssVars({ typeScale: RANGE_FIXTURE.typeScale }, 'light');
     expect(vars).toEqual({
       '--font-family-display': '"Limelight", serif',
+      '--font-file-display': 'https://fonts.test/Limelight-Regular.ttf',
+      '--font-file-body': 'https://fonts.test/JosefinSans.ttf',
       '--heading-weight': '400',
       '--heading-transform': 'uppercase',
       '--heading-tracking': '0.2em',

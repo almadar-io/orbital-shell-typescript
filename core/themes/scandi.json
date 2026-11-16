@@ -43,6 +43,8 @@
       "headingStyle": "normal",
       "headingShadow": "none",
       "fontImport": "https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=DM+Sans:wght@400;500;700&display=swap",
+      "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jost/Jost%5Bwght%5D.ttf",
+      "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/DMSans%5Bopsz%2Cwght%5D.ttf",
       "scale": {
         "xs": {
           "size": "12px",
@@ -426,7 +428,9 @@
             "size": "sm",
             "weight": "medium"
           }
-        }
+        },
+        "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/jost/Jost%5Bwght%5D.ttf",
+        "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/dmsans/DMSans%5Bopsz%2Cwght%5D.ttf"
       },
       "motion": {
         "durations": {
