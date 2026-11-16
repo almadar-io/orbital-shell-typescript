@@ -13,7 +13,7 @@ export * from './api-client';
 // Debug utilities (debug.ts has main debug functions)
 export * from './debug';
 
-// Debug utils (exclude isDebugEnabled which is in debug.ts)
+// Debug utils: debug mode (the panel toggle); debug.ts answers whether DEBUG logging is on
 export {
   setDebugEnabled,
   toggleDebug,

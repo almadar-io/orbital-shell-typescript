@@ -102,6 +102,7 @@ export const QueryCapabilitiesSchema: z.ZodType<QueryCapabilities> = z.object({
   exactTotal: z.boolean(),
   idsOnly: z.boolean().optional(),
   nearest: z.boolean().optional(),
+  memberLimit: z.number().int().positive().optional(),
 });
 
 export const WriteCapabilitiesSchema: z.ZodType<WriteCapabilities> = z.object({

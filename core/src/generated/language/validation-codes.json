@@ -1100,6 +1100,11 @@
     "description": "An http origin is not a string literal or a url-typed config knob, so egress cannot be checked"
   },
   {
+    "code": "ORB_IDENTITY_SESSION_OUTSIDE_PROGRAM_STEP",
+    "category": "identity",
+    "description": "identity/sign-in or identity/sign-out names the client session to bind from a trait a route page mounts, which steps in a viewer's session; only a step in the program session may name one"
+  },
+  {
     "code": "ORB_ID_AUTHORED_WITHOUT_LEDGER",
     "category": "id",
     "description": "An id is authored in source without a matching ledger entry, so it is replaced on load"
@@ -1803,6 +1808,11 @@
     "code": "ORB_S_ACCESS_POLICY_UNKNOWN_ENTITY_FIELD",
     "category": "schema",
     "description": "An access policy references a name that is not a field of its entity, so it resolves to null and denies everyone"
+  },
+  {
+    "code": "ORB_S_AUTHORITY_FIELD_VIEWER_WRITTEN",
+    "category": "schema",
+    "description": "A field of the [identity] entity that an access policy reads through @user is written by a trait a route page mounts, while the identity entity lets a person update their own row and the field has no @update of its own, so a viewer can grant themself that access"
   },
   {
     "code": "ORB_S_COLLECTION_POLICY_CONFLICT",

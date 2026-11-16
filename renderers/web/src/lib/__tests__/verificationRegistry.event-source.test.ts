@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { BusEvent } from '@almadar/core';
-import { bindEventBus, verifierAttached } from '../verificationRegistry';
+import { attachTimelineReader, bindEventBus, verifierAttached } from '../verificationRegistry';
 import { createCircuitVerificationObserver } from '../circuitVerificationObserver';
 
 type VerifyFlag = Window & { __ALMADAR_VERIFY__?: boolean };
@@ -44,6 +44,9 @@ describe('verification event provenance', () => {
 });
 
 describe('a hop the kernel observed for a verifier', () => {
+  let detach = () => {};
+  beforeEach(() => { detach = attachTimelineReader(); });
+  afterEach(() => detach());
   const observed = { payload: { amount: 3 }, entityBefore: { balance: 10 }, entityAfter: { balance: 7 } };
   it('is recorded on the transition the bridge returns', () => {
     createCircuitVerificationObserver().onTransition({ traitName: 'Wallet', from: 'active', to: 'active', event: 'SPEND', effects: [], observed });
@@ -58,7 +61,10 @@ describe('a hop the kernel observed for a verifier', () => {
 });
 
 describe('the arm a hop fired', () => {
-  it('is recorded with no verifier attached', () => {
+  let detach = () => {};
+  beforeEach(() => { detach = attachTimelineReader(); });
+  afterEach(() => detach());
+  it('is recorded for a timeline reader', () => {
     createCircuitVerificationObserver().onTransition({ traitName: 'Wallet', from: 'active', to: 'active', event: 'REFUND', firedArm: 1, effects: [] });
     expect(window.__orbitalVerification?.getTransitions().filter((t) => t.event === 'REFUND').at(-1)?.firedArm).toBe(1);
   });

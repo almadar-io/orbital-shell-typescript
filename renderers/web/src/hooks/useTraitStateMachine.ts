@@ -42,7 +42,7 @@ import { useKernelEngine } from '../providers/KernelEngineContext';
 import type { EntityBindingSource } from '../providers/EntityBindingContext';
 import type { AwaitingSkeletonSource } from '../providers/AwaitingSkeletonContext';
 import { ALL_SLOTS } from './useUISlots';
-import { registerTrait, unregisterTrait, type TraitDebugInfo } from '../lib/traitRegistry';
+import { registerTraitSource, type TraitDebugInfo } from '../lib/traitRegistry';
 import { bindTraitStateGetter, registerTraitSnapshot } from '../lib/verificationRegistry';
 import { createCircuitVerificationObserver, recordDispatchVerdict } from '../lib/circuitVerificationObserver';
 import { hostDispatchInView } from '../lib/hostDispatchInView';
@@ -178,21 +178,19 @@ export function useTraitStateMachine(
   // intent from the pre-adapter hook, now reading `store.states` instead
   // of a hook-local manager ref.
   useEffect(() => {
-    const ids: string[] = [];
-    for (const [traitName, surface] of traitIndex.byName) {
-      const state = store.states.getState(traitName);
-      const info: TraitDebugInfo = {
+    // Each trait is read when the debugger asks: its guards come from the kernel then (the program surface carries none).
+    const traitUnregs = Array.from(traitIndex.byName, ([traitName, surface]) => registerTraitSource(traitName, (): TraitDebugInfo => {
+      const guarded = kernelClient.traitSurface(traitName)?.transitions ?? surface.transitions;
+      return {
         id: traitName,
         name: traitName,
-        currentState: state?.currentState ?? surface.initial ?? 'unknown',
+        currentState: store.states.getState(traitName)?.currentState ?? surface.initial ?? 'unknown',
         states: [...surface.states],
-        transitions: surface.transitions.map((t) => ({ from: t.from, to: t.to, event: t.event, ...(t.guard !== undefined ? { guard: JSON.stringify(t.guard) } : {}) })),
-        guards: surface.transitions.flatMap((t) => (t.guard !== undefined ? [{ name: JSON.stringify(t.guard) }] : [])),
+        transitions: guarded.map((t) => ({ from: t.from, to: t.to, event: t.event, ...(t.guard !== undefined ? { guard: JSON.stringify(t.guard) } : {}) })),
+        guards: guarded.flatMap((t) => (t.guard !== undefined ? [{ name: JSON.stringify(t.guard) }] : [])),
         transitionCount: 0,
       };
-      registerTrait(info);
-      ids.push(traitName);
-    }
+    }));
     bindTraitStateGetter((traitName) => store.states.getState(traitName)?.currentState);
     // The trait's live frame under its entity's name — what a verifier reads to
     // see the entity the trait holds (riya: the body's seeded skateCurve).
@@ -214,10 +212,10 @@ export function useTraitStateMachine(
       };
     }));
     return () => {
-      for (const id of ids) unregisterTrait(id);
+      for (const unreg of traitUnregs) unreg();
       for (const unreg of snapshotUnregs) unreg();
     };
-  }, [store, traitIndex]);
+  }, [store, traitIndex, kernelClient]);
 
   // The kernel's response already carries a composing transition's callsite-capture repaints (EXEC-RENDER-8).
   const afterSettle = useCallback(async (eventKey: string, payload: EventPayload | undefined): Promise<void> => {

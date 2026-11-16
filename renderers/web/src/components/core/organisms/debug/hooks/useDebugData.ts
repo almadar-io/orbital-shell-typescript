@@ -34,6 +34,7 @@ import {
     type DebugEvent
 } from '../../../../../lib/debugRegistry';
 import {
+    attachTimelineReader,
     getAllChecks,
     getTransitions,
     getBridgeHealth,
@@ -82,6 +83,7 @@ export function useDebugData(): DebugData {
 
     // Subscribe to all registries
     React.useEffect(() => {
+        const detachTimelineReader = attachTimelineReader();
         // Update function
         const updateData = () => {
             setData({
@@ -126,6 +128,7 @@ export function useDebugData(): DebugData {
             unsubEvents();
             unsubVerification();
             clearInterval(pollInterval);
+            detachTimelineReader();
         };
     }, []);
 

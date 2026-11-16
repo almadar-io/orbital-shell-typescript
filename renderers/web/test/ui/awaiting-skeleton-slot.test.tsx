@@ -68,7 +68,7 @@ function schema(): OrbitalSchema {
 async function setup(): Promise<{ store: CircuitStore; traitIndex: CircuitSurface }> {
   const module = await loadTestKernel();
   const program = schema();
-  const kernel = new module.Kernel(JSON.stringify({ ...program, orbitals: kernelOrbitals(program.orbitals) }), 'awaiting-skeleton-test');
+  const kernel = new module.Kernel(new TextEncoder().encode(JSON.stringify({ ...program, orbitals: kernelOrbitals(program.orbitals) })), 'awaiting-skeleton-test');
   const traitIndex = programCircuit(kernel);
   kernel.free();
   return { store: createMemoryCircuitStore(memoryTraitDefinitions(traitIndex)), traitIndex };

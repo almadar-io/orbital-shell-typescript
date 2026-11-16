@@ -266,3 +266,25 @@ describe('kernel client — a mount seed its topology posts in no group', () => 
     expect(log.slice(0, 3)).toEqual(['send Match,Sources', 'end 0', 'end 1']);
   });
 });
+
+describe('kernel client — a server answer crosses into the kernel', () => {
+  it('as UTF-8 bytes of its JSON, so the kernel copies exactly its size', async () => {
+    const folded: Uint8Array[] = [];
+    const kernel = fakeKernel([]);
+    const answer = response({ states: { Viewer: 'نص' } });
+    kernel.foldInOrder = (_flight, responseJson) => {
+      folded.push(responseJson);
+      return applied();
+    };
+    const transport: EventTransport = {
+      register: async () => ({ success: true, carriesCircuitState: false }),
+      unregister: async () => undefined,
+      send: async () => answer,
+    };
+    const client = createKernelClient({ instance: Promise.resolve(kernel), store: createMemoryCircuitStore(), traitIndex, transport, topology: Promise.resolve({ carriesCircuitState: false }) });
+    await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' });
+    expect(folded).toHaveLength(1);
+    expect(folded[0]).toBeInstanceOf(Uint8Array);
+    expect(JSON.parse(new TextDecoder().decode(folded[0]))).toEqual(answer);
+  });
+});

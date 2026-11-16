@@ -150,7 +150,26 @@ export function getAllChecks(): VerificationCheck[] {
 // Transition Timeline API
 // ============================================================================
 
+let timelineReaders = 0;
+
+/** Registers a reader of the transition timeline (the runtime debugger) until the returned function is called. */
+export function attachTimelineReader(): () => void {
+  timelineReaders += 1;
+  let attached = true;
+  return () => {
+    if (!attached) return;
+    attached = false;
+    timelineReaders -= 1;
+  };
+}
+
+/** The timeline keeps transitions and server answers only while a verifier or a reader is attached: unread, it would hold every payload. */
+function timelineRead(): boolean {
+  return timelineReaders > 0 || verifierAttached();
+}
+
 export function recordTransition(trace: Omit<TransitionTrace, "id">): void {
+  if (!timelineRead()) return;
   const entry: TransitionTrace = {
     ...trace,
     id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
@@ -281,9 +300,11 @@ export function recordServerResponse(
     timestamp: Date.now(),
   };
 
-  getState().transitions.push(entry);
-  if (getState().transitions.length > MAX_TRANSITIONS) {
-    getState().transitions.shift();
+  if (timelineRead()) {
+    getState().transitions.push(entry);
+    if (getState().transitions.length > MAX_TRANSITIONS) {
+      getState().transitions.shift();
+    }
   }
 
   if (!response.success && response.error) {

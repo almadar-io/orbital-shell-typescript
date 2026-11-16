@@ -26,7 +26,7 @@ function gateEnabled(level: LogLevel, ns = NAMESPACE): boolean {
   return isLogLevelEnabled(level, ns);
 }
 
-export function isDebugEnabled(): boolean {
+export function isDebugLogEnabled(): boolean {
   return gateEnabled('DEBUG');
 }
 

@@ -19,8 +19,8 @@ export interface KernelInstance {
   dropHeldPayload(heldPayload: number): boolean;
   /** A flight for work the kernel did not wire (a dispatch the host ran on its own, a frame's browser leg). */
   openFlight(): number;
-  /** `applyServerResponse` in flight order (EXEC-CONC-8): a `FoldProgressWire` as JSON, folded now or queued behind an older flight. */
-  foldInOrder(flight: number, responseJson: string, alreadyDeliveredJson?: string, baseJson?: string): string;
+  /** `applyServerResponse` in flight order (EXEC-CONC-8): a `FoldProgressWire` as JSON, folded now or queued behind an older flight. The answer's JSON arrives as UTF-8 bytes, which the kernel copies at their size (a string is reserved at three times its length). */
+  foldInOrder(flight: number, responseJson: Uint8Array, alreadyDeliveredJson?: string, baseJson?: string): string;
   /** `foldInOrder` for an emit that entered from outside the kernel (another client's push): delivered to its declared listeners only, a `FoldProgressWire` as JSON. */
   deliverEmitToListeners(flight: number, emittedJson: string): string;
   /** `deliverEmitToListeners` for a live message of this client's own running call, whose emitter ran its own arm as that call's progress dispatch: the emitter is not delivered its own emit a second time. */
@@ -94,7 +94,8 @@ export interface KernelInstance {
  * package itself, so the default bundle carries none of it.
  */
 export interface KernelModule extends RuntimeKernelModule {
-  Kernel: new (resolvedSchemaJson: string, clientId: string) => KernelInstance;
+  /** The resolved program's JSON as UTF-8 bytes, which the kernel copies at their size (a string is reserved at three times its length). */
+  Kernel: new (resolvedSchemaJson: Uint8Array, clientId: string) => KernelInstance;
 }
 
 export type KernelLoader = () => Promise<KernelModule>;

@@ -48,7 +48,7 @@ import {
   debug,
   debugGroup,
   debugGroupEnd,
-  isDebugEnabled,
+  isDebugLogEnabled,
 } from "../../../lib/debug";
 import { toWireValue, type SExpr } from "@almadar/core";
 import type { EvalContextWire } from "@almadar/core/kernel-wire";
@@ -1040,7 +1040,7 @@ export const Form: React.FC<FormProps> = ({
   const schemaFields = React.useMemo(() => {
     if (normalizedFields.length === 0) return null;
 
-    if (isDebugEnabled()) {
+    if (isDebugLogEnabled()) {
       debugGroup(`Form: ${entityName || "unknown"}`);
       debug(`Fields count: ${normalizedFields.length}`);
       debug("Conditional fields:", Object.keys(conditionalFields));

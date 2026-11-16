@@ -666,7 +666,11 @@ nearest?: boolean,
 /**
  * How the driver realizes the entity's declared `@index` paths; absent is `none`.
  */
-indexes?: IndexRealization, };
+indexes?: IndexRealization, 
+/**
+ * The most values one `member` leaf may carry; the kernel asks a larger conjunct member in chunks. Absent is no limit.
+ */
+memberLimit?: number, };
 
 export type RenderedNode = { 
 /**

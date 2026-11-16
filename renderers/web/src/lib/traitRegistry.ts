@@ -28,49 +28,33 @@ export interface TraitDebugInfo {
 
 type ChangeListener = () => void;
 
-const traits = new Map<string, TraitDebugInfo>();
+/** What a reader of the registry gets for one trait, built when it is read: nothing is copied while nobody asks. */
+export type TraitSource = () => TraitDebugInfo;
+
+const sources = new Map<string, TraitSource>();
 const listeners = new Set<ChangeListener>();
 
 function notifyListeners(): void {
   listeners.forEach(listener => listener());
 }
 
-export function registerTrait(info: TraitDebugInfo): void {
-  traits.set(info.id, info);
+/** Registers `id` read from `source`; the returned function removes it (and only this registration). */
+export function registerTraitSource(id: string, source: TraitSource): () => void {
+  sources.set(id, source);
   notifyListeners();
-}
-
-export function updateTraitState(id: string, newState: string): void {
-  const trait = traits.get(id);
-  if (trait) {
-    trait.currentState = newState;
-    trait.transitionCount++;
+  return () => {
+    if (sources.get(id) !== source) return;
+    sources.delete(id);
     notifyListeners();
-  }
-}
-
-export function updateGuardResult(traitId: string, guardName: string, result: boolean): void {
-  const trait = traits.get(traitId);
-  if (trait) {
-    const guard = trait.guards.find(g => g.name === guardName);
-    if (guard) {
-      guard.lastResult = result;
-      notifyListeners();
-    }
-  }
-}
-
-export function unregisterTrait(id: string): void {
-  traits.delete(id);
-  notifyListeners();
+  };
 }
 
 export function getAllTraits(): TraitDebugInfo[] {
-  return Array.from(traits.values());
+  return Array.from(sources.values(), source => source());
 }
 
 export function getTrait(id: string): TraitDebugInfo | undefined {
-  return traits.get(id);
+  return sources.get(id)?.();
 }
 
 export function subscribeToTraitChanges(listener: ChangeListener): () => void {
@@ -79,6 +63,6 @@ export function subscribeToTraitChanges(listener: ChangeListener): () => void {
 }
 
 export function clearTraits(): void {
-  traits.clear();
+  sources.clear();
   notifyListeners();
 }

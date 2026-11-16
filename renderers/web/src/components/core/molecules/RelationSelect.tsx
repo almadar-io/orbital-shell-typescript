@@ -30,13 +30,13 @@ import {
   debug,
   debugGroup,
   debugGroupEnd,
-  isDebugEnabled,
+  isDebugLogEnabled,
 } from "../../../lib/debug";
 import { useTranslate } from '../../../core';
 
 import { domPassthrough } from '../../../core';
 // Helper to check if specific debug category is enabled
-const isRelationsDebugEnabled = () => isDebugEnabled();
+const isRelationsDebugEnabled = () => isDebugLogEnabled();
 
 /** Relation cardinality vocabulary — mirrors `@almadar/core`'s
  *  `RelationCardinality` (spelled inline: the pattern extractor resolves

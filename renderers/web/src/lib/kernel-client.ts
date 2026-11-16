@@ -35,7 +35,7 @@ import { SessionEndedError } from '@almadar/shell-runtime/client/EventTransport'
 import { createLogger } from '@almadar/logger';
 import type { FrameScheduler } from './kernel-frames';
 import { getTraitPresence, presenceGroup } from '../core';
-import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, Entered, FoldedNextWire, FoldProgressWire, FrameDelta, Left, MountWire, PageCircuit, TraitSnapshot } from '@almadar/core/kernel-wire';
+import type { AppliedWire, AwaitingTrait, DispatchMode, DispatchWire, Entered, FoldedNextWire, FoldProgressWire, FrameDelta, Left, MountWire, PageCircuit, TraitSnapshot, TraitSurface } from '@almadar/core/kernel-wire';
 import type { KernelInstance } from './kernel-wire';
 import type { KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
 import { decodeHeldCompletion } from '@almadar/shell-runtime/kernel/decode';
@@ -77,6 +77,8 @@ export interface KernelClient extends ClientKernel {
   sessionTheme(): string | undefined;
   /** The config the kernel binds as `@config` for a trait (render markers resolve against it); `undefined` until the WebAssembly is loaded. */
   traitConfig(traitName: string): TraitConfig | undefined;
+  /** One trait's whole surface, its transitions' guards included (the program surface leaves them out); `undefined` until the WebAssembly is loaded. */
+  traitSurface(traitName: string): TraitSurface | undefined;
   /**
    * A trace stream over this kernel's own steps (EXEC-DIST-14): each dispatch that moved one of `traits` reaches
    * `onItem` as its trace item, after the dispatch settles, until the returned function ends it.
@@ -207,8 +209,9 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     }
   };
 
+  const utf8 = new TextEncoder();
   const foldInOrder = (k: KernelInstance, flight: number, answer: EventResponse, alreadyDeliveredJson: string, baseJson: string | undefined): Promise<AppliedWire> =>
-    settleProgress(k, readAnswer<FoldProgressWire>(k, k.foldInOrder(flight, JSON.stringify(answer), alreadyDeliveredJson, baseJson)));
+    settleProgress(k, readAnswer<FoldProgressWire>(k, k.foldInOrder(flight, utf8.encode(JSON.stringify(answer)), alreadyDeliveredJson, baseJson)));
 
   const deliverInOrder = (k: KernelInstance, flight: number, emitted: EmittedEvent): Promise<AppliedWire> =>
     settleProgress(k, readAnswer<FoldProgressWire>(k, k.deliverEmitToListeners(flight, JSON.stringify(emitted))));
@@ -841,6 +844,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       configs.set(traitName, config);
       return config;
     },
+    traitSurface: (traitName) => (loaded === undefined ? undefined : parse<TraitSurface>(loaded.contractQuery(JSON.stringify({ kind: 'traitSurface', trait: traitName })))),
   };
   return client;
 }

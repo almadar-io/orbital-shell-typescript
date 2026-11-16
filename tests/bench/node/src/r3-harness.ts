@@ -26,7 +26,7 @@ window.__r3 = {
   },
   open(schemaJson, clientId, traitNames) {
     const t0 = performance.now();
-    const kernel = new mod.Kernel(schemaJson, clientId);
+    const kernel = new mod.Kernel(new TextEncoder().encode(schemaJson), clientId);
     const id = nextId++;
     handles.set(id, { kernel, traitNames });
     return JSON.stringify({ id, openMs: performance.now() - t0 });

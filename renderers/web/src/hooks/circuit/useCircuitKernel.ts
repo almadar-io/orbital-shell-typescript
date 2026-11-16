@@ -165,7 +165,7 @@ export function useCircuitKernel(
 
   const kernelInstance = useMemo<Promise<KernelInstance>>(() => {
     const instance = loadModule().then((mod) => {
-      const kernel = new mod.Kernel(JSON.stringify({ name: orbitalName, orbitals: kernelOrbitals(orbitals), ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) }), getTabClientId());
+      const kernel = new mod.Kernel(new TextEncoder().encode(JSON.stringify({ name: orbitalName, orbitals: kernelOrbitals(orbitals), ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) })), getTabClientId());
       // Every host this view posts to runs the whole worklist, listeners of a dispatched emit included.
       kernel.setHostFansOut(true);
       // A verifier judges each hop's `@ensures` on the entity before and after it; the kernel records them only then.
