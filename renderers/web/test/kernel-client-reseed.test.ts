@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EventRequest, EventResponse, TraitDefinition } from '@almadar/core';
-import type { DispatchWire, MountSeed, MountWire, PageCircuit } from '@almadar/core/kernel-wire';
+import type { ClientEffectByTrait, DispatchWire, MountSeed, MountWire, PageCircuit } from '@almadar/core/kernel-wire';
 import { createMemoryCircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import { SessionEndedError, type EventTransport } from '@almadar/shell-runtime/client/EventTransport';
 import { createKernelClient } from '../src/lib/kernel-client';
@@ -288,3 +288,44 @@ describe('kernel client — a server answer crosses into the kernel', () => {
     expect(JSON.parse(new TextDecoder().decode(folded[0]))).toEqual(answer);
   });
 });
+
+// G-CROSS-639: the snapshot a frame resync folds carries the identity frame and the kernel's redraw of what read `@user`.
+describe('kernel client — a frame resync carries the redraw it folded', () => {
+  const header: ClientEffectByTrait = { traitName: 'Header', effect: ['render-ui', 'main', { type: 'typography', content: 'Osama' }] };
+  const resyncOver = (resync: boolean, sent: EventRequest[]) => {
+    let folds = 0;
+    const kernel: KernelInstance = {
+      ...fakeKernel([]),
+      framesSince: () => JSON.stringify({ since: 0, frames: [] }),
+      foldInOrder: () => {
+        folds += 1;
+        if (folds === 1) return applied({ ...appliedWire, resync: resync ? { session: 's', since: 0 } : null });
+        return applied({ ...appliedWire, response: response({ clientEffectsByTrait: [header] }) });
+      },
+    };
+    const transport: EventTransport = {
+      register: async () => ({ success: true, carriesCircuitState: false }),
+      unregister: async () => undefined,
+      send: async (_orbital, request) => { sent.push(request); return response(); },
+    };
+    return createKernelClient({ instance: Promise.resolve(kernel), store: createMemoryCircuitStore(), traitIndex, transport, topology: Promise.resolve({ carriesCircuitState: false }) });
+  };
+
+  it('hands the resync fold\'s render effects to the painter with the dispatch\'s own', async () => {
+    const sent: EventRequest[] = [];
+    const client = resyncOver(true, sent);
+    const outcome = await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' }, { onLocal: () => undefined });
+    expect(sent.map((r) => r.event)).toEqual(['READ_BACK', '$FRAMES']);
+    expect(outcome.serverEffects?.clientEffectsByTrait).toEqual([header]);
+    expect(outcome.response.clientEffectsByTrait).toEqual([header]);
+  });
+
+  it('control: an answer with no resync sends nothing more and paints only its own fold', async () => {
+    const sent: EventRequest[] = [];
+    const client = resyncOver(false, sent);
+    const outcome = await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' }, { onLocal: () => undefined });
+    expect(sent.map((r) => r.event)).toEqual(['READ_BACK']);
+    expect(outcome.serverEffects?.clientEffectsByTrait).toEqual([]);
+  });
+});
+

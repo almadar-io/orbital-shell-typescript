@@ -31,7 +31,7 @@ describe('loadBrowserKernel', () => {
     const loaded = await loadBrowserKernel({
       init: async (input) => { log.push(`init ${input.module_or_path === compiled ? 'compiled' : 'other'}`); },
       glue: kernel,
-      createInstance: () => glue(log, 'unused'),
+      createInstance: async () => glue(log, 'unused'),
       wasm: '/kernel.wasm',
       language: '/language.json',
     });
@@ -46,7 +46,7 @@ describe('loadBrowserKernel', () => {
     const loaded = await loadBrowserKernel({
       init: async () => undefined,
       glue: glue(log),
-      createInstance: (module, language) => {
+      createInstance: async (module, language) => {
         made.push({ module, language });
         return glue(log, `instance-${made.length}`);
       },
@@ -54,8 +54,8 @@ describe('loadBrowserKernel', () => {
       language: '/language.json',
     });
     log.length = 0;
-    const first = loaded.isolate();
-    const second = first.isolate();
+    const first = await loaded.isolate();
+    const second = await first.isolate();
     expect([first.name, second.name]).toEqual(['instance-1', 'instance-2']);
     expect(made).toEqual([{ module: compiled, language: '{"bundle":2}' }, { module: compiled, language: '{"bundle":2}' }]);
     expect(log).toEqual([]);
@@ -65,7 +65,7 @@ describe('loadBrowserKernel', () => {
     const log: string[] = [];
     stubWasm(log);
     vi.spyOn(WebAssembly, 'compile').mockRejectedValue(new Error('bad wasm'));
-    await expect(loadBrowserKernel({ init: async () => undefined, glue: glue(log), createInstance: () => glue(log), wasm: '/k.wasm', language: '/language.json' }))
+    await expect(loadBrowserKernel({ init: async () => undefined, glue: glue(log), createInstance: async () => glue(log), wasm: '/k.wasm', language: '/language.json' }))
       .rejects.toThrow('bad wasm');
     expect(log.filter((l) => l.startsWith('install'))).toEqual([]);
   });
@@ -74,10 +74,10 @@ describe('loadBrowserKernel', () => {
     const log: string[] = [];
     vi.stubGlobal('fetch', async (url: string) => (url.endsWith('.json') ? new Response('missing', { status: 404, statusText: 'Not Found' }) : new Response('wasm')));
     vi.spyOn(WebAssembly, 'compile').mockResolvedValue(compiled);
-    await expect(loadBrowserKernel({ init: async () => undefined, glue: glue(log), createInstance: () => glue(log), wasm: '/k.wasm', language: '/language.json' }))
+    await expect(loadBrowserKernel({ init: async () => undefined, glue: glue(log), createInstance: async () => glue(log), wasm: '/k.wasm', language: '/language.json' }))
       .rejects.toThrow('/language.json: 404 Not Found');
     vi.stubGlobal('fetch', async (url: string) => (url.endsWith('.wasm') ? new Response('missing', { status: 404, statusText: 'Not Found' }) : new Response('{}')));
-    await expect(loadBrowserKernel({ init: async () => undefined, glue: glue(log), createInstance: () => glue(log), wasm: '/k.wasm', language: '/language.json' }))
+    await expect(loadBrowserKernel({ init: async () => undefined, glue: glue(log), createInstance: async () => glue(log), wasm: '/k.wasm', language: '/language.json' }))
       .rejects.toThrow('/k.wasm: 404 Not Found');
     expect(log).toEqual([]);
   });

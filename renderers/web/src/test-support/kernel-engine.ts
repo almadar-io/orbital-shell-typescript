@@ -6,7 +6,7 @@ import { installKernelEvaluator } from '@almadar/core';
 import { installNativeLanguages } from '@almadar/syntax';
 import type { OrbitalSchema } from '@almadar/core';
 import { readLanguageBundle } from '@almadar/core/language-data';
-import { kernelEngine, type KernelEngineValue } from '../providers/KernelEngineContext.js';
+import { kernelEngine, type KernelEngineValue } from '../providers/kernel-engine.js';
 import type { KernelModule } from '../lib/kernel-wire.js';
 
 interface WasmGlue extends Omit<KernelModule, 'isolate'> {
@@ -15,14 +15,14 @@ interface WasmGlue extends Omit<KernelModule, 'isolate'> {
 }
 
 interface InstanceFactory {
-  createKernelInstance(module: WebAssembly.Module, languageBundle: string): Omit<KernelModule, 'isolate'>;
+  createKernelInstance(module: WebAssembly.Module, languageBundle: string): Promise<Omit<KernelModule, 'isolate'>>;
 }
 
 const resolveInstalled = createRequire(import.meta.url).resolve;
 
 /** `loaded` with `isolate()`: one more instance of the same compiled kernel, with the test language installed, as the browser loader makes one. */
 function isolatingModule(loaded: Omit<KernelModule, 'isolate'>, factory: InstanceFactory, compiled: WebAssembly.Module): KernelModule {
-  return { ...loaded, isolate: () => isolatingModule(factory.createKernelInstance(compiled, TEST_LANGUAGE), factory, compiled) };
+  return { ...loaded, isolate: () => factory.createKernelInstance(compiled, TEST_LANGUAGE).then((own) => isolatingModule(own, factory, compiled)) };
 }
 
 /** The kernel's glue and wasm: the installed `@almadar/kernel`, or the build in `ALMADAR_KERNEL_DIR` to test an unpublished one. */

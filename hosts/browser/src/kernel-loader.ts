@@ -18,7 +18,7 @@ export interface BrowserKernelSource<Glue extends BrowserKernelGlue, Instance ex
   /** The glue module namespace (`import * as glue from '@almadar/kernel/client'`). */
   readonly glue: Glue;
   /** `@almadar/kernel/client/instance`'s `createKernelInstance`: one more instance of the kernel with its own memory. */
-  readonly createInstance: (module: WebAssembly.Module, languageBundle: string) => Instance;
+  readonly createInstance: (module: WebAssembly.Module, languageBundle: string) => Promise<Instance>;
   /** Where the `.wasm` is served from. */
   readonly wasm: string;
   /** Where the language bundle is served from: every kernel evaluates through it. */
@@ -27,7 +27,7 @@ export interface BrowserKernelSource<Glue extends BrowserKernelGlue, Instance ex
 
 /** A loaded kernel module that can make another instance of itself: its own memory, freed once nothing references it (G-ORBITAL-WASM-009). */
 export type IsolatingKernel<Module extends BrowserKernelGlue, Instance extends BrowserKernelGlue> = Module & {
-  isolate(): IsolatingKernel<Instance, Instance>;
+  isolate(): Promise<IsolatingKernel<Instance, Instance>>;
 };
 
 async function fetchOk(location: string): Promise<Response> {
@@ -48,7 +48,7 @@ export async function loadBrowserKernel<Glue extends BrowserKernelGlue, Instance
   source.glue.installLanguage(language);
   const isolating = <M extends BrowserKernelGlue>(loaded: M): IsolatingKernel<M, Instance> => ({
     ...loaded,
-    isolate: () => isolating(source.createInstance(module, language)),
+    isolate: () => source.createInstance(module, language).then(isolating),
   });
   return isolating(source.glue);
 }

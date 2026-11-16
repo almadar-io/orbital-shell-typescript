@@ -13,7 +13,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import type { OrbitalSchema } from '@almadar/core';
 import { createHttpTransport, deriveCarriesCircuitState, FetchSchemaLoader } from '@almadar/shell-runtime';
-import { KernelEngineProvider } from '@almadar/shell-web/providers';
+import { KernelEngineProvider, type KernelEngineHost } from '@almadar/shell-web/providers';
 import { OrbPreview } from '@almadar/shell-web/runtime';
 import type { ClientManifest } from '@almadar/core';
 import { hostSignIn } from '@almadar/shell-web/auth/react';
@@ -21,14 +21,14 @@ import { loadProgram } from './client-program';
 import { AuthProvider, PersonaSwitcher, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
 import { loadKernel } from './kernel-host';
-import { Canvas3D, GpuHost, SceneCanvas } from '@almadar/kernel/client';
+import { Canvas3D, SceneCanvas } from '@almadar/kernel/client';
 import { LocaleRoot } from './locale';
 import { Box, ThemeProvider } from '@almadar/shell-web/core';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 /** The browser's GPU answerer, made once the kernel module has loaded: a program's `gpu/` asks run on WebGPU in the page. */
-const makeGpu = (module: { GpuHost: typeof GpuHost }): GpuHost => new module.GpuHost();
+const makeGpu: NonNullable<KernelEngineHost['gpu']> = (module) => new module.GpuHost();
 const makeCanvas3D = (canvas: HTMLCanvasElement): Promise<Canvas3D> => Canvas3D.create(canvas);
 const makeSceneCanvas = (canvas: HTMLCanvasElement): Promise<SceneCanvas> => SceneCanvas.create(canvas);
 // `orb compile --mode client --no-server` writes VITE_SERVER=none: a static site whose program runs wholly in the browser.

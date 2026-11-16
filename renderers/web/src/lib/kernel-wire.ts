@@ -99,7 +99,7 @@ export interface KernelModule extends RuntimeKernelModule {
   /** The module's GPU answerer: a kernel installs only a `GpuHost` of its own instance. */
   GpuHost: new () => KernelGpuHost;
   /** One more instance of this module with its own memory and the language installed (`@almadar/kernel/client/instance`); each guest's kernel runs on one, freed once nothing references it (G-ORBITAL-WASM-009). */
-  isolate(): KernelModule;
+  isolate(): Promise<KernelModule>;
 }
 
 export type KernelLoader = () => Promise<KernelModule>;

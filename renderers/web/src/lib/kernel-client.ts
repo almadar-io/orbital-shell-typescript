@@ -365,10 +365,11 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     leg: EventRequest,
     since: number,
     request: Pick<EventRequest, 'locale' | 'entityId'>,
-  ): Promise<void> => {
+  ): Promise<{ answer: EventResponse; fold: EventResponse } | undefined> => {
     if (leg.clientId === undefined) throw new Error('a frame resync needs the client id the leg was posted under');
     const answer = await sendReseeding(k, flight, orbital, { event: '$FRAMES', clientId: leg.clientId, framesSince: since }, request);
-    if (answer.success) await foldAnswer(k, flight, answer);
+    if (!answer.success) return undefined;
+    return { answer, fold: (await foldAnswer(k, flight, answer)).response };
   };
 
   /** Send `sent`; when the host freed this client's session, mount again with the frames the client holds, then send it once more. */
@@ -438,13 +439,18 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         queue.push({ orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight: planned.flight });
       }
       mirror(applied.response);
-      if (applied.resync != null) await resyncFrames(k, planned.flight, planned.orbital, sent, applied.resync.since, request);
+      const resynced = applied.resync != null ? await resyncFrames(k, planned.flight, planned.orbital, sent, applied.resync.since, request) : undefined;
       syncStates(k, [...Object.keys(posted.states), ...applied.applied.map(([trait]) => trait)]);
       store.notify();
       const fold = applied.response;
       const delivered = new Set(planned.alreadyDelivered.map(([trait, event]) => `${trait}\u0000${event}`));
       const serverEmits = posted.emittedEvents.filter((e) => !delivered.has(`${e.source?.trait ?? ''}\u0000${e.event}`));
-      const byTrait = [...(posted.clientEffectsByTrait ?? []), ...(fold.clientEffectsByTrait ?? [])];
+      const byTrait = [
+        ...(posted.clientEffectsByTrait ?? []),
+        ...(fold.clientEffectsByTrait ?? []),
+        ...(resynced?.answer.clientEffectsByTrait ?? []),
+        ...(resynced?.fold.clientEffectsByTrait ?? []),
+      ];
       out.serverEffects.clientEffectsByTrait?.push(...byTrait);
       out.foldedEmits.push(...serverEmits, ...fold.emittedEvents);
       out.response = {

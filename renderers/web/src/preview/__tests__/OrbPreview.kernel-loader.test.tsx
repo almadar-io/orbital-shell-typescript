@@ -63,6 +63,8 @@ const boardProgram = `app board [
 
 orbital Board {
   entity Task [persistent: tasks, browser] {
+    @create none "A test board: it signs no one in, so every visitor may add a task."
+    @read none "A test board: it signs no one in, so every visitor reads every task."
     id : string!
     title : string = ""
     owner : Person
@@ -72,6 +74,8 @@ orbital Board {
   }
 
   entity Person [persistent: people, browser] {
+    @create none "A test board: it signs no one in, so every visitor may add a person."
+    @read none "A test board: it signs no one in, so every visitor reads every person."
     id : string!
     name : string = ""
     instances [
@@ -84,7 +88,9 @@ orbital Board {
 
     state idle {
       INIT -> idle
-        (fetch Task { emit: { success: LOADED } })
+        (fetch Task { limit: 50, emit: { success: LOADED, failure: LOAD_FAILED } })
+      LOAD_FAILED -> idle
+        (render-ui main { type: "typography", content: "board failed" })
       LOADED -> idle
         (render-ui main { type: "stack", children: [
           { type: "typography", content: "board ready" },
@@ -95,6 +101,9 @@ orbital Board {
     emits {
       LOADED -> internal {
         data : [Task]
+      }
+      LOAD_FAILED -> internal {
+        error : string
       }
     }
   }
