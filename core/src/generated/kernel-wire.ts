@@ -205,11 +205,7 @@ messages?: { [key in string]: string },
 /**
  * Local bindings (`@name`), as a `let` would bind them.
  */
-locals?: JsonObject, 
-/**
- * Entity rows by type, for `count` queries over a store.
- */
-entityStores?: { [key in string]: Array<JsonValue> }, };
+locals?: JsonObject, };
 
 export type EvalOutcomeWire = { "kind": "value", value: JsonValue, } | { "kind": "error", message: string, };
 

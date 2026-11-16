@@ -628,7 +628,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         outcome.rejections.push(...posted.rejections);
         outcome.serverEffects.clientEffectsByTrait?.push(...(posted.serverEffects.clientEffectsByTrait ?? []));
         outcome.emittedEvents.push(...posted.foldedEmits);
-        hooks?.onServer?.(posted.serverEffects.clientEffectsByTrait ?? []);
       }
       const topology = await opts.topology;
       // A group folds under its oldest seed's flight, so the groups go in flight order and each ends its flights before the next.
@@ -659,7 +658,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         outcome.rejections.push(...posted.rejections);
         outcome.serverEffects.clientEffectsByTrait?.push(...(posted.serverEffects.clientEffectsByTrait ?? []));
         outcome.emittedEvents.push(...posted.foldedEmits);
-        hooks?.onServer?.(posted.serverEffects.clientEffectsByTrait ?? []);
       }
       // The hops the host's replay of the mount cannot reach leave after it, each folded as a dispatch's leg (EXEC-DIST-10).
       for (const hop of mount.hops) {
@@ -677,7 +675,6 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         outcome.rejections.push(...posted.rejections);
         outcome.serverEffects.clientEffectsByTrait?.push(...(posted.serverEffects.clientEffectsByTrait ?? []));
         outcome.emittedEvents.push(...posted.foldedEmits);
-        hooks?.onServer?.(posted.serverEffects.clientEffectsByTrait ?? []);
       }
       return outcome;
   };
