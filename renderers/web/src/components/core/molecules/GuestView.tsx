@@ -32,6 +32,7 @@ import { UISlotRenderer } from '../organisms/UISlotRenderer';
 import { HostHrefBaseProbe, useInAppLinkInterceptor } from '../../../lib/inAppLinks';
 import { CurrentPagePathProvider } from '../../../providers/CurrentPagePathContext';
 import { OrbitalThemeProvider } from '../../../providers/OrbitalThemeProvider';
+import { KernelEngineContext, useKernelEngine } from '../../../providers/KernelEngineContext';
 import type { SlotProps } from '../../../providers/UISlotContext';
 import { convertFnFormLambdasInProps } from '../../../lib/fn-form-lambda';
 import { unwrapPattern } from '../../../hooks/circuit/useSlotFlush';
@@ -297,11 +298,16 @@ function SplitGuest({ guest, epoch, program, leg, legTaken, legAnswers, lazy, la
   const onSignIn = useCallback((returnTo?: string) => {
     if (signIn !== undefined) bus.current.emit(`UI:${signIn}`, { guest, returnTo: returnTo ?? '' });
   }, [signIn, guest]);
+  // Every guest runs on its own kernel instance, so the memory a large guest grows is freed once it closes (G-ORBITAL-WASM-009).
+  const engine = useKernelEngine();
+  const ownEngine = useMemo(() => (engine === null ? null : engine.isolated()), [engine]);
   return (
     <Box fullWidth fullHeight onPointerDownCapture={onViewerInput} onKeyDownCapture={onViewerInput}>
+    <KernelEngineContext.Provider value={ownEngine}>
     <Suspense fallback={null}>
       <OrbPreview schema={guestProgram} transport={transport} {...(lazyLoader === undefined ? {} : { lazyLoader })} onTransition={onTransition} onSignIn={onSignIn} authority={signedIn ? 'authenticated' : 'anonymous'} isolated frame="contained" height="100%" initialPagePath={route} themeOverride={themeOverride} />
     </Suspense>
+    </KernelEngineContext.Provider>
     </Box>
   );
 }

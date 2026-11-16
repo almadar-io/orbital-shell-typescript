@@ -10,14 +10,16 @@
 
 import init, * as kernel from '@almadar/kernel/client';
 import wasmUrl from '@almadar/kernel/client.wasm?url';
-import { loadBrowserKernel } from '@almadar/shell-browser/kernel-loader';
+import { createKernelInstance, type KernelInstance } from '@almadar/kernel/client/instance';
+import { loadBrowserKernel, type IsolatingKernel } from '@almadar/shell-browser/kernel-loader';
 
-let loaded: Promise<typeof kernel> | undefined;
+let loaded: Promise<IsolatingKernel<typeof kernel, KernelInstance>> | undefined;
 
-export function loadKernel(): Promise<typeof kernel> {
+export function loadKernel(): Promise<IsolatingKernel<typeof kernel, KernelInstance>> {
   loaded ??= loadBrowserKernel({
     init,
     glue: kernel,
+    createInstance: createKernelInstance,
     wasm: wasmUrl,
     language: `${import.meta.env.BASE_URL}language.json`,
   }).catch((error: Error) => {

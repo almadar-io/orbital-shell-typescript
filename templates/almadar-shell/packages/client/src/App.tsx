@@ -28,7 +28,7 @@ import { Box, ThemeProvider } from '@almadar/shell-web/core';
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 /** The browser's GPU answerer, made once the kernel module has loaded: a program's `gpu/` asks run on WebGPU in the page. */
-const makeGpu = (): GpuHost => new GpuHost();
+const makeGpu = (module: { GpuHost: typeof GpuHost }): GpuHost => new module.GpuHost();
 const makeCanvas3D = (canvas: HTMLCanvasElement): Promise<Canvas3D> => Canvas3D.create(canvas);
 const makeSceneCanvas = (canvas: HTMLCanvasElement): Promise<SceneCanvas> => SceneCanvas.create(canvas);
 // `orb compile --mode client --no-server` writes VITE_SERVER=none: a static site whose program runs wholly in the browser.

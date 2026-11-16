@@ -218,7 +218,7 @@ orbital OrderOrbital {
 }
 `;
 
-/** Same shape as `orbital-lolo/tests/i18n_round_trip.rs::canonicalize` — V4
+/** Same shape as `orbital-lolo/tests/it/i18n_round_trip.rs::canonicalize` — V4
  * identity fields (ids/ledger/schemaVersion) are minted fresh per lowering,
  * not semantic content. */
 function canonicalizeOrb(value: unknown): unknown {

@@ -14,6 +14,8 @@ import type { FrameScheduler } from '../../src/lib/kernel-frames';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import { KernelEngineProvider, KernelLoaderMissingError, useKernelEngine } from '../../src/providers/KernelEngineContext';
 import { resolveRenderBindingMarkers } from '../../src/lib/resolve-render-bindings';
+import { kernelEvaluator } from '@almadar/core';
+import type { KernelModule } from '../../src/lib/kernel-wire';
 
 // The provider's own contract: the shared setup's test kernel is not used here.
 vi.unmock('../../src/providers/KernelEngineContext');
@@ -79,6 +81,58 @@ describe('KernelEngineProvider', () => {
     await result.current?.loadModule();
     await result.current?.loadModule();
     expect(loader).toHaveBeenCalledTimes(1);
+  });
+});
+
+describeKernel('an isolated kernel engine (a guest\'s own instance, G-ORBITAL-WASM-009)', () => {
+  const provided = () => {
+    const loader = vi.fn(() => KERNEL_ENGINE.loadModule());
+    const gpu = vi.fn((module: KernelModule) => new module.GpuHost());
+    const wrapper = ({ children }: { children: React.ReactNode }) => <KernelEngineProvider loader={loader} gpu={gpu}>{children}</KernelEngineProvider>;
+    const { result } = renderHook(() => useKernelEngine(), { wrapper });
+    const engine = result.current;
+    if (engine === null) throw new Error('the provider supplies an engine');
+    return { engine, loader, gpu };
+  };
+
+  it('loads a new instance of the module, its own memory, and loads the parent once', async () => {
+    const { engine, loader } = provided();
+    const parent = await engine.loadModule();
+    const isolated = engine.isolated();
+    const own = await isolated.loadModule();
+    expect(own).not.toBe(parent);
+    expect(own.Kernel).not.toBe(parent.Kernel);
+    expect(await isolated.loadModule()).toBe(own);
+    expect(await engine.isolated().loadModule()).not.toBe(own);
+    expect(loader).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the evaluator every render reads on the parent\'s instance', async () => {
+    const { engine } = provided();
+    await engine.loadModule();
+    const evaluator = kernelEvaluator();
+    await engine.isolated().loadModule();
+    expect(kernelEvaluator()).toBe(evaluator);
+  });
+
+  it('makes its GPU answerer from its own module, as its kernels install only their own', async () => {
+    const { engine, gpu } = provided();
+    const isolated = engine.isolated();
+    const own = await isolated.loadModule();
+    isolated.gpu?.();
+    expect(gpu).toHaveBeenCalledWith(own);
+    await engine.loadModule();
+    engine.gpu?.();
+    expect(gpu).toHaveBeenLastCalledWith(await engine.loadModule());
+  });
+
+  it('runs a circuit on the isolated instance', async () => {
+    const { engine } = provided();
+    const isolated = engine.isolated();
+    const { result } = renderHook(() => useCircuitKernel({ stamp: TEST_STAMP, orbitals: orbitals('runtime', [['set', '@entity.score', 1]]), engine: isolated }));
+    await circuitReady(result);
+    await act(async () => { await result.current.kernel.dispatch({ event: 'BUMP', targetTrait: 'Driver' }); });
+    expect(result.current.store.frames.get('Driver')?.score).toBe(1);
   });
 });
 

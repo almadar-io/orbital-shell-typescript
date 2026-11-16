@@ -1236,6 +1236,7 @@ export interface PatternPropsMap {
     pointerMoveEvent?: string | SExpr;
     pointerMoves?: string | SExpr;
     wheelEvent?: string | SExpr;
+    scroll?: PatternPropValue | string | SExpr;
     direction?: string | SExpr;
     directionEvent?: string | SExpr;
     measureEvent?: string | SExpr;
@@ -2746,6 +2747,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     position: PatternPropValue | string | SExpr;
@@ -2765,6 +2768,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     items: unknown[] | string | SExpr;
@@ -2779,6 +2784,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     position: PatternPropValue | string | SExpr;
@@ -2798,6 +2805,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     shape: string | SExpr;
@@ -2828,6 +2837,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     shape: string | SExpr;
@@ -2871,6 +2882,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     items: unknown[] | string | SExpr;
@@ -2880,6 +2893,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     position: PatternPropValue | string | SExpr;
@@ -2900,6 +2915,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     position: PatternPropValue | string | SExpr;
@@ -2922,6 +2939,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     items: unknown[] | string | SExpr;
@@ -2931,6 +2950,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     text: string | SExpr;
@@ -2964,6 +2985,8 @@ export interface PatternPropsMap {
     id?: string | SExpr;
     hit?: boolean | string | SExpr;
     wheel?: boolean | string | SExpr;
+    fixed?: boolean | string | SExpr;
+    drag?: boolean | string | SExpr;
     semantic?: PatternPropValue | string | SExpr;
     spring?: PatternPropValue | string | SExpr;
     items: unknown[] | string | SExpr;

@@ -12,26 +12,43 @@ export interface BrowserKernelGlue {
   installLanguage(bundleJson: string): void;
 }
 
-export interface BrowserKernelSource<Glue extends BrowserKernelGlue> {
+export interface BrowserKernelSource<Glue extends BrowserKernelGlue, Instance extends BrowserKernelGlue> {
   /** The glue module's default export: instantiates the WebAssembly from `module_or_path`. */
-  readonly init: (input: { module_or_path: string }) => Promise<unknown>;
+  readonly init: (input: { module_or_path: WebAssembly.Module }) => Promise<unknown>;
   /** The glue module namespace (`import * as glue from '@almadar/kernel/client'`). */
   readonly glue: Glue;
+  /** `@almadar/kernel/client/instance`'s `createKernelInstance`: one more instance of the kernel with its own memory. */
+  readonly createInstance: (module: WebAssembly.Module, languageBundle: string) => Instance;
   /** Where the `.wasm` is served from. */
   readonly wasm: string;
   /** Where the language bundle is served from: every kernel evaluates through it. */
   readonly language: string;
 }
 
-async function fetchLanguage(location: string): Promise<string> {
+/** A loaded kernel module that can make another instance of itself: its own memory, freed once nothing references it (G-ORBITAL-WASM-009). */
+export type IsolatingKernel<Module extends BrowserKernelGlue, Instance extends BrowserKernelGlue> = Module & {
+  isolate(): IsolatingKernel<Instance, Instance>;
+};
+
+async function fetchOk(location: string): Promise<Response> {
   const response = await fetch(location);
   if (!response.ok) throw new Error(`${location}: ${response.status} ${response.statusText}`);
-  return response.text();
+  return response;
 }
 
-/** The kernel module, initialised and with its language installed, once; the language downloads while the wasm instantiates. */
-export async function loadBrowserKernel<Glue extends BrowserKernelGlue>(source: BrowserKernelSource<Glue>): Promise<Glue> {
-  const [, language] = await Promise.all([source.init({ module_or_path: source.wasm }), fetchLanguage(source.language)]);
+/** The kernel module, compiled and initialised with its language installed, once; the language downloads while the wasm compiles. */
+export async function loadBrowserKernel<Glue extends BrowserKernelGlue, Instance extends BrowserKernelGlue>(
+  source: BrowserKernelSource<Glue, Instance>,
+): Promise<IsolatingKernel<Glue, Instance>> {
+  const [module, language] = await Promise.all([
+    fetchOk(source.wasm).then((response) => response.arrayBuffer()).then((bytes) => WebAssembly.compile(bytes)),
+    fetchOk(source.language).then((response) => response.text()),
+  ]);
+  await source.init({ module_or_path: module });
   source.glue.installLanguage(language);
-  return source.glue;
+  const isolating = <M extends BrowserKernelGlue>(loaded: M): IsolatingKernel<M, Instance> => ({
+    ...loaded,
+    isolate: () => isolating(source.createInstance(module, language)),
+  });
+  return isolating(source.glue);
 }

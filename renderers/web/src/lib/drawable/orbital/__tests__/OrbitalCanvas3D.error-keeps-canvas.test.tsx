@@ -47,6 +47,7 @@ function fakeView(failFirst: boolean): KernelCanvas3D & { scenes: string[] } {
 function engine(view: KernelCanvas3D, made: HTMLCanvasElement[]): KernelEngineValue {
     return {
         loadModule: () => Promise.reject(new Error('no module in this test')),
+        isolated: () => { throw new Error('no isolated engine in this test'); },
         canvas3d: (canvas: HTMLCanvasElement) => {
             made.push(canvas);
             return Promise.resolve(view);

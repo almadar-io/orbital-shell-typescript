@@ -85,7 +85,8 @@ function counts(view: FakeView): number[] {
 
 async function mount(view: FakeView, scale: number) {
     install();
-    current = { loadModule: () => Promise.reject(new Error('no module in this test')), canvas3d: () => Promise.resolve(view) };
+    current = { loadModule: () => Promise.reject(new Error('no module in this test')),
+        isolated: () => { throw new Error('no isolated engine in this test'); }, canvas3d: () => Promise.resolve(view) };
     const ui = (s: number) => (
         <div>
             <p>beside</p>

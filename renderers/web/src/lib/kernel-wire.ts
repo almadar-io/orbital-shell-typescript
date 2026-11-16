@@ -96,6 +96,10 @@ export interface KernelInstance {
 export interface KernelModule extends RuntimeKernelModule {
   /** The resolved program's JSON as UTF-8 bytes, which the kernel copies at their size (a string is reserved at three times its length). */
   Kernel: new (resolvedSchemaJson: Uint8Array, clientId: string) => KernelInstance;
+  /** The module's GPU answerer: a kernel installs only a `GpuHost` of its own instance. */
+  GpuHost: new () => KernelGpuHost;
+  /** One more instance of this module with its own memory and the language installed (`@almadar/kernel/client/instance`); each guest's kernel runs on one, freed once nothing references it (G-ORBITAL-WASM-009). */
+  isolate(): KernelModule;
 }
 
 export type KernelLoader = () => Promise<KernelModule>;

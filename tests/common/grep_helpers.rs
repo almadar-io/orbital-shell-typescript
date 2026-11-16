@@ -1,5 +1,5 @@
 //! Grep-gate helpers shared by `gate_grepwall.rs` and orbital-rust's
-//! `orbital-integration-tests/tests/workspace_grepwall.rs`.
+//! `orbital-integration-tests/tests/it/workspace_grepwall.rs`.
 #![allow(dead_code)]
 
 /// Count non-overlapping occurrences of `needle` in `hay`.
