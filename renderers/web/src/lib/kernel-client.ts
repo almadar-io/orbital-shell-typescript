@@ -699,6 +699,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   };
 
   const clientSerial = nextClientSerial++;
+  let enteredKey: string | undefined;
   /** The legs that release the traits a page left, posted once the transport's topology is known. */
   const release = async (left: readonly Left[]): Promise<void> => {
     if (transport === undefined || left.length === 0) return;
@@ -757,7 +758,9 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     routeMounts: async (routePath) => parse<MountSeed[]>((await ready).routeMounts(routePath)),
     pageCircuit: async (page, route) => parse<PageCircuit>((await ready).pageCircuit(page, route)),
     enter: (routePath, mountKey, traits) => {
-      const entered = scopeTail.then(() => ready).then((k) => readAnswer<Entered>(k, k.enter(routePath, `${clientSerial}\u0000${mountKey}`, JSON.stringify(traits))));
+      const key = `${clientSerial}\u0000${mountKey}`;
+      enteredKey = key;
+      const entered = scopeTail.then(() => ready).then((k) => readAnswer<Entered>(k, k.enter(routePath, key, JSON.stringify(traits))));
       scopeTail = entered.then(() => undefined, () => undefined);
       return entered.then((answer) => {
         void release(answer.left);
@@ -765,7 +768,9 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       });
     },
     leave: async () => {
-      const left = scopeTail.then(() => ready).then((k) => readAnswer<Left[]>(k, k.leave()));
+      // The kernel may be the program's, shared with the page that entered after this one: only this client's page leaves.
+      const key = enteredKey;
+      const left = scopeTail.then(() => ready).then((k) => readAnswer<Left[]>(k, key === undefined ? k.leave() : k.leaveMount(key)));
       scopeTail = left.then(() => undefined, () => undefined);
       await release(await left);
     },

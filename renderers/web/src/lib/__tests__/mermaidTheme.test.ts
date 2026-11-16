@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { resolveCanvasTheme } from '../canvasTheme';
 import { mermaidThemeVariables } from '../mermaidTheme';
 import { DIAGRAM_TONES, DIAGRAM_TONE_COLOR_KEYS } from '@almadar/core';
+import { DIAGRAM_SCOPE_VARS } from '../../test-support/diagram-tones';
 
 function scopeWith(vars: Record<string, string>): HTMLElement {
   const scope = document.createElement('div');
@@ -14,24 +15,7 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-const ORB_LIKE = {
-  '--surface-diagram': 'rgb(250, 249, 246)',
-  '--color-diagram-ink': 'rgb(20, 22, 26)',
-  '--color-diagram-label': 'rgb(40, 42, 46)',
-  '--color-diagram-axis': 'rgb(90, 92, 96)',
-  '--color-diagram-grid': 'rgb(230, 228, 222)',
-  '--color-diagram-guide': 'rgb(150, 150, 150)',
-  '--color-diagram-fill': 'rgb(224, 240, 241)',
-  '--color-diagram-highlight': 'rgb(0, 118, 124)',
-  '--color-series-1': 'rgb(0, 118, 124)',
-  '--color-series-2': 'rgb(200, 80, 40)',
-  '--color-series-3': 'rgb(40, 160, 80)',
-  '--color-series-4': 'rgb(80, 80, 200)',
-  '--color-series-5': 'rgb(200, 160, 40)',
-  '--color-series-6': 'rgb(160, 40, 160)',
-  '--color-series-7': 'rgb(40, 160, 160)',
-  '--color-series-8': 'rgb(120, 120, 120)',
-};
+const ORB_LIKE = DIAGRAM_SCOPE_VARS;
 
 describe('mermaidThemeVariables', () => {
   it('maps the resolved drawing axes onto mermaid base-theme variables', () => {

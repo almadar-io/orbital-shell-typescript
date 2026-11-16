@@ -39,7 +39,7 @@ describe('useSlotFlush.applyClientEffects — host-ask', () => {
     const render: ClientEffectTuple = ['render-ui', 'main', { type: 'typography', content: 'bye' }];
     result.current.applyClientEffects([
       { traitName: 'Chrome', effect: ['host-ask', 'auth/sign-out', []] },
-      { traitName: 'Chrome', effect: ['host-ask', 'audio/play-sound', ['click']] },
+      { traitName: 'Chrome', effect: ['host-ask', 'audio/play-sound', [{ key: 'click', source: '/sfx/click.ogg', volume: 1, loop: false, poolSize: 1, fadeMs: 0 }]] },
       { traitName: 'Chrome', effect: render },
     ]);
     await tick();

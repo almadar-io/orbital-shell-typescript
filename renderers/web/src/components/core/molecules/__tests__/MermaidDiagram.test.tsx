@@ -16,6 +16,7 @@ import { MermaidDiagram } from '../markdown/MermaidDiagram';
 import { MarkdownContent } from '../markdown/MarkdownContent';
 import { SegmentRenderer } from '../../organisms/SegmentRenderer';
 import { EventBusProvider } from '../../../../core';
+import { DIAGRAM_SCOPE_VARS, scopeRule } from '../../../../test-support/diagram-tones';
 
 const initialize = vi.fn();
 const renderDiagram = vi.fn();
@@ -27,8 +28,12 @@ vi.mock('mermaid', () => ({
   },
 }));
 
+// A drawing paints only with the theme tones declared on its scope (no default palette).
 const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <EventBusProvider debug={false}>{children}</EventBusProvider>
+  <EventBusProvider debug={false}>
+    <style>{scopeRule('[data-testid="mermaid-diagram"]', DIAGRAM_SCOPE_VARS)}</style>
+    {children}
+  </EventBusProvider>
 );
 
 const GRAPH = 'graph TD\n  A --> B';
@@ -145,7 +150,7 @@ describe('MermaidDiagram theme', () => {
   // jsdom computes custom properties only where a rule or inline style declares them (no inheritance).
   const themed = (fill: string, ground: string) => (
     <>
-      <style>{`[data-testid="mermaid-diagram"] { --color-diagram-fill: ${fill}; --surface-diagram: ${ground}; }`}</style>
+      <style>{scopeRule('[data-testid="mermaid-diagram"]', { ...DIAGRAM_SCOPE_VARS, '--color-diagram-fill': fill, '--surface-diagram': ground })}</style>
       <MermaidDiagram code={GRAPH} />
     </>
   );

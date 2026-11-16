@@ -59,6 +59,7 @@ import { RowSetResolverProvider } from '../providers/RowSetResolverContext';
 import { createCircuitRowSetResolver } from '../lib/store-row-set-resolver';
 import { browserRowSets } from '../lib/browser-row-sets';
 import { createLogger } from '@almadar/logger';
+import { createProgramKernel, ProgramKernelContext } from '../hooks/circuit/programKernel';
 import { fitContentTransform, slotContentRect, type FitTransform } from './fitContent';
 
 // Gap #11 (Almadar_Std_Verification.md): cross-orbital cascade tracing on
@@ -698,6 +699,10 @@ export function OrbPreview({
   }, [parsedSchema]);
 
   const lazyPages = useMemo<LazyPage[]>(() => parsedSchema?.lazyPages ?? [], [parsedSchema]);
+  // A program with lazy pages runs them in its own one kernel (EXEC-LOAD-2); a lazy page runs in its program's.
+  const inheritedProgramKernel = useContext(ProgramKernelContext);
+  const ownProgramKernel = useMemo(() => (lazyPages.length > 0 ? createProgramKernel() : null), [lazyPages]);
+  const programKernel = isLazyPageOfRegisteredProgram ? inheritedProgramKernel : ownProgramKernel;
 
   // One ranking over the schema's own pages and its lazy pages: a static
   // route outranks a `:param` sibling whichever side declares it.
@@ -988,7 +993,13 @@ export function OrbPreview({
     ) : bridged;
     const ticked = <ClientTicksPausedContext.Provider value={paused}>{engined}</ClientTicksPausedContext.Provider>;
     const tapped = onTransition === undefined ? ticked : <TransitionTapContext.Provider value={onTransition}>{ticked}</TransitionTapContext.Provider>;
-    return routeLocale === undefined ? tapped : <I18nProvider value={routeLocale}>{tapped}</I18nProvider>;
+    const localized = routeLocale === undefined ? tapped : <I18nProvider value={routeLocale}>{tapped}</I18nProvider>;
+    // A preview nested inside this one is its own program unless it is marked as this program's lazy page.
+    return (
+      <ProgramKernelContext.Provider value={programKernel}>
+        <LazyPageOfRegisteredProgram.Provider value={false}>{localized}</LazyPageOfRegisteredProgram.Provider>
+      </ProgramKernelContext.Provider>
+    );
   };
 
   if (lazyRoute && (lazyLoad.status === 'error' || shownLazy !== null || !eagerShownRef.current)) {

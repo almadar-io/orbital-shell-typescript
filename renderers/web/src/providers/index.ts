@@ -98,6 +98,9 @@ export type { AwaitingSkeletonSource } from './AwaitingSkeletonContext';
 // (bound from the state machine's `@payload.data` emission); ticks take
 // their entity map as a hook argument directly.
 
+// Audio scheduler (the `audio/schedule` and `audio/clock` host asks)
+export { readAudioClock, resetAudioScheduler, scheduleAudio } from './audio-scheduler';
+
 // Verification provider
 export { VerificationProvider, mapServerEffectResults } from './VerificationProvider';
 export type { VerificationProviderProps } from './VerificationProvider';

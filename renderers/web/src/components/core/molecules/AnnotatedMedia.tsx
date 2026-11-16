@@ -100,7 +100,7 @@ export const AnnotatedMedia: React.FC<AnnotatedMediaProps> = ({
 
   const pinClass = (pin: AnnotatedPin): string =>
     cn(
-      'flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-background text-xs font-semibold shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      'flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[length:var(--border-width)] border-background text-xs font-semibold shadow-elevation-interactive focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       pin.resolved ? 'bg-muted text-muted-foreground' : 'bg-primary text-primary-foreground',
       pin.id === activePinId && 'ring-2 ring-ring ring-offset-2 ring-offset-background',
     );

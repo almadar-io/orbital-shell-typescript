@@ -66,6 +66,8 @@ function fakeKernel(reseeded: string[]): KernelInstance {
     mount: () => undefined,
     enter: refuse,
     leave: refuse,
+    leaveMount: refuse,
+    registerLazy: refuse,
     deliverEmitToListeners: refuse,
     deliverOriginEmit: refuse,
     getState: () => 'idle',

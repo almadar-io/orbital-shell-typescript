@@ -24,7 +24,7 @@
  *
  * @packageDocumentation
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   EventPayload,
   OrbitalDefinition,
@@ -46,6 +46,7 @@ import { createLazyKernelClient } from '../../lib/kernel-client-lazy';
 import type { KernelClient } from '../../lib/kernel-client';
 import type { KernelInstance } from '../../lib/kernel-wire';
 import { kernelOrbitals } from '../../lib/kernel-schema';
+import { ProgramKernelContext } from './programKernel';
 import { KernelLoaderMissingError, type KernelEngineValue } from '../../providers/KernelEngineContext';
 import { useTranslate, useRenderI18n } from '../../core';
 
@@ -163,9 +164,11 @@ export function useCircuitKernel(
   const metadata = options.metadata;
   const stamp = options.stamp;
 
+  const programKernel = useContext(ProgramKernelContext);
   const kernelInstance = useMemo<Promise<KernelInstance>>(() => {
-    const instance = loadModule().then((mod) => {
-      const kernel = new mod.Kernel(new TextEncoder().encode(JSON.stringify({ name: orbitalName, orbitals: kernelOrbitals(orbitals), ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) })), getTabClientId());
+    const program = (): Uint8Array => new TextEncoder().encode(JSON.stringify({ name: orbitalName, orbitals: kernelOrbitals(orbitals), ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) }));
+    const make = (): Promise<KernelInstance> => loadModule().then((mod) => {
+      const kernel = new mod.Kernel(program(), getTabClientId());
       // Every host this view posts to runs the whole worklist, listeners of a dispatched emit included.
       kernel.setHostFansOut(true);
       // A verifier judges each hop's `@ensures` on the entity before and after it; the kernel records them only then.
@@ -175,10 +178,13 @@ export function useCircuitKernel(
       }
       return kernel;
     });
+    const instance = programKernel === null
+      ? make()
+      : programKernel.open(orbitals.map((o) => o.name).join('\u0000'), make, (kernel) => kernel.registerLazy(program()));
     // A failure surfaces on the first dispatch that awaits it; a circuit with nothing to run never does.
     instance.catch((err) => log.error('kernel-load-failed', { error: String(err) }));
     return instance;
-  }, [loadModule, orbitalName, orbitals, metadata, stamp]);
+  }, [loadModule, orbitalName, orbitals, metadata, stamp, programKernel]);
 
   // The kernel's answer for the page, asked of the one instance: the traits it mounts and what it holds of each.
   const [answered, setAnswered] = useState<{ instance: Promise<KernelInstance>; page: string | undefined; route: string | undefined; state: { status: 'ready'; resolved: ResolvedCircuit } | { status: 'failed'; error: Error } } | undefined>(undefined);

@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { parseOrbitalSchema, type OrbitalSchema } from '@almadar/core';
 
@@ -39,8 +39,8 @@ function compileExclusively<T>(compile: () => T): T {
 
 /** A `.lolo` program (with any files beside it, such as `locales/en/<app>.json`) as the installed `orb` compiles it for a browser kernel: the stamp, `_metadata.protocols` and dispatch facts included. */
 export function clientProgram(source: string, files: Readonly<Record<string, string>> = {}): OrbitalSchema {
-  const bin = process.env.ORB_BIN;
-  if (bin === undefined || bin === '') throw new Error('clientProgram: set ORB_BIN to the installed orb binary that lowers the test programs');
+  // The dev build (`make install-dev`), as the LSP tests read it; ORB_BIN names another.
+  const bin = process.env.ORB_BIN !== undefined && process.env.ORB_BIN !== '' ? process.env.ORB_BIN : join(homedir(), 'bin', 'orb-dev');
   const key = JSON.stringify([source, files]);
   const known = lowered.get(key);
   if (known !== undefined) return structuredClone(known);

@@ -5,10 +5,10 @@
  * FxDecay BURST self-loop, `(s ?? []).map is not a function` — was only a
  * console line, and the walk credited it because the state "reached" `to`.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { EventResponse } from '@almadar/core';
 import { recordDispatchVerdict } from '../circuitVerificationObserver';
-import { clearVerification, getTransitions } from '../verificationRegistry';
+import { attachTimelineReader, clearVerification, getTransitions } from '../verificationRegistry';
 
 function response(overrides: Partial<EventResponse>): EventResponse {
   return { success: true, transitioned: true, states: {}, emittedEvents: [], ...overrides };
@@ -19,7 +19,10 @@ function verdictFor(event: string) {
 }
 
 describe('recordDispatchVerdict', () => {
-  beforeEach(() => clearVerification());
+  // The timeline keeps verdicts only while a reader is attached.
+  let detach: () => void = () => undefined;
+  beforeEach(() => { clearVerification(); detach = attachTimelineReader(); });
+  afterEach(() => detach());
 
   it('records a thrown dispatch as a failed verdict carrying the error', () => {
     recordDispatchVerdict('Board', 'BURST', { error: new TypeError('(s ?? []).map is not a function') });

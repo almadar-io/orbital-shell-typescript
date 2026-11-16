@@ -34,6 +34,8 @@ const program: OrbitalSchema = clientProgram(`app host-runs-program [
 
 orbital Feed {
   entity Seen [persistent: seen, browser] {
+    @create none "A test feed: it signs no one in, so every visitor may record an item."
+    @read none "A test feed: it signs no one in, so every visitor reads every item."
     id : string!
     title : string = ""
   }
@@ -43,11 +45,15 @@ orbital Feed {
 
     state idle {
       INIT -> idle
-        (call-service registry handles {} { emit: { success: WATCHING } })
+        (call-service registry handles {} { emit: { success: WATCHING, failure: WATCH_FAILED } })
         (render-ui main { type: "typography", variant: "body", content: "Watching" })
       WATCHING -> idle
+      WATCH_FAILED -> idle
+        (render-ui main { type: "typography", variant: "body", content: "Watching failed" })
+      SAVE_FAILED -> idle
+        (render-ui main { type: "typography", variant: "body", content: "Saving failed" })
       ITEM_SEEN -> idle
-        (persist create Seen { title: ?title })
+        (persist create Seen { title: ?title } { emit: { failure: SAVE_FAILED } })
         (render-ui main { type: "typography", variant: "body", content: "Seen an item" })
     }
 
@@ -61,6 +67,12 @@ orbital Feed {
       WATCHING -> internal {
         watchId : string
       }
+      WATCH_FAILED -> internal {
+        error : string
+      }
+      SAVE_FAILED -> internal {
+        error : string
+      }
     }
   }
 
@@ -69,7 +81,9 @@ orbital Feed {
 
     state ready {
       INIT -> ready
-        (fetch Seen { emit: { success: LIST_LOADED } })
+        (fetch Seen { limit: 50, emit: { success: LIST_LOADED, failure: LIST_FAILED } })
+      LIST_FAILED -> ready
+        (render-ui main { type: "typography", variant: "body", content: "The list failed to load" })
       LIST_LOADED -> ready
         (render-ui main { type: "typography", variant: "body", content: "The list the host loaded" })
     }
@@ -77,6 +91,9 @@ orbital Feed {
     emits {
       LIST_LOADED -> internal {
         data : [Seen]
+      }
+      LIST_FAILED -> internal {
+        error : string
       }
     }
   }
@@ -146,7 +163,7 @@ describe('a view of a program its host runs entirely', () => {
     const rows = await new Promise<number>((resolve) => {
       const open = indexedDB.open('almadar:host-runs-program');
       open.onsuccess = () => {
-        const count = open.result.transaction('Seen').objectStore('Seen').count();
+        const count = open.result.transaction('seen').objectStore('seen').count();
         count.onsuccess = () => resolve(count.result);
       };
     });

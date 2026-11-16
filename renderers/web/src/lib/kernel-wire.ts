@@ -11,6 +11,10 @@ import type { KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
 /** The `Kernel` class `@almadar/kernel` exports: JSON strings in, JSON strings out. */
 export interface KernelInstance {
   dispatch(traitName: string, entityId: string | undefined, event: string, payloadJson?: string): string;
+  /** Load a lazy page's resolved program (UTF-8 JSON) into this kernel, so the page runs in its program's one kernel (EXEC-LOAD-2). */
+  registerLazy(resolvedSchemaJson: Uint8Array): void;
+  /** `leave` for the page entered under `mountKey` only: `[]` (a `Left[]` as JSON) when another page of this kernel entered since. */
+  leaveMount(mountKey: string): string;
   /** Install the GPU answerer: every `gpu/` ask is held in the kernel and answered in ask order, and each outcome's route event reaches `completed` as `HeldGpuCompletion` JSON (`null` when it takes no route) for the host to dispatch with `dispatchHeld`. */
   installGpu(gpu: KernelGpuHost, completed: (completionJson: string) => void): void;
   /** `dispatch` with the payload the kernel holds under `heldPayload` (a gpu completion's), taken once. */

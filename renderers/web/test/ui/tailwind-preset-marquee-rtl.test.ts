@@ -22,19 +22,19 @@ async function compile(): Promise<string> {
 }
 
 describe('almadar-marquee direction', () => {
-  it('slides by a shift the track sets, not a fixed leftward distance', async () => {
+  it('slides by a sign the track sets times a distance, not a fixed leftward shift', async () => {
     const css = await compile();
-    expect(css).toMatch(/@keyframes almadar-marquee \{.*to \{ transform: translateX\(var\(--marquee-shift, -50%\)\)/);
+    expect(css).toMatch(/@keyframes almadar-marquee \{.*to \{ transform: translateX\(calc\(var\(--marquee-sign, -1\) \* var\(--marquee-distance, 50%\)\)\)/);
   });
 
-  it('an RTL page flips the shift to slide right', async () => {
+  it('an RTL page flips the sign to slide right', async () => {
     const css = await compile();
-    expect(css).toMatch(/\[dir="rtl"\] \.proof-marquee-track \{ --marquee-shift: 50% \}/);
+    expect(css).toMatch(/\[dir="rtl"\] \.proof-marquee-track \{ --marquee-sign: 1 \}/);
   });
 
   it('control: an LTR track keeps the leftward default', async () => {
     const css = await compile();
     expect(css).toMatch(/\.proof-marquee-track \{ display: flex; width: max-content \}/);
-    expect(css).not.toMatch(/\[dir="ltr"\][^{]*\{ --marquee-shift/);
+    expect(css).not.toMatch(/\[dir="ltr"\][^{]*\{ --marquee-sign/);
   });
 });

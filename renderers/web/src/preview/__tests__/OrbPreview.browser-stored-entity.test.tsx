@@ -20,6 +20,8 @@ app books [
 
 orbital Books {
   entity Invoice [persistent: invoices, browser] {
+    @create none "A test ledger: it signs no one in, so every visitor may add an invoice."
+    @read none "A test ledger: it signs no one in, so every visitor reads every invoice."
     id : string!
     client : string = ""
     instances [
@@ -37,7 +39,9 @@ orbital Books {
 
     state loading {
       INIT -> loading
-        (fetch Invoice { emit: { success: LOADED } })
+        (fetch Invoice { limit: 50, emit: { success: LOADED, failure: LOAD_FAILED } })
+      LOAD_FAILED -> loading
+        (render-ui main { type: "typography", variant: "body", content: "The invoices failed to load" })
       LOADED -> browsing
         (render-ui main { type: "stack", direction: "vertical", gap: "md", children: [
           { type: "button", label: "Add invoice", action: "ADD" },
@@ -47,11 +51,13 @@ orbital Books {
 
     state browsing {
       INIT -> loading
-        (fetch Invoice { emit: { success: LOADED } })
+        (fetch Invoice { limit: 50, emit: { success: LOADED, failure: LOAD_FAILED } })
       ADD -> browsing
-        (persist create Invoice { client: "Kozolec d.o.o." } { emit: { success: ADDED } })
+        (persist create Invoice { client: "Kozolec d.o.o." } { emit: { success: ADDED, failure: ADD_FAILED } })
+      ADD_FAILED -> browsing
+        (render-ui main { type: "typography", variant: "body", content: "The invoice was not added" })
       ADDED -> loading
-        (fetch Invoice { emit: { success: LOADED } })
+        (fetch Invoice { limit: 50, emit: { success: LOADED, failure: LOAD_FAILED } })
     }
 
     emits {
@@ -60,6 +66,12 @@ orbital Books {
       }
       ADDED -> internal {
         id : string
+      }
+      LOAD_FAILED -> internal {
+        error : string
+      }
+      ADD_FAILED -> internal {
+        error : string
       }
     }
   }

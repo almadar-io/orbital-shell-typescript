@@ -1,12 +1,12 @@
 // Every server leg the circuit client posts is recorded on the verification timeline as a `server:<orbital>` trace, so runtime-verify can credit server-side outcomes (G-UI-021).
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { OrbitalSchema } from '@almadar/core';
 import type { EventTransport, EventTransportRegisterResult } from '../../src';
 import type { EventRequest, EventResponse } from '@almadar/core';
 import { useCircuitKernel } from '../../src/hooks/circuit/useCircuitKernel';
 import { ENGINES, TEST_TYPE_CONTRACT_VERSION, TEST_STAMP } from '../../src/test-support/kernel-engine';
-import { clearVerification, getTransitions } from '../../src/lib/verificationRegistry';
+import { attachTimelineReader, clearVerification, getTransitions } from '../../src/lib/verificationRegistry';
 import { circuitReady } from '../../src/test-support/circuit';
 
 const orbitals: OrbitalSchema['orbitals'] = [{
@@ -44,7 +44,10 @@ class Server implements EventTransport {
 const serverTraces = () => getTransitions().filter((t) => t.traitName === 'server:Main');
 
 describe.each(ENGINES)('the circuit client records server responses [%s engine]', (_name, engine) => {
-  beforeEach(() => clearVerification());
+  // The timeline keeps server answers only while a reader is attached.
+  let detach: () => void = () => undefined;
+  beforeEach(() => { clearVerification(); detach = attachTimelineReader(); });
+  afterEach(() => detach());
 
   it("a posted leg's response lands on the timeline with its emits, effect outcomes and data", async () => {
     const server = new Server();

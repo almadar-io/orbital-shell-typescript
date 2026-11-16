@@ -25,7 +25,8 @@ describe('GraphView a11y', () => {
 
   it('control: without onNodeClick there are no buttons and a labelled graph is an image', async () => {
     const { container } = render(<GraphView nodes={nodes} edges={edges} layout="flow" aria-label="Dependencies" />);
-    await waitFor(() => expect(container.querySelectorAll('circle').length).toBe(2));
+    // Each node draws a halo and a body.
+    await waitFor(() => expect(container.querySelectorAll('circle').length).toBe(nodes.length * 2));
     expect(screen.queryAllByRole('button')).toHaveLength(0);
     expect(screen.getByRole('img', { name: 'Dependencies' })).toBeTruthy();
     expect(describeViolations(await axeViolations(container))).toEqual([]);
