@@ -301,7 +301,8 @@ export function useCircuitKernel(
     ...(options.observer !== undefined ? { observer: options.observer } : {}),
     ...(effectiveTransport !== undefined ? { transport: effectiveTransport } : {}),
     ...(gpu !== undefined ? { gpu } : {}),
-  }), [kernelInstance, store, traitIndex, topology, effectiveTransport, options.observer, gpu]);
+    ...(orbitalName !== '' && viewerLocale !== undefined ? { kvStore: { app: orbitalName, locale: viewerLocale } } : {}),
+  }), [kernelInstance, store, traitIndex, topology, effectiveTransport, options.observer, gpu, orbitalName, viewerLocale]);
   const rawKernel: ClientKernel = kernelClient;
 
   // Stamp the per-tab clientId and the viewer's locale onto every dispatch

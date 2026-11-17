@@ -59,6 +59,8 @@ export interface KernelInstance {
   /** The config the kernel binds as `@config` for a registered trait (JSON text); throws for an unregistered one. */
   traitConfig(traitName: string): string;
   getState(traitName: string, entityId?: string): string;
+  /** Whether the program's grants cover an `OsRequirement` (JSON): the browser kv store checks it before it answers a `kv/` host ask. */
+  osAllows(requirementJson: string, orbital?: string | null): boolean;
   /** The page's locale `i18n/t` paints in when a dispatch names none; the program carries its own messages. */
   setViewerLocale(locale: string | undefined): void;
   /** The host runs the listeners of every emit it marks `dispatched` (the JS runtime, `orbital-server`). */

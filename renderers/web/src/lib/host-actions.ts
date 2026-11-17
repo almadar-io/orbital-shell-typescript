@@ -1,9 +1,11 @@
 import { isJsonObject, type EventPayload, type HostAskCompletion, type JsonObject, type JsonValue } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
-import { hostAskReturn, performHostAnswer, type HostAudioAsk, type HostConsentAnswer, type HostConsentRequest, type HostSignInAnswer, type HostSignInRequest, type KernelHostActions } from '@almadar/shell-runtime/kernel/host';
+import { hostAskReturn, performHostAnswer, type HostAskFailureKind, type HostAudioAsk, type HostConsentAnswer, type HostConsentRequest, type HostSignInAnswer, type HostSignInRequest, type KernelHostActions } from '@almadar/shell-runtime/kernel/host';
 
 import { readAudioClock, scheduleAudio } from '../providers/audio-scheduler';
 import { browserConsentEnv, consentByPopup } from './consent-popup';
+import type { KvHostPort } from '@almadar/shell-browser/kv';
+import type { OsErrorKind } from '@almadar/core/kernel-wire';
 
 const log = createLogger('almadar:ui:host-actions');
 
@@ -11,6 +13,26 @@ let audioHost: ((ask: HostAudioAsk) => void) | undefined;
 let signOutHost: (() => void | Promise<void>) | undefined;
 let signInHost: ((request: HostSignInRequest) => Promise<HostSignInAnswer>) | undefined;
 let consentHost: ((request: HostConsentRequest) => Promise<HostConsentAnswer>) | undefined;
+let kvHost: KernelHostActions['kv'];
+
+/** Install the browser kv store a client kernel's `kv/` host asks are answered from; the returned function removes it. */
+export function registerHostKv(host: NonNullable<KernelHostActions['kv']>): () => void {
+  kvHost = host;
+  return () => {
+    if (kvHost === host) kvHost = undefined;
+  };
+}
+
+const KV_FAILURE: Record<OsErrorKind, HostAskFailureKind> = { denied: 'denied', invalid: 'invalid', 'not-found': 'unavailable', exists: 'invalid', io: 'unavailable', timeout: 'unavailable', unsupported: 'unavailable', closed: 'unavailable', tls: 'unavailable', borrowed: 'unavailable' };
+
+/** A kv port's answer as a host ask's outcome: its success payload, or its error with the failure kind the completion reports. */
+export function kvHostAction(port: KvHostPort): NonNullable<KernelHostActions['kv']> {
+  return async (op, args) => {
+    const settled = await port.answer(op, [...args]);
+    if ('error' in settled) return { error: settled.error.message, kind: KV_FAILURE[settled.error.kind] };
+    return isJsonObject(settled.ok) ? { ok: settled.ok } : { error: `${op} answered a non-record`, kind: 'invalid' };
+  };
+}
 
 /** Install the audio the `audio/*` asks drive (the mounted game audio provider); the returned function removes it. */
 export function registerHostAudio(host: (ask: HostAudioAsk) => void): () => void {
@@ -57,6 +79,9 @@ export const webHostActions: KernelHostActions = {
   },
   audioSchedule: scheduleAudio,
   audioClock: readAudioClock,
+  get kv() {
+    return kvHost;
+  },
   get consent() {
     return consentHost ?? (typeof window === 'undefined' ? undefined : consentByPopup(browserConsentEnv(window)));
   },

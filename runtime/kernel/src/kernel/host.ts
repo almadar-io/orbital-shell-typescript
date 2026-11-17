@@ -177,7 +177,14 @@ export interface KernelHostActions {
   signOut?: () => void | Promise<void>;
   signIn?: (request: HostSignInRequest) => Promise<HostSignInAnswer>;
   consent?: (request: HostConsentRequest) => Promise<HostConsentAnswer>;
+  /** The browser's kv store (IndexedDB) a client kernel's `kv/` host asks are answered from. */
+  kv?: (op: KvHostOp, args: readonly JsonValue[]) => Promise<HostAskOutcome>;
 }
+
+/** The `kv/` operators a client kernel hands its host as host asks. */
+export type KvHostOp = 'kv/get' | 'kv/put' | 'kv/delete' | 'kv/scan' | 'kv/batch';
+const KV_HOST_OPS: ReadonlySet<string> = new Set<KvHostOp>(['kv/get', 'kv/put', 'kv/delete', 'kv/scan', 'kv/batch']);
+const isKvHostOp = (op: string): op is KvHostOp => KV_HOST_OPS.has(op);
 
 /** A host ask's answer: the payload of its success route, or the error and kind of its failure route. */
 export type HostAskOutcome = { ok: JsonObject } | { error: string; kind: HostAskFailureKind };
@@ -614,6 +621,7 @@ async function performRelayedAsk(actions: KernelHostActions | undefined, args: r
 
 export async function performHostAnswer(actions: KernelHostActions | undefined, op: string, args: readonly JsonValue[]): Promise<HostAskOutcome> {
   if (op === 'program/host-ask') return performRelayedAsk(actions, args);
+  if (isKvHostOp(op)) return actions?.kv === undefined ? { error: `no browser kv store answers ${op} on this host`, kind: 'unavailable' } : actions.kv(op, args);
   if (op === 'auth/consent') return performConsent(actions, args);
   if (op === 'audio/schedule') return performAudioSchedule(actions, args);
   if (op === 'audio/clock') return performAudioClock(actions, args);

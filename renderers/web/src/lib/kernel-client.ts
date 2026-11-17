@@ -41,6 +41,8 @@ import type { KernelGpuHost } from '@almadar/shell-runtime/kernel/wire';
 import { decodeHeldCompletion } from '@almadar/shell-runtime/kernel/decode';
 import { blobs, handedJson } from '@almadar/shell-runtime/kernel/blobs';
 import { HeldValues } from '@almadar/shell-runtime/kernel/held-values';
+import { createKvWebPort } from '@almadar/shell-browser/kv';
+import { kvHostAction, registerHostKv } from './host-actions';
 
 const log = createLogger('almadar:ui:kernel-client');
 
@@ -106,6 +108,8 @@ export interface KernelClientOptions {
   observer?: TransitionObserver;
   /** The GPU answerer installed into the kernel before its first dispatch; absent, a `gpu/` ask answers `unsupported`. */
   gpu?: Promise<KernelGpuHost | undefined>;
+  /** The program and locale whose browser kv store (IndexedDB) answers the kernel's `kv/` host asks; absent, they answer `unavailable`. */
+  kvStore?: { app: string; locale: string };
 }
 
 const defaultFrameScheduler: FrameScheduler = (callback) => {
@@ -183,6 +187,10 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   const ready = Promise.all([opts.instance, opts.gpu]).then(([k, gpu]) => {
     loaded = k;
     liveStoreByKernel.set(k, opts.store);
+    if (opts.kvStore !== undefined) {
+      const { app, locale } = opts.kvStore;
+      registerHostKv(kvHostAction(createKvWebPort({ app, locale, allows: (need) => k.osAllows(JSON.stringify(need)) })));
+    }
     if (gpu !== undefined) {
       gpuCompletion = (json) => deliverGpuCompletion(k, json);
       k.installGpu(gpu, weakRoute(gpuCompletion));
