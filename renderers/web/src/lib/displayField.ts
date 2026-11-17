@@ -44,7 +44,18 @@ export function valueLabelFor(value: string, labels: Readonly<Record<string, str
   return labels?.[value] ?? value;
 }
 
-/** The declared title field (`variant: 'h3' | 'h4'`), if any. */
+export type TitleHeading = 'h3' | 'h4' | 'h5' | 'h6';
+
+function isTitleHeading(variant: DisplayField['variant']): variant is TitleHeading {
+  return variant === 'h3' || variant === 'h4' || variant === 'h5' || variant === 'h6';
+}
+
+/** The declared title field (a heading variant, `h3` to `h6`), if any. */
 export function titleFieldOf(fields: readonly DisplayField[]): DisplayField | undefined {
-  return fields.find((f) => f.variant === 'h3' || f.variant === 'h4');
+  return fields.find((f) => isTitleHeading(f.variant));
+}
+
+/** The heading a title field declares; `h4` when it declares none. */
+export function titleHeadingOf(field: DisplayField | undefined): TitleHeading {
+  return field !== undefined && isTitleHeading(field.variant) ? field.variant : 'h4';
 }

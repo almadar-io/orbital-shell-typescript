@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-17T13:28:35.211Z",
+  "exportedAt": "2026-11-17T14:15:10.245Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -518,6 +518,8 @@
                 "enumValues": [
                   "h3",
                   "h4",
+                  "h5",
+                  "h6",
                   "overline",
                   "avatar",
                   "body",
@@ -1073,6 +1075,8 @@
                 "enumValues": [
                   "h3",
                   "h4",
+                  "h5",
+                  "h6",
                   "overline",
                   "avatar",
                   "body",
@@ -33818,6 +33822,13 @@
           "description": "Content fills the area edge to edge — no padding, no max width, full height (workspaces, canvases, maps).",
           "default": false
         },
+        "stickyHeader": {
+          "types": [
+            "boolean"
+          ],
+          "description": "The top bar stays at the top while the page scrolls (default); false lets it scroll away with the page.",
+          "default": true
+        },
         "notifications": {
           "types": [
             "array"
@@ -48400,6 +48411,8 @@
                 "enumValues": [
                   "h3",
                   "h4",
+                  "h5",
+                  "h6",
                   "overline",
                   "avatar",
                   "body",
@@ -48495,6 +48508,8 @@
                 "enumValues": [
                   "h3",
                   "h4",
+                  "h5",
+                  "h6",
                   "overline",
                   "avatar",
                   "body",
@@ -49347,6 +49362,8 @@
                 "enumValues": [
                   "h3",
                   "h4",
+                  "h5",
+                  "h6",
                   "overline",
                   "avatar",
                   "body",
@@ -49442,6 +49459,8 @@
                 "enumValues": [
                   "h3",
                   "h4",
+                  "h5",
+                  "h6",
                   "overline",
                   "avatar",
                   "body",
@@ -107895,6 +107914,18 @@
             "damping"
           ]
         },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
+        },
         "type": {
           "types": [
             "string"
@@ -108833,6 +108864,18 @@
             "damping"
           ]
         },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
+        },
         "type": {
           "types": [
             "string"
@@ -108998,6 +109041,15 @@
             "number"
           ],
           "description": "Draw height in world units (fractions of `projector.tileWidth`). Omitted → one cell on tile grids (`flat`/`iso`/`hex`); native source px on `free`/`side`."
+        },
+        "fit": {
+          "types": [
+            "string"
+          ],
+          "description": "How a whole image fills its width and height: cover crops it centred to that aspect; absent stretches the whole image.",
+          "enumValues": [
+            "cover"
+          ]
         },
         "frame": {
           "types": [
@@ -109215,6 +109267,18 @@
             "damping"
           ]
         },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
+        },
         "type": {
           "types": [
             "string"
@@ -109335,6 +109399,30 @@
             "number"
           ],
           "description": "Line width in px; with it the text lays out as a paragraph from `position` (top-left anchor). Orbital painter."
+        },
+        "height": {
+          "types": [
+            "number"
+          ],
+          "description": "Box height in scene units, like `width`; the box a `fit: \"shrink\"` text must fit."
+        },
+        "fit": {
+          "types": [
+            "string"
+          ],
+          "description": "`none` (default) wraps at `width` and grows downward; `shrink` steps the font size down (to `minSize`) until the wrapped text fits `width` x `height`, and the measured size is the fitted block's. Needs `width` and `height`.",
+          "enumValues": [
+            "none",
+            "shrink"
+          ],
+          "default": "none"
+        },
+        "minSize": {
+          "types": [
+            "number"
+          ],
+          "description": "Smallest font size in px that `fit: \"shrink\"` steps down to (default 10); at the floor the text paints at that size and may overflow.",
+          "default": 10
         },
         "wrap": {
           "types": [
@@ -109628,6 +109716,18 @@
             "damping"
           ]
         },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
+        },
         "type": {
           "types": [
             "string"
@@ -109766,6 +109866,16 @@
                 "required": [
                   "stiffness",
                   "damping"
+                ]
+              },
+              "fixed": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "drag": {
+                "types": [
+                  "boolean"
                 ]
               },
               "shape": {
@@ -110668,6 +110778,18 @@
             "damping"
           ]
         },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
+        },
         "type": {
           "types": [
             "string"
@@ -110806,6 +110928,16 @@
                 "required": [
                   "stiffness",
                   "damping"
+                ]
+              },
+              "fixed": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "drag": {
+                "types": [
+                  "boolean"
                 ]
               },
               "position": {
@@ -110955,6 +111087,14 @@
               "height": {
                 "types": [
                   "number"
+                ]
+              },
+              "fit": {
+                "types": [
+                  "string"
+                ],
+                "enumValues": [
+                  "cover"
                 ]
               },
               "frame": {
@@ -111173,6 +111313,18 @@
             "damping"
           ]
         },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
+        },
         "type": {
           "types": [
             "string"
@@ -111313,6 +111465,16 @@
                   "damping"
                 ]
               },
+              "fixed": {
+                "types": [
+                  "boolean"
+                ]
+              },
+              "drag": {
+                "types": [
+                  "boolean"
+                ]
+              },
               "text": {
                 "types": [
                   "string"
@@ -111406,6 +111568,25 @@
                 ]
               },
               "width": {
+                "types": [
+                  "number"
+                ]
+              },
+              "height": {
+                "types": [
+                  "number"
+                ]
+              },
+              "fit": {
+                "types": [
+                  "string"
+                ],
+                "enumValues": [
+                  "none",
+                  "shrink"
+                ]
+              },
+              "minSize": {
                 "types": [
                   "number"
                 ]
@@ -115169,6 +115350,18 @@
             "damping"
           ]
         },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
+        },
         "type": {
           "types": [
             "string"
@@ -115888,6 +116081,18 @@
             "stiffness",
             "damping"
           ]
+        },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
         },
         "type": {
           "types": [
@@ -117961,6 +118166,18 @@
             "stiffness",
             "damping"
           ]
+        },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
         },
         "type": {
           "types": [
@@ -121754,6 +121971,18 @@
             "stiffness",
             "damping"
           ]
+        },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
         },
         "type": {
           "types": [
@@ -141607,6 +141836,18 @@
             "stiffness",
             "damping"
           ]
+        },
+        "fixed": {
+          "types": [
+            "boolean"
+          ],
+          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "drag": {
+          "types": [
+            "boolean"
+          ],
+          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
         },
         "type": {
           "types": [

@@ -17,6 +17,15 @@ describe('DataGrid progress fields', () => {
     expect(screen.queryByText('40')).not.toBeInTheDocument();
   });
 
+  it('a progress field whose label is empty shows only the bar, the caption beside it names the value', () => {
+    const fields: readonly DataGridField[] = [{ name: 'title', variant: 'h4' }, { name: 'summary', variant: 'caption' }, { name: 'progress', label: '', variant: 'progress' }];
+    const { container } = renderWithProvider(<DataGrid entity={[{ id: '1', title: 'Statistics', summary: '4 of 10 learned', progress: 40 }]} fields={fields} />);
+    const bar = screen.getByRole('progressbar');
+    expect(bar.parentElement?.querySelectorAll('[class*="caption"], span:empty').length ?? 0).toBe(0);
+    expect(container.textContent).not.toContain('Progress');
+    expect(bar.parentElement?.children.length).toBe(1);
+  });
+
   it('a non-numeric progress value renders no bar', () => {
     const fields: readonly DataGridField[] = [{ name: 'title', variant: 'h3' }, { name: 'progress', variant: 'progress' }];
     renderWithProvider(<DataGrid entity={[{ id: '1', title: 'Statistics', progress: 'n/a' }]} fields={fields} />);

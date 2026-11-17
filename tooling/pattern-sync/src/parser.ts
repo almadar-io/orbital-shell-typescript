@@ -3411,6 +3411,8 @@ export function parseComponent(
       { name: "wheel", types: ["boolean"], description: "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls.", required: false },
       { name: "semantic", types: ["object"], properties: { role: { types: ["string"] }, name: { types: ["string"] }, value: { types: ["string"] }, checked: { types: ["boolean"] }, disabled: { types: ["boolean"] }, order: { types: ["number"] }, focused: { types: ["boolean"] }, caret: { types: ["number"] }, selectionStart: { types: ["number"] }, selectionEnd: { types: ["number"] }, multiline: { types: ["boolean"] } }, propertyRequired: ["role", "name"], description: "Accessibility node for this drawable.", required: false },
       { name: "spring", types: ["object"], properties: { stiffness: { types: ["number"] }, damping: { types: ["number"] } }, propertyRequired: ["stiffness", "damping"], description: "With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring.", required: false },
+      { name: "fixed", types: ["boolean"], description: "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop.", required: false },
+      { name: "drag", types: ["boolean"], description: "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable).", required: false },
     ],
   };
 

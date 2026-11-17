@@ -79,6 +79,16 @@ export interface DrawTextProps extends DrawableBase {
     opacity?: number;
     /** Line width in px; with it the text lays out as a paragraph from `position` (top-left anchor). Orbital painter. */
     width?: number;
+    /** Box height in scene units, like `width`; the box a `fit: "shrink"` text must fit. */
+    height?: number;
+    /** `none` (default) wraps at `width` and grows downward; `shrink` steps the font size down (to `minSize`) until the wrapped text fits `width` x `height`, and the measured size is the fitted block's. Needs `width` and `height`.
+     * @default "none"
+     */
+    fit?: "none" | "shrink";
+    /** Smallest font size in px that `fit: "shrink"` steps down to (default 10); at the floor the text paints at that size and may overflow.
+     * @default 10
+     */
+    minSize?: number;
     /** Break at line opportunities within `width` (default true when `width` is set). */
     wrap?: boolean;
     /** Maximum number of lines; the last kept line ends in an ellipsis when `truncate` is true. */

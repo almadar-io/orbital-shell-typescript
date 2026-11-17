@@ -189,6 +189,10 @@ export interface DrawableBase {
     semantic?: DrawableSemantic;
     /** With an `id`: when a repaint changes this drawable's animatable fields, the canvas moves them to the new values by this spring. */
     spring?: DrawableSpring;
+    /** On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop. */
+    fixed?: boolean;
+    /** With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable). */
+    drag?: boolean;
 }
 
 /** A paint function: draws one descriptor of type `T` to the painter. */

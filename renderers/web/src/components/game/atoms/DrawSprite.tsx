@@ -70,6 +70,8 @@ export interface DrawSpriteProps extends DrawableBase {
     width?: number;
     /** Draw height in world units (fractions of `projector.tileWidth`). Omitted → one cell on tile grids (`flat`/`iso`/`hex`); native source px on `free`/`side`. */
     height?: number;
+    /** How a whole image fills its width and height: cover crops it centred to that aspect; absent stretches the whole image. */
+    fit?: "cover";
     /** Explicit atlas sub-rect override (px); omitted → resolved from `asset.atlas`/`asset.sprite`. */
     frame?: Rect;
     /** Animation to play. 3D backend: a named GLB clip (matched case-insensitively). 2D painter: when `asset.atlas` resolves to a `SpriteSheetAtlas` manifest, the canonical row of that name (idle/walk/attack/hit/death) plays off the host paint clock; an explicit `frame` rect overrides. */

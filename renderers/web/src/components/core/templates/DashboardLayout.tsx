@@ -141,6 +141,8 @@ export interface DashboardLayoutProps {
   /** Content fills the area edge to edge — no padding, no max width, full height
    *  (workspaces, canvases, maps). */
   fullBleed?: boolean;
+  /** The top bar stays at the top while the page scrolls (default); false lets it scroll away with the page. */
+  stickyHeader?: boolean;
   /** Notification list. Pass an empty array to show the bell with no
    *  badge; omit / pass null to hide the bell entirely. */
   notifications?: NotificationItem[] | null;
@@ -191,6 +193,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   topBarActions = [],
   userMenuItems = [],
   fullBleed = false,
+  stickyHeader = true,
   notifications,
   notificationClickEvent,
   onNotificationClick,
@@ -457,7 +460,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {showHeader && (
           <Box
             as="header"
-            className="sticky top-0 z-20 pt-[env(safe-area-inset-top)] bg-card surface-material border-b-[length:var(--border-width)] border-border"
+            className={cn(stickyHeader && "sticky top-0", "z-20 pt-[env(safe-area-inset-top)] bg-card surface-material border-b-[length:var(--border-width)] border-border")}
           >
             <HStack
               align="center"

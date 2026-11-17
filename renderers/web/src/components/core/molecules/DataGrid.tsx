@@ -48,7 +48,7 @@ import { InfiniteScrollSentinel } from '../../../core';
 import { Menu } from './Menu';
 import { useDataDnd, type DataDndProps } from './useDataDnd';
 import type { DisplayField, UiError } from '../../../core';
-import { badgeVariantFor, titleFieldOf, valueLabelFor } from '../../../lib/displayField';
+import { badgeVariantFor, titleFieldOf, titleHeadingOf, valueLabelFor } from '../../../lib/displayField';
 import { Checkbox } from '../../../core';
 
 // ── Field Definition ─────────────────────────────────────────────────
@@ -619,12 +619,15 @@ export function DataGrid({
               if (typeof value !== 'number') return null;
               return (
                 <VStack key={field.name} gap="xs">
-                  <HStack gap="xs" className="items-center">
-                    {field.icon && renderIconInput(field.icon, { size: 'xs', className: 'text-muted-foreground' })}
-                    <Typography variant="caption" color="secondary">
-                      {field.label ?? fieldLabel(field.name)}
-                    </Typography>
-                  </HStack>
+                  {/* An empty label means a neighbouring caption already names the value. */}
+                  {field.label !== '' && (
+                    <HStack gap="xs" className="items-center">
+                      {field.icon && renderIconInput(field.icon, { size: 'xs', className: 'text-muted-foreground' })}
+                      <Typography variant="caption" color="secondary">
+                        {field.label ?? fieldLabel(field.name)}
+                      </Typography>
+                    </HStack>
+                  )}
                   <ProgressBar value={value} max={100} />
                 </VStack>
               );
@@ -702,7 +705,7 @@ export function DataGrid({
                         className={cn('min-w-0', handleCardClick && STRETCHED_CONTROL)}
                       >
                         <Typography
-                          variant={titleField?.variant === 'h3' && !asRows ? 'h3' : 'h4'}
+                          variant={asRows && titleHeadingOf(titleField) === 'h3' ? 'h4' : titleHeadingOf(titleField)}
                           className={cn('font-semibold min-w-0', asRows ? 'truncate' : 'line-clamp-2 break-words')}
                         >
                           {titleDisplay}

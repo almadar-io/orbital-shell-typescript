@@ -53,7 +53,7 @@ import { InfiniteScrollSentinel } from '../../../core';
 import { Menu } from './Menu';
 import { useDataDnd, type DataDndProps } from './useDataDnd';
 import type { DisplayField, DisplayFieldFormat, UiError } from '../../../core';
-import { badgeVariantFor, titleFieldOf, valueLabelFor } from '../../../lib/displayField';
+import { badgeVariantFor, titleFieldOf, titleHeadingOf, valueLabelFor } from '../../../lib/displayField';
 
 // ── Field Definition ─────────────────────────────────────────────────
 
@@ -759,7 +759,7 @@ export function DataList({
     // light or decorative heading face) would make them unreadable at row size.
     const titleNode = titleDisplay !== undefined && (
       <Typography
-        variant={isCompact ? 'small' : titleField?.variant === 'h3' ? 'h3' : 'h4'}
+        variant={isCompact ? 'small' : titleHeadingOf(titleField)}
         weight="semibold"
         className={isCompact ? 'truncate' : 'line-clamp-2 break-words'}
       >
