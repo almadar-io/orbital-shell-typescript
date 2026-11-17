@@ -151,7 +151,7 @@ export function Gantt({
   ...rest
 }: GanttProps): React.JSX.Element {
   const contentSurface = useContentSurface(surface);
-  const { t } = useTranslate();
+  const { t, locale } = useTranslate();
 
   const placed = useMemo<PlacedTask[]>(() => {
     const rows = Array.isArray(tasks) ? tasks : tasks ? [tasks] : [];
@@ -285,6 +285,11 @@ export function Gantt({
                 )}
                 style={{ left: i * dayWidth, width: dayWidth }}
               >
+                {(i === 0 || day.getDate() === 1) && (
+                  <Typography variant="caption" weight="semibold" className="absolute top-1 left-1 whitespace-nowrap">
+                    {day.toLocaleDateString(locale, { month: 'short', year: 'numeric' })}
+                  </Typography>
+                )}
                 {dayWidth >= 20 && (
                   <Typography variant="caption" color="secondary">
                     {day.getDate()}

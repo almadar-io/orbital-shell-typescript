@@ -490,8 +490,8 @@ export function CalendarGrid({
       )}
 
       <Box>
-        {/* Day Headers */}
-        <Box className={cn('grid border-b border-border', gridColsClass)}>
+        {/* Day Headers: the same scrollbar gutter as the time slots below, so a classic scrollbar there cannot shift the columns. */}
+        <Box className={cn('grid border-b border-border overflow-y-hidden [scrollbar-gutter:stable]', gridColsClass)}>
           {/* Empty top-left corner for time column */}
           <Box className="p-2" />
           {visibleDays.map((day) => {
@@ -521,7 +521,7 @@ export function CalendarGrid({
         </Box>
 
         {/* Time Slots */}
-        <Box className="max-h-[500px] overflow-y-auto">
+        <Box className="max-h-[500px] overflow-y-auto [scrollbar-gutter:stable]">
           {resolvedTimeSlots.map((time) => (
             <Box
               key={time}

@@ -273,7 +273,7 @@ export const Modal: React.FC<ModalProps> = ({
           )}
 
           {/* Content */}
-          <Box className="flex-1 overflow-y-auto p-6"><SurfaceBoundary>{children}</SurfaceBoundary></Box>
+          <Box className="flex-1 min-h-0 overflow-y-auto p-6"><SurfaceBoundary>{children}</SurfaceBoundary></Box>
 
           {/* Footer */}
           {footer && (

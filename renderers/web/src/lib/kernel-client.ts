@@ -189,7 +189,8 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     liveStoreByKernel.set(k, opts.store);
     if (opts.kvStore !== undefined) {
       const { app, locale } = opts.kvStore;
-      registerHostKv(kvHostAction(createKvWebPort({ app, locale, allows: (need) => k.osAllows(JSON.stringify(need)) })));
+      // The kernel asks only what the asking orbital's `kv` grant covers (EXEC-DIST-13), so the store answers every ask it is handed.
+      registerHostKv(kvHostAction(createKvWebPort({ app, locale })));
     }
     if (gpu !== undefined) {
       gpuCompletion = (json) => deliverGpuCompletion(k, json);

@@ -47,19 +47,16 @@ const variantStyles = {
   default: [
     "surface-content",
     "transition-all duration-normal",
-    "hover:shadow-elevation-dialog hover:translate-y-[var(--hover-translate-y)]",
   ].join(" "),
   bordered: [
     "surface-content",
     "transition-all duration-normal",
-    "hover:shadow-elevation-dialog hover:translate-y-[var(--hover-translate-y)]",
   ].join(" "),
   elevated: [
     "bg-card surface-material",
     "border-[length:var(--border-width)] border-border",
     "shadow",
     "transition-all duration-normal",
-    "hover:shadow-elevation-dialog hover:translate-y-[var(--hover-translate-y)]",
   ].join(" "),
   // Interactive variant with theme-specific hover effects
   interactive: [
@@ -71,6 +68,9 @@ const variantStyles = {
     "hover:shadow-elevation-dialog",
   ].join(" "),
 };
+
+// Only a card that does something on click lifts on hover; a static card does not pretend to be clickable.
+const hoverLift = "hover:shadow-elevation-dialog hover:translate-y-[var(--hover-translate-y)]";
 
 const paddingStyles = {
   none: "",
@@ -140,6 +140,7 @@ export const Card = React.forwardRef<HTMLDivElement, CardProps>(
           "transition-all duration-normal",
           "chrome-panel",
           variantStyles[variant],
+          handleClick && variant !== "interactive" && hoverLift,
           paddingStyles[padding],
           lookStyles[look],
           shadow && shadowStyles[shadow],

@@ -150,24 +150,37 @@ export class KvWebPort implements KvHostPort {
     return this.options.factory ?? globalThis.indexedDB;
   }
 
-  /** Open the database and create the store when missing, with a version bump, as the persistence adapter did. */
+  /** One connection, which steps aside when another connection adds a store, so the next call reopens it. */
+  private async connect(factory: IDBFactory, name: string, version: number | undefined, store: string): Promise<IDBDatabase> {
+    const db = await openDatabase(factory, name, version, [store]);
+    db.onversionchange = () => {
+      db.close();
+      if (this.db === db) this.db = null;
+    };
+    return db;
+  }
+
+  /** Open the database and create the store when missing, with a version bump. Runs inside the lane, so no call of this port has a transaction open on the connection it closes. */
   private async handle(store: string): Promise<IDBDatabase> {
     const factory = this.factory();
     if (!factory) throw new KvFailure('unsupported', 'kv: this host has no IndexedDB');
     const name = kvDatabaseName(this.options.app, this.options.locale);
-    const settle = this.lane.then(async () => {
-      let db = this.db ?? (await openDatabase(factory, name, undefined, [store]));
-      if (!db.objectStoreNames.contains(store)) {
-        const next = db.version + 1;
-        db.close();
-        db = await openDatabase(factory, name, next, [store]);
-      }
-      this.db = db;
-    });
-    this.lane = settle.catch(() => undefined);
-    await settle;
-    if (this.db === null) throw new KvFailure('io', 'kv: the database did not open');
-    return this.db;
+    let db = this.db ?? (await this.connect(factory, name, undefined, store));
+    if (!db.objectStoreNames.contains(store)) {
+      const next = db.version + 1;
+      db.close();
+      this.db = null;
+      db = await this.connect(factory, name, next, store);
+    }
+    this.db = db;
+    return db;
+  }
+
+  /** Calls of one port run one at a time: a store added mid-flight would otherwise close the connection under another call's transaction. */
+  private serial<T>(work: () => Promise<T>): Promise<T> {
+    const next = this.lane.then(work);
+    this.lane = next.then(() => undefined, () => undefined);
+    return next;
   }
 
   private async run(op: KvOp, args: JsonValue[]): Promise<JsonValue> {
@@ -258,7 +271,7 @@ export class KvWebPort implements KvHostPort {
 
   async answer(op: KvOp, args: JsonValue[]): Promise<Settled<JsonValue, OsError>> {
     try {
-      const work = this.run(op, args);
+      const work = this.serial(() => this.run(op, args));
       const timeoutMs = this.options.timeoutMs;
       if (timeoutMs === undefined) return { ok: await work };
       let timer: ReturnType<typeof setTimeout> | undefined;

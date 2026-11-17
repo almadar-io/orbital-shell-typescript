@@ -358,7 +358,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           )}
           // Position + slide driven by inline styles (not Tailwind transform /
           // container-query classes) so the drawer reliably opens/closes in any
-          // consumer. Desktop: static, in-flow. Mobile: fixed off-canvas drawer.
+          // consumer. Desktop: in-flow and sticky, so the nav stays put while the page scrolls. Mobile: fixed off-canvas drawer.
           style={
             offCanvas
               ? {
@@ -369,7 +369,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
                   transition: "transform 200ms ease-in-out",
                 }
-              : { position: "static", transform: "none" }
+              : { position: "sticky", top: 0, alignSelf: "flex-start", maxHeight: "100vh", overflowY: "auto", transform: "none" }
           }
         >
           {/* Sidebar header */}
@@ -704,6 +704,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             // Reserve space for the fixed bottom nav so content isn't
             // hidden under the tab bar.
             showBottomNav && "pb-[calc(5rem+env(safe-area-inset-bottom))]",
+            // Room under the last row for a floating action button, so pagination scrolls clear of it.
+            !showBottomNav && "[:root:has([data-pattern=floating-action-button])_&]:pb-24",
           )}
         >
           <PageTransition locationKey={activePath} className={fullBleed ? "w-full flex-1 min-h-0" : "mx-auto w-full max-w-[1440px]"}>{children}</PageTransition>

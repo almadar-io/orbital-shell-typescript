@@ -608,7 +608,7 @@ export function TableView({
             return (
               <Box key={col.key} role="cell" className={cellBase}>
                 {stackedLabel}
-                {asControl(<span className={cn(col.wrap ? 'whitespace-normal break-words' : 'truncate', 'text-foreground')}>{formatCell(raw, col.format, relationsData?.[col.field ?? col.key], fmt)}</span>)}
+                {asControl(<span className={cn(col.wrap ? 'whitespace-normal break-words' : 'block min-w-0 truncate', 'text-foreground')}>{formatCell(raw, col.format, relationsData?.[col.field ?? col.key], fmt)}</span>)}
               </Box>
             );
           })

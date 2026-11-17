@@ -19,7 +19,11 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 
 
 
-Next code: `G-ORBITAL-SHELL-TYPESCRIPT-200`
+Next code: `G-ORBITAL-SHELL-TYPESCRIPT-202`
+
+- **G-ORBITAL-SHELL-TYPESCRIPT-201** [mechanical] — A canvas image (`std-rasm-image` → `draw-sprite` asset) from a host that sends no `Access-Control-Allow-Origin` cannot become a texture, and the web canvas drops it with no log or refusal, so the image cell paints nothing (found 2026-11-17: std-subscription-landing's five images.metmuseum.org gallery images were blank at every width; replaced with public-domain Wikimedia Commons files, which send `*`). Reproduce: point any std-rasm-image `url` at images.metmuseum.org and open the twin; the cell is empty and the console is quiet. Prevention rung: (3) the verifiers (the render probe should report an asset that failed to load). Fix: log the failed asset load (url and reason) through the package logger and report it to the kernel's asset port so the probe and runtime-verify see it. Severity: medium. Root cause: one-off.
+
+- **G-ORBITAL-SHELL-TYPESCRIPT-200** [mechanical] — The web kernel client collects `cascade-capped` rejections (`renderers/web/src/lib/kernel-client.ts` rejections filter) but nothing logs or shows them for a guest page, so a dispatch the kernel cut at CROSS_TRAIT_CASCADE_CAP leaves a half-applied layout with no trace (found 2026-11-17: std-fitness-landing collapsed to 300 px; found only by bisecting twin routes). Fix: log every `cascade-capped` rejection through the package logger at warn with trait and event. Owner: orbital-shell-typescript web renderer. Repro: route six section extents to Page on a grid without the unchanged-rect guard. Prevention rung: (3) verifiers (a cascade cut fails the verify walk). Severity: medium. Root cause: one-off.
 
 - **G-ORBITAL-SHELL-TYPESCRIPT-199** [mechanical] — A server answer is parsed into JS objects by the HTTP transport (`send` returns `JSON.parse(text)`) only for `kernel-client.ts` to stringify it again and hand the kernel bytes: for std-kflow's open that is a 37 MB text, its UTF-16 string, a 58 MB object tree and the re-encoded bytes at once (2026-11-15). Fix: P-034 memory round 2, phase 5 (the transport hands the answer's text through; what the client reads comes from the kernel's fold result). Prevention rung: (3) the verifiers (JS-heap peak in `orb profile`). Severity: low. Root cause: one-off.
 

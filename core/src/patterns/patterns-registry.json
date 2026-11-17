@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-15T06:05:38.435Z",
+  "exportedAt": "2026-11-17T13:28:35.211Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -2582,6 +2582,16 @@
                 "types": [
                   "string"
                 ]
+              },
+              "optionLabels": {
+                "types": [
+                  "object"
+                ],
+                "mapValue": {
+                  "types": [
+                    "string"
+                  ]
+                }
               }
             },
             "required": [
@@ -3812,6 +3822,16 @@
                 "types": [
                   "string"
                 ]
+              },
+              "optionLabels": {
+                "types": [
+                  "object"
+                ],
+                "mapValue": {
+                  "types": [
+                    "string"
+                  ]
+                }
               }
             },
             "required": [
@@ -38271,7 +38291,7 @@
           "types": [
             "array"
           ],
-          "description": "All-pairs similarity (cosine 0–1) used ONLY for layout, never drawn. It is the secondary macro-layout: non-connected pairs get a weak spring (higher cosine ⇒ closer) so clusters arrange relative to each other; drawn `edges` stay the primary tight structure. When omitted, edges alone drive the layout.",
+          "description": "Similarity pairs (cosine 0–1) used ONLY for layout, never drawn; every pair given is used. It is the secondary macro-layout: non-connected pairs get a weak spring (higher cosine ⇒ closer) so clusters arrange relative to each other; drawn `edges` stay the primary tight structure. When omitted, edges alone drive the layout.",
           "items": {
             "types": [
               "object"
@@ -107786,18 +107806,6 @@
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
-        },
         "semantic": {
           "types": [
             "object"
@@ -108736,18 +108744,6 @@
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
-        },
         "semantic": {
           "types": [
             "object"
@@ -109061,15 +109057,6 @@
           ],
           "description": "Mirror horizontally (facing)."
         },
-        "fit": {
-          "types": [
-            "string"
-          ],
-          "description": "How a whole image fills its width and height: cover crops it centred to that aspect; absent stretches the whole image.",
-          "enumValues": [
-            "cover"
-          ]
-        },
         "rotation": {
           "types": [
             "number"
@@ -109138,18 +109125,6 @@
             "boolean"
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
-        },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
         },
         "semantic": {
           "types": [
@@ -109379,30 +109354,6 @@
           ],
           "description": "Ellipsis instead of overflow."
         },
-        "height": {
-          "types": [
-            "number"
-          ],
-          "description": "Box height in scene units, like `width`; the box a `fit: \"shrink\"` text must fit."
-        },
-        "fit": {
-          "types": [
-            "string"
-          ],
-          "description": "`none` (default) wraps at `width` and grows downward; `shrink` steps the font size down (to `minSize`) until the wrapped text fits `width` x `height`, and the measured size is the fitted block's. Needs `width` and `height`.",
-          "enumValues": [
-            "none",
-            "shrink"
-          ],
-          "default": "none"
-        },
-        "minSize": {
-          "types": [
-            "number"
-          ],
-          "description": "Smallest font size in px that `fit: \"shrink\"` steps down to (default 10); at the floor the text paints at that size and may overflow.",
-          "default": 10
-        },
         "lineHeight": {
           "types": [
             "number"
@@ -109588,18 +109539,6 @@
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
-        },
         "semantic": {
           "types": [
             "object"
@@ -109732,18 +109671,6 @@
                 "types": [
                   "boolean"
                 ]
-              },
-              "fixed": {
-                "types": [
-                  "boolean"
-                ],
-                "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-              },
-              "drag": {
-                "types": [
-                  "boolean"
-                ],
-                "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
               },
               "semantic": {
                 "types": [
@@ -110652,18 +110579,6 @@
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
-        },
         "semantic": {
           "types": [
             "object"
@@ -110796,18 +110711,6 @@
                 "types": [
                   "boolean"
                 ]
-              },
-              "fixed": {
-                "types": [
-                  "boolean"
-                ],
-                "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-              },
-              "drag": {
-                "types": [
-                  "boolean"
-                ],
-                "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
               },
               "semantic": {
                 "types": [
@@ -111181,18 +111084,6 @@
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
-        },
         "semantic": {
           "types": [
             "object"
@@ -111325,18 +111216,6 @@
                 "types": [
                   "boolean"
                 ]
-              },
-              "fixed": {
-                "types": [
-                  "boolean"
-                ],
-                "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-              },
-              "drag": {
-                "types": [
-                  "boolean"
-                ],
-                "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
               },
               "semantic": {
                 "types": [
@@ -111544,21 +111423,6 @@
               "truncate": {
                 "types": [
                   "boolean"
-                ]
-              },
-              "height": {
-                "types": [
-                  "number"
-                ]
-              },
-              "fit": {
-                "types": [
-                  "string"
-                ]
-              },
-              "minSize": {
-                "types": [
-                  "number"
                 ]
               },
               "lineHeight": {
@@ -112626,7 +112490,27 @@
           "types": [
             "object"
           ],
-          "description": "The page scrolls inside the canvas (orbital painter): `height` is the content height in packet units, `event` names the event that reports `{ offset, max }`, and `reportMs` the least time between reports while the page moves (the resting offset is always reported). The wheel, a touch that travels past the tap slop and its glide move every drawable except `fixed` ones, without a re-layout; a region declaring `wheel` or `drag` keeps its own gestures."
+          "description": "The page scrolls inside the canvas (orbital painter): `height` is the content height, `event` names the event that reports `{ offset, max }` at most once per `reportMs` while the page moves and when it rests. A drawable with `fixed` stays put; one with `wheel` or `drag` keeps its own gestures.",
+          "properties": {
+            "height": {
+              "types": [
+                "number"
+              ]
+            },
+            "event": {
+              "types": [
+                "string"
+              ]
+            },
+            "reportMs": {
+              "types": [
+                "number"
+              ]
+            }
+          },
+          "propertyRequired": [
+            "height"
+          ]
         },
         "direction": {
           "types": [
@@ -115196,18 +115080,6 @@
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
         },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
-        },
         "semantic": {
           "types": [
             "object"
@@ -115927,18 +115799,6 @@
             "boolean"
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
-        },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
         },
         "semantic": {
           "types": [
@@ -118012,18 +117872,6 @@
             "boolean"
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
-        },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
         },
         "semantic": {
           "types": [
@@ -121817,18 +121665,6 @@
             "boolean"
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
-        },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
         },
         "semantic": {
           "types": [
@@ -137769,6 +137605,21 @@
                         "string"
                       ]
                     },
+                    "displayFile": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "bodyFile": {
+                      "types": [
+                        "string"
+                      ]
+                    },
+                    "monoFile": {
+                      "types": [
+                        "string"
+                      ]
+                    },
                     "headingWeight": {
                       "types": [
                         "string"
@@ -139543,6 +139394,21 @@
                           "string"
                         ]
                       },
+                      "displayFile": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "bodyFile": {
+                        "types": [
+                          "string"
+                        ]
+                      },
+                      "monoFile": {
+                        "types": [
+                          "string"
+                        ]
+                      },
                       "headingWeight": {
                         "types": [
                           "string"
@@ -140977,13 +140843,10 @@
         },
         "program": {
           "types": [
-            "sexpr"
+            "sexpr",
+            "object"
           ],
-          "description": "The guest's client program, when it was opened split: the view runs its `[client]` traits itself and paints them.",
-          "decoder": {
-            "name": "parseOrbitalSchema",
-            "from": "@almadar/core"
-          }
+          "description": "The guest's client program, when it was opened split: the view runs its `[client]` traits itself and paints them. A blob (EXEC-DIST-16b) is read from the host's table."
         },
         "leg": {
           "types": [
@@ -141061,7 +140924,8 @@
               },
               "program": {
                 "types": [
-                  "sexpr"
+                  "sexpr",
+                  "object"
                 ]
               },
               "error": {
@@ -141654,18 +141518,6 @@
             "boolean"
           ],
           "description": "With `hit`, the region takes the wheel: the canvas sends `wheelEvent` for it and keeps the wheel from the page. Over anything else the page scrolls."
-        },
-        "fixed": {
-          "types": [
-            "boolean"
-          ],
-          "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
-        },
-        "drag": {
-          "types": [
-            "boolean"
-          ],
-          "description": "With `hit`, a press on the region keeps the pointer's travel: on a canvas that declares `scroll` the page does not take a touch that starts here (a slider, a draggable)."
         },
         "semantic": {
           "types": [

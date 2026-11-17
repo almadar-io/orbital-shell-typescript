@@ -93,6 +93,34 @@ describe('kv-web', () => {
     expect(await ok(open('en', 'other-app'), 'kv/get', ['rows', 'k'])).toEqual({ found: false });
   });
 
+  it('answers concurrent calls on two stores of one database, the second store added while the first is busy', async () => {
+    const port = open();
+    await ok(port, 'kv/put', ['answers', 'seed', 1]);
+    const settled = await Promise.all([
+      port.answer('kv/put', ['answers', 'a', 'one']),
+      port.answer('kv/get', ['prefetched', '__index']),
+      port.answer('kv/put', ['prefetched', 'p', 'path']),
+      port.answer('kv/put', ['answers', 'b', 'two']),
+    ]);
+    expect(settled).toEqual([{ ok: { storedKey: 'a' } }, { ok: { found: false } }, { ok: { storedKey: 'p' } }, { ok: { storedKey: 'b' } }]);
+    expect(await ok(port, 'kv/get', ['prefetched', 'p'])).toEqual({ found: true, value: 'path' });
+  });
+
+  it('adds a store while another port holds the same database open, and that port keeps answering', async () => {
+    const first = open();
+    const second = open();
+    await ok(first, 'kv/put', ['answers', 'k', 'v']);
+    await ok(second, 'kv/put', ['prefetched', 'p', 'path']);
+    expect(await ok(first, 'kv/get', ['answers', 'k'])).toEqual({ found: true, value: 'v' });
+    expect(await ok(first, 'kv/get', ['prefetched', 'p'])).toEqual({ found: true, value: 'path' });
+  });
+
+  it('control: one store on one port opens once and answers in order', async () => {
+    const port = open();
+    const settled = await Promise.all([port.answer('kv/put', ['rows', 'a', 1]), port.answer('kv/get', ['rows', 'a'])]);
+    expect(settled).toEqual([{ ok: { storedKey: 'a' } }, { ok: { found: true, value: 1 } }]);
+  });
+
   it('refuses bad requests and honours grants, close and no-IndexedDB', async () => {
     const denied = open('en', 'shop', (need) => need.mode === 'read');
     expect(await ok(denied, 'kv/get', ['rows', 'k'])).toEqual({ found: false });

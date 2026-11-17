@@ -232,6 +232,8 @@ export interface SchemaFieldOverride {
   label?: string;
   placeholder?: string;
   hint?: string;
+  /** Display label per option value of a select field, e.g. { team_member: "Team member" }. */
+  optionLabels?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -1032,6 +1034,12 @@ export const Form: React.FC<FormProps> = ({
         ...(override.label !== undefined ? { label: override.label } : {}),
         ...(override.placeholder !== undefined ? { placeholder: override.placeholder } : {}),
         ...(override.hint !== undefined ? { hint: override.hint } : {}),
+        ...(override.optionLabels !== undefined
+          ? {
+              labels: { ...field.labels, ...override.optionLabels },
+              ...(field.options ? { options: field.options.map((o) => ({ ...o, label: override.optionLabels?.[String(o.value)] ?? o.label })) } : {}),
+            }
+          : {}),
       };
     });
   }, [effectiveFields, resolvedEntity, fieldOverrides]);
