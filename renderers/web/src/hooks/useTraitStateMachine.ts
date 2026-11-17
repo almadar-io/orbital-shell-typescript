@@ -231,12 +231,15 @@ export function useTraitStateMachine(
   ): Promise<void> => {
     recordDispatchVerdict(traitIndex.byName.get(traitName)?.orbital ?? traitName, eventKey, { response: outcome.response });
     const settledEffects = outcome.localPainted && outcome.serverEffects !== undefined ? outcome.serverEffects : outcome.response;
-    slotFlush.applyClientEffects(
-      settledEffects.clientEffectsByTrait,
-      options.navigate,
-      options.navigateBack,
-      activeTraitNamesRef.current,
-    );
+    // Answers painted as they landed (`onServer`) are painted again only over a failed dispatch's rollback.
+    if (outcome.serverPainted !== true || !outcome.response.success) {
+      slotFlush.applyClientEffects(
+        settledEffects.clientEffectsByTrait,
+        options.navigate,
+        options.navigateBack,
+        activeTraitNamesRef.current,
+      );
+    }
     // A tick lane posts without blocking the drain; what its fold adds (a
     // refetch's render) paints when the post lands.
     void outcome.tickSettled?.then((later) => {
@@ -275,6 +278,9 @@ export function useTraitStateMachine(
             options.navigateBack,
             activeTraitNamesRef.current,
           );
+        },
+        onServer: (effects) => {
+          slotFlush.applyClientEffects(effects, options.navigate, options.navigateBack, activeTraitNamesRef.current);
         },
       });
     } catch (err: unknown) {
@@ -404,6 +410,9 @@ export function useTraitStateMachine(
           if (beforeLocalPaint === undefined) beforeLocalPaint = slotFlush.checkpoint();
           slotFlush.applyClientEffects(local.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
         },
+        onServer: (effects) => {
+          slotFlush.applyClientEffects(effects, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+        },
       }, { payload, ...(route !== undefined ? { route } : {}), ...(crumb !== undefined ? { crumb } : {}) });
     } catch (err: unknown) {
       if (beforeLocalPaint !== undefined) slotFlush.rollback(beforeLocalPaint);
@@ -412,8 +421,11 @@ export function useTraitStateMachine(
       }
       throw err;
     }
-    if (!outcome.success && beforeLocalPaint !== undefined) slotFlush.rollback(beforeLocalPaint);
-    slotFlush.applyClientEffects(outcome.serverEffects.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+    // Each host answer painted as it landed (`onServer`); a failed mount rolls back to before its local paint and paints them again over that.
+    if (!outcome.success && beforeLocalPaint !== undefined) {
+      slotFlush.rollback(beforeLocalPaint);
+      slotFlush.applyClientEffects(outcome.serverEffects.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
+    }
     const emitted = [...outcome.seeds.flatMap((seed) => seed.local.emittedEvents), ...outcome.emittedEvents];
     for (const e of emitted) {
       eventBus.emit(`UI:${e.event}`, e.payload, { ...(e.source ?? {}), dispatched: true });

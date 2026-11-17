@@ -55,6 +55,7 @@ interface SemanticView {
     selectionStart?: number;
     selectionEnd?: number;
     multiline: boolean;
+    level?: number;
     order: number;
     rect: { x: number; y: number; w: number; h: number };
 }
@@ -70,6 +71,10 @@ interface KeyModifiers {
 
 /** The keys a focused text field hands to the program; everything else reaches it as committed text. */
 const EDITING_KEYS: ReadonlySet<string> = new Set(['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter', 'Tab', 'Escape']);
+
+/** The canvas element as accessibility tools reach it: `orbitalContrastAudit()` resolves to every text's WCAG contrast
+ * against what is painted behind it, as JSON. */
+type AuditedCanvas = HTMLCanvasElement & { orbitalContrastAudit?: () => Promise<string> };
 
 const CHECKED_ROLES: ReadonlySet<string> = new Set(['checkbox', 'switch', 'radio', 'menuitemcheckbox', 'menuitemradio']);
 
@@ -251,6 +256,7 @@ function SemanticMirror({ nodes, handlers }: { nodes: SemanticView[]; handlers: 
                         aria-selected={node.role === 'option' ? node.checked : undefined}
                         aria-disabled={node.disabled || undefined}
                         aria-multiline={node.role === 'textbox' ? node.multiline : undefined}
+                        aria-level={node.role === 'heading' ? node.level : undefined}
                         style={hiddenStyle(node)}
                         onFocus={() => {
                             if (!handlers.latest(node.id)?.focused) handlers.onAccess(node.id, 'focus');
@@ -304,6 +310,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
                 }
                 guardRef.current = createViewGuard();
                 viewRef.current = view;
+                (element as AuditedCanvas).orbitalContrastAudit = () => view.contrastAuditAll();
                 setReady(true);
             },
             (cause: Error) => setError(cause.message),

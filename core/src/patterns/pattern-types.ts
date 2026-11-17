@@ -650,7 +650,7 @@ export interface PatternPropsMap {
   };
   'annotated-media': {
     type: 'annotated-media';
-    src: unknown | string | SExpr;
+    src?: unknown | string | SExpr;
     mediaType?: string | SExpr;
     title?: string | SExpr;
     pins?: unknown[] | string | SExpr;
@@ -659,6 +659,7 @@ export interface PatternPropsMap {
     placeEvent?: string | SExpr;
     pinSelectEvent?: string | SExpr;
     className?: string | SExpr;
+    children?: unknown | string | SExpr;
     enter?: string | SExpr;
     enterDelay?: number | string | SExpr;
     skeleton?: string | PatternPropValue | SExpr;

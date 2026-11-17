@@ -175,7 +175,7 @@
       "borderStyleInteractive": "solid"
     },
     "colors": {
-      "primary": "#d12368",
+      "primary": "#c01f5e",
       "primary-hover": "#b81a57",
       "primary-foreground": "#ffffff",
       "secondary": "#e9d5ff",
@@ -191,8 +191,8 @@
       "card-foreground": "#2a1650",
       "surface": "#e9d5ff",
       "border": "rgba(196, 36, 107, 0.85)",
-      "input": "rgba(0, 152, 170, 0.35)",
-      "ring": "#0098aa",
+      "input": "rgba(0, 113, 134, 0.8)",
+      "ring": "#007186",
       "error": "#dc2626",
       "error-foreground": "#ffffff",
       "success": "#15803d",
@@ -319,7 +319,7 @@
         "card-foreground": "#efe3ff",
         "surface": "#2d1b4e",
         "border": "rgba(224, 76, 138, 0.85)",
-        "input": "rgba(58, 201, 216, 0.34)",
+        "input": "rgba(58, 201, 216, 0.6)",
         "ring": "#3ac9d8",
         "error": "#ff5252",
         "error-foreground": "#1a0000",

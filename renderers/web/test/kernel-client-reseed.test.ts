@@ -332,3 +332,54 @@ describe('kernel client — a frame resync carries the redraw it folded', () => 
   });
 });
 
+
+describe('kernel client — host answers paint as they land', () => {
+  const render = (slot: string): ClientEffectByTrait => ({ traitName: 'Viewer', effect: ['render-ui', slot, { type: 'text', text: slot }] });
+  const followOn = { orbital: 'Main', leg: { event: 'DETAIL', targetTrait: 'Viewer', clientId: 'tab-a' } };
+  const streaming = (sent: EventRequest[], second: Promise<void>) => {
+    let folds = 0;
+    const kernel: KernelInstance = {
+      ...fakeKernel([]),
+      foldInOrder: () => {
+        folds += 1;
+        return folds === 1
+          ? applied({ ...appliedWire, response: response({ clientEffectsByTrait: [render('first')] }), serverLegs: [followOn] })
+          : applied({ ...appliedWire, response: response({ clientEffectsByTrait: [render('second')] }) });
+      },
+    };
+    const transport: EventTransport = {
+      register: async () => ({ success: true, carriesCircuitState: false }),
+      unregister: async () => undefined,
+      send: async (_orbital, request) => {
+        sent.push(request);
+        if (request.event === 'DETAIL') await second;
+        return response();
+      },
+    };
+    return createKernelClient({ instance: Promise.resolve(kernel), store: createMemoryCircuitStore(), traitIndex, transport, topology: Promise.resolve({ carriesCircuitState: false }) });
+  };
+  const slots = (effects: ClientEffectByTrait[]): string[] => effects.map((e) => String(e.effect[1]));
+
+  it('paints the first answer before the follow-on request it owes has come back', async () => {
+    const sent: EventRequest[] = [];
+    let release = (): void => undefined;
+    const second = new Promise<void>((resolve) => { release = resolve; });
+    const painted: string[][] = [];
+    const client = streaming(sent, second);
+    const done = client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' }, { onLocal: () => undefined, onServer: (effects) => painted.push(slots(effects)) });
+    await expect.poll(() => sent.map((r) => r.event)).toEqual(['READ_BACK', 'DETAIL']);
+    expect(painted).toEqual([['first']]);
+    release();
+    const outcome = await done;
+    expect(painted).toEqual([['first'], ['second']]);
+    expect(outcome.serverPainted).toBe(true);
+  });
+
+  it('control: without onServer every answer\'s paint comes back once, at the end, and nothing says it was painted', async () => {
+    const sent: EventRequest[] = [];
+    const client = streaming(sent, Promise.resolve());
+    const outcome = await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' }, { onLocal: () => undefined });
+    expect(slots(outcome.serverEffects?.clientEffectsByTrait ?? [])).toEqual(['first', 'second']);
+    expect(outcome.serverPainted).toBeUndefined();
+  });
+});

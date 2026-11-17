@@ -476,6 +476,7 @@
     "payloadFor": "payloadFor",
     "payloadMapping": "payloadMapping",
     "payloadSchema": "payloadSchema",
+    "payloadSpread": "payloadSpread",
     "persistence": "persistence",
     "personas": "personas",
     "places": "places",

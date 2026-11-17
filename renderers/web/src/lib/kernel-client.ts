@@ -404,6 +404,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     request: Pick<EventRequest, 'locale' | 'entityId'>,
     flags: { rollback: boolean; mount: boolean },
     initial: EventResponse,
+    paint?: (effects: ClientEffectByTrait[]) => void,
   ): Promise<Posted> => {
     const out: Posted = {
       response: initial,
@@ -454,6 +455,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         ...(resynced?.hostPaints ?? []),
         ...(resynced?.fold.clientEffectsByTrait ?? []),
       ];
+      paint?.(byTrait);
       out.serverEffects.clientEffectsByTrait?.push(...byTrait);
       out.foldedEmits.push(...serverEmits, ...fold.emittedEvents);
       out.response = {
@@ -475,13 +477,14 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     wire: DispatchWire,
     request: Pick<EventRequest, 'locale' | 'entityId'>,
     flags: { rollback: boolean; awaiting: boolean },
+    paint?: (effects: ClientEffectByTrait[]) => void,
   ): Promise<Posted> => {
     const topology = await opts.topology;
     const plan = planDispatch(wire, topology.carriesCircuitState);
     const awaiting = flags.awaiting ? plan.awaiting : [];
     store.awaiting.begin(awaiting);
     try {
-      return await sendLegs(k, plan.legs, request, { rollback: flags.rollback, mount: false }, wire.response);
+      return await sendLegs(k, plan.legs, request, { rollback: flags.rollback, mount: false }, wire.response, paint);
     } finally {
       store.awaiting.end(awaiting.map((a) => a.trait));
     }
@@ -579,14 +582,17 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     if (transport === undefined || (wire.serverLegs.length === 0 && wire.statefulLeg === null)) return { response: wire.response, mode: wire.mode };
     const painters = hooks.filter((h) => h.onLocal !== undefined);
     for (const h of painters) h.onLocal?.(wire.response);
-    const posted = await post(k, wire, request, { rollback: true, awaiting: !progress });
+    const streamers = hooks.filter((h) => h.onServer !== undefined);
+    const paint = streamers.length > 0 ? (effects: ClientEffectByTrait[]) => { for (const h of streamers) h.onServer?.(effects); } : undefined;
+    const posted = await post(k, wire, request, { rollback: true, awaiting: !progress }, paint);
     const localPainted = painters.length > 0;
+    const serverPainted = paint !== undefined ? { serverPainted: true } : {};
     if (posted.rolledBack !== undefined) {
       return { response: posted.response, mode: wire.mode, ...(localPainted ? { localPainted, serverEffects: posted.rolledBack } : {}) };
     }
     return localPainted
-      ? { response: posted.response, mode: wire.mode, localPainted, serverEffects: posted.serverEffects }
-      : { response: posted.response, mode: wire.mode };
+      ? { response: posted.response, mode: wire.mode, localPainted, serverEffects: posted.serverEffects, ...serverPainted }
+      : { response: posted.response, mode: wire.mode, ...serverPainted };
   };
 
   const settleMount = async (k: KernelInstance, mount: MountWire, seeds: readonly MountSeed[], hooks: MountHooks | undefined, baseRequest: NonNullable<MountBase>): Promise<MountOutcome> => {
@@ -621,7 +627,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       if (announced !== null && announced.serverLegs.length > 0) {
         let posted: Posted;
         try {
-          posted = await post(k, announced, baseRequest, { rollback: false, awaiting: false });
+          posted = await post(k, announced, baseRequest, { rollback: false, awaiting: false }, hooks?.onServer);
         } finally {
           endFlight(k, announced.flight);
         }
@@ -650,7 +656,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         store.awaiting.begin(group.awaiting);
         let posted: Posted;
         try {
-          posted = await sendLegs(k, [planned], baseRequest, { rollback: false, mount: true }, answered[0]?.response ?? outcome.seeds[0]!.local);
+          posted = await sendLegs(k, [planned], baseRequest, { rollback: false, mount: true }, answered[0]?.response ?? outcome.seeds[0]!.local, hooks?.onServer);
         } finally {
           store.awaiting.end(group.awaiting.map((a) => a.trait));
           for (const wire of answered) endFlight(k, wire.flight);
@@ -668,7 +674,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         let posted: Posted;
         try {
           const planned: PlannedLeg = { orbital: hop.orbital, leg: hop.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight };
-          posted = await sendLegs(k, [planned], baseRequest, { rollback: false, mount: false }, outcome.seeds[0]!.local);
+          posted = await sendLegs(k, [planned], baseRequest, { rollback: false, mount: false }, outcome.seeds[0]!.local, hooks?.onServer);
         } finally {
           endFlight(k, flight);
         }

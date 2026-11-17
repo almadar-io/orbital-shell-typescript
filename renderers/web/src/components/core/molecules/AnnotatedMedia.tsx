@@ -3,7 +3,7 @@ import React from 'react';
 import type { A11yProps, AssetUrl, EventEmit } from '@almadar/core';
 import { cn, domPassthrough, useEventBus, useTranslate } from '../../../core';
 
-export type AnnotatedMediaType = 'image' | 'video';
+export type AnnotatedMediaType = 'image' | 'video' | 'content';
 
 export interface AnnotatedPin {
   /** Row id the pin stands for */
@@ -24,14 +24,14 @@ export type AnnotatedPlacePayload = { x: number; y: number; time: number };
 export type AnnotatedPinPayload = { id: string };
 
 /**
- * An image or video reviewers comment on in place: numbered pins sit where each comment was left, and a click on the media asks for a new one at that spot (and, for video, at that second).
+ * An image, a video or a live piece of content reviewers comment on in place: numbered pins sit where each comment was left, and a click on the media asks for a new one at that spot (and, for video, at that second).
  * @capabilities review an image, comment on a design, pin feedback, markup, annotate a video at a timestamp, proofing
  * @accessibleName title
  */
 export interface AnnotatedMediaProps extends A11yProps {
-  /** Image or video URL */
-  src: AssetUrl;
-  /** What `src` is */
+  /** Image or video URL (unused for content) */
+  src?: AssetUrl;
+  /** What is annotated: an image or video at the URL, or the live content passed as children */
   mediaType?: AnnotatedMediaType;
   /** Accessible name of the media */
   title?: string;
@@ -39,7 +39,7 @@ export interface AnnotatedMediaProps extends A11yProps {
   pins?: AnnotatedPin[];
   /** The pin to highlight */
   activePinId?: string;
-  /** Whether a click on the media places a new pin */
+  /** Whether a click on the media places a new pin; for content, the content is only interactive while this is off */
   placing?: boolean;
   /** Event fired when the media is clicked to place a pin; the payload carries x and y as percentages and the playback second (0 for an image) */
   placeEvent?: EventEmit<AnnotatedPlacePayload>;
@@ -47,6 +47,8 @@ export interface AnnotatedMediaProps extends A11yProps {
   pinSelectEvent?: EventEmit<AnnotatedPinPayload>;
   /** Additional class names */
   className?: string;
+  /** The live content to annotate when mediaType is content */
+  children?: React.ReactNode;
 }
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
@@ -62,6 +64,7 @@ export const AnnotatedMedia: React.FC<AnnotatedMediaProps> = ({
   placeEvent,
   pinSelectEvent,
   className,
+  children,
   ...rest
 }) => {
   const eventBus = useEventBus();
@@ -69,20 +72,25 @@ export const AnnotatedMedia: React.FC<AnnotatedMediaProps> = ({
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [duration, setDuration] = React.useState(0);
 
+  const content = mediaType === 'content';
+
   const place = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (!placing || !placeEvent) return;
-      const box = event.currentTarget.getBoundingClientRect();
-      if (box.width === 0 || box.height === 0) return;
+      const frame = event.currentTarget;
+      const box = frame.getBoundingClientRect();
+      const width = content ? frame.scrollWidth || box.width : box.width;
+      const height = content ? frame.scrollHeight || box.height : box.height;
+      if (width === 0 || height === 0) return;
       const video = videoRef.current;
       if (video) video.pause();
       eventBus.emit(`UI:${placeEvent}`, {
-        x: round1(clamp(((event.clientX - box.left) / box.width) * 100)),
-        y: round1(clamp(((event.clientY - box.top) / box.height) * 100)),
+        x: round1(clamp(((event.clientX - box.left) / width) * 100)),
+        y: round1(clamp(((event.clientY - box.top) / height) * 100)),
         time: video ? round1(video.currentTime) : 0,
       });
     },
-    [placing, placeEvent, eventBus],
+    [placing, placeEvent, eventBus, content],
   );
 
   const select = React.useCallback(
@@ -111,12 +119,14 @@ export const AnnotatedMedia: React.FC<AnnotatedMediaProps> = ({
   return (
     <div {...domPassthrough(rest)} className={cn('flex w-full flex-col gap-2', className)} data-pattern="annotated-media">
       <div
-        className={cn('relative w-full overflow-hidden rounded-md bg-muted', placing && placeEvent && 'cursor-crosshair')}
+        className={cn('relative w-full', content ? '' : 'overflow-hidden rounded-md bg-muted', placing && placeEvent && 'cursor-crosshair')}
         onClick={place}
         role="region"
         aria-label={title || t('aria.annotatedMedia')}
       >
-        {mediaType === 'video' ? (
+        {content ? (
+          children
+        ) : mediaType === 'video' ? (
           <video
             ref={videoRef}
             src={src}
@@ -128,11 +138,12 @@ export const AnnotatedMedia: React.FC<AnnotatedMediaProps> = ({
         ) : (
           <img src={src} alt={title || ''} className="block w-full select-none" draggable={false} />
         )}
+        {content && placing && placeEvent ? <div className="absolute inset-0 z-10 cursor-crosshair" data-annotated-overlay="" /> : null}
         {placed.map((pin) => (
           <button
             key={pin.id}
             type="button"
-            className={cn('absolute', pinClass(pin))}
+            className={cn('absolute', content && 'z-20', pinClass(pin))}
             style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
             onClick={select(pin)}
             title={pin.label}

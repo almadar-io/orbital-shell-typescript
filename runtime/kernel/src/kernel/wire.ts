@@ -79,13 +79,17 @@ export interface KernelSceneCanvas {
   doubleTap(x: number, y: number): void;
   /** `[{ "event", "payload" }]` queued by input. */
   takeEvents(): string;
-  /** The semantic tree as JSON: `[{ id, role, name, value?, checked?, disabled, focused, caret?, selectionStart?, selectionEnd?, multiline, order, rect }]`, rects in CSS pixels. */
+  /** The semantic tree as JSON: `[{ id, role, name, value?, checked?, disabled, focused, caret?, selectionStart?, selectionEnd?, multiline, level?, order, rect }]`, rects in CSS pixels. */
   semanticTree(): string;
   textInput(target: string, text: string, composing: boolean): void;
   keyInput(target: string, key: string, shift: boolean, alt: boolean, ctrl: boolean, meta: boolean): void;
   /** `focus`, `activate`, `increment` or `decrement`; any other string throws. */
   accessAction(target: string, action: string): void;
   webgpu(): boolean;
+  /** WCAG contrast of each text against what is painted behind it, as JSON: only the texts below AA. */
+  contrastAudit(): Promise<string>;
+  /** [`contrastAudit`] for every text, each with its measured ratio. */
+  contrastAuditAll(): Promise<string>;
   free(): void;
 }
 

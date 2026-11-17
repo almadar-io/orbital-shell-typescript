@@ -33,6 +33,8 @@ interface FakeView extends KernelSceneCanvas {
     keyInput: ReturnType<typeof vi.fn<(target: string, key: string, shift: boolean, alt: boolean, ctrl: boolean, meta: boolean) => void>>;
     accessAction: ReturnType<typeof vi.fn<(target: string, action: string) => void>>;
     webgpu: ReturnType<typeof vi.fn<() => boolean>>;
+    contrastAudit: ReturnType<typeof vi.fn<() => Promise<string>>>;
+    contrastAuditAll: ReturnType<typeof vi.fn<() => Promise<string>>>;
     free: ReturnType<typeof vi.fn<() => void>>;
 }
 
@@ -54,6 +56,8 @@ function fakeView(): FakeView {
         keyInput: vi.fn<(target: string, key: string, shift: boolean, alt: boolean, ctrl: boolean, meta: boolean) => void>(),
         accessAction: vi.fn<(target: string, action: string) => void>(),
         webgpu: vi.fn<() => boolean>(() => true),
+        contrastAudit: vi.fn<() => Promise<string>>(() => Promise.resolve("[]")),
+        contrastAuditAll: vi.fn<() => Promise<string>>(() => Promise.resolve("[]")),
         free: vi.fn<() => void>(),
     };
 }

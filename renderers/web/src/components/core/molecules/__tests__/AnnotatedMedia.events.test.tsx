@@ -65,3 +65,39 @@ describe('AnnotatedMedia (image)', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 });
+
+describe('AnnotatedMedia (content)', () => {
+  it('renders the wrapped content', () => {
+    mount(<AnnotatedMedia mediaType="content" placing={false}><button type="button">Live</button></AnnotatedMedia>, []);
+    expect(screen.getByRole('button', { name: 'Live' })).toBeTruthy();
+  });
+
+  it('with placing off a click reaches the content and places nothing', () => {
+    const seen: Seen = [];
+    let clicked = 0;
+    mount(
+      <AnnotatedMedia mediaType="content" placing={false} placeEvent="PLACE">
+        <button type="button" onClick={() => { clicked += 1; }}>Live</button>
+      </AnnotatedMedia>,
+      seen,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Live' }));
+    expect(clicked).toBe(1);
+    expect(seen).toEqual([]);
+  });
+
+  it('with placing on a click emits percentages of the full scroll size', () => {
+    const seen: Seen = [];
+    mount(<AnnotatedMedia mediaType="content" placing placeEvent="PLACE"><div>Page</div></AnnotatedMedia>, seen);
+    const region = sizeRegion();
+    Object.defineProperty(region, 'scrollWidth', { value: 400, configurable: true });
+    Object.defineProperty(region, 'scrollHeight', { value: 800, configurable: true });
+    fireEvent.click(region, { clientX: 200, clientY: 250 });
+    expect(seen).toEqual([{ name: 'UI:PLACE', payload: { x: 25, y: 25, time: 0 } }]);
+  });
+
+  it('draws numbered pins over the content', () => {
+    mount(<AnnotatedMedia mediaType="content" placing={false} pins={[{ id: 'a', x: 10, y: 20 }]}><div>Page</div></AnnotatedMedia>, []);
+    expect(screen.getByRole('button', { name: '1' }).textContent).toBe('1');
+  });
+});

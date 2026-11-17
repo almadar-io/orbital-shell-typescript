@@ -141192,7 +141192,7 @@
       "sourceFile": "components/core/molecules/AnnotatedMedia.tsx",
       "tier": "molecules",
       "family": "core",
-      "description": "An image or video reviewers comment on in place: numbered pins sit where each comment was left, and a click on the media asks for a new one at that spot (and, for video, at that second).",
+      "description": "An image, a video or a live piece of content reviewers comment on in place: numbered pins sit where each comment was left, and a click on the media asks for a new one at that spot (and, for video, at that second).",
       "capabilities": "review an image, comment on a design, pin feedback, markup, annotate a video at a timestamp, proofing",
       "accessibleName": [
         "title"
@@ -141208,17 +141208,17 @@
           "types": [
             "asset"
           ],
-          "description": "Image or video URL",
-          "required": true
+          "description": "Image or video URL (unused for content)"
         },
         "mediaType": {
           "types": [
             "string"
           ],
-          "description": "What `src` is",
+          "description": "What is annotated: an image or video at the URL, or the live content passed as children",
           "enumValues": [
             "image",
-            "video"
+            "video",
+            "content"
           ],
           "default": "image"
         },
@@ -141285,7 +141285,7 @@
           "types": [
             "boolean"
           ],
-          "description": "Whether a click on the media places a new pin",
+          "description": "Whether a click on the media places a new pin; for content, the content is only interactive while this is off",
           "default": true
         },
         "placeEvent": {
@@ -141331,6 +141331,12 @@
             "string"
           ],
           "description": "Additional class names"
+        },
+        "children": {
+          "types": [
+            "node"
+          ],
+          "description": "The live content to annotate when mediaType is content"
         },
         "enter": {
           "types": [

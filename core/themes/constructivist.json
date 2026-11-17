@@ -175,7 +175,7 @@
       "borderStyleInteractive": "solid"
     },
     "colors": {
-      "primary": "#c8101e",
+      "primary": "#b80e1b",
       "primary-hover": "#a00c18",
       "primary-foreground": "#fff3dc",
       "secondary": "#111111",
@@ -192,7 +192,7 @@
       "surface": "#ecddb8",
       "border": "#111111",
       "input": "#111111",
-      "ring": "#c8101e",
+      "ring": "#b80e1b",
       "table-header": "#ecddb8",
       "table-border": "#111111",
       "table-row-hover": "#f3e6c8",
