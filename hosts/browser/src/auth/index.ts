@@ -93,6 +93,12 @@ export function googleProvider(purpose: 'viewer' | 'credential'): GoogleAuthProv
   return provider;
 }
 
+/** The bearer of the signed-in viewer, read once Firebase has restored a saved session: before that, `currentUser` is null for a viewer who is signed in. */
+export async function idTokenOf(auth: { authStateReady(): Promise<void>; readonly currentUser: { getIdToken(): Promise<string> } | null }): Promise<string | undefined> {
+  await auth.authStateReady();
+  return auth.currentUser ? auth.currentUser.getIdToken() : undefined;
+}
+
 export async function connectAuth(config: BrowserAuthConfig): Promise<BrowserAuth> {
   const auth = getAuth(appFor(config));
   if (config.tenantId !== undefined) auth.tenantId = config.tenantId;
@@ -141,9 +147,7 @@ export async function connectAuth(config: BrowserAuthConfig): Promise<BrowserAut
     async signInWithEmailLink(email, link) {
       return signedIn((await signInWithEmailLink(auth, email, link)).user);
     },
-    async idToken() {
-      return auth.currentUser ? auth.currentUser.getIdToken() : undefined;
-    },
+    idToken: () => idTokenOf(auth),
     onUserChanged(listener, onError) {
       // Each change supersedes every earlier one: a claims result that resolves
       // after a newer change (or after unsubscribing) is dropped.

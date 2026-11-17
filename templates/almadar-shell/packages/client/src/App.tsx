@@ -57,6 +57,8 @@ function KernelApp(): React.ReactElement | null {
   );
   if (failure) throw failure;
   if (!program) return null;
+  // Until Firebase has restored a saved session the viewer is unknown: a page mounted then would ask the server as anonymous.
+  if (!SERVERLESS && authority === 'pending') return null;
   return (
     <OrbPreview
       key={user?.uid ?? 'anonymous'}
