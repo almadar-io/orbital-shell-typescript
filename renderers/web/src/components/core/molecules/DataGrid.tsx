@@ -17,6 +17,7 @@ import type { A11yProps, SkeletonSpec, EntityRow, EventKey, EventEmit, FieldValu
 import { Skeleton } from "./Skeleton";
 import type { ItemActionPayload, SelectionChangePayload } from '@almadar/core/patterns';
 import { cn } from '../../../core';
+import { SvgMark } from '../../../core/atoms/SvgMark';
 import { enterClassName } from '../../../lib/enter';
 import { ItemMoveScopeProvider, useItemMoves, useNewItemMoveScope } from '../../../lib/item-move';
 import { useContentSurface } from '../../../core';
@@ -310,7 +311,8 @@ export function DataGrid({
   // Separate fields by variant for smart card layout
   const titleField = titleFieldOf(fieldDefs);
   const badgeFields = fieldDefs.filter((f) => f.variant === 'badge' && f !== titleField);
-  const bodyFields = fieldDefs.filter((f) => f !== titleField && !badgeFields.includes(f));
+  const iconField = fieldDefs.find((f) => f.variant === 'icon');
+  const bodyFields = fieldDefs.filter((f) => f !== titleField && f !== iconField && !badgeFields.includes(f));
 
   // Card geometry: the title owns the header row. At most ONE explicit
   // `variant: 'primary'` action stays inline (zero when maxInlineActions is
@@ -699,6 +701,10 @@ export function DataGrid({
                 <VStack gap="xs" className={cn('flex-1 min-w-0', asRows && 'flex-row flex-wrap items-center gap-x-2')}>
                   {titleDisplay !== undefined && (
                     <HStack gap="xs" className="items-center min-w-0">
+                      {(() => {
+                        const mark = iconField ? getNestedValue(itemData, iconField.name) : undefined;
+                        return typeof mark === 'string' && mark !== '' ? <SvgMark svg={mark} size="md" /> : null;
+                      })()}
                       {titleField?.icon && renderIconInput(titleField.icon, { size: 'sm', className: 'text-primary flex-shrink-0' })}
                       <Box
                         {...rowOpenControlProps(handleCardClick !== undefined)}

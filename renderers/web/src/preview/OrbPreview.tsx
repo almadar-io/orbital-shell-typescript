@@ -561,6 +561,12 @@ type RouteHit<P> =
   | { kind: 'page'; entry: P; params: Record<string, string> }
   | { kind: 'lazy'; page: LazyPage; params: Record<string, string> };
 
+/** Same keys with the same string values. */
+function sameRecord(a: Readonly<Record<string, string>>, b: Readonly<Record<string, string>>): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k]);
+}
+
 /**
  * The theme a preview page's orbital declares: the orbital owning `pageName`
  * (falling back to the app theme), or the first orbital's before a page is
@@ -794,9 +800,12 @@ export function OrbPreview({
   useEffect(() => {
     if (prevInitialPagePathRef.current !== initialPagePath) {
       prevInitialPagePathRef.current = initialPagePath;
+      // The host echoes the path of a page this preview just opened: keep the same state so nothing re-mounts.
+      const nextParams = initialPageMatch?.params ?? {};
+      const nextLazy = initialRoute?.kind === 'lazy' && initialPagePath ? { page: initialRoute.page, path: initialPagePath } : null;
       setCurrentPage(initialPageName);
-      setRouteParams(initialPageMatch?.params ?? {});
-      setLazyRoute(initialRoute?.kind === 'lazy' && initialPagePath ? { page: initialRoute.page, path: initialPagePath } : null);
+      setRouteParams((prev) => (sameRecord(prev, nextParams) ? prev : nextParams));
+      setLazyRoute((prev) => (prev?.page === nextLazy?.page && prev?.path === nextLazy?.path ? prev : nextLazy));
     }
   }, [initialPagePath, initialPageName, initialPageMatch, initialRoute]);
 

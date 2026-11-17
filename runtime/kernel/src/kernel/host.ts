@@ -140,6 +140,7 @@ export function parseAudioScheduleCommands(args: readonly JsonValue[]): { comman
 /** The one object `auth/sign-in` takes: the method and the credentials it needs. */
 export type HostSignInRequest =
   | { method: 'google'; viewer?: false }
+  | { method: 'session' }
   | { method: 'email'; email: string; password: string }
   | { method: 'emailLink'; email: string; continueUrl: string }
   | { method: 'emailLink'; email: string; link: string }
@@ -481,6 +482,7 @@ const SIGN_IN_FIELDS: Readonly<Record<string, readonly string[]>> = {
   email: ['method', 'email', 'password'],
   emailLink: ['method', 'email', 'continueUrl', 'link'],
   customToken: ['method', 'token'],
+  session: ['method'],
 };
 
 /** The `auth/sign-in` request an ask carries, or why it is refused before the host is asked. */
@@ -489,7 +491,7 @@ export function parseSignInRequest(args: readonly JsonValue[]): { request: HostS
   if (args.length !== 1 || !isJsonObject(request)) return { error: 'auth/sign-in takes one request object' };
   const method = request.method;
   const allowed = typeof method === 'string' ? SIGN_IN_FIELDS[method] : undefined;
-  if (typeof method !== 'string' || allowed === undefined) return { error: 'auth/sign-in: method must be google, email, emailLink or customToken' };
+  if (typeof method !== 'string' || allowed === undefined) return { error: 'auth/sign-in: method must be google, email, emailLink, customToken or session' };
   const text = (field: string): string | undefined => {
     const value = request[field];
     return typeof value === 'string' && value !== '' ? value : undefined;
@@ -501,6 +503,7 @@ export function parseSignInRequest(args: readonly JsonValue[]): { request: HostS
     if (request.viewer === undefined || request.viewer === true) return { request: { method } };
     return request.viewer === false ? { request: { method, viewer: false } } : { error: 'auth/sign-in: viewer is true or false' };
   }
+  if (method === 'session') return { request: { method } };
   if (method === 'email') {
     const email = text('email');
     const password = text('password');

@@ -205,6 +205,12 @@ async function userAnswer(auth: BrowserAuth, user: SignedInUser): Promise<HostSi
  */
 export function hostSignIn(auth: BrowserAuth): (request: HostSignInRequest) => Promise<HostSignInAnswer> {
   return async (request) => {
+    if (request.method === 'session') {
+      const uid = await auth.currentUid();
+      const idToken = await auth.idToken();
+      if (uid === null || idToken === undefined) throw new HostAskError('denied', 'No viewer is signed in to this host');
+      return { uid, idToken };
+    }
     try {
       if (request.method === 'google' && request.viewer === false) {
         const { user, idToken } = await auth.googleCredential();

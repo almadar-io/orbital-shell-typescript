@@ -80,6 +80,14 @@ export interface GraphAction {
     variant?: "primary" | "secondary" | "ghost";
 }
 
+/** An action offered beside the selected node; it emits UI:{event} with the node's `{ id }`. */
+export interface GraphNodeAction {
+    label: string;
+    event: EventKey;
+    icon?: string;
+    variant?: "primary" | "secondary" | "ghost";
+}
+
 export interface GraphCanvasProps extends A11yProps {
     /** Text alternative for the graph, rendered as visually hidden text and linked by aria-describedby. */
     description?: string;
@@ -120,6 +128,8 @@ export interface GraphCanvasProps extends A11yProps {
     nodeClickEvent?: EventEmit<{ id: string }>;
     /** Currently selected node id (rendered emphasized) */
     selectedNodeId?: string;
+    /** Actions offered beside the selected node, where it was clicked. */
+    selectedNodeActions?: readonly GraphNodeAction[];
     /** Force-sim repulsion strength between nodes (larger ⇒ more spread out) */
     repulsion?: number;
     /** Force-sim target edge length (larger ⇒ more spread out) */
@@ -252,6 +262,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     onBadgeClick,
     nodeClickEvent,
     selectedNodeId,
+    selectedNodeActions,
     repulsion = 800,
     linkDistance = 100,
     nodeSpacing = 28,
@@ -1038,7 +1049,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                 )}
 
                 {/* Canvas — necessary for performant graph rendering */}
-                <Box className="w-full bg-background">
+                <Box className="relative w-full bg-background">
                     <canvas
                         ref={canvasRef}
                         width={Math.round(logicalW * ((typeof window !== "undefined" && window.devicePixelRatio) || 1))}
@@ -1057,6 +1068,32 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
                         {...domPassthrough(rest)}
                     />
                     {description && <Box id={descId} className="sr-only">{description}</Box>}
+                    {selectedNode && selectedNodeActions && selectedNodeActions.length > 0 && (() => {
+                        const placed = nodesRef.current.find((n) => n.id === selectedNode.id);
+                        const at = placed && placed.x != null && placed.y != null
+                            ? { left: offset.x + placed.x * zoom, top: offset.y + placed.y * zoom }
+                            : { left: logicalW / 2, top: height / 2 };
+                        return (
+                            <Box
+                                role="group"
+                                aria-label={selectedNode.label ?? selectedNode.id}
+                                className="absolute z-10 flex flex-wrap items-center gap-1 p-1 rounded-container border-[length:var(--border-width)] border-border bg-card shadow-elevation-popover"
+                                style={{ left: at.left, top: at.top, transform: "translate(-50%, 0.75rem)" }}
+                            >
+                                {selectedNodeActions.map((action) => (
+                                    <Button
+                                        key={action.event}
+                                        size="sm"
+                                        variant={action.variant ?? "ghost"}
+                                        icon={action.icon}
+                                        onClick={() => eventBus.emit(`UI:${action.event}`, { id: selectedNode.id })}
+                                    >
+                                        {action.label}
+                                    </Button>
+                                ))}
+                            </Box>
+                        );
+                    })()}
                     {selectedNode && <Box role="status" className="sr-only">{t('graphCanvas.selectedNode', { label: selectedNode.label ?? selectedNode.id })}</Box>}
                     {typeof window !== "undefined" && showLabelTooltip && labelTooltipStyle && (<ThemedPortal>{
                         <div

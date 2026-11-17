@@ -47,7 +47,6 @@ function KernelApp(): React.ReactElement | null {
   const signInAsk = useMemo(() => (auth === null ? undefined : hostSignIn(auth)), [auth]);
   const location = useLocation();
   const navigate = useNavigate();
-  const firstPath = useRef(location.pathname);
   const accessToken = useCallback(async (): Promise<string | undefined> => (auth ? auth.idToken() : undefined), [auth]);
   const http = useMemo(() => createHttpTransport({ serverUrl: `${API_BASE}/api/orbitals`, getAccessToken: accessToken }), [accessToken]);
   // The server booted with this program and serves no `/register`: a route that replaced the app's program would be a hole, so the client reports it registered.
@@ -68,7 +67,7 @@ function KernelApp(): React.ReactElement | null {
       schemaPath={PROGRAM_URL}
       height="100dvh"
       frame="page"
-      initialPagePath={firstPath.current}
+      initialPagePath={location.pathname}
       onPageChange={(path) => navigate(path)}
       authority={authority}
       onSignIn={(returnTo) => navigate('/login', { state: returnTo !== undefined ? { returnTo } : undefined })}

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-17T14:15:10.245Z",
+  "exportedAt": "2026-11-17T19:29:28.028Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -520,6 +520,7 @@
                   "h4",
                   "h5",
                   "h6",
+                  "icon",
                   "overline",
                   "avatar",
                   "body",
@@ -1077,6 +1078,7 @@
                   "h4",
                   "h5",
                   "h6",
+                  "icon",
                   "overline",
                   "avatar",
                   "body",
@@ -4652,6 +4654,57 @@
             "string"
           ],
           "description": "Query singleton binding for state management. When provided, syncs search state with the query singleton. Example: \"@TaskQuery\""
+        },
+        "suggestions": {
+          "types": [
+            "array"
+          ],
+          "description": "Suggestions to offer while the viewer types; the program narrows them to the text in the box. When given, the box is a combobox: arrows move through the list, Enter or a click picks, Escape closes.",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "label": {
+                "types": [
+                  "string"
+                ]
+              },
+              "value": {
+                "types": [
+                  "string"
+                ]
+              },
+              "description": {
+                "types": [
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "label",
+              "value"
+            ]
+          }
+        },
+        "suggestionEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Emitted as UI:{suggestionEvent} with `{ value, label }` when the viewer picks a suggestion.",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "value",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "label",
+              "type": "string",
+              "required": true
+            }
+          ]
         },
         "enter": {
           "types": [
@@ -38919,6 +38972,51 @@
           ],
           "description": "Currently selected node id (rendered emphasized)"
         },
+        "selectedNodeActions": {
+          "types": [
+            "array"
+          ],
+          "description": "Actions offered beside the selected node, where it was clicked.",
+          "kind": "event-list",
+          "eventField": "event",
+          "items": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "label": {
+                "types": [
+                  "string"
+                ]
+              },
+              "event": {
+                "types": [
+                  "string"
+                ],
+                "kind": "event"
+              },
+              "icon": {
+                "types": [
+                  "string"
+                ]
+              },
+              "variant": {
+                "types": [
+                  "string"
+                ],
+                "enumValues": [
+                  "primary",
+                  "secondary",
+                  "ghost"
+                ]
+              }
+            },
+            "required": [
+              "label",
+              "event"
+            ]
+          }
+        },
         "repulsion": {
           "types": [
             "number"
@@ -48413,6 +48511,7 @@
                   "h4",
                   "h5",
                   "h6",
+                  "icon",
                   "overline",
                   "avatar",
                   "body",
@@ -48510,6 +48609,7 @@
                   "h4",
                   "h5",
                   "h6",
+                  "icon",
                   "overline",
                   "avatar",
                   "body",
@@ -49364,6 +49464,7 @@
                   "h4",
                   "h5",
                   "h6",
+                  "icon",
                   "overline",
                   "avatar",
                   "body",
@@ -49461,6 +49562,7 @@
                   "h4",
                   "h5",
                   "h6",
+                  "icon",
                   "overline",
                   "avatar",
                   "body",

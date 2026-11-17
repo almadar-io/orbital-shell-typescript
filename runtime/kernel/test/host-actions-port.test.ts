@@ -114,6 +114,14 @@ describe('auth/sign-in: the host ask whose answer returns to the asking trait (E
     expect(parseSignInRequest([{ method: 'google', viewer: true }])).toEqual({ request: { method: 'google' } });
   });
 
+  it('a session request answers the viewer the host already has signed in, with no prompt', () => {
+    expect(parseSignInRequest([{ method: 'session' }])).toEqual({ request: { method: 'session' } });
+  });
+
+  it('control: a session request takes no other field', () => {
+    expect(parseSignInRequest([{ method: 'session', viewer: false }])).toEqual({ error: 'auth/sign-in: viewer is not a field of the session method' });
+  });
+
   it('edge: viewer must be a boolean and belongs to the google method only', () => {
     expect(parseSignInRequest([{ method: 'google', viewer: 'no' }])).toEqual({ error: 'auth/sign-in: viewer is true or false' });
     expect(parseSignInRequest([{ method: 'email', email: 'a@b.c', password: 'pw', viewer: false }])).toEqual({ error: 'auth/sign-in: viewer is not a field of the email method' });

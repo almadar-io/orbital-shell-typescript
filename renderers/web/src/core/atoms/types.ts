@@ -84,7 +84,7 @@ export type BadgeColor = BadgeVariant | 'destructive';
 
 /** How a display field renders: `h3`/`h4` is the record's title, `badge` a
  *  status pill, `progress` a progress bar, `body` a prose block. */
-export type DisplayFieldVariant = 'h3' | 'h4' | 'h5' | 'h6' | 'overline' | 'avatar' | 'body' | 'caption' | 'badge' | 'small' | 'progress';
+export type DisplayFieldVariant = 'h3' | 'h4' | 'h5' | 'h6' | 'icon' | 'overline' | 'avatar' | 'body' | 'caption' | 'badge' | 'small' | 'progress';
 
 /** How a display field's value is formatted. */
 export type DisplayFieldFormat = 'date' | 'time' | 'datetime' | 'currency' | 'number' | 'boolean' | 'percent';
