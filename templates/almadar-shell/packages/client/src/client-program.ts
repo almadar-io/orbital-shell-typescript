@@ -24,3 +24,8 @@ export function loadProgram(): Promise<OrbitalSchema> {
   });
   return loaded;
 }
+
+/** The server's address: `VITE_API_URL` when the build sets it, else the program's `page http` origin, else '' (the page's own origin). */
+export function serverBase(program: OrbitalSchema): string {
+  return import.meta.env.VITE_API_URL ?? program._metadata?.serverOrigin ?? '';
+}

@@ -6,7 +6,7 @@
  *
  * @packageDocumentation
  */
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createLogger } from '@almadar/logger';
 import type { EventKey, EventPayload, PatternConfig, PatternType } from '@almadar/core';
 import type { KernelSceneCanvas } from '@almadar/shell-runtime/kernel/wire';
@@ -56,6 +56,9 @@ interface SemanticView {
     selectionEnd?: number;
     multiline: boolean;
     level?: number;
+    href?: string;
+    expanded?: boolean;
+    owner?: string;
     order: number;
     rect: { x: number; y: number; w: number; h: number };
 }
@@ -77,6 +80,10 @@ const EDITING_KEYS: ReadonlySet<string> = new Set(['Backspace', 'Delete', 'Arrow
 type AuditedCanvas = HTMLCanvasElement & { orbitalContrastAudit?: () => Promise<string> };
 
 const CHECKED_ROLES: ReadonlySet<string> = new Set(['checkbox', 'switch', 'radio', 'menuitemcheckbox', 'menuitemradio']);
+
+/** Roles that are document content: the mirror renders them as elements holding their text, and they are not tab stops. */
+const HEADING_TAGS = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as const;
+const headingTag = (level: number | undefined): (typeof HEADING_TAGS)[number] => (level !== undefined && Number.isInteger(level) && level >= 1 && level <= 6 ? HEADING_TAGS[level - 1] : 'h2');
 
 /** Present to assistive technology and focusable, yet unseen and never the target of the pointer (the canvas is). */
 const hiddenStyle = (node: SemanticView): React.CSSProperties => ({
@@ -214,14 +221,57 @@ function SemanticMirror({ nodes, handlers }: { nodes: SemanticView[]; handlers: 
         else elements.current.delete(id);
     };
 
-    return (
-        <div className="orbital-scene-canvas__semantics" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-            {nodes.map((node) => {
+    const listBase = useId();
+    const listId = (owner: string): string => `${listBase}-${owner}-list`;
+    const owned = new Map<string, SemanticView[]>();
+    for (const node of nodes) {
+        if (node.role === 'option' && node.owner !== undefined) owned.set(node.owner, [...(owned.get(node.owner) ?? []), node]);
+    }
+
+    const renderNode = (node: SemanticView): React.ReactElement => {
                 if (node.role === 'textbox' && node.focused) {
                     return (
                         <div key={node.id} ref={bind(node.id)} style={{ display: 'contents' }}>
                             <TextMirror node={node} handlers={handlers} />
                         </div>
+                    );
+                }
+                if (node.role === 'heading') {
+                    const Heading = headingTag(node.level);
+                    return (
+                        <Heading key={node.id} ref={bind(node.id)} style={hiddenStyle(node)}>
+                            {node.name}
+                        </Heading>
+                    );
+                }
+                if (node.role === 'text') {
+                    return (
+                        <p key={node.id} ref={bind(node.id)} style={hiddenStyle(node)}>
+                            {node.name}
+                        </p>
+                    );
+                }
+                if (node.role === 'img') {
+                    return <div key={node.id} ref={bind(node.id)} role="img" aria-label={node.name} style={hiddenStyle(node)} />;
+                }
+                if (node.role === 'link' && node.href !== undefined && node.href !== '') {
+                    return (
+                        <a
+                            key={node.id}
+                            ref={bind(node.id)}
+                            href={node.href}
+                            aria-disabled={node.disabled || undefined}
+                            style={hiddenStyle(node)}
+                            onFocus={() => {
+                                if (!handlers.latest(node.id)?.focused) handlers.onAccess(node.id, 'focus');
+                            }}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handlers.onAccess(node.id, 'activate');
+                            }}
+                        >
+                            {node.name}
+                        </a>
                     );
                 }
                 const numeric = node.value !== undefined && node.value.trim() !== '' && Number.isFinite(Number(node.value)) ? Number(node.value) : undefined;
@@ -251,12 +301,14 @@ function SemanticMirror({ nodes, handlers }: { nodes: SemanticView[]; handlers: 
                         tabIndex={0}
                         aria-label={node.name}
                         aria-valuenow={numeric}
-                        aria-valuetext={node.role === 'textbox' ? undefined : node.value}
+                        aria-valuetext={node.role === 'textbox' || node.role === 'combobox' ? undefined : node.value}
                         aria-checked={CHECKED_ROLES.has(node.role) ? node.checked : undefined}
                         aria-selected={node.role === 'option' ? node.checked : undefined}
                         aria-disabled={node.disabled || undefined}
                         aria-multiline={node.role === 'textbox' ? node.multiline : undefined}
                         aria-level={node.role === 'heading' ? node.level : undefined}
+                        aria-expanded={node.role === 'combobox' ? node.expanded : undefined}
+                        aria-controls={node.role === 'combobox' && node.expanded === true && owned.has(node.id) ? listId(node.id) : undefined}
                         style={hiddenStyle(node)}
                         onFocus={() => {
                             if (!handlers.latest(node.id)?.focused) handlers.onAccess(node.id, 'focus');
@@ -264,7 +316,22 @@ function SemanticMirror({ nodes, handlers }: { nodes: SemanticView[]; handlers: 
                         onClick={() => handlers.onAccess(node.id, 'activate')}
                         onKeyDown={onKeyDown}
                     >
-                        {node.role === 'textbox' ? node.value : undefined}
+                        {node.role === 'textbox' || node.role === 'combobox' ? node.value : undefined}
+                    </div>
+                );
+    };
+
+    const listed = new Set<string>();
+    return (
+        <div className="orbital-scene-canvas__semantics" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            {nodes.map((node) => {
+                if (node.role !== 'option' || node.owner === undefined) return renderNode(node);
+                if (listed.has(node.owner)) return null;
+                listed.add(node.owner);
+                const owner = node.owner;
+                return (
+                    <div key={`${owner}:list`} id={listId(owner)} role="listbox" aria-label={nodes.find((n) => n.id === owner)?.name}>
+                        {(owned.get(owner) ?? []).map(renderNode)}
                     </div>
                 );
             })}
@@ -520,6 +587,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         >
             <canvas
                 ref={canvasRef}
+                {...(semantics.length > 0 ? { 'aria-hidden': true } : { role: 'img', 'aria-label': t('aria.canvasScene') })}
                 style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none' }}
                 onPointerDown={(e) => {
                     e.currentTarget.setPointerCapture(e.pointerId);

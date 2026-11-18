@@ -35,6 +35,8 @@ const HTTP_ADDRESS: ProtocolAddressField[] = [
   { name: 'host', type: 'string', required: true },
   { name: 'port', type: 'number', required: true },
   { name: 'path', type: 'string', required: false },
+  // The public URL browsers reach the server at (EXEC-ENDPOINT-5); a client served elsewhere prefixes its calls with it.
+  { name: 'origin', type: 'string', required: false },
 ];
 
 export const PROTOCOLS: readonly ProtocolSpec[] = [

@@ -12,12 +12,11 @@ import { HStack, Select, Typography } from '@almadar/shell-web/core';
 import { useDevPersonas } from '@almadar/shell-web/auth/react';
 import { useAuthContext } from '../AuthContext';
 import { authEmulatorHost } from '../../../config/auth';
+import { loadProgram, serverBase } from '../../../client-program';
 
-const API_BASE: string = import.meta.env.VITE_API_URL ?? '';
-
-function DevPersonaPicker(): React.ReactElement | null {
+function DevPersonaPicker({ apiBase }: { apiBase: string }): React.ReactElement | null {
   const { user } = useAuthContext();
-  const { personas, signInAs } = useDevPersonas(API_BASE);
+  const { personas, signInAs } = useDevPersonas(apiBase);
   if (personas.length === 0) return null;
 
   const options = personas.map((p) => ({
@@ -43,11 +42,11 @@ function DevPersonaPicker(): React.ReactElement | null {
 }
 
 export function PersonaSwitcher(): React.ReactElement | null {
-  const [onEmulator, setOnEmulator] = useState(false);
+  const [apiBase, setApiBase] = useState<string | undefined>(undefined);
   useEffect(() => {
-    void authEmulatorHost().then((host) => setOnEmulator(host !== undefined));
+    void Promise.all([authEmulatorHost(), loadProgram()]).then(([host, program]) => setApiBase(host !== undefined ? serverBase(program) : undefined));
   }, []);
-  return onEmulator ? <DevPersonaPicker /> : null;
+  return apiBase !== undefined ? <DevPersonaPicker apiBase={apiBase} /> : null;
 }
 
 export default PersonaSwitcher;

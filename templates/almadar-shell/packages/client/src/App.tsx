@@ -17,15 +17,13 @@ import { KernelEngineProvider, type KernelEngineHost } from '@almadar/shell-web/
 import { OrbPreview } from '@almadar/shell-web/runtime';
 import type { ClientManifest } from '@almadar/core';
 import { hostSignIn } from '@almadar/shell-web/auth/react';
-import { loadProgram } from './client-program';
+import { loadProgram, serverBase } from './client-program';
 import { AuthProvider, PersonaSwitcher, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
 import { loadKernel } from './kernel-host';
 import { Canvas3D, SceneCanvas } from '@almadar/kernel/client';
 import { LocaleRoot } from './locale';
 import { Box, ThemeProvider } from '@almadar/shell-web/core';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 /** The browser's GPU answerer, made once the kernel module has loaded: a program's `gpu/` asks run on WebGPU in the page. */
 const makeGpu: NonNullable<KernelEngineHost['gpu']> = (module) => new module.GpuHost();
@@ -48,7 +46,8 @@ function KernelApp(): React.ReactElement | null {
   const location = useLocation();
   const navigate = useNavigate();
   const accessToken = useCallback(async (): Promise<string | undefined> => (auth ? auth.idToken() : undefined), [auth]);
-  const http = useMemo(() => createHttpTransport({ serverUrl: `${API_BASE}/api/orbitals`, getAccessToken: accessToken }), [accessToken]);
+  const apiBase = program === undefined ? undefined : serverBase(program);
+  const http = useMemo(() => createHttpTransport({ serverUrl: `${apiBase ?? ''}/api/orbitals`, getAccessToken: accessToken }), [apiBase, accessToken]);
   // The server booted with this program and serves no `/register`: a route that replaced the app's program would be a hole, so the client reports it registered.
   const transport = useMemo(
     () => ({ ...http, register: async () => ({ success: true, carriesCircuitState: deriveCarriesCircuitState('stateless') }), unregister: async () => undefined }),

@@ -390,7 +390,7 @@ export function Canvas({
 
     if (painter === 'orbital') {
         return (
-            <div role="img" aria-label={t('aria.canvasScene')} {...(description ? { 'aria-describedby': descId } : {})} {...domPassthrough(rest)} className="contents">
+            <div {...(description ? { role: 'group', 'aria-describedby': descId } : {})} {...domPassthrough(rest)} className="contents">
                 {description && <Box id={descId} className="sr-only">{description}</Box>}
                 <OrbitalSceneCanvas
                     pattern="canvas"

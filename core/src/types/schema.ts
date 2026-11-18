@@ -83,6 +83,8 @@ export interface SchemaMetadata {
   dispatchFacts?: DispatchFacts;
   /** Compiled client programs: the endpoint protocol table, for a kernel with no installed core. */
   protocols?: ProtocolSpec[];
+  /** Compiled client programs: the public URL (no trailing slash) of the program's one `page http` endpoint, where a CDN-served client reaches its API; absent means the page's own origin. */
+  serverOrigin?: string;
 }
 
 /** The operator-table facts a browser kernel reads at dispatch (`emit` busExcluded, `program/dispatch` targetOptions). */
@@ -282,6 +284,7 @@ export const SchemaMetadataSchema = z.object({
   operatorSites: z.record(z.string(), z.enum(['client', 'server', 'any'])).optional(),
   dispatchFacts: z.object({ busExcluded: z.array(z.string()), targetOptions: z.array(z.string()) }).optional(),
   protocols: z.array(ProtocolSpecSchema).optional(),
+  serverOrigin: z.string().optional(),
 });
 
 export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, object> = z.object({

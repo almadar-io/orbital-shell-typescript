@@ -7,6 +7,10 @@ vi.mock('../../../../lib/drawable/orbital/OrbitalCanvas3D', () => ({
   OrbitalCanvas3D: (_props: OrbitalCanvas3DProps<'canvas'>) => null,
 }));
 
+vi.mock('../../../../lib/drawable/orbital/OrbitalSceneCanvas', () => ({
+  OrbitalSceneCanvas: () => null,
+}));
+
 import { Canvas } from '../Canvas';
 import { EventBusProvider } from '../../../../core';
 
@@ -37,5 +41,17 @@ describe('G-ORBITAL-SHELL-TYPESCRIPT-060 Canvas description', () => {
   it('control: without a description there is no describedby', () => {
     const { container } = render(<Canvas mode="3d" />);
     expect(container.querySelector('[role="img"]')?.hasAttribute('aria-describedby')).toBe(false);
+  });
+
+  it('orbital painter: the scene is not wrapped as one image, so its semantic mirror is reachable (G-CROSS-674)', () => {
+    const { container } = render(<Canvas painter="orbital" />);
+    expect(container.querySelector('[role="img"]')).toBeNull();
+  });
+
+  it('orbital painter: a description is linked from a group, not from an image', () => {
+    const { container } = render(<Canvas painter="orbital" description="A page of text." />);
+    expect(container.querySelector('[role="img"]')).toBeNull();
+    const group = container.querySelector('[role="group"]');
+    expect(group && describedText(container, group)).toBe('A page of text.');
   });
 });
