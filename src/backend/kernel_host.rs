@@ -63,7 +63,25 @@ pub fn client_runtime_files(module: &OirModule, language: &str) -> Vec<(String, 
 /// client code path reads).
 pub fn client_program_orb(schema: &orbital_core_base::schema::types::OrbitalSchema) -> serde_json::Result<String> {
     let program = orbital_core_base::value_serialize::to_canonical_value(schema).map_err(serde::ser::Error::custom)?;
-    serde_json::to_string(&orbital_core_base::runs_on::client_program(program))
+    let origin_env = program.get("orbitals").and_then(orbital_core_base::runs_on::declared_server_origin_env);
+    let from_env = origin_env.and_then(|name| std::env::var(name).ok());
+    serde_json::to_string(&with_origin_from_env(orbital_core_base::runs_on::client_program(program), from_env))
+}
+
+/// The client program with the origin its `originFromEnv` named, read when the client was compiled, unless the program
+/// already declares a literal `origin` (EXEC-ENDPOINT-5).
+fn with_origin_from_env(mut client: orbital_core_base::value::Value, from_env: Option<String>) -> orbital_core_base::value::Value {
+    use orbital_core_base::value::{Value, ValueMap};
+    let Some(origin) = from_env.map(|o| o.trim_end_matches('/').to_string()).filter(|o| !o.is_empty()) else {
+        return client;
+    };
+    if let Some(root) = client.as_object_mut() {
+        let metadata = root.entry("_metadata".into()).or_insert_with(|| Value::object(ValueMap::default()));
+        if let Some(metadata) = metadata.as_object_mut() {
+            metadata.entry("serverOrigin".into()).or_insert(Value::String(origin.into()));
+        }
+    }
+    client
 }
 
 #[cfg(test)]
@@ -342,5 +360,41 @@ mod client_program_tests {
     #[test]
     fn edge_a_scalar_passes_through_unchanged() {
         assert_eq!(canonical_json(&json!("k")), json!("k"));
+    }
+}
+
+#[cfg(test)]
+mod origin_from_env_tests {
+    use super::with_origin_from_env;
+    use orbital_core_base::runs_on::{client_program, declared_server_origin_env};
+    use orbital_core_base::value::Value;
+
+    fn program(address: serde_json::Value) -> Value {
+        serde_json::from_value(serde_json::json!({ "name": "App", "orbitals": [
+            { "name": "Ui", "pages": [{ "name": "Home", "path": "/" }], "traits": [] },
+            { "name": "Api", "pages": [{ "name": "Api", "path": "", "protocol": "http", "address": address }], "traits": [] }
+        ] }))
+        .expect("program")
+    }
+
+    fn origin(client: &Value) -> Option<String> {
+        client.get("_metadata").and_then(|m| m.get("serverOrigin")).and_then(Value::as_str).map(str::to_string)
+    }
+
+    #[test]
+    fn a_web_client_compiled_with_its_declared_env_set_carries_that_origin() {
+        let p = program(serde_json::json!({ "host": "0.0.0.0", "port": 8080, "originFromEnv": "ORB_PUBLIC_ORIGIN" }));
+        assert_eq!(p.get("orbitals").and_then(declared_server_origin_env).as_deref(), Some("ORB_PUBLIC_ORIGIN"));
+        let client = with_origin_from_env(client_program(p), Some("http://localhost:8080/apps/notes/".to_string()));
+        assert_eq!(origin(&client).as_deref(), Some("http://localhost:8080/apps/notes"));
+    }
+
+    #[test]
+    fn control_a_literal_origin_wins_and_an_unset_env_leaves_the_page_origin() {
+        let literal = program(serde_json::json!({ "host": "0.0.0.0", "port": 8080, "origin": "https://api.example.com", "originFromEnv": "ORB_PUBLIC_ORIGIN" }));
+        let client = with_origin_from_env(client_program(literal), Some("http://localhost:8080".to_string()));
+        assert_eq!(origin(&client).as_deref(), Some("https://api.example.com"));
+        let unset = program(serde_json::json!({ "host": "0.0.0.0", "port": 8080, "originFromEnv": "ORB_PUBLIC_ORIGIN" }));
+        assert_eq!(origin(&with_origin_from_env(client_program(unset), None)), None);
     }
 }

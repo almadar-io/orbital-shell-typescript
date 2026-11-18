@@ -87,7 +87,7 @@
     "fixtures"
   ],
   "orbLanguage": {
-    "version": "1.6.0",
+    "version": "1.7.0",
     "patterns": "dist/patterns/patterns-registry.json",
     "componentMapping": "dist/patterns/component-mapping.json",
     "eventContracts": "dist/patterns/event-contracts.json",
