@@ -2,6 +2,9 @@
 
 import { useCallback, useSyncExternalStore } from 'react';
 
+/** The phone range the shell treats as mobile (matches DashboardLayout's off-canvas tier). */
+export const MOBILE_MEDIA_QUERY = '(max-width: 767.98px)';
+
 /**
  * Reactively track a CSS media query (e.g. `'(pointer: coarse)'`).
  *

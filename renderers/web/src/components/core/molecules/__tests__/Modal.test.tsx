@@ -7,7 +7,7 @@
  * accessibility tree even though its raw HTML looks correct.
  */
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Modal } from '../Modal';
 import { EventBusProvider } from '../../../../core';
@@ -17,6 +17,7 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 describe('Modal', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
   it('exposes the open dialog on the accessibility tree (no aria-hidden ancestor)', () => {
     render(
       <TestWrapper>
@@ -86,6 +87,7 @@ describe('Modal', () => {
   });
 
   it('on phones it is a bottom sheet capped below full height, so its drag handle means something', () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q === '(max-width: 767.98px)', media: q, addEventListener: () => undefined, removeEventListener: () => undefined }));
     render(
       <TestWrapper>
         <Modal isOpen title="Sheet">
@@ -94,9 +96,9 @@ describe('Modal', () => {
       </TestWrapper>
     );
     const dialog = screen.getByRole('dialog');
-    expect(dialog.className).toContain('max-sm:max-h-[90vh]');
-    expect(dialog.className).not.toContain('max-sm:h-full');
-    expect(dialog.parentElement?.className).toContain('max-sm:items-end');
+    expect(dialog.className).toContain('max-h-[90dvh]');
+    expect(dialog.className).not.toContain('h-full');
+    expect(dialog.parentElement?.className).toContain('items-end');
   });
 
   it.each([

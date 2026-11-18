@@ -80,6 +80,8 @@ export interface DrawerProps extends A11yProps {
    * @default true
    */
   modal?: boolean;
+  /** The content owns its own scrolling: the body is a bounded flex column with no padding and the drawer is the dynamic viewport tall, so a pinned footer (a chat input) stays on screen. */
+  fill?: boolean;
 }
 
 // ============================================================================
@@ -120,6 +122,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   className,
   closeEvent,
   modal = true,
+  fill = false,
   ...rest
 }) => {
   const eventBus = useEventBus();
@@ -241,7 +244,7 @@ export const Drawer: React.FC<DrawerProps> = ({
         )}
 
         {/* Content */}
-        <Box className="flex-1 overflow-y-auto p-6"><SurfaceBoundary>{children}</SurfaceBoundary></Box>
+        <Box className={fill ? "flex min-h-0 flex-1 flex-col overflow-hidden" : "flex-1 min-h-0 overflow-y-auto p-6"}><SurfaceBoundary>{children}</SurfaceBoundary></Box>
 
         {/* Footer */}
         {footer && (

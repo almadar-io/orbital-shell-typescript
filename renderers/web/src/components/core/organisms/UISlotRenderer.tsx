@@ -905,8 +905,8 @@ function DockSlotFrame({ open, onExited, onDismiss, contained = false, children 
 
   if (compact) {
     return (
-      <Drawer isOpen={open} onExited={onExited} onClose={onDismiss} position="right" width="md" showCloseButton={false} contained={contained}>
-        <Box data-testid="dock-sheet-fill" className="flex h-full min-h-0 flex-col">{children}</Box>
+      <Drawer isOpen={open} onExited={onExited} onClose={onDismiss} position="right" width="md" showCloseButton={false} contained={contained} fill>
+        <Box data-testid="dock-sheet-fill" className="flex min-h-0 flex-1 flex-col">{children}</Box>
       </Drawer>
     );
   }

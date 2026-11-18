@@ -128,6 +128,8 @@ module.exports = {
   // Motion utilities (applied conditionally on open/close state)
   'animate-modal-in',
   'animate-modal-out',
+  'animate-sheet-in',
+  'animate-sheet-out',
   'animate-overlay-in',
   'animate-overlay-out',
   'animate-slide-up',
@@ -660,6 +662,14 @@ module.exports = {
             transform: 'var(--motion-modal-exit-to-transform, scale(0.96) translateY(8px))',
           },
         },
+        'sheet-in': {
+          '0%': { transform: 'translateY(100%)' },
+          '100%': { transform: 'translateY(0)' },
+        },
+        'sheet-out': {
+          '0%': { transform: 'translateY(0)' },
+          '100%': { transform: 'translateY(100%)' },
+        },
         'overlay-in': {
           '0%': { opacity: 'var(--motion-overlay-enter-from-opacity, var(--motion-overlay-from-opacity, 0))' },
           '100%': { opacity: '1' },
@@ -773,6 +783,8 @@ module.exports = {
         // --transition-* so themes that haven't migrated keep working).
         'modal-in': 'modal-in var(--duration-normal, var(--transition-normal, 250ms)) var(--easing-standard, var(--transition-timing, cubic-bezier(0.4, 0, 0.2, 1)))',
         'modal-out': 'modal-out var(--duration-normal, var(--transition-normal, 250ms)) var(--easing-standard, var(--transition-timing, cubic-bezier(0.4, 0, 0.2, 1))) forwards',
+        'sheet-in': 'sheet-in var(--duration-normal, var(--transition-normal, 250ms)) var(--easing-emphasized, cubic-bezier(0.2, 0, 0, 1))',
+        'sheet-out': 'sheet-out var(--duration-normal, var(--transition-normal, 250ms)) var(--easing-emphasized, cubic-bezier(0.2, 0, 0, 1)) forwards',
         'overlay-in': 'overlay-in var(--duration-normal, var(--transition-normal, 250ms)) var(--easing-standard, var(--transition-timing, cubic-bezier(0.4, 0, 0.2, 1)))',
         'overlay-out': 'overlay-out var(--duration-fast, var(--transition-fast, 150ms)) var(--easing-standard, var(--transition-timing, cubic-bezier(0.4, 0, 0.2, 1))) forwards',
         'slide-up': 'slide-up var(--duration-slow, var(--transition-slow, 400ms)) var(--easing-emphasized, cubic-bezier(0.2, 0, 0, 1))',

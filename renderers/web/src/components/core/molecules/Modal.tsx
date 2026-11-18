@@ -18,6 +18,7 @@ import { SurfaceBoundary } from '../../../core';
 import { useEventBus } from '../../../core';
 import { useTranslate } from '../../../core';
 import { useDialogBehavior } from '../../../core';
+import { useMediaQuery, MOBILE_MEDIA_QUERY } from '../../../core';
 import { usePresence } from '../../../core';
 import { ThemedPortal } from "../../../lib/ThemedPortal";
 
@@ -119,6 +120,7 @@ export const Modal: React.FC<ModalProps> = ({
 }) => {
   const eventBus = useEventBus();
   const { t } = useTranslate();
+  const sheet = useMediaQuery(MOBILE_MEDIA_QUERY) && look === "centered-card";
   const modalRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [dragY, setDragY] = useState(0);
@@ -139,7 +141,7 @@ export const Modal: React.FC<ModalProps> = ({
   useDialogBehavior({ open: isOpen, containerRef: modalRef, onEscape: emitClose, closeOnEscape });
 
   useEffect(() => {
-    if (contained) return;
+    if (contained && !sheet) return;
     if (isOpen) {
       document.body.style.overflow = "hidden";
     } else {
@@ -148,12 +150,14 @@ export const Modal: React.FC<ModalProps> = ({
     return () => {
       document.body.style.overflow = "";
     };
-  }, [isOpen, contained]);
+  }, [isOpen, contained, sheet]);
 
   if (typeof document === "undefined") return null;
   if (!mounted) return null;
   // Presence yields no class when motion is off (`--motion-enable`, reduced motion).
-  const dialogAnim = presenceAnim ? (exiting ? "animate-modal-out" : "animate-modal-in") : "";
+  const dialogAnim = presenceAnim
+    ? (sheet ? (exiting ? "animate-sheet-out" : "animate-sheet-in") : (exiting ? "animate-modal-out" : "animate-modal-in"))
+    : "";
   const overlayAnim = presenceAnim ? (exiting ? "animate-overlay-out" : "animate-overlay-in") : "";
 
   const handleClose = emitClose;
@@ -176,9 +180,9 @@ export const Modal: React.FC<ModalProps> = ({
       className={cn(
         contained ? "absolute inset-0 z-50" : "fixed inset-0 z-[1000]",
         "bg-scrim",
-        "flex items-start justify-center px-4 pb-4",
-        contained ? "pt-[10%]" : "pt-[10vh]",
-        "max-sm:items-end max-sm:p-0 max-sm:pt-0",
+        sheet
+          ? "flex items-end justify-center p-0"
+          : cn("flex items-start justify-center px-4 pb-4", contained ? "pt-[10%]" : "pt-[10vh]"),
         overlayAnim,
       )}
       onClick={handleOverlayClick}
@@ -201,9 +205,10 @@ export const Modal: React.FC<ModalProps> = ({
             sizeClasses[size],
             minWidthClasses[size],
             contained ? "max-h-[80%]" : "max-h-[80vh]",
-            // Mobile: a bottom sheet — full width, capped at 90vh, square
-            // bottom corners, clear of the home indicator.
-            "max-sm:max-w-none max-sm:w-full max-sm:max-h-[90vh] max-sm:rounded-b-none max-sm:pb-[env(safe-area-inset-bottom)]",
+            // Phones: a bottom sheet anchored to the bottom edge — full
+            // width, capped at 90vh (content scrolls inside), round top
+            // corners, clear of the home indicator.
+            sheet && cn("max-w-none min-w-0 w-full rounded-t-container rounded-b-none pb-[env(safe-area-inset-bottom)]", contained ? "max-h-[90%]" : "max-h-[90vh] max-h-[90dvh]"),
             lookStyles[look],
             className,
             dialogAnim,
@@ -217,7 +222,8 @@ export const Modal: React.FC<ModalProps> = ({
         >
           {/* Drag handle (mobile bottom sheet) */}
           <Box
-            className="hidden max-sm:flex justify-center py-2 cursor-grab active:cursor-grabbing touch-none"
+            className={cn("justify-center py-2 cursor-grab active:cursor-grabbing touch-none shrink-0", sheet ? "flex" : "hidden")}
+            data-sheet-handle=""
             onPointerDown={(e) => {
               if (!swipeDownToClose) return;
               dragStartY.current = e.clientY;
@@ -249,7 +255,7 @@ export const Modal: React.FC<ModalProps> = ({
           {(title || showCloseButton) && (
             <Box
               className={cn(
-                "px-6 py-4 flex items-center justify-between",
+                "px-6 py-4 flex items-center justify-between shrink-0",
                 "border-b-[length:var(--border-width)] border-border",
               )}
             >
@@ -279,7 +285,7 @@ export const Modal: React.FC<ModalProps> = ({
           {footer && (
             <Box
               className={cn(
-                "px-6 py-4 bg-muted",
+                "px-6 py-4 bg-muted shrink-0",
                 "border-t-[length:var(--border-width)] border-border",
               )}
             >
