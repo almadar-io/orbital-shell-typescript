@@ -101,6 +101,7 @@ interface Node {
     owner?: string;
     level?: number;
     href?: string;
+    rect?: { x: number; y: number; w: number; h: number };
 }
 
 const tree = (nodes: Node[]): string =>
@@ -240,5 +241,102 @@ describe('G-CROSS-674 the canvas semantic mirror is real document content', () =
         expect(canvas?.getAttribute('role')).toBe('img');
         expect(canvas?.getAttribute('aria-label')).toBeTruthy();
         expect(canvas?.hasAttribute('aria-hidden')).toBe(false);
+    });
+});
+
+async function mountMoving(first: Node[]) {
+    install();
+    const view = fakeView();
+    let nodes = first;
+    view.frame.mockImplementation(() => true);
+    view.semanticTree.mockImplementation(() => tree(nodes));
+    current = { loadModule: () => Promise.reject(new Error("no module in this test")),
+        isolated: () => { throw new Error("no isolated engine in this test"); }, sceneCanvas: () => Promise.resolve(view) };
+    const result = render(<OrbitalSceneCanvas pattern="canvas" config={{ type: "canvas", mode: "2d", unitScale: 1 }} width={400} height={300} />);
+    await act(async () => {
+        await Promise.resolve();
+    });
+    await runFrames(3);
+    const mirror = (): Element | null => result.container.querySelector(".orbital-scene-canvas__semantics");
+    const show = async (next: Node[]): Promise<void> => {
+        nodes = next;
+        await runFrames(2);
+    };
+    return { mirror, show };
+}
+
+const at = (y: number, x = 20): { x: number; y: number; w: number; h: number } => ({ x, y, w: 100, h: 20 });
+const page = (scroll: number, title = "Title"): Node[] => [
+    { id: "bar", role: "link", name: "Book a call", href: "/call", order: 0, rect: at(10) },
+    { id: "h", role: "heading", name: title, level: 1, order: 1, rect: at(200 - scroll) },
+    { id: "p", role: "text", name: "Body", order: 2, rect: at(260 - scroll) },
+];
+
+describe("G-CROSS-684 a page scroll moves the mirror without rebuilding it", () => {
+    it("a scroll keeps every mirror element and moves the scrolled ones by the offset", async () => {
+        const { mirror, show } = await mountMoving(page(0));
+        const before = { h: mirror()?.querySelector("h1"), p: mirror()?.querySelector("p"), bar: mirror()?.querySelector("a") };
+        await show(page(120));
+        const h1 = mirror()?.querySelector("h1");
+        expect(h1).toBe(before.h);
+        expect(mirror()?.querySelector("p")).toBe(before.p);
+        expect(h1?.style.top).toBe("200px");
+        expect(h1?.style.transform).toBe("translate(0px, -120px)");
+        expect(mirror()?.querySelector("p")?.style.transform).toBe("translate(0px, -120px)");
+    });
+
+    it("a node that stays in place while the page scrolls is not moved", async () => {
+        const { mirror, show } = await mountMoving(page(0));
+        await show(page(120));
+        const bar = mirror()?.querySelector("a");
+        expect(bar?.style.top).toBe("10px");
+        expect(bar?.style.transform).toBe("");
+    });
+
+    it("a second scroll replaces the offset, measured from the rendered positions", async () => {
+        const { mirror, show } = await mountMoving(page(0));
+        await show(page(120));
+        await show(page(50));
+        expect(mirror()?.querySelector("h1")?.style.transform).toBe("translate(0px, -50px)");
+    });
+
+    it("control: a change of content during a scroll rebuilds the mirror at the new positions with no offset left", async () => {
+        const { mirror, show } = await mountMoving(page(0));
+        await show(page(120));
+        await show(page(150, "New title"));
+        const h1 = mirror()?.querySelector("h1");
+        expect(h1?.textContent).toBe("New title");
+        expect(h1?.style.top).toBe("50px");
+        expect(h1?.style.transform).toBe("");
+        expect(mirror()?.querySelector("p")?.style.top).toBe("110px");
+        expect(mirror()?.querySelector("p")?.style.transform).toBe("");
+    });
+
+    it("control: nodes that move by different amounts are a layout change, not a scroll", async () => {
+        const { mirror, show } = await mountMoving(page(0));
+        const moved = page(0);
+        moved[1] = { ...moved[1], rect: at(180) };
+        moved[2] = { ...moved[2], rect: at(200) };
+        await show(moved);
+        expect(mirror()?.querySelector("h1")?.style.top).toBe("180px");
+        expect(mirror()?.querySelector("p")?.style.top).toBe("200px");
+        expect(mirror()?.querySelector("h1")?.style.transform).toBe("");
+    });
+
+    it("control: a node that changes size is a layout change", async () => {
+        const { mirror, show } = await mountMoving(page(0));
+        const grown = page(120);
+        grown[2] = { ...grown[2], rect: { x: 20, y: 140, w: 100, h: 60 } };
+        await show(grown);
+        expect(mirror()?.querySelector("p")?.style.height).toBe("60px");
+        expect(mirror()?.querySelector("h1")?.style.top).toBe("80px");
+        expect(mirror()?.querySelector("h1")?.style.transform).toBe("");
+    });
+
+    it("edge: a node added while scrolled rebuilds the mirror", async () => {
+        const { mirror, show } = await mountMoving(page(0));
+        await show([...page(120), { id: "q", role: "text", name: "More", order: 3, rect: at(300) }]);
+        expect(mirror()?.querySelectorAll("p").length).toBe(2);
+        expect(mirror()?.querySelector("h1")?.style.top).toBe("80px");
     });
 });

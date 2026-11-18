@@ -102,6 +102,40 @@ const hiddenStyle = (node: SemanticView): React.CSSProperties => ({
     color: 'transparent',
 });
 
+interface MirrorShift {
+    dx: number;
+    dy: number;
+    moved: ReadonlySet<string>;
+}
+
+const hundredths = (value: number): number => Math.round(value * 100);
+
+/** The one offset that turns `from` into `to` when nothing else differs (a page scroll; none moved when equal), else null. */
+function scrollShift(from: SemanticView[], to: SemanticView[]): MirrorShift | null {
+    if (from.length === 0 || from.length !== to.length) return null;
+    let dx = 0;
+    let dy = 0;
+    const moved = new Set<string>();
+    for (let i = 0; i < from.length; i += 1) {
+        const a = from[i];
+        const b = to[i];
+        const { rect: ra, ...restA } = a;
+        const { rect: rb, ...restB } = b;
+        if (JSON.stringify(restA) !== JSON.stringify(restB)) return null;
+        if (hundredths(ra.w) !== hundredths(rb.w) || hundredths(ra.h) !== hundredths(rb.h)) return null;
+        const mx = hundredths(rb.x - ra.x);
+        const my = hundredths(rb.y - ra.y);
+        if (mx === 0 && my === 0) continue;
+        if (a.role === 'textbox' && a.focused) return null;
+        if (moved.size === 0) {
+            dx = mx;
+            dy = my;
+        } else if (mx !== dx || my !== dy) return null;
+        moved.add(a.id);
+    }
+    return { dx: dx / 100, dy: dy / 100, moved };
+}
+
 /** UTF-16 offset of the `chars`th Unicode scalar value of `text`. */
 const utf16Offset = (text: string, chars: number): number => {
     let offset = 0;
@@ -205,8 +239,21 @@ function TextMirror({ node, handlers }: { node: SemanticView; handlers: MirrorHa
     return node.multiline ? <textarea {...shared} /> : <input type="text" {...shared} />;
 }
 
-function SemanticMirror({ nodes, handlers }: { nodes: SemanticView[]; handlers: MirrorHandlers }): React.ReactElement {
+function SemanticMirror({ nodes, handlers, shiftRef }: { nodes: SemanticView[]; handlers: MirrorHandlers; shiftRef: React.MutableRefObject<((shift: MirrorShift | null) => void) | null> }): React.ReactElement {
     const elements = useRef(new Map<string, HTMLElement>());
+
+    useLayoutEffect(() => {
+        const apply = (shift: MirrorShift | null): void => {
+            for (const [id, el] of elements.current) {
+                el.style.transform = shift !== null && shift.moved.has(id) ? `translate(${shift.dx}px, ${shift.dy}px)` : '';
+            }
+        };
+        apply(null);
+        shiftRef.current = apply;
+        return () => {
+            shiftRef.current = null;
+        };
+    }, [nodes, shiftRef]);
 
     useEffect(() => {
         const focused = nodes.find((n) => n.focused);
@@ -363,6 +410,8 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
     const [semantics, setSemantics] = useState<SemanticView[]>([]);
     const treeJson = useRef('[]');
     const semanticsRef = useRef<SemanticView[]>([]);
+    const renderedRef = useRef<SemanticView[]>([]);
+    const shiftRef = useRef<((shift: MirrorShift | null) => void) | null>(null);
     const [error, setError] = useState<string | null>(factory ? null : 'no scene renderer: the host supplies no sceneCanvas factory to KernelEngineProvider');
 
     useEffect(() => {
@@ -389,6 +438,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
             viewRef.current = null;
             treeJson.current = '[]';
             semanticsRef.current = [];
+            renderedRef.current = [];
             setSemantics([]);
             setReady(false);
         };
@@ -414,6 +464,12 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         treeJson.current = json;
         const next = JSON.parse(json) as SemanticView[];
         semanticsRef.current = next;
+        const shift = shiftRef.current === null ? null : scrollShift(renderedRef.current, next);
+        if (shift !== null && shiftRef.current !== null) {
+            shiftRef.current(shift);
+            return;
+        }
+        renderedRef.current = next;
         setSemantics(next);
     };
     const refreshTreeRef = useRef(refreshTree);
@@ -602,7 +658,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
                 onPointerCancel={(e) => send('touch-cancel', e, e.button)}
                 onDoubleClick={(e) => send('double-tap', e, 0)}
             />
-            {semantics.length > 0 && <SemanticMirror nodes={semantics} handlers={mirror} />}
+            {semantics.length > 0 && <SemanticMirror nodes={semantics} handlers={mirror} shiftRef={shiftRef} />}
             {error && (
                 <div className="orbital-scene-canvas__error absolute inset-0 z-[1] flex items-center justify-center p-4 text-center text-sm text-[var(--color-error)]">
                     {t('canvas3d.errorWithMessage', { message: error })}
