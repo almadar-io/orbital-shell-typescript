@@ -32,7 +32,7 @@ import { I18nProvider } from '../core/hooks/useTranslate';
 import { routeLocaleValue } from './routeLocale';
 import type { OrbitalSchema, EntityData, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
 import { orbitalInlineEntities, storesRowsInBrowser, isHostSignInRoute, localeAlternates, notFoundPage } from '@almadar/core';
-import { matchPathAmong } from '../core';
+import { isAbsoluteHref, matchPathAmong } from '../core';
 import { useTraitStateMachine } from '../hooks/useTraitStateMachine';
 import { EntitySchemaProvider } from '../providers/EntitySchemaContext';
 import { EntityBindingContext } from '../providers/EntityBindingContext';
@@ -884,6 +884,10 @@ export function OrbPreview({
       onSignIn?.(navState?.returnTo);
       return;
     }
+    if (isAbsoluteHref(path)) {
+      window.open(path, isolated && /^https?:/i.test(path) ? '_blank' : '_self', 'noopener');
+      return;
+    }
     const route = matchRoute(path);
     if (!route) {
       if (notFoundEntry?.page.name) {
@@ -916,7 +920,7 @@ export function OrbPreview({
       setCurrentPage(match.page.name);
       announcePage(path);
     }
-  }, [pages, matchRoute, notFoundEntry, announcePage, onUnmatchedNavigate, onSignIn]);
+  }, [pages, matchRoute, notFoundEntry, announcePage, onUnmatchedNavigate, onSignIn, isolated]);
 
   const activePage = useMemo(() => {
     const activePageName = currentPage ?? pages[0]?.page.name;

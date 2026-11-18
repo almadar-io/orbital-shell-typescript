@@ -51,11 +51,11 @@ import { KernelLoaderMissingError, type KernelEngineValue } from '../../provider
 import { useTranslate, useRenderI18n } from '../../core';
 
 /** A program's type-contract stamp: the kernel refuses to register a program carrying neither field. */
-export type ProgramStamp = Pick<OrbitalSchema, 'resolved' | 'typeContractVersion' | 'theme' | 'themes' | 'locales' | 'messages'>;
+export type ProgramStamp = Pick<OrbitalSchema, 'resolved' | 'typeContractVersion' | 'theme' | 'themes' | 'locales' | 'messages' | 'osGrants' | 'egress'>;
 
 /** The program-level fields a kernel registration carries, field for field; nothing is minted. The app's `theme` and
  *  `themes` are the keys `theme/set` may bind and `@currentTheme` falls back to; `locales` and `messages` are the text
- *  `i18n/t` paints. */
+ *  `i18n/t` paints; `osGrants` and `egress` are the app-level grants every orbital's own grants extend (a browser-run `program/open { local }` needs the app's kernel guest grant). */
 export function programStamp(schema: ProgramStamp): ProgramStamp {
   return {
     ...(schema.resolved !== undefined ? { resolved: schema.resolved } : {}),
@@ -64,6 +64,8 @@ export function programStamp(schema: ProgramStamp): ProgramStamp {
     ...(schema.themes !== undefined ? { themes: schema.themes } : {}),
     ...(schema.locales !== undefined ? { locales: schema.locales } : {}),
     ...(schema.messages !== undefined ? { messages: schema.messages } : {}),
+    ...(schema.osGrants !== undefined ? { osGrants: schema.osGrants } : {}),
+    ...(schema.egress !== undefined ? { egress: schema.egress } : {}),
   };
 }
 

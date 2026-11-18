@@ -19,4 +19,10 @@ describe('programStamp', () => {
   it('control: an empty themes list is carried as declared', () => {
     expect(programStamp({ themes: [] })).toEqual({ themes: [] });
   });
+
+  it('carries the app-level grants and egress that every orbital grant set extends', () => {
+    const osGrants = { kernel: [{ target: 'guest', kinds: ['spawn' as const] }] };
+    const stamp = programStamp({ typeContractVersion: 1, osGrants, egress: ['https://api.example.test'] });
+    expect(stamp).toEqual({ typeContractVersion: 1, osGrants, egress: ['https://api.example.test'] });
+  });
 });
