@@ -42,6 +42,7 @@ import { decodeHeldCompletion } from '@almadar/shell-runtime/kernel/decode';
 import { blobs, handedJson } from '@almadar/shell-runtime/kernel/blobs';
 import { HeldValues } from '@almadar/shell-runtime/kernel/held-values';
 import { createKvWebPort } from '@almadar/shell-browser/kv';
+import { identityKeeper, seedCachedIdentity } from './identity-cache';
 import { kvHostAction, registerHostKv } from './host-actions';
 
 const log = createLogger('almadar:ui:kernel-client');
@@ -184,13 +185,17 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
   const store: CircuitStore = new Proxy(opts.store, { get: (_own, key) => Reflect.get(liveStore(), key) });
   const configs = new Map<string, TraitConfig>();
   let gpuCompletion: ((json: string) => void) | undefined;
-  const ready = Promise.all([opts.instance, opts.gpu]).then(([k, gpu]) => {
+  let keepIdentity: (() => Promise<boolean>) | undefined;
+  const ready = Promise.all([opts.instance, opts.gpu]).then(async ([k, gpu]) => {
     loaded = k;
     liveStoreByKernel.set(k, opts.store);
     if (opts.kvStore !== undefined) {
       const { app, locale } = opts.kvStore;
+      const kv = createKvWebPort({ app, locale });
       // The kernel asks only what the asking orbital's `kv` grant covers (EXEC-DIST-13), so the store answers every ask it is handed.
-      registerHostKv(kvHostAction(createKvWebPort({ app, locale })));
+      registerHostKv(kvHostAction(kv));
+      keepIdentity = identityKeeper(k, kv);
+      await seedCachedIdentity(k, kv);
     }
     if (gpu !== undefined) {
       gpuCompletion = (json) => deliverGpuCompletion(k, json);
@@ -218,11 +223,15 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       if (next.outcome === 'failed') turn.failed(new Error(next.error));
       else turn.ran(next.fold);
     }
+    void keepIdentity?.();
   };
 
   const utf8 = new TextEncoder();
-  const foldInOrder = (k: KernelInstance, flight: number, answer: EventResponse, alreadyDeliveredJson: string, baseJson: string | undefined): Promise<AppliedWire> =>
-    settleProgress(k, readAnswer<FoldProgressWire>(k, k.foldInOrder(flight, utf8.encode(JSON.stringify(answer)), alreadyDeliveredJson, baseJson, handedJson(answer))));
+  const foldInOrder = (k: KernelInstance, flight: number, answer: EventResponse, alreadyDeliveredJson: string, baseJson: string | undefined): Promise<AppliedWire> => {
+    const progress = readAnswer<FoldProgressWire>(k, k.foldInOrder(flight, utf8.encode(JSON.stringify(answer)), alreadyDeliveredJson, baseJson, handedJson(answer)));
+    void keepIdentity?.();
+    return settleProgress(k, progress);
+  };
 
   const deliverInOrder = (k: KernelInstance, flight: number, emitted: EmittedEvent): Promise<AppliedWire> =>
     settleProgress(k, readAnswer<FoldProgressWire>(k, k.deliverEmitToListeners(flight, JSON.stringify(emitted))));

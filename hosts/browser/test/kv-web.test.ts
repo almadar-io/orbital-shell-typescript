@@ -115,6 +115,20 @@ describe('kv-web', () => {
     expect(await ok(first, 'kv/get', ['prefetched', 'p'])).toEqual({ found: true, value: 'path' });
   });
 
+  it('adds a store while another connection closes only later (blocked), and later stores still open', async () => {
+    const port = open();
+    await ok(port, 'kv/put', ['answers', 'k', 'v']);
+    const other = await new Promise<IDBDatabase>((resolve, reject) => {
+      const req = factory.open(kvDatabaseName('shop', 'en'));
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    other.onversionchange = () => setTimeout(() => other.close(), 30);
+    expect(await ok(port, 'kv/put', ['themes', 'theme', 'arabesque-dark'])).toEqual({ storedKey: 'theme' });
+    expect(await ok(port, 'kv/put', ['prefetched', 'p', 'path'])).toEqual({ storedKey: 'p' });
+    expect(await ok(port, 'kv/get', ['themes', 'theme'])).toEqual({ found: true, value: 'arabesque-dark' });
+  });
+
   it('control: one store on one port opens once and answers in order', async () => {
     const port = open();
     const settled = await Promise.all([port.answer('kv/put', ['rows', 'a', 1]), port.answer('kv/get', ['rows', 'a'])]);

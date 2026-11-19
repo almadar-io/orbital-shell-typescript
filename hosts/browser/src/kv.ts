@@ -82,7 +82,7 @@ function openDatabase(factory: IDBFactory, name: string, version: number | undef
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
-    req.onblocked = () => reject(new Error('IndexedDB upgrade blocked by another open connection'));
+    // Blocked is a notice: the open completes once the other connection closes on versionchange.
   });
 }
 
