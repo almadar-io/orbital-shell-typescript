@@ -113,4 +113,22 @@ describe('DetailPanel', () => {
     expect(screen.getByText('Explicit Product')).toBeInTheDocument();
     expect(screen.queryByText('Premium Laptop')).not.toBeInTheDocument();
   });
+  it('leaves out a field whose value is an empty string and keeps a filled one', () => {
+    const TestWrapper = createTestWrapper();
+    render(
+      <TestWrapper>
+        <DetailPanel
+          entity={{ id: 't1', title: 'Brief', blockedReason: '', handoffNote: 'Ready for review' }}
+          title="Brief"
+          fields={[
+            { name: 'blockedReason', label: 'Blocked because', variant: 'body' },
+            { name: 'handoffNote', label: 'Last handoff note', variant: 'body' },
+          ]}
+        />
+      </TestWrapper>,
+    );
+    expect(screen.queryByText('Blocked because')).not.toBeInTheDocument();
+    expect(screen.getByText('Last handoff note')).toBeInTheDocument();
+    expect(screen.getByText('Ready for review')).toBeInTheDocument();
+  });
 });

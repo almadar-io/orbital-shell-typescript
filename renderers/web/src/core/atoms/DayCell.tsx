@@ -73,7 +73,7 @@ export function DayCell({
           isToday && "bg-primary text-primary-foreground",
         )}
       >
-        <Typography variant="body" className="font-semibold">
+        <Typography variant="body" className={cn("font-semibold", isToday && "text-primary-foreground")}>
           {safeDate.getDate()}
         </Typography>
       </Box>

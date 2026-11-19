@@ -131,7 +131,7 @@ function NativeSelect({
       <div className="relative">
       <select
         onChange={handleChange}
-        value={displayValue}
+        value={displayValue ?? (placeholder ? "" : undefined)}
         className={cn(
           "block w-full rounded-interactive border-[length:var(--border-width)] shadow-elevation-interactive interactive-border appearance-none",
           "px-3 py-2 pr-10 text-sm text-foreground font-medium",

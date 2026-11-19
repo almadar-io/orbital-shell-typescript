@@ -689,7 +689,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
       const out: DetailField[] = [];
       for (const field of group) {
         const value = getNestedValue(normalizedData, field.name) as FieldValue | undefined;
-        if (value !== undefined && value !== null) {
+        if (value !== undefined && value !== null && value !== "") {
           out.push({ label: labelFor(field.name), value: richValue(field, value) });
         }
       }

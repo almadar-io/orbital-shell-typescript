@@ -152,7 +152,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
                   ? <Icon name={icon} size="lg" className="shrink-0 text-muted-foreground" />
                   : <Icon icon={icon} size="lg" className="shrink-0 text-muted-foreground" />
               )}
-              <Typography variant="h1" className="text-2xl text-foreground">
+              <Typography variant="h1" className="text-3xl text-foreground">
                 {title != null ? String(title) : ""}
               </Typography>
               {statusBadge && (
