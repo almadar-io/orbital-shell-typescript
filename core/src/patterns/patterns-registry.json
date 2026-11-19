@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "exportedAt": "2026-11-17T19:29:28.028Z",
+  "exportedAt": "2026-11-19T15:24:18.055Z",
   "maintenance": "Hand-maintained since 2026-11-07; the pattern-sync generator is archived. Edit this file directly.",
   "patterns": {
     "detail-panel": {
@@ -10958,6 +10958,13 @@
           ],
           "description": "Block the page behind it: an overlay, no page scroll, focus kept inside. `false` leaves the page usable beside the drawer (no overlay, no focus trap); Escape and the close button still close it.",
           "default": true
+        },
+        "fill": {
+          "types": [
+            "boolean"
+          ],
+          "description": "The content owns its own scrolling: the body is a bounded flex column with no padding and the drawer is the dynamic viewport tall, so a pinned footer (a chat input) stays on screen.",
+          "default": false
         },
         "enter": {
           "types": [
@@ -45750,6 +45757,19 @@
           ],
           "renderCallback": true,
           "nonAuthorable": true
+        },
+        "span": {
+          "types": [
+            "string"
+          ],
+          "description": "How much time the grid shows: `week` (default) is the hourly week timeline; `month`, `3months` and `year` draw that many month grids starting at the month of `weekStart` (today when absent), one chip per event on its start day. The values match `date-range-selector`, so a range pick can drive the grid directly.",
+          "enumValues": [
+            "week",
+            "month",
+            "3months",
+            "year"
+          ],
+          "default": "week"
         },
         "enter": {
           "types": [

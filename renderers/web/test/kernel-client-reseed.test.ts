@@ -122,6 +122,30 @@ describe('kernel client — a host that freed this client session', () => {
     expect(sent[1]?.entityByTrait).toEqual({ Viewer: { topic: 'app' } });
   });
 
+  it('G-CROSS-729: the re-mount carries the page the client mounted: its payload, route and crumb', async () => {
+    const sent: EventRequest[] = [];
+    const client = clientOver(sent, true, []);
+    await client.dispatchMount([{ trait: 'Viewer', event: 'INIT' }], undefined, { payload: { name: 'project-friday', version: '1.1.0' }, route: '/review/project-friday/1.1.0', crumb: 'Review' });
+    sent.length = 0;
+    await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' });
+    const remount = sent[1];
+    expect(remount?.mount).toBeDefined();
+    expect(remount?.payload).toEqual({ name: 'project-friday', version: '1.1.0' });
+    expect(remount?.route).toBe('/review/project-friday/1.1.0');
+    expect(remount?.crumb).toBe('Review');
+  });
+
+  it('control: a mount with no route or payload re-mounts without them', async () => {
+    const sent: EventRequest[] = [];
+    const client = clientOver(sent, true, []);
+    await client.dispatchMount([{ trait: 'Viewer', event: 'INIT' }]);
+    sent.length = 0;
+    await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' });
+    expect(sent[1]?.mount).toBeDefined();
+    expect(sent[1]?.route).toBeUndefined();
+    expect(sent[1]?.payload).toBeUndefined();
+  });
+
   it('with no seeds mounted on that host, sends the refused event once more and mounts nothing (a fresh hosted guest)', async () => {
     const sent: EventRequest[] = [];
     const reseeded: string[] = [];

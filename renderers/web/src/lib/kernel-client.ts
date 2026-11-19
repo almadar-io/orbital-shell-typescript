@@ -368,6 +368,8 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
 
   // The mount seeds this client ran, per orbital: what a reconnect mounts again.
   const mountedSeeds = new Map<string, MountSeed[]>();
+  /** The latest mount each orbital took (its payload, route and crumb): a re-mount after the session ended opens the same page with the same parameters. */
+  const mountedBase = new Map<string, NonNullable<MountBase>>();
 
   /** Fold a host answer through the kernel and paint what the kernel reports: its own frame delta, then the states it holds (EXEC-DIST-4: a client trait's state is never the host's report). */
   const foldAnswer = async (k: KernelInstance, flight: number, answer: EventResponse): Promise<AppliedWire> => {
@@ -409,7 +411,13 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       const seeds = mountedSeeds.get(orbital);
       // A host that never held this client's session (a fresh hosted guest) refuses once; with nothing to mount, send again.
       if (seeds === undefined || seeds.length === 0) return transport.send(orbital, sent);
-      const reseed = readAnswer<EventRequest>(k, k.reseedLeg(JSON.stringify(seeds), request.entityId));
+      const base = mountedBase.get(orbital);
+      const reseed: EventRequest = {
+        ...readAnswer<EventRequest>(k, k.reseedLeg(JSON.stringify(seeds), request.entityId)),
+        ...(base?.payload !== undefined ? { payload: base.payload } : {}),
+        ...(base?.route !== undefined ? { route: base.route } : {}),
+        ...(base?.crumb !== undefined ? { crumb: base.crumb } : {}),
+      };
       const mounted = await transport.send(orbital, request.locale !== undefined ? { ...reseed, locale: request.locale } : reseed);
       await foldAnswer(k, flight, mounted);
       store.notify();
@@ -624,6 +632,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
       for (const wire of wires) {
         const kept = mountedSeeds.get(wire.orbital) ?? [];
         if (!kept.some((s) => s.trait === wire.seed.trait)) mountedSeeds.set(wire.orbital, [...kept, { trait: wire.seed.trait, event: seeds.find((s) => s.trait === wire.seed.trait)?.event ?? 'INIT' }]);
+        mountedBase.set(wire.orbital, baseRequest);
       }
       const announced = mount.announced;
       for (const wire of announced !== null ? [announced, ...wires] : wires) {

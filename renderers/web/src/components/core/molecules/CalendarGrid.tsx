@@ -107,6 +107,28 @@ export interface CalendarGridProps extends A11yProps {
    * contract `data-list` / `data-grid` / `carousel` already use.
    */
   renderItem?: (item: EntityRow, index: number) => React.ReactNode;
+  /**
+   * How much time the grid shows: `week` (default) is the hourly week timeline; `month`, `3months` and `year`
+   * draw that many month grids starting at the month of `weekStart` (today when absent), one chip per event on
+   * its start day. The values match `date-range-selector`, so a range pick can drive the grid directly.
+   */
+  span?: CalendarSpan;
+}
+
+export type CalendarSpan = 'week' | 'month' | '3months' | 'year';
+
+const SPAN_MONTHS: Record<Exclude<CalendarSpan, 'week'>, number> = { month: 1, '3months': 3, year: 12 };
+const CHIPS_PER_DAY = 3;
+
+/** The month grid's cells: Monday-first weeks covering the month, `null` for padding days of other months. */
+function monthCells(year: number, month: number): (Date | null)[] {
+  const first = new Date(year, month, 1);
+  const lead = (first.getDay() + 6) % 7;
+  const days = new Date(year, month + 1, 0).getDate();
+  const cells: (Date | null)[] = Array.from({ length: lead }, () => null);
+  for (let d = 1; d <= days; d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
 }
 
 /**
@@ -299,6 +321,7 @@ export function CalendarGrid({
   colorField = 'color',
   children,
   renderItem,
+  span = 'week',
   ...rest
 }: CalendarGridProps): React.JSX.Element {
   const evs = Array.isArray(events) ? events : events ? [events] : [];
@@ -446,6 +469,42 @@ export function CalendarGrid({
     </Box>
     );
   };
+
+  if (span !== 'week') {
+    const anchor = weekStart ?? new Date();
+    const months = Array.from({ length: SPAN_MONTHS[span] }, (_, i) => new Date(anchor.getFullYear(), anchor.getMonth() + i, 1));
+    const weekdayNames = getWeekDays(getStartOfWeek(new Date(2024, 0, 1))).map((d) => d.toLocaleDateString(locale, { weekday: 'short' }));
+    const today = new Date().toDateString();
+    return contentSurface.provide(
+      <VStack {...domPassthrough(rest)} gap="lg" className={cn(contentSurface.className && cn(contentSurface.className, 'p-card-sm'), className)} data-calendar-span={span}>
+        {months.map((m) => (
+          <VStack key={`${m.getFullYear()}-${m.getMonth()}`} gap="sm">
+            <Typography variant="h5">{m.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}</Typography>
+            <Box className="grid grid-cols-7 gap-px rounded-md border border-border bg-border overflow-hidden">
+              {weekdayNames.map((name) => (
+                <Box key={name} className="bg-muted px-2 py-1 text-center">
+                  <Typography variant="caption" color="muted">{name}</Typography>
+                </Box>
+              ))}
+              {monthCells(m.getFullYear(), m.getMonth()).map((day, i) => {
+                if (day === null) return <Box key={`pad-${i}`} className="bg-muted/40 min-h-[4.5rem]" />;
+                const dayEvents = evs.filter((ev) => eventStartDate(ev, startField).toDateString() === day.toDateString());
+                return (
+                  <Box key={day.toISOString()} className="bg-card min-h-[4.5rem] p-1 flex flex-col gap-1 min-w-0" data-calendar-day={day.getDate()}>
+                    <Typography variant="caption" className={cn(day.toDateString() === today && 'font-bold text-primary')}>{day.getDate()}</Typography>
+                    {dayEvents.slice(0, CHIPS_PER_DAY).map((ev) => renderEvent(ev))}
+                    {dayEvents.length > CHIPS_PER_DAY && (
+                      <Typography variant="caption" color="muted">{`+${dayEvents.length - CHIPS_PER_DAY}`}</Typography>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
+          </VStack>
+        ))}
+      </VStack>,
+    );
+  }
 
   return contentSurface.provide(
     <Box
