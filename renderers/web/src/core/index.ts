@@ -67,6 +67,7 @@ export * from './hooks/useMediaQuery.js';
 export * from './hooks/usePrefersReducedMotion.js';
 export * from './hooks/useTapReveal.js';
 export * from './hooks/useTranslate.js';
+export * from './hooks/useVisibleBand.js';
 export * from './lib/animate-changes.js';
 export * from './lib/atlasSlice.js';
 export * from './lib/bandShapes.js';

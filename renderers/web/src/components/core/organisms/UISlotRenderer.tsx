@@ -69,6 +69,7 @@ import { getComponentForPattern as getComponentName } from "@almadar/core/patter
 // pattern children resolve to this component at render time. See
 // `docs/Almadar_Std_Gaps.md` §3.8.
 import { TraitFrame } from "../atoms/TraitFrame";
+import { FieldPaintContext } from "../../../core/hooks/useFieldDraft";
 
 /**
  * `^@trait.<PascalName>$` — single-segment binding only. Multi-segment
@@ -2134,15 +2135,17 @@ function SlotContentRenderer({
         data-orb-pattern={content.pattern}
         data-orb-orbital={orbitalName}
       >
-        {presence !== undefined && SELF_OVERLAY_PATTERN_TYPES.has(content.pattern) ? (
-          <PatternComponent {...finalProps} isOpen={presence.open} onExited={presence.onExited}>
-            {renderedChildren}
-          </PatternComponent>
-        ) : renderedChildren !== undefined ? (
-          <PatternComponent {...finalProps}>{renderedChildren}</PatternComponent>
-        ) : (
-          <PatternComponent {...finalProps} />
-        )}
+        <FieldPaintContext.Provider value={typeof content.props === 'object' ? content.props : null}>
+          {presence !== undefined && SELF_OVERLAY_PATTERN_TYPES.has(content.pattern) ? (
+            <PatternComponent {...finalProps} isOpen={presence.open} onExited={presence.onExited}>
+              {renderedChildren}
+            </PatternComponent>
+          ) : renderedChildren !== undefined ? (
+            <PatternComponent {...finalProps}>{renderedChildren}</PatternComponent>
+          ) : (
+            <PatternComponent {...finalProps} />
+          )}
+        </FieldPaintContext.Provider>
       </Box>
     );
   }

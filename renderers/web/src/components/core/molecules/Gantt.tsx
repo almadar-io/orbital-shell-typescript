@@ -324,7 +324,13 @@ export function Gantt({
                 className="border-b border-border/50"
                 style={{ height: ROW_HEIGHT }}
               >
-                <Box className="sticky left-0 z-10 shrink-0 bg-card px-3 flex items-center border-r border-border" style={{ width: LABEL_WIDTH, height: ROW_HEIGHT }}>
+                <Box
+                  className={cn('sticky left-0 z-10 shrink-0 bg-card px-3 flex items-center border-r border-border', barClickEvent ? 'cursor-pointer' : undefined)}
+                  style={{ width: LABEL_WIDTH, height: ROW_HEIGHT }}
+                  data-gantt-label={item.task.id}
+                  action={barClickEvent}
+                  actionPayload={{ id: item.task.id }}
+                >
                   <Typography variant="small" className="truncate">
                     {item.task.label}
                   </Typography>

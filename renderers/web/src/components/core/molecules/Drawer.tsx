@@ -25,6 +25,7 @@ import { Typography } from '../../../core';
 import { HStack } from '../../../core';
 import { Overlay } from '../../../core';
 import { usePresence } from '../../../core';
+import { useVisibleBand } from '../../../core';
 import { cn } from '../../../core';
 import { SurfaceBoundary } from '../../../core';
 import { useEventBus } from '../../../core';
@@ -128,6 +129,7 @@ export const Drawer: React.FC<DrawerProps> = ({
   const eventBus = useEventBus();
   const { t } = useTranslate();
   const drawerRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
   const emitClose = () => {
@@ -152,6 +154,8 @@ export const Drawer: React.FC<DrawerProps> = ({
       document.body.style.overflow = "";
     };
   }, [isOpen, contained, modal]);
+
+  const band = useVisibleBand(frameRef, contained && mounted);
 
   if (!mounted) return null;
 
@@ -181,6 +185,7 @@ export const Drawer: React.FC<DrawerProps> = ({
 
   const layer = (
     <>
+      {contained && <div ref={frameRef} aria-hidden className="absolute inset-0 pointer-events-none" />}
       {modal && (
         <Overlay
           isVisible={isOpen}
@@ -204,7 +209,7 @@ export const Drawer: React.FC<DrawerProps> = ({
           drawerAnim,
           className,
         )}
-        style={{ ...widthStyle, "--motion-drawer-sign": drawerSign, "--motion-drawer-enter-from-transform": slideTransform, "--motion-drawer-exit-to-transform": slideTransform } as React.CSSProperties}
+        style={{ ...widthStyle, ...(band ? { top: band.top, bottom: "auto", height: band.height } : {}), "--motion-drawer-sign": drawerSign, "--motion-drawer-enter-from-transform": slideTransform, "--motion-drawer-exit-to-transform": slideTransform } as React.CSSProperties}
         {...domPassthrough(rest)}
         role="dialog"
         aria-modal={modal}

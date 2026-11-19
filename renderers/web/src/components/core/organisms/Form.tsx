@@ -855,7 +855,13 @@ export const Form: React.FC<FormProps> = ({
     // fields are preserved while non-rendered keys (like `id`) carry
     // through. This is the hidden-id pattern, applied at the form's
     // call site per the "emit call site is the source of truth" rule.
+    // A declared default is what the field shows, so an untouched field submits it.
+    const shownDefaults: EntityRow = {};
+    for (const field of normalizedFields) {
+      if (field.name !== undefined && field.defaultValue !== undefined) shownDefaults[field.name] = field.defaultValue;
+    }
     const mergedData: EntityRow = {
+      ...shownDefaults,
       ...normalizedInitialData,
       ...formData,
     };

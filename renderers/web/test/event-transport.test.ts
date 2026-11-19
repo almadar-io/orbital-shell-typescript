@@ -365,6 +365,43 @@ describe('createHttpTransport push subscribe', () => {
     }
   });
 
+  it('a refused stream ticket is minted again after the reopen delay, so the stream opens once the server answers', async () => {
+    vi.useFakeTimers();
+    try {
+      let calls = 0;
+      const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () =>
+        ++calls <= 2 ? new Response('', { status: 401 }) : jsonResponse({ ticket: `tkt-${calls}` }),
+      );
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: fetchMock });
+      const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-ticket-refused' });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(FakeEventSource.instances).toHaveLength(0);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(FakeEventSource.instances).toHaveLength(1);
+      expect(new URL(FakeEventSource.instances[0].url).searchParams.get('ticket')).toBe('tkt-3');
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      unsubscribe();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('control: a refused ticket on a channel that was unsubscribed is not minted again', async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () => new Response('', { status: 401 }));
+      const transport = createHttpTransport({ serverUrl: 'https://api.test/api/orbitals', fetch: fetchMock });
+      const unsubscribe = transport.subscribe!(vi.fn(), { clientId: 'test-ticket-refused-closed' });
+      await vi.advanceTimersByTimeAsync(0);
+      unsubscribe();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(FakeEventSource.instances).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('opens the sibling /events channel with the caller-supplied params and a ticket minted with the access token', async () => {
     const getAccessToken = vi.fn(async () => 'id-token-1');
     const fetchMock = ticketFetch();

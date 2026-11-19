@@ -267,6 +267,9 @@ const EVENT_SOURCE_CLOSED = 2;
 /** How long a ticketed channel waits before it mints a new ticket and reopens. */
 const REOPEN_DELAY_MS = 1000;
 
+/** The longest a channel waits between ticket requests the server refused; the wait doubles from `REOPEN_DELAY_MS`. */
+const REOPEN_MAX_DELAY_MS = 30_000;
+
 /**
  * One shared EventSource per events URL, fanned out to every subscriber.
  * SSE connections are long-lived HTTP: one per subscriber exhausts
@@ -306,6 +309,7 @@ function acquirePushChannel(
   if (channel === undefined) {
     const created: SharedPushChannel = { source: undefined, subscribers: new Set(), closed: false, paused: false };
     let opening = false;
+    let refusedDelay = REOPEN_DELAY_MS;
     const open = async (): Promise<void> => {
       if (opening || created.source !== undefined) return;
       opening = true;
@@ -313,11 +317,16 @@ function acquirePushChannel(
       try {
         url = await resolveUrl();
       } catch (err) {
-        log.error('push:open-failed', { error: err instanceof Error ? err.message : String(err) });
+        log.error('push:open-failed', { error: err instanceof Error ? err.message : String(err), retryInMs: refusedDelay });
         opening = false;
+        setTimeout(() => {
+          if (!created.closed && !created.paused) void open();
+        }, refusedDelay);
+        refusedDelay = Math.min(refusedDelay * 2, REOPEN_MAX_DELAY_MS);
         return;
       }
       opening = false;
+      refusedDelay = REOPEN_DELAY_MS;
       if (created.closed || created.paused) return;
       const source = new EventSource(url);
       created.source = source;

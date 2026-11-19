@@ -20,6 +20,7 @@ import { useTranslate } from '../../../core';
 import { useDialogBehavior } from '../../../core';
 import { useMediaQuery, MOBILE_MEDIA_QUERY } from '../../../core';
 import { usePresence } from '../../../core';
+import { useVisibleBand } from '../../../core';
 import { ThemedPortal } from "../../../lib/ThemedPortal";
 
 import { domPassthrough } from '../../../core';
@@ -122,6 +123,7 @@ export const Modal: React.FC<ModalProps> = ({
   const { t } = useTranslate();
   const sheet = useMediaQuery(MOBILE_MEDIA_QUERY) && look === "centered-card";
   const modalRef = useRef<HTMLDialogElement>(null);
+  const layerRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const [dragY, setDragY] = useState(0);
   const dragStartY = useRef(0);
@@ -152,6 +154,8 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen, contained, sheet]);
 
+  const band = useVisibleBand(layerRef, contained && mounted);
+
   if (typeof document === "undefined") return null;
   if (!mounted) return null;
   // Presence yields no class when motion is off (`--motion-enable`, reduced motion).
@@ -175,18 +179,10 @@ export const Modal: React.FC<ModalProps> = ({
   // two sibling `fixed inset-0` layers cause a ghost compositor artifact.
   // No aria-hidden here: this div is also the open Dialog's ancestor, and
   // Dialog already declares its own role="dialog"/aria-modal="true".
-  const layer = (
-    <div
-      className={cn(
-        contained ? "absolute inset-0 z-50" : "fixed inset-0 z-[1000]",
-        "bg-scrim",
-        sheet
-          ? "flex items-end justify-center p-0"
-          : cn("flex items-start justify-center px-4 pb-4", contained ? "pt-[10%]" : "pt-[10vh]"),
-        overlayAnim,
-      )}
-      onClick={handleOverlayClick}
-    >
+  const placement = sheet
+    ? "flex items-end justify-center p-0"
+    : cn("flex items-start justify-center px-4 pb-4", contained ? "pt-[10%]" : "pt-[10vh]");
+  const dialog = (
         <Dialog
           ref={modalRef}
           {...domPassthrough(rest)}
@@ -293,6 +289,29 @@ export const Modal: React.FC<ModalProps> = ({
             </Box>
           )}
         </Dialog>
+  );
+  // A contained frame can be taller than what is on screen; the dialog sits in the visible band.
+  const layer = (
+    <div
+      ref={layerRef}
+      className={cn(
+        contained ? "absolute inset-0 z-50" : "fixed inset-0 z-[1000]",
+        "bg-scrim",
+        !contained && placement,
+        overlayAnim,
+      )}
+      onClick={handleOverlayClick}
+    >
+      {contained ? (
+      <div
+        className={cn("absolute inset-x-0", placement)}
+        style={band ? { top: band.top, height: band.height } : { top: 0, bottom: 0 }}
+        data-modal-band=""
+        onClick={handleOverlayClick}
+      >
+          {dialog}
+        </div>
+      ) : dialog}
     </div>
   );
   return contained ? layer : <ThemedPortal>{layer}</ThemedPortal>;

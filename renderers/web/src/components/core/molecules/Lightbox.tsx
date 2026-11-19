@@ -9,6 +9,7 @@ import { cn } from '../../../core';
 import { useEventBus } from '../../../core';
 import { useTranslate } from '../../../core';
 import { useDialogBehavior } from '../../../core';
+import { useVisibleBand } from '../../../core';
 import { ThemedPortal } from "../../../lib/ThemedPortal";
 import { SlotContainedContext } from "../../../lib/slotContained";
 
@@ -68,6 +69,8 @@ export const Lightbox: React.FC<LightboxProps> = ({
   const { t, direction } = useTranslate();
   const contained = useContext(SlotContainedContext);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const band = useVisibleBand(frameRef, contained);
 
   // Sync external index changes
   useEffect(() => {
@@ -140,7 +143,7 @@ export const Lightbox: React.FC<LightboxProps> = ({
 
   const overlayButton = "absolute z-10 rounded-full bg-card text-foreground hover:bg-muted";
 
-  const layer = (
+  const viewer = (
       <Box
         ref={dialogRef}
         {...domPassthrough(rest)}
@@ -150,6 +153,7 @@ export const Lightbox: React.FC<LightboxProps> = ({
           "bg-black/90",
           className,
         )}
+        style={band ? { top: band.top, bottom: "auto", height: band.height } : undefined}
         onClick={handleClose}
         role="dialog"
         data-pattern="lightbox"
@@ -225,6 +229,12 @@ export const Lightbox: React.FC<LightboxProps> = ({
         </Box>
       </Box>
   );
+  const layer = contained ? (
+    <>
+      <div ref={frameRef} aria-hidden className="absolute inset-0 pointer-events-none" />
+      {viewer}
+    </>
+  ) : viewer;
   return contained ? layer : <ThemedPortal>{layer}</ThemedPortal>;
 };
 
