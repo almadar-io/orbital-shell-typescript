@@ -1,0 +1,1986 @@
+{
+  "name": "kernel-fanout-300x5",
+  "description": "P-044 bench: a driver loops 300 times and emits TICKED, which the kernel fans out to 5 guarded listeners; Checker ends verified when every listener holds N(N+1).",
+  "schema": {
+    "description": "P-044 bench: a driver loops 300 times and emits TICKED, which the kernel fans out to 5 guarded listeners; Checker ends verified when every listener holds N(N+1).",
+    "ledger": {
+      "entries": {
+        "ent_6VFMGKATKXD9YPN64VNCZ33WQD": {
+          "bakedName": "Acc3",
+          "curName": "Acc3",
+          "id": "ent_6VFMGKATKXD9YPN64VNCZ33WQD",
+          "kind": "entity",
+          "owner": "workspace",
+          "renames": []
+        },
+        "ent_8GQQ68WV8TDMD5818JPX3Y7QK2": {
+          "bakedName": "Acc0",
+          "curName": "Acc0",
+          "id": "ent_8GQQ68WV8TDMD5818JPX3Y7QK2",
+          "kind": "entity",
+          "owner": "workspace",
+          "renames": []
+        },
+        "ent_B7A7MP5QTQVXBZRHEX3PZVBBE0": {
+          "bakedName": "Chk",
+          "curName": "Chk",
+          "id": "ent_B7A7MP5QTQVXBZRHEX3PZVBBE0",
+          "kind": "entity",
+          "owner": "workspace",
+          "renames": []
+        },
+        "ent_CG402NCH8Q8MBJDMWHRAFR88NN": {
+          "bakedName": "Acc1",
+          "curName": "Acc1",
+          "id": "ent_CG402NCH8Q8MBJDMWHRAFR88NN",
+          "kind": "entity",
+          "owner": "workspace",
+          "renames": []
+        },
+        "ent_CYWMDV54QGJBRDGK65A0B232JZ": {
+          "bakedName": "Acc2",
+          "curName": "Acc2",
+          "id": "ent_CYWMDV54QGJBRDGK65A0B232JZ",
+          "kind": "entity",
+          "owner": "workspace",
+          "renames": []
+        },
+        "ent_KDHMGGH4Z4JFJBYS88BN3ET4DM": {
+          "bakedName": "Acc4",
+          "curName": "Acc4",
+          "id": "ent_KDHMGGH4Z4JFJBYS88BN3ET4DM",
+          "kind": "entity",
+          "owner": "workspace",
+          "renames": []
+        },
+        "ent_MVTZFF42J5192J335G7128HRXN": {
+          "bakedName": "Drive",
+          "curName": "Drive",
+          "id": "ent_MVTZFF42J5192J335G7128HRXN",
+          "kind": "entity",
+          "owner": "workspace",
+          "renames": []
+        },
+        "evt_0FB7JJV1R7GW3P4FC6VRAPCSCS": {
+          "bakedName": "OK",
+          "curName": "OK",
+          "id": "evt_0FB7JJV1R7GW3P4FC6VRAPCSCS",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_2GFJKQW3DJ1PSBGYF4AW8DB9BK",
+          "renames": []
+        },
+        "evt_0S7ET7HXZPYZV8RTA9KYWV1AEA": {
+          "bakedName": "INIT",
+          "curName": "INIT",
+          "id": "evt_0S7ET7HXZPYZV8RTA9KYWV1AEA",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_Z6613CR7733KHJH699N7P9S979",
+          "renames": []
+        },
+        "evt_1JZH20191YMGZENBPG9GK5RZCG": {
+          "bakedName": "INIT",
+          "curName": "INIT",
+          "id": "evt_1JZH20191YMGZENBPG9GK5RZCG",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_2GFJKQW3DJ1PSBGYF4AW8DB9BK",
+          "renames": []
+        },
+        "evt_4TJGV2S12PGHB42F28MZED9PX0": {
+          "bakedName": "GOT",
+          "curName": "GOT",
+          "id": "evt_4TJGV2S12PGHB42F28MZED9PX0",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_SHKY3S3ACYN6F0W82XB6JM503M",
+          "renames": []
+        },
+        "evt_54BK138YK3F9HW46B4C4XRTGGG": {
+          "bakedName": "HEARD",
+          "curName": "HEARD",
+          "id": "evt_54BK138YK3F9HW46B4C4XRTGGG",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_E7D806Y6EQ37BV16EN5HAFHJVP",
+          "renames": []
+        },
+        "evt_5FD1FHARB2C5HAGBWA9N9HT8KE": {
+          "bakedName": "INIT",
+          "curName": "INIT",
+          "id": "evt_5FD1FHARB2C5HAGBWA9N9HT8KE",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_GJXMKYN1ZBGZNQTTPK6TCS33XC",
+          "renames": []
+        },
+        "evt_5M488AXWXXYEYVPTFG3HC3PHE7": {
+          "bakedName": "HEARD",
+          "curName": "HEARD",
+          "id": "evt_5M488AXWXXYEYVPTFG3HC3PHE7",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_GJXMKYN1ZBGZNQTTPK6TCS33XC",
+          "renames": []
+        },
+        "evt_6MFJJQ2CPF6B7YT21NC407VTTP": {
+          "bakedName": "GO",
+          "curName": "GO",
+          "id": "evt_6MFJJQ2CPF6B7YT21NC407VTTP",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_Z6613CR7733KHJH699N7P9S979",
+          "renames": []
+        },
+        "evt_76ZJYPNXAXYNEPDCZ8YRASXBSN": {
+          "bakedName": "OK",
+          "curName": "OK",
+          "id": "evt_76ZJYPNXAXYNEPDCZ8YRASXBSN",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_E7D806Y6EQ37BV16EN5HAFHJVP",
+          "renames": []
+        },
+        "evt_9YRDADK9KJMSSFD64YGHFV7DCG": {
+          "bakedName": "HEARD",
+          "curName": "HEARD",
+          "id": "evt_9YRDADK9KJMSSFD64YGHFV7DCG",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_TWK8RE3FGBQR5WH6FGDV7E5R0V",
+          "renames": []
+        },
+        "evt_AF1ZCJWA27513KVB7F8MQJF8PV": {
+          "bakedName": "OK",
+          "curName": "OK",
+          "id": "evt_AF1ZCJWA27513KVB7F8MQJF8PV",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_Y6QH1KGBAX5NEPA18ZXVT1HS3T",
+          "renames": []
+        },
+        "evt_ESTSADDEZXQFYX4E1S9A97DK17": {
+          "bakedName": "TICKED",
+          "curName": "TICKED",
+          "id": "evt_ESTSADDEZXQFYX4E1S9A97DK17",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_Z6613CR7733KHJH699N7P9S979",
+          "renames": []
+        },
+        "evt_FMEAVCCM3JA1S4NXJCMENPGJW3": {
+          "bakedName": "INIT",
+          "curName": "INIT",
+          "id": "evt_FMEAVCCM3JA1S4NXJCMENPGJW3",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_SHKY3S3ACYN6F0W82XB6JM503M",
+          "renames": []
+        },
+        "evt_J96P5Y75SZJWZHFAX7RSVCJWNR": {
+          "bakedName": "OK",
+          "curName": "OK",
+          "id": "evt_J96P5Y75SZJWZHFAX7RSVCJWNR",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_TWK8RE3FGBQR5WH6FGDV7E5R0V",
+          "renames": []
+        },
+        "evt_JBSQJ5GFX47YJ6B89BJKABFK5F": {
+          "bakedName": "OK",
+          "curName": "OK",
+          "id": "evt_JBSQJ5GFX47YJ6B89BJKABFK5F",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_GJXMKYN1ZBGZNQTTPK6TCS33XC",
+          "renames": []
+        },
+        "evt_KV0JWTCG6C836B3CZGFP5XA0XH": {
+          "bakedName": "LOOP",
+          "curName": "LOOP",
+          "id": "evt_KV0JWTCG6C836B3CZGFP5XA0XH",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_Z6613CR7733KHJH699N7P9S979",
+          "renames": []
+        },
+        "evt_KZNQWXWHBC8NP49GCTGAEH6QQ0": {
+          "bakedName": "AGAIN",
+          "curName": "AGAIN",
+          "id": "evt_KZNQWXWHBC8NP49GCTGAEH6QQ0",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_Z6613CR7733KHJH699N7P9S979",
+          "renames": []
+        },
+        "evt_MY4D8R9MX3TEHWMPKQTJW5CWYG": {
+          "bakedName": "INIT",
+          "curName": "INIT",
+          "id": "evt_MY4D8R9MX3TEHWMPKQTJW5CWYG",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_E7D806Y6EQ37BV16EN5HAFHJVP",
+          "renames": []
+        },
+        "evt_PC2KJXXMSJTCS0ZGRVC20NBJHP": {
+          "bakedName": "HEARD",
+          "curName": "HEARD",
+          "id": "evt_PC2KJXXMSJTCS0ZGRVC20NBJHP",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_2GFJKQW3DJ1PSBGYF4AW8DB9BK",
+          "renames": []
+        },
+        "evt_PEDK9MDAKKN9SVF82SM02DQ2HQ": {
+          "bakedName": "INIT",
+          "curName": "INIT",
+          "id": "evt_PEDK9MDAKKN9SVF82SM02DQ2HQ",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_Y6QH1KGBAX5NEPA18ZXVT1HS3T",
+          "renames": []
+        },
+        "evt_V9AVZX52K3H9HJT2QN1E8N424Z": {
+          "bakedName": "INIT",
+          "curName": "INIT",
+          "id": "evt_V9AVZX52K3H9HJT2QN1E8N424Z",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_TWK8RE3FGBQR5WH6FGDV7E5R0V",
+          "renames": []
+        },
+        "evt_W2BBJQSRDEW6Q6VX6P5N5N6FGM": {
+          "bakedName": "HEARD",
+          "curName": "HEARD",
+          "id": "evt_W2BBJQSRDEW6Q6VX6P5N5N6FGM",
+          "kind": "event",
+          "owner": "workspace",
+          "parent": "trt_Y6QH1KGBAX5NEPA18ZXVT1HS3T",
+          "renames": []
+        },
+        "orb_PSM0MTX46RJ3C3Q1S7HMJBJT2Z": {
+          "bakedName": "Main",
+          "curName": "Main",
+          "id": "orb_PSM0MTX46RJ3C3Q1S7HMJBJT2Z",
+          "kind": "orbital",
+          "owner": "workspace",
+          "renames": []
+        },
+        "pag_FC1CRNXWZMYFT7QBKV8CTTX6JV": {
+          "bakedName": "Bench",
+          "curName": "Bench",
+          "id": "pag_FC1CRNXWZMYFT7QBKV8CTTX6JV",
+          "kind": "page",
+          "owner": "workspace",
+          "renames": []
+        },
+        "trt_2GFJKQW3DJ1PSBGYF4AW8DB9BK": {
+          "bakedName": "L1",
+          "curName": "L1",
+          "id": "trt_2GFJKQW3DJ1PSBGYF4AW8DB9BK",
+          "kind": "trait",
+          "owner": "workspace",
+          "renames": []
+        },
+        "trt_E7D806Y6EQ37BV16EN5HAFHJVP": {
+          "bakedName": "L3",
+          "curName": "L3",
+          "id": "trt_E7D806Y6EQ37BV16EN5HAFHJVP",
+          "kind": "trait",
+          "owner": "workspace",
+          "renames": []
+        },
+        "trt_GJXMKYN1ZBGZNQTTPK6TCS33XC": {
+          "bakedName": "L4",
+          "curName": "L4",
+          "id": "trt_GJXMKYN1ZBGZNQTTPK6TCS33XC",
+          "kind": "trait",
+          "owner": "workspace",
+          "renames": []
+        },
+        "trt_SHKY3S3ACYN6F0W82XB6JM503M": {
+          "bakedName": "Checker",
+          "curName": "Checker",
+          "id": "trt_SHKY3S3ACYN6F0W82XB6JM503M",
+          "kind": "trait",
+          "owner": "workspace",
+          "renames": []
+        },
+        "trt_TWK8RE3FGBQR5WH6FGDV7E5R0V": {
+          "bakedName": "L2",
+          "curName": "L2",
+          "id": "trt_TWK8RE3FGBQR5WH6FGDV7E5R0V",
+          "kind": "trait",
+          "owner": "workspace",
+          "renames": []
+        },
+        "trt_Y6QH1KGBAX5NEPA18ZXVT1HS3T": {
+          "bakedName": "L0",
+          "curName": "L0",
+          "id": "trt_Y6QH1KGBAX5NEPA18ZXVT1HS3T",
+          "kind": "trait",
+          "owner": "workspace",
+          "renames": []
+        },
+        "trt_Z6613CR7733KHJH699N7P9S979": {
+          "bakedName": "Driver",
+          "curName": "Driver",
+          "id": "trt_Z6613CR7733KHJH699N7P9S979",
+          "kind": "trait",
+          "owner": "workspace",
+          "renames": []
+        }
+      },
+      "schemaVersion": 1
+    },
+    "name": "kernel-fanout-300x5",
+    "orbitals": [
+      {
+        "auxiliaryEntities": [
+          {
+            "fields": [
+              {
+                "name": "id",
+                "nullable": false,
+                "required": true,
+                "type": "string"
+              },
+              {
+                "default": 0.0,
+                "name": "acc",
+                "nullable": false,
+                "required": true,
+                "type": "number"
+              }
+            ],
+            "id": "ent_8GQQ68WV8TDMD5818JPX3Y7QK2",
+            "name": "Acc0",
+            "persistence": "runtime"
+          },
+          {
+            "fields": [
+              {
+                "name": "id",
+                "nullable": false,
+                "required": true,
+                "type": "string"
+              },
+              {
+                "default": 0.0,
+                "name": "acc",
+                "nullable": false,
+                "required": true,
+                "type": "number"
+              }
+            ],
+            "id": "ent_CG402NCH8Q8MBJDMWHRAFR88NN",
+            "name": "Acc1",
+            "persistence": "runtime"
+          },
+          {
+            "fields": [
+              {
+                "name": "id",
+                "nullable": false,
+                "required": true,
+                "type": "string"
+              },
+              {
+                "default": 0.0,
+                "name": "acc",
+                "nullable": false,
+                "required": true,
+                "type": "number"
+              }
+            ],
+            "id": "ent_CYWMDV54QGJBRDGK65A0B232JZ",
+            "name": "Acc2",
+            "persistence": "runtime"
+          },
+          {
+            "fields": [
+              {
+                "name": "id",
+                "nullable": false,
+                "required": true,
+                "type": "string"
+              },
+              {
+                "default": 0.0,
+                "name": "acc",
+                "nullable": false,
+                "required": true,
+                "type": "number"
+              }
+            ],
+            "id": "ent_6VFMGKATKXD9YPN64VNCZ33WQD",
+            "name": "Acc3",
+            "persistence": "runtime"
+          },
+          {
+            "fields": [
+              {
+                "name": "id",
+                "nullable": false,
+                "required": true,
+                "type": "string"
+              },
+              {
+                "default": 0.0,
+                "name": "acc",
+                "nullable": false,
+                "required": true,
+                "type": "number"
+              }
+            ],
+            "id": "ent_KDHMGGH4Z4JFJBYS88BN3ET4DM",
+            "name": "Acc4",
+            "persistence": "runtime"
+          },
+          {
+            "fields": [
+              {
+                "name": "id",
+                "nullable": false,
+                "required": true,
+                "type": "string"
+              },
+              {
+                "default": 0.0,
+                "name": "oks",
+                "nullable": false,
+                "required": true,
+                "type": "number"
+              }
+            ],
+            "id": "ent_B7A7MP5QTQVXBZRHEX3PZVBBE0",
+            "name": "Chk",
+            "persistence": "runtime"
+          }
+        ],
+        "entity": {
+          "fields": [
+            {
+              "name": "id",
+              "nullable": false,
+              "required": true,
+              "type": "string"
+            },
+            {
+              "default": 0.0,
+              "name": "n",
+              "nullable": false,
+              "required": true,
+              "type": "number"
+            }
+          ],
+          "id": "ent_MVTZFF42J5192J335G7128HRXN",
+          "name": "Drive",
+          "persistence": "runtime"
+        },
+        "id": "orb_PSM0MTX46RJ3C3Q1S7HMJBJT2Z",
+        "name": "Main",
+        "pages": [
+          {
+            "id": "pag_FC1CRNXWZMYFT7QBKV8CTTX6JV",
+            "name": "Bench",
+            "path": "",
+            "protocol": "boot",
+            "traits": [
+              {
+                "ref": "Driver",
+                "refId": "trt_Z6613CR7733KHJH699N7P9S979"
+              },
+              {
+                "ref": "Checker",
+                "refId": "trt_SHKY3S3ACYN6F0W82XB6JM503M"
+              },
+              {
+                "ref": "L0",
+                "refId": "trt_Y6QH1KGBAX5NEPA18ZXVT1HS3T"
+              },
+              {
+                "ref": "L1",
+                "refId": "trt_2GFJKQW3DJ1PSBGYF4AW8DB9BK"
+              },
+              {
+                "ref": "L2",
+                "refId": "trt_TWK8RE3FGBQR5WH6FGDV7E5R0V"
+              },
+              {
+                "ref": "L3",
+                "refId": "trt_E7D806Y6EQ37BV16EN5HAFHJVP"
+              },
+              {
+                "ref": "L4",
+                "refId": "trt_GJXMKYN1ZBGZNQTTPK6TCS33XC"
+              }
+            ]
+          }
+        ],
+        "traits": [
+          {
+            "dispatch": "optimistic",
+            "effectRow": [
+              {
+                "kind": "emit",
+                "resource": "LOOP"
+              },
+              {
+                "kind": "emit",
+                "resource": "TICKED"
+              },
+              {
+                "kind": "set",
+                "resource": "@entity.n"
+              }
+            ],
+            "emits": [
+              {
+                "event": "LOOP",
+                "eventId": "evt_KV0JWTCG6C836B3CZGFP5XA0XH",
+                "payloadSchema": [
+                  {
+                    "name": "i",
+                    "nullable": false,
+                    "required": true,
+                    "type": "number"
+                  }
+                ],
+                "scope": "internal"
+              },
+              {
+                "event": "TICKED",
+                "eventId": "evt_ESTSADDEZXQFYX4E1S9A97DK17",
+                "payloadSchema": [
+                  {
+                    "name": "v",
+                    "nullable": false,
+                    "required": true,
+                    "type": "number"
+                  }
+                ],
+                "scope": "internal"
+              }
+            ],
+            "entityRefIds": {
+              "Drive": "ent_MVTZFF42J5192J335G7128HRXN"
+            },
+            "id": "trt_Z6613CR7733KHJH699N7P9S979",
+            "linkedEntity": "Drive",
+            "linkedEntityId": "ent_MVTZFF42J5192J335G7128HRXN",
+            "listens": [
+              {
+                "event": "LOOP",
+                "eventId": "evt_KV0JWTCG6C836B3CZGFP5XA0XH",
+                "source": {
+                  "kind": "trait",
+                  "trait": "Driver",
+                  "traitId": "trt_Z6613CR7733KHJH699N7P9S979"
+                },
+                "triggers": "AGAIN",
+                "triggersId": "evt_KZNQWXWHBC8NP49GCTGAEH6QQ0"
+              }
+            ],
+            "name": "Driver",
+            "sourceDeclaration": {
+              "fingerprint": "3c2a15b9c3772e5b28262fbcf238321b967110ea9e9ad2d40d417206d91031d9",
+              "traitId": "trt_Z6613CR7733KHJH699N7P9S979"
+            },
+            "stateMachine": {
+              "events": [
+                {
+                  "id": "evt_0S7ET7HXZPYZV8RTA9KYWV1AEA",
+                  "key": "INIT",
+                  "name": "Initialize"
+                },
+                {
+                  "description": "Start the loop.",
+                  "id": "evt_6MFJJQ2CPF6B7YT21NC407VTTP",
+                  "input": true,
+                  "key": "GO",
+                  "listened": true,
+                  "name": "Go"
+                },
+                {
+                  "id": "evt_KZNQWXWHBC8NP49GCTGAEH6QQ0",
+                  "key": "AGAIN",
+                  "listened": true,
+                  "name": "Again",
+                  "payloadSchema": [
+                    {
+                      "name": "i",
+                      "nullable": false,
+                      "required": true,
+                      "type": "number"
+                    }
+                  ]
+                },
+                {
+                  "id": "evt_KV0JWTCG6C836B3CZGFP5XA0XH",
+                  "key": "LOOP",
+                  "name": "Loop",
+                  "payloadSchema": [
+                    {
+                      "name": "i",
+                      "nullable": false,
+                      "required": true,
+                      "type": "number"
+                    }
+                  ]
+                },
+                {
+                  "id": "evt_ESTSADDEZXQFYX4E1S9A97DK17",
+                  "key": "TICKED",
+                  "name": "Ticked",
+                  "payloadSchema": [
+                    {
+                      "name": "v",
+                      "nullable": false,
+                      "required": true,
+                      "type": "number"
+                    }
+                  ]
+                }
+              ],
+              "states": [
+                {
+                  "isInitial": true,
+                  "name": "idle"
+                },
+                {
+                  "name": "run"
+                }
+              ],
+              "transitions": [
+                {
+                  "event": "INIT",
+                  "eventId": "evt_0S7ET7HXZPYZV8RTA9KYWV1AEA",
+                  "from": "idle",
+                  "to": "idle"
+                },
+                {
+                  "effects": [
+                    [
+                      "emit",
+                      "LOOP",
+                      {
+                        "i": 1.0
+                      }
+                    ]
+                  ],
+                  "event": "GO",
+                  "eventId": "evt_6MFJJQ2CPF6B7YT21NC407VTTP",
+                  "from": "idle",
+                  "to": "run"
+                },
+                {
+                  "event": "INIT",
+                  "eventId": "evt_0S7ET7HXZPYZV8RTA9KYWV1AEA",
+                  "from": "run",
+                  "to": "run"
+                },
+                {
+                  "effects": [
+                    [
+                      "set",
+                      "@entity.n",
+                      "@payload.i"
+                    ],
+                    [
+                      "emit",
+                      "TICKED",
+                      {
+                        "v": "@payload.i"
+                      }
+                    ],
+                    [
+                      "emit",
+                      "LOOP",
+                      {
+                        "i": [
+                          "+",
+                          "@payload.i",
+                          1.0
+                        ]
+                      }
+                    ]
+                  ],
+                  "event": "AGAIN",
+                  "eventId": "evt_KZNQWXWHBC8NP49GCTGAEH6QQ0",
+                  "from": "run",
+                  "guard": [
+                    "<=",
+                    "@payload.i",
+                    300.0
+                  ],
+                  "to": "run"
+                },
+                {
+                  "event": "AGAIN",
+                  "eventId": "evt_KZNQWXWHBC8NP49GCTGAEH6QQ0",
+                  "from": "run",
+                  "guard": [
+                    ">",
+                    "@payload.i",
+                    300.0
+                  ],
+                  "to": "run"
+                }
+              ]
+            }
+          },
+          {
+            "dispatch": "optimistic",
+            "effectRow": [
+              {
+                "kind": "emit",
+                "resource": "OK"
+              },
+              {
+                "kind": "set",
+                "resource": "@entity.acc"
+              }
+            ],
+            "emits": [
+              {
+                "event": "OK",
+                "eventId": "evt_AF1ZCJWA27513KVB7F8MQJF8PV",
+                "scope": "internal"
+              }
+            ],
+            "entityRefIds": {
+              "Acc0": "ent_8GQQ68WV8TDMD5818JPX3Y7QK2"
+            },
+            "id": "trt_Y6QH1KGBAX5NEPA18ZXVT1HS3T",
+            "linkedEntity": "Acc0",
+            "linkedEntityId": "ent_8GQQ68WV8TDMD5818JPX3Y7QK2",
+            "listens": [
+              {
+                "event": "TICKED",
+                "eventId": "evt_ESTSADDEZXQFYX4E1S9A97DK17",
+                "source": {
+                  "kind": "trait",
+                  "trait": "Driver",
+                  "traitId": "trt_Z6613CR7733KHJH699N7P9S979"
+                },
+                "triggers": "HEARD",
+                "triggersId": "evt_W2BBJQSRDEW6Q6VX6P5N5N6FGM"
+              }
+            ],
+            "name": "L0",
+            "sourceDeclaration": {
+              "fingerprint": "dd995edac7080f839c8b9827b8bb5feb274896dc0bea3a67a52f0477e8297749",
+              "traitId": "trt_Y6QH1KGBAX5NEPA18ZXVT1HS3T"
+            },
+            "stateMachine": {
+              "events": [
+                {
+                  "id": "evt_PEDK9MDAKKN9SVF82SM02DQ2HQ",
+                  "key": "INIT",
+                  "name": "Initialize"
+                },
+                {
+                  "id": "evt_W2BBJQSRDEW6Q6VX6P5N5N6FGM",
+                  "key": "HEARD",
+                  "listened": true,
+                  "name": "Heard",
+                  "payloadSchema": [
+                    {
+                      "name": "v",
+                      "nullable": false,
+                      "required": true,
+                      "type": "number"
+                    }
+                  ]
+                },
+                {
+                  "id": "evt_AF1ZCJWA27513KVB7F8MQJF8PV",
+                  "key": "OK",
+                  "name": "Ok"
+                }
+              ],
+              "states": [
+                {
+                  "isInitial": true,
+                  "name": "ready"
+                }
+              ],
+              "transitions": [
+                {
+                  "event": "INIT",
+                  "eventId": "evt_PEDK9MDAKKN9SVF82SM02DQ2HQ",
+                  "from": "ready",
+                  "to": "ready"
+                },
+                {
+                  "effects": [
+                    [
+                      "set",
+                      "@entity.acc",
+                      [
+                        "+",
+                        "@entity.acc",
+                        [
+                          "*",
+                          "@payload.v",
+                          2.0
+                        ]
+                      ]
+                    ],
+                    [
+                      "when",
+                      [
+                        "=",
+                        "@entity.acc",
+                        90300.0
+                      ],
+                      [
+                        "emit",
+                        "OK",
+                        {}
+                      ]
+                    ]
+                  ],
+                  "event": "HEARD",
+                  "eventId": "evt_W2BBJQSRDEW6Q6VX6P5N5N6FGM",
+                  "from": "ready",
+                  "guard": [
+                    "and",
+                    [
+                      ">",
+                      "@payload.v",
+                      0.0
+                    ],
+                    [
+                      "=",
+                      [
+                        "math/mod",
+                        "@payload.v",
+                        1.0
+                      ],
+                      0.0
+                    ]
+                  ],
+                  "to": "ready"
+                }
+              ]
+            }
+          },
+          {
+            "dispatch": "optimistic",
+            "effectRow": [
+              {
+                "kind": "emit",
+                "resource": "OK"
+              },
+              {
+                "kind": "set",
+                "resource": "@entity.acc"
+              }
+            ],
+            "emits": [
+              {
+                "event": "OK",
+                "eventId": "evt_0FB7JJV1R7GW3P4FC6VRAPCSCS",
+                "scope": "internal"
+              }
+            ],
+            "entityRefIds": {
+              "Acc1": "ent_CG402NCH8Q8MBJDMWHRAFR88NN"
+            },
+            "id": "trt_2GFJKQW3DJ1PSBGYF4AW8DB9BK",
+            "linkedEntity": "Acc1",
+            "linkedEntityId": "ent_CG402NCH8Q8MBJDMWHRAFR88NN",
+            "listens": [
+              {
+                "event": "TICKED",
+                "eventId": "evt_ESTSADDEZXQFYX4E1S9A97DK17",
+                "source": {
+                  "kind": "trait",
+                  "trait": "Driver",
+                  "traitId": "trt_Z6613CR7733KHJH699N7P9S979"
+                },
+                "triggers": "HEARD",
+                "triggersId": "evt_PC2KJXXMSJTCS0ZGRVC20NBJHP"
+              }
+            ],
+            "name": "L1",
+            "sourceDeclaration": {
+              "fingerprint": "20f7d0048beb8d9fdfee6cb53862d7faa3d2a5dfc16c8c2277f47d297eeb49dc",
+              "traitId": "trt_2GFJKQW3DJ1PSBGYF4AW8DB9BK"
+            },
+            "stateMachine": {
+              "events": [
+                {
+                  "id": "evt_1JZH20191YMGZENBPG9GK5RZCG",
+                  "key": "INIT",
+                  "name": "Initialize"
+                },
+                {
+                  "id": "evt_PC2KJXXMSJTCS0ZGRVC20NBJHP",
+                  "key": "HEARD",
+                  "listened": true,
+                  "name": "Heard",
+                  "payloadSchema": [
+                    {
+                      "name": "v",
+                      "nullable": false,
+                      "required": true,
+                      "type": "number"
+                    }
+                  ]
+                },
+                {
+                  "id": "evt_0FB7JJV1R7GW3P4FC6VRAPCSCS",
+                  "key": "OK",
+                  "name": "Ok"
+                }
+              ],
+              "states": [
+                {
+                  "isInitial": true,
+                  "name": "ready"
+                }
+              ],
+              "transitions": [
+                {
+                  "event": "INIT",
+                  "eventId": "evt_1JZH20191YMGZENBPG9GK5RZCG",
+                  "from": "ready",
+                  "to": "ready"
+                },
+                {
+                  "effects": [
+                    [
+                      "set",
+                      "@entity.acc",
+                      [
+                        "+",
+                        "@entity.acc",
+                        [
+                          "*",
+                          "@payload.v",
+                          2.0
+                        ]
+                      ]
+                    ],
+                    [
+                      "when",
+                      [
+                        "=",
+                        "@entity.acc",
+                        90300.0
+                      ],
+                      [
+                        "emit",
+                        "OK",
+                        {}
+                      ]
+                    ]
+                  ],
+                  "event": "HEARD",
+                  "eventId": "evt_PC2KJXXMSJTCS0ZGRVC20NBJHP",
+                  "from": "ready",
+                  "guard": [
+                    "and",
+                    [
+                      ">",
+                      "@payload.v",
+                      0.0
+                    ],
+                    [
+                      "=",
+                      [
+                        "math/mod",
+                        "@payload.v",
+                        1.0
+                      ],
+                      0.0
+                    ]
+                  ],
+                  "to": "ready"
+                }
+              ]
+            }
+          },
+          {
+            "dispatch": "optimistic",
+            "effectRow": [
+              {
+                "kind": "emit",
+                "resource": "OK"
+              },
+              {
+                "kind": "set",
+                "resource": "@entity.acc"
+              }
+            ],
+            "emits": [
+              {
+                "event": "OK",
+                "eventId": "evt_J96P5Y75SZJWZHFAX7RSVCJWNR",
+                "scope": "internal"
+              }
+            ],
+            "entityRefIds": {
+              "Acc2": "ent_CYWMDV54QGJBRDGK65A0B232JZ"
+            },
+            "id": "trt_TWK8RE3FGBQR5WH6FGDV7E5R0V",
+            "linkedEntity": "Acc2",
+            "linkedEntityId": "ent_CYWMDV54QGJBRDGK65A0B232JZ",
+            "listens": [
+              {
+                "event": "TICKED",
+                "eventId": "evt_ESTSADDEZXQFYX4E1S9A97DK17",
+                "source": {
+                  "kind": "trait",
+                  "trait": "Driver",
+                  "traitId": "trt_Z6613CR7733KHJH699N7P9S979"
+                },
+                "triggers": "HEARD",
+                "triggersId": "evt_9YRDADK9KJMSSFD64YGHFV7DCG"
+              }
+            ],
+            "name": "L2",
+            "sourceDeclaration": {
+              "fingerprint": "98bd8677778aa6d711ffd48eca0b7f67c42971ece8e6bd76a178aedaad72b412",
+              "traitId": "trt_TWK8RE3FGBQR5WH6FGDV7E5R0V"
+            },
+            "stateMachine": {
+              "events": [
+                {
+                  "id": "evt_V9AVZX52K3H9HJT2QN1E8N424Z",
+                  "key": "INIT",
+                  "name": "Initialize"
+                },
+                {
+                  "id": "evt_9YRDADK9KJMSSFD64YGHFV7DCG",
+                  "key": "HEARD",
+                  "listened": true,
+                  "name": "Heard",
+                  "payloadSchema": [
+                    {
+                      "name": "v",
+                      "nullable": false,
+                      "required": true,
+                      "type": "number"
+                    }
+                  ]
+                },
+                {
+                  "id": "evt_J96P5Y75SZJWZHFAX7RSVCJWNR",
+                  "key": "OK",
+                  "name": "Ok"
+                }
+              ],
+              "states": [
+                {
+                  "isInitial": true,
+                  "name": "ready"
+                }
+              ],
+              "transitions": [
+                {
+                  "event": "INIT",
+                  "eventId": "evt_V9AVZX52K3H9HJT2QN1E8N424Z",
+                  "from": "ready",
+                  "to": "ready"
+                },
+                {
+                  "effects": [
+                    [
+                      "set",
+                      "@entity.acc",
+                      [
+                        "+",
+                        "@entity.acc",
+                        [
+                          "*",
+                          "@payload.v",
+                          2.0
+                        ]
+                      ]
+                    ],
+                    [
+                      "when",
+                      [
+                        "=",
+                        "@entity.acc",
+                        90300.0
+                      ],
+                      [
+                        "emit",
+                        "OK",
+                        {}
+                      ]
+                    ]
+                  ],
+                  "event": "HEARD",
+                  "eventId": "evt_9YRDADK9KJMSSFD64YGHFV7DCG",
+                  "from": "ready",
+                  "guard": [
+                    "and",
+                    [
+                      ">",
+                      "@payload.v",
+                      0.0
+                    ],
+                    [
+                      "=",
+                      [
+                        "math/mod",
+                        "@payload.v",
+                        1.0
+                      ],
+                      0.0
+                    ]
+                  ],
+                  "to": "ready"
+                }
+              ]
+            }
+          },
+          {
+            "dispatch": "optimistic",
+            "effectRow": [
+              {
+                "kind": "emit",
+                "resource": "OK"
+              },
+              {
+                "kind": "set",
+                "resource": "@entity.acc"
+              }
+            ],
+            "emits": [
+              {
+                "event": "OK",
+                "eventId": "evt_76ZJYPNXAXYNEPDCZ8YRASXBSN",
+                "scope": "internal"
+              }
+            ],
+            "entityRefIds": {
+              "Acc3": "ent_6VFMGKATKXD9YPN64VNCZ33WQD"
+            },
+            "id": "trt_E7D806Y6EQ37BV16EN5HAFHJVP",
+            "linkedEntity": "Acc3",
+            "linkedEntityId": "ent_6VFMGKATKXD9YPN64VNCZ33WQD",
+            "listens": [
+              {
+                "event": "TICKED",
+                "eventId": "evt_ESTSADDEZXQFYX4E1S9A97DK17",
+                "source": {
+                  "kind": "trait",
+                  "trait": "Driver",
+                  "traitId": "trt_Z6613CR7733KHJH699N7P9S979"
+                },
+                "triggers": "HEARD",
+                "triggersId": "evt_54BK138YK3F9HW46B4C4XRTGGG"
+              }
+            ],
+            "name": "L3",
+            "sourceDeclaration": {
+              "fingerprint": "4eaa6f936606862f4f5244f1365443a83a43fc1d4b0dc97245c476806c053004",
+              "traitId": "trt_E7D806Y6EQ37BV16EN5HAFHJVP"
+            },
+            "stateMachine": {
+              "events": [
+                {
+                  "id": "evt_MY4D8R9MX3TEHWMPKQTJW5CWYG",
+                  "key": "INIT",
+                  "name": "Initialize"
+                },
+                {
+                  "id": "evt_54BK138YK3F9HW46B4C4XRTGGG",
+                  "key": "HEARD",
+                  "listened": true,
+                  "name": "Heard",
+                  "payloadSchema": [
+                    {
+                      "name": "v",
+                      "nullable": false,
+                      "required": true,
+                      "type": "number"
+                    }
+                  ]
+                },
+                {
+                  "id": "evt_76ZJYPNXAXYNEPDCZ8YRASXBSN",
+                  "key": "OK",
+                  "name": "Ok"
+                }
+              ],
+              "states": [
+                {
+                  "isInitial": true,
+                  "name": "ready"
+                }
+              ],
+              "transitions": [
+                {
+                  "event": "INIT",
+                  "eventId": "evt_MY4D8R9MX3TEHWMPKQTJW5CWYG",
+                  "from": "ready",
+                  "to": "ready"
+                },
+                {
+                  "effects": [
+                    [
+                      "set",
+                      "@entity.acc",
+                      [
+                        "+",
+                        "@entity.acc",
+                        [
+                          "*",
+                          "@payload.v",
+                          2.0
+                        ]
+                      ]
+                    ],
+                    [
+                      "when",
+                      [
+                        "=",
+                        "@entity.acc",
+                        90300.0
+                      ],
+                      [
+                        "emit",
+                        "OK",
+                        {}
+                      ]
+                    ]
+                  ],
+                  "event": "HEARD",
+                  "eventId": "evt_54BK138YK3F9HW46B4C4XRTGGG",
+                  "from": "ready",
+                  "guard": [
+                    "and",
+                    [
+                      ">",
+                      "@payload.v",
+                      0.0
+                    ],
+                    [
+                      "=",
+                      [
+                        "math/mod",
+                        "@payload.v",
+                        1.0
+                      ],
+                      0.0
+                    ]
+                  ],
+                  "to": "ready"
+                }
+              ]
+            }
+          },
+          {
+            "dispatch": "optimistic",
+            "effectRow": [
+              {
+                "kind": "emit",
+                "resource": "OK"
+              },
+              {
+                "kind": "set",
+                "resource": "@entity.acc"
+              }
+            ],
+            "emits": [
+              {
+                "event": "OK",
+                "eventId": "evt_JBSQJ5GFX47YJ6B89BJKABFK5F",
+                "scope": "internal"
+              }
+            ],
+            "entityRefIds": {
+              "Acc4": "ent_KDHMGGH4Z4JFJBYS88BN3ET4DM"
+            },
+            "id": "trt_GJXMKYN1ZBGZNQTTPK6TCS33XC",
+            "linkedEntity": "Acc4",
+            "linkedEntityId": "ent_KDHMGGH4Z4JFJBYS88BN3ET4DM",
+            "listens": [
+              {
+                "event": "TICKED",
+                "eventId": "evt_ESTSADDEZXQFYX4E1S9A97DK17",
+                "source": {
+                  "kind": "trait",
+                  "trait": "Driver",
+                  "traitId": "trt_Z6613CR7733KHJH699N7P9S979"
+                },
+                "triggers": "HEARD",
+                "triggersId": "evt_5M488AXWXXYEYVPTFG3HC3PHE7"
+              }
+            ],
+            "name": "L4",
+            "sourceDeclaration": {
+              "fingerprint": "4667159bc1dd490742ccbc47d86e4c86f4d98f4627802e58a3bddbf8e328f585",
+              "traitId": "trt_GJXMKYN1ZBGZNQTTPK6TCS33XC"
+            },
+            "stateMachine": {
+              "events": [
+                {
+                  "id": "evt_5FD1FHARB2C5HAGBWA9N9HT8KE",
+                  "key": "INIT",
+                  "name": "Initialize"
+                },
+                {
+                  "id": "evt_5M488AXWXXYEYVPTFG3HC3PHE7",
+                  "key": "HEARD",
+                  "listened": true,
+                  "name": "Heard",
+                  "payloadSchema": [
+                    {
+                      "name": "v",
+                      "nullable": false,
+                      "required": true,
+                      "type": "number"
+                    }
+                  ]
+                },
+                {
+                  "id": "evt_JBSQJ5GFX47YJ6B89BJKABFK5F",
+                  "key": "OK",
+                  "name": "Ok"
+                }
+              ],
+              "states": [
+                {
+                  "isInitial": true,
+                  "name": "ready"
+                }
+              ],
+              "transitions": [
+                {
+                  "event": "INIT",
+                  "eventId": "evt_5FD1FHARB2C5HAGBWA9N9HT8KE",
+                  "from": "ready",
+                  "to": "ready"
+                },
+                {
+                  "effects": [
+                    [
+                      "set",
+                      "@entity.acc",
+                      [
+                        "+",
+                        "@entity.acc",
+                        [
+                          "*",
+                          "@payload.v",
+                          2.0
+                        ]
+                      ]
+                    ],
+                    [
+                      "when",
+                      [
+                        "=",
+                        "@entity.acc",
+                        90300.0
+                      ],
+                      [
+                        "emit",
+                        "OK",
+                        {}
+                      ]
+                    ]
+                  ],
+                  "event": "HEARD",
+                  "eventId": "evt_5M488AXWXXYEYVPTFG3HC3PHE7",
+                  "from": "ready",
+                  "guard": [
+                    "and",
+                    [
+                      ">",
+                      "@payload.v",
+                      0.0
+                    ],
+                    [
+                      "=",
+                      [
+                        "math/mod",
+                        "@payload.v",
+                        1.0
+                      ],
+                      0.0
+                    ]
+                  ],
+                  "to": "ready"
+                }
+              ]
+            }
+          },
+          {
+            "dispatch": "optimistic",
+            "effectRow": [
+              {
+                "kind": "set",
+                "resource": "@entity.oks"
+              }
+            ],
+            "entityRefIds": {
+              "Chk": "ent_B7A7MP5QTQVXBZRHEX3PZVBBE0"
+            },
+            "id": "trt_SHKY3S3ACYN6F0W82XB6JM503M",
+            "linkedEntity": "Chk",
+            "linkedEntityId": "ent_B7A7MP5QTQVXBZRHEX3PZVBBE0",
+            "listens": [
+              {
+                "event": "OK",
+                "eventId": "evt_AF1ZCJWA27513KVB7F8MQJF8PV",
+                "source": {
+                  "kind": "trait",
+                  "trait": "L0",
+                  "traitId": "trt_Y6QH1KGBAX5NEPA18ZXVT1HS3T"
+                },
+                "triggers": "GOT",
+                "triggersId": "evt_4TJGV2S12PGHB42F28MZED9PX0"
+              },
+              {
+                "event": "OK",
+                "eventId": "evt_AF1ZCJWA27513KVB7F8MQJF8PV",
+                "source": {
+                  "kind": "trait",
+                  "trait": "L1",
+                  "traitId": "trt_2GFJKQW3DJ1PSBGYF4AW8DB9BK"
+                },
+                "triggers": "GOT",
+                "triggersId": "evt_4TJGV2S12PGHB42F28MZED9PX0"
+              },
+              {
+                "event": "OK",
+                "eventId": "evt_AF1ZCJWA27513KVB7F8MQJF8PV",
+                "source": {
+                  "kind": "trait",
+                  "trait": "L2",
+                  "traitId": "trt_TWK8RE3FGBQR5WH6FGDV7E5R0V"
+                },
+                "triggers": "GOT",
+                "triggersId": "evt_4TJGV2S12PGHB42F28MZED9PX0"
+              },
+              {
+                "event": "OK",
+                "eventId": "evt_AF1ZCJWA27513KVB7F8MQJF8PV",
+                "source": {
+                  "kind": "trait",
+                  "trait": "L3",
+                  "traitId": "trt_E7D806Y6EQ37BV16EN5HAFHJVP"
+                },
+                "triggers": "GOT",
+                "triggersId": "evt_4TJGV2S12PGHB42F28MZED9PX0"
+              },
+              {
+                "event": "OK",
+                "eventId": "evt_AF1ZCJWA27513KVB7F8MQJF8PV",
+                "source": {
+                  "kind": "trait",
+                  "trait": "L4",
+                  "traitId": "trt_GJXMKYN1ZBGZNQTTPK6TCS33XC"
+                },
+                "triggers": "GOT",
+                "triggersId": "evt_4TJGV2S12PGHB42F28MZED9PX0"
+              }
+            ],
+            "name": "Checker",
+            "sourceDeclaration": {
+              "fingerprint": "469e5b5daa8ae715a9a2bf9e3128252a8554bc171a636a5f65ba070d0efb474b",
+              "traitId": "trt_SHKY3S3ACYN6F0W82XB6JM503M"
+            },
+            "stateMachine": {
+              "events": [
+                {
+                  "id": "evt_FMEAVCCM3JA1S4NXJCMENPGJW3",
+                  "key": "INIT",
+                  "name": "Initialize"
+                },
+                {
+                  "id": "evt_4TJGV2S12PGHB42F28MZED9PX0",
+                  "key": "GOT",
+                  "listened": true,
+                  "name": "Got"
+                }
+              ],
+              "states": [
+                {
+                  "isInitial": true,
+                  "name": "ready"
+                },
+                {
+                  "name": "verified"
+                }
+              ],
+              "transitions": [
+                {
+                  "event": "INIT",
+                  "eventId": "evt_FMEAVCCM3JA1S4NXJCMENPGJW3",
+                  "from": "ready",
+                  "to": "ready"
+                },
+                {
+                  "effects": [
+                    [
+                      "set",
+                      "@entity.oks",
+                      [
+                        "+",
+                        "@entity.oks",
+                        1.0
+                      ]
+                    ]
+                  ],
+                  "event": "GOT",
+                  "eventId": "evt_4TJGV2S12PGHB42F28MZED9PX0",
+                  "from": "ready",
+                  "guard": [
+                    "<",
+                    [
+                      "+",
+                      "@entity.oks",
+                      1.0
+                    ],
+                    5.0
+                  ],
+                  "to": "ready"
+                },
+                {
+                  "effects": [
+                    [
+                      "set",
+                      "@entity.oks",
+                      [
+                        "+",
+                        "@entity.oks",
+                        1.0
+                      ]
+                    ]
+                  ],
+                  "event": "GOT",
+                  "eventId": "evt_4TJGV2S12PGHB42F28MZED9PX0",
+                  "from": "ready",
+                  "guard": [
+                    "=",
+                    [
+                      "+",
+                      "@entity.oks",
+                      1.0
+                    ],
+                    5.0
+                  ],
+                  "to": "verified"
+                },
+                {
+                  "event": "INIT",
+                  "eventId": "evt_FMEAVCCM3JA1S4NXJCMENPGJW3",
+                  "from": "verified",
+                  "to": "verified"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ],
+    "resolved": {
+      "orb": "19.0.0",
+      "typeContractVersion": 2
+    },
+    "schemaVersion": 1,
+    "themeDefinitions": [
+      {
+        "displayName": "Minimalist",
+        "name": "minimalist",
+        "tokens": {
+          "colors": {
+            "accent": "#18181b",
+            "accent-foreground": "#fafafa",
+            "background": "#f8fafc",
+            "border": "#e4e4e7",
+            "card": "#ffffff",
+            "card-foreground": "#18181b",
+            "diagram-axis": "#65656e",
+            "diagram-fill": "#f4f4f5",
+            "diagram-grid": "#e4e4e7",
+            "diagram-guide": "#8d8d96",
+            "diagram-highlight": "#2563eb",
+            "diagram-ink": "#18181b",
+            "diagram-label": "#65656e",
+            "error": "#dc2626",
+            "error-foreground": "#ffffff",
+            "foreground": "#18181b",
+            "info": "#2563eb",
+            "info-foreground": "#ffffff",
+            "input": "#8f8f99",
+            "muted": "#f4f4f5",
+            "muted-foreground": "#65656e",
+            "primary": "#18181b",
+            "primary-foreground": "#fafafa",
+            "primary-hover": "#27272a",
+            "ring": "#18181b",
+            "scrim": "rgba(0, 0, 0, 0.6)",
+            "secondary": "#fafafa",
+            "secondary-foreground": "#18181b",
+            "secondary-hover": "#f4f4f5",
+            "series-1": "#0b618e",
+            "series-2": "#b45f3a",
+            "series-3": "#589373",
+            "series-4": "#8a5a9a",
+            "series-5": "#a3902c",
+            "series-6": "#536d73",
+            "series-7": "#a04a5a",
+            "series-8": "#3a8a9a",
+            "success": "#15803d",
+            "success-foreground": "#ffffff",
+            "surface": "#f4f4f5",
+            "warning": "#ca8a04",
+            "warning-foreground": "#000000"
+          },
+          "density": {
+            "buttonHeightLg": "44px",
+            "buttonHeightMd": "44px",
+            "buttonHeightSm": "28px",
+            "cardPaddingLg": "40px",
+            "cardPaddingMd": "32px",
+            "cardPaddingSm": "12px",
+            "dialogPadding": "24px",
+            "inputHeightLg": "44px",
+            "inputHeightMd": "44px",
+            "inputHeightSm": "28px",
+            "rowHeightCompact": "32px",
+            "rowHeightNormal": "52px",
+            "rowHeightSpacious": "48px",
+            "sectionGap": "64px",
+            "spacing": {
+              "space0": "0px",
+              "space1": "4px",
+              "space10": "40px",
+              "space11": "44px",
+              "space12": "48px",
+              "space2": "8px",
+              "space3": "12px",
+              "space4": "16px",
+              "space5": "20px",
+              "space6": "24px",
+              "space7": "28px",
+              "space8": "32px",
+              "space9": "36px"
+            }
+          },
+          "diagram": {
+            "corner": "0px",
+            "dash": "3 3",
+            "dot": "1 3",
+            "fillOpacity": "0.08",
+            "fillStyle": "outline",
+            "glow": "0",
+            "labelCase": "none",
+            "labelFont": "body",
+            "labelSize": "xs",
+            "labelWeight": "400",
+            "lineCap": "butt",
+            "lineJoin": "miter",
+            "marker": "line",
+            "roughness": "0",
+            "shadow": "none",
+            "strokeBold": "2",
+            "strokeNormal": "1",
+            "strokeThin": "1"
+          },
+          "elevation": {
+            "cardElevation": "none",
+            "dialogElevation": "none",
+            "interactiveElevation": "none",
+            "popoverElevation": "none",
+            "pressedElevation": "none",
+            "toastElevation": "none"
+          },
+          "geometry": {
+            "borderHairline": "1px",
+            "borderHeavy": "1px",
+            "borderStandard": "1px",
+            "borderStyle": "none",
+            "borderStyleInteractive": "solid",
+            "cornerShape": "round",
+            "cornerShapePill": "round",
+            "radiusContainer": "0px",
+            "radiusInteractive": "0px",
+            "radiusPill": "9999px"
+          },
+          "iconography": {
+            "defaultSize": "16px",
+            "family": "lucide",
+            "strokeWidth": "1.5"
+          },
+          "motion": {
+            "durations": {
+              "dramatic": "600ms",
+              "fast": "var(--transition-fast)",
+              "instant": "0ms",
+              "normal": "var(--transition-normal)",
+              "slow": "var(--transition-slow)"
+            },
+            "easings": {
+              "emphasized": "cubic-bezier(0.2, 0, 0, 1)",
+              "linear": "linear",
+              "spring": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+              "standard": "var(--transition-timing)"
+            },
+            "shapes": {
+              "modalEnter": "none",
+              "modalExit": "none",
+              "pageEnter": "none",
+              "popoverEnter": "none",
+              "popoverExit": "none",
+              "toastEnter": "none",
+              "toastExit": "none"
+            }
+          },
+          "radii": {
+            "full": "9999px",
+            "lg": "0px",
+            "md": "0px",
+            "none": "0px",
+            "sm": "0px",
+            "xl": "0px"
+          },
+          "scene": {
+            "fog": "0",
+            "lightAmbient": "0.7",
+            "lightKey": "0.8",
+            "lightKeyColor": "#ffffff",
+            "materialFlat": "0",
+            "materialMetalness": "0",
+            "materialOutline": "0",
+            "materialRoughness": "0.8"
+          },
+          "shadows": {
+            "active": "none",
+            "hover": "none",
+            "inner": "none",
+            "lg": "none",
+            "main": "none",
+            "none": "none",
+            "sm": "none"
+          },
+          "surface": {
+            "accentImage": "linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 8%, var(--color-background)), var(--color-background))",
+            "edgeHeight": "clamp(16px, 4vw, 56px)",
+            "edgeMask": "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 100' preserveAspectRatio='none'><path d='M0 100 Q720 0 1440 100 Z'/></svg>\")",
+            "textureMask": "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><path d='M0 .5H40M.5 0V40' stroke='black' stroke-width='1' fill='none'/></svg>\")",
+            "textureSize": "40px 40px"
+          },
+          "typeScale": {
+            "bodyFamily": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+            "displayFamily": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+            "fontImport": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap",
+            "headingShadow": "none",
+            "headingStyle": "normal",
+            "headingTracking": "-0.03em",
+            "headingTransform": "none",
+            "headingWeight": "300",
+            "intents": {
+              "bodyDefault": {
+                "size": "sm",
+                "slot": "body",
+                "weight": "normal"
+              },
+              "bodyEmphasis": {
+                "size": "base",
+                "slot": "body",
+                "weight": "medium"
+              },
+              "bodyQuiet": {
+                "size": "sm",
+                "slot": "body",
+                "weight": "normal"
+              },
+              "caption": {
+                "size": "xs",
+                "slot": "body",
+                "weight": "normal"
+              },
+              "headingMajor": {
+                "size": "2xl",
+                "slot": "display",
+                "weight": "bold"
+              },
+              "headingMinor": {
+                "size": "lg",
+                "slot": "display",
+                "weight": "bold"
+              },
+              "numeric": {
+                "size": "sm",
+                "slot": "mono",
+                "weight": "medium"
+              }
+            },
+            "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            "scale": {
+              "2xl": {
+                "lineHeight": "32px",
+                "size": "24px"
+              },
+              "3xl": {
+                "lineHeight": "36px",
+                "size": "30px"
+              },
+              "4xl": {
+                "lineHeight": "40px",
+                "size": "36px"
+              },
+              "base": {
+                "lineHeight": "24px",
+                "size": "16px"
+              },
+              "display-1": {
+                "lineHeight": "52px",
+                "size": "48px"
+              },
+              "display-2": {
+                "lineHeight": "64px",
+                "size": "60px"
+              },
+              "lg": {
+                "lineHeight": "28px",
+                "size": "18px"
+              },
+              "sm": {
+                "lineHeight": "20px",
+                "size": "14px"
+              },
+              "xl": {
+                "lineHeight": "28px",
+                "size": "20px"
+              },
+              "xs": {
+                "lineHeight": "16px",
+                "size": "12px"
+              }
+            }
+          },
+          "typography": {
+            "active-scale": "0.99",
+            "active-translate-y": "0",
+            "border-width": "1px",
+            "border-width-thick": "1px",
+            "border-width-thin": "1px",
+            "focus-ring-color": "#18181b",
+            "focus-ring-offset": "2px",
+            "focus-ring-width": "2px",
+            "font-family": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+            "font-weight-bold": "600",
+            "font-weight-medium": "500",
+            "font-weight-normal": "400",
+            "hover-scale": "1.01",
+            "hover-translate-x": "0",
+            "hover-translate-y": "-1px",
+            "icon-color": "currentColor",
+            "letter-spacing": "-0.005em",
+            "line-height": "1.75",
+            "transition-fast": "150ms",
+            "transition-normal": "240ms",
+            "transition-slow": "400ms",
+            "transition-timing": "cubic-bezier(0.4, 0, 0.2, 1)"
+          }
+        },
+        "variants": {
+          "dark": {
+            "colors": {
+              "accent": "#fafafa",
+              "accent-foreground": "#18181b",
+              "background": "#09090b",
+              "border": "#27272a",
+              "card": "#18181b",
+              "card-foreground": "#fafafa",
+              "diagram-axis": "#a1a1aa",
+              "diagram-fill": "#27272a",
+              "diagram-grid": "#27272a",
+              "diagram-guide": "#78787f",
+              "diagram-highlight": "#60a5fa",
+              "diagram-ink": "#fafafa",
+              "diagram-label": "#a1a1aa",
+              "error": "#f87171",
+              "error-foreground": "#000000",
+              "foreground": "#fafafa",
+              "info": "#60a5fa",
+              "info-foreground": "#000000",
+              "input": "#71717a",
+              "muted": "#27272a",
+              "muted-foreground": "#a1a1aa",
+              "primary": "#fafafa",
+              "primary-foreground": "#18181b",
+              "primary-hover": "#e4e4e7",
+              "ring": "#fafafa",
+              "scrim": "rgba(0, 0, 0, 0.7)",
+              "secondary": "#27272a",
+              "secondary-foreground": "#fafafa",
+              "secondary-hover": "#3f3f46",
+              "series-1": "#929bdf",
+              "series-2": "#e0906a",
+              "series-3": "#6fc09a",
+              "series-4": "#c49ad4",
+              "series-5": "#cebb6b",
+              "series-6": "#758996",
+              "series-7": "#de8aa1",
+              "series-8": "#6fbfd0",
+              "success": "#4ade80",
+              "success-foreground": "#000000",
+              "surface": "#27272a",
+              "warning": "#fbbf24",
+              "warning-foreground": "#000000"
+            },
+            "typography": {
+              "active-scale": "0.99",
+              "active-translate-y": "0",
+              "border-width": "1px",
+              "border-width-thick": "1px",
+              "border-width-thin": "1px",
+              "focus-ring-color": "#fafafa",
+              "focus-ring-offset": "2px",
+              "focus-ring-width": "2px",
+              "font-family": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+              "font-weight-bold": "600",
+              "font-weight-medium": "500",
+              "font-weight-normal": "400",
+              "hover-scale": "1.01",
+              "hover-translate-x": "0",
+              "hover-translate-y": "-1px",
+              "icon-color": "currentColor",
+              "letter-spacing": "-0.005em",
+              "line-height": "1.75",
+              "transition-fast": "150ms",
+              "transition-normal": "240ms",
+              "transition-slow": "400ms",
+              "transition-timing": "cubic-bezier(0.4, 0, 0.2, 1)"
+            }
+          }
+        }
+      }
+    ],
+    "typeContractVersion": 1,
+    "version": "1.0.0"
+  },
+  "scenarios": [
+    {
+      "name": "go",
+      "orbital": "Main",
+      "trait": "Driver",
+      "event": "GO",
+      "payload": {},
+      "expect": {
+        "states": {
+          "Driver": "run",
+          "Checker": "verified"
+        }
+      }
+    }
+  ]
+}
