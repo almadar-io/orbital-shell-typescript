@@ -396,8 +396,10 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     try {
       return await transport.send(orbital, sent);
     } catch (err) {
+      if (!(err instanceof SessionEndedError)) throw err;
       const seeds = mountedSeeds.get(orbital);
-      if (!(err instanceof SessionEndedError) || seeds === undefined || seeds.length === 0) throw err;
+      // A host that never held this client's session (a fresh hosted guest) refuses once; with nothing to mount, send again.
+      if (seeds === undefined || seeds.length === 0) return transport.send(orbital, sent);
       const reseed = readAnswer<EventRequest>(k, k.reseedLeg(JSON.stringify(seeds), request.entityId));
       const mounted = await transport.send(orbital, request.locale !== undefined ? { ...reseed, locale: request.locale } : reseed);
       await foldAnswer(k, flight, mounted);

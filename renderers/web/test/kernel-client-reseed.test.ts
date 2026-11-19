@@ -122,6 +122,15 @@ describe('kernel client — a host that freed this client session', () => {
     expect(sent[1]?.entityByTrait).toEqual({ Viewer: { topic: 'app' } });
   });
 
+  it('with no seeds mounted on that host, sends the refused event once more and mounts nothing (a fresh hosted guest)', async () => {
+    const sent: EventRequest[] = [];
+    const reseeded: string[] = [];
+    const client = clientOver(sent, true, reseeded);
+    await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' });
+    expect(reseeded).toHaveLength(0);
+    expect(sent.map((r) => (r.mount !== undefined ? 'mount' : r.event))).toEqual(['READ_BACK', 'READ_BACK']);
+  });
+
   it('control: a live session sends the event once and mounts nothing again', async () => {
     const sent: EventRequest[] = [];
     const reseeded: string[] = [];
