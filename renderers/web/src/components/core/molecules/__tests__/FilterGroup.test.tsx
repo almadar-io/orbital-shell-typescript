@@ -247,6 +247,7 @@ describe('FilterGroup', () => {
     it('calls onClearAll when clear all button is clicked', () => {
         const filters: FilterDefinition[] = [
             { field: 'status', label: 'Status', options: ['active', 'dormant'] },
+            { field: 'kind', label: 'Kind', options: ['a', 'b'] },
         ];
 
         renderWithProvider(
@@ -258,15 +259,38 @@ describe('FilterGroup', () => {
             />
         );
 
-        // First set a filter to show the clear button
-        const select = screen.getByRole('combobox');
-        fireEvent.change(select, { target: { value: 'active' } });
+        // Two active filters show Clear all beside their pills
+        const [status, kind] = screen.getAllByRole('combobox');
+        fireEvent.change(status, { target: { value: 'active' } });
+        fireEvent.change(kind, { target: { value: 'a' } });
 
-        // Find and click clear all button
-        const clearButton = screen.getByText(/Clear/i);
-        fireEvent.click(clearButton);
+        fireEvent.click(screen.getByText(/Clear all/i));
 
         expect(mockOnClearAll).toHaveBeenCalled();
+    });
+
+    it('shows each active filter as a pill that removes it', () => {
+        const filters: FilterDefinition[] = [
+            { field: 'status', label: 'Status', options: ['active', 'dormant'] },
+        ];
+        renderWithProvider(
+            <FilterGroup entity="Connection" filters={filters} onFilterChange={mockOnFilterChange} />
+        );
+        fireEvent.change(screen.getByRole('combobox'), { target: { value: 'active' } });
+        const pill = screen.getByRole('button', { name: /Remove filter Status: active/i });
+        fireEvent.click(pill);
+        expect(screen.queryByRole('button', { name: /Remove filter Status/i })).toBeNull();
+        expect(mockOnFilterChange).toHaveBeenLastCalledWith('status', null);
+    });
+
+    it('control: no active filter shows no pill', () => {
+        const filters: FilterDefinition[] = [
+            { field: 'status', label: 'Status', options: ['active', 'dormant'] },
+        ];
+        renderWithProvider(
+            <FilterGroup entity="Connection" filters={filters} onFilterChange={mockOnFilterChange} />
+        );
+        expect(screen.queryByTestId('active-filter-pills')).toBeNull();
     });
 });
 

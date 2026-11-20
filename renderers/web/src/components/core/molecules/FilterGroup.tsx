@@ -726,23 +726,33 @@ const FilterGroupControls: React.FC<FilterGroupProps> = ({
           </div>
         ))}
 
-        {/* Active filter count and clear */}
-        {activeFilterCount > 0 && (
-          <HStack gap="sm" align="center" className="ml-auto">
-            <Badge variant="primary" size="md">
-              {t('filterGroup.activeCount', { count: activeFilterCount })}
-            </Badge>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClearAll}
-              leftIcon="x"
-            >
+      </HStack>
+      {/* Each active filter as a pill that removes it; Clear all when there are several */}
+      {activeFilterCount > 0 && (
+        <HStack gap="sm" align="center" className="flex-wrap mt-2" data-testid="active-filter-pills">
+          {Object.entries(selectedValues).map(([field, value]) => {
+            const label = filters.find((f) => f.field === field)?.label ?? field;
+            return (
+              <button
+                key={field}
+                type="button"
+                onClick={() => handleFilterSelect(field, null)}
+                aria-label={t('filterGroup.remove', { label, value: String(value) })}
+                className="inline-flex items-center gap-1 rounded-pill border-[length:var(--border-width)] border-border bg-muted px-3 py-1 text-sm hover:bg-muted/70"
+              >
+                <span className="text-muted-foreground">{label}:</span>
+                <span className="font-medium">{String(value)}</span>
+                <Icon name="x" className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            );
+          })}
+          {activeFilterCount > 1 && (
+            <Button variant="ghost" size="sm" onClick={handleClearAll} leftIcon="x">
               {t('filterGroup.clearAll')}
             </Button>
-          </HStack>
-        )}
-      </HStack>
+          )}
+        </HStack>
+      )}
     </div>
   );
 };
