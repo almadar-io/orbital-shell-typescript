@@ -37,6 +37,8 @@ import { useRowActions, useRowActionPayload, useRowActionFire, useRowActionRoute
 import type { RowActionCondition, RowActionPayload, RowActionRoute } from '../../../lib/row-action-when';
 import { useTranslate, useFormatContext } from '../../../core';
 import { Box } from '../../../core';
+import { useDragScrollX } from '../../../core/hooks/useDragScrollX';
+import { useFillToViewportBottom } from '../../../core/hooks/useFillToViewportBottom';
 import { VStack, HStack } from '../../../core';
 import { Typography } from '../../../core';
 import { EmptyState, type EmptyStateSlotProps } from './EmptyState';
@@ -111,6 +113,8 @@ export interface DataGridProps extends DataDndProps, EmptyStateSlotProps, A11yPr
   maxInlineActions?: number;
   /** Lay items in a single horizontally-scrolling row (kanban columns) sized to `minCardWidth` instead of a wrapping grid. */
   scrollX?: boolean;
+  /** With scrollX: the board runs from its top to the bottom of the screen and each column keeps to that height, scrolling its own items (Trello style). */
+  fillHeight?: boolean;
   /** Number of columns (uses auto-fit if omitted) */
   cols?: 1 | 2 | 3 | 4 | 5 | 6;
   /** Gap between cards */
@@ -211,6 +215,7 @@ export function DataGrid({
   itemClickEvent,
   maxInlineActions,
   scrollX = false,
+  fillHeight = false,
   cols,
   gap = 'md',
   minCardWidth = 280,
@@ -401,6 +406,13 @@ export function DataGrid({
 
   // One column is a list, not a gallery: one surface, divided rows.
   const asRows = cols === 1 && !scrollX && !hasRenderProp;
+  const dragStrip = useDragScrollX(scrollX);
+  const fills = scrollX && fillHeight;
+  const [fillStrip, fillPx] = useFillToViewportBottom(fills);
+  const stripRef = useCallback((node: HTMLElement | null) => {
+    dragStrip(node);
+    fillStrip(node);
+  }, [dragStrip, fillStrip]);
 
   // Loading state
   if (isLoading) {
@@ -456,20 +468,21 @@ export function DataGrid({
       )}
 
       <Box
+        ref={stripRef}
         data-grid-layout={asRows ? 'rows' : 'cards'}
         data-item-move-root={nestedMoves.id}
         {...(scrollX ? { role: 'region', tabIndex: 0, 'aria-label': t('aria.scrollableBoard') } : {})}
         className={cn(
           asRows
             ? cn('flex flex-col divide-y divide-border', contentSurface.className && cn(contentSurface.className, 'overflow-hidden'))
-            : cn('grid', gapStyles[gap], scrollX ? 'grid-flow-col overflow-x-auto snap-x snap-mandatory [&>*]:snap-start pb-2' : colsClass, lookStyles[look]),
+            : cn('grid', gapStyles[gap], scrollX ? cn('grid-flow-col overflow-x-auto snap-x snap-mandatory [&>*]:snap-start pb-2', fills && 'items-start [&>*]:max-h-full [&>*]:min-h-0 [&>*]:flex [&>*]:flex-col') : colsClass, lookStyles[look]),
           className,
         )}
         style={
           scrollX
             // Capped below the board width so, on a narrow screen, the next
             // column always peeks in — the cue that the board scrolls.
-            ? { gridAutoFlow: 'column', gridAutoColumns: `minmax(min(${minCardWidth}px, 85%), 1fr)` }
+            ? { gridAutoFlow: 'column', gridAutoColumns: `minmax(min(${minCardWidth}px, 85%), 1fr)`, ...(fillPx !== undefined ? { height: `${fillPx}px` } : {}) }
             : gridTemplateColumns
               ? { gridTemplateColumns }
               : undefined
@@ -517,7 +530,7 @@ export function DataGrid({
                     className="absolute inset-0 rounded-[inherit] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
                   />
                 )}
-                <Box className={cn(handleCardClick && 'relative')}>
+                <Box className={cn(handleCardClick && 'relative', fills && 'flex min-h-0 flex-col')}>
                   {itemRenderer!(itemData, index)}
                 </Box>
                 {rowAct.visible.length > 0 && (

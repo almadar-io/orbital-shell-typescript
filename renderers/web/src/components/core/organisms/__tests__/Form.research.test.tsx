@@ -90,14 +90,15 @@ describe('Form — structure and actions', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('the primary action comes last, at the end of a sticky action row', () => {
+  it('the primary action comes last, at the end of an action row that ends the form', () => {
     wrap(<Form fields={FIELDS} showCancel />);
     const save = screen.getByRole('button', { name: 'Save' });
     const cancel = screen.getByRole('button', { name: 'Cancel' });
     expect(cancel.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const row = save.parentElement as HTMLElement;
     expect(row.className).toContain('justify-end');
-    expect(row.className).toContain('sticky');
+    expect(row.className).toContain('border-t');
+    expect(row.className).not.toContain('sticky');
   });
 
   it('a vertical form is one readable column', () => {

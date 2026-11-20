@@ -2146,6 +2146,7 @@ export interface PatternPropsMap {
     itemClickEvent?: string | SExpr;
     maxInlineActions?: number | string | SExpr;
     scrollX?: boolean | string | SExpr;
+    fillHeight?: boolean | string | SExpr;
     cols?: number | string | SExpr;
     gap?: string | SExpr;
     minCardWidth?: number | string | SExpr;
@@ -5986,6 +5987,7 @@ export interface PatternPropsMap {
     query?: string | SExpr;
     suggestions?: unknown[] | string | SExpr;
     suggestionEvent?: string | SExpr;
+    expandOnCompact?: boolean | string | SExpr;
     enter?: string | SExpr;
     enterDelay?: number | string | SExpr;
     skeleton?: string | PatternPropValue | SExpr;

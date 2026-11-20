@@ -4679,6 +4679,29 @@
                 "types": [
                   "string"
                 ]
+              },
+              "badge": {
+                "types": [
+                  "string"
+                ],
+                "description": "A short tag drawn beside the label, such as the kind of record."
+              },
+              "badgeVariant": {
+                "types": [
+                  "string"
+                ],
+                "enum": [
+                  "default",
+                  "primary",
+                  "secondary",
+                  "success",
+                  "warning",
+                  "danger",
+                  "error",
+                  "info",
+                  "neutral"
+                ],
+                "description": "The badge colour."
               }
             },
             "required": [
@@ -4988,6 +5011,13 @@
             -1,
             0
           ]
+        },
+        "expandOnCompact": {
+          "types": [
+            "boolean"
+          ],
+          "default": false,
+          "description": "On a phone-width screen, draw a search button that opens the box full screen with its suggestions listed under it."
         }
       }
     },
@@ -49329,6 +49359,13 @@
             -1,
             0
           ]
+        },
+        "fillHeight": {
+          "types": [
+            "boolean"
+          ],
+          "default": false,
+          "description": "With scrollX: the board runs from its top to the bottom of the screen and each column keeps to that height, scrolling its own items (Trello style)."
         }
       }
     },

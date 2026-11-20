@@ -123,7 +123,7 @@ const EFFECT_OPERATOR_CATEGORY: Record<EffectOperator, EffectCategory> = {
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'compute',
   'oauth-authorize': 'system', 'oauth-connection-status': 'system', 'oauth-connection-forget': 'system',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',  'mem/arena-new': 'system', 'mem/arena-drop': 'system', 'mem/alloc': 'system', 'mem/free': 'system', 'mem/borrow': 'system', 'mem/release': 'system', 'mem/write': 'system', 'mem/freeze': 'system', 'mem/atomic-load': 'system', 'mem/atomic-store': 'system', 'mem/atomic-add': 'system', 'mem/atomic-cas': 'system',
-  'kernel/queue-front': 'communication', 'kernel/queue-back': 'communication', 'ffi/call': 'system',
+  'kernel/queue-front': 'communication', 'kernel/queue-back': 'communication', 'kernel/commit': 'system', 'ffi/call': 'system',
   'gpu/device-open': 'system', 'gpu/device-close': 'system', 'gpu/buffer-create': 'system', 'gpu/texture-create': 'system', 'gpu/sampler-create': 'system', 'gpu/query-create': 'system', 'gpu/shader-create': 'system', 'gpu/pipeline-create': 'system', 'gpu/bind-group-create': 'system', 'gpu/submit': 'system', 'gpu/release': 'system',
 };
 
@@ -154,7 +154,7 @@ const EFFECT_OPERATOR_ZONE: Record<EffectOperator, EffectZone> = {
   'credential-status': 'system', 'credential-forget': 'system', 'random-bytes': 'system',
   'oauth-authorize': 'remote', 'oauth-connection-status': 'remote', 'oauth-connection-forget': 'remote',
   'credential-list': 'system', 'credential-set': 'system', 'credential-remove': 'system', 'credential-test': 'system', 'credential-mode': 'system', 'credential-rotate': 'system', 'credential-connect': 'system',  'mem/arena-new': 'system', 'mem/arena-drop': 'system', 'mem/alloc': 'system', 'mem/free': 'system', 'mem/borrow': 'system', 'mem/release': 'system', 'mem/write': 'system', 'mem/freeze': 'system', 'mem/atomic-load': 'system', 'mem/atomic-store': 'system', 'mem/atomic-add': 'system', 'mem/atomic-cas': 'system',
-  'kernel/queue-front': 'bus', 'kernel/queue-back': 'bus', 'ffi/call': 'system',
+  'kernel/queue-front': 'bus', 'kernel/queue-back': 'bus', 'kernel/commit': 'system', 'ffi/call': 'system',
   'gpu/device-open': 'system', 'gpu/device-close': 'system', 'gpu/buffer-create': 'system', 'gpu/texture-create': 'system', 'gpu/sampler-create': 'system', 'gpu/query-create': 'system', 'gpu/shader-create': 'system', 'gpu/pipeline-create': 'system', 'gpu/bind-group-create': 'system', 'gpu/submit': 'system', 'gpu/release': 'system',
 };
 

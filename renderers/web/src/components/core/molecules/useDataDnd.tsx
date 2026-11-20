@@ -480,8 +480,8 @@ export function useDataDnd(
         data-dnd-is-over={isThisZoneOver ? 'true' : 'false'}
         className={
           isThisZoneOver
-            ? 'ring-2 ring-primary/40 ring-offset-2 rounded-container transition-all min-h-[3rem]'
-            : 'min-h-[3rem] rounded-container transition-all'
+            ? 'ring-2 ring-primary/40 ring-offset-2 rounded-container transition-all min-h-[3rem] flex flex-col'
+            : 'min-h-[3rem] rounded-container transition-all flex flex-col'
         }
       >
         {children}

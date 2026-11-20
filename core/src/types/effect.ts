@@ -947,10 +947,10 @@ export type BehaviorReflectionEffect = ['behavior/catalog' | 'behavior/describe'
 export type MemEffect = ['mem/arena-new' | 'mem/arena-drop' | 'mem/alloc' | 'mem/free' | 'mem/borrow' | 'mem/release' | 'mem/write' | 'mem/freeze' | 'mem/atomic-load' | 'mem/atomic-store' | 'mem/atomic-add' | 'mem/atomic-cas', ...SExpr[]];
 
 /**
- * Granted worklist reorders (EXEC-METAL-5), applied after the step's own emits; the rest of `kernel/` is expressions.
+ * Granted worklist reorders (EXEC-METAL-5), applied after the step's own emits, and a kept guest step (`kernel/commit`, EXEC-METAL-7); the rest of `kernel/` is expressions.
  * @example ['kernel/queue-front', 'TICK']
  */
-export type KernelEffect = ['kernel/queue-front' | 'kernel/queue-back', ...SExpr[]];
+export type KernelEffect = ['kernel/queue-front' | 'kernel/queue-back' | 'kernel/commit', ...SExpr[]];
 
 /**
  * A granted C call through the native host (EXEC-METAL-6).
@@ -1112,7 +1112,7 @@ export const EFFECT_OPERATORS = [
   'behavior/describe', 'behavior/source', 'behavior/resolve', 'behavior/dependencies', 'behavior/packages', 'program/read', 'program/print', 'program/eval', 'program/validate', 'program/prove', 'program/os-grants', 'program/compose', 'program/step',
   'program/inputs', 'program/dispatch', 'program/open', 'program/navigate', 'program/lazy', 'program/close', 'program/host-ask', 'program/live', 'program/self', 'program/tick', 'program/resolve-rows', 'persist/read-named',
   'mem/arena-new', 'mem/arena-drop', 'mem/alloc', 'mem/free', 'mem/borrow', 'mem/release', 'mem/write', 'mem/freeze',
-  'mem/atomic-load', 'mem/atomic-store', 'mem/atomic-add', 'mem/atomic-cas', 'kernel/queue-front', 'kernel/queue-back', 'ffi/call',
+  'mem/atomic-load', 'mem/atomic-store', 'mem/atomic-add', 'mem/atomic-cas', 'kernel/queue-front', 'kernel/queue-back', 'kernel/commit', 'ffi/call',
   'gpu/device-open', 'gpu/device-close', 'gpu/buffer-create', 'gpu/texture-create', 'gpu/sampler-create', 'gpu/query-create', 'gpu/shader-create', 'gpu/pipeline-create', 'gpu/bind-group-create', 'gpu/submit', 'gpu/release',
 ] as const;
 

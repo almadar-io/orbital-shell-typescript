@@ -84,6 +84,25 @@ function slotPropsOf(content: { props: SlotProps | string }): SlotProps {
   return typeof content.props === 'string' ? {} : content.props;
 }
 
+const nodePropsCache = new WeakMap<object, SlotProps>();
+
+/** One props object per painted node, so a field's paint (`FieldPaintContext`) changes only when its node does (G-CROSS-699). */
+function nodePropsOf(node: object, build: () => SlotProps): SlotProps {
+  const cached = nodePropsCache.get(node);
+  if (cached !== undefined) return cached;
+  const built = build();
+  nodePropsCache.set(node, built);
+  return built;
+}
+
+function propsWithoutType(node: EventPayload & { type: string }): SlotProps {
+  const props: SlotProps = {};
+  for (const [k, v] of Object.entries(node)) {
+    if (k !== "type") props[k] = v;
+  }
+  return props;
+}
+
 // ============================================================================
 // Suspense Configuration Context
 // ============================================================================
@@ -1378,17 +1397,19 @@ function renderPatternChildren(
     // actionPayload, emitted `{}` on click, and Persistor's DO_DELETE
     // ran with no id.
     const childAsRecord = child as { type: string; props?: SlotProps; _id?: string; _sourceTrait?: string; children?: SlotPropValue } & SlotProps;
-    const { type: _childType, props: nestedProps, _id: _childNodeId, _sourceTrait: childSourceTrait, children: _childChildren, ...flatProps } = childAsRecord;
-    const resolvedProps: SlotProps = nestedProps !== undefined
-      ? nestedProps
-      : (flatProps as SlotProps);
+    const { type: _childType, props: nestedProps, _sourceTrait: childSourceTrait } = childAsRecord;
     // Preserve children — needed by pattern components that render
     // nested trees (stack, data-grid, form-section, etc). Nested-form
     // authors put `children` inside `props`; flat-form authors put it
     // at the top level. Either way it has to survive unwrapping.
-    if (_childChildren !== undefined && nestedProps === undefined) {
-      resolvedProps.children = _childChildren;
-    }
+    const resolvedProps: SlotProps = nestedProps !== undefined
+      ? nestedProps
+      : nodePropsOf(childAsRecord, () => {
+        const { type: _t, props: _p, _id: _i, _sourceTrait: _s, children: flatChildren, ...flatProps } = childAsRecord;
+        const built = flatProps as SlotProps;
+        if (flatChildren !== undefined) built.children = flatChildren;
+        return built;
+      });
     // A childless stack with no styling of its own is the pattern authors'
     // "render nothing" idiom (std-calendar's `(if @config.bodySearch {...}
     // { stack children: [] })` else-branch). Painted as an empty flex div it
@@ -1675,10 +1696,7 @@ export function renderPatternProps(
       // A program or an event payload held as data: a `@trait.X` inside it is data, never an embed.
       rendered[key] = value;
     } else if (isPatternConfig(value)) {
-      const nestedProps: SlotProps = {};
-      for (const [k, v] of Object.entries(value)) {
-        if (k !== "type") nestedProps[k] = v;
-      }
+      const nestedProps = nodePropsOf(value, () => propsWithoutType(value));
       const childContent: SlotContent = {
         id: `prop-${key}`,
         pattern: value.type,
@@ -1724,10 +1742,7 @@ export function renderPatternProps(
       rendered[key] = value.map((item, i) => {
         const el = item as SlotPropValue;
         if (!isDataArray && isPatternConfig(el)) {
-          const nestedProps: SlotProps = {};
-          for (const [k, v] of Object.entries(el)) {
-            if (k !== "type") nestedProps[k] = v;
-          }
+          const nestedProps = nodePropsOf(el, () => propsWithoutType(el));
           const childContent: SlotContent = {
             id: `prop-${key}-${i}`,
             pattern: el.type,
@@ -1742,10 +1757,7 @@ export function renderPatternProps(
             if (payloadFields.includes(k)) {
               item[k] = v;
             } else if (nodeFields.includes(k) && isPatternConfig(v)) {
-              const nestedProps: SlotProps = {};
-              for (const [pk, pv] of Object.entries(v)) {
-                if (pk !== "type") nestedProps[pk] = pv;
-              }
+              const nestedProps = nodePropsOf(v, () => propsWithoutType(v));
               item[k] = (
                 <SlotContentRenderer content={{ id: `prop-${key}-${i}-${k}`, pattern: v.type, props: nestedProps, priority: 0 }} onDismiss={onDismiss} />
               );

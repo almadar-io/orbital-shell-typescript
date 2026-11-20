@@ -19,6 +19,11 @@ import { useEventBus } from '../../../core';
 import { useQuerySingleton } from '../../../hooks/useQuerySingleton';
 import { useTranslate } from '../../../core';
 import { Typography } from '../../../core';
+import { Badge, type BadgeVariant } from '../../../core';
+import { Button } from '../../../core';
+import { HStack } from '../../../core';
+import { useMediaQuery, MOBILE_MEDIA_QUERY } from '../../../core';
+import { Modal } from './Modal';
 
 /** One suggestion a search box offers while the viewer types. */
 export interface SearchSuggestion {
@@ -28,6 +33,10 @@ export interface SearchSuggestion {
   value: string;
   /** A quieter second line. */
   description?: string;
+  /** A short tag beside the label, such as the kind of record. */
+  badge?: string;
+  /** The badge colour. */
+  badgeVariant?: BadgeVariant;
 }
 
 /**
@@ -96,6 +105,12 @@ export interface SearchInputProps extends Omit<React.InputHTMLAttributes<HTMLInp
 
   /** Emitted as UI:{suggestionEvent} with `{ value, label }` when the viewer picks a suggestion. */
   suggestionEvent?: EventEmit<{ value: string; label: string }>;
+
+  /**
+   * On a phone-width screen, draw a search button that opens the box full screen with its suggestions listed under it.
+   * @default false
+   */
+  expandOnCompact?: boolean;
 }
 
 export const SearchInput: React.FC<SearchInputProps> = ({
@@ -111,8 +126,11 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   query,
   suggestions,
   suggestionEvent,
+  expandOnCompact = false,
   ...props
 }) => {
+  const compact = useMediaQuery(MOBILE_MEDIA_QUERY) && expandOnCompact;
+  const [expanded, setExpanded] = useState(false);
   const listId = useId();
   const [listOpen, setListOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -190,6 +208,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   const pick = useCallback((suggestion: SearchSuggestion) => {
     setListOpen(false);
     setActive(-1);
+    setExpanded(false);
     if (suggestionEvent) {
       eventBus.emit(`UI:${suggestionEvent}`, { value: suggestion.value, label: suggestion.label });
     }
@@ -234,8 +253,8 @@ export const SearchInput: React.FC<SearchInputProps> = ({
     };
   }, [debounceTimer]);
 
-  return (
-    <Box className={cn('relative', className)}>
+  const renderBox = (fullScreen: boolean) => (
+    <Box className={cn('relative', fullScreen ? 'w-full' : className)}>
       <Input
         type="search"
         value={searchValue}
@@ -247,6 +266,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         aria-busy={isLoading || undefined}
         className="pr-10 [&::-webkit-search-cancel-button]:appearance-none"
         {...props}
+        {...(fullScreen ? { autoFocus: true } : {})}
         {...(suggestions !== undefined
           ? {
               role: 'combobox',
@@ -274,7 +294,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
           as="ul"
           id={listId}
           role="listbox"
-          className="absolute inset-x-0 top-full mt-1 z-30 max-h-72 overflow-y-auto rounded-container border-[length:var(--border-width)] border-border bg-card shadow-elevation-popover py-1"
+          className={fullScreen ? 'mt-2 py-1' : 'absolute inset-x-0 top-full mt-1 z-30 max-h-72 overflow-y-auto rounded-container border-[length:var(--border-width)] border-border bg-card shadow-elevation-popover py-1'}
         >
           {shown.map((suggestion, index) => (
             <Box
@@ -288,9 +308,16 @@ export const SearchInput: React.FC<SearchInputProps> = ({
                 pick(suggestion);
               }}
               onMouseEnter={() => setActive(index)}
-              className={cn('cursor-pointer px-3 py-2', index === active ? 'bg-muted' : undefined)}
+              className={cn('cursor-pointer px-3', fullScreen ? 'py-3' : 'py-2', index === active ? 'bg-muted' : undefined)}
             >
-              <Typography variant="small" weight="medium">{suggestion.label}</Typography>
+              <HStack align="center" justify="between" gap="sm">
+                <Typography variant="small" weight="medium" className="min-w-0 truncate" data-suggestion-label="">{suggestion.label}</Typography>
+                {suggestion.badge ? (
+                  <Badge size="sm" variant={suggestion.badgeVariant ?? 'neutral'} data-variant={suggestion.badgeVariant ?? 'neutral'} className="shrink-0">
+                    {suggestion.badge}
+                  </Badge>
+                ) : null}
+              </HStack>
               {suggestion.description ? (
                 <Typography variant="caption" color="muted" className="line-clamp-1">{suggestion.description}</Typography>
               ) : null}
@@ -304,6 +331,30 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         </Box>
       )}
     </Box>
+  );
+
+  if (!compact) return renderBox(false);
+
+  return (
+    <>
+      <Button
+        variant="secondary"
+        icon={Search}
+        aria-label={resolvedPlaceholder}
+        onClick={() => { setExpanded(true); setListOpen(true); }}
+        className={cn('w-full justify-start font-normal', className)}
+      >
+        <Typography as="span" variant="small" color={searchValue ? undefined : 'muted'} className="truncate">
+          {searchValue || resolvedPlaceholder}
+        </Typography>
+      </Button>
+      <Modal isOpen={expanded} onClose={() => setExpanded(false)} showCloseButton={false} size="full" look="full-screen">
+        <HStack align="start" gap="sm">
+          <Box className="min-w-0 flex-1">{renderBox(true)}</Box>
+          <Button variant="ghost" onClick={() => setExpanded(false)}>{t('common.cancel')}</Button>
+        </HStack>
+      </Modal>
+    </>
   );
 };
 

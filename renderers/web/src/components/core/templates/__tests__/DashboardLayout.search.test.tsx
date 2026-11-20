@@ -50,3 +50,18 @@ describe('DashboardLayout top-bar search', () => {
     expect(onSearchSubmit).toHaveBeenCalledWith('pasta');
   });
 });
+
+describe('DashboardLayout header slot', () => {
+  it('gives an app search box in the header slot the free width when the built-in search is off', () => {
+    const { container } = renderLayout({ headerActions: <input aria-label="app search" /> });
+    const slot = container.querySelector('[data-dashboard-header-slot]');
+    expect(slot?.className).toContain('flex-1');
+    expect(slot?.querySelector('input[aria-label="app search"]')).not.toBeNull();
+  });
+
+  it('control: with the built-in search on, the header slot stays among the right-side actions', () => {
+    const { container } = renderLayout({ showSearch: true, headerActions: <input aria-label="app search" /> });
+    expect(container.querySelector('[data-dashboard-header-slot]')).toBeNull();
+    expect(screen.getByLabelText('app search')).not.toBeNull();
+  });
+});

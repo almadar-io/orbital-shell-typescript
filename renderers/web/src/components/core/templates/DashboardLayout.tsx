@@ -583,11 +583,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   className="shrink-0 min-h-[44px] min-w-[44px]"
                 />
               )}
-              {!searchEnabled && <Box className="flex-1" />}
+              {/* Without the built-in search, the header slot (an app's own search box) takes the free width. */}
+              {!searchEnabled && (
+                <Box data-dashboard-header-slot className="flex-1 min-w-0">
+                  {headerActions}
+                </Box>
+              )}
 
               {/* Right side */}
               <HStack align="center" gap="xs">
-                {headerActions}
+                {searchEnabled && headerActions}
 
                 {/* Theme Toggle — opt-out via showThemeToggle={false}. */}
                 {showThemeToggle && <ThemeToggle />}
