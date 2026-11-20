@@ -98,7 +98,7 @@ const lookStyles: Record<ModalLook, string> = {
   "top-sheet": "top-0 rounded-t-none rounded-b-container max-w-full w-full",
   "side-drawer":
     "right-0 top-0 bottom-0 h-full rounded-l-container rounded-r-none w-[400px] max-w-full",
-  "full-screen": "inset-0 rounded-none w-full h-full max-w-full",
+  "full-screen": "inset-0 rounded-none w-full h-full max-w-full mx-0",
 };
 
 export const Modal: React.FC<ModalProps> = ({
@@ -179,8 +179,11 @@ export const Modal: React.FC<ModalProps> = ({
   // two sibling `fixed inset-0` layers cause a ghost compositor artifact.
   // No aria-hidden here: this div is also the open Dialog's ancestor, and
   // Dialog already declares its own role="dialog"/aria-modal="true".
+  const fullScreen = look === "full-screen";
   const placement = sheet
     ? "flex items-end justify-center p-0"
+    : fullScreen
+    ? "flex items-stretch justify-center p-0"
     : cn("flex items-start justify-center px-4 pb-4", contained ? "pt-[10%]" : "pt-[10vh]");
   const dialog = (
         <Dialog
@@ -200,7 +203,7 @@ export const Modal: React.FC<ModalProps> = ({
             // Desktop sizing + viewport-aware floor.
             sizeClasses[size],
             minWidthClasses[size],
-            contained ? "max-h-[80%]" : "max-h-[80vh]",
+            !fullScreen && (contained ? "max-h-[80%]" : "max-h-[80vh]"),
             // Phones: a bottom sheet anchored to the bottom edge — full
             // width, capped at 90vh (content scrolls inside), round top
             // corners, clear of the home indicator.

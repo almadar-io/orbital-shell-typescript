@@ -131,4 +131,32 @@ describe('Modal', () => {
     expect(className).not.toContain('minWidth.modal');
     expect(className).toContain('min-w-0');
   });
+
+  it('the full-screen look fills the page: no height cap on the dialog and no padding around it', () => {
+    render(
+      <TestWrapper>
+        <Modal isOpen look="full-screen" size="full" title="Whole page">
+          <p>Body</p>
+        </Modal>
+      </TestWrapper>
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.className).not.toContain('max-h-[80vh]');
+    expect(dialog.className).toContain('h-full');
+    expect(dialog.parentElement?.className).toContain('p-0');
+    expect(dialog.parentElement?.className).not.toContain('pt-[10vh]');
+  });
+
+  it('control: the default look keeps its height cap and its top offset', () => {
+    render(
+      <TestWrapper>
+        <Modal isOpen title="Card">
+          <p>Body</p>
+        </Modal>
+      </TestWrapper>
+    );
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.className).toContain('max-h-[80vh]');
+    expect(dialog.parentElement?.className).toContain('pt-[10vh]');
+  });
 });

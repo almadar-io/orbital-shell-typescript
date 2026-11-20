@@ -364,9 +364,10 @@ function renderContainedPortal(
           onExited={onExited}
           onClose={onDismiss}
           title={slotPropsOf(content).title as string | undefined}
-          size={slotPropsOf(content).size as "sm" | "md" | "lg" | "xl" | "full" | undefined}
+          size={(slotPropsOf(content).size as "sm" | "md" | "lg" | "xl" | "full" | undefined) ?? "full"}
+          look={slotPropsOf(content).size === undefined ? "full-screen" : undefined}
         >
-          <Box id={slotId}>{slotContent}</Box>
+          <Box id={slotId} className="mx-auto w-full max-w-xl">{slotContent}</Box>
         </Modal>
       );
 
@@ -987,7 +988,7 @@ function CompiledPortal({ slot, className, pattern, sourceTrait, children, open,
       const innerContent = (
         <Box
           id={slotId}
-          className={cn("ui-slot", `ui-slot-${slot}`, className)}
+          className={cn("ui-slot", `ui-slot-${slot}`, "mx-auto w-full max-w-xl", className)}
           data-pattern={pattern}
           data-source-trait={sourceTrait}
         >
@@ -1000,7 +1001,7 @@ function CompiledPortal({ slot, className, pattern, sourceTrait, children, open,
       wrapper = pattern !== undefined && SELF_OVERLAY_PATTERN_TYPES.has(pattern) ? (
         innerContent
       ) : (
-        <Modal isOpen={open} onExited={onExited} onClose={handleDismiss} showCloseButton={true} size="lg">
+        <Modal isOpen={open} onExited={onExited} onClose={handleDismiss} showCloseButton={true} size="full" look="full-screen">
           {innerContent}
         </Modal>
       );
@@ -1129,11 +1130,10 @@ function SlotPortal({
           onExited={onExited}
           onClose={onDismiss}
           title={slotPropsOf(content).title as string | undefined}
-          size={
-            slotPropsOf(content).size as "sm" | "md" | "lg" | "xl" | "full" | undefined
-          }
+          size={(slotPropsOf(content).size as "sm" | "md" | "lg" | "xl" | "full" | undefined) ?? "full"}
+          look={slotPropsOf(content).size === undefined ? "full-screen" : undefined}
         >
-          <Box id={slotId}>{slotContent}</Box>
+          <Box id={slotId} className="mx-auto w-full max-w-xl">{slotContent}</Box>
         </Modal>
       );
       break;

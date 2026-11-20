@@ -1492,7 +1492,7 @@ export const Form: React.FC<FormProps> = ({
           gap="sm"
           justify="end"
           wrap
-          className="sticky bottom-0 z-10 -mx-1 px-1 pt-4 pb-1 bg-card/95 surface-material"
+          className="pt-4 border-t-[length:var(--border-width)] border-border"
         >
           {shouldShowCancel && (
             <Button

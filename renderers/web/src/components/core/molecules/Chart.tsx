@@ -31,7 +31,7 @@ import { VStack, HStack } from '../../../core';
 import { LoadingState } from "./LoadingState";
 import { ErrorState } from "./ErrorState";
 import { EmptyState } from "./EmptyState";
-import { useEventBus } from '../../../core';
+import { useEventBus, useNavStack } from '../../../core';
 import { useTranslate, type TranslateFunction } from '../../../core';
 import type { UiError } from '../../../core';
 import type { EventKey } from "@almadar/core";
@@ -893,13 +893,17 @@ export const Chart: React.FC<ChartProps> = ({
     const eventBus = useEventBus();
     const { t } = useTranslate();
 
+    const navStack = useNavStack();
     const handleAction = useCallback(
         (action: ChartAction) => {
+            if (action.navigatesTo) {
+                navStack.goTo(action.navigatesTo);
+            }
             if (action.event) {
                 eventBus.emit(`UI:${action.event}`, {});
             }
         },
-        [eventBus],
+        [eventBus, navStack],
     );
 
     const handlePointClick = useCallback(

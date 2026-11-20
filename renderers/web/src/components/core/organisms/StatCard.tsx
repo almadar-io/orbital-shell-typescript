@@ -11,7 +11,8 @@ import { Button } from '../../../core';
 import { Sparkline } from '../../../core';
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { IconInput } from '../../../core';
-import { useEventBus } from '../../../core';
+import { useEventBus, useNavStack } from '../../../core';
+import { pressableProps } from '../../../core';
 import { useTranslate, useFormatContext } from '../../../core';
 import { resolveIcon } from '../../../core';
 import type { DisplayStateProps } from "./types";
@@ -123,14 +124,18 @@ export const StatCard: React.FC<StatCardProps> = ({
   const fmt = useFormatContext();
 
   // Handle action click with event bus integration
+  const navStack = useNavStack();
   const handleActionClick = React.useCallback(() => {
+    if (action?.navigatesTo) {
+      navStack.goTo(action.navigatesTo);
+    }
     if (action?.event) {
       eventBus.emit(`UI:${action.event}`, {});
     }
     if (action?.onClick) {
       action.onClick();
     }
-  }, [action, eventBus]);
+  }, [action, eventBus, navStack]);
 
   // Normalize entity data to array
   const data: readonly EntityRow[] = Array.isArray(entity) ? entity : entity ? [entity] : [];
@@ -267,7 +272,11 @@ export const StatCard: React.FC<StatCardProps> = ({
   }
 
   return contentSurface.provide(
-    <Box {...domPassthrough(rest)} className={cn(contentSurface.className, "p-6 rounded-container", className)}>
+    <Box
+      {...domPassthrough(rest)}
+      {...pressableProps(action?.navigatesTo ? handleActionClick : undefined)}
+      className={cn(contentSurface.className, "p-6 rounded-container", action?.navigatesTo && "cursor-pointer transition-colors hover:border-foreground", className)}
+    >
       <HStack align="start" justify="between">
         <VStack gap="none" className="space-y-1">
           <Typography variant="overline" color="secondary">
@@ -321,7 +330,7 @@ export const StatCard: React.FC<StatCardProps> = ({
         </VStack>
       </HStack>
 
-      {action && (
+      {action && !action.navigatesTo && (
         <Button
           variant="ghost"
           onClick={handleActionClick}

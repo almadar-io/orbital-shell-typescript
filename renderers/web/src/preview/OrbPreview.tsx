@@ -46,7 +46,7 @@ import { usePageHead } from '../hooks/usePageHead';
 import { NavStackProvider, useNavStack, type NavStackApi, type NavPageDecl } from '../core';
 import { loadLazyPage, type SchemaLoader } from '@almadar/shell-runtime';
 import type { PersistenceAdapter } from '@almadar/core';
-import { LoadingState } from '../components/core/molecules/LoadingState';
+import { Skeleton } from '../components/core/molecules/Skeleton';
 import { ErrorState } from '../components/core/molecules/ErrorState';
 import { useBrowserStore } from '../hooks/circuit/useBrowserStore';
 import { programStamp, type ProgramStamp } from '../hooks/circuit/useCircuitKernel';
@@ -71,6 +71,15 @@ import { fitContentTransform, slotContentRect, type FitTransform } from './fitCo
 // owns the dispatch that produces those writes.
 const xOrbitalLog = createLogger('almadar:runtime:cross-orbital');
 const navLog = createLogger('almadar:runtime:navigation');
+
+// A page that is still opening paints the same skeleton a loading list does, not a spinner.
+function PageOpening(): React.ReactElement {
+  return (
+    <Box className="p-6" data-testid="page-opening">
+      <Skeleton variant="list" rows={6} />
+    </Box>
+  );
+}
 
 /**
  * Exposes the mounted NavStackProvider's api to OrbPreview through a ref —
@@ -192,7 +201,7 @@ function TraitInitializer({ pageName, routePath, crumb, routeParams, mountKey, o
     [sessionTheme, parentScope, availableThemes],
   );
 
-  if (circuit.status === 'pending') return <LoadingState />;
+  if (circuit.status === 'pending') return <PageOpening />;
   if (circuit.status === 'failed') return <ErrorState data-testid="page-circuit-error" message={circuit.error.message} />;
 
   const page = (
@@ -409,7 +418,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
 
   const inner = rowSets === undefined ? circuit : <RowSetResolverProvider resolver={rowSets}>{circuit}</RowSetResolverProvider>;
 
-  if (browserStore.status === 'opening') return <LoadingState />;
+  if (browserStore.status === 'opening') return <PageOpening />;
   if (browserStore.status === 'failed') {
     return <ErrorState data-testid="browser-store-error" message={browserStore.error.message} />;
   }
@@ -1019,7 +1028,7 @@ export function OrbPreview({
     return withBridge(
       <Box ref={containerRef} className={`overflow-auto ${className ?? ''}`} style={{ height }} onPointerOver={prefetchLinkedLazy} onPointerDown={prefetchLinkedLazy}>
         {lazyLoad.status === 'error' && <ErrorState data-testid="lazy-page-error" message={lazyLoad.error} />}
-        {lazyLoad.status !== 'error' && shownLazy === null && <LoadingState />}
+        {lazyLoad.status !== 'error' && shownLazy === null && <PageOpening />}
         {lazyLoad.status !== 'error' && shownLazy !== null && (
           <BrowserStoreApp.Provider value={inheritedStoreApp ?? parsedSchema?.name ?? 'app'}>
           <LazyPageOfRegisteredProgram.Provider value={true}>
