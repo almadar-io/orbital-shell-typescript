@@ -568,7 +568,7 @@ export function DataGrid({
           const titleDisplay = resolveRelationCellDisplay(
             titleValue as FieldValue | undefined,
             titleField ? relationsData?.[titleField.name] : undefined,
-          ) ?? (titleValue !== undefined && titleValue !== null ? String(titleValue) : undefined);
+          ) ?? (titleValue !== undefined && titleValue !== null ? valueLabelFor(String(titleValue), titleField?.labels) : undefined);
 
           const bodyContent = bodyFields.length > 0 ? (
           <VStack gap="xs">

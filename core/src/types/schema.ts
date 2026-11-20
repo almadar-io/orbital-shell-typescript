@@ -265,7 +265,24 @@ export interface OrbitalSchema {
    * until the Phase-7 flip; absent on pre-V4 schemas.
    */
   ledger?: IdentityLedger;
+
+  /**
+   * The trait that runs this program's client dispatches and the traits a client kernel mounts when it loads the
+   * program (`program/open { kernel: "lolo", clientKernel }` stamps the client program it hands a viewer).
+   */
+  dispatchKernel?: DispatchKernel;
 }
+
+/** The `.lolo` kernel a client program dispatches through. */
+export interface DispatchKernel {
+  trait: string;
+  mount: string[];
+}
+
+export const DispatchKernelSchema = z.object({
+  trait: z.string(),
+  mount: z.array(z.string()),
+});
 
 export const ConfigProvenanceRecordSchema = z.object({
   trait: z.string(),
@@ -325,6 +342,7 @@ export const OrbitalSchemaSchema: z.ZodType<OrbitalSchema, object> = z.object({
   // of stripping unknown keys.
   schemaVersion: z.number().optional(),
   ledger: IdentityLedgerSchema.optional(),
+  dispatchKernel: DispatchKernelSchema.optional(),
 });
 
 // ============================================================================
