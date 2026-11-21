@@ -112880,6 +112880,20 @@
             }
           ]
         },
+        "motionEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "The viewer's reduced-motion preference (the OS or browser setting), sent once and again whenever it changes, so logic-side motion (a tween, a count-up) can follow it.",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "reduced",
+              "type": "boolean",
+              "required": true
+            }
+          ]
+        },
         "measureEvent": {
           "types": [
             "string"

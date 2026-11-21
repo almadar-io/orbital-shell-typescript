@@ -96,12 +96,13 @@ export interface ClientKernel {
    * the host's states, rows and render land in this view. Nothing runs here and nothing is posted,
    * so the dispatch's effects happen once, on the host. Host dispatches fold one at a time, in order.
    */
-  foldHostDispatch(request: EventRequest, response: EventResponse): Promise<ClientKernelOutcome>;
+  foldHostDispatch(request: EventRequest, response: EventResponse, orbital?: string): Promise<ClientKernelOutcome>;
   /**
    * Hand the kernel an emit that happened outside it (a bus emit with no dispatch behind it, a server push). The kernel
    * decides who hears it: the emitter's own arm and every declared `listens` route (EXEC-DISP). Nothing is routed here.
+   * `hostRan` is the step list of the host dispatch the emit came from, so a listener the host ran is not run again (EXEC-DIST-4).
    */
-  deliverEmit(emitted: EmittedEvent): Promise<ClientEmitOutcome>;
+  deliverEmit(emitted: EmittedEvent, hostRan?: EventResponse['transitions']): Promise<ClientEmitOutcome>;
   /**
    * Hand the kernel an emit another client made (a server push): it reaches its declared `listens` routes only, guards and
    * payload mapping included. The emitter's own arm does not run here, and neither the emit's `dispatched` stamp nor the

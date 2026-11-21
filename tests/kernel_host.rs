@@ -75,7 +75,9 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
 /// (`public/client.json`, `public/themes.css`, `public/program.client.orb`). Re-recorded 2026-10-31 when every client
 /// ships `public/language.json` (G-CROSS-357) and the manifest lost its `language` flag; the bundle is the installed
 /// language, checked whole by `every_client_ships_the_language_its_browser_kernel_installs`, so the digest leaves it out.
-const KERNEL_OUTPUT_DIGEST: u64 = 13_785_564_245_267_895_886;
+/// Re-recorded 2026-11-21 after the committed compile changes since 2026-10-31, among them `client.json` naming the
+/// default preset a program without themes paints (24afce0).
+const KERNEL_OUTPUT_DIGEST: u64 = 898_102_521_484_527_326;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -129,7 +131,7 @@ fn the_server_is_the_templates_node_host_and_the_compile_ships_only_its_served_p
 fn the_client_hosts_the_kernel_through_the_ui_engine_provider() {
     let app = &template("packages/client/src/App.tsx");
     assert!(
-        app.contains("<KernelEngineProvider loader={loader}>") && app.contains("loadKernel()"),
+        app.contains("<KernelEngineProvider loader={loader}") && app.contains("loadKernel()"),
         "{app}"
     );
     assert!(!app.contains("engine="), "the kernel is the only engine: {app}");
@@ -205,10 +207,12 @@ fn two_programs_compile_to_the_same_client_source_and_differ_only_in_their_runti
 }
 
 #[test]
-fn control_a_program_declaring_no_theme_ships_the_runtime_default_preset_and_no_default_theme() {
+fn control_a_program_declaring_no_theme_ships_and_names_the_runtime_default_preset() {
     let files = files_of(&kernel_backend());
     let manifest: serde_json::Value = serde_json::from_str(file(&files, "packages/client/public/client.json")).unwrap();
-    assert_eq!((manifest["themes"].clone(), manifest["defaultTheme"].clone()), (serde_json::json!([]), serde_json::Value::Null));
+    let base = orbital_core_base::theme::DEFAULT_THEME_BASE;
+    assert_eq!(manifest["defaultTheme"], serde_json::json!(base), "{manifest}");
+    assert_eq!(manifest["themes"].as_array().map(|t| t.iter().map(|x| x["name"].clone()).collect::<Vec<_>>()), Some(vec![serde_json::json!(base)]), "{manifest}");
     let css = file(&files, "packages/client/public/themes.css");
     let default = format!("[data-theme=\"{}-light\"]", orbital_core_base::theme::DEFAULT_THEME_BASE);
     assert!(css.contains(&default), "{css}");
@@ -334,7 +338,7 @@ fn the_client_never_registers_the_program_the_server_booted_with() {
 fn control_the_client_still_sends_events_over_the_http_transport() {
     let app = &template("packages/client/src/App.tsx");
     assert!(
-        app.contains("createHttpTransport({ serverUrl: `${API_BASE}/api/orbitals`"),
+        app.contains("createHttpTransport({ serverUrl: `${apiBase ?? ''}/api/orbitals`"),
         "{app}"
     );
     assert!(app.contains("...http"), "{app}");
@@ -396,7 +400,11 @@ fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_on
     }
     let app = &template("packages/client/src/App.tsx");
     assert!(app.contains("from './client-program'"), "{app}");
-    assert!(!app.contains("program.client.orb") && !app.contains("program.orb"), "{app}");
+    assert!(
+        app.contains("const PROGRAM_URL = new URL(`${import.meta.env.BASE_URL}program.client.orb`"),
+        "the app names the client program only as the base its lazy pages sit beside: {app}"
+    );
+    assert!(!app.contains("program.orb"), "{app}");
     assert!(!app.contains("from '@app/shared'"), "{app}");
     let module = &template("packages/client/src/client-program.ts");
     assert!(module.contains("fetch(`${import.meta.env.BASE_URL}program.client.orb`)"), "{module}");

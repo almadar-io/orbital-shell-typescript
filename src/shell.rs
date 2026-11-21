@@ -26,6 +26,7 @@ pub fn express_shell() -> BaseShell {
         "npm run dev",
         "npm test",
     )
+    .with_kernel_add_on("kernel.node")
 }
 
 #[cfg(test)]

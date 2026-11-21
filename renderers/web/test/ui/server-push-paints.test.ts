@@ -328,7 +328,7 @@ class RecordingServer extends DispatchingServer {
   }
 }
 
-async function hostRanStamped(page: Trait, dispatched: boolean) {
+async function hostRanStamped(page: Trait, dispatched: boolean, hostRan?: EventResponse['transitions']) {
   const slots = stubSlots();
   const server = new RecordingServer();
   const { result } = renderHook(() => useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals: relayOrbitals(page), transport: server, routePath: '/' }));
@@ -336,7 +336,7 @@ async function hostRanStamped(page: Trait, dispatched: boolean) {
   slots.render.mockClear();
   server.sent = [];
   const emitted: EmittedEvent = { event: 'STEP', payload: { text: 'reading Task' }, source: { orbital: 'WorkerOrbital', trait: 'Worker', ...(dispatched ? { dispatched: true } : {}) } };
-  server.dispatch?.('WorkerOrbital', { event: 'TICKED', targetTrait: 'Worker' }, { success: true, transitioned: true, states: { Worker: 'idle' }, emittedEvents: [emitted] });
+  server.dispatch?.('WorkerOrbital', { event: 'TICKED', targetTrait: 'Worker' }, { success: true, transitioned: true, states: { Worker: 'idle' }, emittedEvents: [emitted], ...(hostRan !== undefined ? { transitions: hostRan } : {}) });
   for (let i = 0; i < 10; i += 1) await settle();
   return {
     posted: server.sent.map((request) => `${request.targetTrait}.${request.event}`),
@@ -357,5 +357,46 @@ describe('a host-run dispatch whose emit the host already delivered', () => {
     const ran = await hostRanStamped(listener, false);
     expect(ran.painted).toEqual(['reading Task']);
     expect(ran.posted).toEqual(['Sink.RELAYED']);
+  });
+});
+
+// The host lists the steps it ran (`transitions`). An optimistic listener on a page this view does not show is run
+// here only when that list shows the host did not run it (G-CROSS-768: The Orb's catalog command was started twice).
+const workerHop = { trait: 'Worker', from: 'idle', to: 'idle', event: 'TICKED', effects: [] };
+const relayHop = { trait: 'Relay', from: 'idle', to: 'idle', event: 'STEP', effects: [] };
+
+describe('a host-run dispatch that lists the steps it ran', () => {
+  it('runs no optimistic listener the list shows the host ran', async () => {
+    expect((await hostRanStamped(listener, true, [workerHop, relayHop])).posted).toEqual([]);
+  });
+
+  it('control: an optimistic listener the list shows the host did not run runs here, and its step is posted so the host\'s copy follows', async () => {
+    expect((await hostRanStamped(listener, true, [workerHop])).posted).toEqual(['Relay.STEP']);
+  });
+});
+
+// A pushed dispatch whose frame delta starts past the version this tab holds (the host sent a later dispatch first,
+// G-ORBITAL-SHELL-RUST-052) applies nothing; the tab asks the host for the frames since its own version.
+async function pushedFrames(from: number) {
+  const slots = stubSlots();
+  const server = new RecordingServer();
+  const { result } = renderHook(() => useTraitStateMachine(slots, { stamp: TEST_STAMP, orbitals: builderOrbitals, transport: server, routePath: '/' }));
+  await machineReady(result);
+  server.sent = [];
+  server.dispatch?.('BuildOrbital', { event: 'BUILD_DONE', targetTrait: 'Builder' }, {
+    success: true, transitioned: true, states: { Builder: 'built' }, emittedEvents: [],
+    frames: { session: 'tab-session', from, to: from + 1, ops: [] },
+  });
+  for (let i = 0; i < 10; i += 1) await settle();
+  return server.sent.map((request) => ({ event: request.event, clientId: request.clientId, framesSince: request.framesSince }));
+}
+
+describe('a pushed dispatch whose frames start past the version the tab holds', () => {
+  it('asks the host for the frames since the tab\'s version', async () => {
+    expect(await pushedFrames(3)).toEqual([{ event: '$FRAMES', clientId: 'tab-session', framesSince: 0 }]);
+  });
+
+  it('control: a delta that starts at the tab\'s version asks for nothing', async () => {
+    expect(await pushedFrames(0)).toEqual([]);
   });
 });

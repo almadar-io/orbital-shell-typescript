@@ -322,8 +322,8 @@ export function useCircuitKernel(
       dispatch: (request, hooks) => rawKernel.dispatch(stamp(request), hooks),
       dispatchMount: (seeds, hooks, base = {}) => rawKernel.dispatchMount(seeds, hooks, stamp(base)),
       dispatchProgress: (request: import('@almadar/core').EventRequest) => rawKernel.dispatchProgress(stamp(request)),
-      foldHostDispatch: (request, response) => rawKernel.foldHostDispatch(request, response),
-      deliverEmit: (emitted) => rawKernel.deliverEmit(emitted),
+      foldHostDispatch: (request, response, orbital) => rawKernel.foldHostDispatch(request, response, orbital),
+      deliverEmit: (emitted, hostRan) => rawKernel.deliverEmit(emitted, hostRan),
       deliverToListeners: (emitted) => rawKernel.deliverToListeners(emitted),
       deliverOriginEmit: (emitted) => rawKernel.deliverOriginEmit(emitted),
     };

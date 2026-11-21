@@ -2290,6 +2290,11 @@
     "description": "A trait emits an event that no trait listens for"
   },
   {
+    "code": "SESSION_ENDED",
+    "category": "session",
+    "description": "A request from a client with no pin that is not mounting: the client is pinned and must send its mounts again"
+  },
+  {
     "code": "SEXPR_INVALID_BINDING",
     "category": "sexpr",
     "description": "An s-expression contains an invalid binding"
@@ -2308,6 +2313,31 @@
     "code": "inbound-hook-duplicate",
     "category": "lint",
     "description": "Two cli hooks declare the same inbound name"
+  },
+  {
+    "code": "rasm-contrast",
+    "category": "rasm",
+    "description": "A Rasm look's text or control edge is below its WCAG 2.2 AA contrast ratio against its backdrop"
+  },
+  {
+    "code": "rasm-contrast-theme-unread",
+    "category": "rasm",
+    "description": "A Rasm style names no readable installed theme, so its palette is unknown"
+  },
+  {
+    "code": "rasm-contrast-translucent",
+    "category": "rasm",
+    "description": "A Rasm look is checked against a translucent backdrop, which contrast cannot decide"
+  },
+  {
+    "code": "rasm-contrast-unparsed",
+    "category": "rasm",
+    "description": "A Rasm look names a colour that does not resolve to a hex or rgb colour in its theme"
+  },
+  {
+    "code": "rasm-text-size",
+    "category": "rasm",
+    "description": "A Rasm text look is under 13px"
   },
   {
     "code": "shared-type-drift",

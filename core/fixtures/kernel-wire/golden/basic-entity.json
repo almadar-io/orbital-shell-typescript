@@ -60,15 +60,18 @@
               "columns": [
                 {
                   "key": "title",
-                  "label": "Title"
+                  "label": "Title",
+                  "type": "string"
                 },
                 {
                   "key": "completed",
-                  "label": "Completed"
+                  "label": "Completed",
+                  "type": "boolean"
                 },
                 {
                   "key": "createdAt",
-                  "label": "Created"
+                  "label": "Created",
+                  "type": "timestamp"
                 }
               ],
               "entity": {
@@ -103,7 +106,12 @@
             {
               "type": "fetch",
               "args": [
-                "Task"
+                "Task",
+                {
+                  "emit": {
+                    "failure": "LOAD_FAILED"
+                  }
+                }
               ],
               "status": "executed"
             },
@@ -246,10 +254,13 @@
               },
               "fields": [
                 {
-                  "name": "title"
+                  "name": "title",
+                  "type": "string",
+                  "required": true
                 },
                 {
-                  "name": "description"
+                  "name": "description",
+                  "type": "string"
                 }
               ],
               "onCancel": "CANCEL",
@@ -335,11 +346,219 @@
   },
   "creating",
   {
-    "error": "Payload validation failed for event 'SAVE': data.id (missing, expected string)"
+    "orbital": "Task Management",
+    "flight": 2,
+    "seed": {
+      "trait": "TaskCRUD",
+      "event": "SAVE"
+    },
+    "response": {
+      "success": true,
+      "transitioned": true,
+      "states": {
+        "TaskCRUD": "listing"
+      },
+      "emittedEvents": [],
+      "clientEffectsByTrait": [
+        {
+          "traitName": "TaskCRUD",
+          "effect": [
+            "render-ui",
+            "main",
+            {
+              "actions": [
+                {
+                  "event": "CREATE",
+                  "label": "New Task"
+                }
+              ],
+              "title": "Tasks",
+              "type": "page-header"
+            }
+          ],
+          "event": "SAVE",
+          "fromState": "creating"
+        },
+        {
+          "traitName": "TaskCRUD",
+          "effect": [
+            "render-ui",
+            "main",
+            {
+              "columns": [
+                {
+                  "key": "title",
+                  "label": "Title",
+                  "type": "string"
+                },
+                {
+                  "key": "completed",
+                  "label": "Completed",
+                  "type": "boolean"
+                },
+                {
+                  "key": "createdAt",
+                  "label": "Created",
+                  "type": "timestamp"
+                }
+              ],
+              "entity": {
+                "completed": false,
+                "createdAt": "@now"
+              },
+              "itemActions": [
+                {
+                  "event": "EDIT",
+                  "label": "Edit"
+                },
+                {
+                  "event": "DELETE",
+                  "label": "Delete"
+                }
+              ],
+              "type": "table-view"
+            }
+          ],
+          "event": "SAVE",
+          "fromState": "creating"
+        }
+      ],
+      "transitions": [
+        {
+          "trait": "TaskCRUD",
+          "from": "creating",
+          "to": "listing",
+          "event": "SAVE",
+          "firedArm": 0,
+          "effects": [
+            {
+              "type": "persist",
+              "args": [
+                "create",
+                "Task",
+                "@payload.data",
+                {
+                  "emit": {
+                    "failure": "LOAD_FAILED"
+                  }
+                }
+              ],
+              "status": "executed"
+            },
+            {
+              "type": "fetch",
+              "args": [
+                "Task",
+                {
+                  "emit": {
+                    "failure": "LOAD_FAILED"
+                  }
+                }
+              ],
+              "status": "executed"
+            },
+            {
+              "type": "render-ui",
+              "args": [
+                "main",
+                {
+                  "actions": [
+                    {
+                      "event": "CREATE",
+                      "label": "New Task"
+                    }
+                  ],
+                  "title": "Tasks",
+                  "type": "page-header"
+                }
+              ],
+              "status": "skipped"
+            },
+            {
+              "type": "render-ui",
+              "args": [
+                "main",
+                {
+                  "columns": [
+                    {
+                      "key": "title",
+                      "label": "Title"
+                    },
+                    {
+                      "key": "completed",
+                      "label": "Completed"
+                    },
+                    {
+                      "key": "createdAt",
+                      "label": "Created"
+                    }
+                  ],
+                  "entity": "@entity",
+                  "itemActions": [
+                    {
+                      "event": "EDIT",
+                      "label": "Edit"
+                    },
+                    {
+                      "event": "DELETE",
+                      "label": "Delete"
+                    }
+                  ],
+                  "type": "table-view"
+                }
+              ],
+              "status": "skipped"
+            }
+          ]
+        }
+      ]
+    },
+    "serverLegs": [
+      {
+        "orbital": "Task Management",
+        "leg": {
+          "event": "SAVE",
+          "payload": {
+            "data": {
+              "title": "third"
+            },
+            "_awaitingInit": []
+          },
+          "targetTrait": "TaskCRUD",
+          "clientId": "golden-client",
+          "sourceTrait": "TaskCRUD",
+          "traits": [
+            {
+              "trait": "TaskCRUD",
+              "from": "creating",
+              "event": "SAVE"
+            }
+          ],
+          "residence": "server"
+        }
+      }
+    ],
+    "mode": "persistedAwaited",
+    "snapshot": null,
+    "alreadyDelivered": [
+      [
+        "TaskCRUD",
+        "SAVE"
+      ]
+    ],
+    "awaiting": [
+      {
+        "trait": "TaskCRUD",
+        "event": "SAVE",
+        "from": "creating"
+      }
+    ],
+    "statefulLeg": null,
+    "foldSeeded": []
   },
   {
     "orbital": "Task Management",
-    "flight": 2,
+    "flight": 3,
     "seed": {
       "trait": "TaskCRUD",
       "event": "EDIT"
@@ -396,13 +615,18 @@
               },
               "fields": [
                 {
-                  "name": "title"
+                  "name": "title",
+                  "type": "string",
+                  "required": true
                 },
                 {
-                  "name": "description"
+                  "name": "description",
+                  "type": "string"
                 },
                 {
-                  "name": "completed"
+                  "name": "completed",
+                  "type": "boolean",
+                  "defaultValue": false
                 }
               ],
               "initialData": null,
@@ -428,6 +652,9 @@
               "args": [
                 "Task",
                 {
+                  "emit": {
+                    "failure": "LOAD_FAILED"
+                  },
                   "id": "@payload.row.id"
                 }
               ],
@@ -519,14 +746,14 @@
   },
   {
     "orbital": "Task Management",
-    "flight": 3,
+    "flight": 4,
     "seed": {
       "trait": "TaskCRUD",
       "event": "CANCEL"
     },
     "response": {
       "success": true,
-      "transitioned": true,
+      "transitioned": false,
       "states": {
         "TaskCRUD": "listing"
       },
@@ -538,37 +765,21 @@
             "render-ui",
             "main",
             {
-              "actions": [
-                {
-                  "event": "CREATE",
-                  "label": "New Task"
-                }
-              ],
-              "title": "Tasks",
-              "type": "page-header"
-            }
-          ],
-          "event": "CANCEL",
-          "fromState": "creating"
-        },
-        {
-          "traitName": "TaskCRUD",
-          "effect": [
-            "render-ui",
-            "main",
-            {
               "columns": [
                 {
                   "key": "title",
-                  "label": "Title"
+                  "label": "Title",
+                  "type": "string"
                 },
                 {
                   "key": "completed",
-                  "label": "Completed"
+                  "label": "Completed",
+                  "type": "boolean"
                 },
                 {
                   "key": "createdAt",
-                  "label": "Created"
+                  "label": "Created",
+                  "type": "timestamp"
                 }
               ],
               "entity": {
@@ -587,120 +798,29 @@
               ],
               "type": "table-view"
             }
-          ],
-          "event": "CANCEL",
-          "fromState": "creating"
-        }
-      ],
-      "transitions": [
-        {
-          "trait": "TaskCRUD",
-          "from": "creating",
-          "to": "listing",
-          "event": "CANCEL",
-          "firedArm": 0,
-          "effects": [
-            {
-              "type": "fetch",
-              "args": [
-                "Task"
-              ],
-              "status": "executed"
-            },
-            {
-              "type": "render-ui",
-              "args": [
-                "main",
-                {
-                  "actions": [
-                    {
-                      "event": "CREATE",
-                      "label": "New Task"
-                    }
-                  ],
-                  "title": "Tasks",
-                  "type": "page-header"
-                }
-              ],
-              "status": "skipped"
-            },
-            {
-              "type": "render-ui",
-              "args": [
-                "main",
-                {
-                  "columns": [
-                    {
-                      "key": "title",
-                      "label": "Title"
-                    },
-                    {
-                      "key": "completed",
-                      "label": "Completed"
-                    },
-                    {
-                      "key": "createdAt",
-                      "label": "Created"
-                    }
-                  ],
-                  "entity": "@entity",
-                  "itemActions": [
-                    {
-                      "event": "EDIT",
-                      "label": "Edit"
-                    },
-                    {
-                      "event": "DELETE",
-                      "label": "Delete"
-                    }
-                  ],
-                  "type": "table-view"
-                }
-              ],
-              "status": "skipped"
-            }
           ]
         }
-      ]
+      ],
+      "guardFailed": "TaskCRUD.CANCEL"
     },
-    "serverLegs": [
-      {
-        "orbital": "Task Management",
-        "leg": {
-          "event": "CANCEL",
-          "payload": {
-            "_awaitingInit": []
-          },
-          "targetTrait": "TaskCRUD",
-          "clientId": "golden-client",
-          "sourceTrait": "TaskCRUD",
-          "traits": [
-            {
-              "trait": "TaskCRUD",
-              "from": "creating",
-              "event": "CANCEL"
-            }
-          ],
-          "residence": "server"
-        }
-      }
-    ],
+    "serverLegs": [],
     "mode": "persistedAwaited",
     "snapshot": null,
-    "alreadyDelivered": [
-      [
-        "TaskCRUD",
-        "CANCEL"
-      ]
-    ],
-    "awaiting": [
-      {
-        "trait": "TaskCRUD",
+    "alreadyDelivered": [],
+    "awaiting": [],
+    "statefulLeg": {
+      "orbital": "Task Management",
+      "leg": {
         "event": "CANCEL",
-        "from": "creating"
-      }
-    ],
-    "statefulLeg": null,
+        "payload": {
+          "_awaitingInit": []
+        },
+        "targetTrait": "TaskCRUD",
+        "clientId": "golden-client",
+        "sourceTrait": "TaskCRUD"
+      },
+      "awaiting": []
+    },
     "foldSeeded": []
   },
   {
@@ -711,6 +831,7 @@
       "states": {},
       "emittedEvents": []
     },
+    "hostPaints": [],
     "serverLegs": []
   },
   {
@@ -719,7 +840,7 @@
   "unknown trait: NoSuchTrait",
   {
     "orbital": "Task Management",
-    "flight": 4,
+    "flight": 5,
     "seed": {
       "trait": "TaskCRUD",
       "event": "NOT_AN_EVENT"
@@ -782,7 +903,7 @@
           "foreground": "#18181b",
           "info": "#2563eb",
           "info-foreground": "#ffffff",
-          "input": "#d4d4d8",
+          "input": "#8f8f99",
           "muted": "#f4f4f5",
           "muted-foreground": "#65656e",
           "primary": "#18181b",
@@ -884,6 +1005,8 @@
           "bodyFamily": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
           "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
           "fontImport": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap",
+          "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+          "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
           "headingWeight": "300",
           "headingTransform": "none",
           "headingTracking": "-0.03em",
@@ -1129,7 +1252,63 @@
         "xl": 20.0,
         "xs": 12.0
       },
-      "corner": 0.0
+      "corner": 0.0,
+      "scene": {
+        "roughness": 0.8,
+        "metalness": 0.0,
+        "flat": false,
+        "outline": 0.0,
+        "ambient": 0.7,
+        "key": 0.8,
+        "keyColor": "rgb(255, 255, 255)",
+        "fog": 0.0
+      },
+      "palette": {
+        "accent": "rgb(24, 24, 27)",
+        "accent-foreground": "rgb(250, 250, 250)",
+        "background": "rgb(248, 250, 252)",
+        "border": "rgb(228, 228, 231)",
+        "card": "rgb(255, 255, 255)",
+        "card-foreground": "rgb(24, 24, 27)",
+        "error": "rgb(220, 38, 38)",
+        "error-foreground": "rgb(255, 255, 255)",
+        "foreground": "rgb(24, 24, 27)",
+        "info": "rgb(37, 99, 235)",
+        "info-foreground": "rgb(255, 255, 255)",
+        "input": "rgb(143, 143, 153)",
+        "muted": "rgb(244, 244, 245)",
+        "muted-foreground": "rgb(101, 101, 110)",
+        "primary": "rgb(24, 24, 27)",
+        "primary-foreground": "rgb(250, 250, 250)",
+        "primary-hover": "rgb(39, 39, 42)",
+        "ring": "rgb(24, 24, 27)",
+        "scrim": "rgba(0, 0, 0, 0.6)",
+        "secondary": "rgb(250, 250, 250)",
+        "secondary-foreground": "rgb(24, 24, 27)",
+        "secondary-hover": "rgb(244, 244, 245)",
+        "success": "rgb(21, 128, 61)",
+        "success-foreground": "rgb(255, 255, 255)",
+        "surface": "rgb(244, 244, 245)",
+        "warning": "rgb(202, 138, 4)",
+        "warning-foreground": "rgb(0, 0, 0)"
+      },
+      "fonts": {
+        "body": {
+          "family": "Plus Jakarta Sans",
+          "file": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+          "generic": "sans-serif"
+        },
+        "display": {
+          "family": "Plus Jakarta Sans",
+          "file": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+          "generic": "sans-serif"
+        },
+        "mono": {
+          "family": "ui-monospace",
+          "file": "",
+          "generic": "monospace"
+        }
+      }
     },
     "motion": {
       "entryDefault": "fade",
@@ -1228,7 +1407,7 @@
           "foreground": "#fafafa",
           "info": "#60a5fa",
           "info-foreground": "#000000",
-          "input": "#3f3f46",
+          "input": "#71717a",
           "muted": "#27272a",
           "muted-foreground": "#a1a1aa",
           "primary": "#fafafa",
@@ -1330,6 +1509,8 @@
           "bodyFamily": "\"Plus Jakarta Sans\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
           "monoFamily": "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
           "fontImport": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap",
+          "displayFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+          "bodyFile": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
           "headingWeight": "300",
           "headingTransform": "none",
           "headingTracking": "-0.03em",
@@ -1575,7 +1756,63 @@
         "xl": 20.0,
         "xs": 12.0
       },
-      "corner": 0.0
+      "corner": 0.0,
+      "scene": {
+        "roughness": 0.8,
+        "metalness": 0.0,
+        "flat": false,
+        "outline": 0.0,
+        "ambient": 0.7,
+        "key": 0.8,
+        "keyColor": "rgb(255, 255, 255)",
+        "fog": 0.0
+      },
+      "palette": {
+        "accent": "rgb(250, 250, 250)",
+        "accent-foreground": "rgb(24, 24, 27)",
+        "background": "rgb(9, 9, 11)",
+        "border": "rgb(39, 39, 42)",
+        "card": "rgb(24, 24, 27)",
+        "card-foreground": "rgb(250, 250, 250)",
+        "error": "rgb(248, 113, 113)",
+        "error-foreground": "rgb(0, 0, 0)",
+        "foreground": "rgb(250, 250, 250)",
+        "info": "rgb(96, 165, 250)",
+        "info-foreground": "rgb(0, 0, 0)",
+        "input": "rgb(113, 113, 122)",
+        "muted": "rgb(39, 39, 42)",
+        "muted-foreground": "rgb(161, 161, 170)",
+        "primary": "rgb(250, 250, 250)",
+        "primary-foreground": "rgb(24, 24, 27)",
+        "primary-hover": "rgb(228, 228, 231)",
+        "ring": "rgb(250, 250, 250)",
+        "scrim": "rgba(0, 0, 0, 0.7)",
+        "secondary": "rgb(39, 39, 42)",
+        "secondary-foreground": "rgb(250, 250, 250)",
+        "secondary-hover": "rgb(63, 63, 70)",
+        "success": "rgb(74, 222, 128)",
+        "success-foreground": "rgb(0, 0, 0)",
+        "surface": "rgb(39, 39, 42)",
+        "warning": "rgb(251, 191, 36)",
+        "warning-foreground": "rgb(0, 0, 0)"
+      },
+      "fonts": {
+        "body": {
+          "family": "Plus Jakarta Sans",
+          "file": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+          "generic": "sans-serif"
+        },
+        "display": {
+          "family": "Plus Jakarta Sans",
+          "file": "https://raw.githubusercontent.com/google/fonts/main/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+          "generic": "sans-serif"
+        },
+        "mono": {
+          "family": "ui-monospace",
+          "file": "",
+          "generic": "monospace"
+        }
+      }
     },
     "motion": {
       "entryDefault": "fade",
@@ -1649,7 +1886,7 @@
   null,
   {
     "orbital": "Task Management",
-    "flight": 5,
+    "flight": 6,
     "seed": {
       "trait": "TaskCRUD",
       "event": "INIT"

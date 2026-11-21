@@ -26,6 +26,7 @@ import type {
   EmittedEvent,
   EntityRow,
   EventPayload,
+  EventResponse,
   MountSeed,
   OrbitalDefinition,
   SchemaMetadata,
@@ -299,10 +300,10 @@ export function useTraitStateMachine(
   // An emit that entered from outside the kernel: the kernel decides who hears it, the view paints its answer.
   // 'listeners' is another client's push: its declared listeners hear it here and nothing else. 'origin' is the live
   // message of this client's own running call, whose emitter already ran its own arm as the progress dispatch.
-  const deliverAndSettle = useCallback(async (emitted: EmittedEvent, delivery: 'emit' | 'listeners' | 'origin' = 'emit'): Promise<void> => {
+  const deliverAndSettle = useCallback(async (emitted: EmittedEvent, delivery: 'emit' | 'listeners' | 'origin' = 'emit', hostRan?: EventResponse['transitions']): Promise<void> => {
     const outcome = await (delivery === 'origin'
       ? kernel.deliverOriginEmit(emitted)
-      : delivery === 'listeners' ? kernel.deliverToListeners(emitted) : kernel.deliverEmit(emitted));
+      : delivery === 'listeners' ? kernel.deliverToListeners(emitted) : kernel.deliverEmit(emitted, hostRan));
     slotFlush.applyClientEffects(outcome.response.clientEffectsByTrait, options.navigate, options.navigateBack, activeTraitNamesRef.current);
     for (const echoed of outcome.response.emittedEvents) {
       eventBus.emit(`UI:${echoed.event}`, echoed.payload, { ...(echoed.source ?? {}), dispatched: true });
@@ -377,7 +378,7 @@ export function useTraitStateMachine(
   // runs again in this view.
   useEffect(() => {
     if (!transport?.subscribeHostDispatches) return;
-    return transport.subscribeHostDispatches((_orbitalName, request, response) => {
+    return transport.subscribeHostDispatches((orbitalName, request, response) => {
       const { traitIndex: shown, kernel: running, deliverAndSettle: deliver, settleOutcome: settle } = pushRef.current;
       const traitName = request.targetTrait;
       const ownsFrame = (frame: string): boolean => [...shown.byName.values()].some((entry) => entry.frameKey === frame);
@@ -385,10 +386,10 @@ export function useTraitStateMachine(
         // A dispatch of a trait this view does not run (a server-only orbital's) can still emit what this view's own
         // traits listen for. Each emit is folded as the host's answer, so the kernel skips the listeners the host
         // already ran (an emit stamped `dispatched`, EXEC-DIST-10) and their server work is never posted twice.
-        for (const emitted of response.success ? response.emittedEvents : []) void deliver(emitted, 'emit');
+        for (const emitted of response.success ? response.emittedEvents : []) void deliver(emitted, 'emit', response.transitions);
         return;
       }
-      void running.foldHostDispatch(request, response).then((outcome) =>
+      void running.foldHostDispatch(request, response, orbitalName).then((outcome) =>
         settle(traitName, request.event, request.payload, outcome));
     }, { clientId: getTabClientId() });
   }, [transport]);

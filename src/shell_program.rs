@@ -92,9 +92,6 @@ fn write_env_line(output: &Path, key: &str, value: &str, comment: &str) -> std::
     std::fs::write(path, content)
 }
 
-/// The native kernel add-on the server loads, shipped beside this program and copied into the project's `kernel/`.
-const KERNEL_ADD_ON: &str = "kernel.node";
-
 impl ShellProgram for TypeScriptProgram {
     fn describe(&self) -> ShellDescription {
         ShellDescription {
@@ -137,8 +134,7 @@ impl ShellProgram for TypeScriptProgram {
                 copy_public(&from, &output.join("packages/client/public")).map_err(|e| failed("copy public folder", e))?;
             }
         }
-        let mut warnings = generated.warnings;
-        warnings.extend(orbital_core_base::shell_protocol::ship_kernel_beside_program(KERNEL_ADD_ON, output)?);
+        let warnings = generated.warnings;
         let mut next_steps = Vec::new();
         if let Some(url) = string_option(request, BACKEND_URL)? {
             write_backend_url(output, url).map_err(|e| failed("write .env", e))?;

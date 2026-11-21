@@ -384,12 +384,12 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     k: KernelInstance,
     flight: number,
     orbital: string,
-    leg: EventRequest,
+    clientId: string | undefined,
     since: number,
     request: Pick<EventRequest, 'locale' | 'entityId'>,
   ): Promise<{ hostPaints: ClientEffectByTrait[]; fold: EventResponse } | undefined> => {
-    if (leg.clientId === undefined) throw new Error('a frame resync needs the client id the leg was posted under');
-    const answer = await sendReseeding(k, flight, orbital, { event: '$FRAMES', clientId: leg.clientId, framesSince: since }, request);
+    if (clientId === undefined) throw new Error('a frame resync needs the client id the leg was posted under');
+    const answer = await sendReseeding(k, flight, orbital, { event: '$FRAMES', clientId, framesSince: since }, request);
     if (!answer.success) return undefined;
     const applied = await foldAnswer(k, flight, answer);
     return { hostPaints: applied.hostPaints, fold: applied.response };
@@ -471,7 +471,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         queue.push({ orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight: planned.flight });
       }
       mirror(applied.response);
-      const resynced = applied.resync != null ? await resyncFrames(k, planned.flight, planned.orbital, sent, applied.resync.since, request) : undefined;
+      const resynced = applied.resync != null ? await resyncFrames(k, planned.flight, planned.orbital, sent.clientId, applied.resync.since, request) : undefined;
       syncStates(k, [...Object.keys(posted.states), ...applied.applied.map(([trait]) => trait)]);
       store.notify();
       const fold = applied.response;
@@ -751,7 +751,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     store: opts.store,
     dispatch: (request, hooks) => dispatchOne(request, hooks !== undefined ? [hooks] : [], false),
     dispatchProgress: (request) => dispatchOne(request, [], true),
-    foldHostDispatch: async (request, response) => {
+    foldHostDispatch: async (request, response, orbital) => {
       const k = await ready;
       if (request.targetTrait === undefined) throw new Error('foldHostDispatch requires request.targetTrait (the seed trait)');
       const mode = parse<DispatchMode>(k.dispatchMode(request.targetTrait));
@@ -766,10 +766,15 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         // The host ran the dispatch, but the fold's own arms can owe it more (a client trait emitting to a server trait).
         const owed = applied.serverLegs.map((routed): PlannedLeg => ({ orbital: routed.orbital, leg: routed.leg, keepsState: true, alreadyDelivered: [], foldSeeded: [], wires: [], flight }));
         const posted = await sendLegs(k, owed, request, { rollback: false, mount: false }, applied.response);
+        // The host pushed this delta ahead of an older one: the session's frames since the version held replace the gap (EXEC-DIST-7).
+        const resynced = applied.resync != null && orbital !== undefined && transport !== undefined
+          ? await resyncFrames(k, flight, orbital, applied.resync.session, applied.resync.since, request)
+          : undefined;
+        if (resynced !== undefined) store.notify();
         return {
           response: {
             ...response,
-            clientEffectsByTrait: [...applied.hostPaints, ...(posted.response.clientEffectsByTrait ?? [])],
+            clientEffectsByTrait: [...applied.hostPaints, ...(posted.response.clientEffectsByTrait ?? []), ...(resynced?.hostPaints ?? []), ...(resynced?.fold.clientEffectsByTrait ?? [])],
           },
           mode,
         };
@@ -777,7 +782,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
         endFlight(k, flight);
       }
     },
-    deliverEmit: (emitted: EmittedEvent) => deliver(emitted, (k, flight) => foldInOrder(k, flight, { success: true, transitioned: false, states: {}, emittedEvents: [emitted] }, '[]', undefined)),
+    deliverEmit: (emitted: EmittedEvent, hostRan?: EventResponse['transitions']) => deliver(emitted, (k, flight) => foldInOrder(k, flight, { success: true, transitioned: false, states: {}, emittedEvents: [emitted], ...(hostRan !== undefined ? { transitions: hostRan } : {}) }, '[]', undefined)),
     deliverToListeners: (emitted: EmittedEvent) => deliver(emitted, (k, flight) => deliverInOrder(k, flight, emitted)),
     deliverOriginEmit: (emitted: EmittedEvent) => deliver(emitted, (k, flight) => deliverOriginInOrder(k, flight, emitted)),
     dispatchMount: async (seeds, hooks?: MountHooks, base?: MountBase): Promise<MountOutcome> => {
