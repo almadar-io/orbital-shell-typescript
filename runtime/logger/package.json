@@ -1,6 +1,6 @@
 {
   "name": "@almadar/logger",
-  "version": "2.5.1",
+  "version": "2.6.0",
   "orbRelease": { "severity": "normal" },
   "description": "Almadar TS shell diagnostics ports: console, structured log sinks, browser configuration and Node timing.",
   "type": "module",
@@ -38,7 +38,7 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@almadar/core": "^11.5.1"
+    "@almadar/core": "^11.6.0"
   },
   "devDependencies": {
     "@almadar/eslint-plugin": "^3.2.0",
