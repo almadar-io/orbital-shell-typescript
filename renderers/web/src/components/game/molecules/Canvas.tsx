@@ -134,6 +134,8 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     directionEvent?: EventEmit<{ direction: 'ltr' | 'rtl' }>;
     /** The viewer's reduced-motion preference, reported by the painter once and on change (orbital painter). */
     motionEvent?: EventEmit<{ reduced: boolean }>;
+    /** The program's theme layer (palette and fonts), laid over the host theme by the painter (orbital painter). */
+    themeLayer?: { palette?: Record<string, string>; fonts?: Record<string, { family: string; file: string; generic: string }> };
     /** Sizes of every `draw-text` with `measure: true`, sent after a paint in which any of them changed (orbital painter). */
     measureEvent?: EventEmit<{ items: { id: string; width: number; height: number; lines: number }[] }>;
     /** The canvas's size in CSS pixels, sent once it is known and again whenever it changes. */
@@ -227,6 +229,7 @@ export function Canvas({
     direction,
     directionEvent,
     motionEvent,
+    themeLayer,
     measureEvent,
     resizeEvent,
     textInputEvent,
@@ -338,6 +341,7 @@ export function Canvas({
             direction,
             directionEvent,
             motionEvent,
+            themeLayer,
             measureEvent,
             resizeEvent,
             textInputEvent,
@@ -351,7 +355,7 @@ export function Canvas({
             selectEvent,
             moveEvent,
         }),
-        [drawables, camera, projection, unitScale, fit, tileWidth, backgroundImage, backgroundColor, worldWidth, worldHeight, tileClickEvent, unitClickEvent, tileHoverEvent, tileLeaveEvent, pointerDownEvent, pointerUpEvent, pointerEnterEvent, pointerLeaveEvent, pointerMoveEvent, pointerMoves, wheelEvent, scroll, direction, directionEvent, motionEvent, measureEvent, resizeEvent, textInputEvent, keyEvent, accessEvent, keyMap, keyUpMap, gestureMap, editable, selectedId, selectEvent, moveEvent],
+        [drawables, camera, projection, unitScale, fit, tileWidth, backgroundImage, backgroundColor, worldWidth, worldHeight, tileClickEvent, unitClickEvent, tileHoverEvent, tileLeaveEvent, pointerDownEvent, pointerUpEvent, pointerEnterEvent, pointerLeaveEvent, pointerMoveEvent, pointerMoves, wheelEvent, scroll, direction, directionEvent, motionEvent, themeLayer, measureEvent, resizeEvent, textInputEvent, keyEvent, accessEvent, keyMap, keyUpMap, gestureMap, editable, selectedId, selectEvent, moveEvent],
     );
     const allDrawables = useMemo(() => [...(drawables ?? []), ...childDrawables], [drawables, childDrawables]);
 

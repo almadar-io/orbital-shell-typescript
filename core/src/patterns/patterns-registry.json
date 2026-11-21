@@ -112902,6 +112902,56 @@
             }
           ]
         },
+        "themeLayer": {
+          "types": [
+            "object"
+          ],
+          "description": "The program's own theme layer (a design system's palette and fonts), laid over the host's canvas theme key by key before colour and font references resolve: palette maps a colour name to a colour, fonts maps a role (display, body, mono) to { family, file, generic }.",
+          "properties": {
+            "palette": {
+              "types": [
+                "object"
+              ],
+              "mapValue": {
+                "types": [
+                  "string"
+                ]
+              }
+            },
+            "fonts": {
+              "types": [
+                "object"
+              ],
+              "mapValue": {
+                "types": [
+                  "object"
+                ],
+                "properties": {
+                  "family": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "file": {
+                    "types": [
+                      "string"
+                    ]
+                  },
+                  "generic": {
+                    "types": [
+                      "string"
+                    ]
+                  }
+                },
+                "required": [
+                  "family",
+                  "file",
+                  "generic"
+                ]
+              }
+            }
+          }
+        },
         "motionEvent": {
           "types": [
             "string"
