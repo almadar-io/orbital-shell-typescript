@@ -79,7 +79,7 @@ describe('OrbPreview navigatesTo', () => {
 function effectSchema(target: string): OrbitalSchema {
   const base = schema({ label: 'Go', event: 'GO' });
   const home = base.orbitals[0].traits[0];
-  if (!('stateMachine' in home) || home.stateMachine === undefined) throw new Error('fixture: Home has no state machine');
+  if (typeof home === 'string' || !('stateMachine' in home) || home.stateMachine === undefined) throw new Error('fixture: Home has no state machine');
   home.stateMachine.events = [{ key: 'GO', name: 'GO' }];
   home.stateMachine.transitions.push({ from: 'idle', to: 'idle', event: 'GO', effects: [['navigate', target]] });
   return base;

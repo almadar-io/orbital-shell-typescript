@@ -35,6 +35,7 @@ const homeCircuit: PageCircuit = {
   embedded: [], embeddedBy: [],
   orbitalByTrait: { Viewer: 'Main' }, linkedEntityByTrait: { Viewer: 'Note' },
   traits: ['Viewer'], entities: ['Note'], ancestors: [],
+  access: { verdict: 'admitted' },
 };
 const pageCircuitStub = (page?: string, route?: string): string => {
   if (page === 'Home' || route === '/') return JSON.stringify(homeCircuit);

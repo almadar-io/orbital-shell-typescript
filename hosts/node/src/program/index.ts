@@ -527,7 +527,7 @@ const StepRequestSchema: z.ZodType<StepRequest> = z.object({
   config: EventPayloadSchema.optional(),
   now: z.number().optional(),
   settleMs: z.number().optional(),
-  identity: z.object({ subject: z.string(), claims: EventPayloadSchema }).optional(),
+  identity: EventPayloadSchema.nullable().optional(),
 });
 
 /**

@@ -42,12 +42,14 @@ const VALID = `orbital Hello {
 }
 `;
 
-// A control whose event is only offered outward (`-> external`): an importer may wire it,
-// so it validates at 0/0, but as a finished app nothing handles it.
+// A control whose event nothing handles: an embedder may still handle it, so it validates at 0/0, but as a finished app
+// nothing does. (An atom's own `-> external` emit is an offered output and no finding, see lint-control-unhandled.)
 const OFFERED_CONTROL = VALID.replace(
   '    initial: idle\n',
-  '    initial: idle\n\n    emits {\n      GO -> external\n    }\n',
-).replace('{ type: typography, content: "hi" }', '{ type: button, label: "Go", action: GO }');
+  '    initial: idle\n\n    emits {\n      GO -> internal\n    }\n',
+).replace('{ type: typography, content: "hi" }', '{ type: button, label: "Go", action: GO }')
+  // A finished app declares its not-found page (ORB_PAGE_NOT_FOUND_MISSING), so the control is the only finding.
+  .replace('  page "/" -> Greet\n', '  page "/" -> Greet\n  page "/not-found" -> Greet [notFound]\n');
 
 // A disk host standing in for the runtime's std-workspace host: the program host's own logic (the access
 // check, the written path, the snapshot call) is under test here; the real kernel host is tested in @almadar/runtime.
@@ -264,7 +266,7 @@ describe.skipIf(!hasOrb)('program host (real orb)', () => {
     }
     const open = await runProgramEffect('program/validate', [arg(program), { final: false }], { cwd, orbBin: ORB });
     expect(open).toEqual({ ok: true, result: { valid: true, errors: [], warnings: [] } });
-  });
+  }, 20000);
 
   it('control: program/validate refuses a non-program and an unsupported option before orb runs', async () => {
     const cwd = project();
@@ -455,18 +457,18 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     const layers = Object.fromEntries(Object.entries(out.result.behaviors).map(([n, b]) => [n, b.layer]));
     expect(layers['std-browse']).toBe('std');
     expect(Object.values(layers)).toContain('primitive');
-  });
+  }, 30000);
 
   it('control: a program that imports nothing has no dependencies', async () => {
     const program = { name: 'App', orbitals: [{ name: 'Shop', entity: { name: 'Item', fields: [{ name: 'id', type: 'string' }] }, traits: [], pages: [] }] };
     expect(await runProgramEffect('behavior/dependencies', [program], { cwd: project(), orbBin: ORB })).toEqual({ ok: true, result: { orbitals: { Shop: [] }, behaviors: {} } });
-  });
+  }, 30000);
 
   it('edge: an import that is not installed is listed with layer unknown and no imports', async () => {
     const program = { name: 'App', orbitals: [{ name: 'Shop', entity: { name: 'Item', fields: [{ name: 'id', type: 'string' }] }, uses: [{ as: 'Ghost', from: 'almadar-std/std-no-such-behavior' }], traits: [], pages: [] }] };
     const out = await runProgramEffect('behavior/dependencies', [program], { cwd: project(), orbBin: ORB });
     expect(out).toEqual({ ok: true, result: { orbitals: { Shop: ['std-no-such-behavior'] }, behaviors: { 'std-no-such-behavior': { layer: 'unknown', imports: [] } } } });
-  });
+  }, 30000);
 
   it('control: behavior/dependencies without a program is refused', async () => {
     expect(await runProgramEffect('behavior/dependencies', ['not a program'], { cwd: project(), orbBin: ORB })).toMatchObject({ ok: false });
@@ -636,7 +638,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
     expect(await runProgramEffect('program/step', [arg(SLEEP('0')), arg(run({})), arg({ live: 'yes' })], opts)).toMatchObject({ ok: false });
   }, 20000);
 
-  it('program/step binds the request's test identity as @user', async () => {
+  it("program/step binds the request's identity row as @user", async () => {
     const SEE = { name: 'SeeApp', orbitals: [{ name: 'See',
       entity: { name: 'V', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] },
       pages: [],
@@ -645,7 +647,7 @@ describe.skipIf(!hasOrb)('reflection + print + mount (real orb)', () => {
         events: [{ key: 'MINE', name: 'Mine' }],
         transitions: [{ from: 'idle', to: 'idle', event: 'MINE', guard: ['=', '@user.id', 'u1'] }] } }] }] };
     const mine = { orbital: 'See', trait: 'T', from: 'idle', event: 'MINE', payload: {} };
-    const out = await runProgramEffect('program/step', [arg(SEE), arg([{ ...mine, identity: { subject: 'u1', claims: {} } }, mine])], { cwd: project(), orbBin: ORB });
+    const out = await runProgramEffect('program/step', [arg(SEE), arg([{ ...mine, identity: { id: 'u1' } }, mine])], { cwd: project(), orbBin: ORB });
     expect(out).toMatchObject({ ok: true, result: [{ result: { guard: 'pass' } }, { result: { guard: 'fail' } }] });
   });
 

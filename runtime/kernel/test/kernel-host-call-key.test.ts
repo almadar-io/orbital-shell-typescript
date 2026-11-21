@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { EventPayload, PersistenceAdapter } from '@almadar/core';
 import { InFlightCalls } from '../src/effects/in-flight-calls.js';
-import { answerRequest, kernelEventRequestParser, type DeferredCallOutcome, type KernelCallService, type KernelHostPorts } from '../src/kernel/host.js';
+import { answerRequest, kernelEventRequestParser, type CallOutcomeWire, type DeferredCallOutcome, type KernelCallService, type KernelHostPorts } from '../src/kernel/host.js';
+import type { OsCompletionEvent } from '../src/kernel/os-port.js';
+import type { CallSiteWire } from '../src/kernel/wire.js';
 import { decodeRequest } from '../src/kernel/decode.js';
 import { kernelRequest } from '../src/kernel/engine.js';
 import { dispatchDeclaredInput } from '../src/client/declared-input-dispatch.js';
@@ -16,47 +18,67 @@ const request = (key: string | undefined) => decodeRequest({
   site: { orbital: 'Main', trait: 'Helper', followOn: true, emit: { success: 'OK', failure: 'BAD' } },
 });
 
-async function deferred(key: string | undefined, callService: KernelCallService): Promise<DeferredCallOutcome> {
+type Asked = { key: string | undefined; outcome: CallOutcomeWire };
+
+/** The kernel's `callCompletionEvent` stand-in: it records what the host handed it and answers `fired`. The payload rules (the program's key) are the kernel's and are tested there (`call_completion_tests`) and on the node host. */
+function hostWith(callService: KernelCallService, fired: OsCompletionEvent | null, complete = true) {
   const delivered: DeferredCallOutcome[] = [];
+  const asked: Asked[] = [];
   const host: KernelHostPorts = {
     persistence, inFlightCalls: new InFlightCalls(), callService,
     programEffect: () => undefined,
     servicePorts: (caller) => ({ caller, inputs: () => [], readableEntities: () => [], dispatchInput: async () => { throw new Error('unused'); }, read: async () => [] }),
     deliverLive: () => undefined,
     deferCallOutcome: () => (outcome) => { delivered.push(outcome); },
+    ...(complete ? { callCompletion: (_site: CallSiteWire, key: string | undefined, outcome: CallOutcomeWire) => { asked.push({ key, outcome }); return fired; } } : {}),
   };
-  expect(await answerRequest(host, request(key), { orbital: 'Main' })).toEqual({ kind: 'serviceDeferred' });
-  await flush();
-  expect(delivered).toHaveLength(1);
-  return delivered[0] as DeferredCallOutcome;
+  return { host, delivered, asked };
 }
 
 const answer = (payload: EventPayload | null): KernelCallService => async () => payload;
 const down: KernelCallService = async () => { throw new Error('down'); };
 
-describe('deferred call-service completion echoes the ask key', () => {
-  it('a keyed success carries the key beside the result fields', async () => {
-    const outcome = await deferred('job', answer({ answer: 42 }));
-    expect(outcome.event).toBe('OK');
-    expect(outcome.payload).toEqual({ answer: 42, key: 'job' });
+describe('a deferred call-service completion is the event the kernel builds', () => {
+  it('a keyed success hands the kernel the answer and the ask key, and delivers the event it returns', async () => {
+    const { host, delivered, asked } = hostWith(answer({ answer: 42 }), { event: 'OK', payload: { answer: 42, key: 'job' } });
+    expect(await answerRequest(host, request('job'), { orbital: 'Main' })).toEqual({ kind: 'serviceDeferred' });
+    await flush();
+    expect(asked).toEqual([{ key: 'job', outcome: { ok: { answer: 42 } } }]);
+    expect(delivered.map((d) => [d.event, d.payload, d.traitName])).toEqual([['OK', { answer: 42, key: 'job' }, 'Helper']]);
   });
 
-  it('a keyed failure carries its error and the key', async () => {
-    const outcome = await deferred('job', down);
-    expect(outcome.event).toBe('BAD');
-    expect(outcome.payload).toEqual({ error: 'down', key: 'job' });
+  it('a failure hands the kernel the error message', async () => {
+    const { host, asked } = hostWith(down, { event: 'BAD', payload: { error: 'down', key: 'job' } });
+    await answerRequest(host, request('job'), { orbital: 'Main' });
+    await flush();
+    expect(asked).toEqual([{ key: 'job', outcome: { error: 'down' } }]);
   });
 
-  it('control: an unkeyed success is unchanged', async () => {
-    expect((await deferred(undefined, answer({ answer: 42 }))).payload).toEqual({ answer: 42 });
+  it('edge: a keyless call hands the kernel no key', async () => {
+    const { host, asked } = hostWith(answer({ answer: 42 }), { event: 'OK', payload: { answer: 42 } });
+    await answerRequest(host, request(undefined), { orbital: 'Main' });
+    await flush();
+    expect(asked).toEqual([{ key: undefined, outcome: { ok: { answer: 42 } } }]);
   });
 
-  it('control: an unkeyed failure has no key', async () => {
-    expect((await deferred(undefined, down)).payload).toEqual({ error: 'down' });
+  it('edge: a payload that is not a record is delivered as no payload', async () => {
+    const { host, delivered } = hostWith(answer(null), { event: 'OK', payload: null });
+    await answerRequest(host, request('job'), { orbital: 'Main' });
+    await flush();
+    expect(delivered.map((d) => d.payload)).toEqual([undefined]);
   });
 
-  it('a keyed result that is not a record is left unchanged', async () => {
-    expect((await deferred('job', answer(null))).payload).toBeUndefined();
+  it('control: an outcome the site declares no route for delivers nothing', async () => {
+    const { host, delivered } = hostWith(down, null);
+    await answerRequest(host, request('job'), { orbital: 'Main' });
+    await flush();
+    expect(delivered).toEqual([]);
+  });
+
+  it('control: a host with no kernel completion port answers the call in place', async () => {
+    const { host, delivered } = hostWith(answer({ answer: 42 }), null, false);
+    expect(await answerRequest(host, request('job'), { orbital: 'Main' })).toEqual({ kind: 'service', result: { ok: { answer: 42 } } });
+    expect(delivered).toEqual([]);
   });
 });
 

@@ -23,10 +23,10 @@ describe('getOrbAllowedPatterns — free-mode vocabulary', () => {
     }
   });
 
-  it('admits the 2D game category (game-shell present, 36 entries)', () => {
+  it('admits the 2D game category (game-shell present, 37 entries)', () => {
     expect(grouped.game).toBeDefined();
     expect(grouped.game.map((p) => p.name)).toContain('game-shell');
-    expect(grouped.game.length).toBe(36);
+    expect(grouped.game.length).toBe(37);
   });
 
   it('excludes debug and template categories', () => {
@@ -78,6 +78,10 @@ describe('getOrbAllowedPatterns — free-mode vocabulary', () => {
   // Re-pinned 2026-09-28 from 103/30/231 — AVL exposed to std (curated avl/patterns.ts):
   //   component +1  avl-glyph                              (one AVL notation symbol)
   //   display   +1  avl-state-machine                      (the converged state machine)
+  // Re-pinned 2026-11-21 from 110/34/36/242 (component/display/game/total), each named by the registry commit that added it:
+  //   display   +1  machine-panel                          (2026-10-31)
+  //   component +2  guest-view (2026-11-03), annotated-media (2026-11-10)
+  //   game      +1  draw-emitter                           (2026-11-13)
   it('admits the agent-feed components (the 2026-10-02 component additions) by name', () => {
     for (const name of ['agent-activity-feed', 'agent-activity-row', 'agent-chat-feed']) {
       expect(grouped.component.map((p) => p.name)).toContain(name);
@@ -89,14 +93,14 @@ describe('getOrbAllowedPatterns — free-mode vocabulary', () => {
       Object.entries(grouped).map(([cat, items]) => [cat, items.length]),
     );
     expect(counts).toMatchObject({
-      component: 110,
-      display: 34,
+      component: 112,
+      display: 35,
       filter: 4,
       form: 10,
-      game: 36,
+      game: 37,
       media: 1,
     });
-    expect(names.length).toBe(242);
+    expect(names.length).toBe(246);
   });
 
   it('admits the drifted patterns by name, not just by count', () => {

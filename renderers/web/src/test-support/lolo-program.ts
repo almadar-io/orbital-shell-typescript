@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseOrbitalSchema, type OrbitalSchema } from '@almadar/core';
 
 const lowered = new Map<string, OrbitalSchema>();
@@ -44,7 +45,10 @@ export function clientProgram(source: string, files: Readonly<Record<string, str
   const key = JSON.stringify([source, files]);
   const known = lowered.get(key);
   if (known !== undefined) return structuredClone(known);
-  const dir = mkdtempSync(join(tmpdir(), 'client-program-'));
+  // Under the package (its ignored node_modules cache), so the orb it runs resolves this workspace's @almadar/core, not an installed release.
+  const scratch = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'node_modules', '.cache', 'client-program');
+  mkdirSync(scratch, { recursive: true });
+  const dir = mkdtempSync(join(scratch, 'client-program-'));
   try {
     const file = join(dir, 'program.lolo');
     writeFileSync(file, source);

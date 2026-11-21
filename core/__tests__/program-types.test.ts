@@ -88,7 +88,7 @@ describe('program types', () => {
     expect(member(types.TraitValue, 'trait').required).toBe(true);
     expect(member(types.TraitValue, 'behavior').required).toBe(true);
     expect(member(types.BehaviorRef, 'behavior').required).toBe(true);
-    expect(member(types.BehaviorRef, 'bridge').required).toBeUndefined();
+    expect(Object.keys(types.BehaviorRef.properties ?? {})).toEqual(['behavior']);
   });
 
   it('uses only field types the language has', () => {
@@ -154,7 +154,7 @@ describe('PlayedStepSchema against the kernel', () => {
   });
 
   it('control: the fixture exercises the request echo, the circuit and the outcomes', () => {
-    expect(steps[0]).toMatchObject({ entity: { owner: 'ann' }, now: 5, identity: { subject: 'u', claims: {} }, result: { entityAfter: { mode: 'open' }, pendingAsks: [] } });
+    expect(steps[0]).toMatchObject({ entity: { owner: 'ann' }, now: 5, result: { entityAfter: { mode: 'open' }, pendingAsks: [] } });
     expect(steps[0]?.result.outcomes.length).toBe(1);
   });
 });

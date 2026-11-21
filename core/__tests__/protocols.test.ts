@@ -7,12 +7,14 @@ describe('the endpoint protocol table', () => {
     expect(PROTOCOLS.map((p) => p.name)).toEqual(['route', 'http', 'stdio', 'boot']);
   });
 
-  it('http takes a host, port and optional path address and needs the net-listen grant on the server side', () => {
+  it('http takes a host, port and optional path address, an optional origin (or the environment variable naming one) and needs the net-listen grant on the server side', () => {
     const http = PROTOCOLS.find((p) => p.name === 'http');
     expect(http?.address).toEqual([
       { name: 'host', type: 'string', required: true },
       { name: 'port', type: 'number', required: true },
       { name: 'path', type: 'string', required: false },
+      { name: 'origin', type: 'string', required: false },
+      { name: 'originFromEnv', type: 'string', required: false },
     ]);
     expect([http?.viewer, http?.grant, http?.side]).toEqual([false, 'net-listen', 'server']);
   });

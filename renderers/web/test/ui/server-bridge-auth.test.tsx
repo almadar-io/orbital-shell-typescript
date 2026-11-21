@@ -62,6 +62,7 @@ const SLOTS: UISlotManager = {
   getTraitContent: () => null,
   subscribeTrait: () => () => undefined,
   updateTraitContent: () => 'id',
+  setDeclaredTraitOrder: () => undefined,
 };
 
 /** Mounts the trait state machine off the bridge's transport — its push

@@ -27,7 +27,8 @@ export interface KvHostPort {
 
 export interface KvWebOptions {
   app: string;
-  locale: string;
+  /** The locale whose database answers; a getter is read per ask, so one port follows the page's locale. */
+  locale: string | (() => string);
   /** Defaults to `globalThis.indexedDB`; a host without one answers every ask `unsupported`. */
   factory?: IDBFactory;
   /** The wasm grant decision (`OsGrants` kv requirement). Absent means every request is allowed. */
@@ -164,7 +165,12 @@ export class KvWebPort implements KvHostPort {
   private async handle(store: string): Promise<IDBDatabase> {
     const factory = this.factory();
     if (!factory) throw new KvFailure('unsupported', 'kv: this host has no IndexedDB');
-    const name = kvDatabaseName(this.options.app, this.options.locale);
+    const locale = typeof this.options.locale === 'function' ? this.options.locale() : this.options.locale;
+    const name = kvDatabaseName(this.options.app, locale);
+    if (this.db !== null && this.db.name !== name) {
+      this.db.close();
+      this.db = null;
+    }
     let db = this.db ?? (await this.connect(factory, name, undefined, store));
     if (!db.objectStoreNames.contains(store)) {
       const next = db.version + 1;

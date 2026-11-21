@@ -58,8 +58,8 @@ export interface StepRequest {
   now?: number;
   /** A live call's cutoff: an open call still running after this many ms is cancelled. */
   settleMs?: number;
-  /** Test-only: the verified identity the replay kernel binds for this step (`@user`); absent is the anonymous viewer. */
-  identity?: { subject: string; claims: EventPayload };
+  /** Test-only: the identity the replay kernel binds for this step as `@user` (a row; its `id` is the subject); absent or null is the anonymous viewer. */
+  identity?: EventPayload | null;
 }
 
 /** The outcome of one program effect: the value for `{ result }`, or the failure (`errors` for eval's validator issues). */

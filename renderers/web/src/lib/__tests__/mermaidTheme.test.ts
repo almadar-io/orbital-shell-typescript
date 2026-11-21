@@ -66,12 +66,14 @@ describe('G-ORBITAL-SHELL-TYPESCRIPT-145: mermaid takes only resolved colours', 
 
   it('g_orbital_shell_typescript_145_never_hands_mermaid_currentColor', () => {
     const theme = resolveCanvasTheme(scopeWith({}));
-    let vars: Record<string, string> | null = null;
-    try {
-      vars = { ...mermaidThemeVariables(theme, 'light') };
-    } catch {
-      return;
-    }
+    const vars = (() => {
+      try {
+        return { ...mermaidThemeVariables(theme, 'light') };
+      } catch {
+        return undefined;
+      }
+    })();
+    if (vars === undefined) return;
     expect(Object.values(vars).filter((v) => v === 'currentColor')).toEqual([]);
   });
 

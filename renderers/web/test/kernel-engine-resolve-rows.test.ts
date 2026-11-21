@@ -56,6 +56,9 @@ function scripted(log: string[], service = false): KernelModule {
     installGpu(): void { throw new Error('not used by this test'); }
     answerGpu(): Promise<string> { throw new Error('not used by this test'); }
     dropHeldPayload(): boolean { throw new Error('not used by this test'); }
+    clientView(_responseJson: string): string { throw new Error('not used by this test'); }
+    browserRuns(_traitName: string): boolean { throw new Error('not used by this test'); }
+    browserCompletionPayload(_traitName: string, _payloadJson: string): string { throw new Error('not used by this test'); }
     bootMounts(): string { return '[]'; }
     routeMounts(_routePath: string): string { return '[]'; }
     pageCircuit(_page?: string, _route?: string): string { throw new Error('not used by this test'); }

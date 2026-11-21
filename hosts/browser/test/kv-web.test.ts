@@ -93,6 +93,25 @@ describe('kv-web', () => {
     expect(await ok(open('en', 'other-app'), 'kv/get', ['rows', 'k'])).toEqual({ found: false });
   });
 
+  it('a port whose locale is read per ask answers each ask from the database of the locale current then', async () => {
+    let locale = 'en';
+    const port = createKvWebPort({ app: 'shop', locale: () => locale, factory });
+    await ok(port, 'kv/put', ['rows', 'k', 'english']);
+    locale = 'ar';
+    expect(await ok(port, 'kv/get', ['rows', 'k'])).toEqual({ found: false });
+    await ok(port, 'kv/put', ['rows', 'k', 'arabic']);
+    expect(await ok(open('ar'), 'kv/get', ['rows', 'k'])).toEqual({ found: true, value: 'arabic' });
+    locale = 'en';
+    expect(await ok(port, 'kv/get', ['rows', 'k'])).toEqual({ found: true, value: 'english' });
+  });
+
+  it('control: a fixed locale keeps one database', async () => {
+    const port = open('en');
+    await ok(port, 'kv/put', ['rows', 'k', 'english']);
+    expect(await ok(port, 'kv/get', ['rows', 'k'])).toEqual({ found: true, value: 'english' });
+    expect(await ok(open('ar'), 'kv/get', ['rows', 'k'])).toEqual({ found: false });
+  });
+
   it('answers concurrent calls on two stores of one database, the second store added while the first is busy', async () => {
     const port = open();
     await ok(port, 'kv/put', ['answers', 'seed', 1]);

@@ -118,7 +118,9 @@ describe('dock slot — compact', () => {
     act(() => h.manager().render({ target: 'dock', pattern: 'typography', props: { content: 'assistant body' } }));
     const fill = screen.getByTestId('dock-sheet-fill');
     expect(screen.getByRole('dialog').contains(fill)).toBe(true);
-    expect(fill.className).toMatch(/\bh-full\b/);
+    // The drawer's `fill` body is a flex column; the sheet takes all of it (flex-1) and may shrink below its content (min-h-0).
+    expect(fill.className).toMatch(/\bflex-1\b/);
+    expect(fill.className).toMatch(/\bmin-h-0\b/);
     expect(fill.className).toMatch(/\bflex-col\b/);
     expect(fill.contains(screen.getByText('assistant body'))).toBe(true);
   });

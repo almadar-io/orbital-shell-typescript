@@ -33,8 +33,12 @@ describe('app-level schema theme', () => {
     expect(parseOrbitalSchema({ ...base, theme: 'almadar-light' }).themes).toBeUndefined();
   });
 
-  it('edge: a themes entry must be a theme key, not an inline theme', () => {
-    expect(() => parseOrbitalSchema({ ...base, themes: [{ name: 'sunset', tokens: {} }] })).toThrow();
+  it('a themes entry is a theme key or a theme the program defines inline, as the kernel reads it', () => {
+    expect(parseOrbitalSchema({ ...base, themes: ['almadar-light', { name: 'sunset', tokens: {} }] }).themes).toEqual(['almadar-light', { name: 'sunset', tokens: {} }]);
+  });
+
+  it('edge: a themes entry that is neither a key nor a theme is refused', () => {
+    expect(() => parseOrbitalSchema({ ...base, themes: [42] })).toThrow();
   });
 
   it('accepts registry-key strings on per-orbital theme (the rabit-stamped form)', () => {

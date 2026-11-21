@@ -9,10 +9,6 @@
       "owner": "ann"
     },
     "now": 5,
-    "identity": {
-      "subject": "u",
-      "claims": {}
-    },
     "result": {
       "trait": "G",
       "event": "OPEN",

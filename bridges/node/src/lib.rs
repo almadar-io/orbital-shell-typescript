@@ -760,6 +760,11 @@ pub fn os_completion_event(
 }
 
 #[napi]
+pub fn call_completion_event(site_json: String, key: Option<String>, outcome_json: String) -> napi::Result<String> {
+    api::call_completion_event(&site_json, key, &outcome_json).map_err(js)
+}
+
+#[napi]
 pub fn expand_fx_layer(
     layer_json: String,
     epoch_now_ms: f64,

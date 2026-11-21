@@ -109,8 +109,8 @@ export interface KernelClientOptions {
   observer?: TransitionObserver;
   /** The GPU answerer installed into the kernel before its first dispatch; absent, a `gpu/` ask answers `unsupported`. */
   gpu?: Promise<KernelGpuHost | undefined>;
-  /** The program and locale whose browser kv store (IndexedDB) answers the kernel's `kv/` host asks; absent, they answer `unavailable`. */
-  kvStore?: { app: string; locale: string };
+  /** The program and locale whose browser kv store (IndexedDB) answers the kernel's `kv/` host asks; absent, they answer `unavailable`. A locale getter is read per ask. */
+  kvStore?: { app: string; locale: string | (() => string) };
 }
 
 const defaultFrameScheduler: FrameScheduler = (callback) => {

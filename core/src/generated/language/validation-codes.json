@@ -2040,6 +2040,11 @@
     "description": "A trait reference has neither a ref nor a name property"
   },
   {
+    "code": "ORB_T_INVALID_NAME",
+    "category": "trait",
+    "description": "A trait the program defines has a name that is not PascalCase, so no trait value can name it"
+  },
+  {
     "code": "ORB_T_INVALID_PATTERN_DEFAULT",
     "category": "trait",
     "description": "A pattern-typed config knob has a default that is not a known pattern type"

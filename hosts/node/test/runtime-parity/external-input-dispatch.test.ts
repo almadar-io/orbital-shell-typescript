@@ -255,7 +255,7 @@ describeWithMemoryKernel('OrbitalServerRuntime.dispatchEventRequest sends a brow
   });
 });
 
-describeWithMemoryKernel('OrbitalServerRuntime program/resolve-rows (rows resolve for the requesting session's identity, EXEC-IDENTITY-1)', () => {
+describeWithMemoryKernel("OrbitalServerRuntime program/resolve-rows (rows resolve for the requesting session's identity, EXEC-IDENTITY-1)", () => {
   const OWNED: SExpr = ['=', ['object/get', '@entity', 'ownerId'], '@user.id'];
   const ownedNotes = async () => {
     const runtime = new OrbitalServerRuntime({ kernel: await memoryKernel(), persistence: await nativeMemory(), debug: false });

@@ -9,7 +9,7 @@ import { render } from '@testing-library/react';
 import { CalendarGrid } from '../CalendarGrid';
 import { EventBusProvider } from '../../../../core';
 
-const events = [{ id: 'e1', title: 'Launch review', dueDate: '2026-11-26T10:00:00' }];
+const events = [{ id: 'e1', title: 'Launch review', startTime: '2026-11-02T10:00:00', dueDate: '2026-11-26T10:00:00' }];
 
 function renderGrid(props: Partial<React.ComponentProps<typeof CalendarGrid>>) {
   return render(

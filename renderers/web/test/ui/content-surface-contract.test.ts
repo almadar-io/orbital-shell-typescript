@@ -24,6 +24,8 @@ const ALLOWED: Record<string, string> = {
   'molecules/Popover.tsx': 'floating popover panel (overlay)',
   'molecules/DocSearch.tsx': 'floating results dropdown (overlay)',
   'molecules/TopNavItem.tsx': 'floating nav submenu panel (overlay)',
+  'molecules/GraphCanvas.tsx': 'floating toolbar positioned over the canvas (overlay)',
+  'molecules/SearchInput.tsx': 'floating suggestions dropdown under the input (overlay)',
 };
 
 // exact literals that are control chrome, not a content block

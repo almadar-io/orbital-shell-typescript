@@ -64,7 +64,7 @@ const keyed: Trait = {
       { from: 'idle', to: 'first', event: 'GO', effects: [['emit', 'NEXT']] },
       { from: 'first', to: 'building', event: 'NEXT', effects: [keyedCall] },
       { from: 'building', to: 'building', event: 'STOP', effects: [['cancel-call', 'job']] },
-      { from: 'building', to: 'stopped', event: 'STOPPED', effects: [render('stopped')] },
+      { from: 'building', to: 'stopped', event: 'STOPPED', guard: ['=', '@payload.key', 'job'], effects: [render('stopped')] },
     ],
   },
 };
@@ -172,7 +172,8 @@ describe('a call in a follow-on step', () => {
     expect(response.states).toMatchObject({ Keyed: 'building' });
     await runtime.processOrbitalEvent('App', { event: 'STOP', targetTrait: 'Keyed', clientId: 'tab-1' });
     await arrived;
-    expect(dispatched[0]?.request).toMatchObject({ event: 'STOPPED', targetTrait: 'Keyed', payload: { key: 'job' } });
+    // The cancelled event carries the key to the server step (its guard reads it); a server-run trait's browser push carries no payload (EXEC-QUEUE-10).
+    expect(dispatched[0]?.request).toMatchObject({ event: 'STOPPED', targetTrait: 'Keyed' });
     expect(dispatched[0]?.response.states).toMatchObject({ Keyed: 'stopped' });
   });
 

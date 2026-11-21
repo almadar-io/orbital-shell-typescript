@@ -229,6 +229,8 @@ export interface KernelHostPorts {
   substrateStream?: (op: string, args: readonly JsonValue[], scope: KernelAnswerScope) => SubstrateStreamSource | undefined;
   substrateMessage?: (site: CallSiteWire, key: string, value: JsonValue) => OsCompletionEvent | null;
   substrateCompletion?: (site: CallSiteWire, key: string, op: string, args: readonly JsonValue[], outcome: Settled<JsonValue, SubstrateFailureWire>) => OsCompletionEvent | null;
+  /** The event a deferred keyed `call-service` outcome fires, built by the kernel (the program's key, EXEC-QUEUE-10); absent, a follow-on call is answered in place. */
+  callCompletion?: (site: CallSiteWire, key: string | undefined, outcome: CallOutcomeWire) => OsCompletionEvent | null;
   /** The host clock in epoch milliseconds, answering the kernel's `clock` ask; absent, the system clock. */
   now?: () => number;
   /** The browser's GPU answerer, installed into the kernel: every `gpu/` ask is then held and answered there. */
@@ -326,8 +328,9 @@ async function callService(
     return result;
   };
   const deferred = site?.followOn === true ? ports.deferCallOutcome() : undefined;
-  if (site !== undefined && deferred !== undefined) {
-    startDeferredCall(deferred, site, key, call, { ports, orbital, scope });
+  const complete = ports.callCompletion;
+  if (site !== undefined && deferred !== undefined && complete !== undefined) {
+    startDeferredCall(deferred, site, key, call, { ports, orbital, scope, complete });
     return { kind: 'serviceDeferred' };
   }
   const run = async (): Promise<IoAnswerWire> => {
@@ -342,49 +345,38 @@ async function callService(
   }
 }
 
-/** A follow-on step's call: started, not awaited; its outcome event goes to the host as a dispatch of its own. */
+/** How a deferred `call-service` settled, as the kernel's `callCompletionEvent` reads it. */
+export type CallOutcomeWire = { ok: JsonValue } | { error: string } | { cancelled: true };
+
+/** A follow-on step's call: started, not awaited; its outcome event, built by the kernel with the program's key (EXEC-QUEUE-10), goes to the host as a dispatch of its own. */
 function startDeferredCall(
   defer: (call: DeferredCallOutcome) => void,
   site: CallSiteWire,
   key: string | undefined,
   call: (signal?: AbortSignal, outsideRequest?: true) => Promise<JsonValue>,
-  context: { ports: KernelHostPorts; orbital: string; scope: KernelAnswerScope },
+  context: { ports: KernelHostPorts; orbital: string; scope: KernelAnswerScope; complete: NonNullable<KernelHostPorts['callCompletion']> },
 ): void {
-  const { ports, orbital, scope } = context;
-  const deliver = (event: string, payload: EventPayload | undefined): void =>
+  const { ports, orbital, scope, complete } = context;
+  const deliver = (outcome: CallOutcomeWire): void => {
+    const fired = complete(site, key, outcome);
+    if (fired === null) return;
     defer({
       orbital,
       traitName: site.trait,
-      event,
-      payload,
+      event: fired.event,
+      payload: isJsonObject(fired.payload) ? fired.payload : undefined,
       entityId: scope.entityId,
       originClientId: scope.originClientId,
       locale: scope.locale,
     });
+  };
   const outcome = key === undefined
     ? call(undefined, true).then((value) => ({ cancelled: false as const, value }))
     : ports.inFlightCalls.run(key, (signal) => untilAborted(signal, call(signal, true)));
   void outcome.then(
-    (settled) => {
-      if (settled.cancelled) {
-        if (site.emit.cancelled !== undefined && key !== undefined) deliver(site.emit.cancelled, { key });
-      } else if (site.emit.success !== undefined) {
-        deliver(site.emit.success, keyed(settled.value === null ? undefined : toEventPayload(settled.value), key));
-      }
-    },
-    (error) => {
-      if (site.emit.failure !== undefined) deliver(site.emit.failure, keyed({ error: failureMessage(error) }, key));
-    },
+    (settled) => deliver(settled.cancelled ? { cancelled: true } : { ok: settled.value }),
+    (error) => deliver({ error: failureMessage(error) }),
   );
-}
-
-/** A completion payload with the call's key beside it; a payload that is not a record is left as it is. */
-function keyed(payload: EventPayload | undefined, key: string | undefined): EventPayload | undefined {
-  return payload !== undefined && key !== undefined ? { ...payload, key } : payload;
-}
-
-function toEventPayload(value: JsonValue): EventPayload | undefined {
-  return isJsonObject(value) ? value : undefined;
 }
 
 async function substrate(

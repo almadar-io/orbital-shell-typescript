@@ -44,7 +44,8 @@ describe('Box declared data-theme', () => {
     expect(themeOf('Ocean.theme', 'dark')).toBe('Ocean.theme');
   });
 
-  it('control: a host override still replaces it', () => {
-    expect(themeOf('gazette-light', 'dark', 'minimalist-light')).toBe('minimalist-dark');
+  // A host's own pick names an exact theme and mode (owner 2026-11-16).
+  it('control: a host override still replaces it, in the mode it names', () => {
+    expect(themeOf('gazette-light', 'dark', 'minimalist-light')).toBe('minimalist-light');
   });
 });

@@ -289,6 +289,12 @@ export function useCircuitKernel(
 
   // A transition the client paints locally resolves `i18n/t` in the page's locale, as the server leg does.
   const viewerLocale = i18n?.locale;
+  const hasLocale = viewerLocale !== undefined;
+  const pageKvLocale = useCallback((): string => {
+    const current = pageLocale.current;
+    if (current === undefined) throw new Error('kv: the page has no locale');
+    return current;
+  }, []);
   useEffect(() => {
     if (viewerLocale === undefined) return;
     void kernelInstance.then((k) => k.setViewerLocale(viewerLocale));
@@ -303,8 +309,9 @@ export function useCircuitKernel(
     ...(options.observer !== undefined ? { observer: options.observer } : {}),
     ...(effectiveTransport !== undefined ? { transport: effectiveTransport } : {}),
     ...(gpu !== undefined ? { gpu } : {}),
-    ...(orbitalName !== '' && viewerLocale !== undefined ? { kvStore: { app: orbitalName, locale: viewerLocale } } : {}),
-  }), [kernelInstance, store, traitIndex, topology, effectiveTransport, options.observer, gpu, orbitalName, viewerLocale]);
+    // The kv store reads the page's locale per ask, so a locale switch keeps this client (and its local legs) open.
+    ...(orbitalName !== '' && hasLocale ? { kvStore: { app: orbitalName, locale: pageKvLocale } } : {}),
+  }), [kernelInstance, store, traitIndex, topology, effectiveTransport, options.observer, gpu, orbitalName, hasLocale, pageKvLocale]);
   const rawKernel: ClientKernel = kernelClient;
 
   // Stamp the per-tab clientId and the viewer's locale onto every dispatch

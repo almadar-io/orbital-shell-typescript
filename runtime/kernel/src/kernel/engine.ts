@@ -87,6 +87,7 @@ export class KernelEngine {
       ...ports,
       substrateMessage: (site, key, value): OsCompletionEvent | null => JSON.parse(kernel.osCompletionEvent(JSON.stringify({ ...site, emit: { success: site.emit.onMessage } }), key, JSON.stringify({ ok: value }))),
       substrateCompletion: (site, key, op, args, outcome): OsCompletionEvent | null => JSON.parse(kernel.substrateCompletionEvent(JSON.stringify(site), key, op, JSON.stringify(args), JSON.stringify(outcome))),
+      callCompletion: (site, key, outcome): OsCompletionEvent | null => JSON.parse(kernel.callCompletionEvent(JSON.stringify(site), key, JSON.stringify(outcome))),
       ...(ports.gpu !== undefined ? {
         heldGpu: {
           answer: async (ticket, completed) => decodeAnswer(await this.handle.answerGpu(ticket, (json) => completed(decodeHeldCompletion(json)))),

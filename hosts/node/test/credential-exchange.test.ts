@@ -138,7 +138,7 @@ describe('the jwt-bearer, json-token and stored refresh-token grants on the node
     expect(await store.connect(grant, post)).toEqual({ ok: { connected: true } });
     expect(seen[0]?.body).toMatch(/^grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=[\w-]+\.[\w-]+\.[\w-]+$/);
     expect(seen[0]?.body).not.toContain('BEGIN');
-    const [header, claims] = (seen[0]?.body.split('assertion=')[1] ?? '').split('.').map((part) => JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as Record<string, string>);
+    const [header, claims] = (seen[0]?.body.split('assertion=')[1] ?? '').split('.').slice(0, 2).map((part) => JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as Record<string, string>);
     expect(header?.kid).toBe(FIXTURE.serviceAccount.private_key_id);
     expect([claims?.iss, claims?.sub]).toEqual([FIXTURE.serviceAccount.client_email, FIXTURE.serviceAccount.client_email]);
     expect(store.resolve('SA_TOKEN', undefined)).toBe('SA-ACCESS');

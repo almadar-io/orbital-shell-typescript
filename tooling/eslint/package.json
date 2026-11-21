@@ -16,7 +16,8 @@
   "devDependencies": {
     "eslint": "10.0.0",
     "@typescript-eslint/parser": "^8.65.0",
-    "turbo": "^2.8.17"
+    "turbo": "^2.8.17",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "repository": {
     "type": "git",

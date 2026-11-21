@@ -50,11 +50,22 @@ describe('DataList row action navigatesTo', () => {
     expect(fired[0].payload.url).toBe('/contacts');
   });
 
-  it('does not navigate or emit when the route expression is invalid', () => {
+  it('does not navigate or emit when the route expression is invalid, and reports the broken route', () => {
     const fired: Fired[] = [];
-    renderList([{ label: 'Go', event: 'VIEW', navigatesTo: ['fn', 'row', true], variant: 'primary' }], fired);
-    fireEvent.click(screen.getByRole('button', { name: /Go/ }));
+    const reported: Error[] = [];
+    const onError = (event: ErrorEvent): void => {
+      event.preventDefault();
+      if (event.error instanceof Error) reported.push(event.error);
+    };
+    window.addEventListener('error', onError);
+    try {
+      renderList([{ label: 'Go', event: 'VIEW', navigatesTo: ['fn', 'row', true], variant: 'primary' }], fired);
+      fireEvent.click(screen.getByRole('button', { name: /Go/ }));
+    } finally {
+      window.removeEventListener('error', onError);
+    }
     expect(fired).toEqual([]);
+    expect(reported.map((e) => e.name)).toEqual(['RowActionRouteError']);
   });
 
   it('control: an action without navigatesTo still emits its event', () => {

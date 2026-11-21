@@ -222,6 +222,8 @@ export interface KernelModule extends KernelEvaluatorExports {
   /** The `{ event, payload }` JSON a deferred keyed `os/` call's outcome fires on its call site, or `null` when it declares no route. */
   osCompletionEvent(siteJson: string, key: string, outcomeJson: string): string;
   substrateCompletionEvent(siteJson: string, key: string, op: string, argsJson: string, outcomeJson: string): string;
+  /** The `{ event, payload }` JSON a deferred keyed `call-service` outcome (`{ ok }`, `{ error }` or `{ cancelled: true }`) fires on its call site, its payload carrying the program's key, or `null` when it declares no route. */
+  callCompletionEvent(siteJson: string, key: string | undefined, outcomeJson: string): string;
   /** Whether the Chrome match pattern matches the URL: the one rule a browser-tab host filters tabs with. */
   tabUrlMatches(pattern: string, url: string): boolean;
   /** The typed event request a `program/dispatch` call names (`EventRequest::from_dispatch`); a record that is no event request throws the reason. */

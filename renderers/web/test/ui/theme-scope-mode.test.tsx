@@ -56,7 +56,8 @@ describe('useScopedMode', () => {
     expect(container.querySelector('[data-theme="game-adventure-dark"]')?.classList.contains('dark')).toBe(true);
   });
 
-  it('edge: a host override key follows the document mode too, on the wrapper and on nested theme boxes', () => {
+  // A host's own pick names an exact theme and mode (owner 2026-11-16): the override keeps its own mode in a dark document.
+  it('edge: a host override key keeps its own mode, on the wrapper and on nested theme boxes', () => {
     const { container } = render(
       <ThemeProvider defaultTheme="orb" defaultMode="dark">
         <OrbitalThemeProvider theme="minimalist-light" override="orb-light">
@@ -65,9 +66,9 @@ describe('useScopedMode', () => {
         </OrbitalThemeProvider>
       </ThemeProvider>,
     );
-    expect(screen.getByTestId('mode').textContent).toBe('dark');
-    expect(container.querySelectorAll('[data-theme="orb-dark"]').length).toBe(2);
-    expect(container.querySelector('[data-theme="orb-light"]')).toBeNull();
+    expect(screen.getByTestId('mode').textContent).toBe('light');
+    expect(container.querySelectorAll('[data-theme="orb-light"]').length).toBe(2);
+    expect(container.querySelector('[data-theme="orb-dark"]')).toBeNull();
   });
 
   it('control: outside any orbital the document mode is read', () => {
