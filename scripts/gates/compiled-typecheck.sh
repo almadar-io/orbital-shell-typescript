@@ -69,6 +69,11 @@ while read -r mode rel; do
   echo "== $name ($mode)"
   rm -rf "$out"
   "$ORB_BIN" compile "$BEHAVIORS_DIR/$rel" -o "$out" --mode "$mode" 2>&1 | grep -v '^Loaded '
+  if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+    echo "compiled-typecheck $name: orb compile FAILED"
+    status=1
+    continue
+  fi
   if [ ! -f "$out/package.json" ]; then
     echo "compiled-typecheck $name: orb compile produced no project"
     status=1

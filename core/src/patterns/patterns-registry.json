@@ -112830,7 +112830,7 @@
           "types": [
             "object"
           ],
-          "description": "The page scrolls inside the canvas (orbital painter): `height` is the content height, `event` names the event that reports `{ offset, max }` at most once per `reportMs` while the page moves and when it rests. A drawable with `fixed` stays put; one with `wheel` or `drag` keeps its own gestures.",
+          "description": "The page scrolls inside the canvas (orbital painter): `height` is the content height, `event` names the event that reports `{ offset, max }` at most once per `reportMs` while the page moves and when it rests. A drawable with `fixed` stays put; one with `wheel` or `drag` keeps its own gestures. `to: { y, n }` moves the page to `y` whenever `n` changes (a contents link, a tab).",
           "properties": {
             "height": {
               "types": [
@@ -112845,6 +112845,28 @@
             "reportMs": {
               "types": [
                 "number"
+              ]
+            },
+            "to": {
+              "types": [
+                "object"
+              ],
+              "description": "A scroll-to request: the page moves to `y` (clamped to the content) each time `n` changes.",
+              "properties": {
+                "y": {
+                  "types": [
+                    "number"
+                  ]
+                },
+                "n": {
+                  "types": [
+                    "number"
+                  ]
+                }
+              },
+              "propertyRequired": [
+                "y",
+                "n"
               ]
             }
           },

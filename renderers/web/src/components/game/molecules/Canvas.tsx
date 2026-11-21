@@ -127,7 +127,7 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     /** The wheel turned over a hit drawable that declares `wheel: true` (orbital painter): its id, the point, and the scroll in CSS pixels. That wheel is kept from the page; over anything else the page scrolls and nothing is sent. */
     wheelEvent?: EventEmit<{ target: string; x: number; y: number; dx: number; dy: number }>;
     /** The page scrolls inside the canvas (orbital painter): `height` is the content height, `event` names the event that reports `{ offset, max }` at most once per `reportMs` while the page moves and when it rests. A drawable with `fixed` stays put; one with `wheel` or `drag` keeps its own gestures. */
-    scroll?: { height: number; event?: string; reportMs?: number };
+    scroll?: { height: number; event?: string; reportMs?: number; to?: { y: number; n: number } };
     /** The program's reading direction, rendered from the page locale (`(i18n/direction)`); the painter reports it through `directionEvent` (orbital painter). */
     direction?: 'ltr' | 'rtl';
     /** The declared `direction`, sent once and again whenever it changes, so the program's layout can follow the locale (orbital painter). */

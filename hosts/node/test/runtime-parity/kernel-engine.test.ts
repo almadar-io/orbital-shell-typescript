@@ -470,6 +470,7 @@ describe.skipIf(KERNEL_DIR === undefined || MEMORY_KERNEL_PATH === undefined)('k
       servicePorts: (caller, _user, message) => ({ caller, message, inputs: () => [], readableEntities: () => [], dispatchInput: async () => { throw new Error('no input channel'); }, read: async () => [] }),
       deliverLive: () => undefined,
       deferCallOutcome: () => undefined,
+      callCompletion: (site, key, outcome) => JSON.parse(kernel.callCompletionEvent(JSON.stringify(site), key, JSON.stringify(outcome))),
       ...over,
     });
     const scope = (over: Partial<KernelAnswerScope> = {}): KernelAnswerScope => ({ orbital: 'Main', ...over });
