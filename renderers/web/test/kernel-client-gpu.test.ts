@@ -38,7 +38,7 @@ function fakeKernel(seen: Seen, heldFails = false): KernelInstance {
     statefulLeg: refuse, reseedLeg: refuse, mount: refuse, enter: refuse, leave: refuse, leaveMount: refuse, registerLazy: refuse, deliverEmitToListeners: refuse, deliverOriginEmit: refuse,
     getState: () => 'idle', dispatchMode: () => JSON.stringify('hybridClientOnly'),
     restore: refuse, framesSince: () => JSON.stringify({ from: 0, to: 0, ops: [] }), tick: refuse, frame: refuse, framePause: refuse, frameResume: refuse, tickCount: refuse,
-    sessionTheme: () => undefined, seedIdentity: () => false, sessionIdentity: () => undefined, traitConfig: refuse, setViewerLocale: refuse, setHostFansOut: refuse, setRecordEntityAfter: refuse, setTraceOn: refuse,
+    sessionTheme: () => undefined, seedIdentity: () => false, sessionIdentity: () => undefined, traitConfig: refuse, setViewerLocale: refuse, setHostFansOut: refuse, setRecordEntityAfter: refuse, setHopEffects: refuse, setTraceOn: refuse,
     takeTrace: () => '[]', setTraceCost: refuse, takeTraceViews: () => '[]', setFrameEffectResults: refuse, bootMounts: refuse, routeMounts: refuse, pageCircuit: refuse, contractQuery: refuse,
     setTraitOnScreen: refuse, seed: refuse, free: refuse,
   };

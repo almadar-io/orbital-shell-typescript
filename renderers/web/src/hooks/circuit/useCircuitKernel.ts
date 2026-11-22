@@ -176,6 +176,7 @@ export function useCircuitKernel(
       // A verifier judges each hop's `@ensures` on the entity before and after it; the kernel records them only then.
       if (verifierAttached()) {
         kernel.setRecordEntityAfter(true);
+        kernel.setHopEffects(true);
         kernel.setFrameEffectResults(true);
       }
       return kernel;

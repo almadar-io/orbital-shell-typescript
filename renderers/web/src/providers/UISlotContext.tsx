@@ -114,6 +114,18 @@ export function useUISlots(): UISlotManager {
 }
 
 /**
+ * How many transition paints `traitName` has made (`UISlotManager.notePaint`); 0 outside a slot provider or a trait.
+ */
+export function useTraitPaints(traitName: string | undefined): number {
+  const manager = useContext(UISlotContext);
+  const subscribe = React.useCallback(
+    (onChange: () => void) => (manager && traitName !== undefined ? manager.subscribeTraitPaints(traitName, onChange) : () => undefined),
+    [manager, traitName],
+  );
+  return React.useSyncExternalStore(subscribe, () => (manager && traitName !== undefined ? manager.traitPaints(traitName) : 0));
+}
+
+/**
  * Hook to get content for a specific slot.
  *
  * Useful for components that only need to read slot state.

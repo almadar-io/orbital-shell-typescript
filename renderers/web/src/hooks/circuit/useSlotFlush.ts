@@ -124,6 +124,7 @@ export function useSlotFlush(
       };
       slots.updateTraitContent(traitName, content);
       writtenRef.current.set(keyOf(slot, traitName), { kind: 'trait', trait: traitName, content });
+      if (source?.event !== undefined) slots.notePaint(traitName);
       return;
     }
     const config = {
@@ -137,6 +138,7 @@ export function useSlotFlush(
     };
     slots.render(config);
     writtenRef.current.set(keyOf(slot, traitName), { kind: 'render', config });
+    if (source?.event !== undefined) slots.notePaint(traitName);
   }, []);
 
   const applyClientEffects = useCallback((
@@ -186,6 +188,7 @@ export function useSlotFlush(
           slots.render(config);
           writtenRef.current.set(keyOf(slot, sourceTrait), { kind: 'render', config });
         }
+        if (pattern !== null && event !== undefined) slots.notePaint(sourceTrait);
         if (repaint === 'rows-changed') notifyRowsChanged(rowSetsRef.current, props);
       } else if (kind === 'navigate') {
         const [, route, params, options] = effect;

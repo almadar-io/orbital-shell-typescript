@@ -39,6 +39,8 @@ import { DollarSign } from "lucide-react";
 import { Alert } from "../molecules/Alert";
 import { usePendingAction } from '../../../core';
 import { useEventBus } from '../../../core';
+import { useTraitScope } from '../../../core';
+import { useTraitPaints } from '../../../providers/UISlotContext';
 import { useTranslate } from '../../../core';
 import { useContentSurface } from '../../../core';
 import type { SurfaceMode } from '@almadar/core';
@@ -681,6 +683,18 @@ export const Form: React.FC<FormProps> = ({
       setFormData(normalizedInitialData);
     }
   }, [normalizedInitialData]);
+
+  // A transition of the owning trait that painted this form again shows what it rendered, typed values dropped (EXEC-RENDER-4).
+  const paints = useTraitPaints(useTraitScope()?.trait);
+  const seenPaints = React.useRef(paints);
+  React.useEffect(() => {
+    if (seenPaints.current === paints) return;
+    seenPaints.current = paints;
+    setFormData(normalizedInitialData);
+    setFieldErrors({});
+    setInvalidFields([]);
+    setSubmitError(null);
+  }, [paints, normalizedInitialData]);
 
   /**
    * Process hidden calculations when triggered fields change

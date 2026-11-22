@@ -234,6 +234,15 @@ export interface UISlotManager {
   updateTraitContent: (traitName: string, content: Omit<SlotContent, 'id' | 'sourceTrait'>) => string;
   /** The page's declared trait order, which multi-writer slots stack by (not by write timing). */
   setDeclaredTraitOrder: (traits: readonly string[]) => void;
+  /**
+   * Record that a transition of `traitName` that fired painted its slot (EXEC-RENDER-4): the kernel's answer names the
+   * event behind the paint. A write the store skips as unchanged still counts; a repaint or a rollback is not one.
+   */
+  notePaint: (traitName: string) => void;
+  /** How many transition paints `traitName` has made. */
+  traitPaints: (traitName: string) => number;
+  /** Subscribe to `traitName`'s transition paints. Returns an unsubscribe. */
+  subscribeTraitPaints: (traitName: string, callback: () => void) => () => void;
 }
 
 /** Per-source slot entry map: key = sourceTrait (or sentinel when none). */
@@ -374,6 +383,8 @@ export function useUISlotManager(): UISlotManager {
     setDeclaredOrder(next);
   }, []);
   const traitSubscribersRef = useRef<Map<string, Set<TraitChangeCallback>>>(new Map());
+  const traitPaintsRef = useRef<Map<string, number>>(new Map());
+  const paintSubscribersRef = useRef<Map<string, Set<() => void>>>(new Map());
 
   // Computed aggregate `slots` — memoised so React consumers only see
   // identity changes when a slot's actual content changes.
@@ -813,6 +824,28 @@ export function useUISlotManager(): UISlotManager {
     [indexTraitRender, notifyTraitSubscribers],
   );
 
+  const notePaint = useCallback((traitName: string): void => {
+    traitPaintsRef.current.set(traitName, (traitPaintsRef.current.get(traitName) ?? 0) + 1);
+    paintSubscribersRef.current.get(traitName)?.forEach((callback) => callback());
+  }, []);
+
+  const traitPaints = useCallback((traitName: string): number => traitPaintsRef.current.get(traitName) ?? 0, []);
+
+  const subscribeTraitPaints = useCallback((traitName: string, callback: () => void): (() => void) => {
+    let set = paintSubscribersRef.current.get(traitName);
+    if (!set) {
+      set = new Set();
+      paintSubscribersRef.current.set(traitName, set);
+    }
+    set.add(callback);
+    return () => {
+      const held = paintSubscribersRef.current.get(traitName);
+      if (!held) return;
+      held.delete(callback);
+      if (held.size === 0) paintSubscribersRef.current.delete(traitName);
+    };
+  }, []);
+
   // One object until a member changes: effects key on the manager, and a fresh object per render refires them every commit.
   return useMemo(() => ({
     slots,
@@ -828,7 +861,10 @@ export function useUISlotManager(): UISlotManager {
     subscribeTrait,
     updateTraitContent,
     setDeclaredTraitOrder,
-  }), [slots, render, clear, clearBySource, clearById, clearAll, subscribe, hasContent, getContent, getTraitContent, subscribeTrait, updateTraitContent, setDeclaredTraitOrder]);
+    notePaint,
+    traitPaints,
+    subscribeTraitPaints,
+  }), [slots, render, clear, clearBySource, clearById, clearAll, subscribe, hasContent, getContent, getTraitContent, subscribeTrait, updateTraitContent, setDeclaredTraitOrder, notePaint, traitPaints, subscribeTraitPaints]);
 }
 
 // ============================================================================

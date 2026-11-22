@@ -835,7 +835,11 @@ export type StdioKind = "in" | "out" | "err";
 
 export type StepCollapsed = { trait: string, event: string, payload: EventPayload | null, };
 
-export type StepCost = { startNs: number, ns: number, allocs: number, allocBytes: number, };
+export type StepCost = { startNs: number, ns: number, allocs: number, allocBytes: number, 
+/**
+ * The most the step held above what its thread held when it started (P-049); 0 where the host reads no peak.
+ */
+peakBytes?: number, };
 
 export type StepEmit = { event: string, payload: EventPayload | null, };
 
@@ -1729,7 +1733,7 @@ function checkStepCollapsed(v: JsonValue | undefined): boolean {
 }
 
 function checkStepCost(v: JsonValue | undefined): boolean {
-  return (isRecord(v) && typeof v["startNs"] === 'number' && typeof v["ns"] === 'number' && typeof v["allocs"] === 'number' && typeof v["allocBytes"] === 'number');
+  return (isRecord(v) && typeof v["startNs"] === 'number' && typeof v["ns"] === 'number' && typeof v["allocs"] === 'number' && typeof v["allocBytes"] === 'number' && (v["peakBytes"] === undefined || typeof v["peakBytes"] === 'number'));
 }
 
 function checkStepEmit(v: JsonValue | undefined): boolean {
@@ -2477,7 +2481,7 @@ function buildStepCollapsed(v: JsonValue | undefined, p: string): StepCollapsed 
 }
 
 function buildStepCost(v: JsonValue | undefined, p: string): StepCost {
-  return obj(v, p, null, (r0) => ({ "startNs": int(r0["startNs"], p + '.startNs', 0, Number.MAX_SAFE_INTEGER, "u64"), "ns": int(r0["ns"], p + '.ns', 0, Number.MAX_SAFE_INTEGER, "u64"), "allocs": int(r0["allocs"], p + '.allocs', 0, Number.MAX_SAFE_INTEGER, "u64"), "allocBytes": int(r0["allocBytes"], p + '.allocBytes', 0, Number.MAX_SAFE_INTEGER, "u64") }));
+  return obj(v, p, null, (r0) => ({ "startNs": int(r0["startNs"], p + '.startNs', 0, Number.MAX_SAFE_INTEGER, "u64"), "ns": int(r0["ns"], p + '.ns', 0, Number.MAX_SAFE_INTEGER, "u64"), "allocs": int(r0["allocs"], p + '.allocs', 0, Number.MAX_SAFE_INTEGER, "u64"), "allocBytes": int(r0["allocBytes"], p + '.allocBytes', 0, Number.MAX_SAFE_INTEGER, "u64"), ...(r0["peakBytes"] === undefined || r0["peakBytes"] === null ? {} : { "peakBytes": int(r0["peakBytes"], p + '.peakBytes', 0, Number.MAX_SAFE_INTEGER, "u64") }) }));
 }
 
 function buildStepEmit(v: JsonValue | undefined, p: string): StepEmit {

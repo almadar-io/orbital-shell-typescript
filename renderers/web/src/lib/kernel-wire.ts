@@ -69,6 +69,8 @@ export interface KernelInstance {
   setHostFansOut(fansOut: boolean): void;
   /** Carry each hop's `@entity` before and after it on the dispatch's transitions, for a verifier (EXEC-STEP-10). */
   setRecordEntityAfter(record: boolean): void;
+  /** Carry each executed hop's effects on the dispatch's transitions, for a verifier or debugger; off by default (P-049). */
+  setHopEffects(carry: boolean): void;
   /** Record each dispatch as a trace item while on, for the host's `program/live { kind: "trace" }` streams (EXEC-DIST-14). */
   setTraceOn(on: boolean): void;
   /** The trace items recorded since the last take, in dispatch order: a JSON array. */

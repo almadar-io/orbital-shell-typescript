@@ -308,7 +308,7 @@ describeKernel('useTraitStateMachine on the kernel engine', () => {
     return {
       slots: {}, render: vi.fn(() => 'id'), clear: vi.fn(), clearBySource: vi.fn(), clearById: vi.fn(), clearAll: vi.fn(),
       subscribe: vi.fn(() => () => undefined), hasContent: vi.fn(() => false), getContent: vi.fn(() => null),
-      getTraitContent: vi.fn(() => null), subscribeTrait: vi.fn(() => () => undefined), setDeclaredTraitOrder: vi.fn(), updateTraitContent: vi.fn(() => 'id'),
+      getTraitContent: vi.fn(() => null), subscribeTrait: vi.fn(() => () => undefined), setDeclaredTraitOrder: vi.fn(), notePaint: vi.fn(), traitPaints: vi.fn(() => 0), subscribeTraitPaints: vi.fn(() => () => undefined), updateTraitContent: vi.fn(() => 'id'),
     };
   }
 

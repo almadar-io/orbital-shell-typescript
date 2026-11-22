@@ -141,7 +141,7 @@ function stubSlots(): UISlotManager & { clearBySource: Mock<UISlotManager['clear
     getContent: vi.fn(() => null),
     getTraitContent: vi.fn(() => null),
     subscribeTrait: vi.fn(() => () => undefined),
-    setDeclaredTraitOrder: vi.fn(),
+    setDeclaredTraitOrder: vi.fn(), notePaint: vi.fn(), traitPaints: vi.fn(() => 0), subscribeTraitPaints: vi.fn(() => () => undefined),
     updateTraitContent: vi.fn(() => 'id'),
   };
 }

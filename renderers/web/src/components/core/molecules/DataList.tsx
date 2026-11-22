@@ -371,7 +371,7 @@ export function DataList({
   React.useEffect(() => {
     const renderItemTypeOf = typeof schemaRenderItem;
     const childrenTypeOf = typeof children;
-    if (data.length > 0 && !hasRenderProp) {
+    if (data.length > 0 && !hasRenderProp && fieldDefs.length === 0) {
       const firstRow: EntityRow | undefined = data[0];
       const sampleKeys = firstRow ? Object.keys(firstRow).slice(0, 6) : [];
       const isFnLambda =

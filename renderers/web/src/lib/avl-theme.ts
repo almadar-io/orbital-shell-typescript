@@ -202,7 +202,7 @@ export const OPERATOR_CATEGORY_COLORS: Record<OperatorCategory, string> = {
   'std-os': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-primary)'), 'std-kv': avlBlend('var(--color-muted-foreground)', 50, 'var(--color-info)'), 'std-browser': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-info)'),
   'std-composition': avlBlend('var(--color-accent)', 60, 'var(--color-foreground)'), 'std-vec': avlBlend('var(--color-primary)', 60, 'var(--color-background)'),
   'std-geo': avlBlend('var(--color-success)', 50, 'var(--color-info)'), 'std-grid': avlBlend('var(--color-info)', 60, 'var(--color-background)'),
-  'std-anim': avlBlend('var(--color-accent)', 60, 'var(--color-background)'), 'std-ease': avlBlend('var(--color-accent)', 50, 'var(--color-info)'),
+  'std-anim': avlBlend('var(--color-accent)', 60, 'var(--color-background)'), 'std-ease': avlBlend('var(--color-accent)', 50, 'var(--color-info)'), 'std-color': avlBlend('var(--color-accent)', 50, 'var(--color-success)'),
   'std-noise': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-accent)'), 'std-path': avlBlend('var(--color-success)', 60, 'var(--color-primary)'),
   'std-llm': avlBlend('var(--color-accent)', 70, 'var(--color-primary)'), 'std-workspace': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-warning)'),
   'std-session': avlBlend('var(--color-muted-foreground)', 60, 'var(--color-success)'),
