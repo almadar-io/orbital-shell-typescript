@@ -191,7 +191,7 @@ export const StatDisplay: React.FC<StatDisplayProps> = ({
       >
         {ResolvedIcon && <ResolvedIcon className={cn(iconSizes[size], iconColor)} />}
         <Typography variant="caption" color="secondary">{label}</Typography>
-        <Typography variant="h4" className={cn('', valueSizes[size], variantColor[variant])}>
+        <Typography variant="h4" as="p" className={cn('', valueSizes[size], variantColor[variant])}>
           {displayValue}
         </Typography>
         {showTrend && (
@@ -217,7 +217,7 @@ export const StatDisplay: React.FC<StatDisplayProps> = ({
         <VStack gap="none" className="space-y-1 flex-1">
           <Typography variant="overline" color="secondary">{label}</Typography>
           <HStack gap="sm" align="end">
-            <Typography variant="h4" className={cn('', valueSizes[size], variantColor[variant])}>
+            <Typography variant="h4" as="p" className={cn('', valueSizes[size], variantColor[variant])}>
               {displayValue}
             </Typography>
             {showTrend && (

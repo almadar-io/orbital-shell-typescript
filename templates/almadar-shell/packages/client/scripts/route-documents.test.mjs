@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { documentRoutes, headTags, routeDocument, sitemap, robots, writeRouteDocuments } from './route-documents.mjs';
+import { documentFiles, documentRoutes, headTags, routeDocument, sitemap, robots, writeRouteDocuments } from './route-documents.mjs';
 
 const INDEX = `<!DOCTYPE html>
 <html lang="en">
@@ -172,5 +172,28 @@ describe('a route share image', () => {
 
   it('control: a noindex route carries only the directive, image or not', () => {
     expect(headTags({ path: '/x', access: 'public', indexing: 'noindex', image: 'https://example.org/a.jpg' }, site)).toEqual(['<meta name="robots" content="noindex" data-orb-head />']);
+  });
+});
+
+describe('documentFiles', () => {
+  it('the route declared notFound is also written as 404.html, which static hosts answer with status 404', () => {
+    expect(documentFiles({ path: '/not-found', notFound: true })).toEqual(['not-found/index.html', '404.html']);
+  });
+
+  it('control: any other route is written to its own file only', () => {
+    expect(documentFiles({ path: '/docs' })).toEqual(['docs/index.html']);
+    expect(documentFiles({ path: '/' })).toEqual(['index.html']);
+  });
+
+  it('control: a parameter route has no document', () => {
+    expect(documentFiles({ path: '/posts/:id', notFound: true })).toEqual([]);
+  });
+
+  it('writeRouteDocuments writes the public notFound route to both files', () => {
+    const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'route-docs-404-'));
+    fs.writeFileSync(path.join(dist, 'index.html'), INDEX);
+    const written = writeRouteDocuments({ site, routes: [{ path: '/not-found', page: 'NotFound', access: 'public', indexing: 'noindex', notFound: true }] }, dist);
+    expect(written).toContain('404.html');
+    expect(fs.readFileSync(path.join(dist, '404.html'), 'utf8')).toBe(fs.readFileSync(path.join(dist, 'not-found/index.html'), 'utf8'));
   });
 });

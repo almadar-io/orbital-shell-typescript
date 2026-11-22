@@ -2,7 +2,7 @@
  * Helpers for prerender.mjs, shared with route-documents.mjs: where a route's
  * HTML lands, and the sitemap/robots files for the routes.json manifest.
  */
-export { routeFile, sitemap, robots } from './route-documents.mjs';
+export { documentFiles, routeFile, sitemap, robots } from './route-documents.mjs';
 
 /**
  * Whether the page is ready to be written: its route's traits have mounted (`data-orb-mounted`, so a page with no canvas

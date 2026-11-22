@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
-import { routeFile, sitemap, robots, scenesReady, readySnapshot } from './prerender-lib.mjs';
+import { documentFiles, sitemap, robots, scenesReady, readySnapshot } from './prerender-lib.mjs';
 import { APP_SHELL } from './route-documents.mjs';
 
 const { values } = parseArgs({
@@ -48,8 +48,8 @@ const browser = await chromium.launch();
 const failures = [];
 const rendered = new Map();
 for (const route of routes) {
-  const out = routeFile(route.path);
-  if (out === null) continue;
+  const files = documentFiles(route);
+  if (files.length === 0) continue;
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -59,7 +59,8 @@ for (const route of routes) {
   const laidOut = await page.waitForFunction(scenesReady, null, { timeout: 30000 }).then(() => true, () => false);
   if (!laidOut) failures.push(`${route.path}: a scene canvas never said its program laid it out (data-orb-ready)`);
   if (errors.length > 0) failures.push(`${route.path}: ${errors.join(' | ')}`);
-  rendered.set(out, await page.evaluate(readySnapshot));
+  const html = await page.evaluate(readySnapshot);
+  for (const file of files) rendered.set(file, html);
   await page.close();
 }
 await browser.close();
@@ -75,4 +76,4 @@ for (const [out, html] of rendered) {
 }
 fs.writeFileSync(path.join(dist, 'sitemap.xml'), sitemap(manifest));
 fs.writeFileSync(path.join(dist, 'robots.txt'), robots(manifest));
-console.log(`prerender: ${rendered.size} route(s) written to ${dist}`);
+console.log(`prerender: ${rendered.size} file(s) written to ${dist}`);

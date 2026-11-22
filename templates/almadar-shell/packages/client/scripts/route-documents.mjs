@@ -21,6 +21,13 @@ export function routeFile(routePath) {
   return trimmed === '' ? 'index.html' : path.posix.join(trimmed, 'index.html');
 }
 
+/** Every file a route's document is written to: its own, and `404.html` for the route declared `notFound`, which static hosts answer with status 404. */
+export function documentFiles(route) {
+  const own = routeFile(route.path);
+  if (own === null) return [];
+  return route.notFound === true ? [own, '404.html'] : [own];
+}
+
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 export function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (c) => ESCAPES[c]);
@@ -119,10 +126,13 @@ export function writeRouteDocuments(manifest, dist) {
   fs.writeFileSync(shellPath, indexHtml);
   const written = [APP_SHELL];
   for (const route of documentRoutes(manifest)) {
-    const out = path.join(dist, routeFile(route.path));
-    fs.mkdirSync(path.dirname(out), { recursive: true });
-    fs.writeFileSync(out, routeDocument(indexHtml, { ...route, defaultLocale: manifest.defaultLocale }, manifest.site));
-    written.push(path.relative(dist, out));
+    const html = routeDocument(indexHtml, { ...route, defaultLocale: manifest.defaultLocale }, manifest.site);
+    for (const file of documentFiles(route)) {
+      const out = path.join(dist, file);
+      fs.mkdirSync(path.dirname(out), { recursive: true });
+      fs.writeFileSync(out, html);
+      written.push(file);
+    }
   }
   const map = sitemap(manifest);
   if (map !== null) {
