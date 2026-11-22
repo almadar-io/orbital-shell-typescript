@@ -34,47 +34,6 @@ export function localeOfPath(path: string, locales: readonly string[]): string |
   return pathLocale(path, locales) ?? locales[0];
 }
 
-/** A page as {@link localeAlternates} reads it. */
-export interface AlternatePageInput {
-  path: string;
-  sourcePage?: string;
-  translationOf?: string;
-  access?: 'public' | 'authenticated';
-  indexing?: 'index' | 'noindex';
-}
-
-/** One language version of a page: its locale and route. */
-export interface LocaleAlternate {
-  locale: string;
-  path: string;
-}
-
-/**
- * The indexable public routes of `page`'s translation group (its `translationOf`, else its
- * upstream `sourcePage`) across the app's locales, in locale order — its hreflang alternates. `undefined` when `page` is not itself indexable and public,
- * has no upstream page, appears in fewer than two locales, or one locale holds it twice.
- * Twin of orbital-compiler `generate::locale_alternates`.
- */
-export function localeAlternates(
-  pages: readonly AlternatePageInput[],
-  page: AlternatePageInput,
-  locales: readonly string[],
-): LocaleAlternate[] | undefined {
-  const indexable = (p: AlternatePageInput): boolean => p.access === 'public' && p.indexing !== 'noindex';
-  const group = (p: AlternatePageInput): string | undefined => p.translationOf ?? p.sourcePage;
-  const key = group(page);
-  if (!indexable(page) || key === undefined) return undefined;
-  const byLocale: LocaleAlternate[] = [];
-  for (const other of pages) {
-    if (group(other) !== key || !indexable(other)) continue;
-    const locale = localeOfPath(other.path, locales);
-    if (locale === undefined || byLocale.some((a) => a.locale === locale)) return undefined;
-    byLocale.push({ locale, path: other.path });
-  }
-  if (byLocale.length < 2) return undefined;
-  return byLocale.sort((a, b) => locales.indexOf(a.locale) - locales.indexOf(b.locale));
-}
-
 export const I18N_SECTIONS = [
   'keywords',
   'shapes',

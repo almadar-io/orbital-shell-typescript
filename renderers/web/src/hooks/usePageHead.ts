@@ -24,7 +24,7 @@ export interface PageHeadInput {
   siteName?: string;
   /** The concrete path on screen. */
   path: string;
-  /** The page's translations (`localeAlternates`), written as hreflang links. */
+  /** The page's translations from the head the compiler stamped on it, written as hreflang links. */
   alternates?: readonly LocaleAlternate[];
   /** The app's first locale, the `x-default` alternate. */
   defaultLocale?: string;

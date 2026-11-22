@@ -5,7 +5,6 @@
  */
 import { describe, it, expect } from 'vitest';
 import { parseOrbitalSchema, safeParseOrbitalSchema, HOST_SIGN_IN_ROUTE, isHostSignInRoute } from '../src/types/schema.js';
-import { localeAlternates } from '../src/i18n/index.js';
 import { notFoundPage } from '../src/route-match.js';
 import { PageModifiersSchema } from '../src/types/page.js';
 import { resolvePageMeta } from '../src/types/page.js';
@@ -86,58 +85,7 @@ describe('host sign-in route', () => {
   });
 });
 
-describe('localeAlternates (twin of orbital-compiler locale_alternates)', () => {
-  const locales = ['en', 'ar', 'sl'];
-  const pub = { access: 'public' as const, indexing: 'index' as const };
-  const pages = [
-    { path: '/', sourcePage: 'pag_home', ...pub },
-    { path: '/sl', sourcePage: 'pag_home', ...pub },
-    { path: '/ar', sourcePage: 'pag_home', ...pub },
-    { path: '/docs', ...pub },
-    { path: '/a', sourcePage: 'pag_post', ...pub },
-    { path: '/b', sourcePage: 'pag_post', ...pub },
-  ];
-
-  it('imports of one page in different locales are alternates in locale order', () => {
-    expect(localeAlternates(pages, pages[1], locales)).toEqual([
-      { locale: 'en', path: '/' },
-      { locale: 'ar', path: '/ar' },
-      { locale: 'sl', path: '/sl' },
-    ]);
-  });
-
-  it('control: a page with no source has none', () => {
-    expect(localeAlternates(pages, pages[3], locales)).toBeUndefined();
-  });
-
-  it('edge: two imports in one locale are not alternates', () => {
-    expect(localeAlternates(pages, pages[4], locales)).toBeUndefined();
-  });
-
-  it('edge: a private or unindexed translation drops out, and a private page gets none', () => {
-    const mixed = pages.map((p) => (p.path === '/sl' ? { ...p, indexing: 'noindex' as const } : p.path === '/ar' ? { ...p, access: 'authenticated' as const } : p));
-    expect(localeAlternates(mixed, mixed[0], locales)).toBeUndefined();
-    expect(localeAlternates(mixed, mixed[2], locales)).toBeUndefined();
-  });
-});
-
-describe('translationOf groups pages that are not imports of one page', () => {
-  const locales = ['en', 'ar'];
-  const pub = { access: 'public' as const, indexing: 'index' as const };
-
-  it('separately authored translations sharing translationOf are alternates', () => {
-    const pages = [{ path: '/blog/x', translationOf: 'blog/x', ...pub }, { path: '/ar/blog/x', translationOf: 'blog/x', ...pub }];
-    expect(localeAlternates(pages, pages[1], locales)).toEqual([{ locale: 'en', path: '/blog/x' }, { locale: 'ar', path: '/ar/blog/x' }]);
-  });
-
-  it('control: translationOf takes precedence over a shared sourcePage', () => {
-    const pages = [
-      { path: '/a', sourcePage: 'pag_x', translationOf: 'a', ...pub },
-      { path: '/ar/b', sourcePage: 'pag_x', translationOf: 'b', ...pub },
-    ];
-    expect(localeAlternates(pages, pages[0], locales)).toBeUndefined();
-  });
-
+describe('translationOf and the stamped head on pages', () => {
   it('the schema accepts translationOf on pages and pageModifiers on orbital references', () => {
     const parsed = safeParseOrbitalSchema({
       name: 'app',
@@ -152,5 +100,20 @@ describe('translationOf groups pages that are not imports of one page', () => {
     });
     expect(parsed.success).toBe(true);
     expect(PageModifiersSchema.safeParse({ access: 'public', translationOf: 'x', view: 'list' }).success).toBe(false);
+  });
+});
+
+describe('the stamped page head', () => {
+  const page = (head: object) => ({
+    name: 'app',
+    orbitals: [{ name: 'Blog', entity: { name: 'Post', persistence: 'runtime', fields: [{ name: 'id', type: 'string' }] }, traits: [], pages: [{ name: 'PostAR', path: '/ar/blog/x', traits: [], head }] }],
+  });
+
+  it('the schema accepts the head a build stamps on a page', () => {
+    expect(safeParseOrbitalSchema(page({ title: 'س', description: 'د', alternates: [{ locale: 'en', path: '/blog/x' }, { locale: 'ar', path: '/ar/blog/x' }] })).success).toBe(true);
+  });
+
+  it('control: a head with a key the compiler does not write is refused', () => {
+    expect(safeParseOrbitalSchema(page({ title: 'x', image: '/a.png' })).success).toBe(false);
   });
 });

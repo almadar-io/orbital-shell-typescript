@@ -31,7 +31,7 @@ import { useTranslate } from '../core';
 import { I18nProvider } from '../core/hooks/useTranslate';
 import { routeLocaleValue } from './routeLocale';
 import type { OrbitalSchema, EntityData, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
-import { orbitalInlineEntities, storesRowsInBrowser, isHostSignInRoute, localeAlternates, notFoundPage } from '@almadar/core';
+import { orbitalInlineEntities, storesRowsInBrowser, isHostSignInRoute, notFoundPage } from '@almadar/core';
 import { isAbsoluteHref, matchPathAmong } from '../core';
 import { useTraitStateMachine } from '../hooks/useTraitStateMachine';
 import { EntitySchemaProvider } from '../providers/EntitySchemaContext';
@@ -941,27 +941,27 @@ export function OrbPreview({
   );
   const site = parsedSchema?.site;
   const locales = parsedSchema?.locales;
-  const alternates = useMemo(
-    () => (activePage === undefined ? undefined : localeAlternates(pages.map((p) => p.page), activePage, locales ?? [])),
-    [pages, activePage, locales],
-  );
+  // The head a build stamped on the page (routes.json's): applied as written, never recomputed here.
+  const stampedHead = activePage?.head;
+  const alternates = stampedHead?.alternates;
   const declaresHead =
     activePage !== undefined &&
-    (activePage.title !== undefined ||
+    (activePage.head !== undefined ||
+      activePage.title !== undefined ||
       activePage.description !== undefined ||
       activePage.access !== undefined ||
       activePage.indexing !== undefined);
   usePageHead(
     !isolated && !lazyRoute && declaresHead
       ? {
-          title: activePage.title,
-          description: activePage.description,
+          title: stampedHead?.title ?? activePage.title,
+          description: stampedHead?.description ?? activePage.description,
           access: activePage.access,
           indexing: activePage.indexing,
           origin: site?.origin,
           siteName: site?.name,
           path: concreteCurrentPath,
-          ...(alternates !== undefined ? { alternates, defaultLocale: locales?.[0] } : {}),
+          ...(alternates !== undefined && alternates.length > 0 ? { alternates, defaultLocale: locales?.[0] } : {}),
         }
       : null,
   );

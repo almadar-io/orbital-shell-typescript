@@ -142,6 +142,9 @@ export type OrbitalPage = {
     /** `translationOf:` page modifier — pages sharing it in different locales are language alternates (ahead of `sourcePage`). */
     translationOf?: string;
 
+    /** The head the compiler resolved for this route (`routes.json`), stamped by a build; absent on an unbuilt program. */
+    head?: PageHead;
+
     /** Primary entity for this page */
     primaryEntity?: string;
 
@@ -166,6 +169,30 @@ export type OrbitalPage = {
     /** Roles the nav entry shows for — `@roles "a, b"` annotation. Absent = everyone. */
     roles?: string[];
 };
+
+/** One language version of a page: its locale and route. */
+export interface LocaleAlternate {
+    locale: string;
+    path: string;
+}
+
+/** The document head the compiler resolved for one route: its title and description in the route's locale and its indexable translations. */
+export interface PageHead {
+    title?: string;
+    description?: string;
+    alternates?: LocaleAlternate[];
+}
+
+export const LocaleAlternateSchema = z.object({
+    locale: z.string().min(1),
+    path: z.string().min(1),
+}).strict();
+
+export const PageHeadSchema = z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    alternates: z.array(LocaleAlternateSchema).optional(),
+}).strict();
 
 /**
  * Strict Zod schema for trait-driven pages.
@@ -207,6 +234,7 @@ export const OrbitalPageStrictSchema = z.object({
     indexing: PageIndexingSchema.optional(),
     sourcePage: z.string().min(1).optional(),
     translationOf: z.string().min(1).optional(),
+    head: PageHeadSchema.optional(),
     icon: z.string().optional(),
     label: z.string().optional(),
     roles: z.array(z.string().min(1)).min(1).optional(),
@@ -230,6 +258,7 @@ export const OrbitalPageSchema = z.object({
     indexing: PageIndexingSchema.optional(),
     sourcePage: z.string().min(1).optional(),
     translationOf: z.string().min(1).optional(),
+    head: PageHeadSchema.optional(),
     primaryEntity: z.string().optional(),
     traits: z.array(PageTraitRefSchema).optional(),
     isInitial: z.boolean().optional(),
