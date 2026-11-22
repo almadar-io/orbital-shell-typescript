@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@almadar/core':
-        specifier: ^11.6.0
-        version: 11.6.0
+        specifier: ^11.6.1
+        version: 11.6.1
       '@almadar/std':
-        specifier: ^17.4.0
-        version: 17.4.0
+        specifier: ^17.4.1
+        version: 17.4.1
     devDependencies:
       '@almadar/eslint-plugin':
         specifier: ^3.2.0
@@ -22,11 +22,11 @@ importers:
         specifier: ^19.4.0
         version: 19.4.0
       '@almadar/lolo-ar':
-        specifier: ^2.5.0
-        version: 2.5.0
+        specifier: ^2.5.1
+        version: 2.5.1
       '@almadar/lolo-sl':
-        specifier: ^2.5.0
-        version: 2.5.0
+        specifier: ^2.5.1
+        version: 2.5.1
       '@types/node':
         specifier: ^22.0.0
         version: 22.20.5
@@ -57,8 +57,8 @@ importers:
 
 packages:
 
-  '@almadar/core@11.6.0':
-    resolution: {integrity: sha512-xb/x1RIXVErnbnVqTsVQrlKfbKDZrsp4x0Cxrb8O4TmcZr529SnJZydPFyXo+5PF/JI9ogMGQMK8BaXD8r5ryQ==}
+  '@almadar/core@11.6.1':
+    resolution: {integrity: sha512-Wpi4QR6yl5w9XJk3NVh7Iclb4GG3gT3RpzwHmbOqzcKVU1MgoWFTykyz0IbK2hv1aD8XDWSczzTG04+Qk28ExA==}
     engines: {node: '>=22'}
 
   '@almadar/eslint-plugin@3.2.0':
@@ -71,16 +71,16 @@ packages:
     resolution: {integrity: sha512-Ykjtn4020lGcTR6K2PMEsTmxMlJ3C2XiY/BUc0C4TSeLtl1sR3CJwmsSbkATWhpPTw/6Sb8o5stvgg8wkbHhHg==}
     engines: {node: '>=22'}
 
-  '@almadar/lolo-ar@2.5.0':
-    resolution: {integrity: sha512-NFHh67qNlX44skUfRadEGNUy2o+R5HuEO/lr79rpQUCe6VO4LMVdhuzeZAuY8eiGu6NXQC+y0K/q9u5bS6CdjA==}
+  '@almadar/lolo-ar@2.5.1':
+    resolution: {integrity: sha512-C2xj3O4TZt++DL3x2JniZj2nzklRBkX9KzTMwq39YkuSsBoJUQoWJeispv9/aHK/w4LyKnsv3ZTHeqAq9bAkWg==}
     engines: {node: '>=22'}
 
-  '@almadar/lolo-sl@2.5.0':
-    resolution: {integrity: sha512-gs3BJ4SPGW7HMVB7yjuVsak9pR02lgNt9nD65DzM9jBc3FmUFsp9XptdRlyB0avoIWhasxRgQozmAYaSRithhw==}
+  '@almadar/lolo-sl@2.5.1':
+    resolution: {integrity: sha512-pMG0qXadup2ApcOuguAvjrOFLFC2JHIrZmolYU8H9L02fynaDOkDCCR0HF//YxeHxqS6Ed7TU/ogyCcfb/rtQg==}
     engines: {node: '>=22'}
 
-  '@almadar/std@17.4.0':
-    resolution: {integrity: sha512-k+LM18LyVwXmWyIg3UYKygOnbaVRV4h55gKzY9k0bsL7LHyTOXR6GHNjZYn8lCzkPiCHzNC3HKPlR0OVb92Tag==}
+  '@almadar/std@17.4.1':
+    resolution: {integrity: sha512-nTgy2odLaUfnDoVfGZvHgHvLzBdZnas84AEbzLk8N2DAFIczB+JiSHrumTRfj8Tme0luNeLKZSyoHDDuCQ+Kyw==}
     engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -1457,7 +1457,7 @@ packages:
 
 snapshots:
 
-  '@almadar/core@11.6.0':
+  '@almadar/core@11.6.1':
     dependencies:
       '@noble/hashes': 1.8.0
       zod: 4.6.7
@@ -1469,13 +1469,13 @@ snapshots:
 
   '@almadar/kernel@19.4.0': {}
 
-  '@almadar/lolo-ar@2.5.0': {}
+  '@almadar/lolo-ar@2.5.1': {}
 
-  '@almadar/lolo-sl@2.5.0': {}
+  '@almadar/lolo-sl@2.5.1': {}
 
-  '@almadar/std@17.4.0':
+  '@almadar/std@17.4.1':
     dependencies:
-      '@almadar/core': 11.6.0
+      '@almadar/core': 11.6.1
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
