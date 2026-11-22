@@ -9,20 +9,20 @@ importers:
   .:
     dependencies:
       '@almadar/core':
-        specifier: ^11.6.0
-        version: 11.6.0
+        specifier: ^11.6.1
+        version: 11.6.1
       '@almadar/kernel':
         specifier: ^19.4.0
         version: 19.4.0
       '@almadar/logger':
-        specifier: ^2.6.0
-        version: 2.6.0
+        specifier: ^2.6.1
+        version: 2.6.1
       '@almadar/shell-runtime':
-        specifier: ^1.4.0
-        version: 1.4.0
+        specifier: ^1.4.1
+        version: 1.4.1
       '@almadar/std':
-        specifier: ^17.4.0
-        version: 17.4.0
+        specifier: ^17.4.1
+        version: 17.4.1
       zod:
         specifier: ^4.6.7
         version: 4.6.7
@@ -42,23 +42,23 @@ importers:
 
 packages:
 
-  '@almadar/core@11.6.0':
-    resolution: {integrity: sha512-xb/x1RIXVErnbnVqTsVQrlKfbKDZrsp4x0Cxrb8O4TmcZr529SnJZydPFyXo+5PF/JI9ogMGQMK8BaXD8r5ryQ==}
+  '@almadar/core@11.6.1':
+    resolution: {integrity: sha512-Wpi4QR6yl5w9XJk3NVh7Iclb4GG3gT3RpzwHmbOqzcKVU1MgoWFTykyz0IbK2hv1aD8XDWSczzTG04+Qk28ExA==}
     engines: {node: '>=22'}
 
   '@almadar/kernel@19.4.0':
     resolution: {integrity: sha512-Ykjtn4020lGcTR6K2PMEsTmxMlJ3C2XiY/BUc0C4TSeLtl1sR3CJwmsSbkATWhpPTw/6Sb8o5stvgg8wkbHhHg==}
     engines: {node: '>=22'}
 
-  '@almadar/logger@2.6.0':
-    resolution: {integrity: sha512-J3cgqj0YTQbBf5YCh/87CKjvzUzC48yzcDTEJV0uKsd81zITmFcRaCvspWUBTjXPu4CH5Mn+QRk0wPmjNZIvwA==}
+  '@almadar/logger@2.6.1':
+    resolution: {integrity: sha512-Is9VjChnqcge3QbPEFSytOK4yb6jcjb9HkFsWQ6qzm3XFMv953sUT3B73rystxD9Zl4a144QwdOi9J7Wgh87Wg==}
     engines: {node: '>=22'}
 
-  '@almadar/shell-runtime@1.4.0':
-    resolution: {integrity: sha512-i4f2LCORjMjGv69ip5jJ4B7UfnCmPT8vK/PK2nZrnRNjFmyddL+psJUveqCt/nwbnre/ccz6WjEv1mZ4scsC9w==}
+  '@almadar/shell-runtime@1.4.1':
+    resolution: {integrity: sha512-UcIuS2ogWAxTasou7UjEi+VxlAuQrGJ9o8lrKrL819ydDm8jKnf3e5I2ANVF3ji406PxIGcv1oRkgASe/g1YPQ==}
 
-  '@almadar/std@17.4.0':
-    resolution: {integrity: sha512-k+LM18LyVwXmWyIg3UYKygOnbaVRV4h55gKzY9k0bsL7LHyTOXR6GHNjZYn8lCzkPiCHzNC3HKPlR0OVb92Tag==}
+  '@almadar/std@17.4.1':
+    resolution: {integrity: sha512-nTgy2odLaUfnDoVfGZvHgHvLzBdZnas84AEbzLk8N2DAFIczB+JiSHrumTRfj8Tme0luNeLKZSyoHDDuCQ+Kyw==}
     engines: {node: '>=22'}
 
   '@esbuild/aix-ppc64@0.28.2':
@@ -957,27 +957,27 @@ packages:
 
 snapshots:
 
-  '@almadar/core@11.6.0':
+  '@almadar/core@11.6.1':
     dependencies:
       '@noble/hashes': 1.8.0
       zod: 4.6.7
 
   '@almadar/kernel@19.4.0': {}
 
-  '@almadar/logger@2.6.0':
+  '@almadar/logger@2.6.1':
     dependencies:
-      '@almadar/core': 11.6.0
+      '@almadar/core': 11.6.1
 
-  '@almadar/shell-runtime@1.4.0':
+  '@almadar/shell-runtime@1.4.1':
     dependencies:
-      '@almadar/core': 11.6.0
+      '@almadar/core': 11.6.1
       '@almadar/kernel': 19.4.0
-      '@almadar/logger': 2.6.0
-      '@almadar/std': 17.4.0
+      '@almadar/logger': 2.6.1
+      '@almadar/std': 17.4.1
 
-  '@almadar/std@17.4.0':
+  '@almadar/std@17.4.1':
     dependencies:
-      '@almadar/core': 11.6.0
+      '@almadar/core': 11.6.1
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
