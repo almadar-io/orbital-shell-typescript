@@ -122,6 +122,9 @@ export const MermaidDiagram = React.memo<MermaidDiagramProps>(
           ref={containerRef}
           data-testid="mermaid-diagram"
           className="overflow-x-auto"
+          role="group"
+          tabIndex={0}
+          aria-label={t('aria.diagram')}
           style={unrenderable ? { display: 'none' } : undefined}
         />
       </Box>

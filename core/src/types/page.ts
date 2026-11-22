@@ -142,6 +142,9 @@ export type OrbitalPage = {
     /** `translationOf:` page modifier — pages sharing it in different locales are language alternates (ahead of `sourcePage`). */
     translationOf?: string;
 
+    /** `image:` page modifier — the page's share image (a path under the app's origin or an absolute URL). */
+    image?: string;
+
     /** The head the compiler resolved for this route (`routes.json`), stamped by a build; absent on an unbuilt program. */
     head?: PageHead;
 
@@ -181,6 +184,8 @@ export interface PageHead {
     title?: string;
     description?: string;
     alternates?: LocaleAlternate[];
+    /** The share image as an absolute URL: the page's own `image:`, else the app's. */
+    image?: string;
 }
 
 export const LocaleAlternateSchema = z.object({
@@ -192,6 +197,7 @@ export const PageHeadSchema = z.object({
     title: z.string().optional(),
     description: z.string().optional(),
     alternates: z.array(LocaleAlternateSchema).optional(),
+    image: z.string().min(1).optional(),
 }).strict();
 
 /**
@@ -209,6 +215,8 @@ export interface PageModifiers {
     label?: string;
     icon?: string;
     roles?: string[];
+    /** The page's share image, declared on a `pages {}` remap entry. */
+    image?: string;
 }
 
 export const PageModifiersSchema = z.object({
@@ -220,6 +228,7 @@ export const PageModifiersSchema = z.object({
     label: z.string().optional(),
     icon: z.string().optional(),
     roles: z.array(z.string().min(1)).min(1).optional(),
+    image: z.string().min(1).optional(),
 }).strict();
 
 export const OrbitalPageStrictSchema = z.object({
@@ -234,6 +243,7 @@ export const OrbitalPageStrictSchema = z.object({
     indexing: PageIndexingSchema.optional(),
     sourcePage: z.string().min(1).optional(),
     translationOf: z.string().min(1).optional(),
+    image: z.string().min(1).optional(),
     head: PageHeadSchema.optional(),
     icon: z.string().optional(),
     label: z.string().optional(),
@@ -258,6 +268,7 @@ export const OrbitalPageSchema = z.object({
     indexing: PageIndexingSchema.optional(),
     sourcePage: z.string().min(1).optional(),
     translationOf: z.string().min(1).optional(),
+    image: z.string().min(1).optional(),
     head: PageHeadSchema.optional(),
     primaryEntity: z.string().optional(),
     traits: z.array(PageTraitRefSchema).optional(),

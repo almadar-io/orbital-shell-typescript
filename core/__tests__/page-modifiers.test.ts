@@ -114,6 +114,6 @@ describe('the stamped page head', () => {
   });
 
   it('control: a head with a key the compiler does not write is refused', () => {
-    expect(safeParseOrbitalSchema(page({ title: 'x', image: '/a.png' })).success).toBe(false);
+    expect(safeParseOrbitalSchema(page({ title: 'x', keywords: 'a, b' })).success).toBe(false);
   });
 });

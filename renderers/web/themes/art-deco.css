@@ -7,6 +7,7 @@
 [data-theme="art-deco-light"] {
     --color-primary: #7d6024;
     --color-primary-foreground: #fff6d8;
+    --color-primary-text: #7d6024;
     --color-secondary: #0f5a45;
     --color-secondary-hover: #0b4937;
     --color-secondary-foreground: #f2fff9;
@@ -233,6 +234,7 @@
 [data-theme="art-deco-dark"] {
     --color-primary: #e8c766;
     --color-primary-foreground: #0a0f24;
+    --color-primary-text: #e8c766;
     --color-primary-hover: #f2d884;
     --color-secondary: #1f9d78;
     --color-secondary-hover: #2bb58c;

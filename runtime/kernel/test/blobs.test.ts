@@ -65,3 +65,37 @@ describe('framed answers (EXEC-DIST-16b)', () => {
     expect(() => new BlobTable().readFramed(framed(answer({ $blob: 1 }), ['{}']))).toThrow(/blob 1/);
   });
 });
+
+describe('a blob written with $def (G-CROSS-637)', () => {
+  type Styled = { a: { fill: string }; b: Array<{ fill: string }> };
+  const handed = (text: string) => {
+    const table = new BlobTable();
+    const { handed: [id] } = table.readFramed(framed(answer({ $blob: 0 }), [text]));
+    if (id === undefined) throw new Error('no blob handed');
+    return { table, id };
+  };
+
+  it('reads each part held twice as one shared object, equal to the plain text', () => {
+    const { table, id } = handed('{"a":{"$def":0,"value":{"fill":"#0d0f1e"}},"b":[{"$def":0},{"$def":0}]}');
+    const read = table.json<Styled>(id);
+    expect(read).toEqual({ a: { fill: '#0d0f1e' }, b: [{ fill: '#0d0f1e' }, { fill: '#0d0f1e' }] });
+    expect(read.b[0]).toBe(read.a);
+    expect(read.b[1]).toBe(read.a);
+  });
+
+  it('reads a reference that comes before its definition in key order', () => {
+    const { table, id } = handed('{"7":{"$def":0},"z":{"$def":0,"value":[1,{"$def":1,"value":{"x":1}},{"$def":1}]}}');
+    expect(table.json(id)).toEqual({ 7: [1, { x: 1 }, { x: 1 }], z: [1, { x: 1 }, { x: 1 }] });
+  });
+
+  it('control: a blob with no $def reads as its plain text', () => {
+    const text = '{"name":"guest","orbitals":[{"name":"نص","traits":[]}]}';
+    const { table, id } = handed(text);
+    expect(table.json(id)).toEqual(JSON.parse(text));
+  });
+
+  it('refuses a reference to a part the blob never defines', () => {
+    const { table, id } = handed('{"a":{"$def":3}}');
+    expect(() => table.json(id)).toThrow(/\$def 3/);
+  });
+});

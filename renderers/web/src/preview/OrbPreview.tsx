@@ -109,7 +109,7 @@ function NavStackRefBridge({ apiRef }: { apiRef: React.MutableRefObject<NavStack
  * its own `sendEvent`/mount-time dispatch resolves — this component only
  * decides WHICH transport (or none) the kernel dispatches through.
  */
-function TraitInitializer({ pageName, routePath, crumb, routeParams, mountKey, orbitals, metadata, stamp, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, hasBridge, children }: {
+function TraitInitializer({ pageName, routePath, crumb, routeParams, mountKey, orbitals, metadata, stamp, onNavigate, onNavigateBack, onLocalFallback, localFallbackTimeoutMs, browserStore, hasBridge, onMountSettled, children }: {
   /** The page the kernel answers the circuit of; absent: the initial page. */
   pageName?: string;
   /** The concrete path the page is opened at: `$MOUNT.route` and the declared ancestors derive from it. */
@@ -140,6 +140,8 @@ function TraitInitializer({ pageName, routePath, crumb, routeParams, mountKey, o
   localFallbackTimeoutMs?: number;
   /** The browser store for `[persistent: x, browser]` entities. */
   browserStore?: PersistenceAdapter;
+  /** Called with the route once its traits have mounted. */
+  onMountSettled?: (route: string) => void;
   /**
    * Set of trait names referenced via `@trait.X` by some sibling layout
    * in the resolved schema. When an effect's `traitName` is in this set,
@@ -183,6 +185,7 @@ function TraitInitializer({ pageName, routePath, crumb, routeParams, mountKey, o
     ...(mountKey !== undefined ? { mountKey } : {}),
     ...(hasBridge ? { transport: bridge.transport, carriesCircuitState: bridge.carriesCircuitState, awaitTopology: !bridge.topologyKnown } : {}),
     ...(browserStore !== undefined ? { browserStore } : {}),
+    ...(onMountSettled !== undefined ? { onMountSettled } : {}),
   });
 
   const orbitalsByTrait = useMemo<ReadonlyMap<string, string>>(() => {
@@ -351,6 +354,8 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
 
   const bridge = useServerBridge();
   const kernelEngine = useKernelEngine();
+  // The route whose traits have mounted: what prerender waits on before it reads the page.
+  const [mountedRoute, setMountedRoute] = useState<string | undefined>(undefined);
   const browserRows = useMemo(
     () => (!hostKeepsBrowserRows && browserStore.status === 'ready' && kernelEngine !== null
       ? browserRowSets(kernelEngine, { name: schema.name ?? 'app', orbitals: schema.orbitals, ...programStamp(schema) }, browserStore.store)
@@ -386,6 +391,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
           onLocalFallback={onLocalFallback}
           localFallbackTimeoutMs={localFallbackTimeoutMs}
           {...(browserStore.status === 'ready' ? { browserStore: browserStore.store } : {})}
+          onMountSettled={setMountedRoute}
         >
         {/* Sizing model:
             - `h-full` resolves to 100% of the parent's `style.height`. When
@@ -408,7 +414,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
             own `relative min-h-full` container, so empty layouts still
             anchor the bar at the bottom of the viewport. */}
         <OrbitalThemeProvider theme={activeOrbitalTheme} override={themeOverride}>
-          <Box className="h-full min-h-full overflow-auto p-4">
+          <Box className="h-full min-h-full overflow-auto p-4" {...(mountedRoute !== undefined ? { 'data-orb-mounted': mountedRoute } : {})}>
             <UISlotRenderer includeHud hudMode={frame === 'page' ? 'fixed' : 'inline'} includeFloating pageKey={pageName} />
           </Box>
         </OrbitalThemeProvider>
@@ -961,6 +967,7 @@ export function OrbPreview({
           origin: site?.origin,
           siteName: site?.name,
           path: concreteCurrentPath,
+          ...(stampedHead?.image !== undefined ? { image: stampedHead.image } : {}),
           ...(alternates !== undefined && alternates.length > 0 ? { alternates, defaultLocale: locales?.[0] } : {}),
         }
       : null,

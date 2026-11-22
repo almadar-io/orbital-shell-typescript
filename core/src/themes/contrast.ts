@@ -97,3 +97,56 @@ export function themeOverrideIssues(override: Partial<ThemeDefinition>): ThemeOv
   }
   return issues;
 }
+
+function toHsl([r, g, b]: [number, number, number]): [number, number, number] {
+  const [rr, gg, bb] = [r / 255, g / 255, b / 255];
+  const max = Math.max(rr, gg, bb);
+  const min = Math.min(rr, gg, bb);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  const h = max === rr ? (gg - bb) / d + (gg < bb ? 6 : 0) : max === gg ? (bb - rr) / d + 2 : (rr - gg) / d + 4;
+  return [h / 6, s, l];
+}
+
+function hslHex(h: number, s: number, l: number): string {
+  const channel = (n: number): string => {
+    const k = (n + h * 12) % 12;
+    const a = s * Math.min(l, 1 - l);
+    return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0').toUpperCase();
+  };
+  return `#${channel(0)}${channel(8)}${channel(4)}`;
+}
+
+/**
+ * `color` made legible as text on every one of `surfaces`: returned as it is when it already holds `minimum` on each,
+ * else the nearest shade of the same hue and saturation that does, darker on light surfaces and lighter on dark ones.
+ * A value that is not an opaque colour is returned as it is.
+ */
+export function legibleColor(color: string, surfaces: readonly string[], minimum: number = MIN_TEXT_CONTRAST): string {
+  const rgb = opaqueRgb(color);
+  if (rgb === null) return color;
+  const reads = (candidate: string): boolean => surfaces.every((bg) => (contrastRatio(candidate, bg) ?? 0) >= minimum);
+  if (reads(color)) return color;
+  const surfaceLight = surfaces.map(opaqueRgb).filter((s): s is [number, number, number] => s !== null).map(luminance);
+  const lighten = surfaceLight.length > 0 && surfaceLight.reduce((a, b) => a + b, 0) / surfaceLight.length < 0.5;
+  const [h, s, l] = toHsl(rgb);
+  for (let step = 1; step <= 200; step += 1) {
+    const next = Math.min(1, Math.max(0, l + (lighten ? 1 : -1) * step * 0.005));
+    const candidate = hslHex(h, s, next);
+    if (reads(candidate)) return candidate;
+    if (next === 0 || next === 1) return candidate;
+  }
+  return color;
+}
+
+/** `color` as drawn over the opaque `ground`: a translucent `rgba()` blended into it as hex; any other value as it is. */
+export function compositedOver(color: string, ground: string): string {
+  const m = /^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([\d.]+)\s*\)$/.exec(color.trim().toLowerCase());
+  const g = opaqueRgb(ground);
+  if (m === null || g === null) return color;
+  const a = Number(m[4]);
+  const mix = (c: string, i: number): string => Math.round(Number(c) * a + g[i]! * (1 - a)).toString(16).padStart(2, '0');
+  return `#${mix(m[1]!, 0)}${mix(m[2]!, 1)}${mix(m[3]!, 2)}`;
+}

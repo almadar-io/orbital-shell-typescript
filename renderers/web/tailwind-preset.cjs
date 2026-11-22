@@ -510,6 +510,10 @@ module.exports = {
       body: ['var(--font-family-body, var(--font-family))', 'ui-sans-serif', 'system-ui', 'sans-serif'],
     },
     extend: {
+      // Primary as text reads at AA on the card and background; fills, borders and rings keep primary.
+      textColor: {
+        primary: { DEFAULT: withOpacity('--color-primary-text, var(--color-primary)') },
+      },
       // MarkdownContent draws its own inline-code chip; drop the plugin's literal backticks
       typography: {
         DEFAULT: {

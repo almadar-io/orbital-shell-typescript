@@ -105,6 +105,8 @@ export interface SiteMeta {
   signIn?: string;
   /** Route paths a viewer reaches from outside the app (a URL the CLI, an email or another app opens). */
   entries?: string[];
+  /** `image:` — the share image of a page that declares none (og:image), a path under the origin or an absolute URL. */
+  image?: string;
 }
 
 /**
@@ -125,6 +127,7 @@ export const SiteMetaSchema = z.object({
   name: z.string().min(1).optional(),
   signIn: z.string().startsWith('/').optional(),
   entries: z.array(z.string().startsWith('/')).optional(),
+  image: z.string().min(1).optional(),
 }).strict();
 
 /** A program's messages: locale → qualified key (`<behavior>:<key>`) → message. Resolution stores them in the program's `messages`. */

@@ -228,7 +228,7 @@ const InlineActivityRow: React.FC<InlineRowProps> = ({ activity }) => {
   if (activity.type === 'tool_call') {
     return (
       <HStack gap="sm" className={baseRow}>
-        <Icon name="terminal" size="xs" className="mt-0.5 flex-shrink-0 text-[var(--color-primary)]" />
+        <Icon name="terminal" size="xs" className="mt-0.5 flex-shrink-0 text-primary" />
         <Typography variant="caption" className="flex-1 min-w-0 text-[11px] font-mono break-all whitespace-pre-wrap">
           <Typography as="span" variant="caption" weight="semibold" className="text-[11px] font-mono">
             {activity.tool}
@@ -274,7 +274,7 @@ const InlineActivityRow: React.FC<InlineRowProps> = ({ activity }) => {
     const role = activity.role;
     const iconName = role === 'user' ? 'user' : role === 'system' ? 'info' : 'sparkles';
     const roleColor =
-      role === 'user' ? 'text-[var(--color-primary)]'
+      role === 'user' ? 'text-primary'
       : role === 'system' ? 'text-[var(--color-muted-foreground)]'
       : 'text-[var(--color-foreground)]';
     return (
@@ -673,15 +673,15 @@ function timelineItemIcon(item: TimelineItem): { name: string; color: string } {
   switch (item.source) {
     case 'message': {
       const m = item.data;
-      if (m.role === 'tool') return { name: 'terminal', color: 'text-[var(--color-primary)]' };
-      if (m.reasoningContent) return { name: 'sparkles', color: 'text-[var(--color-primary)]' };
-      if (m.role === 'user') return { name: 'user', color: 'text-[var(--color-primary)]' };
+      if (m.role === 'tool') return { name: 'terminal', color: 'text-primary' };
+      if (m.reasoningContent) return { name: 'sparkles', color: 'text-primary' };
+      if (m.role === 'user') return { name: 'user', color: 'text-primary' };
       return { name: 'message-square', color: 'text-[var(--color-muted-foreground)]' };
     }
     case 'activity': {
       const a = item.data;
       switch (a.type) {
-        case 'tool_call': return { name: 'terminal', color: 'text-[var(--color-primary)]' };
+        case 'tool_call': return { name: 'terminal', color: 'text-primary' };
         case 'tool_result':
           return { name: a.success !== false ? 'check' : 'x', color: a.success !== false ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]' };
         case 'error': return { name: 'alert-triangle', color: 'text-[var(--color-danger)]' };
@@ -691,7 +691,7 @@ function timelineItemIcon(item: TimelineItem): { name: string; color: string } {
       }
     }
     case 'subagent':
-      return { name: 'bot', color: 'text-[var(--color-primary)]' };
+      return { name: 'bot', color: 'text-primary' };
   }
 }
 

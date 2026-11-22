@@ -175,3 +175,18 @@ describe('AvlStateMachine', () => {
     expect(screen.getByTestId('avl-state-machine-empty')).toBeInTheDocument();
   });
 });
+
+describe('AvlStateMachine fired label ink', () => {
+  const pill = (event: string): HTMLElement => screen.getAllByTestId('avl-sm-label').find((l) => l.dataset.event === event)!.firstElementChild as HTMLElement;
+
+  it('the fired transition label is written in primary text ink and outlined in primary', async () => {
+    await renderMachine({ activeState: 'saving', activeTransition: 1 });
+    expect(pill('SAVE').style.color).toBe('var(--color-primary-text, var(--color-primary))');
+    expect(pill('SAVE').style.border).toContain('var(--color-primary)');
+  });
+
+  it('control: an unfired label is written in the foreground', async () => {
+    await renderMachine({ activeState: 'saving', activeTransition: 1 });
+    expect(pill('EDIT').style.color).toBe('var(--color-foreground)');
+  });
+});

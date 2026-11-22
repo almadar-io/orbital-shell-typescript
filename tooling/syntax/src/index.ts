@@ -55,4 +55,4 @@ export {
 export type { LanguageCode, OperatorTables, JsonValue } from './i18n.js';
 
 // ── Shared ────────────────────────────────────────────────────────────────────
-export { ORB_COLORS } from './colors.js';
+export { CODE_SURFACES, ORB_COLORS } from './colors.js';

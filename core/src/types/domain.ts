@@ -1142,6 +1142,8 @@ export type ColorTokens = {
   primary?: string;
   primaryHover?: string;
   primaryForeground?: string;
+  /** Primary as text: the shade of primary that reads at AA on the card and the background. */
+  primaryText?: string;
   secondary?: string;
   secondaryHover?: string;
   secondaryForeground?: string;
@@ -1189,7 +1191,7 @@ export type KeysComplete<T, Keys extends readonly (keyof T)[]> =
   Exclude<keyof T, Keys[number]> extends never ? Keys : never;
 
 const COLOR_TOKEN_KEY_LIST = [
-  'primary', 'primaryHover', 'primaryForeground', 'secondary', 'secondaryHover', 'secondaryForeground',
+  'primary', 'primaryHover', 'primaryForeground', 'primaryText', 'secondary', 'secondaryHover', 'secondaryForeground',
   'accent', 'accentForeground', 'muted', 'mutedForeground', 'background', 'foreground',
   'card', 'cardForeground', 'surface', 'border', 'input', 'ring',
   'error', 'errorForeground', 'success', 'successForeground', 'warning', 'warningForeground',

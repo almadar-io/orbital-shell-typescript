@@ -359,7 +359,7 @@ export const AvlCircuit: React.FC<AvlCircuitProps> = ({ expr, trace, cursor, tit
           ) : null}
         </Box>
       ) : null}
-      <Box ref={hostRef} className="overflow-x-auto" style={{ width: '100%' }}>
+      <Box ref={hostRef} className="overflow-x-auto" style={{ width: '100%' }} role="group" tabIndex={0} aria-label={t('aria.diagram')}>
         <Box className="relative mx-auto" style={{ width: W * scale, height: circuit.h * scale }}>
           <svg width={W * scale} height={circuit.h * scale} viewBox={`0 0 ${W} ${circuit.h}`} role="img" aria-label={formatSExpr(expr)}>
             {drawn}

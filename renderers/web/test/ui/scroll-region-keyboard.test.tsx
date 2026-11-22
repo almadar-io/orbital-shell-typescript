@@ -18,15 +18,15 @@ const revisions = [
 ];
 
 describe('scrolling regions are keyboard reachable', () => {
-  it('a code block scroller is a named, focusable region (its title names it)', () => {
+  it('a code block scroller is a named, focusable group (its title names it), not a page landmark', () => {
     render(<CodeBlock code={longCode} language="text" title="deals.lolo" maxHeight="120px" />);
-    const region = screen.getByRole('region', { name: 'deals.lolo' });
+    const region = screen.getByRole('group', { name: 'deals.lolo' });
     expect(region.getAttribute('tabindex')).toBe('0');
   });
 
   it('edge: an untitled code block still gets a name', () => {
     render(<CodeBlock code={longCode} language="text" maxHeight="120px" />);
-    const region = screen.getByRole('region');
+    const region = screen.getByRole('group', { name: 'Code' });
     expect(region.getAttribute('aria-label')).toBeTruthy();
     expect(region.getAttribute('tabindex')).toBe('0');
   });

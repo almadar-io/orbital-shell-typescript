@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
-import { routeFile, sitemap, robots } from './prerender-lib.mjs';
+import { routeFile, sitemap, robots, scenesReady, readySnapshot } from './prerender-lib.mjs';
 import { APP_SHELL } from './route-documents.mjs';
 
 const { values } = parseArgs({
@@ -55,8 +55,11 @@ for (const route of routes) {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(local + route.path, { waitUntil: 'networkidle' });
   await page.waitForFunction(() => !document.querySelector('[data-loading-state]'), null, { timeout: 15000 });
+  // A canvas page holds its text in the canvas mirror only once its program has laid it out.
+  const laidOut = await page.waitForFunction(scenesReady, null, { timeout: 30000 }).then(() => true, () => false);
+  if (!laidOut) failures.push(`${route.path}: a scene canvas never said its program laid it out (data-orb-ready)`);
   if (errors.length > 0) failures.push(`${route.path}: ${errors.join(' | ')}`);
-  rendered.set(out, await page.content());
+  rendered.set(out, await page.evaluate(readySnapshot));
   await page.close();
 }
 await browser.close();

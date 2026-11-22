@@ -177,6 +177,7 @@
         "primary": "#3ea6ff",
         "primary-hover": "#6cc3ff",
         "primary-foreground": "#071018",
+        "primary-text": "#3ea6ff",
         "secondary": "#182338",
         "secondary-hover": "#22314c",
         "secondary-foreground": "#dceaf7",

@@ -49,3 +49,28 @@ describe('Header brand link', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 });
+
+describe('Header brand logo', () => {
+  it('a logo beside the brand name is decorative: the name names the link once', () => {
+    mount({ brandHref: '/' });
+    const link = screen.getByRole('link', { name: 'Orb' });
+    expect(link.querySelector('img')?.getAttribute('alt')).toBe('');
+  });
+
+  it('control: the brand name is still shown beside the logo', () => {
+    mount({ brandHref: '/' });
+    expect(screen.getByRole('link', { name: 'Orb' }).textContent).toContain('Orb');
+  });
+});
+
+describe('Header brand name', () => {
+  it('the brand name is text, not a heading: the page owns its headings, from h1', () => {
+    mount({ brandHref: '/' });
+    expect(screen.queryByRole('heading', { name: 'Orb' })).toBeNull();
+  });
+
+  it('control: the brand name is still shown', () => {
+    mount({ brandHref: '/' });
+    expect(screen.getByText('Orb')).toBeTruthy();
+  });
+});

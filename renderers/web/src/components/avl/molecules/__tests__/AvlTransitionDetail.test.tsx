@@ -102,3 +102,15 @@ describe('AvlTransitionDetail', () => {
     expect(screen.getAllByTestId('avl-circuit-code').map((c) => c.textContent)).toEqual(['(set @entity.mode "insert")']);
   });
 });
+
+describe('AvlTransitionDetail document outline', () => {
+  it('the from → to row adds no heading to the page it is embedded in', () => {
+    const { container } = renderDetail();
+    expect(container.querySelectorAll('h1, h2, h3, h4, h5, h6').length).toBe(0);
+  });
+
+  it('control: the arrow between the event and the target state still renders', () => {
+    renderDetail();
+    expect(screen.getByTestId('avl-td-event').parentElement?.textContent).toContain('→');
+  });
+});

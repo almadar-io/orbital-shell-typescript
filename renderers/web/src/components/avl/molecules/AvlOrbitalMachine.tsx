@@ -539,7 +539,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                       background: AVL_INK.surface,
                       border: `1px solid ${emphasis || next ? AVL_INK.focus : AVL_INK.line}`,
                       fontFamily: AVL_FONT.mono, fontSize: 12,
-                      color: emphasis ? AVL_INK.focus : next ? AVL_INK.text : AVL_INK.quiet,
+                      color: emphasis ? AVL_INK.focusText : next ? AVL_INK.text : AVL_INK.quiet,
                       fontWeight: emphasis ? 600 : 400,
                       transition: motion,
                     }}
@@ -637,7 +637,7 @@ export const AvlOrbitalMachine: React.FC<AvlOrbitalMachineProps> = ({
                             data-event={ev.event}
                             data-fired={onRoute(s.trait, ev.index) ? 'true' : 'false'}
                             className="whitespace-nowrap"
-                            style={{ lineHeight: `${LOOP_LINE}px`, color: onRoute(s.trait, ev.index) ? AVL_INK.focus : active ? AVL_INK.text : AVL_INK.quiet, fontWeight: onRoute(s.trait, ev.index) ? 600 : 400 }}
+                            style={{ lineHeight: `${LOOP_LINE}px`, color: onRoute(s.trait, ev.index) ? AVL_INK.focusText : active ? AVL_INK.text : AVL_INK.quiet, fontWeight: onRoute(s.trait, ev.index) ? 600 : 400 }}
                           >
                             {ev.event}
                           </Box>

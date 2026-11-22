@@ -96,3 +96,23 @@ describe('usePageHead', () => {
     expect(document.head.querySelector('link[rel="alternate"]')).toBeNull();
   });
 });
+
+describe('usePageHead share image', () => {
+  it('a public page with an image declares it for link previews, as a large card', () => {
+    render(<Head input={{ title: 'Home', access: 'public', indexing: 'index', origin: 'https://example.org', path: '/', image: 'https://example.org/img/share.jpg' }} />);
+    expect(attr('meta[property="og:image"]', 'content')).toBe('https://example.org/img/share.jpg');
+    expect(attr('meta[name="twitter:card"]', 'content')).toBe('summary_large_image');
+    expect(attr('meta[name="twitter:image"]', 'content')).toBe('https://example.org/img/share.jpg');
+  });
+
+  it('control: a page without an image declares none', () => {
+    render(<Head input={{ title: 'Home', access: 'public', indexing: 'index', origin: 'https://example.org', path: '/' }} />);
+    expect(document.head.querySelector('meta[property="og:image"]')).toBeNull();
+    expect(document.head.querySelector('meta[name="twitter:card"]')).toBeNull();
+  });
+
+  it('control: a noindex page declares no image', () => {
+    render(<Head input={{ title: 'Draft', access: 'public', indexing: 'noindex', origin: 'https://example.org', path: '/d', image: 'https://example.org/a.jpg' }} />);
+    expect(document.head.querySelector('meta[property="og:image"]')).toBeNull();
+  });
+});

@@ -18,7 +18,7 @@ async function codeColor(tree: React.ReactElement): Promise<string> {
   const { container } = render(<EventBusProvider debug={false}>{tree}</EventBusProvider>);
   let color = '';
   await waitFor(() => {
-    const pre = container.querySelector('[role="region"] code')?.parentElement;
+    const pre = container.querySelector('[role="group"][tabindex="0"] code')?.parentElement;
     expect(pre).toBeTruthy();
     color = (pre as HTMLElement).style.color;
     expect(color).not.toBe('');

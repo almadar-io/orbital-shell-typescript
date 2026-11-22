@@ -80,6 +80,8 @@ export interface TraitStateMachineResult {
 export interface UseTraitStateMachineOptions {
   /** The page the kernel answers the circuit of; absent: the initial page (or the page of `routePath`). */
   page?: string;
+  /** Called with the route once its traits have mounted: their lifecycle seeds ran and painted, or failed and say so. */
+  onMountSettled?: (route: string) => void;
   onEventProcessed?: (eventKey: string, payload?: EventPayload) => void;
   navigate?: (path: string, params?: Record<string, string>, crumb?: string) => void;
   navigateBack?: () => void;
@@ -401,6 +403,8 @@ export function useTraitStateMachine(
   // mount site can name it on the card the same way as a thrown mount error.
   const crumbRef = useRef(options.crumb);
   crumbRef.current = options.crumb;
+  const onMountSettledRef = useRef(options.onMountSettled);
+  onMountSettledRef.current = options.onMountSettled;
   const mountAndSettle = useCallback(async (seeds: MountSeed[], payload: EventPayload, route: string | undefined): Promise<TransitionRejection | undefined> => {
     const crumb = crumbRef.current;
     let beforeLocalPaint: SlotCheckpoint | undefined;
@@ -471,9 +475,13 @@ export function useTraitStateMachine(
   // A new page, new route params or a new circuit store is a new mount; identity churn is not.
   const mountKey = `${options.mountKey ?? ''}\u0000${JSON.stringify(Object.entries(options.initPayload ?? {}).sort(([a], [b]) => a.localeCompare(b)))}`;
   useEffect(() => {
+    const settled = (route: string | undefined): void => {
+      if (aliveRef.current) onMountSettledRef.current?.(route ?? '');
+    };
     function mountEntering(entering: MountSeed[], route: string | undefined): void {
       uiSlots.clearBySource('main', MOUNT_ERROR_SOURCE);
       void mountAndSettle(entering, { ...(options.initPayload ?? {}) }, route).then((failure) => {
+        settled(route);
         if (failure === undefined || !aliveRef.current) return;
         const failed = failure.trait ?? entering.map((e) => e.trait).join(', ');
         const message = failure.error ?? failure.code;
@@ -490,6 +498,7 @@ export function useTraitStateMachine(
         const failed = err instanceof TraitMountError ? err.trait : traits.join(', ');
         const cause = err instanceof TraitMountError ? err.original : err;
         stateLog.warn('mount:failed', { traits, failed, error: message, stack: cause instanceof Error ? cause.stack : undefined });
+        settled(route);
         if (!aliveRef.current) return;
         const refused = err instanceof TransportStatusError ? err : undefined;
         uiSlots.render({
@@ -510,6 +519,7 @@ export function useTraitStateMachine(
         for (const slot of ALL_SLOTS) uiSlots.clearBySource(slot, traitName);
       }
       if (seeds.length > 0) mountEntering(seeds, circuit.page.route);
+      else settled(circuit.page.route);
     }, (err: Error) => stateLog.warn('mount:enter-failed', { error: err.message }));
   }, [circuit, traitIndex, mountAndSettle, mountKey, uiSlots, t, kernelClient]);
 

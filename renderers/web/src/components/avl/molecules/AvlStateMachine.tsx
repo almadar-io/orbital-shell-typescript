@@ -212,7 +212,7 @@ export const AvlStateMachine: React.FC<AvlStateMachineProps> = ({
   return (
     <Box data-testid="avl-state-machine" className={className} style={{ width: '100%' }} {...passthrough}>
       {header}
-      <Box ref={hostRef} className="overflow-x-auto" style={{ width: '100%' }}>
+      <Box ref={hostRef} className="overflow-x-auto" style={{ width: '100%' }} role="group" tabIndex={0} aria-label={t('aria.diagram')}>
         {layout ? (
           <Box className="relative mx-auto" style={{ width: w * scale, height: h * scale }}>
             <Box className="absolute left-0 top-0" style={{ width: w, height: h, transform: `scale(${scale})`, transformOrigin: '0 0' }}>
@@ -299,7 +299,7 @@ export const AvlStateMachine: React.FC<AvlStateMachineProps> = ({
                         border: `1px ${next ? 'dashed' : 'solid'} ${fired ? AVL_INK.focus : AVL_INK.line}`,
                         fontFamily: AVL_FONT.mono,
                         fontSize: 12,
-                        color: fired ? AVL_INK.focus : AVL_INK.text,
+                        color: fired ? AVL_INK.focusText : AVL_INK.text,
                         fontWeight: fired ? 600 : 400,
                       }}
                     >

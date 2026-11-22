@@ -100,7 +100,7 @@ export const MatrixQuestion: React.FC<MatrixQuestionProps> = ({
           {title}
         </Typography>
       )}
-      <Box overflow="auto" className="overflow-x-auto">
+      <Box overflow="auto" className="overflow-x-auto" role="group" tabIndex={0} aria-label={t('aria.table')}>
         <Box as="table" className="w-full border-collapse">
           <Box as="thead">
             <Box as="tr" className="border-b border-border">

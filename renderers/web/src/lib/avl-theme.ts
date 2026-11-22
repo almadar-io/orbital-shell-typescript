@@ -24,6 +24,7 @@ export const AVL_INK = {
   wash: 'var(--color-muted)',
   canvas: 'var(--color-background)',
   focus: 'var(--color-primary)',
+  focusText: 'var(--color-primary-text, var(--color-primary))',
   onFocus: 'var(--color-primary-foreground)',
   pass: 'var(--color-success)',
   fail: 'var(--color-error)',
@@ -102,7 +103,7 @@ export const EFFECT_CATEGORY_COLORS: Record<EffectCategory, { color: string; bg:
   lifecycle: { color: 'var(--color-success)', bg: avlTint('var(--color-success)', 10) },
   control: { color: 'var(--color-muted-foreground)', bg: avlTint('var(--color-muted-foreground)', 10) },
   async: { color: avlBlend('var(--color-info)', 50, 'var(--color-accent)'), bg: avlTint(avlBlend('var(--color-info)', 50, 'var(--color-accent)'), 10) },
-  compute: { color: 'var(--color-primary)', bg: avlTint('var(--color-primary)', 10) },
+  compute: { color: 'var(--color-primary-text, var(--color-primary))', bg: avlTint('var(--color-primary)', 10) },
   system: { color: avlBlend('var(--color-muted-foreground)', 60, 'var(--color-primary)'), bg: avlTint('var(--color-muted-foreground)', 10) },
 };
 

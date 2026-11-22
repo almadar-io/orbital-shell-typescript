@@ -28,6 +28,8 @@ export interface PageHeadInput {
   alternates?: readonly LocaleAlternate[];
   /** The app's first locale, the `x-default` alternate. */
   defaultLocale?: string;
+  /** The page's share image, an absolute URL (the stamped head's). */
+  image?: string;
 }
 
 const OWNED = 'data-orb-head';
@@ -48,6 +50,7 @@ export function usePageHead(input: PageHeadInput | null): void {
   const isPublic = input?.access !== 'authenticated' && input?.indexing !== 'noindex';
   const canonical = input?.origin !== undefined ? `${input.origin.replace(/\/+$/, '')}${input.path}` : undefined;
   const siteName = input?.siteName;
+  const image = input?.image;
   const active = input !== null;
   const originBase = input?.origin?.replace(/\/+$/, '');
   const hreflang: Array<[string, string]> = [];
@@ -76,6 +79,11 @@ export function usePageHead(input: PageHeadInput | null): void {
     }
     if (isPublic && siteName !== undefined) tags.push(ownedTag('meta', { property: 'og:site_name', content: siteName }));
     if (isPublic) tags.push(ownedTag('meta', { property: 'og:locale', content: locale }));
+    if (isPublic && image !== undefined) {
+      tags.push(ownedTag('meta', { property: 'og:image', content: image }));
+      tags.push(ownedTag('meta', { name: 'twitter:card', content: 'summary_large_image' }));
+      tags.push(ownedTag('meta', { name: 'twitter:image', content: image }));
+    }
     if (isPublic && hreflangKey !== '') {
       for (const line of hreflangKey.split('\n')) {
         const space = line.indexOf(' ');
@@ -89,5 +97,5 @@ export function usePageHead(input: PageHeadInput | null): void {
     return () => {
       for (const tag of tags) tag.remove();
     };
-  }, [active, title, description, isPublic, canonical, siteName, locale, hreflangKey]);
+  }, [active, title, description, isPublic, canonical, siteName, locale, hreflangKey, image]);
 }

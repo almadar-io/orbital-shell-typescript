@@ -71,3 +71,16 @@ describe('AvlCircuit', () => {
     expect(screen.getAllByTestId('avl-circuit-item').map((i) => i.getAttribute('data-result'))).toEqual(['true', 'false', 'true']);
   });
 });
+
+describe('AvlCircuit keyboard scrolling', () => {
+  it('the circuit scroller is a named group a keyboard can reach', () => {
+    render(<AvlCircuit expr={GUARD} />);
+    const host = screen.getByRole('group', { name: 'Diagram' });
+    expect(host.getAttribute('tabindex')).toBe('0');
+  });
+
+  it('control: the drawing inside keeps its own picture name', () => {
+    render(<AvlCircuit expr={GUARD} />);
+    expect(screen.getByRole('img')).toBeTruthy();
+  });
+});

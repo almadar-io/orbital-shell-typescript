@@ -124,6 +124,8 @@ export interface CanvasProps extends Omit<React.AriaAttributes, keyof A11yProps>
     pointerMoveEvent?: EventEmit<{ target: string; x: number; y: number }>;
     /** Which moves `pointerMoveEvent` sends: `all` (hover and drag) or `captured` (only while a press holds capture). Orbital painter. */
     pointerMoves?: 'all' | 'captured';
+    /** The program says the scene is laid out; the orbital painter marks its container `data-orb-ready` once it has drawn it. */
+    ready?: boolean;
     /** The wheel turned over a hit drawable that declares `wheel: true` (orbital painter): its id, the point, and the scroll in CSS pixels. That wheel is kept from the page; over anything else the page scrolls and nothing is sent. */
     wheelEvent?: EventEmit<{ target: string; x: number; y: number; dx: number; dy: number }>;
     /** The page scrolls inside the canvas (orbital painter): `height` is the content height, `event` names the event that reports `{ offset, max }` at most once per `reportMs` while the page moves and when it rests. A drawable with `fixed` stays put; one with `wheel` or `drag` keeps its own gestures. */
@@ -224,6 +226,7 @@ export function Canvas({
     pointerLeaveEvent,
     pointerMoveEvent,
     pointerMoves,
+    ready,
     wheelEvent,
     scroll,
     direction,
@@ -408,6 +411,7 @@ export function Canvas({
                     className={className}
                     {...(fillContainer !== undefined ? { fillContainer } : {})}
                     {...(minHeight !== undefined ? { minHeight } : {})}
+                    {...(ready !== undefined ? { ready } : {})}
                     keyMap={keyMap}
                     keyUpMap={keyUpMap}
                 />

@@ -29,12 +29,12 @@ describe('MarkdownContent code fences', () => {
 
   it('on a right-to-left page the block reads left to right', () => {
     const { container } = mount('ar');
-    expect(container.querySelector('.prose > div [role="region"]')?.getAttribute('dir')).toBe('ltr');
+    expect(container.querySelector('.prose > div [role="group"][tabindex="0"]')?.getAttribute('dir')).toBe('ltr');
   });
 
   it('control: inline code stays inline', () => {
     const { container } = mount('en');
     expect(container.querySelector('p code')?.textContent).toBe('x');
-    expect(container.querySelector('p [role="region"]')).toBeNull();
+    expect(container.querySelector('p [role="group"][tabindex="0"]')).toBeNull();
   });
 });

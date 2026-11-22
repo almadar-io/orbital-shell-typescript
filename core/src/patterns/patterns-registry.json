@@ -9423,6 +9423,43 @@
           "description": "Center over the whole viewport (fix: inset-0 overlay) instead of inline.",
           "default": false
         },
+        "messages": {
+          "types": [
+            "array"
+          ],
+          "description": "Lines shown one at a time in turn, rotated by CSS alone so they play before any script runs.",
+          "items": {
+            "types": [
+              "string"
+            ]
+          }
+        },
+        "messageMs": {
+          "types": [
+            "number"
+          ],
+          "description": "How long each of `messages` stays up, in ms.",
+          "default": 5000
+        },
+        "untilReady": {
+          "types": [
+            "boolean"
+          ],
+          "description": "The page's boot loader: covers the viewport until every scene canvas reports data-orb-ready, then fades. It shows `messages`, then CSS dots and `message` as its visible status. It carries no loading-state marker, so a prerendered page keeps it.",
+          "default": false
+        },
+        "background": {
+          "types": [
+            "string"
+          ],
+          "description": "The boot loader's background colour."
+        },
+        "foreground": {
+          "types": [
+            "string"
+          ],
+          "description": "The boot loader's text colour."
+        },
         "enter": {
           "types": [
             "string"
@@ -112791,6 +112828,12 @@
             "all",
             "captured"
           ]
+        },
+        "ready": {
+          "types": [
+            "boolean"
+          ],
+          "description": "The program says the scene is laid out: the orbital painter marks its container data-orb-ready once it has drawn a frame with this set, the signal prerender and page posters wait for."
         },
         "wheelEvent": {
           "types": [

@@ -1237,6 +1237,7 @@ export interface PatternPropsMap {
     pointerLeaveEvent?: string | SExpr;
     pointerMoveEvent?: string | SExpr;
     pointerMoves?: string | SExpr;
+    ready?: boolean | SExpr;
     wheelEvent?: string | SExpr;
     scroll?: PatternPropValue | string | SExpr;
     direction?: string | SExpr;
@@ -4718,6 +4719,11 @@ export interface PatternPropsMap {
     message?: string | SExpr;
     className?: string | SExpr;
     fullPage?: boolean | string | SExpr;
+    messages?: string[] | string | SExpr;
+    messageMs?: number | string | SExpr;
+    untilReady?: boolean | string | SExpr;
+    background?: string | SExpr;
+    foreground?: string | SExpr;
     enter?: string | SExpr;
     enterDelay?: number | string | SExpr;
     skeleton?: string | PatternPropValue | SExpr;

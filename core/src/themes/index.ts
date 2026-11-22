@@ -141,7 +141,7 @@ export const THEME_PRESETS: Record<string, ThemeDefinition> = {
   zine: ThemeDefinitionSchema.parse(zineTheme),
 };
 
-export { MIN_TEXT_CONTRAST, contrastRatio, themeOverrideIssues, type ThemeOverrideIssue } from './contrast.js';
+export { MIN_TEXT_CONTRAST, compositedOver, contrastRatio, legibleColor, themeOverrideIssues, type ThemeOverrideIssue } from './contrast.js';
 export { themeKeys } from './keys.js';
 
 /** Every preset's `[data-theme]` keys (`themeKeys`), sorted — the built-in theme set `orb` validates `theme` against. */

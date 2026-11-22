@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { documentRoutes, routeDocument, sitemap, robots, writeRouteDocuments } from './route-documents.mjs';
+import { documentRoutes, headTags, routeDocument, sitemap, robots, writeRouteDocuments } from './route-documents.mjs';
 
 const INDEX = `<!DOCTYPE html>
 <html lang="en">
@@ -151,5 +151,26 @@ describe('language alternates', () => {
 
   it('edge: without an origin there are no absolute alternates to write', () => {
     expect(written({ ...localized, site: { name: 'Example' } })('index.html')).not.toContain('hreflang');
+  });
+});
+
+describe('a route share image', () => {
+  const site = { origin: 'https://example.org' };
+
+  it('a route with an image declares it for link previews, as a large card', () => {
+    const tags = headTags({ path: '/', access: 'public', indexing: 'index', title: 'Home', image: 'https://example.org/img/share.jpg' }, site).join('\n');
+    expect(tags).toContain('<meta property="og:image" content="https://example.org/img/share.jpg" data-orb-head />');
+    expect(tags).toContain('<meta name="twitter:card" content="summary_large_image" data-orb-head />');
+    expect(tags).toContain('<meta name="twitter:image" content="https://example.org/img/share.jpg" data-orb-head />');
+  });
+
+  it('control: a route without an image declares none', () => {
+    const tags = headTags({ path: '/', access: 'public', indexing: 'index', title: 'Home' }, site).join('\n');
+    expect(tags).not.toContain('og:image');
+    expect(tags).not.toContain('twitter:');
+  });
+
+  it('control: a noindex route carries only the directive, image or not', () => {
+    expect(headTags({ path: '/x', access: 'public', indexing: 'noindex', image: 'https://example.org/a.jpg' }, site)).toEqual(['<meta name="robots" content="noindex" data-orb-head />']);
   });
 });

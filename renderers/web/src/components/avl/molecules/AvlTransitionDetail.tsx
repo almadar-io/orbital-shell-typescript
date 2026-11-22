@@ -133,7 +133,7 @@ const TransitionDetailBody: React.FC<ResolvedDetailProps> = ({ orbital, trait, t
                   <Typography variant="body1" weight="semibold" as="span">{transition.event}</Typography>
                 </Box>
               )}
-              <Typography variant="h5" color="muted">→</Typography>
+              <Typography variant="h5" as="span" color="muted">→</Typography>
               <Badge variant="neutral" size="lg">{transition.to}</Badge>
             </HStack>
             {playback ? (

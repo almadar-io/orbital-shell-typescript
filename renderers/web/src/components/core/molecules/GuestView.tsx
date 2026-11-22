@@ -191,8 +191,7 @@ function emittedEventOf(value: EventPayload | null | undefined): EmittedEvent | 
 /** A program the opener handed: as it is, or read from the bytes of the blob the host holds it in (EXEC-DIST-16b). */
 function programOf(program: OrbitalSchema | BlobMarker): OrbitalSchema {
   if (!isBlobMarker(program)) return program;
-  const read: OrbitalSchema = JSON.parse(new TextDecoder().decode(blobs.bytes(program.$blob)));
-  return read;
+  return blobs.json<OrbitalSchema>(program.$blob);
 }
 
 /** A split guest: its client program runs here, its server legs travel to the opener as `leg` events. */

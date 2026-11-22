@@ -13,7 +13,7 @@ describe('Header brand logo', () => {
   it('logoSrc renders as an unframed image', () => {
     const img = mount(<Header brandName="Almadar" logoSrc={LOGO} />).querySelector('img');
     expect(img?.getAttribute('src')).toBe(LOGO);
-    expect(img?.getAttribute('alt')).toBe('Almadar');
+    expect(img?.getAttribute('alt')).toBe('');
     expect(img?.closest('.bg-muted')).toBeNull();
   });
 

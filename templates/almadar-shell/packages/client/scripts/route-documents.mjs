@@ -51,6 +51,11 @@ export function headTags(route, site = {}) {
   if (site.origin !== undefined) tags.push(`<meta property="og:url" content="${escapeHtml(canonicalUrl(site.origin, route.path))}"${OWNED} />`);
   if (site.name !== undefined) tags.push(`<meta property="og:site_name" content="${escapeHtml(site.name)}"${OWNED} />`);
   if (route.locale) tags.push(`<meta property="og:locale" content="${escapeHtml(route.locale)}"${OWNED} />`);
+  if (route.image !== undefined) {
+    tags.push(`<meta property="og:image" content="${escapeHtml(route.image)}"${OWNED} />`);
+    tags.push(`<meta name="twitter:card" content="summary_large_image"${OWNED} />`);
+    tags.push(`<meta name="twitter:image" content="${escapeHtml(route.image)}"${OWNED} />`);
+  }
   // `alternates` arrive from the compiler already narrowed to indexable public translations.
   if (site.origin !== undefined) {
     for (const alt of route.alternates ?? []) {

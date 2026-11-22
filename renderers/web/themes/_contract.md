@@ -25,6 +25,8 @@ These were defined by every pre-Layer-1 theme and continue to be the canonical p
 `--color-warning`, `--color-warning-foreground`,
 `--color-info`, `--color-info-foreground`.
 
+`--color-primary-text`: primary as text (`text-primary`, AVL labels), the shade of primary that reads at 4.5:1 on the card and background; a theme without it paints text in primary. Gated in `@almadar/core` `theme-primary-text.test.ts`.
+
 Optional table-specific (defined by some themes, fall back to neutrals when absent): `--color-table-header`, `--color-table-border`, `--color-table-row-hover`, `--color-surface-hover`, `--color-border-hover`, `--color-placeholder`.
 
 ### Radius (existing — Geometry axis below adds intent overlay)

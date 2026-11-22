@@ -8,6 +8,7 @@
     --color-primary: #8b4a32;
     --color-primary-hover: #733c28;
     --color-primary-foreground: #fbf6ea;
+    --color-primary-text: #8b4a32;
     --color-secondary: #b9c2a3;
     --color-secondary-hover: #aab493;
     --color-secondary-foreground: #2a3120;
@@ -235,6 +236,7 @@
     --color-primary: #d0876a;
     --color-primary-hover: #dc9b80;
     --color-primary-foreground: #1d0f08;
+    --color-primary-text: #d0876a;
     --color-secondary: #8f9a74;
     --color-secondary-hover: #a1ac86;
     --color-secondary-foreground: #1a1f10;

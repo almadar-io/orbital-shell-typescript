@@ -106,7 +106,7 @@ const STATIC_COMPONENTS: Components = {
       <a
         href={href}
         {...props}
-        className="text-[var(--color-primary)] hover:underline"
+        className="text-primary hover:underline"
         target={href?.startsWith('http') ? '_blank' : undefined}
         rel={href?.startsWith('http') ? 'noopener noreferrer' : undefined}
       >
@@ -116,8 +116,9 @@ const STATIC_COMPONENTS: Components = {
   },
   // Style tables
   table({ children, ...props }: React.ComponentPropsWithoutRef<'table'>) {
+    const { t } = useTranslate();
     return (
-      <div className="overflow-x-auto my-4">
+      <div className="overflow-x-auto my-4" role="group" tabIndex={0} aria-label={t('aria.table')}>
         <table
           {...props}
           className="min-w-full border-collapse border border-[var(--color-border)]"

@@ -27,8 +27,8 @@ import { EmptyState } from '../EmptyState';
 import { Copy, Check, FileText, Code as CodeIcon, WrapText } from 'lucide-react';
 import type { UiError } from '../../../../core';
 import type { SyntaxHighlighterProps } from 'react-syntax-highlighter';
-import { ORB_COLORS, translateLolo, translateOrb } from '@almadar/syntax';
-import { hasKernelEvaluator } from '@almadar/core';
+import { CODE_SURFACES, ORB_COLORS, translateLolo, translateOrb } from '@almadar/syntax';
+import { hasKernelEvaluator, legibleColor } from '@almadar/core';
 import { useKernelEngine } from '../../../../providers/KernelEngineContext';
 import { getVocabulary, type LanguageCode } from '@almadar/core/i18n';
 
@@ -193,10 +193,18 @@ type SchemeStyles = { base: Record<string, React.CSSProperties>; orb: Record<str
 const HIGHLIGHT_STYLES = new Map<SyntaxScheme, SchemeStyles>();
 
 /** A scheme's style sheets, built once from the loaded highlighter's base scheme. */
+/** A highlight style whose every text colour reads at WCAG AA on the scheme's code surfaces. */
+function legibleStyle(style: Record<string, React.CSSProperties>, scheme: SyntaxScheme): Record<string, React.CSSProperties> {
+  return Object.fromEntries(Object.entries(style).map(([selector, css]) => [
+    selector,
+    typeof css.color === 'string' ? { ...css, color: legibleColor(css.color, CODE_SURFACES[scheme]) } : css,
+  ]));
+}
+
 function schemeStyles(prism: Prism, scheme: SyntaxScheme): SchemeStyles {
   const held = HIGHLIGHT_STYLES.get(scheme);
   if (held !== undefined) return held;
-  const base = scheme === 'dark' ? prism.dark : prism.light;
+  const base = legibleStyle(scheme === 'dark' ? prism.dark : prism.light, scheme);
   const colors = scheme === 'dark' ? ORB_COLORS.dark : ORB_COLORS.light;
   const built = { base, orb: { ...base, ...orbStyleOverrides(colors) }, lolo: { ...base, ...loloStyleOverrides(colors) } };
   HIGHLIGHT_STYLES.set(scheme, built);
@@ -979,7 +987,6 @@ const VIEWER_LINE_NUMBER_STYLE: React.CSSProperties = {
   paddingRight: '1rem',
   textAlign: 'right',
   userSelect: 'none',
-  opacity: 0.5,
   fontVariantNumeric: 'tabular-nums',
 };
 const VIEWER_LINE_NUMBER_STYLE_RTL: React.CSSProperties = {
@@ -988,7 +995,6 @@ const VIEWER_LINE_NUMBER_STYLE_RTL: React.CSSProperties = {
   paddingLeft: '1rem',
   textAlign: 'left',
   userSelect: 'none',
-  opacity: 0.5,
   fontVariantNumeric: 'tabular-nums',
 };
 
@@ -1589,6 +1595,7 @@ const ClassicCodeBlock = React.memo<CodeBlockProps>(
             margin: 0,
             whiteSpace: 'pre',
             minWidth: '100%',
+            overflow: 'visible',
           }}
         >
           {code}
@@ -1646,6 +1653,7 @@ const ClassicCodeBlock = React.memo<CodeBlockProps>(
             lineHeight: '1.6',
             direction: codeDir,
             textAlign: 'start',
+            overflow: 'visible',
           }}
           codeTagProps={{ style: { fontFamily: MONO_FONT_FAMILY, fontSize: '12px', lineHeight: '1.6', direction: codeDir, textAlign: 'start' } }}
         >
@@ -1973,7 +1981,7 @@ const ClassicCodeBlock = React.memo<CodeBlockProps>(
                 ))}
               </HStack>
             </HStack>
-            <Box ref={viewerScrollRef} className="overflow-auto min-h-0 bg-muted/20" style={{ maxHeight }} dir={codeDir} role="region" tabIndex={0} aria-label={title ?? t('codeBlock.region')}>
+            <Box ref={viewerScrollRef} className="overflow-auto min-h-0 bg-muted/20" style={{ maxHeight }} dir={codeDir} role="group" tabIndex={0} aria-label={title ?? t('codeBlock.region')}>
               {diffLines ? (
                 <div style={{ display: 'flex', flexDirection: 'column' }} className="font-mono text-xs">
                   {diffRowElements}
@@ -2411,7 +2419,7 @@ const ClassicCodeBlock = React.memo<CodeBlockProps>(
             // paints a light box behind every token. Strip it for descendants
             // — same resets CodePreviewTabs used to apply locally per call site.
             className="[&_code]:!bg-transparent [&_code]:!p-0 [&_code]:!border-0 [&_code]:!shadow-none [&_span]:!bg-transparent"
-            role="region"
+            role="group"
             tabIndex={0}
             aria-label={title ?? t('codeBlock.region')}
             style={{

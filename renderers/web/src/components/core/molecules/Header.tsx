@@ -200,21 +200,23 @@ export const Header: React.FC<HeaderProps> = ({
   const { t } = useTranslate();
   const resolvedSearchPlaceholder = searchPlaceholder ?? t('common.search');
 
+  // The brand name beside the logo names the brand once; the logo is decorative.
   const brandContent = (
     <>
       {logo ? (
         typeof logo === "string" ? (
-          <Image src={logo} alt={brandName ?? ""} fit="contain" rounded="none" loading="eager" className="h-8 w-auto max-w-32" />
+          <Image src={logo} alt="" fit="contain" rounded="none" loading="eager" className="h-8 w-auto max-w-32" />
         ) : (
           logo
         )
       ) : logoSrc ? (
-        <Image src={logoSrc} alt={brandName ?? ""} fit="contain" rounded="none" loading="eager" className="h-8 w-auto max-w-32" />
+        <Image src={logoSrc} alt="" fit="contain" rounded="none" loading="eager" className="h-8 w-auto max-w-32" />
       ) : null}
 
       {brandName && (
         <Typography
           variant="h5"
+          as="span"
           className="text-lg text-foreground"
         >
           {brandName}

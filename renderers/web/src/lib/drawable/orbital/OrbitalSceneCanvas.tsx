@@ -28,6 +28,8 @@ export interface OrbitalSceneCanvasProps<P extends PatternType> {
     fillContainer?: boolean | 'width';
     /** With `fillContainer: true`: the least height in CSS px; a shorter container scrolls instead of squeezing the scene. */
     minHeight?: number;
+    /** The program says its scene is laid out: once a frame is drawn with this set, the container is marked `data-orb-ready`. */
+    ready?: boolean;
     /**
      * The pattern's callback props the molecule received as functions (`onShapeClick`), by prop name: the scene
      * queues each under its prop name and the host hands that callback the delivered payload.
@@ -394,7 +396,10 @@ const wheelFactor = (deltaY: number): number => Math.pow(1.1, -deltaY / 100);
 
 const log = createLogger('almadar:ui:orbital-scene-canvas');
 
-export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, className, width, height, fillContainer, minHeight, callbacks, keyMap, keyUpMap }: OrbitalSceneCanvasProps<P>): React.ReactElement {
+export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, className, width, height, fillContainer, minHeight, callbacks, keyMap, keyUpMap, ready: sceneReady }: OrbitalSceneCanvasProps<P>): React.ReactElement {
+    const readyRef = useRef(sceneReady === true);
+    readyRef.current = sceneReady === true;
+    const [drawnReady, setDrawnReady] = useState(false);
     const engine = useKernelEngine();
     const factory = engine?.sceneCanvas;
     const eventBus = useEventBus();
@@ -492,6 +497,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
                     guard.call(() => view.render(), setError);
                     pending = false;
                     refreshTreeRef.current();
+                    if (readyRef.current) setDrawnReady(true);
                 }
                 flushRef.current();
             }
@@ -638,6 +644,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
     return (
         <div
             ref={containerRef}
+            {...(drawnReady ? { 'data-orb-ready': 'true' } : {})}
             className={cn('orbital-scene-canvas relative mx-auto w-full overflow-hidden rounded-container', className)}
             style={fillContainer === 'width' ? { height: `${height}px` } : fillContainer ? { flex: '1 1 0', height: '100%', minHeight: `${minHeight ?? 0}px` } : { maxWidth: `min(100%, calc(70vh * ${width} / ${height}))`, aspectRatio: `${width} / ${height}` }}
         >

@@ -618,6 +618,8 @@ export type PageRefObject = {
   label?: string;
   icon?: string;
   roles?: string[];
+  /** `image:` — the page's share image on the reference form. */
+  image?: string;
 };
 
 /**
@@ -731,6 +733,7 @@ export const PageRefObjectSchema = z.object({
   label: z.string().optional(),
   icon: z.string().optional(),
   roles: z.array(z.string().min(1)).min(1).optional(),
+  image: z.string().min(1).optional(),
 });
 
 export const PageRefSchema = z.union([
