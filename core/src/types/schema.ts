@@ -211,6 +211,8 @@ export interface OrbitalSchema {
 
   /** `locales [en, ar, sl]` — the locales this program ships; every `(i18n/t …)` key must exist in each one's catalog. */
   locales?: string[];
+  /** `formatLocale: "sl-SI"` — the language-region tag whose rules the app's dates, times and numbers follow; absent, they follow the UI locale. */
+  formatLocale?: string;
   /** The program's messages, written by resolution and never authored: the program carries its own text wherever it is opened. */
   messages?: MessageCatalogs;
 

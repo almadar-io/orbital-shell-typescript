@@ -6,6 +6,7 @@ import { readAudioClock, scheduleAudio } from '../providers/audio-scheduler';
 import { browserConsentEnv, consentByPopup } from './consent-popup';
 import { pickFiles } from './file-picker';
 import { openAudioIn } from './audio-in';
+import { openVideoDecode, type VideoDecodeStream } from './video-decode';
 import type { KvHostPort } from '@almadar/shell-browser/kv';
 import type { OsErrorKind } from '@almadar/core/kernel-wire';
 
@@ -158,6 +159,61 @@ function streamAudioIn(args: readonly JsonValue[], completion: HostAskCompletion
   );
 }
 
+/** The video decoders this host opened for `os/video-decode`, by key; `os/video-feed` queues samples on them and `cancel-call` closes them. */
+const videoDecoders = new Map<string, VideoDecodeStream>();
+
+function fromBase64(text: string): Uint8Array<ArrayBuffer> | undefined {
+  try {
+    const binary = atob(text);
+    const out = new Uint8Array(new ArrayBuffer(binary.length));
+    for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
+    return out;
+  } catch {
+    return undefined;
+  }
+}
+
+function returnOutcome(completion: HostAskCompletion | undefined, dispatch: HostAskDispatch | undefined, outcome: { ok: JsonObject } | { error: string; kind: HostAskFailureKind }): void {
+  if (completion === undefined) return;
+  const returned = hostAskReturn(completion, outcome);
+  if (returned !== undefined && dispatch !== undefined) void dispatch(returned.trait, returned.event, returned.entityId !== undefined ? { ...returned.payload, entityId: returned.entityId } : returned.payload).catch((error: Error) => log.error('host-ask answer failed', { trait: returned.trait, error: error.message }));
+}
+
+function streamVideoDecode(args: readonly JsonValue[], completion: HostAskCompletion, dispatch: HostAskDispatch | undefined): void {
+  const { key, onMessage, trait } = completion;
+  const entity = completion.entityId !== undefined ? { entityId: completion.entityId } : {};
+  if (key === undefined || onMessage === undefined || dispatch === undefined) return returnOutcome(completion, dispatch, { error: 'os/video-decode streams only with a key, an onMessage route and a dispatch', kind: 'invalid' });
+  if (videoDecoders.has(key)) return returnOutcome(completion, dispatch, { error: `key ${key} already has a video decoder open`, kind: 'invalid' });
+  const config = args[0];
+  const description = config !== undefined && config !== null && isJsonObject(config) && typeof config['description'] === 'string' ? fromBase64(config['description']) : undefined;
+  if (config === undefined || config === null || !isJsonObject(config) || typeof config['codec'] !== 'string' || description === undefined || typeof config['codedWidth'] !== 'number' || typeof config['codedHeight'] !== 'number') {
+    return returnOutcome(completion, dispatch, { error: 'os/video-decode: config is { codec, description, codedWidth, codedHeight }', kind: 'invalid' });
+  }
+  openVideoDecode(
+    { codec: config['codec'], description, codedWidth: config['codedWidth'], codedHeight: config['codedHeight'] },
+    (frame) => { void dispatch(trait, onMessage, { ...frame, key, ...entity }).catch((error: Error) => log.error('video frame failed', { trait, key, error: error.message })); },
+    (message) => log.error('video decoder error', { trait, key, message }),
+  ).then(
+    (stream) => {
+      videoDecoders.set(key, stream);
+      returnOutcome(completion, dispatch, { ok: { width: stream.width, height: stream.height } });
+    },
+    (error: Error) => returnOutcome(completion, dispatch, { error: error.message, kind: error instanceof HostAskError ? error.kind : 'unavailable' }),
+  );
+}
+
+function feedVideo(args: readonly JsonValue[], completion: HostAskCompletion | undefined, dispatch: HostAskDispatch | undefined): void {
+  const [decoder, sample] = args;
+  const stream = typeof decoder === 'string' ? videoDecoders.get(decoder) : undefined;
+  if (stream === undefined) return returnOutcome(completion, dispatch, { error: 'os/video-feed: no video decoder is open under that key', kind: 'invalid' });
+  const data = sample !== undefined && sample !== null && isJsonObject(sample) && typeof sample['data'] === 'string' ? fromBase64(sample['data']) : undefined;
+  if (sample === undefined || sample === null || !isJsonObject(sample) || data === undefined || typeof sample['timestamp'] !== 'number' || typeof sample['key'] !== 'boolean') {
+    return returnOutcome(completion, dispatch, { error: 'os/video-feed: the sample is { data, timestamp, key }', kind: 'invalid' });
+  }
+  stream.feed({ data, timestamp: sample['timestamp'], key: sample['key'] });
+  returnOutcome(completion, dispatch, { ok: {} });
+}
+
 function cancelStreams(args: readonly JsonValue[]): void {
   const named = args[0];
   const keys = typeof named === 'string' ? [named] : Array.isArray(named) ? named.flatMap((k) => (typeof k === 'string' ? [k] : [])) : [];
@@ -166,6 +222,8 @@ function cancelStreams(args: readonly JsonValue[]): void {
     traceStreams.delete(key);
     audioStreams.get(key)?.();
     audioStreams.delete(key);
+    videoDecoders.get(key)?.close();
+    videoDecoders.delete(key);
   }
 }
 
@@ -179,6 +237,8 @@ export async function answerHostAsk(op: string, args: readonly JsonValue[], comp
   if (op === 'cancel-call') return cancelStreams(args);
   if (op === 'program/live' && completion?.onMessage !== undefined) return streamTrace(args, completion, dispatch, trace);
   if (op === 'os/audio-in' && completion !== undefined) return streamAudioIn(args, completion, dispatch);
+  if (op === 'os/video-decode' && completion !== undefined) return streamVideoDecode(args, completion, dispatch);
+  if (op === 'os/video-feed') return feedVideo(args, completion, dispatch);
   const outcome = await performHostAnswer(webHostActions, op, args);
   if ('error' in outcome) log.error('host-ask refused', { op, error: outcome.error, kind: outcome.kind });
   if (completion === undefined) return;

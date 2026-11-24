@@ -6,7 +6,7 @@ import { Typography } from '../../../core';
 import { GameIcon } from '../../../core';
 import type { A11yProps, Asset } from '@almadar/core';
 import { domPassthrough } from '../../../core';
-import { useTranslate } from '../../../core';
+import { useFormatLocale } from '../../../core';
 
 export interface ScoreDisplayProps extends Omit<React.AriaAttributes, keyof A11yProps>, A11yProps {
   /** Sprite asset — takes precedence over icon when provided */
@@ -48,8 +48,8 @@ export function ScoreDisplay({
   displayValue,
   ...rest
 }: ScoreDisplayProps) {
-  const { locale: appLocale } = useTranslate();
-  const locale = localeProp ?? appLocale;
+  const formatLocale = useFormatLocale();
+  const locale = localeProp ?? formatLocale;
   // Accept "score" as alias for "value" (common schema binding)
   const resolvedValue = typeof value === 'number' && !Number.isNaN(value)
     ? value

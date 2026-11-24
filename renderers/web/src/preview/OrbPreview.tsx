@@ -28,7 +28,7 @@ import { VerificationProvider } from '../providers/VerificationProvider';
 import { UISlotProvider, useUISlots } from '../providers/UISlotContext';
 import { UISlotRenderer } from '../components/core/organisms/UISlotRenderer';
 import { useTranslate } from '../core';
-import { I18nProvider } from '../core/hooks/useTranslate';
+import { FormatLocale, I18nProvider } from '../core/hooks/useTranslate';
 import { routeLocaleValue } from './routeLocale';
 import type { OrbitalSchema, EntityData, OrbitalDefinition, ThemeRef, LazyPage, ViewerAuthority, SchemaMetadata } from '@almadar/core';
 import { orbitalInlineEntities, storesRowsInBrowser, isHostSignInRoute, notFoundPage } from '@almadar/core';
@@ -1022,7 +1022,8 @@ export function OrbPreview({
     ) : bridged;
     const ticked = <ClientTicksPausedContext.Provider value={paused}>{engined}</ClientTicksPausedContext.Provider>;
     const tapped = onTransition === undefined ? ticked : <TransitionTapContext.Provider value={onTransition}>{ticked}</TransitionTapContext.Provider>;
-    const localized = routeLocale === undefined ? tapped : <I18nProvider value={routeLocale}>{tapped}</I18nProvider>;
+    const formatted = <FormatLocale value={parsedSchema?.formatLocale}>{tapped}</FormatLocale>;
+    const localized = routeLocale === undefined ? formatted : <I18nProvider value={routeLocale}>{formatted}</I18nProvider>;
     // A preview nested inside this one is its own program unless it is marked as this program's lazy page.
     return (
       <ProgramKernelContext.Provider value={programKernel}>

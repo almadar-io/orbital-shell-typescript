@@ -2,7 +2,7 @@ import type { A11yProps } from '@almadar/core';
 import React from "react";
 import { Icon } from "./Icon";
 import { cn } from "../lib/cn";
-import { useTranslate } from "../hooks/useTranslate";
+import { useTranslate, useFormatLocale } from "../hooks/useTranslate";
 
 export type TrendDirection = "up" | "down" | "flat";
 export type TrendIndicatorSize = "sm" | "md" | "lg";
@@ -68,7 +68,8 @@ export const TrendIndicator = React.forwardRef<HTMLSpanElement, TrendIndicatorPr
     },
     ref,
   ) => {
-    const { t, locale } = useTranslate();
+    const { t } = useTranslate();
+    const formatLocale = useFormatLocale();
     // No trend data and no explicit direction — render nothing rather than
     // a fabricated flat "→" (same contract as Badge's empty render). Unset
     // bindings can arrive as null or "" depending on the path, so only a
@@ -81,7 +82,7 @@ export const TrendIndicator = React.forwardRef<HTMLSpanElement, TrendIndicatorPr
     const styles = sizeStyles[size];
 
     const formattedValue = hasValue
-      ? new Intl.NumberFormat(locale, { style: "percent", signDisplay: "exceptZero", maximumFractionDigits: 2 }).format(value / 100)
+      ? new Intl.NumberFormat(formatLocale, { style: "percent", signDisplay: "exceptZero", maximumFractionDigits: 2 }).format(value / 100)
       : undefined;
 
     const ariaLabel = label ?? (formattedValue ? t("trendIndicator.withValue", { direction: t(`trendIndicator.${dir}`), value: formattedValue }) : t(`trendIndicator.${dir}`));

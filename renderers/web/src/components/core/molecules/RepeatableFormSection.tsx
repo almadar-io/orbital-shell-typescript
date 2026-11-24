@@ -22,7 +22,7 @@ import { Button } from '../../../core';
 import { Card } from '../../../core';
 import { Icon } from '../../../core';
 import { useEventBus } from '../../../core';
-import { useTranslate } from '../../../core';
+import { useTranslate, useFormatLocale } from '../../../core';
 
 import { domPassthrough } from '../../../core';
 export type RepeatableItem = {
@@ -104,7 +104,8 @@ export const RepeatableFormSection: React.FC<RepeatableFormSectionProps> = ({
   ...rest
 }) => {
   const eventBus = useEventBus();
-  const { t, locale } = useTranslate();
+  const { t } = useTranslate();
+  const formatLocale = useFormatLocale();
   const resolvedAddLabel = addLabel ?? t('common.add');
   const resolvedEmptyMessage = emptyMessage ?? t('empty.noItemsAdded');
 
@@ -213,7 +214,7 @@ export const RepeatableFormSection: React.FC<RepeatableFormSectionProps> = ({
                     </HStack>
                     {item.addedAt && (
                       <Typography variant="caption" color="muted">
-                        {new Date(item.addedAt).toLocaleString(locale)}
+                        {new Date(item.addedAt).toLocaleString(formatLocale)}
                       </Typography>
                     )}
                   </HStack>

@@ -22,7 +22,7 @@ import { Button } from '../../../core';
 import { Modal } from '../molecules/Modal';
 import { Accordion, type AccordionItem } from '../molecules/Accordion';
 import { CodeBlock, MarkdownContent } from '../molecules/markdown';
-import { useTranslate, type TranslateFunction } from '../../../core';
+import { useTranslate, useFormatLocale, type TranslateFunction } from '../../../core';
 import { pressableProps } from '../../../core';
 import type { A11yProps } from '@almadar/core';
 import { domPassthrough } from '../../../core';
@@ -221,8 +221,8 @@ interface InlineRowProps extends DisplayStateProps {
 }
 
 const InlineActivityRow: React.FC<InlineRowProps> = ({ activity }) => {
-  const { locale } = useTranslate();
-  const time = formatHHMMSS(activity.timestamp, locale);
+  const formatLocale = useFormatLocale();
+  const time = formatHHMMSS(activity.timestamp, formatLocale);
   const baseRow = 'items-start px-3 py-1 hover:bg-[var(--color-surface)]';
 
   if (activity.type === 'tool_call') {
@@ -752,7 +752,8 @@ function timelineItemTimeLabel(item: TimelineItem, locale: string): string | und
 // ─── Tab mode: detail modal content ───────────────────────────────────
 
 function TraceDetailContent({ item }: { item: TimelineItem }): React.ReactElement {
-  const { t, locale } = useTranslate();
+  const { t } = useTranslate();
+  const formatLocale = useFormatLocale();
   switch (item.source) {
     case 'message': {
       const m = item.data;
@@ -806,7 +807,7 @@ function TraceDetailContent({ item }: { item: TimelineItem }): React.ReactElemen
             <VStack gap="md">
               <HStack gap="xs" className="items-center">
                 <Badge variant="default" className="text-[10px]">{activityTypeLabel('tool_call', t)}</Badge>
-                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, locale)}</Typography>
+                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, formatLocale)}</Typography>
               </HStack>
               <Typography variant="body2">{a.tool}</Typography>
               <CodeBlock code={a.argsText} language="json" maxHeight="60vh" />
@@ -819,7 +820,7 @@ function TraceDetailContent({ item }: { item: TimelineItem }): React.ReactElemen
                 <Badge variant={a.success !== false ? 'default' : 'warning'} className="text-[10px]">
                   {a.success !== false ? t('subagentTrace.success') : t('subagentTrace.fail')}
                 </Badge>
-                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, locale)}</Typography>
+                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, formatLocale)}</Typography>
               </HStack>
               <Typography variant="body2">{a.tool}</Typography>
               <CodeBlock code={a.resultText} language="json" maxHeight="60vh" />
@@ -830,7 +831,7 @@ function TraceDetailContent({ item }: { item: TimelineItem }): React.ReactElemen
             <VStack gap="md">
               <HStack gap="xs" className="items-center">
                 <Badge variant="neutral" className="text-[10px]">{t(`subagentTrace.role.${a.role}`)}</Badge>
-                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, locale)}</Typography>
+                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, formatLocale)}</Typography>
               </HStack>
               <Typography variant="body2" className="whitespace-pre-wrap">{a.content}</Typography>
             </VStack>
@@ -840,7 +841,7 @@ function TraceDetailContent({ item }: { item: TimelineItem }): React.ReactElemen
             <VStack gap="md">
               <HStack gap="xs" className="items-center">
                 <Badge variant="warning" className="text-[10px]">{t('subagentTrace.badgeError')}</Badge>
-                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, locale)}</Typography>
+                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, formatLocale)}</Typography>
               </HStack>
               <Typography variant="body2" className="whitespace-pre-wrap text-[var(--color-danger)]">{a.message}</Typography>
             </VStack>
@@ -850,7 +851,7 @@ function TraceDetailContent({ item }: { item: TimelineItem }): React.ReactElemen
             <VStack gap="md">
               <HStack gap="xs" className="items-center">
                 <Badge variant="neutral" className="text-[10px]">{t('subagentTrace.badgeFile')}</Badge>
-                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, locale)}</Typography>
+                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, formatLocale)}</Typography>
               </HStack>
               <Typography variant="body2">{t(`subagentTrace.fileOperation.${a.operation}`)} {a.path}</Typography>
             </VStack>
@@ -860,7 +861,7 @@ function TraceDetailContent({ item }: { item: TimelineItem }): React.ReactElemen
             <VStack gap="md">
               <HStack gap="xs" className="items-center">
                 <Badge variant="neutral" className="text-[10px]">{t('subagentTrace.badgeDiff')}</Badge>
-                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, locale)}</Typography>
+                <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, formatLocale)}</Typography>
               </HStack>
               <Typography variant="body2">{a.filePath}</Typography>
             </VStack>
@@ -868,7 +869,7 @@ function TraceDetailContent({ item }: { item: TimelineItem }): React.ReactElemen
         default:
           return (
             <VStack gap="md">
-              <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, locale)}</Typography>
+              <Typography variant="caption" color="muted">{formatHHMMSS(a.timestamp, formatLocale)}</Typography>
               <Typography variant="body2">{String(a.type)}</Typography>
             </VStack>
           );
@@ -883,7 +884,7 @@ function TraceDetailContent({ item }: { item: TimelineItem }): React.ReactElemen
           <HStack gap="xs" className="items-center">
             <Badge variant="default" className="text-[10px]">{s.role}</Badge>
             {ts !== undefined && (
-              <Typography variant="caption" color="muted">{formatHHMMSS(ts, locale)}</Typography>
+              <Typography variant="caption" color="muted">{formatHHMMSS(ts, formatLocale)}</Typography>
             )}
           </HStack>
           <Typography variant="body2" weight="semibold">{s.name}</Typography>
@@ -913,7 +914,8 @@ export const SubagentTracePanel: React.FC<SubagentTracePanelProps> = ({
   coordinatorMessages,
   ...rest
 }) => {
-  const { t, locale } = useTranslate();
+  const { t } = useTranslate();
+  const formatLocale = useFormatLocale();
   const [selectedItem, setSelectedItem] = useState<TimelineItem | null>(null);
   const densityLabel = (rich: boolean): string => rich ? t('subagentTrace.densityRich') : t('subagentTrace.densityCompact');
 
@@ -993,9 +995,9 @@ export const SubagentTracePanel: React.FC<SubagentTracePanelProps> = ({
                     <VStack gap="xs" className="flex-1 min-w-0">
                       <HStack gap="xs" className="items-center">
                         <Icon name={iconName} size="xs" className={`flex-shrink-0 ${iconColor}`} />
-                        {timelineItemTimeLabel(item, locale) && (
+                        {timelineItemTimeLabel(item, formatLocale) && (
                           <Typography variant="caption" color="muted">
-                            {timelineItemTimeLabel(item, locale)}
+                            {timelineItemTimeLabel(item, formatLocale)}
                           </Typography>
                         )}
                         <Badge variant="neutral" className="text-[10px]">
@@ -1021,7 +1023,7 @@ export const SubagentTracePanel: React.FC<SubagentTracePanelProps> = ({
         <Modal
           isOpen={selectedItem !== null}
           onClose={() => setSelectedItem(null)}
-          title={selectedItem ? `${timelineItemLabel(selectedItem, t)}${timelineItemTimeLabel(selectedItem, locale) ? ` · ${timelineItemTimeLabel(selectedItem, locale)}` : ''}` : ''}
+          title={selectedItem ? `${timelineItemLabel(selectedItem, t)}${timelineItemTimeLabel(selectedItem, formatLocale) ? ` · ${timelineItemTimeLabel(selectedItem, formatLocale)}` : ''}` : ''}
           size="lg"
         >
           {selectedItem && <TraceDetailContent item={selectedItem} />}

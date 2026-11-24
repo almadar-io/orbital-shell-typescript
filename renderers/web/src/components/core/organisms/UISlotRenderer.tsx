@@ -40,7 +40,7 @@ import { Toast } from "../molecules/Toast";
 import { Box } from '../../../core';
 import { Typography } from '../../../core';
 import { useEventBus } from '../../../core';
-import { useTranslate, useRenderI18n } from '../../../core';
+import { useTranslate, useRenderI18n, useFormatLocale } from '../../../core';
 import { slotLog, refId } from "../../../types/slot-types";
 import { cn } from '../../../core';
 import type { EnterAnimation, SkeletonNode } from "@almadar/core";
@@ -1536,8 +1536,8 @@ function isPatternConfig(
 
 /** A Date rendered in the app's locale (a component, so it can read it). */
 function PatternDate({ value }: { value: Date }): React.ReactElement {
-  const { locale } = useTranslate();
-  return <>{new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(value)}</>;
+  const formatLocale = useFormatLocale();
+  return <>{new Intl.DateTimeFormat(formatLocale, { dateStyle: "medium", timeStyle: "short" }).format(value)}</>;
 }
 
 /**

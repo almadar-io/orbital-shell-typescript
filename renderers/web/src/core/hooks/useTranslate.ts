@@ -55,6 +55,8 @@ export interface I18nContextValue {
   messages?: Readonly<Record<string, string>>;
   /** ISO 4217 currency of the app's money values, declared by the host with the locale (e.g. `SAR` for an ar-SA app) */
   currency?: string;
+  /** The program's `formatLocale` (e.g. `sl-SI`): the region whose rules dates, times and numbers follow; absent, they follow `locale`. */
+  formatLocale?: string;
 }
 
 const I18nContext = createContext<I18nContextValue>({
@@ -99,6 +101,19 @@ export function I18nProvider({ value, children, documentRoot }: I18nProviderProp
   return React.createElement(I18nContext.Provider, { value }, children);
 }
 
+/** Gives everything inside the program's `formatLocale`, keeping the rest of the surrounding locale. */
+export function FormatLocale({ value, children }: { value: string | undefined; children?: React.ReactNode }): React.ReactElement {
+  const parent = useContext(I18nContext);
+  const merged = useMemo(() => (value === undefined ? parent : { ...parent, formatLocale: value }), [parent, value]);
+  return React.createElement(I18nContext.Provider, { value: merged }, children);
+}
+
+/** The locale dates, times and numbers are formatted with: the program's `formatLocale`, else the UI locale. */
+export function useFormatLocale(): string {
+  const { locale, formatLocale } = useContext(I18nContext);
+  return formatLocale ?? locale;
+}
+
 /**
  * Hook to access the current locale and translate function.
  * Safe to call without a provider — returns passthrough t().
@@ -121,10 +136,10 @@ export function useRenderI18n(): RenderI18n | undefined {
 
 /** The app's formatting settings for `formatValue`: its locale, currency and translated Yes/No. */
 export function useFormatContext(): FormatContext {
-  const { t, locale, currency } = useContext(I18nContext);
+  const { t, locale, currency, formatLocale } = useContext(I18nContext);
   return useMemo(
-    () => ({ locale, currency: currency ?? DEFAULT_CURRENCY, booleanLabels: { yes: t('common.yes'), no: t('common.no') } }),
-    [t, locale, currency],
+    () => ({ locale: formatLocale ?? locale, currency: currency ?? DEFAULT_CURRENCY, booleanLabels: { yes: t('common.yes'), no: t('common.no') } }),
+    [t, locale, currency, formatLocale],
   );
 }
 

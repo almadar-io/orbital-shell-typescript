@@ -54,3 +54,31 @@ describe('os/audio-in on the web host: a microphone stream keyed by its call, an
     expect(seen).toEqual([]);
   });
 });
+
+describe('os/video-decode and os/video-feed on the web host: a keyed decoder fed samples, frames back on its onMessage route', () => {
+  const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
+  const collect = (): { seen: { event: string; payload: EventPayload }[]; dispatch: (trait: string, event: string, payload: EventPayload) => Promise<void> } => {
+    const seen: { event: string; payload: EventPayload }[] = [];
+    return { seen, dispatch: async (_trait, event, payload) => { seen.push({ event, payload }); } };
+  };
+  const route = { trait: 'Clip', key: 'clip', success: 'DECODER_OPEN', failure: 'DECODER_FAILED', onMessage: 'VIDEO_FRAME' };
+
+  it('answers invalid for a config that is not { codec, description, codedWidth, codedHeight }', async () => {
+    const { seen, dispatch } = collect();
+    await answerHostAsk('os/video-decode', [{ codec: 'avc1.42E01E' }], route, dispatch);
+    expect(seen).toEqual([{ event: 'DECODER_FAILED', payload: { error: 'os/video-decode: config is { codec, description, codedWidth, codedHeight }', kind: 'invalid', key: 'clip' } }]);
+  });
+
+  it('answers unavailable where the host has no video decoder', async () => {
+    const { seen, dispatch } = collect();
+    await answerHostAsk('os/video-decode', [{ codec: 'avc1.42E01E', description: 'AQID', codedWidth: 64, codedHeight: 64 }], route, dispatch);
+    await settle();
+    expect(seen).toEqual([{ event: 'DECODER_FAILED', payload: { error: 'this browser has no video decoder', kind: 'unavailable', key: 'clip' } }]);
+  });
+
+  it('control: feeding a key with no open decoder answers invalid and decodes nothing', async () => {
+    const { seen, dispatch } = collect();
+    await answerHostAsk('os/video-feed', ['nope', { data: 'AQID', timestamp: 0, key: true }], { trait: 'Clip', success: 'FED', failure: 'FEED_FAILED' }, dispatch);
+    expect(seen).toEqual([{ event: 'FEED_FAILED', payload: { error: 'os/video-feed: no video decoder is open under that key', kind: 'invalid' } }]);
+  });
+});

@@ -17,7 +17,7 @@ import { actionTestId, FORM_PATTERN } from '@almadar/core';
 import React from "react";
 import type { A11yProps, ControlValue, EntityRow, EventEmit, EventKey, EventPayload, FieldValue, FormSubmitPayload, SkeletonSpec } from "@almadar/core";
 import { cn } from '../../../core';
-import { toDateInputValue, toDateTimeInputValue } from '../../../core';
+import { toDateInputValue, toDateTimeInputValue, fromDateTimeInputValue } from '../../../core';
 import { Input } from '../../../core';
 import { Button } from '../../../core';
 import { Select, type SelectOption } from '../../../core';
@@ -41,7 +41,7 @@ import { usePendingAction } from '../../../core';
 import { useEventBus } from '../../../core';
 import { useTraitScope } from '../../../core';
 import { useTraitPaints } from '../../../providers/UISlotContext';
-import { useTranslate } from '../../../core';
+import { useTranslate, useFormatLocale } from '../../../core';
 import { useContentSurface } from '../../../core';
 import type { SurfaceMode } from '@almadar/core';
 import type { OrbitalEntity } from "@almadar/core";
@@ -236,6 +236,8 @@ export interface SchemaFieldOverride {
   hint?: string;
   /** Display label per option value of a select field, e.g. { team_member: "Team member" }. */
   optionLabels?: Readonly<Record<string, string>>;
+  /** The field shows its value and cannot be changed; the value is still submitted. */
+  readonly?: boolean;
 }
 
 /**
@@ -464,6 +466,41 @@ function determineInputType(field: SchemaField): string {
   }
 }
 
+const CLOCK_24 = /^([01]\d|2[0-3]):[0-5]\d$/;
+const LOCAL_PARTS = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/;
+
+/** Whether `locale`'s rules write the time on a 24-hour clock. */
+function usesClock24(locale: string): boolean {
+  const cycle = new Intl.DateTimeFormat(locale, { hour: 'numeric' }).resolvedOptions().hourCycle;
+  return cycle === 'h23' || cycle === 'h24';
+}
+
+/** A date box and a 24-hour `HH:MM` box that together set one zoned instant; nothing is set until both are whole. */
+function DateTime24Field({ id, name, label, value, required, disabled, onChange }: {
+  id: string;
+  name: string;
+  label: string;
+  value: FieldValue | undefined;
+  required: boolean | undefined;
+  disabled: boolean;
+  onChange: (iso: string) => void;
+}): React.ReactElement {
+  const parts = LOCAL_PARTS.exec(toDateTimeInputValue(value === null || value === undefined || typeof value === 'object' ? undefined : String(value)));
+  const [day, setDay] = React.useState(parts?.[1] ?? '');
+  const [time, setTime] = React.useState(parts?.[2] ?? '');
+  const commit = (d: string, t: string) => {
+    if (d !== '' && CLOCK_24.test(t)) onChange(fromDateTimeInputValue(`${d}T${t}`));
+  };
+  return (
+    <HStack gap="sm" align="center">
+      <Input id={id} name={name} type="date" aria-label={`${label} date`} required={required} disabled={disabled} value={day}
+        onChange={(e) => { setDay(e.target.value); commit(e.target.value, time); }} />
+      <Input type="text" inputMode="numeric" aria-label={`${label} time`} placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" required={required} disabled={disabled} value={time}
+        onChange={(e) => { setTime(e.target.value); commit(day, e.target.value); }} />
+    </HStack>
+  );
+}
+
 export const Form: React.FC<FormProps> = ({
   children,
   onSubmit,
@@ -511,6 +548,8 @@ export const Form: React.FC<FormProps> = ({
   const submitBusy = usePendingAction();
   const isLoading = isLoadingProp || submitBusy.pending;
   const { t } = useTranslate();
+  const formatLocale = useFormatLocale();
+  const clock24 = React.useMemo(() => usesClock24(formatLocale), [formatLocale]);
   const resolvedSubmitLabel = submitLabel ?? t('common.save');
   const resolvedCancelLabel = cancelLabel ?? t('common.cancel');
 
@@ -1054,6 +1093,7 @@ export const Form: React.FC<FormProps> = ({
         ...(override.label !== undefined ? { label: override.label } : {}),
         ...(override.placeholder !== undefined ? { placeholder: override.placeholder } : {}),
         ...(override.hint !== undefined ? { hint: override.hint } : {}),
+        ...(override.readonly !== undefined ? { readonly: override.readonly } : {}),
         ...(override.optionLabels !== undefined
           ? {
               labels: { ...field.labels, ...override.optionLabels },
@@ -1155,7 +1195,7 @@ export const Form: React.FC<FormProps> = ({
       name: fieldName,
       'data-field-name': fieldName,
       required: field.required,
-      disabled: isLoading,
+      disabled: isLoading || field.readonly === true,
       placeholder: field.placeholder,
       pattern: field.pattern,
     };
@@ -1386,12 +1426,18 @@ export const Form: React.FC<FormProps> = ({
         );
 
       case "datetime-local":
+        if (clock24) {
+          return (
+            <DateTime24Field id={commonProps.id} name={fieldName} label={label} value={currentValue} required={field.required}
+              disabled={commonProps.disabled} onChange={(iso) => handleChange(fieldName, iso)} />
+          );
+        }
         return (
           <Input
             {...commonProps}
             type="datetime-local"
             value={toDateTimeInputValue(currentValue)}
-            onChange={(e) => handleChange(fieldName, e.target.value)}
+            onChange={(e) => handleChange(fieldName, fromDateTimeInputValue(e.target.value))}
           />
         );
 

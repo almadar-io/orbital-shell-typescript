@@ -32,7 +32,7 @@ import { LoadingState } from "./LoadingState";
 import { ErrorState } from "./ErrorState";
 import { EmptyState } from "./EmptyState";
 import { useEventBus, useNavStack } from '../../../core';
-import { useTranslate, type TranslateFunction } from '../../../core';
+import { useTranslate, useFormatLocale, type TranslateFunction } from '../../../core';
 import type { UiError } from '../../../core';
 import type { EventKey } from "@almadar/core";
 
@@ -222,6 +222,8 @@ const BarChart: React.FC<{
     onPointClick?: (point: ChartSeriesPoint, seriesName: string) => void;
 }> = ({ series, height, showValues, stack, timeAxis, period, histogram = false, horizontal = false, onPointClick }) => {
     const i18n = useTranslate();
+    const formatLocale = useFormatLocale();
+    const formatI18n = { t: i18n.t, locale: formatLocale };
     const categories = useMemo(() => {
         const set: string[] = [];
         const seen = new Set<string>();
@@ -270,7 +272,7 @@ const BarChart: React.FC<{
         return (
             <VStack gap="xs" align="stretch" className="w-full" style={{ minHeight: height }} data-item-move-root={moves.root}>
                 {categories.map((label, catIdx) => {
-                    const displayLabel = timeAxis ? formatTimeLabel(label, period, i18n) : label;
+                    const displayLabel = timeAxis ? formatTimeLabel(label, period, formatI18n) : label;
                     const total = columnTotals?.[catIdx] ?? 1;
                     return (
                         <HStack key={label} gap="sm" align="center" className="w-full" data-item-key={label} data-item-move={moves.row}>
@@ -342,7 +344,7 @@ const BarChart: React.FC<{
             data-item-move-root={moves.root}
         >
             {categories.map((label, catIdx) => {
-                const displayLabel = timeAxis ? formatTimeLabel(label, period, i18n) : label;
+                const displayLabel = timeAxis ? formatTimeLabel(label, period, formatI18n) : label;
                 if (stack === "none") {
                     return (
                         <VStack
@@ -463,7 +465,7 @@ const PieChart: React.FC<{
     donut?: boolean;
     onPointClick?: (point: ChartSeriesPoint, seriesName: string) => void;
 }> = ({ data, height, showValues, donut = false, onPointClick }) => {
-    const { locale } = useTranslate();
+    const formatLocale = useFormatLocale();
     const total = data.reduce((sum, d) => sum + d.value, 0);
     const size = Math.min(height, 200);
     const radius = size / 2 - 8;
@@ -564,7 +566,7 @@ const PieChart: React.FC<{
                                 style={{ backgroundColor: seg.color }}
                             />
                             <Typography variant="caption" color="secondary" className="truncate">
-                                {seg.label}: {new Intl.NumberFormat(locale, { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(seg.percentage) / 100)}
+                                {seg.label}: {new Intl.NumberFormat(formatLocale, { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Number(seg.percentage) / 100)}
                             </Typography>
                         </HStack>
                     ))}
@@ -585,6 +587,8 @@ const LineChart: React.FC<{
     onPointClick?: (point: ChartSeriesPoint, seriesName: string) => void;
 }> = ({ series, height, showValues, fill = false, timeAxis, period, onPointClick }) => {
     const i18n = useTranslate();
+    const formatLocale = useFormatLocale();
+    const formatI18n = { t: i18n.t, locale: formatLocale };
     const width = 400;
     const padding = { top: 20, right: 20, bottom: 30, left: 40 };
     const chartWidth = width - padding.left - padding.right;
@@ -716,7 +720,7 @@ const LineChart: React.FC<{
                                         fontSize="10"
                                         fontWeight="500"
                                     >
-                                        {formatValue(p.value, "number", { locale: i18n.locale })}
+                                        {formatValue(p.value, "number", { locale: formatLocale })}
                                     </text>
                                 )}
                             </g>
@@ -733,7 +737,7 @@ const LineChart: React.FC<{
                     fill="var(--color-muted-foreground)"
                     fontSize="9"
                 >
-                    {formatValue(v, "number", { locale: i18n.locale })}
+                    {formatValue(v, "number", { locale: formatLocale })}
                 </text>
             ))}
             {labels.map((label, idx) => (
@@ -745,7 +749,7 @@ const LineChart: React.FC<{
                     fill="var(--color-muted-foreground)"
                     fontSize="9"
                 >
-                    {timeAxis ? formatTimeLabel(label, period, i18n) : label}
+                    {timeAxis ? formatTimeLabel(label, period, formatI18n) : label}
                 </text>
             ))}
         </svg>
@@ -758,8 +762,8 @@ const ScatterChart: React.FC<{
     height: number;
     onPointClick?: (point: ChartSeriesPoint, seriesName: string) => void;
 }> = ({ data, height, onPointClick }) => {
-    const { locale } = useTranslate();
-    const axisNumber = new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    const formatLocale = useFormatLocale();
+    const axisNumber = new Intl.NumberFormat(formatLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     const width = 400;
     const padding = { top: 20, right: 20, bottom: 30, left: 40 };
     const chartWidth = width - padding.left - padding.right;

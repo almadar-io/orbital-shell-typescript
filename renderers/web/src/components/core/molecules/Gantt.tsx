@@ -14,7 +14,7 @@ import React, { useMemo } from 'react';
 import type { EntityRow, EventEmit, FieldValue, A11yProps } from '@almadar/core';
 import { cn } from '../../../core';
 import { getNestedValue } from '../../../lib/getNestedValue';
-import { useTranslate } from '../../../core';
+import { useTranslate, useFormatLocale } from '../../../core';
 import { useContentSurface } from '../../../core';
 import type { SurfaceMode } from '@almadar/core';
 import { Box } from '../../../core';
@@ -151,7 +151,8 @@ export function Gantt({
   ...rest
 }: GanttProps): React.JSX.Element {
   const contentSurface = useContentSurface(surface);
-  const { t, locale } = useTranslate();
+  const { t } = useTranslate();
+  const formatLocale = useFormatLocale();
 
   const placed = useMemo<PlacedTask[]>(() => {
     const rows = Array.isArray(tasks) ? tasks : tasks ? [tasks] : [];
@@ -287,7 +288,7 @@ export function Gantt({
               >
                 {(i === 0 || day.getDate() === 1) && (
                   <Typography variant="caption" weight="semibold" className="absolute top-1 left-1 whitespace-nowrap">
-                    {day.toLocaleDateString(locale, { month: 'short', year: 'numeric' })}
+                    {day.toLocaleDateString(formatLocale, { month: 'short', year: 'numeric' })}
                   </Typography>
                 )}
                 {dayWidth >= 20 && (

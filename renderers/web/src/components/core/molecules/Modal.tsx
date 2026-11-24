@@ -143,6 +143,20 @@ export const Modal: React.FC<ModalProps> = ({
   useDialogBehavior({ open: isOpen, containerRef: modalRef, onEscape: emitClose, closeOnEscape });
 
   useEffect(() => {
+    if (!contained || sheet || !isOpen || !mounted) return;
+    const held: Array<[HTMLElement, string]> = [];
+    for (let a = layerRef.current?.parentElement ?? null; a; a = a.parentElement) {
+      const overflowY = window.getComputedStyle(a).overflowY;
+      if (overflowY !== "auto" && overflowY !== "scroll") continue;
+      held.push([a, a.style.overflowY]);
+      a.style.overflowY = "hidden";
+    }
+    return () => {
+      for (const [el, was] of held) el.style.overflowY = was;
+    };
+  }, [isOpen, contained, sheet, mounted]);
+
+  useEffect(() => {
     if (contained && !sheet) return;
     if (isOpen) {
       document.body.style.overflow = "hidden";

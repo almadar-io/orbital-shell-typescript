@@ -22,7 +22,7 @@ import { DayCell } from '../../../core';
 import { TimeSlotCell } from '../../../core';
 import { useEventBus } from '../../../core';
 import { useSwipeGesture } from "../../../hooks/useSwipeGesture";
-import { useTranslate } from '../../../core';
+import { useTranslate, useFormatLocale } from '../../../core';
 
 import { domPassthrough } from '../../../core';
 /**
@@ -327,7 +327,8 @@ export function CalendarGrid({
   const evs = Array.isArray(events) ? events : events ? [events] : [];
   const eventBus = useEventBus();
   const contentSurface = useContentSurface(surface);
-  const { t, locale } = useTranslate();
+  const { t } = useTranslate();
+  const formatLocale = useFormatLocale();
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const resolvedWeekStart = useMemo(
@@ -473,13 +474,13 @@ export function CalendarGrid({
   if (span !== 'week') {
     const anchor = weekStart ?? new Date();
     const months = Array.from({ length: SPAN_MONTHS[span] }, (_, i) => new Date(anchor.getFullYear(), anchor.getMonth() + i, 1));
-    const weekdayNames = getWeekDays(getStartOfWeek(new Date(2024, 0, 1))).map((d) => d.toLocaleDateString(locale, { weekday: 'short' }));
+    const weekdayNames = getWeekDays(getStartOfWeek(new Date(2024, 0, 1))).map((d) => d.toLocaleDateString(formatLocale, { weekday: 'short' }));
     const today = new Date().toDateString();
     return contentSurface.provide(
       <VStack {...domPassthrough(rest)} gap="lg" className={cn(contentSurface.className && cn(contentSurface.className, 'p-card-sm'), className)} data-calendar-span={span}>
         {months.map((m) => (
           <VStack key={`${m.getFullYear()}-${m.getMonth()}`} gap="sm">
-            <Typography variant="h5">{m.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}</Typography>
+            <Typography variant="h5">{m.toLocaleDateString(formatLocale, { month: 'long', year: 'numeric' })}</Typography>
             <Box className="grid grid-cols-7 gap-px rounded-md border border-border bg-border overflow-hidden">
               {weekdayNames.map((name) => (
                 <Box key={name} className="bg-muted px-2 py-1 text-center">
@@ -533,7 +534,7 @@ export function CalendarGrid({
             {t('nav.previous')}
           </Button>
           <Typography variant="small" className="text-muted-foreground">
-            {formatDateRange(visibleDays[0], visibleDays[visibleDays.length - 1], locale)}
+            {formatDateRange(visibleDays[0], visibleDays[visibleDays.length - 1], formatLocale)}
           </Typography>
           <Button
             variant="ghost"

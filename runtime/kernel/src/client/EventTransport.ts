@@ -168,7 +168,7 @@ interface SharedPushChannel {
   stopWatching?: () => void;
 }
 
-/** Whether the page is away (hidden, or no input for a while), and a way to hear it change; a host with no page (no `document`) is never away. */
+/** Whether the page is away (hidden), and a way to hear it change; a host with no page (no `document`) is never away. */
 export interface PushPresence {
   away(): boolean;
   onChange(listener: () => void): () => void;
@@ -181,71 +181,20 @@ export interface PresenceTarget {
   removeEventListener(type: string, listener: () => void, options?: EventListenerOptions): void;
 }
 
-/** How long a visible page goes without input before it counts as away. */
-export const IDLE_AWAY_MS = 4 * 60_000;
-
-/** The inputs that mark a person at the page; captured, so a handler that stops propagation still counts. */
-const PRESENCE_INPUTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;
-
-/** A page is away while hidden, or while visible with no input for `IDLE_AWAY_MS`; showing it counts as input. */
+/** A page is away while hidden and present while visible, whatever its input (owner 2026-11-24: a page that plays, or that someone only reads, is never touched). */
 export function pagePresence(target: PresenceTarget): PushPresence {
   const listeners = new Set<() => void>();
-  let idle = false;
-  let lastInput = Date.now();
-  let idleTimer: ReturnType<typeof setTimeout> | undefined;
-  const away = (): boolean => target.visibilityState === 'hidden' || idle;
-  const announce = (): void => {
+  const onVisibility = (): void => {
     for (const listener of listeners) listener();
   };
-  const arm = (): void => {
-    if (idleTimer !== undefined || listeners.size === 0) return;
-    idleTimer = setTimeout(() => {
-      idleTimer = undefined;
-      if (Date.now() - lastInput < IDLE_AWAY_MS) {
-        arm();
-        return;
-      }
-      if (!idle) {
-        const before = away();
-        idle = true;
-        if (away() !== before) announce();
-      }
-    }, Math.max(0, lastInput + IDLE_AWAY_MS - Date.now()));
-  };
-  const onInput = (): void => {
-    lastInput = Date.now();
-    if (idle) {
-      const before = away();
-      idle = false;
-      if (away() !== before) announce();
-    }
-    arm();
-  };
-  const onVisibility = (): void => {
-    if (target.visibilityState !== 'hidden') {
-      lastInput = Date.now();
-      idle = false;
-      arm();
-    }
-    announce();
-  };
   return {
-    away,
+    away: () => target.visibilityState === 'hidden',
     onChange: (listener) => {
       listeners.add(listener);
-      if (listeners.size === 1) {
-        target.addEventListener('visibilitychange', onVisibility);
-        for (const type of PRESENCE_INPUTS) target.addEventListener(type, onInput, { capture: true, passive: true });
-        lastInput = Date.now();
-        arm();
-      }
+      if (listeners.size === 1) target.addEventListener('visibilitychange', onVisibility);
       return () => {
         listeners.delete(listener);
-        if (listeners.size > 0) return;
-        target.removeEventListener('visibilitychange', onVisibility);
-        for (const type of PRESENCE_INPUTS) target.removeEventListener(type, onInput, { capture: true });
-        if (idleTimer !== undefined) clearTimeout(idleTimer);
-        idleTimer = undefined;
+        if (listeners.size === 0) target.removeEventListener('visibilitychange', onVisibility);
       };
     },
   };
@@ -454,7 +403,7 @@ export interface HttpTransportOptions {
    * for servers that inflate request bodies (Express's JSON parser does).
    */
   compressRequests?: boolean;
-  /** Page presence for pausing the push channel while the page is away (hidden or idle); the document's by default, none without a document. */
+  /** Page presence for pausing the push channel while the page is away (hidden); the document's by default, none without a document. */
   pushPresence?: PushPresence;
 }
 

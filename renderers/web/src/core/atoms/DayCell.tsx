@@ -12,7 +12,7 @@ import { cn } from "../lib/cn";
 import { Box } from "./Box";
 import { Typography } from "./Typography";
 import { pressableProps } from "../lib/pressable";
-import { useTranslate } from "../hooks/useTranslate";
+import { useFormatLocale } from "../hooks/useTranslate";
 
 export interface DayCellProps extends A11yProps {
   /** The date this cell represents. Optional at the dynamic render edge: an
@@ -33,14 +33,14 @@ export function DayCell({
   className,
   ...rest
 }: DayCellProps): React.JSX.Element {
-  const { locale } = useTranslate();
+  const formatLocale = useFormatLocale();
   const safeDate =
     date instanceof Date && !Number.isNaN(date.getTime()) ? date : new Date();
   const handleClick = useCallback(() => {
     onClick?.(safeDate);
   }, [onClick, safeDate]);
 
-  const dayAbbr = new Intl.DateTimeFormat(locale, { weekday: "short" }).format(safeDate);
+  const dayAbbr = new Intl.DateTimeFormat(formatLocale, { weekday: "short" }).format(safeDate);
   const press = pressableProps(onClick ? handleClick : undefined);
 
   return (
@@ -52,7 +52,7 @@ export function DayCell({
       )}
       {...domPassthrough(rest)}
       {...press}
-      aria-label={rest['aria-label'] ?? (onClick ? new Intl.DateTimeFormat(locale, { dateStyle: "full" }).format(safeDate) : undefined)}
+      aria-label={rest['aria-label'] ?? (onClick ? new Intl.DateTimeFormat(formatLocale, { dateStyle: "full" }).format(safeDate) : undefined)}
     >
       <Typography
         variant="small"

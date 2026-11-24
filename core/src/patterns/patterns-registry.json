@@ -2598,6 +2598,11 @@
                     "string"
                   ]
                 }
+              },
+              "readonly": {
+                "types": [
+                  "boolean"
+                ]
               }
             },
             "required": [
@@ -3838,6 +3843,11 @@
                     "string"
                   ]
                 }
+              },
+              "readonly": {
+                "types": [
+                  "boolean"
+                ]
               }
             },
             "required": [
@@ -113041,6 +113051,38 @@
             }
           }
         },
+        "origins": {
+          "types": [
+            "object"
+          ],
+          "description": "Frame origins: by id, an origin's position (x, y) in the origin it names (`origin`, none for the page). A drawable that names an origin is drawn in that origin's space, so moving an origin moves everything drawn in it without re-sending those drawables.",
+          "mapValue": {
+            "types": [
+              "object"
+            ],
+            "properties": {
+              "x": {
+                "types": [
+                  "number"
+                ]
+              },
+              "y": {
+                "types": [
+                  "number"
+                ]
+              },
+              "origin": {
+                "types": [
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "x",
+              "y"
+            ]
+          }
+        },
         "motionEvent": {
           "types": [
             "string"
@@ -113101,6 +113143,46 @@
                     "width",
                     "height",
                     "lines"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "originsEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Event the canvas emits with `{ offsets: { <origin id>: { x, y } } }`, every frame origin resolved to its page offset, once on load and whenever one changes: the program reads a rect placed in an origin at its page position from it.",
+          "kind": "event-ref",
+          "emitPayloadSchema": [
+            {
+              "name": "offsets",
+              "type": "object",
+              "required": true,
+              "schema": {
+                "types": [
+                  "object"
+                ],
+                "mapValue": {
+                  "types": [
+                    "object"
+                  ],
+                  "properties": {
+                    "x": {
+                      "types": [
+                        "number"
+                      ]
+                    },
+                    "y": {
+                      "types": [
+                        "number"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "x",
+                    "y"
                   ]
                 }
               }
@@ -115689,6 +115771,12 @@
             "boolean"
           ],
           "description": "On a canvas that declares `scroll`, the drawable (and everything a group holds) stays where it is drawn while the page scrolls: a header, a rail, a backdrop."
+        },
+        "origin": {
+          "types": [
+            "string"
+          ],
+          "description": "The frame origin (a key of the canvas `origins`) this top-level drawable is drawn in: it is placed as if inside a group at that origin's resolved position, and a press on it reports the origin's offset (originX, originY)."
         },
         "drag": {
           "types": [

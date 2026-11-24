@@ -16,7 +16,13 @@ import { loadProgram } from './client-program';
 /** The provider value of `locale`: the program's catalog, with built-in labels from the UI's catalog for that locale. */
 export function localeValue(program: OrbitalSchema, locale: string): I18nContextValue {
   const messages = program.messages?.[locale] ?? {};
-  return { locale, direction: localeDirection(locale), messages, t: createTranslate(messages, locale) };
+  return {
+    locale,
+    direction: localeDirection(locale),
+    messages,
+    t: createTranslate(messages, locale),
+    ...(program.formatLocale === undefined ? {} : { formatLocale: program.formatLocale }),
+  };
 }
 
 export function LocaleRoot({ manifest, children }: { manifest: ClientManifest; children: React.ReactNode }): React.ReactElement | null {

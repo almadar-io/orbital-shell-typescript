@@ -41,7 +41,7 @@ import { relationDisplayLabels } from "../../../lib/relationLabel";
 import { useEventBus } from '../../../core';
 import { useRowActions, useRowActionPayload } from "../../../hooks/useRowActions";
 import type { RowActionCondition, RowActionPayload } from "../../../lib/row-action-when";
-import { useTranslate, useFormatContext } from '../../../core';
+import { useTranslate, useFormatContext, useFormatLocale } from '../../../core';
 import { usePendingAction } from '../../../core';
 import { useContentSurface, SurfaceBoundary } from '../../../core';
 import type { SurfaceMode } from "@almadar/core";
@@ -566,9 +566,10 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({
   const navigateStack = useNavStack();
   const rowActions = useRowActions();
   const actionPayload = useRowActionPayload();
-  const { t, locale } = useTranslate();
+  const { t } = useTranslate();
+  const formatLocale = useFormatLocale();
   const fmt = useFormatContext();
-  const ctx: RenderContext = { locale, t, fmt };
+  const ctx: RenderContext = { locale: formatLocale, t, fmt };
   // Inside a contained preview (playground/builder canvas card) a portaled
   // slide-over would dock to the host viewport instead of the preview box.
   const contained = useContext(SlotContainedContext);

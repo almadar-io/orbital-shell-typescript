@@ -17,7 +17,7 @@ import { Button } from '../core';
 import { Badge } from '../core';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { GameIcon } from '../core';
-import { useTranslate } from '../core';
+import { useTranslate, useFormatLocale } from '../core';
 
 // =============================================================================
 // Types
@@ -115,7 +115,7 @@ export interface EditorSliderProps {
 }
 
 export function EditorSlider({ label, value, min, max, step = 0.1, onChange, className }: EditorSliderProps) {
-    const { locale } = useTranslate();
+    const formatLocale = useFormatLocale();
     return (
         <HStack gap="sm" align="center" className={className}>
             <Typography variant="caption" className="min-w-[80px] text-muted-foreground">{label}</Typography>
@@ -132,8 +132,8 @@ export function EditorSlider({ label, value, min, max, step = 0.1, onChange, cla
             </Box>
             <Typography variant="caption" className="min-w-[40px] text-right text-muted-foreground">
                 {typeof step === 'number' && step < 1
-                    ? new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)
-                    : new Intl.NumberFormat(locale).format(value)}
+                    ? new Intl.NumberFormat(formatLocale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value)
+                    : new Intl.NumberFormat(formatLocale).format(value)}
             </Typography>
         </HStack>
     );

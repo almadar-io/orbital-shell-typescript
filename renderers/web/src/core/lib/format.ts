@@ -65,6 +65,13 @@ export function toDateTimeInputValue(value: DateLike | undefined): string {
   return `${toDateInputValue(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 }
 
+/** The instant an `<input type="datetime-local">` value names, as zoned ISO text: the box holds the viewer's wall clock. */
+export function fromDateTimeInputValue(local: string): string {
+  if (local === '') return '';
+  const d = new Date(local);
+  return isNaN(d.getTime()) ? local : d.toISOString();
+}
+
 export function formatDate(value: FieldValue | undefined, locale?: string): string {
   if (!value) return '';
   const d = parseCalendarDate(String(value)) ?? new Date(String(value));

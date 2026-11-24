@@ -23,7 +23,7 @@ Every open gap this repo owns lives here. This file is the source of truth; the 
 
 
 
-Next code: `G-ORBITAL-SHELL-TYPESCRIPT-205`
+Next code: `G-ORBITAL-SHELL-TYPESCRIPT-206`
 
 - **G-ORBITAL-SHELL-TYPESCRIPT-201** [mechanical] — A canvas image (`std-rasm-image` → `draw-sprite` asset) from a host that sends no `Access-Control-Allow-Origin` cannot become a texture, and the web canvas drops it with no log or refusal, so the image cell paints nothing (found 2026-11-17: std-subscription-landing's five images.metmuseum.org gallery images were blank at every width; replaced with public-domain Wikimedia Commons files, which send `*`). Reproduce: point any std-rasm-image `url` at images.metmuseum.org and open the twin; the cell is empty and the console is quiet. Prevention rung: (3) the verifiers (the render probe should report an asset that failed to load). Fix: log the failed asset load (url and reason) through the package logger and report it to the kernel's asset port so the probe and runtime-verify see it. Severity: medium. Root cause: one-off.
 

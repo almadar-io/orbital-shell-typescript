@@ -13,7 +13,7 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { IconInput } from '../../../core';
 import { useEventBus, useNavStack } from '../../../core';
 import { pressableProps } from '../../../core';
-import { useTranslate, useFormatContext } from '../../../core';
+import { useTranslate, useFormatContext, useFormatLocale } from '../../../core';
 import { resolveIcon } from '../../../core';
 import type { DisplayStateProps } from "./types";
 import type { A11yProps, EntityRow } from "@almadar/core";
@@ -120,7 +120,8 @@ export const StatCard: React.FC<StatCardProps> = ({
   // Use title as fallback for label
   const labelToUse = propLabel ?? propTitle;
   const eventBus = useEventBus();
-  const { t, locale } = useTranslate();
+  const { t } = useTranslate();
+  const formatLocale = useFormatLocale();
   const fmt = useFormatContext();
 
   // Handle action click with event bus integration
@@ -302,7 +303,7 @@ export const StatCard: React.FC<StatCardProps> = ({
                 )}
               >
                 <TrendIcon className="h-4 w-4" />
-                <Typography variant="caption" as="span">{new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 1 }).format(Math.abs(calculatedTrend) / 100)}</Typography>
+                <Typography variant="caption" as="span">{new Intl.NumberFormat(formatLocale, { style: "percent", maximumFractionDigits: 1 }).format(Math.abs(calculatedTrend) / 100)}</Typography>
               </HStack>
               <Typography variant="small" color="secondary" as="span">
                 {t('statCard.vsLastPeriod')}
