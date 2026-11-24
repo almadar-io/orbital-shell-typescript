@@ -1,10 +1,11 @@
 import { isJsonObject, type EventPayload, type HostAskCompletion, type JsonObject, type JsonValue } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
-import { hostAskReturn, performHostAnswer, type HostAskFailureKind, type HostAudioAsk, type HostConsentAnswer, type HostConsentRequest, type HostSignInAnswer, type HostSignInRequest, type KernelHostActions } from '@almadar/shell-runtime/kernel/host';
+import { HostAskError, hostAskReturn, performHostAnswer, type HostAskFailureKind, type HostAudioAsk, type HostConsentAnswer, type HostConsentRequest, type HostSignInAnswer, type HostSignInRequest, type KernelHostActions } from '@almadar/shell-runtime/kernel/host';
 
 import { readAudioClock, scheduleAudio } from '../providers/audio-scheduler';
 import { browserConsentEnv, consentByPopup } from './consent-popup';
 import { pickFiles } from './file-picker';
+import { openAudioIn } from './audio-in';
 import type { KvHostPort } from '@almadar/shell-browser/kv';
 import type { OsErrorKind } from '@almadar/core/kernel-wire';
 
@@ -130,12 +131,41 @@ function streamTrace(args: readonly JsonValue[], completion: HostAskCompletion, 
   }, cost === true));
 }
 
+/** The microphones this host opened for `os/audio-in`, by the key the asking trait gave them; `cancel-call` of a key closes it. */
+const audioStreams = new Map<string, () => void>();
+
+function streamAudioIn(args: readonly JsonValue[], completion: HostAskCompletion, dispatch: HostAskDispatch | undefined): void {
+  const { key, onMessage, trait } = completion;
+  const entity = completion.entityId !== undefined ? { entityId: completion.entityId } : {};
+  const answer = (outcome: { ok: JsonObject } | { error: string; kind: HostAskFailureKind }): void => {
+    const returned = hostAskReturn(completion, outcome);
+    if (returned !== undefined && dispatch !== undefined) void dispatch(returned.trait, returned.event, { ...returned.payload, ...entity }).catch((error: Error) => log.error('audio-in answer failed', { trait, key, error: error.message }));
+  };
+  if (key === undefined || onMessage === undefined || dispatch === undefined) return answer({ error: 'os/audio-in streams only with a key, an onMessage route and a dispatch', kind: 'invalid' });
+  if (audioStreams.has(key)) return answer({ error: `key ${key} already has a microphone open`, kind: 'invalid' });
+  const options = args[0];
+  const asked = options !== undefined && options !== null && isJsonObject(options) ? options : {};
+  const sampleRate = typeof asked['sampleRate'] === 'number' ? asked['sampleRate'] : 16000;
+  const channels = typeof asked['channels'] === 'number' ? asked['channels'] : 1;
+  openAudioIn({ sampleRate, channels }, (data) => {
+    void dispatch(trait, onMessage, { data, key, ...entity }).catch((error: Error) => log.error('audio-in frame failed', { trait, key, error: error.message }));
+  }).then(
+    (stream) => {
+      audioStreams.set(key, stream.stop);
+      answer({ ok: { rate: stream.rate, channels: stream.channels } });
+    },
+    (error: Error) => answer({ error: error.message, kind: error instanceof HostAskError ? error.kind : 'unavailable' }),
+  );
+}
+
 function cancelStreams(args: readonly JsonValue[]): void {
   const named = args[0];
   const keys = typeof named === 'string' ? [named] : Array.isArray(named) ? named.flatMap((k) => (typeof k === 'string' ? [k] : [])) : [];
   for (const key of keys) {
     traceStreams.get(key)?.();
     traceStreams.delete(key);
+    audioStreams.get(key)?.();
+    audioStreams.delete(key);
   }
 }
 
@@ -148,6 +178,7 @@ function cancelStreams(args: readonly JsonValue[]): void {
 export async function answerHostAsk(op: string, args: readonly JsonValue[], completion: HostAskCompletion | undefined, dispatch: HostAskDispatch | undefined, trace?: HostTraceSource): Promise<void> {
   if (op === 'cancel-call') return cancelStreams(args);
   if (op === 'program/live' && completion?.onMessage !== undefined) return streamTrace(args, completion, dispatch, trace);
+  if (op === 'os/audio-in' && completion !== undefined) return streamAudioIn(args, completion, dispatch);
   const outcome = await performHostAnswer(webHostActions, op, args);
   if ('error' in outcome) log.error('host-ask refused', { op, error: outcome.error, kind: outcome.kind });
   if (completion === undefined) return;

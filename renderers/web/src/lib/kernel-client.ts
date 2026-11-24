@@ -395,6 +395,21 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     return { hostPaints: applied.hostPaints, fold: applied.response };
   };
 
+  /** Mount `orbital` again with the frames and states the client holds for it, opening the page it last mounted there. */
+  const remount = async (k: KernelInstance, flight: number, orbital: string, seeds: readonly MountSeed[], request: Pick<EventRequest, 'locale' | 'entityId'>): Promise<void> => {
+    if (transport === undefined) throw new Error('no transport');
+    const base = mountedBase.get(orbital);
+    const reseed: EventRequest = {
+      ...readAnswer<EventRequest>(k, k.reseedLeg(JSON.stringify(seeds), request.entityId)),
+      ...(base?.payload !== undefined ? { payload: base.payload } : {}),
+      ...(base?.route !== undefined ? { route: base.route } : {}),
+      ...(base?.crumb !== undefined ? { crumb: base.crumb } : {}),
+    };
+    const mounted = await transport.send(orbital, request.locale !== undefined ? { ...reseed, locale: request.locale } : reseed);
+    await foldAnswer(k, flight, mounted);
+    store.notify();
+  };
+
   /** Send `sent`; when the host freed this client's session, mount again with the frames the client holds, then send it once more. */
   const sendReseeding = async (
     k: KernelInstance,
@@ -409,19 +424,21 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     } catch (err) {
       if (!(err instanceof SessionEndedError)) throw err;
       const seeds = mountedSeeds.get(orbital);
-      // A host that never held this client's session (a fresh hosted guest) refuses once; with nothing to mount, send again.
-      if (seeds === undefined || seeds.length === 0) return transport.send(orbital, sent);
-      const base = mountedBase.get(orbital);
-      const reseed: EventRequest = {
-        ...readAnswer<EventRequest>(k, k.reseedLeg(JSON.stringify(seeds), request.entityId)),
-        ...(base?.payload !== undefined ? { payload: base.payload } : {}),
-        ...(base?.route !== undefined ? { route: base.route } : {}),
-        ...(base?.crumb !== undefined ? { crumb: base.crumb } : {}),
-      };
-      const mounted = await transport.send(orbital, request.locale !== undefined ? { ...reseed, locale: request.locale } : reseed);
-      await foldAnswer(k, flight, mounted);
-      store.notify();
-      return transport.send(orbital, sent);
+      if (seeds !== undefined && seeds.length > 0) {
+        await remount(k, flight, orbital, seeds, request);
+        return transport.send(orbital, sent);
+      }
+      // A host that never held this client's session (a fresh hosted guest) refuses once; with nothing to mount there, send again.
+      try {
+        return await transport.send(orbital, sent);
+      } catch (again) {
+        if (!(again instanceof SessionEndedError)) throw again;
+        // The session itself ended and this page never mounted `orbital`: the orbitals it did mount revive the session.
+        const held = [...mountedSeeds].filter(([, kept]) => kept.length > 0);
+        if (held.length === 0) throw again;
+        for (const [mountedOrbital, kept] of held) await remount(k, flight, mountedOrbital, kept, request);
+        return transport.send(orbital, sent);
+      }
     }
   };
 

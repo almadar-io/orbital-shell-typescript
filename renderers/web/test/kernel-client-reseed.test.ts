@@ -156,6 +156,60 @@ describe('kernel client — a host that freed this client session', () => {
     expect(sent.map((r) => (r.mount !== undefined ? 'mount' : r.event))).toEqual(['READ_BACK', 'READ_BACK']);
   });
 
+  describe('G-CROSS-794: an event to an orbital this page never mounted', () => {
+    const roomWire: DispatchWire = { ...dispatchWire, statefulLeg: { orbital: 'Room', leg: leg('READ_BACK'), awaiting: [] } };
+    const roomClient = (sent: { orbital: string; request: EventRequest }[], reseeded: string[], ended: () => boolean, revive: () => void) => {
+      const kernel: KernelInstance = { ...fakeKernel(reseeded), dispatch: () => JSON.stringify(roomWire) };
+      const transport: EventTransport = {
+        register: async () => ({ success: true, carriesCircuitState: false }),
+        unregister: async () => undefined,
+        send: async (orbital, request) => {
+          sent.push({ orbital, request });
+          if (request.mount !== undefined) { revive(); return response(); }
+          if (ended()) throw new SessionEndedError('the session ended');
+          return response();
+        },
+      };
+      return createKernelClient({ instance: Promise.resolve(kernel), store: createMemoryCircuitStore(), traitIndex, transport, topology: Promise.resolve({ carriesCircuitState: false }) });
+    };
+    const shape = (sent: { orbital: string; request: EventRequest }[]): string[] => sent.map((s) => `${s.orbital}:${s.request.mount !== undefined ? 'mount' : s.request.event}`);
+
+    it('refused twice, mounts again the orbitals the page did mount, then sends the event a third time', async () => {
+      const sent: { orbital: string; request: EventRequest }[] = [];
+      const reseeded: string[] = [];
+      let ended = false;
+      const client = roomClient(sent, reseeded, () => ended, () => { ended = false; });
+      await client.dispatchMount([{ trait: 'Viewer', event: 'INIT' }], undefined, { route: '/live/set-1' });
+      sent.length = 0;
+      ended = true;
+      await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' });
+      expect(shape(sent)).toEqual(['Room:READ_BACK', 'Room:READ_BACK', 'Main:mount', 'Room:READ_BACK']);
+      expect(reseeded).toHaveLength(1);
+      expect(sent[2]?.request.route).toBe('/live/set-1');
+      expect(sent[2]?.request.entityByTrait).toEqual({ Viewer: { topic: 'app' } });
+    });
+
+    it('control: refused once (a host that never held the session), the second send lands and nothing is mounted', async () => {
+      const sent: { orbital: string; request: EventRequest }[] = [];
+      const reseeded: string[] = [];
+      let refusals = 0;
+      const client = roomClient(sent, reseeded, () => { refusals -= 1; return refusals >= 0; }, () => undefined);
+      await client.dispatchMount([{ trait: 'Viewer', event: 'INIT' }]);
+      sent.length = 0;
+      refusals = 1;
+      await client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' });
+      expect(shape(sent)).toEqual(['Room:READ_BACK', 'Room:READ_BACK']);
+      expect(reseeded).toHaveLength(0);
+    });
+
+    it('control: a page that mounted nothing anywhere still fails with the refusal', async () => {
+      const sent: { orbital: string; request: EventRequest }[] = [];
+      const client = roomClient(sent, [], () => true, () => undefined);
+      await expect(client.dispatch({ event: 'READ_BACK', targetTrait: 'Viewer' })).rejects.toBeInstanceOf(SessionEndedError);
+      expect(shape(sent)).toEqual(['Room:READ_BACK', 'Room:READ_BACK']);
+    });
+  });
+
   it('control: a live session sends the event once and mounts nothing again', async () => {
     const sent: EventRequest[] = [];
     const reseeded: string[] = [];
