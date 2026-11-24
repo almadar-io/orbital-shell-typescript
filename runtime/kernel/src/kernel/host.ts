@@ -170,6 +170,27 @@ export class HostAskError extends Error {
   }
 }
 
+/** What `browser/open-file-picker` asks the OS picker for: several files or one, of the `accept` types (empty is any). */
+export interface FilePickerRequest {
+  multiple: boolean;
+  accept: string;
+}
+
+/** One file the viewer picked: its metadata and its bytes as a base64 data URL, which `browser/read-file` reads. */
+export interface PickedFile {
+  name: string;
+  size: number;
+  type: string;
+  lastModified: number;
+  content: string;
+}
+
+/** This device's push subscription, as the platform push service answered it: a browser's Web Push credentials, or an Android (fcm) or iOS (apns) device token. */
+export type HostPushSubscription =
+  | { kind: 'webpush'; endpoint: string; p256dh: string; auth: string }
+  | { kind: 'fcm'; token: string }
+  | { kind: 'apns'; token: string };
+
 /** What the client host does for the `audio/*`, `auth/sign-out`, `auth/sign-in` and `auth/consent` asks; a host that has none refuses them by name. */
 export interface KernelHostActions {
   audio?: (ask: HostAudioAsk) => void;
@@ -178,6 +199,10 @@ export interface KernelHostActions {
   signOut?: () => void | Promise<void>;
   signIn?: (request: HostSignInRequest) => Promise<HostSignInAnswer>;
   consent?: (request: HostConsentRequest) => Promise<HostConsentAnswer>;
+  /** The OS file picker `browser/open-file-picker` opens; it throws a `cancelled` HostAskError when the viewer closes it. */
+  openFilePicker?: (request: FilePickerRequest) => Promise<readonly PickedFile[]>;
+  /** Subscribe this device to push through the platform push service (`browser/push-subscribe`); it throws a `denied` HostAskError when notifications are refused. */
+  pushSubscribe?: () => Promise<HostPushSubscription>;
   /** The browser's kv store (IndexedDB) a client kernel's `kv/` host asks are answered from. */
   kv?: (op: KvHostOp, args: readonly JsonValue[]) => Promise<HostAskOutcome>;
 }
@@ -442,7 +467,7 @@ export async function performHostAsk(
       return fail(error instanceof Error ? error.message : String(error));
     }
   }
-  if (op === 'audio/schedule' || op === 'audio/clock' || op === 'browser/read-file') return fail(`${op} is answered by the client host's ask return, not run as an effect`);
+  if (op === 'audio/schedule' || op === 'audio/clock' || op === 'browser/read-file' || op === 'browser/open-file-picker' || op === 'browser/push-subscribe') return fail(`${op} is answered by the client host's ask return, not run as an effect`);
   const audio = actions?.audio;
   if (audio === undefined) return fail(`no host audio is configured for ${op}`);
   let ask: HostAudioAsk;
@@ -569,6 +594,43 @@ async function performAudioSchedule(actions: KernelHostActions | undefined, args
   }
 }
 
+function parseFilePickerRequest(args: readonly JsonValue[]): { request: FilePickerRequest } | { error: string } {
+  const [options] = args;
+  if (args.length > 1) return { error: 'browser/open-file-picker takes at most one options object' };
+  if (options === undefined || options === null) return { request: { multiple: false, accept: '' } };
+  if (!isJsonObject(options)) return { error: 'browser/open-file-picker: options is an object { multiple?, accept? }' };
+  const { multiple, accept } = options;
+  if (multiple !== undefined && multiple !== null && typeof multiple !== 'boolean') return { error: 'browser/open-file-picker: multiple is true or false' };
+  if (accept !== undefined && accept !== null && typeof accept !== 'string') return { error: 'browser/open-file-picker: accept is one text of types, such as "image/*"' };
+  return { request: { multiple: multiple === true, accept: typeof accept === 'string' ? accept : '' } };
+}
+
+/** `browser/open-file-picker`: the files the OS picker answered, as `{ result: { files } }`. */
+async function performOpenFilePicker(actions: KernelHostActions | undefined, args: readonly JsonValue[]): Promise<HostAskOutcome> {
+  const parsed = parseFilePickerRequest(args);
+  if ('error' in parsed) return { error: parsed.error, kind: 'invalid' };
+  if (actions?.openFilePicker === undefined) return { error: 'no host file picker is configured for browser/open-file-picker', kind: 'unavailable' };
+  try {
+    const picked = await actions.openFilePicker(parsed.request);
+    const files: JsonValue[] = picked.map(({ name, size, type, lastModified, content }) => ({ name, size, type, lastModified, content }));
+    return { ok: { result: { files } } };
+  } catch (error) {
+    return hostFailure(error instanceof Error ? error : String(error));
+  }
+}
+
+/** `browser/push-subscribe`: this device's subscription, flat on the success payload. */
+async function performPushSubscribe(actions: KernelHostActions | undefined, args: readonly JsonValue[]): Promise<HostAskOutcome> {
+  if (args.length !== 0) return { error: 'browser/push-subscribe takes no arguments', kind: 'invalid' };
+  if (actions?.pushSubscribe === undefined) return { error: 'no host push service is configured for browser/push-subscribe', kind: 'unavailable' };
+  try {
+    const subscription = await actions.pushSubscribe();
+    return { ok: subscription.kind === 'webpush' ? { kind: 'webpush', endpoint: subscription.endpoint, p256dh: subscription.p256dh, auth: subscription.auth } : { kind: subscription.kind, token: subscription.token } };
+  } catch (error) {
+    return hostFailure(error instanceof Error ? error : String(error));
+  }
+}
+
 const BASE64_DATA_URL = /^data:[^,;]*(?:;[^,;]*)*;base64,([A-Za-z0-9+/]*={0,2})$/;
 
 /** `browser/read-file`: the bytes of a picked file value, as the standard base64 of its data-URL content; the host reads nothing else. */
@@ -621,6 +683,8 @@ export async function performHostAnswer(actions: KernelHostActions | undefined, 
   if (op === 'audio/schedule') return performAudioSchedule(actions, args);
   if (op === 'audio/clock') return performAudioClock(actions, args);
   if (op === 'browser/read-file') return performReadFile(args);
+  if (op === 'browser/open-file-picker') return performOpenFilePicker(actions, args);
+  if (op === 'browser/push-subscribe') return performPushSubscribe(actions, args);
   if (op !== 'auth/sign-in') {
     const outcome = await performHostAsk(actions, op, args);
     return 'error' in outcome ? { error: outcome.error, kind: 'unavailable' } : { ok: {} };

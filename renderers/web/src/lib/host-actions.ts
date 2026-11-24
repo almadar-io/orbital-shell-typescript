@@ -4,6 +4,7 @@ import { hostAskReturn, performHostAnswer, type HostAskFailureKind, type HostAud
 
 import { readAudioClock, scheduleAudio } from '../providers/audio-scheduler';
 import { browserConsentEnv, consentByPopup } from './consent-popup';
+import { pickFiles } from './file-picker';
 import type { KvHostPort } from '@almadar/shell-browser/kv';
 import type { OsErrorKind } from '@almadar/core/kernel-wire';
 
@@ -14,6 +15,7 @@ let signOutHost: (() => void | Promise<void>) | undefined;
 let signInHost: ((request: HostSignInRequest) => Promise<HostSignInAnswer>) | undefined;
 let consentHost: ((request: HostConsentRequest) => Promise<HostConsentAnswer>) | undefined;
 let kvHost: KernelHostActions['kv'];
+let pushHost: KernelHostActions['pushSubscribe'];
 
 /** Install the browser kv store a client kernel's `kv/` host asks are answered from; the returned function removes it. */
 export function registerHostKv(host: NonNullable<KernelHostActions['kv']>): () => void {
@@ -31,6 +33,14 @@ export function kvHostAction(port: KvHostPort): NonNullable<KernelHostActions['k
     const settled = await port.answer(op, [...args]);
     if ('error' in settled) return { error: settled.error.message, kind: KV_FAILURE[settled.error.kind] };
     return isJsonObject(settled.ok) ? { ok: settled.ok } : { error: `${op} answered a non-record`, kind: 'invalid' };
+  };
+}
+
+/** Install the push subscription `browser/push-subscribe` runs (the shell's, which knows its server's address); the returned function removes it. */
+export function registerHostPushSubscribe(host: NonNullable<KernelHostActions['pushSubscribe']>): () => void {
+  pushHost = host;
+  return () => {
+    if (pushHost === host) pushHost = undefined;
   };
 }
 
@@ -79,6 +89,10 @@ export const webHostActions: KernelHostActions = {
   },
   audioSchedule: scheduleAudio,
   audioClock: readAudioClock,
+  openFilePicker: pickFiles,
+  get pushSubscribe() {
+    return pushHost;
+  },
   get kv() {
     return kvHost;
   },

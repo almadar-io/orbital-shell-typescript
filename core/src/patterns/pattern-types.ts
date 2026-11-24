@@ -2215,6 +2215,11 @@ export interface PatternPropsMap {
     senderField?: string | SExpr;
     senderLabelField?: string | SExpr;
     currentUser?: string | SExpr;
+    senderAvatarField?: string | SExpr;
+    feedGroupMinutes?: number | string | SExpr;
+    replyCountField?: string | SExpr;
+    repliersField?: string | SExpr;
+    replyEvent?: string | SExpr;
     emptyMessage?: string | SExpr;
     className?: string | SExpr;
     isLoading?: boolean | string | SExpr;

@@ -55,6 +55,11 @@ export interface BrowserAuth {
   signInWithGoogle(): Promise<SignedInUser>;
   /** A Google sign-in on a separate in-memory session, signed out once its ID token is read: the page's own viewer never changes. */
   googleCredential(): Promise<{ user: SignedInUser; idToken: string }>;
+  /**
+   * `googleCredential` plus the session's refresh token, for a native host that signs its viewer in through this page
+   * (the desktop hand-off page): the host keeps the refresh token and renews the ID token itself.
+   */
+  googleDeviceCredential(): Promise<{ user: SignedInUser; idToken: string; refreshToken: string }>;
   sendSignInLinkToEmail(email: string, returnUrl: string): Promise<void>;
   isSignInWithEmailLink(link: string): boolean;
   signInWithEmailLink(email: string, link: string): Promise<SignedInUser>;
@@ -99,6 +104,17 @@ export async function idTokenOf(auth: { authStateReady(): Promise<void>; readonl
   return auth.currentUser ? auth.currentUser.getIdToken() : undefined;
 }
 
+/** A separate in-memory auth session beside the page's own, so a sign-in there never changes the page's viewer. */
+async function sideSession(config: BrowserAuthConfig, purpose: 'credential' | 'device'): Promise<Auth> {
+  const side = getAuth(appFor({ ...config, appName: `${config.appName}/${purpose}` }));
+  if (config.tenantId !== undefined) side.tenantId = config.tenantId;
+  if (config.emulatorHost !== undefined && side.emulatorConfig === null) {
+    connectAuthEmulator(side, `http://${config.emulatorHost}`, { disableWarnings: true });
+  }
+  await setPersistence(side, inMemoryPersistence);
+  return side;
+}
+
 export async function connectAuth(config: BrowserAuthConfig): Promise<BrowserAuth> {
   const auth = getAuth(appFor(config));
   if (config.tenantId !== undefined) auth.tenantId = config.tenantId;
@@ -127,14 +143,16 @@ export async function connectAuth(config: BrowserAuthConfig): Promise<BrowserAut
       return signedIn((await signInWithPopup(auth, googleProvider('viewer'))).user);
     },
     async googleCredential() {
-      const side = getAuth(appFor({ ...config, appName: `${config.appName}/credential` }));
-      if (config.tenantId !== undefined) side.tenantId = config.tenantId;
-      if (config.emulatorHost !== undefined && side.emulatorConfig === null) {
-        connectAuthEmulator(side, `http://${config.emulatorHost}`, { disableWarnings: true });
-      }
-      await setPersistence(side, inMemoryPersistence);
+      const side = await sideSession(config, 'credential');
       const { user } = await signInWithPopup(side, googleProvider('credential'));
       const answer = { user: await signedIn(user), idToken: await user.getIdToken() };
+      await signOut(side);
+      return answer;
+    },
+    async googleDeviceCredential() {
+      const side = await sideSession(config, 'device');
+      const { user } = await signInWithPopup(side, googleProvider('viewer'));
+      const answer = { user: await signedIn(user), idToken: await user.getIdToken(), refreshToken: user.refreshToken };
       await signOut(side);
       return answer;
     },

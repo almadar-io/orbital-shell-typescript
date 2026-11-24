@@ -292,3 +292,63 @@ describe('audio/schedule and audio/clock: host asks answered through performHost
     });
   });
 });
+
+describe('browser/open-file-picker: the OS picker answers the picked files, which browser/read-file reads (EXEC-DIST-13)', () => {
+  const photo = { name: 'mama.jpg', size: 4, type: 'image/jpeg', lastModified: 1700000000000, content: 'data:image/jpeg;base64,AQIDBA==' };
+
+  it('answers { result: { files } } with what the host picked, passing multiple and accept through', async () => {
+    const asked: unknown[] = [];
+    const actions = { openFilePicker: async (request: { multiple: boolean; accept: string }) => { asked.push(request); return [photo]; } };
+    expect(await performHostAnswer(actions, 'browser/open-file-picker', [{ multiple: true, accept: 'image/*' }])).toEqual({ ok: { result: { files: [photo] } } });
+    expect(asked).toEqual([{ multiple: true, accept: 'image/*' }]);
+  });
+
+  it('a picker with no options picks one file of any type', async () => {
+    const asked: unknown[] = [];
+    const actions = { openFilePicker: async (request: { multiple: boolean; accept: string }) => { asked.push(request); return [photo]; } };
+    await performHostAnswer(actions, 'browser/open-file-picker', []);
+    expect(asked).toEqual([{ multiple: false, accept: '' }]);
+  });
+
+  it('a picked file reads into bytes through browser/read-file', async () => {
+    expect(await performHostAnswer(undefined, 'browser/read-file', [photo])).toEqual({ ok: { data: 'AQIDBA==', name: 'mama.jpg', size: 4, type: 'image/jpeg' } });
+  });
+
+  it('control: a dismissed picker answers cancelled, and options of the wrong shape are invalid without asking', async () => {
+    let asked = 0;
+    const cancelled = { openFilePicker: async () => { asked += 1; throw new HostAskError('cancelled', 'the picker was closed'); } };
+    expect(await performHostAnswer(cancelled, 'browser/open-file-picker', [{}])).toEqual({ error: 'the picker was closed', kind: 'cancelled' });
+    expect(await performHostAnswer(cancelled, 'browser/open-file-picker', [{ multiple: 'yes' }])).toMatchObject({ kind: 'invalid' });
+    expect(await performHostAnswer(cancelled, 'browser/open-file-picker', [{ accept: 3 }])).toMatchObject({ kind: 'invalid' });
+    expect(await performHostAnswer(cancelled, 'browser/open-file-picker', [{}, {}])).toMatchObject({ kind: 'invalid' });
+    expect(asked).toBe(1);
+  });
+
+  it('control: a host with no picker answers unavailable', async () => {
+    expect(await performHostAnswer({}, 'browser/open-file-picker', [])).toMatchObject({ kind: 'unavailable' });
+  });
+});
+
+describe('browser/push-subscribe: the platform push service answers this device subscription, flat on the success payload (EXEC-DIST-13)', () => {
+  it('answers a browser subscription as { kind: webpush, endpoint, p256dh, auth }', async () => {
+    const webpush = { kind: 'webpush' as const, endpoint: 'https://fcm.googleapis.com/fcm/send/abc', p256dh: 'BPk', auth: 'c2Vj' };
+    expect(await performHostAnswer({ pushSubscribe: async () => webpush }, 'browser/push-subscribe', [])).toEqual({ ok: webpush });
+  });
+
+  it('answers a device token as { kind, token } for fcm and apns', async () => {
+    expect(await performHostAnswer({ pushSubscribe: async () => ({ kind: 'fcm' as const, token: 'reg-1' }) }, 'browser/push-subscribe', [])).toEqual({ ok: { kind: 'fcm', token: 'reg-1' } });
+    expect(await performHostAnswer({ pushSubscribe: async () => ({ kind: 'apns' as const, token: 'dev-1' }) }, 'browser/push-subscribe', [])).toEqual({ ok: { kind: 'apns', token: 'dev-1' } });
+  });
+
+  it('control: a refused permission answers its kind, and arguments are invalid without asking', async () => {
+    let asked = 0;
+    const denied = { pushSubscribe: async () => { asked += 1; throw new HostAskError('denied', 'notifications are blocked'); } };
+    expect(await performHostAnswer(denied, 'browser/push-subscribe', [])).toEqual({ error: 'notifications are blocked', kind: 'denied' });
+    expect(await performHostAnswer(denied, 'browser/push-subscribe', [{}])).toMatchObject({ kind: 'invalid' });
+    expect(asked).toBe(1);
+  });
+
+  it('control: a host with no push service answers unavailable', async () => {
+    expect(await performHostAnswer({}, 'browser/push-subscribe', [])).toMatchObject({ kind: 'unavailable' });
+  });
+});

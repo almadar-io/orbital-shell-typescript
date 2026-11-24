@@ -71,3 +71,7 @@ export * from './themeTokens';
 export * from './iconNativeMap';
 export { computeLineDiff, type LineDiffLine } from './lineDiff';
 export { enterClassName, asEnterAnimation, ENTER_SLOT_CLASS, MAX_ENTER_DELAY } from './enter';
+
+// Web Push for `browser/push-subscribe`: the shell installs it with its server's address.
+export { webPushSubscribe, PUSH_WORKER_URL } from './push-subscribe';
+export { registerHostPushSubscribe } from './host-actions';

@@ -24,7 +24,7 @@ import type { SurfaceMode } from '@almadar/core';
 import { entityRows } from '../../../lib/entityRows';
 import { rowOpenControlProps, STRETCHED_CONTROL, STRETCHED_ABOVE } from '../../../core';
 import { domPassthrough } from '../../../core';
-import { formatDate, formatValue as libFormatValue, type FormatContext, sortRows } from '../../../core';
+import { formatDate, formatTime, formatValue as libFormatValue, type FormatContext, sortRows } from '../../../core';
 import { resolveRelationCellDisplay } from '../../../lib/relationLabel';
 import type { RelationOption } from './RelationSelect';
 import { createLogger } from '@almadar/logger';
@@ -124,7 +124,7 @@ export interface DataListProps extends DataDndProps, EmptyStateSlotProps, A11yPr
   /** Gap between rows */
   gap?: 'none' | 'sm' | 'md' | 'lg';
   /** Visual variant */
-  variant?: 'default' | 'card' | 'compact' | 'message';
+  variant?: 'default' | 'card' | 'compact' | 'message' | 'feed';
   /** Group items by a field value (renders section headers between groups) */
   groupBy?: string;
   /** How a `groupBy` value is bucketed and labelled (`date` = one section per day) */
@@ -139,6 +139,17 @@ export interface DataListProps extends DataDndProps, EmptyStateSlotProps, A11yPr
   senderLabelField?: string;
   /** Current user identifier; messages matching this value align right (used with variant: "message") */
   currentUser?: string;
+  /** Field holding the sender's photo URL; without one the avatar shows the sender's initials (used with variant: "feed") */
+  senderAvatarField?: string;
+  /** Minutes within which consecutive rows from the same sender share one author header (used with variant: "feed"). Defaults to 5. */
+  feedGroupMinutes?: number;
+  /** Field holding a row's reply count; above zero the row shows an "N replies" line (used with variant: "feed") */
+  replyCountField?: string;
+  /** Field holding the names of the people who replied, drawn as small avatars on the replies line (used with variant: "feed") */
+  repliersField?: string;
+  /** Event the replies line emits: UI:{replyEvent} with { id, row } (used with variant: "feed") */
+  /** @entityRow row */
+  replyEvent?: EventEmit<ItemActionPayload>;
   /**
    * Message shown when there are no rows. Falls back to the generic
    * "no items" translation. `TableView` already exposes this; an agenda or an
@@ -270,6 +281,11 @@ export function DataList({
   senderField,
   senderLabelField,
   currentUser,
+  senderAvatarField,
+  feedGroupMinutes = 5,
+  replyCountField,
+  repliersField,
+  replyEvent,
   emptyMessage,
   emptyIcon,
   emptyTitle,
@@ -533,6 +549,199 @@ export function DataList({
   const isCard = variant === 'card';
   const isCompact = variant === 'compact';
   const isMessage = variant === 'message';
+
+  // ── Feed variant: every row left-aligned under its author, as a team chat reads ──
+  if (variant === 'feed') {
+    const items = [...data];
+    const groups = groupBy ? groupRows(items, groupBy, groupFormat, fmt) : [{ label: '', items }];
+    const contentField = (fieldDefs.find((f) => f.variant === 'body') ?? titleField)?.name ?? '';
+    const timestampField = fieldDefs.find((f) => f.format === 'date' || f.format === 'datetime' || f.format === 'time');
+    const metaFields = fieldDefs.filter(
+      (f) => f.name !== contentField && f.name !== timestampField?.name,
+    );
+    const windowMs = feedGroupMinutes * 60_000;
+    const senderOf = (row: EntityRow): string => (senderField ? String(getNestedValue(row, senderField) ?? '') : '');
+    const timeOf = (row: EntityRow): number => {
+      const v = timestampField ? getNestedValue(row, timestampField.name) : undefined;
+      return v === undefined || v === null || v === '' ? NaN : new Date(String(v)).getTime();
+    };
+    const nameOf = (row: EntityRow): string => {
+      const raw = senderOf(row);
+      if (!senderLabelField) return raw;
+      const v = getNestedValue(row, senderLabelField);
+      return v === undefined || v === null || v === '' ? raw : String(v);
+    };
+    const avatarOf = (row: EntityRow): string | undefined => {
+      const v = senderAvatarField ? getNestedValue(row, senderAvatarField) : undefined;
+      return v === undefined || v === null || v === '' ? undefined : String(v);
+    };
+    const continues = (row: EntityRow, prev: EntityRow | undefined): boolean => {
+      if (!prev || !senderField || senderOf(row) !== senderOf(prev)) return false;
+      const gap = timeOf(row) - timeOf(prev);
+      return !Number.isNaN(gap) && gap >= 0 && gap <= windowMs;
+    };
+
+    return (
+      <VStack gap="none" className={cn('py-2', className)} data-item-move-root={moves.root}>
+        {groups.map((group, gi) => (
+          <React.Fragment key={gi}>
+            {group.label && <Divider label={group.label} className="my-3" />}
+            {group.items.map((itemData, index) => {
+              const id = (itemData.id as string) || `${gi}-${index}`;
+              const rowId = String(itemData.id ?? '');
+              const isContinuation = continues(itemData, group.items[index - 1]);
+              const content = getNestedValue(itemData, contentField);
+              const stamp = timestampField ? (getNestedValue(itemData, timestampField.name) as FieldValue | undefined) : undefined;
+              const replyCount = replyCountField ? Number(getNestedValue(itemData, replyCountField) ?? 0) : 0;
+              const repliersRaw = repliersField ? getNestedValue(itemData, repliersField) : undefined;
+              const repliers = Array.isArray(repliersRaw) ? repliersRaw.map((r) => String(r)) : [];
+              const isSelectedRow = selectedId !== undefined && selectedId !== '' && rowId === selectedId;
+              const shownActions = itemActions ? rowActions(itemActions, itemData) : [];
+              const onOpen = itemClickEvent ? handleRowClick(itemData) : undefined;
+              return (
+                <Box
+                  key={id}
+                  ref={isSelectedRow ? selectedRowRef : undefined}
+                  {...(isSelectedRow ? { 'aria-current': 'true' as const, 'data-selected': true } : {})}
+                  data-entity-row
+                  data-entity-id={id}
+                  data-item-key={id}
+                  data-item-move={moves.row}
+                  data-feed-continuation={isContinuation || undefined}
+                  data-row-pending={isRowPending(rowId) || undefined}
+                  aria-busy={isRowPending(rowId) || undefined}
+                  onClick={onOpen}
+                  className={cn(
+                    enterClassName(itemEnter),
+                    'relative flex gap-3 px-4 group/rowactions hover:bg-muted/60',
+                    isContinuation ? 'py-0.5' : 'pt-2 pb-0.5',
+                    onOpen && 'cursor-pointer',
+                    isSelectedRow && 'bg-primary/10',
+                  )}
+                >
+                  <Box className="w-9 flex-shrink-0">
+                    {isContinuation ? (
+                      stamp !== undefined && stamp !== null && stamp !== '' ? (
+                        <Typography variant="caption" className="block text-[10px] leading-5 text-muted-foreground text-end opacity-0 group-hover/rowactions:opacity-100">
+                          {formatTime(stamp)}
+                        </Typography>
+                      ) : null
+                    ) : (
+                      <Avatar name={nameOf(itemData)} src={avatarOf(itemData)} size="md" />
+                    )}
+                  </Box>
+                  <Box className="flex-1 min-w-0">
+                    {!isContinuation && (
+                      <HStack gap="sm" className="items-baseline">
+                        <Typography variant="small" weight="semibold">{nameOf(itemData)}</Typography>
+                        {stamp !== undefined && stamp !== null && stamp !== '' && (
+                          <Typography variant="caption" className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatTime(stamp)}
+                          </Typography>
+                        )}
+                      </HStack>
+                    )}
+                    <Box {...rowOpenControlProps(itemClickEvent !== undefined)} className={cn(itemClickEvent && STRETCHED_CONTROL)}>
+                      <Typography variant="body" className="whitespace-pre-wrap break-words">
+                        {content !== undefined && content !== null ? String(content) : ''}
+                      </Typography>
+                    </Box>
+                    {metaFields.length > 0 && (
+                      <HStack gap="xs" className={cn('mt-1 flex-wrap', STRETCHED_ABOVE)}>
+                        {metaFields.map((f) => {
+                          const v = getNestedValue(itemData, f.name);
+                          if (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)) return null;
+                          return f.variant === 'badge' ? (
+                            <Badge key={f.name} variant={badgeVariantFor(String(v), f.colorMap)}>
+                              {valueLabelFor(formatValue(v as FieldValue, f.format, fmt, relationsData?.[f.name]), f.labels)}
+                            </Badge>
+                          ) : (
+                            <Typography key={f.name} variant="caption" className="text-xs text-muted-foreground">
+                              {formatValue(v as FieldValue, f.format, fmt, relationsData?.[f.name])}
+                            </Typography>
+                          );
+                        })}
+                      </HStack>
+                    )}
+                    {replyCount > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        data-testid="feed-replies"
+                        className={cn('mt-1 -ms-2 gap-1.5 text-primary', STRETCHED_ABOVE)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!replyEvent) return;
+                          eventBus.emit(`UI:${replyEvent}`, { id: itemData.id as string | number, row: itemData as ItemActionPayload['row'] });
+                        }}
+                      >
+                        {repliers.length > 0 && (
+                          <HStack gap="none" className="-space-x-1">
+                            {repliers.map((name, ri) => (
+                              <Avatar key={`${name}-${ri}`} name={name} size="xs" className="ring-2 ring-background" />
+                            ))}
+                          </HStack>
+                        )}
+                        <Typography variant="caption" weight="semibold" className="text-primary">
+                          {replyCount === 1 ? t('dataList.replyOne') : t('dataList.replyOther', { count: replyCount })}
+                        </Typography>
+                      </Button>
+                    )}
+                  </Box>
+                  {shownActions.length > 0 && (
+                    <Box onClick={(e) => e.stopPropagation()} className="absolute -top-3 end-4 z-10 opacity-0 group-hover/rowactions:opacity-100 focus-within:opacity-100 [@media(pointer:coarse)]:opacity-100 transition-opacity duration-fast">
+                      <Box className="rounded-container border border-border bg-card/95 backdrop-blur-sm shadow-elevation-popover surface-material p-0.5 [@media(pointer:coarse)]:hidden">
+                        <HStack gap="none">
+                          {shownActions.map((action, ai) => (
+                            <Button
+                              key={ai}
+                              variant="ghost"
+                              size="sm"
+                              aria-label={action.label}
+                              title={action.label}
+                              onClick={handleActionClick(action, itemData)}
+                              data-testid={actionTestId(action.event)}
+                              data-row-id={rowId}
+                            >
+                              {action.icon ? renderIconInput(action.icon, { size: 'xs' }) : action.label}
+                            </Button>
+                          ))}
+                        </HStack>
+                      </Box>
+                      <Box className="hidden [@media(pointer:coarse)]:block rounded-container border border-border bg-card/95 surface-material p-0.5">
+                        <Menu
+                          position="bottom-end"
+                          trigger={
+                            <Button variant="ghost" size="sm" aria-label={t('common.actions')} data-testid={ACTION_OVERFLOW_TESTID}>
+                              <Icon name="more-horizontal" size="xs" />
+                            </Button>
+                          }
+                          items={shownActions.map((action) => ({
+                            label: action.label,
+                            icon: action.icon,
+                            variant: action.variant === 'danger' ? ('danger' as const) : ('default' as const),
+                            onClick: () => fireAction(action, itemData),
+                          }))}
+                        />
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              );
+            })}
+          </React.Fragment>
+        ))}
+        {hasMoreLocal && (
+          <Box className="flex justify-center py-3">
+            <Button variant="ghost" size="sm" onClick={() => setVisibleCount((prev) => prev + (pageSize || 5))}>
+              <Icon name="chevron-down" size="xs" className="mr-1" />
+              {t('common.showMore')} ({t('common.remaining', { count: allData.length - visibleCount })})
+            </Button>
+          </Box>
+        )}
+      </VStack>
+    );
+  }
 
   // ── Message variant ──────────────────────────────────────────────
   if (isMessage) {

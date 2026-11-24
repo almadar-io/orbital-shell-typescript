@@ -17,6 +17,7 @@ import { KernelEngineProvider, type KernelEngineHost } from '@almadar/shell-web/
 import { OrbPreview } from '@almadar/shell-web/runtime';
 import type { ClientManifest } from '@almadar/core';
 import { hostSignIn } from '@almadar/shell-web/auth/react';
+import { registerHostPushSubscribe, webPushSubscribe } from '@almadar/shell-web/lib';
 import { loadProgram, serverBase } from './client-program';
 import { AuthProvider, PersonaSwitcher, useAuthContext } from './features/auth';
 import Login from './features/auth/components/Login';
@@ -47,6 +48,7 @@ function KernelApp(): React.ReactElement | null {
   const navigate = useNavigate();
   const accessToken = useCallback(async (): Promise<string | undefined> => (auth ? auth.idToken() : undefined), [auth]);
   const apiBase = program === undefined ? undefined : serverBase(program);
+  useEffect(() => (apiBase === undefined ? undefined : registerHostPushSubscribe(webPushSubscribe(apiBase))), [apiBase]);
   const http = useMemo(() => createHttpTransport({ serverUrl: `${apiBase ?? ''}/api/orbitals`, getAccessToken: accessToken }), [apiBase, accessToken]);
   // The server booted with this program and serves no `/register`: a route that replaced the app's program would be a hole, so the client reports it registered.
   const transport = useMemo(

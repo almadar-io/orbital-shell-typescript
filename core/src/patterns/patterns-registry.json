@@ -49856,7 +49856,8 @@
             "default",
             "card",
             "compact",
-            "message"
+            "message",
+            "feed"
           ],
           "default": "default"
         },
@@ -49898,6 +49899,51 @@
             "string"
           ],
           "description": "Current user identifier; messages matching this value align right (used with variant: \"message\")"
+        },
+        "senderAvatarField": {
+          "types": [
+            "string"
+          ],
+          "description": "Field holding the sender's photo URL; without one the avatar shows the sender's initials (used with variant: \"feed\")"
+        },
+        "feedGroupMinutes": {
+          "types": [
+            "number"
+          ],
+          "description": "Minutes within which consecutive rows from the same sender share one author header (used with variant: \"feed\"). Defaults to 5.",
+          "default": 5
+        },
+        "replyCountField": {
+          "types": [
+            "string"
+          ],
+          "description": "Field holding a row's reply count; above zero the row shows an \"N replies\" line (used with variant: \"feed\")"
+        },
+        "repliersField": {
+          "types": [
+            "string"
+          ],
+          "description": "Field holding the names of the people who replied, drawn as small avatars on the replies line (used with variant: \"feed\")"
+        },
+        "replyEvent": {
+          "types": [
+            "string"
+          ],
+          "description": "Event the replies line emits: UI:{replyEvent} with { id, row } (used with variant: \"feed\")",
+          "kind": "event-ref",
+          "entityRowField": "row",
+          "emitPayloadSchema": [
+            {
+              "name": "id",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "row",
+              "type": "@entity",
+              "required": true
+            }
+          ]
         },
         "emptyMessage": {
           "types": [

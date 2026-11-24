@@ -59,7 +59,17 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: mode === 'development',
       rollupOptions: {
-        output: { manualChunks: manualChunk },
+        // The desktop host's loopback sign-in page ships beside the app (src/native-sign-in.ts).
+        input: {
+          main: path.resolve(__dirname, 'index.html'),
+          nativeSignIn: path.resolve(__dirname, 'native-sign-in.html'),
+          // The push service worker keeps a fixed name at the site root, so it can take the whole site as scope.
+          pushWorker: path.resolve(__dirname, 'push-worker/orbital-push-sw.ts'),
+        },
+        output: {
+          manualChunks: manualChunk,
+          entryFileNames: (chunk) => (chunk.name === 'pushWorker' ? 'orbital-push-sw.js' : 'assets/[name]-[hash].js'),
+        },
       },
     },
 
