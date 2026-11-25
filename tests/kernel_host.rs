@@ -76,8 +76,9 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
 /// ships `public/language.json` (G-CROSS-357) and the manifest lost its `language` flag; the bundle is the installed
 /// language, checked whole by `every_client_ships_the_language_its_browser_kernel_installs`, so the digest leaves it out.
 /// Re-recorded 2026-11-21 after the committed compile changes since 2026-10-31, among them `client.json` naming the
-/// default preset a program without themes paints (24afce0).
-const KERNEL_OUTPUT_DIGEST: u64 = 898_102_521_484_527_326;
+/// default preset a program without themes paints (24afce0). Re-recorded 2026-11-25 when `program.client.orb` began writing
+/// each repeated part once (`$def`).
+const KERNEL_OUTPUT_DIGEST: u64 = 4_073_561_849_189_931_590;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -548,4 +549,36 @@ fn edge_an_orbital_of_protocol_pages_only_is_not_projected() {
 #[test]
 fn control_an_orbital_without_pages_is_projected() {
     assert_eq!(client_orbital_names(&schema_with_pages(serde_json::json!([]))), vec!["Books"]);
+}
+
+fn twin_orbitals() -> orbital_core_base::schema::types::OrbitalSchema {
+    let orbital = |name: &str, path: &str| serde_json::json!({
+        "name": name,
+        "entity": { "name": format!("{name}State"), "persistence": "runtime", "fields": [{ "name": "id", "type": "string" }] },
+        "traits": [{ "name": format!("{name}View"), "linkedEntity": format!("{name}State"), "stateMachine": {
+            "states": [{ "name": "idle", "isInitial": true }],
+            "transitions": [{ "from": "idle", "to": "idle", "event": "INIT", "effects": [["render-ui", "main", { "type": "typography", "content": "a long repeated paragraph of copy" }]] }]
+        } }],
+        "pages": [{ "name": format!("{name}Page"), "path": path, "traits": [] }]
+    });
+    serde_json::from_value(serde_json::json!({ "name": "Site", "orbitals": [orbital("Home", "/"), orbital("About", "/about")] })).expect("schema fixture")
+}
+
+/// The client program writes a part two orbitals both hold once (`$def`, G-CROSS-637), and reads back as the plain program.
+#[test]
+fn a_part_two_orbitals_hold_is_written_once_in_the_client_program() {
+    let text = orbital_shell_typescript::client_program_orb(&twin_orbitals()).expect("projects");
+    assert!(text.contains("\"$def\""), "{text}");
+    let read: serde_json::Value = orbital_core_base::json_value::program_from_json(text.as_bytes()).expect("reads");
+    assert_eq!(read, orbital_core_base::blobs::blob_json(text.as_bytes()).expect("expands"));
+    let transitions = |o: usize| read["orbitals"][o]["traits"][0]["stateMachine"]["transitions"].clone();
+    assert_eq!(transitions(0), transitions(1));
+    assert_eq!(transitions(0)[0]["effects"][0][2]["content"], "a long repeated paragraph of copy");
+}
+
+#[test]
+fn control_a_client_program_with_no_repeat_carries_no_reference() {
+    let schema = schema_with_pages(serde_json::json!([{ "name": "Home", "path": "/", "traits": [] }]));
+    let text = orbital_shell_typescript::client_program_orb(&schema).expect("projects");
+    assert!(!text.contains("\"$def\""), "{text}");
 }

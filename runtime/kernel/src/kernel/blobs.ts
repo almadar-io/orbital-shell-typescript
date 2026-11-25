@@ -79,10 +79,7 @@ export class BlobTable {
    * (G-CROSS-637) is read as one object every place names it, so the value equals the plain text.
    */
   json<T = JsonValue>(id: number): T {
-    const text = new TextDecoder().decode(this.bytes(id));
-    const root = JSON.parse(text);
-    if (text.includes(`"${DEF_MARKER}"`)) expandDefs(root);
-    return root;
+    return readDefsJson<T>(new TextDecoder().decode(this.bytes(id)));
   }
 
   /** Drops the ids the kernel let go of (`Kernel.blobsReleased()`, a JSON array of ids). */
@@ -168,4 +165,67 @@ function expandDefs(root: JsonValue): void {
     return value;
   };
   resolve(root);
+}
+
+/**
+ * JSON text whose repeated parts may be written once as `{ "$def": n, "value": … }` and then `{ "$def": n }` (a blob,
+ * EXEC-DIST-16b; a written program, `orb resolve` and `program.client.orb`): each part is one shared object every place
+ * names it, and the value equals the plain text.
+ */
+export function readDefsJson<T = JsonValue>(text: string): T {
+  const root = JSON.parse(text);
+  if (text.includes(`"${DEF_MARKER}"`)) expandDefs(root);
+  return root;
+}
+
+type Composite = object;
+
+function isComposite(value: unknown): value is Composite {
+  return typeof value === 'object' && value !== null;
+}
+
+function isWritten(value: unknown): boolean {
+  return value !== undefined && typeof value !== 'function' && typeof value !== 'symbol';
+}
+
+function isEmpty(node: Composite): boolean {
+  return Array.isArray(node) ? node.length === 0 : Object.keys(node).length === 0;
+}
+
+/**
+ * `value` as JSON text with every list or record it holds more than once (the same object) written in full the first
+ * time as `{ "$def": n, "value": … }` and afterwards as `{ "$def": n }`, as the kernel writes a program; the text
+ * [`readDefsJson`] and the kernel's program reader read back as `value`. A value holding nothing twice is its
+ * `JSON.stringify` text.
+ */
+export function writeDefsJson(value: unknown): string {
+  const seen = new Set<Composite>();
+  const repeated = new Set<Composite>();
+  const count = (node: unknown): void => {
+    if (!isComposite(node)) return;
+    if (seen.has(node)) {
+      if (!isEmpty(node)) repeated.add(node);
+      return;
+    }
+    seen.add(node);
+    for (const child of Array.isArray(node) ? node : Object.values(node)) count(child);
+  };
+  count(value);
+  seen.clear();
+  if (repeated.size === 0) return JSON.stringify(value) ?? 'null';
+  const ids = new Map<Composite, number>();
+  const write = (node: unknown): string => {
+    if (!isComposite(node)) return JSON.stringify(node) ?? 'null';
+    const shared = repeated.has(node);
+    if (shared) {
+      const id = ids.get(node);
+      if (id !== undefined) return `{"${DEF_MARKER}":${id}}`;
+      ids.set(node, ids.size);
+    }
+    const body = Array.isArray(node)
+      ? `[${node.map((item: unknown) => (isWritten(item) ? write(item) : 'null')).join(',')}]`
+      : `{${Object.entries(node).filter(([, child]) => isWritten(child)).map(([key, child]) => `${JSON.stringify(key)}:${write(child)}`).join(',')}}`;
+    return shared ? `{"${DEF_MARKER}":${ids.get(node)},"value":${body}}` : body;
+  };
+  return write(value);
 }

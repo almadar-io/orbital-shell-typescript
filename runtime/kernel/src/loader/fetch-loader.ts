@@ -8,6 +8,7 @@
 
 import type { OrbitalSchema } from "@almadar/core";
 import type { LoadResult, LoadedOrbital, LoadedSchema, SchemaLoader } from "./schema-loader.js";
+import { readDefsJson } from "../kernel/blobs.js";
 
 export class FetchSchemaLoader implements SchemaLoader {
   private readonly cache = new Map<string, Promise<LoadResult<LoadedSchema>>>();
@@ -66,7 +67,7 @@ async function fetchSchema(url: string, importPath: string): Promise<LoadResult<
   if (!response.ok) return { success: false, error: `${url}: ${response.status} ${response.statusText}` };
   try {
     // The compile wrote it from the resolved program, and the kernel validates the program it opens.
-    const schema: OrbitalSchema = await response.json();
+    const schema = readDefsJson<OrbitalSchema>(await response.text());
     return { success: true, data: { schema, sourcePath: url, importPath } };
   } catch (error) {
     return { success: false, error: `${url} is not a program: ${error instanceof Error ? error.message : String(error)}` };

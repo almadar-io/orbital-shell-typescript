@@ -34,6 +34,7 @@ import { mintUlid } from '@almadar/core';
 import { createMemoryCircuitStore, type CircuitStore } from '@almadar/shell-runtime/client/circuit-store';
 import type { ClientKernel, ClientKernelOutcome } from '@almadar/shell-runtime/client/client-kernel';
 import type { EventTransport } from '@almadar/shell-runtime/client/EventTransport';
+import { writeDefsJson } from '@almadar/shell-runtime/kernel/blobs';
 import type { TransitionObserver } from '@almadar/shell-runtime/client/trait-types';
 import { createLocalStoreTransport, createResidenceTransport, localStorePersistence, nativeMemoryPersistence, openLocalKernel } from '../../runtime';
 import type { SchemaMetadata } from '@almadar/core';
@@ -148,9 +149,9 @@ function useContentStable(orbitals: readonly OrbitalDefinition[]): readonly Orbi
   if (held.current === null) {
     held.current = { value: orbitals, key: undefined };
   } else if (held.current.value !== orbitals) {
-    // Serialized only when a new array arrives: a whole program is megabytes of JSON.
-    const previous = held.current.key ?? JSON.stringify(held.current.value);
-    const key = JSON.stringify(orbitals);
+    // Serialized only when a new array arrives: a whole program is megabytes of JSON, each shared part written once.
+    const previous = held.current.key ?? writeDefsJson(held.current.value);
+    const key = writeDefsJson(orbitals);
     held.current = key !== previous ? { value: orbitals, key } : { value: held.current.value, key: previous };
   }
   return held.current.value;
@@ -168,7 +169,7 @@ export function useCircuitKernel(
 
   const programKernel = useContext(ProgramKernelContext);
   const kernelInstance = useMemo<Promise<KernelInstance>>(() => {
-    const program = (): Uint8Array => new TextEncoder().encode(JSON.stringify({ name: orbitalName, orbitals: kernelOrbitals(orbitals), ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) }));
+    const program = (): Uint8Array => new TextEncoder().encode(writeDefsJson({ name: orbitalName, orbitals: kernelOrbitals(orbitals), ...stamp, ...(metadata !== undefined ? { _metadata: metadata } : {}) }));
     const make = (): Promise<KernelInstance> => loadModule().then((mod) => {
       const kernel = new mod.Kernel(program(), getTabClientId());
       // Every host this view posts to runs the whole worklist, listeners of a dispatched emit included.

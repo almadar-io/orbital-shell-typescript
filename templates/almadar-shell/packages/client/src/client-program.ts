@@ -6,15 +6,15 @@
  */
 
 import type { OrbitalSchema } from '@almadar/core';
+import { readDefsJson } from '@almadar/shell-runtime/kernel/blobs';
 
 let loaded: Promise<OrbitalSchema> | undefined;
 
 async function fetchProgram(): Promise<OrbitalSchema> {
   const response = await fetch(`${import.meta.env.BASE_URL}program.client.orb`);
   if (!response.ok) throw new Error(`program.client.orb: ${response.status}`);
-  // The compile wrote it from the resolved program, and the kernel validates the program it opens.
-  const program: OrbitalSchema = await response.json();
-  return program;
+  // The compile wrote it from the resolved program, each repeated part once; the kernel validates the program it opens.
+  return readDefsJson<OrbitalSchema>(await response.text());
 }
 
 export function loadProgram(): Promise<OrbitalSchema> {

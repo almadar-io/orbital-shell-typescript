@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { BlobTable, unframe } from '../src/kernel/blobs.js';
+import { describe, expect, it, vi } from 'vitest';
+import { BlobTable, readDefsJson, unframe, writeDefsJson } from '../src/kernel/blobs.js';
+import { FetchSchemaLoader } from '../src/loader/fetch-loader.js';
 
 const utf8 = new TextEncoder();
 
@@ -97,5 +98,70 @@ describe('a blob written with $def (G-CROSS-637)', () => {
   it('refuses a reference to a part the blob never defines', () => {
     const { table, id } = handed('{"a":{"$def":3}}');
     expect(() => table.json(id)).toThrow(/\$def 3/);
+  });
+});
+
+describe('a program document written with $def (orb resolve, program.client.orb)', () => {
+  type Program = { name: string; orbitals: Array<{ traits: Array<{ stateMachine: { transitions: Array<{ event: string }> } }> }> };
+  const transition = { effects: [['set', '@entity.v', 1]], event: 'X', from: 'idle', to: 'idle' };
+  const plain = { name: 'app', orbitals: [{ traits: [{ stateMachine: { transitions: [transition, transition] } }] }] };
+  const written = '{"name":"app","orbitals":[{"traits":[{"stateMachine":{"transitions":[{"$def":0,"value":{"effects":[["set","@entity.v",1]],"event":"X","from":"idle","to":"idle"}},{"$def":0}]}}]}]}';
+
+  it('reads a repeated record as one shared object, equal to the plain program', () => {
+    const read = readDefsJson<Program>(written);
+    expect(read).toEqual(plain);
+    const [first, second] = read.orbitals[0]?.traits[0]?.stateMachine.transitions ?? [];
+    expect(second).toBe(first);
+  });
+
+  it('control: a program with no $def reads as its plain text', () => {
+    expect(readDefsJson(JSON.stringify(plain))).toEqual(plain);
+  });
+
+  it('control: the marker spelled in a value is text', () => {
+    expect(readDefsJson('{"name":"$def","note":"{\\"$def\\":1}"}')).toEqual({ name: '$def', note: '{"$def":1}' });
+  });
+
+  it('the lazy loader reads a page program written with $def', async () => {
+    const fetched = vi.fn(async () => new Response(written, { status: 200 }));
+    vi.stubGlobal('fetch', fetched);
+    try {
+      const loader = new FetchSchemaLoader('https://app.test/program.client.orb');
+      const loaded = await loader.load('./page.orb');
+      expect(loaded.success && loaded.data.schema).toEqual(plain);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('writing a value with $def (the program a browser hands its kernel)', () => {
+  it('writes an object held twice once, and reads back as the value', () => {
+    const shared = { effects: [['set', '@entity.v', 1]], event: 'X' };
+    const value = { orbitals: [{ transitions: [shared, shared] }, { transitions: [shared] }] };
+    const text = writeDefsJson(value);
+    expect(text.match(/"event"/g)?.length).toBe(1);
+    expect(readDefsJson(text)).toEqual(value);
+  });
+
+  it('control: a value holding nothing twice is its plain JSON', () => {
+    const value = { name: 'نص', n: [1, 2.5, -0, null, true], nested: { a: [], b: {} } };
+    expect(writeDefsJson(value)).toBe(JSON.stringify(value));
+  });
+
+  it('control: equal but separate objects are written in full each time', () => {
+    const value = [{ a: 1 }, { a: 1 }];
+    expect(writeDefsJson(value)).toBe(JSON.stringify(value));
+  });
+
+  it('edge: what JSON.stringify drops or nulls is dropped or nulled the same way', () => {
+    const shared = { keep: 1, gone: undefined };
+    const value = { list: [undefined, shared, shared], f: undefined };
+    expect(readDefsJson(writeDefsJson(value))).toEqual(JSON.parse(JSON.stringify(value)));
+  });
+
+  it('edge: a shared empty list or record is written plain', () => {
+    const empty: unknown[] = [];
+    expect(writeDefsJson({ a: empty, b: empty })).toBe('{"a":[],"b":[]}');
   });
 });

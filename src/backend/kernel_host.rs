@@ -60,12 +60,13 @@ pub fn client_runtime_files(module: &OirModule, language: &str) -> Vec<(String, 
 }
 
 /// `program.client.orb`: the resolved program as the web client fetches it (keys sorted, without what no
-/// client code path reads).
+/// client code path reads), each repeated list or record written once (`$def`, read by `readDefsJson`).
 pub fn client_program_orb(schema: &orbital_core_base::schema::types::OrbitalSchema) -> serde_json::Result<String> {
     let program = orbital_core_base::value_serialize::to_canonical_value(schema).map_err(serde::ser::Error::custom)?;
     let origin_env = program.get("orbitals").and_then(orbital_core_base::runs_on::declared_server_origin_env);
     let from_env = origin_env.and_then(|name| std::env::var(name).ok());
-    serde_json::to_string(&with_origin_from_env(orbital_core_base::runs_on::client_program(program), from_env))
+    let client = with_origin_from_env(orbital_core_base::runs_on::client_program(program), from_env);
+    Ok(orbital_core_base::json_value::value_json_string_with_defs(&client))
 }
 
 /// The client program with the origin its `originFromEnv` named, read when the client was compiled, unless the program

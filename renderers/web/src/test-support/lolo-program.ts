@@ -4,6 +4,7 @@ import { homedir, tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseOrbitalSchema, type OrbitalSchema } from '@almadar/core';
+import { readDefsJson } from '@almadar/shell-runtime/kernel/blobs';
 
 const lowered = new Map<string, OrbitalSchema>();
 const lockDir = join(tmpdir(), 'almadar-client-program.lock');
@@ -62,7 +63,7 @@ export function clientProgram(source: string, files: Readonly<Record<string, str
     }
     const schema = compileExclusively(() => {
       execFileSync(bin, ['compile', file, '-o', join(dir, 'out'), '--mode', 'client'], { cwd: dir, stdio: 'pipe' });
-      return parseOrbitalSchema(JSON.parse(readFileSync(join(served, 'program.client.orb'), 'utf8')));
+      return parseOrbitalSchema(readDefsJson(readFileSync(join(served, 'program.client.orb'), 'utf8')));
     });
     lowered.set(key, schema);
     return structuredClone(schema);
