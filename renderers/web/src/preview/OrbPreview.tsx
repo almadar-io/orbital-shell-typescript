@@ -414,7 +414,7 @@ function SchemaRunner({ schema, serverUrl, transport, getAccessToken, mockData, 
             own `relative min-h-full` container, so empty layouts still
             anchor the bar at the bottom of the viewport. */}
         <OrbitalThemeProvider theme={activeOrbitalTheme} override={themeOverride}>
-          <Box className="h-full min-h-full overflow-auto p-4" {...(mountedRoute !== undefined ? { 'data-orb-mounted': mountedRoute } : {})}>
+          <Box className={`h-full min-h-full overflow-auto ${frame === 'page' ? '' : 'p-4'}`} {...(mountedRoute !== undefined ? { 'data-orb-mounted': mountedRoute } : {})}>
             <UISlotRenderer includeHud hudMode={frame === 'page' ? 'fixed' : 'inline'} includeFloating pageKey={pageName} />
           </Box>
         </OrbitalThemeProvider>

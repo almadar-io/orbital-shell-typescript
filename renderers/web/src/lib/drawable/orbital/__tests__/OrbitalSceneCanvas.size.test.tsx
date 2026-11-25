@@ -48,6 +48,15 @@ describe('OrbitalSceneCanvas size', () => {
         expect(box(true).style.minHeight).toBe('0px');
     });
 
+    it('a canvas that fills its container is the page, so it draws no rounded corners', () => {
+        expect(box(true).className).not.toMatch(/\brounded-container\b/);
+        expect(box('width').className).not.toMatch(/\brounded-container\b/);
+    });
+
+    it('control: a scene card at its authored aspect ratio keeps its rounded corners', () => {
+        expect(box(undefined).className).toMatch(/\brounded-container\b/);
+    });
+
     it('control: without fillContainer it keeps the authored aspect ratio', () => {
         const el = box(undefined);
         expect(el.style.aspectRatio).toBe('1280 / 800');

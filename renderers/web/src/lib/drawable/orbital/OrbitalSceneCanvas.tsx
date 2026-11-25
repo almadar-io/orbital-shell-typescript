@@ -645,7 +645,7 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
         <div
             ref={containerRef}
             {...(drawnReady ? { 'data-orb-ready': 'true' } : {})}
-            className={cn('orbital-scene-canvas relative mx-auto w-full overflow-hidden rounded-container', className)}
+            className={cn('orbital-scene-canvas relative mx-auto w-full overflow-hidden', fillContainer ? '' : 'rounded-container', className)}
             style={fillContainer === 'width' ? { height: `${height}px` } : fillContainer ? { flex: '1 1 0', height: '100%', minHeight: `${minHeight ?? 0}px` } : { maxWidth: `min(100%, calc(70vh * ${width} / ${height}))`, aspectRatio: `${width} / ${height}` }}
         >
             <canvas

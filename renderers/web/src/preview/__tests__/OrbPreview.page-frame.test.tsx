@@ -72,6 +72,22 @@ describe('OrbPreview — frame', () => {
     expect(frame?.className).not.toContain('border-[var(--color-border)]');
   });
 
+  it('page: the frame is the viewport, so the page box adds no padding around the page', async () => {
+    stubDesktop();
+    const { container } = render(<OrbPreview schema={schema} isolated height="auto" frame="page" />);
+    await screen.findByRole('complementary');
+    const pageBox = container.querySelector('.min-h-full.overflow-auto');
+    expect(pageBox).not.toBeNull();
+    expect(pageBox?.className).not.toMatch(/\bp-4\b/);
+  });
+
+  it('control: a contained preview keeps its padding inside its box', async () => {
+    stubDesktop();
+    const { container } = render(<OrbPreview schema={schema} isolated />);
+    await screen.findByRole('complementary');
+    expect(container.querySelector('.min-h-full.overflow-auto')?.className).toMatch(/\bp-4\b/);
+  });
+
   it('control: a contained preview draws its box with a border and rounded corners', async () => {
     stubDesktop();
     const { container } = render(<OrbPreview schema={schema} isolated />);
