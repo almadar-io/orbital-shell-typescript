@@ -54,7 +54,7 @@ async function start(): Promise<void> {
         const { idToken, refreshToken } = await auth.googleDeviceCredential();
         show('Signed in. You can return to the app.');
         postToApp(port, { state, idToken, refreshToken });
-      } catch (error: unknown) {
+      } catch (error) {
         button.hidden = false;
         show(`Sign-in did not finish: ${error instanceof Error ? error.message : String(error)}`);
       }

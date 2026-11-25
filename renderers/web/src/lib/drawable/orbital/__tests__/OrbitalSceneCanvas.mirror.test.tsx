@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render } from '@testing-library/react';
 import type { KernelSceneCanvas } from '@almadar/shell-runtime/kernel/wire';
 import type { KernelEngineValue } from '../../../../providers/KernelEngineContext';
 
@@ -101,6 +101,7 @@ interface Node {
     owner?: string;
     level?: number;
     href?: string;
+    focused?: boolean;
     rect?: { x: number; y: number; w: number; h: number };
 }
 
@@ -338,5 +339,30 @@ describe("G-CROSS-684 a page scroll moves the mirror without rebuilding it", () 
         await show([...page(120), { id: "q", role: "text", name: "More", order: 3, rect: at(300) }]);
         expect(mirror()?.querySelectorAll("p").length).toBe(2);
         expect(mirror()?.querySelector("h1")?.style.top).toBe("80px");
+    });
+});
+
+describe('G-CROSS-827 a tap on the canvas leaves a focused text field focused', () => {
+    it('a press on the canvas while the program holds a text field focused keeps browser focus on that field', async () => {
+        const { container, mirror } = await mountWith([{ id: 'f', role: 'textbox', name: 'Message', focused: true, order: 0 }]);
+        const field = mirror?.querySelector('input');
+        expect(document.activeElement).toBe(field);
+        const canvas = container.querySelector('canvas');
+        if (canvas === null) throw new Error('no canvas');
+        expect(fireEvent.mouseDown(canvas)).toBe(false);
+    });
+
+    it('control: with no focused text field a press on the canvas keeps its default, so focus can leave the page\'s other fields', async () => {
+        const { container } = await mountWith([{ id: 'b', role: 'button', name: 'Next', order: 0 }]);
+        const canvas = container.querySelector('canvas');
+        if (canvas === null) throw new Error('no canvas');
+        expect(fireEvent.mouseDown(canvas)).toBe(true);
+    });
+
+    it('edge: a text field the program does not hold focused does not keep the press either', async () => {
+        const { container } = await mountWith([{ id: 'f', role: 'textbox', name: 'Message', focused: false, order: 0 }]);
+        const canvas = container.querySelector('canvas');
+        if (canvas === null) throw new Error('no canvas');
+        expect(fireEvent.mouseDown(canvas)).toBe(true);
     });
 });

@@ -656,6 +656,10 @@ export function OrbitalSceneCanvas<P extends PatternType>({ pattern, config, cla
                     e.currentTarget.setPointerCapture(e.pointerId);
                     send('touch-down', e, e.button);
                 }}
+                onMouseDown={(e) => {
+                    // The program decides focus: a press must not move browser focus off the field it holds focused.
+                    if (semantics.some((n) => n.role === 'textbox' && n.focused)) e.preventDefault();
+                }}
                 onPointerMove={(e) => {
                     if (e.buttons !== 0 || e.pointerType === 'touch') send('touch-move', e, e.button);
                     else send('hover', e, 0);
