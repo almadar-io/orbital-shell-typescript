@@ -60,6 +60,8 @@ export interface KernelInstance {
   sessionIdentity(): string | undefined;
   /** The kernel's dispatch mode for a registered trait (`DispatchMode` as JSON text); throws for an unregistered one. */
   dispatchMode(traitName: string): string;
+  /** The mode of a host-run dispatch this browser folds (`DispatchMode` JSON): a trait this program does not hold is the host's. */
+  hostDispatchMode(traitName: string): string;
   /** The config the kernel binds as `@config` for a registered trait (JSON text); throws for an unregistered one. */
   traitConfig(traitName: string): string;
   getState(traitName: string, entityId?: string): string;

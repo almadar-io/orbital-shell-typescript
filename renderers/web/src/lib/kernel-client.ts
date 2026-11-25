@@ -771,7 +771,7 @@ export function createKernelClient(opts: KernelClientOptions): KernelClient {
     foldHostDispatch: async (request, response, orbital) => {
       const k = await ready;
       if (request.targetTrait === undefined) throw new Error('foldHostDispatch requires request.targetTrait (the seed trait)');
-      const mode = parse<DispatchMode>(k.dispatchMode(request.targetTrait));
+      const mode = parse<DispatchMode>(k.hostDispatchMode(request.targetTrait));
       if (!response.success) return { response: { ...response, clientEffectsByTrait: [] }, mode };
       const flight = k.openFlight();
       try {
