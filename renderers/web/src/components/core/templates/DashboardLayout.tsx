@@ -897,13 +897,14 @@ const NavLink: React.FC<{ item: NavItem; activeHref?: string; compact?: boolean 
           variant="ghost"
           aria-expanded={open}
           className={cn(
-            "flex items-center gap-3 w-full px-3 py-2 rounded-interactive text-sm font-medium transition-colors",
+            "flex items-center gap-3 w-full min-h-0 border-0 px-3 py-2 rounded-interactive text-sm font-medium transition-colors",
             isActive
               ? "bg-primary text-primary-foreground shadow-elevation-interactive"
               : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
           onClick={() => setOpen(!open)}
         >
+          <Box data-nav-row className="flex flex-1 min-w-0 items-center gap-3">
           {item.icon && (
             typeof item.icon === 'string'
               ? <AlmadarIcon name={item.icon} className={iconClassName} />
@@ -926,6 +927,7 @@ const NavLink: React.FC<{ item: NavItem; activeHref?: string; compact?: boolean 
             name="chevron-down"
             className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")}
           />
+          </Box>
         </Button>
 
         {open && (
