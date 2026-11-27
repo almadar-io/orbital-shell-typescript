@@ -14708,6 +14708,12 @@
           ],
           "description": "Accessible name read by screen readers when the visible text is missing or not descriptive (e.g. an icon-only control)."
         },
+        "title": {
+          "types": [
+            "string"
+          ],
+          "description": "Tooltip text shown on hover; give an icon-only button the same words as its aria-label so sighted users can learn what it does."
+        },
         "aria-labelledby": {
           "types": [
             "string"

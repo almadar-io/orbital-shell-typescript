@@ -5,7 +5,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useSlotFlush } from '../../src/hooks/circuit/useSlotFlush';
-import { registerHostAudio, registerHostSignIn, registerHostSignOut } from '../../src/lib/host-actions';
+import { registerHostSignIn, registerHostSignOut } from '../../src/lib/host-actions';
+import { shellAudio } from '../../src/lib/audio-out';
 import type { UISlotManager } from '../../src/hooks/useUISlots';
 import type { ClientEffectTuple } from '@almadar/core';
 
@@ -35,7 +36,7 @@ describe('useSlotFlush.applyClientEffects — host-ask', () => {
     const { result } = renderHook(() => useSlotFlush(slots, undefined));
     const heard: string[] = [];
     const offSignOut = registerHostSignOut(() => { heard.push('sign-out'); });
-    const offAudio = registerHostAudio((ask) => { heard.push(ask.op); });
+    const play = vi.spyOn(shellAudio, 'playPlan').mockImplementation((plan) => { heard.push(`audio/play-sound ${plan.key}`); });
     const render: ClientEffectTuple = ['render-ui', 'main', { type: 'typography', content: 'bye' }];
     result.current.applyClientEffects([
       { traitName: 'Chrome', effect: ['host-ask', 'auth/sign-out', []] },
@@ -44,8 +45,8 @@ describe('useSlotFlush.applyClientEffects — host-ask', () => {
     ]);
     await tick();
     offSignOut();
-    offAudio();
-    expect(heard).toEqual(['sign-out', 'audio/play-sound']);
+    play.mockRestore();
+    expect(heard).toEqual(['sign-out', 'audio/play-sound click']);
     expect(slots.render).toHaveBeenCalledTimes(1);
   });
 

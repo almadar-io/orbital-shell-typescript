@@ -1,18 +1,18 @@
 import { isJsonObject, type EventPayload, type HostAskCompletion, type JsonObject, type JsonValue } from '@almadar/core';
 import { createLogger } from '@almadar/logger';
-import { HostAskError, hostAskReturn, performHostAnswer, type HostAskFailureKind, type HostAudioAsk, type HostConsentAnswer, type HostConsentRequest, type HostSignInAnswer, type HostSignInRequest, type KernelHostActions } from '@almadar/shell-runtime/kernel/host';
+import { HostAskError, hostAskReturn, performHostAnswer, type HostAskFailureKind, type HostConsentAnswer, type HostConsentRequest, type HostSignInAnswer, type HostSignInRequest, type KernelHostActions } from '@almadar/shell-runtime/kernel/host';
 
 import { readAudioClock, scheduleAudio } from '../providers/audio-scheduler';
 import { browserConsentEnv, consentByPopup } from './consent-popup';
 import { pickFiles } from './file-picker';
 import { openAudioIn } from './audio-in';
+import { answerAudioAsk } from './audio-out';
 import { openVideoDecode, type VideoDecodeStream } from './video-decode';
 import type { KvHostPort } from '@almadar/shell-browser/kv';
 import type { OsErrorKind } from '@almadar/core/kernel-wire';
 
 const log = createLogger('almadar:ui:host-actions');
 
-let audioHost: ((ask: HostAudioAsk) => void) | undefined;
 let signOutHost: (() => void | Promise<void>) | undefined;
 let signInHost: ((request: HostSignInRequest) => Promise<HostSignInAnswer>) | undefined;
 let consentHost: ((request: HostConsentRequest) => Promise<HostConsentAnswer>) | undefined;
@@ -46,14 +46,6 @@ export function registerHostPushSubscribe(host: NonNullable<KernelHostActions['p
   };
 }
 
-/** Install the audio the `audio/*` asks drive (the mounted game audio provider); the returned function removes it. */
-export function registerHostAudio(host: (ask: HostAudioAsk) => void): () => void {
-  audioHost = host;
-  return () => {
-    if (audioHost === host) audioHost = undefined;
-  };
-}
-
 /** Install the sign-out `auth/sign-out` runs (the host's auth provider); the returned function removes it. */
 export function registerHostSignOut(host: () => void | Promise<void>): () => void {
   signOutHost = host;
@@ -78,11 +70,9 @@ export function registerHostConsent(host: (request: HostConsentRequest) => Promi
   };
 }
 
-/** What the web shell answers `audio/*` and `auth/sign-out` with: the host installed above, read per ask. */
+/** What the web shell answers host asks with: its own audio, and the sign-in and sign-out installed above, read per ask. */
 export const webHostActions: KernelHostActions = {
-  get audio() {
-    return audioHost;
-  },
+  audio: answerAudioAsk,
   get signOut() {
     return signOutHost;
   },

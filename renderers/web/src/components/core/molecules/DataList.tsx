@@ -527,6 +527,10 @@ export function DataList({
   // drops. Returning the bare message early would un-mount the droppable
   // (kanban column with zero cards becomes a dead zone).
   if (data.length === 0) {
+    // `emptyMessage: ""` declares a list that says nothing when empty; a declared title or action still shows.
+    if (emptyMessage === '' && !emptyTitle && !emptyDescription && !emptyAction) {
+      return dnd.enabled ? <>{dnd.wrapContainer(null)}</> : null;
+    }
     const emptyNode = (
       <EmptyState
         icon={emptyIcon}

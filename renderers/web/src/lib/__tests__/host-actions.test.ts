@@ -1,31 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import type { HostAudioAsk } from '@almadar/shell-runtime/kernel/host';
 import type { EventPayload } from '@almadar/core';
-import { answerHostAsk, registerHostAudio, registerHostSignOut, webHostActions } from '../host-actions';
+import { answerHostAsk, registerHostSignOut, webHostActions } from '../host-actions';
+import { answerAudioAsk } from '../audio-out';
 
 describe('web host actions', () => {
-  it('routes the audio and sign-out asks to what the shell installed, and withdraws them on cleanup', () => {
-    const heard: HostAudioAsk[] = [];
+  it('answers the audio asks on the shell audio, installed with no registration, and routes sign-out to what the shell installed', () => {
+    expect(webHostActions.audio).toBe(answerAudioAsk);
     let signedOut = 0;
-    const offAudio = registerHostAudio((ask) => { heard.push(ask); });
     const offSignOut = registerHostSignOut(() => { signedOut += 1; });
-    const step = { key: 'footstep', source: '/sfx/step.ogg', volume: 1, loop: false, poolSize: 1, fadeMs: 0 };
-    webHostActions.audio?.({ op: 'audio/play-sound', play: step });
     void webHostActions.signOut?.();
-    expect(heard).toEqual([{ op: 'audio/play-sound', play: step }]);
     expect(signedOut).toBe(1);
-    offAudio();
     offSignOut();
-    expect(webHostActions.audio).toBeUndefined();
     expect(webHostActions.signOut).toBeUndefined();
   });
 
   it('control: a stale cleanup does not remove a newer installation', () => {
-    const first = registerHostAudio(() => undefined);
-    const second = (ask: HostAudioAsk): void => { void ask; };
-    const offSecond = registerHostAudio(second);
+    const first = registerHostSignOut(() => undefined);
+    const second = (): void => undefined;
+    const offSecond = registerHostSignOut(second);
     first();
-    expect(webHostActions.audio).toBe(second);
+    expect(webHostActions.signOut).toBe(second);
     offSecond();
   });
 });

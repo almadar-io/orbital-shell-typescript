@@ -2,13 +2,9 @@
 /**
  * GameAudioProvider
  *
- * Context provider that owns the game audio. While it is mounted, the kernel's
- * `audio/play-sound`, `audio/stop-sound`, `audio/change-music` and `audio/stop-music`
- * asks drive it: each carries what std-audio-cue resolved (the sound or track to play, or the
- * music fade-out length), so the provider plays it as given.
- *
- * The provider also exposes `muted`/`setMuted` and `masterVolume`/
- * `setMasterVolume` via the `GameAudioContext` for toggle buttons.
+ * Exposes the shell's audio (the one the kernel's `audio/*` host asks play through, mounted or
+ * not) as `muted`/`setMuted` and `masterVolume`/`setMasterVolume` via the `GameAudioContext`
+ * for toggle buttons.
  *
  * Closed-circuit props (`className`, `isLoading`, `error`) are
  * accepted but intentionally unused — the provider renders only its children.
@@ -17,7 +13,7 @@
  */
 
 import React, { createContext, useContext, useEffect } from 'react';
-import { registerHostAudio } from '../lib/host-actions';
+import { shellAudio } from '../lib/audio-out';
 import { useGameAudio, type GameAudioControls } from '../hooks/useGameAudio';
 import type { UiError } from '../core';
 
@@ -75,20 +71,14 @@ export interface GameAudioProviderProps {
 
 export function GameAudioProvider({
     children,
-    initialMuted = false,
+    initialMuted,
 }: GameAudioProviderProps): React.JSX.Element {
-    const { playPlan, playMusicPlan, stop, stopAll, stopMusic, muted, setMuted, masterVolume, setMasterVolume } =
-        useGameAudio({ initialMuted });
+    const { playPlan, playMusicPlan, stopMusic, muted, setMuted, masterVolume, setMasterVolume } =
+        useGameAudio({ out: shellAudio });
 
-    // The `audio/*` asks the kernel makes reach this provider's audio
-    useEffect(() => registerHostAudio((ask) => {
-        if (ask.op === 'audio/play-sound') playPlan(ask.play);
-        else if (ask.op === 'audio/stop-sound') {
-            if (ask.key !== undefined) stop(ask.key);
-            else stopAll();
-        } else if (ask.op === 'audio/change-music') playMusicPlan(ask.play);
-        else stopMusic(ask.fadeMs);
-    }), [playPlan, playMusicPlan, stop, stopAll, stopMusic]);
+    useEffect(() => {
+        if (initialMuted !== undefined) shellAudio.setMuted(initialMuted);
+    }, [initialMuted]);
 
     const value: GameAudioContextValue = { muted, setMuted, masterVolume, setMasterVolume, playPlan, playMusicPlan, stopMusic };
 

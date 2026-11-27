@@ -407,6 +407,11 @@ function getEnumOptions(field: SchemaField): SelectOption[] {
 /**
  * Determine the appropriate input type based on field definition
  */
+/** The language's unsigned numeric field types: their values are never negative. */
+const UNSIGNED_TYPES: ReadonlySet<string> = new Set(["u8", "u16", "u32", "u64"]);
+/** The language's whole-number field types. */
+const INTEGER_TYPES: ReadonlySet<string> = new Set(["integer", "int", "i8", "i16", "i32", "i64", "u8", "u16", "u32", "u64"]);
+
 function determineInputType(field: SchemaField): string {
   // If inputType is explicitly set, use it
   if (field.inputType) {
@@ -450,6 +455,17 @@ function determineInputType(field: SchemaField): string {
     case "number":
     case "integer":
     case "float":
+    case "int":
+    case "i8":
+    case "i16":
+    case "i32":
+    case "i64":
+    case "u8":
+    case "u16":
+    case "u32":
+    case "u64":
+    case "f32":
+    case "f64":
       return "number";
     case "date":
       return "date";
@@ -1314,8 +1330,9 @@ export const Form: React.FC<FormProps> = ({
                 e.target.value ? Number(e.target.value) : undefined,
               )
             }
-            min={field.min}
+            min={field.min ?? (UNSIGNED_TYPES.has(field.type ?? "") ? 0 : undefined)}
             max={field.max}
+            step={INTEGER_TYPES.has(field.type ?? "") ? 1 : undefined}
           />
         );
 

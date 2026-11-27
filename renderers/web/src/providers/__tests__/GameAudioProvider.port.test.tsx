@@ -4,6 +4,7 @@ import { act, render } from '@testing-library/react';
 import type { AudioPlay } from '@almadar/core';
 import { GameAudioProvider } from '../GameAudioProvider';
 import { webHostActions } from '../../lib/host-actions';
+import { shellAudio } from '../../lib/audio-out';
 
 class FakeAudio {
   static created: FakeAudio[] = [];
@@ -36,6 +37,8 @@ describe('GameAudioProvider answers the audio/* port with what std-audio-cue res
     vi.useFakeTimers();
   });
   afterEach(() => {
+    shellAudio.dispose();
+    shellAudio.setMuted(false);
     vi.useRealTimers();
     vi.unstubAllGlobals();
   });
@@ -59,7 +62,19 @@ describe('GameAudioProvider answers the audio/* port with what std-audio-cue res
     expect(music.paused).toBe(true);
   });
 
-  it('control: with no provider mounted the port has no audio to answer it', () => {
-    expect(webHostActions.audio).toBeUndefined();
+  it('plays a voice note with no provider or other component mounted: the shell installs its audio itself', () => {
+    const note: AudioPlay = { key: 'voice:m1', source: 'https://files.example/voice/m1.wav', volume: 1, loop: false, poolSize: 1, fadeMs: 0 };
+    act(() => webHostActions.audio?.({ op: 'audio/play-sound', play: note }));
+    expect(FakeAudio.created.map((a) => [a.src, a.paused])).toEqual([['https://files.example/voice/m1.wav', false]]);
+  });
+
+  it('control: a muted shell plays nothing, and unmuting lets the next ask play', () => {
+    const { container } = render(<GameAudioProvider initialMuted><span /></GameAudioProvider>);
+    act(() => webHostActions.audio?.({ op: 'audio/play-sound', play: step }));
+    expect(FakeAudio.created).toEqual([]);
+    act(() => shellAudio.setMuted(false));
+    act(() => webHostActions.audio?.({ op: 'audio/play-sound', play: step }));
+    expect(FakeAudio.created.map((a) => a.src)).toEqual(['/sfx/step-2.ogg']);
+    expect(container).toBeTruthy();
   });
 });
