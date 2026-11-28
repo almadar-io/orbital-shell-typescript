@@ -23,11 +23,11 @@ async function fetchJson(file: string): Promise<JsonValue> {
 }
 
 async function boot(): Promise<void> {
-  // The program, the kernel and its language download together, not each after the component that asks for it mounts.
-  void loadProgram().catch(() => undefined);
-  void loadKernel().catch(() => undefined);
   const themes = linkThemes();
   const manifest = parseClientManifest(await fetchJson('client.json'));
+  // The program, the kernel and its language download together as soon as the manifest names them, not each after the component that asks for it mounts.
+  void loadProgram(manifest.program).catch(() => undefined);
+  void loadKernel(manifest.language).catch(() => undefined);
   await themes;
   mount(<App manifest={manifest} />);
 }

@@ -30,8 +30,8 @@ export function LocaleRoot({ manifest, children }: { manifest: ClientManifest; c
   const [program, setProgram] = useState<OrbitalSchema | undefined>(undefined);
   const [failure, setFailure] = useState<Error | undefined>(undefined);
   useEffect(() => {
-    loadProgram().then(setProgram, setFailure);
-  }, []);
+    loadProgram(manifest.program).then(setProgram, setFailure);
+  }, [manifest.program]);
   const locale = program === undefined ? undefined : (localeOfPath(pathname, program.locales ?? []) ?? manifest.locale);
   const value = useMemo(() => (program === undefined || locale === undefined ? undefined : localeValue(program, locale)), [program, locale]);
   if (failure) throw failure;

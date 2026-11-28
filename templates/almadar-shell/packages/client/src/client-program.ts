@@ -1,6 +1,6 @@
 /**
- * The program the browser runs, fetched at boot from `/program.client.orb` (a static asset of the
- * client build): the resolved program without what no client code path reads.
+ * The program the browser runs, fetched at boot from the path `client.json` names (`program`, a content-named
+ * static asset): the resolved program without what no client code path reads.
  *
  * @packageDocumentation
  */
@@ -10,15 +10,15 @@ import { readDefsJson } from '@almadar/shell-runtime/kernel/blobs';
 
 let loaded: Promise<OrbitalSchema> | undefined;
 
-async function fetchProgram(): Promise<OrbitalSchema> {
-  const response = await fetch(`${import.meta.env.BASE_URL}program.client.orb`);
-  if (!response.ok) throw new Error(`program.client.orb: ${response.status}`);
+async function fetchProgram(path: string): Promise<OrbitalSchema> {
+  const response = await fetch(`${import.meta.env.BASE_URL}${path}`);
+  if (!response.ok) throw new Error(`${path}: ${response.status}`);
   // The compile wrote it from the resolved program, each repeated part once; the kernel validates the program it opens.
   return readDefsJson<OrbitalSchema>(await response.text());
 }
 
-export function loadProgram(): Promise<OrbitalSchema> {
-  loaded ??= fetchProgram().catch((error: Error) => {
+export function loadProgram(path: string): Promise<OrbitalSchema> {
+  loaded ??= fetchProgram(path).catch((error: Error) => {
     loaded = undefined;
     throw error;
   });

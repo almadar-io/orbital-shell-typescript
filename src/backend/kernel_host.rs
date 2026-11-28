@@ -28,12 +28,18 @@ export interface DispatchPushItem {
 /// `{ name, orbitals }` only).
 
 
+/// `assets/<stem>.<hash>.<ext>`: a file named by its content, so a host may cache it as immutable.
+fn content_named(stem: &str, ext: &str, body: &str) -> String {
+    let hash = orbital_core_base::sandbox_manifest::sha256_hex(body.as_bytes());
+    format!("assets/{stem}.{}.{ext}", &hash[..16])
+}
+
 /// The program's files the program-independent web client reads at startup, by path under the
 /// client's public root: `client.json` (the `ClientManifest`), `themes.css` (the declared themes, or
-/// the runtime default preset when it declares none) and `language.json`, the installed language every browser
-/// kernel evaluates through. `orb compile` writes them into `packages/client/public/`; `orb serve` serves them
-/// beside the prebuilt client.
-pub fn client_runtime_files(module: &OirModule, language: &str) -> Vec<(String, String)> {
+/// the runtime default preset when it declares none), and the client program and the installed language every
+/// browser kernel evaluates through, each named by its content under `assets/` and listed in `client.json`.
+/// `orb compile` writes them into `packages/client/public/`; `orb serve` serves them beside the prebuilt client.
+pub fn client_runtime_files(module: &OirModule, language: &str, program: Option<&str>) -> Vec<(String, String)> {
     let (locale, direction) = match language {
         "ar" => ("ar", "rtl"),
         "sl" => ("sl", "ltr"),
@@ -41,21 +47,30 @@ pub fn client_runtime_files(module: &OirModule, language: &str) -> Vec<(String, 
     };
     let painted = orbital_core_base::theme::program_themes(&module.themes);
     let (themes, default_theme, default_mode) = crate::codegen::client_themes(&painted, module.default_theme.as_deref());
-    let manifest = serde_json::json!({
+    let mut manifest = serde_json::json!({
         "locale": locale,
         "direction": direction,
         "themes": themes,
         "defaultTheme": default_theme,
         "defaultMode": default_mode,
     });
+    let mut assets = Vec::new();
+    if let Some(program) = program {
+        let path = content_named("program", "orb", program);
+        manifest["program"] = serde_json::Value::String(path.clone());
+        assets.push((path, program.to_string()));
+    }
+    if let Ok(bundle) = orbital_core_base::language_data::language_bundle_json() {
+        let path = content_named("language", "json", &bundle);
+        manifest["language"] = serde_json::Value::String(path.clone());
+        assets.push((path, bundle));
+    }
     let css = orbital_core_base::theme::program_themes_css(&module.themes);
     let mut files = vec![
         ("client.json".to_string(), serde_json::to_string_pretty(&manifest).unwrap_or_default()),
         ("themes.css".to_string(), css),
     ];
-    if let Ok(bundle) = orbital_core_base::language_data::language_bundle_json() {
-        files.push(("language.json".to_string(), bundle));
-    }
+    files.extend(assets);
     files
 }
 
@@ -132,23 +147,20 @@ impl TypeScriptBackend {
 
     /// The kernel-hosted client: the loader and the `App` that renders the program on the kernel.
     pub(crate) fn generate_kernel_client(&self, module: &OirModule) -> Vec<InternalFile> {
+        let program = self.browser_schema.as_ref().and_then(|schema| client_program_orb(schema).ok());
         let mut files: Vec<InternalFile> = Vec::new();
-        files.extend(client_runtime_files(module, &self.schema_language).into_iter().map(|(path, content)| {
+        files.extend(client_runtime_files(module, &self.schema_language, program.as_deref()).into_iter().map(|(path, content)| {
             InternalFile::new(format!("packages/client/public/{path}"), content, GeneratedFileType::Config)
         }));
-        files.extend(self.generate_client_program_files());
+        if program.is_some() {
+            files.extend(self.generate_lazy_program_files());
+        }
         files
     }
 
-    /// The client's projection of the program, a static asset the template client fetches at startup.
-    fn generate_client_program_files(&self) -> Vec<InternalFile> {
-        let Some(schema) = &self.browser_schema else {
-            return Vec::new();
-        };
-        let Ok(json) = client_program_orb(schema) else {
-            return Vec::new();
-        };
-        let mut files = vec![InternalFile::new("packages/client/public/program.client.orb", json, GeneratedFileType::Config)];
+    /// Each lazily-loaded page's program, at its `orbRef` under the public root, where the client resolves it.
+    fn generate_lazy_program_files(&self) -> Vec<InternalFile> {
+        let mut files = Vec::new();
         for lazy in &self.browser_lazy {
             if let Ok(json) = client_program_orb(&lazy.program) {
                 files.push(InternalFile::new(format!("packages/client/public/{}", lazy.orb_ref), json, GeneratedFileType::Config));
@@ -185,8 +197,40 @@ mod client_theme_tests {
     }
 
     #[test]
+    fn client_json_names_the_program_and_language_under_content_hashed_asset_paths() {
+        let files = client_runtime_files(&OirModule::new("app", "1.0.0"), "en", Some("{\"name\":\"a\"}"));
+        let manifest: serde_json::Value = serde_json::from_str(&file(&files, "client.json")).unwrap();
+        let program = manifest["program"].as_str().expect("a program path");
+        let language = manifest["language"].as_str().expect("a language path");
+        assert!(program.starts_with("assets/program.") && program.ends_with(".orb"), "{program}");
+        assert!(language.starts_with("assets/language.") && language.ends_with(".json"), "{language}");
+        assert_eq!(file(&files, program), "{\"name\":\"a\"}");
+        assert_eq!(file(&files, language), orbital_core_base::language_data::language_bundle_json().unwrap());
+        assert!(!files.iter().any(|(path, _)| path == "program.client.orb" || path == "language.json"), "no unhashed copy");
+    }
+
+    #[test]
+    fn control_the_program_name_follows_its_content() {
+        let name = |text: &str| {
+            let files = client_runtime_files(&OirModule::new("app", "1.0.0"), "en", Some(text));
+            let manifest: serde_json::Value = serde_json::from_str(&file(&files, "client.json")).unwrap();
+            manifest["program"].as_str().expect("a program path").to_string()
+        };
+        assert_eq!(name("{\"name\":\"a\"}"), name("{\"name\":\"a\"}"));
+        assert_ne!(name("{\"name\":\"a\"}"), name("{\"name\":\"b\"}"));
+    }
+
+    #[test]
+    fn edge_with_no_program_client_json_names_none() {
+        let files = client_runtime_files(&OirModule::new("app", "1.0.0"), "en", None);
+        let manifest: serde_json::Value = serde_json::from_str(&file(&files, "client.json")).unwrap();
+        assert!(manifest.get("program").is_none());
+        assert!(manifest["language"].as_str().is_some());
+    }
+
+    #[test]
     fn a_program_without_themes_names_the_preset_its_themes_css_defines() {
-        let files = client_runtime_files(&OirModule::new("app", "1.0.0"), "en");
+        let files = client_runtime_files(&OirModule::new("app", "1.0.0"), "en", None);
         let manifest: serde_json::Value = serde_json::from_str(&file(&files, "client.json")).unwrap();
         let theme = manifest["defaultTheme"].as_str().expect("a default theme");
         assert_eq!(manifest["themes"][0]["name"], theme);
@@ -197,7 +241,7 @@ mod client_theme_tests {
     fn control_a_declared_theme_is_the_one_listed_and_painted() {
         let mut module = OirModule::new("app", "1.0.0");
         module.themes = vec![orbital_core_base::theme::ThemePresets::installed().get("clay").cloned().expect("clay")];
-        let files = client_runtime_files(&module, "en");
+        let files = client_runtime_files(&module, "en", None);
         let manifest: serde_json::Value = serde_json::from_str(&file(&files, "client.json")).unwrap();
         assert_eq!(manifest["defaultTheme"], "clay");
         assert!(file(&files, "themes.css").contains("[data-theme=\"clay-light\"]"));
@@ -214,8 +258,17 @@ mod lazy_client_tests {
         serde_json::from_value(serde_json::json!({ "name": name, "orbitals": [{ "name": name, "entity": { "name": "E", "fields": [] }, "traits": [] }] })).expect("schema")
     }
 
+    fn program_paths(backend: &TypeScriptBackend) -> Vec<String> {
+        backend
+            .generate_kernel_client(&crate::backend::OirModule::new("app", "1.0.0"))
+            .into_iter()
+            .map(|f| f.path)
+            .filter(|p| p.ends_with(".orb"))
+            .collect()
+    }
+
     #[test]
-    fn each_lazy_program_is_written_at_its_orb_ref_beside_the_client_program() {
+    fn each_lazy_program_is_written_at_its_orb_ref_under_the_public_root() {
         let backend = TypeScriptBackend {
             browser_schema: Some(schema("App")),
             browser_lazy: vec![
@@ -224,19 +277,18 @@ mod lazy_client_tests {
             ],
             ..TypeScriptBackend::default()
         };
-        let files: Vec<String> = backend.generate_client_program_files().into_iter().map(|f| f.path).collect();
-        assert_eq!(files, [
-            "packages/client/public/program.client.orb",
-            "packages/client/public/lazy/Doc.orb",
-            "packages/client/public/lazy/lazy/Nested.orb",
-        ]);
+        let files = program_paths(&backend);
+        assert_eq!(files.len(), 3, "{files:?}");
+        assert!(files[0].starts_with("packages/client/public/assets/program."), "{files:?}");
+        assert_eq!(&files[1..], ["packages/client/public/lazy/Doc.orb", "packages/client/public/lazy/lazy/Nested.orb"]);
     }
 
     #[test]
     fn control_a_program_with_no_lazy_behaviors_writes_the_client_program_alone() {
         let backend = TypeScriptBackend { browser_schema: Some(schema("App")), ..TypeScriptBackend::default() };
-        let files: Vec<String> = backend.generate_client_program_files().into_iter().map(|f| f.path).collect();
-        assert_eq!(files, ["packages/client/public/program.client.orb"]);
+        let files = program_paths(&backend);
+        assert_eq!(files.len(), 1, "{files:?}");
+        assert!(files[0].starts_with("packages/client/public/assets/program."), "{files:?}");
     }
 }
 

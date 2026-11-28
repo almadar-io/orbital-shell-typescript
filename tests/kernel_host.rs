@@ -57,7 +57,7 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
         .files
         .into_iter()
         .map(|f| (f.path, f.content))
-        .filter(|(path, _)| path != "packages/client/public/language.json")
+        .filter(|(path, _)| !path.starts_with("packages/client/public/assets/language."))
         .collect();
     files.sort();
     files
@@ -77,8 +77,9 @@ fn digest(backend: &TypeScriptBackend) -> u64 {
 /// language, checked whole by `every_client_ships_the_language_its_browser_kernel_installs`, so the digest leaves it out.
 /// Re-recorded 2026-11-21 after the committed compile changes since 2026-10-31, among them `client.json` naming the
 /// default preset a program without themes paints (24afce0). Re-recorded 2026-11-25 when `program.client.orb` began writing
-/// each repeated part once (`$def`).
-const KERNEL_OUTPUT_DIGEST: u64 = 4_073_561_849_189_931_590;
+/// each repeated part once (`$def`). Re-recorded 2026-11-28 when the client program and the language moved to content-named
+/// files under `public/assets/`, named by `client.json` (`program`, `language`), so a host caches them as immutable.
+const KERNEL_OUTPUT_DIGEST: u64 = 2_670_588_852_165_042_436;
 
 #[test]
 fn control_the_default_output_is_the_recorded_kernel_output() {
@@ -132,7 +133,7 @@ fn the_server_is_the_templates_node_host_and_the_compile_ships_only_its_served_p
 fn the_client_hosts_the_kernel_through_the_ui_engine_provider() {
     let app = &template("packages/client/src/App.tsx");
     assert!(
-        app.contains("<KernelEngineProvider loader={loader}") && app.contains("loadKernel()"),
+        app.contains("<KernelEngineProvider loader={loader}") && app.contains("loadKernel(manifest.language)"),
         "{app}"
     );
     assert!(!app.contains("engine="), "the kernel is the only engine: {app}");
@@ -147,8 +148,14 @@ fn browser_stored_module() -> OirModule {
     module
 }
 
+fn named_file<'a>(files: &'a [(String, String)], key: &str) -> &'a str {
+    let manifest: serde_json::Value = serde_json::from_str(file(files, "packages/client/public/client.json")).expect("client.json");
+    let path = manifest[key].as_str().unwrap_or_else(|| panic!("client.json names no {key}: {manifest}"));
+    file(files, &format!("packages/client/public/{path}"))
+}
+
 fn shipped_language(files: &[(String, String)]) -> serde_json::Value {
-    serde_json::from_str(file(files, "packages/client/public/language.json")).expect("the bundle is JSON")
+    serde_json::from_str(named_file(files, "language")).expect("the bundle is JSON")
 }
 
 /// Every browser kernel evaluates through the installed operator table, so every client ships it: a program with no
@@ -172,12 +179,10 @@ fn every_client_ships_the_language_its_browser_kernel_installs() {
     ];
     for (case, files) in &programs {
         assert_eq!(shipped_language(files), installed, "{case}: the installed language, as the kernel's install takes it");
-        let manifest: serde_json::Value = serde_json::from_str(file(files, "packages/client/public/client.json")).expect("client.json");
-        assert!(manifest.get("language").is_none(), "{case}: the client never decides whether to load it: {manifest}");
     }
     let loader = &template("packages/client/src/kernel-host.ts");
     assert!(loader.contains("from '@almadar/shell-browser/kernel-loader'") && loader.contains("loadBrowserKernel({"), "{loader}");
-    assert!(loader.contains("language: `${import.meta.env.BASE_URL}language.json`"), "{loader}");
+    assert!(loader.contains("language: `${import.meta.env.BASE_URL}${language}`"), "{loader}");
     assert!(!loader.contains("loadLanguage") && !loader.contains("fetch("), "the template keeps no loader of its own: {loader}");
 }
 
@@ -197,7 +202,12 @@ fn two_programs_compile_to_the_same_client_source_and_differ_only_in_their_runti
             assert!(!(path.starts_with("packages/client/src/") && (path.ends_with(".ts") || path.ends_with(".tsx"))), "{path}: the client source is the template's, never per program");
         }
     }
-    let manifest: serde_json::Value = serde_json::from_str(file(&other, "packages/client/public/client.json")).unwrap();
+    let mut manifest: serde_json::Value = serde_json::from_str(file(&other, "packages/client/public/client.json")).unwrap();
+    named_file(&other, "program");
+    named_file(&other, "language");
+    let object = manifest.as_object_mut().expect("an object");
+    object.remove("program");
+    object.remove("language");
     assert_eq!(
         manifest,
         serde_json::json!({ "locale": "ar", "direction": "rtl", "themes": [{ "name": "clay", "displayName": "Clay", "hasLightMode": true, "hasDarkMode": true }], "defaultTheme": "clay", "defaultMode": "dark" })
@@ -383,8 +393,7 @@ fn the_production_client_build_ships_no_source_maps_and_splits_the_kernel_and_re
 fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_one() {
     let files = files_of(&kernel_backend());
     let full = serde_json::to_value(schema()).unwrap();
-    let client: serde_json::Value =
-        serde_json::from_str(file(&files, "packages/client/public/program.client.orb")).unwrap();
+    let client: serde_json::Value = serde_json::from_str(named_file(&files, "program")).unwrap();
     assert!(client.get("ledger").is_none(), "ledger");
     assert_client_metadata_only(&client);
     assert_eq!(
@@ -402,21 +411,20 @@ fn the_client_runs_a_projection_of_the_program_and_the_server_keeps_the_whole_on
     let app = &template("packages/client/src/App.tsx");
     assert!(app.contains("from './client-program'"), "{app}");
     assert!(
-        app.contains("const PROGRAM_URL = new URL(`${import.meta.env.BASE_URL}program.client.orb`"),
-        "the app names the client program only as the base its lazy pages sit beside: {app}"
+        app.contains("const CLIENT_ROOT = new URL(import.meta.env.BASE_URL, window.location.origin).href;"),
+        "the app names only the client root its lazy pages sit under: {app}"
     );
     assert!(!app.contains("program.orb"), "{app}");
     assert!(!app.contains("from '@app/shared'"), "{app}");
     let module = &template("packages/client/src/client-program.ts");
-    assert!(module.contains("fetch(`${import.meta.env.BASE_URL}program.client.orb`)"), "{module}");
+    assert!(module.contains("fetch(`${import.meta.env.BASE_URL}${path}`)"), "the program is fetched where client.json names it: {module}");
     assert!(!module.contains("import programJson"), "{module}");
 }
 
 #[test]
 fn the_client_asset_omits_what_the_client_never_reads_while_the_server_copy_keeps_it() {
     let files = files_of(&kernel_backend());
-    let asset: serde_json::Value =
-        serde_json::from_str(file(&files, "packages/client/public/program.client.orb")).unwrap();
+    let asset: serde_json::Value = serde_json::from_str(named_file(&files, "program")).unwrap();
     let server = serde_json::to_value(schema()).unwrap();
     assert!(asset.get("ledger").is_none());
     assert_client_metadata_only(&asset);
@@ -450,7 +458,7 @@ fn control_a_server_only_compile_ships_no_client_projection() {
     assert!(!server
         .files
         .iter()
-        .any(|f| f.path.contains("program.client.orb")));
+        .any(|f| f.path.contains("/assets/program.")));
 }
 
 const SERVED_PROGRAM: &str = "packages/server/generated/program.orb";

@@ -2,8 +2,8 @@
 /**
  * Builds the program-independent web client `orb serve` hands out: the `almadar-shell` template's client, built
  * once with ALMADAR_GENERIC_CLIENT=1 into `templates/almadar-web-client/` (shipped beside the shell binary by
- * `package-program.mjs`). Each program's files (`client.json`, `program.client.orb`, `themes.css`, `locales/`,
- * `language.json`) are served next to it at run time.
+ * `package-program.mjs`). Each program's files (`client.json`, `themes.css`, `locales/`, and the content-named
+ * program and language data under `assets/` that `client.json` names) are served next to it at run time.
  *
  *   node tooling/scripts/build-web-client.mjs                       released @almadar/* from the template's lockfile
  *   node tooling/scripts/build-web-client.mjs --workspace <root>    the monorepo's @almadar/* sources, linked

@@ -9,6 +9,8 @@ const manifest = {
   themes: [{ name: 'terminal', displayName: 'Terminal', hasLightMode: true, hasDarkMode: true }],
   defaultTheme: 'terminal',
   defaultMode: 'dark',
+  program: 'assets/program.0123456789abcdef.orb',
+  language: 'assets/language.fedcba9876543210.json',
 };
 
 describe('ClientManifest', () => {
@@ -26,5 +28,14 @@ describe('ClientManifest', () => {
     expect(() => parseClientManifest(noLocale)).toThrow();
     expect(ClientManifestSchema.safeParse({ ...manifest, extra: 1 }).success).toBe(false);
     expect(ClientManifestSchema.safeParse({ ...manifest, language: false }).success).toBe(false);
+  });
+
+  it('names where the client program and the language data are, and refuses a manifest that does not', () => {
+    const { program: _program, ...noProgram } = manifest;
+    const { language: _language, ...noLanguage } = manifest;
+    expect(() => parseClientManifest(noProgram)).toThrow();
+    expect(() => parseClientManifest(noLanguage)).toThrow();
+    expect(() => parseClientManifest({ ...manifest, program: '' })).toThrow();
+    expect(parseClientManifest(manifest)).toMatchObject({ program: manifest.program, language: manifest.language });
   });
 });

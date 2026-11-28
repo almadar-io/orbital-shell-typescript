@@ -41,11 +41,11 @@ function DevPersonaPicker({ apiBase }: { apiBase: string }): React.ReactElement 
   );
 }
 
-export function PersonaSwitcher(): React.ReactElement | null {
+export function PersonaSwitcher({ programPath }: { programPath: string }): React.ReactElement | null {
   const [apiBase, setApiBase] = useState<string | undefined>(undefined);
   useEffect(() => {
-    void Promise.all([authEmulatorHost(), loadProgram()]).then(([host, program]) => setApiBase(host !== undefined ? serverBase(program) : undefined));
-  }, []);
+    void Promise.all([authEmulatorHost(), loadProgram(programPath)]).then(([host, program]) => setApiBase(host !== undefined ? serverBase(program) : undefined));
+  }, [programPath]);
   return apiBase !== undefined ? <DevPersonaPicker apiBase={apiBase} /> : null;
 }
 

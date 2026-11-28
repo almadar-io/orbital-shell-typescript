@@ -32,16 +32,16 @@ const makeCanvas3D = (canvas: HTMLCanvasElement): Promise<Canvas3D> => Canvas3D.
 const makeSceneCanvas = (canvas: HTMLCanvasElement): Promise<SceneCanvas> => SceneCanvas.create(canvas);
 // `orb compile --mode client --no-server` writes VITE_SERVER=none: a static site whose program runs wholly in the browser.
 const SERVERLESS = import.meta.env.VITE_SERVER === 'none';
-// The lazy pages' programs sit beside program.client.orb, at each page's orbRef.
-const PROGRAM_URL = new URL(`${import.meta.env.BASE_URL}program.client.orb`, window.location.origin).href;
-const lazyLoader = new FetchSchemaLoader(PROGRAM_URL);
+// The lazy pages' programs sit under the client root, at each page's orbRef.
+const CLIENT_ROOT = new URL(import.meta.env.BASE_URL, window.location.origin).href;
+const lazyLoader = new FetchSchemaLoader(CLIENT_ROOT);
 
-function KernelApp(): React.ReactElement | null {
+function KernelApp({ programPath }: { programPath: string }): React.ReactElement | null {
   const [program, setProgram] = useState<OrbitalSchema | undefined>(undefined);
   const [failure, setFailure] = useState<Error | undefined>(undefined);
   useEffect(() => {
-    loadProgram().then(setProgram, setFailure);
-  }, []);
+    loadProgram(programPath).then(setProgram, setFailure);
+  }, [programPath]);
   const { auth, user, authority, signOut } = useAuthContext();
   const signInAsk = useMemo(() => (auth === null ? undefined : hostSignIn(auth)), [auth]);
   const location = useLocation();
@@ -65,7 +65,7 @@ function KernelApp(): React.ReactElement | null {
       schema={program}
       {...(SERVERLESS ? {} : { transport })}
       lazyLoader={lazyLoader}
-      schemaPath={PROGRAM_URL}
+      schemaPath={CLIENT_ROOT}
       height="100dvh"
       frame="page"
       initialPagePath={location.pathname}
@@ -83,7 +83,7 @@ export interface AppProps {
 }
 
 export function App({ manifest }: AppProps): React.ReactElement {
-  const loader = useCallback(() => loadKernel(), []);
+  const loader = useCallback(() => loadKernel(manifest.language), [manifest.language]);
   const themeProps =
     manifest.themes.length > 0
       ? { themes: manifest.themes, defaultTheme: manifest.defaultTheme ?? undefined, defaultMode: manifest.defaultMode }
@@ -96,10 +96,10 @@ export function App({ manifest }: AppProps): React.ReactElement {
             <LocaleRoot manifest={manifest}>
               <Routes>
                 <Route path="/login" element={<Login />} />
-                <Route path="*" element={<KernelApp />} />
+                <Route path="*" element={<KernelApp programPath={manifest.program} />} />
               </Routes>
               <Box className="fixed bottom-3 left-3 z-[1000]">
-                <PersonaSwitcher />
+                <PersonaSwitcher programPath={manifest.program} />
               </Box>
             </LocaleRoot>
           </BrowserRouter>

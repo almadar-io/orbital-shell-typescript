@@ -15,13 +15,13 @@ import { loadBrowserKernel, type IsolatingKernel } from '@almadar/shell-browser/
 
 let loaded: Promise<IsolatingKernel<typeof kernel, KernelInstance>> | undefined;
 
-export function loadKernel(): Promise<IsolatingKernel<typeof kernel, KernelInstance>> {
+export function loadKernel(language: string): Promise<IsolatingKernel<typeof kernel, KernelInstance>> {
   loaded ??= loadBrowserKernel({
     init,
     glue: kernel,
     createInstance: createKernelInstance,
     wasm: wasmUrl,
-    language: `${import.meta.env.BASE_URL}language.json`,
+    language: `${import.meta.env.BASE_URL}${language}`,
   }).catch((error: Error) => {
     loaded = undefined;
     throw error;
